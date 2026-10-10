@@ -52,6 +52,31 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         public WotCompiledForm Form { get; }
 
+        public async ValueTask<WotEventSource> CaptureAsync(CancellationToken cancellationToken)
+        {
+            IWotBindingChannel channel = await m_slot.GetAsync(cancellationToken).ConfigureAwait(false);
+            if (channel is not IWotCapturedEventChannel capturing)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Transparent activation requires a captured event channel.");
+            }
+            return await capturing.CaptureEventSourceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public void RequireConditionFields(ITypeTable types, NodeId eventTypeId)
+        {
+            NodeId coreType = types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.LimitAlarmType)
+                ? Ua.ObjectTypeIds.LimitAlarmType
+                : types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.AlarmConditionType)
+                    ? Ua.ObjectTypeIds.AlarmConditionType
+                    : types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.AcknowledgeableConditionType)
+                        ? Ua.ObjectTypeIds.AcknowledgeableConditionType : Ua.ObjectTypeIds.ConditionType;
+            if (m_captureEventType == Ua.ObjectTypeIds.BaseEventType || types.IsTypeOf(coreType, m_captureEventType))
+            {
+                m_captureEventType = coreType;
+            }
+        }
+
         public async ValueTask<IAsyncDisposable> AttachAsync(
             Action<WotNotification> listener, CancellationToken cancellationToken)
         {
@@ -63,7 +88,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             long id = 0;
             try
             {
-                await m_subscriptionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                using var admission = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, m_lifetime.Token);
+                await m_subscriptionGate.WaitAsync(admission.Token).ConfigureAwait(false);
                 acquired = true;
                 if (Volatile.Read(ref m_disposed))
                 {
@@ -76,17 +103,32 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (m_subscription is null)
                 {
-                    IWotBindingChannel channel = await m_slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                    m_subscription = await channel.SubscribeEventAsync(Dispatch, cancellationToken)
-                        .ConfigureAwait(false);
+                    IWotBindingChannel channel = await m_slot.GetAsync(admission.Token).ConfigureAwait(false);
+                    var acquisition = CancellationTokenSource.CreateLinkedTokenSource(m_lifetime.Token);
+                    m_acquisitionCancellation = acquisition;
+                    // The first listener owns admission, not the installed shared subscription.
+                    using (admission.Token.Register(acquisition.Cancel))
+                    {
+                        m_subscription = channel is IWotCapturedEventChannel capturing
+                            ? await capturing.SubscribeCapturedEventAsync(
+                                m_captureEventType, Dispatch, acquisition.Token).ConfigureAwait(false)
+                            : await channel.SubscribeEventAsync(Dispatch, acquisition.Token).ConfigureAwait(false);
+                    }
                 }
+                admission.Token.ThrowIfCancellationRequested();
                 return new ListenerLease(this, id);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
+                bool last;
                 lock (m_listenersGate)
                 {
                     m_listeners.Remove(id);
+                    last = m_listeners.Count == 0;
+                }
+                if (acquired && last)
+                {
+                    await StopSubscriptionAsync().ConfigureAwait(false);
                 }
                 throw;
             }
@@ -113,19 +155,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_listeners.Clear();
                 operations = m_operationCount == 0 ? Task.CompletedTask : m_operationsDrained!.Task;
             }
-            await operations.ConfigureAwait(false);
             try
             {
-                IWotSubscription? subscription = m_subscription;
-                m_subscription = null;
-                if (subscription is not null)
-                {
-                    await subscription.DisposeAsync().ConfigureAwait(false);
-                }
+                await m_lifetime.CancelAsync().ConfigureAwait(false);
             }
             finally
             {
-                m_subscriptionGate.Dispose();
+                try
+                {
+                    await operations.ConfigureAwait(false);
+                    await StopSubscriptionAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_subscriptionGate.Dispose();
+                    m_lifetime.Dispose();
+                }
             }
         }
 
@@ -139,8 +184,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Form.Payload.ContentType == form.Payload.ContentType &&
                 Form.Payload.CodecId == form.Payload.CodecId &&
                 SameMetadata(Form.Payload.Metadata, form.Payload.Metadata) &&
-                (Form.EventSelection ?? WotEventSelection.Default).Clauses.Span.SequenceEqual(
-                    (form.EventSelection ?? WotEventSelection.Default).Clauses.Span);
+                SamePayloadSchema(Form.Payload.Schema, form.Payload.Schema) &&
+                SameSelection(Form.EventSelection ?? WotEventSelection.Default,
+                    form.EventSelection ?? WotEventSelection.Default);
         }
 
         public static bool SameEndpoint(WotCompiledForm left, WotCompiledForm right)
@@ -164,6 +210,48 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return left.Count == right.Count &&
                 left.All(entry => right.TryGetValue(entry.Key, out string? value) && entry.Value == value);
+        }
+
+        private static bool SameSelection(WotEventSelection left, WotEventSelection right)
+        {
+            if (left.Clauses.Count != right.Clauses.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < left.Clauses.Count; index++)
+            {
+                Wot.WotResolvedEventSelectClause a = left.Clauses[index];
+                Wot.WotResolvedEventSelectClause b = right.Clauses[index];
+                if (!a.Equals(b) || a.ResolvedBrowsePath != b.ResolvedBrowsePath ||
+                    !SamePayloadSchema(a.PayloadSchema, b.PayloadSchema))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool SamePayloadSchema(Wot.WotPayloadSchema? left, Wot.WotPayloadSchema? right)
+        {
+            if (left is null || right is null)
+            {
+                return left is null && right is null;
+            }
+            if (!System.Text.Json.JsonElement.DeepEquals(left.Definition, right.Definition) ||
+                left.TypeBindings.Count != right.TypeBindings.Count)
+            {
+                return false;
+            }
+            foreach (Wot.WotPayloadTypeBinding binding in left.TypeBindings)
+            {
+                if (!right.TryGetTypeBinding(binding.JsonPointer, out Wot.WotPayloadTypeBinding? other) ||
+                    other.DataTypeId != binding.DataTypeId || other.TypeInfo != binding.TypeInfo ||
+                    other.ResolvedBrowseName != binding.ResolvedBrowseName)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void Dispatch(WotNotification notification)
@@ -194,16 +282,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     m_listeners.Remove(id);
                     last = m_listeners.Count == 0;
                 }
-                if (last && m_subscription is { } subscription)
+                if (last)
                 {
-                    m_subscription = null;
-                    await subscription.DisposeAsync().ConfigureAwait(false);
+                    await StopSubscriptionAsync().ConfigureAwait(false);
                 }
             }
             finally
             {
                 m_subscriptionGate.Release();
                 EndOperation();
+            }
+        }
+
+        private async ValueTask StopSubscriptionAsync()
+        {
+            IWotSubscription? subscription = m_subscription;
+            CancellationTokenSource? cancellation = m_acquisitionCancellation;
+            m_subscription = null;
+            m_acquisitionCancellation = null;
+            try
+            {
+                if (cancellation is not null)
+                {
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (subscription is not null)
+                    {
+                        await subscription.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    cancellation?.Dispose();
+                }
             }
         }
 
@@ -246,13 +362,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly WotBindingChannelSlot m_slot;
+        private readonly CancellationTokenSource m_lifetime = new();
         private readonly SemaphoreSlim m_subscriptionGate = new(1, 1);
         private readonly Lock m_listenersGate = new();
         private readonly Dictionary<long, Action<WotNotification>> m_listeners = [];
         private IWotSubscription? m_subscription;
+        private CancellationTokenSource? m_acquisitionCancellation;
         private long m_nextListener;
         private int m_operationCount;
         private TaskCompletionSource<bool>? m_operationsDrained;
+        private NodeId m_captureEventType = Ua.ObjectTypeIds.BaseEventType;
         private bool m_disposed;
     }
 }

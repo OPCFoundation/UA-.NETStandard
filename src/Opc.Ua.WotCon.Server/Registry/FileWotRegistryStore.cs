@@ -41,6 +41,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
@@ -73,8 +74,8 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// cannot lose referenced content.
     /// </para>
     /// </remarks>
-    public sealed class FileWotRegistryStore
-        : IWotRegistryStore, IWotRegistryResourceStoreProvider, IDisposable
+    public sealed partial class FileWotRegistryStore
+        : IWotRegistryPreparedStore, IWotRegistryResourceStoreProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new file-backed store rooted at <paramref name="rootFolder"/>.
@@ -143,7 +144,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     staging?.Dispose();
                 }
-                m_resourceStore = m_stagedStore;
+                ResourceStore = m_stagedStore;
             }
             else
             {
@@ -151,14 +152,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 // and does not use this root's blob directory, so there is
                 // nothing to stage or promote.
                 m_stagedStore = null;
-                m_resourceStore = resourceStore;
+                ResourceStore = resourceStore;
             }
             m_directorySyncFailureInjector = directorySyncFailureInjector;
             m_manifestReplace = manifestReplace;
         }
 
         /// <inheritdoc/>
-        public IXRegistryResourceStore ResourceStore => m_resourceStore;
+        public IXRegistryResourceStore ResourceStore { get; }
 
         /// <summary>
         /// Releases the resource-store areas this store created. An injected
@@ -166,13 +167,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public void Dispose()
         {
-            m_stagedStore?.Dispose();
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                InvalidatePreparedInput();
+                m_stagedStore?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
         public async ValueTask<WotRegistrySnapshot> LoadAsync(
             CancellationToken cancellationToken = default)
         {
+            InvalidatePreparedInput();
             m_expectedManifest = null;
             m_expectedGeneration = null;
             using StorageLock storageLock = await AcquireStorageLockAsync(cancellationToken)
@@ -200,7 +206,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             try
             {
-                return Directory.GetFileSystemEntries(m_root)
+                return [.. Directory.GetFileSystemEntries(m_root)
                     .Where(path =>
                     {
                         string name = Path.GetFileName(path);
@@ -208,8 +214,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             string.Equals(name, ManifestFile, StringComparison.Ordinal) ||
                             name.StartsWith(ManifestFile + ".", StringComparison.Ordinal);
                     })
-                    .OrderBy(path => path, StringComparer.Ordinal)
-                    .ToArray();
+                    .OrderBy(path => path, StringComparer.Ordinal)];
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -237,12 +242,20 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <inheritdoc/>
-        public async ValueTask CommitAsync(
+        public ValueTask CommitAsync(
             WotRegistrySnapshot snapshot,
             CancellationToken cancellationToken = default)
         {
+            return CommitCoreAsync(snapshot, cancellationToken);
+        }
+
+        private async ValueTask CommitCoreAsync(
+            WotRegistrySnapshot snapshot,
+            CancellationToken cancellationToken,
+            PreparedFileCommit? prepared = null)
+        {
             snapshot ??= WotRegistrySnapshot.Empty;
-            ValidatedCommit intended = await ValidateIntendedSnapshotAsync(
+            ValidatedCommit intended = prepared?.Validated ?? await ValidateIntendedSnapshotAsync(
                     snapshot,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -258,8 +271,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             PristineCommitArtifacts? pristineArtifacts = null;
             List<string> promoted = [];
-            LoadedGeneration? current = await ReadGenerationAsync(cancellationToken)
-                .ConfigureAwait(false);
+            LoadedGeneration? current = prepared is null
+                ? await ReadGenerationAsync(cancellationToken).ConfigureAwait(false)
+                : await ReadCapturedGenerationAsync(prepared.Expected, cancellationToken, snapshot)
+                    .ConfigureAwait(false);
             if (current is null && !expected.Exists)
             {
                 string[] recoveryArtifacts = FindRecoveryArtifacts();
@@ -282,7 +297,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (!expected.Equals(actual))
             {
                 throw new InvalidOperationException(
-                    $"The on-disk WoT registry changed after this store loaded it. " +
+                    "The on-disk WoT registry changed after this store loaded it. " +
                     $"Expected {expected}; found {actual}. Reload before retrying.");
             }
             if (snapshot.Generation <= expectedGeneration)
@@ -291,90 +306,107 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"WoT registry snapshot generation {snapshot.Generation} must be " +
                     $"strictly greater than the loaded generation {expectedGeneration}.");
             }
+            bool projectionMetadata = prepared?.Scope == WotRegistryCommitScope.ProjectionMetadata;
+            CapturedGeneration? committedGeneration = null;
             try
             {
-                pristineArtifacts?.ClaimBlobsDirectory();
-                Directory.CreateDirectory(m_blobsFolder);
-
-                // 1. Stage every referenced version blob durably before the manifest
-                // that points at it is switched in. Blobs are content-addressed, so an
-                // unchanged document is written at most once and shared across
-                // versions/resources.
-                foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+                try
                 {
-                    // An injected store owns the durability of the bytes it holds, so the
-                    // directory fsync below does not apply to it. Content addressing makes
-                    // matching blobs immutable, so never rewrite one that already verifies.
-                    if (!await ResourceStoreBlobMatchesAsync(
-                            m_resourceStore, blob.Key, blob.Value, cancellationToken)
-                        .ConfigureAwait(false))
+                    if (!projectionMetadata)
                     {
-                        await m_resourceStore
-                            .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
-                            .ConfigureAwait(false);
+                        pristineArtifacts?.ClaimBlobsDirectory();
+                        Directory.CreateDirectory(m_blobsFolder);
+                        foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+                        {
+                            if (!await ResourceStoreBlobMatchesAsync(
+                                    ResourceStore, blob.Key, blob.Value, cancellationToken)
+                                .ConfigureAwait(false))
+                            {
+                                await ResourceStore.WriteAsync(
+                                    blob.Key, 0, ByteString.From(blob.Value), cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                        promoted = await PromoteStagedBlobsAsync(
+                            snapshot, pristineArtifacts, cancellationToken).ConfigureAwait(false);
+                        SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
+                    }
+                    SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
+                    if (prepared is not null)
+                    {
+                        committedGeneration = await CaptureGenerationAsync(
+                            snapshot, intended.Stamp, intended.ManifestBytes,
+                            prepared.Expected, cancellationToken).ConfigureAwait(false);
                     }
                 }
+                catch (Exception failure) when (IsConfirmedPreSwitchFailure(failure))
+                {
+                    committedGeneration?.Dispose();
+                    committedGeneration = null;
+                    await RollbackPristinePreSwitchFailureAsync(snapshot, pristineArtifacts, failure)
+                        .ConfigureAwait(false);
+                    throw;
+                }
 
-                // 1b. Promote the staged bytes this snapshot references into the
-                // blob directory as artifacts this commit owns. The writer made
-                // them durable in staging before asking for the commit, which is
-                // what lets the manifest switch below name them safely.
-                promoted = await PromoteStagedBlobsAsync(
-                        snapshot, pristineArtifacts, cancellationToken)
-                    .ConfigureAwait(false);
-                SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
-                SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
+                Dictionary<string, ContentEvidence>? evidence = null;
+                if (prepared is not null && committedGeneration is not null)
+                {
+                    evidence = new Dictionary<string, ContentEvidence>(StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, ContentEvidence> entry in prepared.Expected.Contents)
+                    {
+                        evidence.Add(entry.Key, entry.Value);
+                    }
+                    foreach (KeyValuePair<string, ContentEvidence> entry in committedGeneration.Contents)
+                    {
+                        evidence[entry.Key] = entry.Value;
+                    }
+                }
+                string? replaceBackupPath = await AtomicReplaceManifestAsync(
+                    snapshot, intended.ManifestBytes, intended.Stamp, expected,
+                    expectedGeneration, pristineArtifacts, cancellationToken, evidence,
+                    () =>
+                    {
+                        committedGeneration?.Dispose();
+                        committedGeneration = null;
+                    }).ConfigureAwait(false);
+                try
+                {
+                    SyncDirectory(m_root, DirectorySyncPhase.RootAfterManifest);
+                }
+                catch (IOException durabilityFailure)
+                {
+                    await ResolvePostSwitchFailureAsync(
+                            snapshot, intended.ManifestBytes, intended.Stamp, durabilityFailure, evidence)
+                            .ConfigureAwait(false);
+                }
+                m_expectedManifest = intended.Stamp;
+                m_expectedGeneration = snapshot.Generation;
+                RetainCommittedGeneration(prepared, committedGeneration);
+                committedGeneration = null;
+                if (replaceBackupPath is not null)
+                {
+                    TryDelete(replaceBackupPath);
+                }
+                if (!projectionMetadata)
+                {
+                    await SweepPromotedStagingAsync(promoted, CancellationToken.None).ConfigureAwait(false);
+                }
             }
-            catch (Exception failure)
-                when (IsConfirmedPreSwitchFailure(failure))
+            catch (WotRegistryCommitDurabilityUncertainException)
             {
-                await RollbackPristinePreSwitchFailureAsync(
-                        snapshot,
-                        pristineArtifacts,
-                        failure)
-                    .ConfigureAwait(false);
+                RetainCommittedGeneration(prepared, committedGeneration);
+                committedGeneration = null;
                 throw;
             }
-
-            // 2. Durably switch the prevalidated manifest only after blob directory
-            // entries are on stable storage.
-            string? replaceBackupPath = await AtomicReplaceManifestAsync(
-                    snapshot,
-                    intended.ManifestBytes,
-                    intended.Stamp,
-                    expected,
-                    expectedGeneration,
-                    pristineArtifacts,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            try
+            finally
             {
-                SyncDirectory(m_root, DirectorySyncPhase.RootAfterManifest);
+                committedGeneration?.Dispose();
             }
-            catch (IOException durabilityFailure)
-            {
-                await ResolvePostSwitchFailureAsync(
-                        snapshot,
-                        intended.ManifestBytes,
-                        intended.Stamp,
-                        durabilityFailure)
-                    .ConfigureAwait(false);
-            }
-
-            m_expectedManifest = intended.Stamp;
-            m_expectedGeneration = snapshot.Generation;
-            if (replaceBackupPath is not null)
-            {
-                TryDelete(replaceBackupPath);
-            }
-            await SweepPromotedStagingAsync(promoted, cancellationToken)
-                .ConfigureAwait(false);
         }
 
         private async ValueTask<ValidatedCommit> ValidateIntendedSnapshotAsync(
             WotRegistrySnapshot snapshot,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             if (snapshot.Generation < 0)
             {
@@ -415,19 +447,19 @@ namespace Opc.Ua.WotCon.Server.Registry
                         StringComparison.Ordinal))
                     {
                         throw new InvalidDataException(
-                            $"WoT registry snapshot resource " +
+                            "WoT registry snapshot resource " +
                             $"'{resource.GroupId}/{resource.ResourceId}' does not belong " +
                             $"to group '{group.GroupId}'.");
                     }
 
-                    foreach (WotResourceVersion version in resource.Versions)
+                    foreach (WotResourceVersion version in resource.RetainedVersions)
                     {
                         if (!version.HasContent)
                         {
                             if (version.ContentLength != 0)
                             {
                                 throw new InvalidDataException(
-                                    $"Registry snapshot placeholder version " +
+                                    "Registry snapshot placeholder version " +
                                     $"'{version.VersionId}' has a non-zero content length.");
                             }
                             continue;
@@ -473,7 +505,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (roundTripped.SchemaVersion != CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
-                    $"WoT registry snapshot manifest uses schema " +
+                    "WoT registry snapshot manifest uses schema " +
                     $"{roundTripped.SchemaVersion}; expected {CurrentSchemaVersion}.");
             }
 
@@ -497,9 +529,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             // snapshot that should have been rejected first.
             foreach (string digestHex in deferredVerifications)
             {
-                long storedLength = await VerifyBlobFromResourceStoreAsync(
-                        digestHex, "intended snapshot manifest", cancellationToken)
-                    .ConfigureAwait(false);
+                long storedLength = evidence is not null &&
+                    evidence.TryGetValue(digestHex, out ContentEvidence? retained)
+                    ? retained.ContentLength
+                    : await VerifyBlobFromResourceStoreAsync(
+                        digestHex, "intended snapshot manifest", cancellationToken).ConfigureAwait(false);
                 if (contentLengths.TryGetValue(digestHex, out long recordedLength) &&
                     storedLength != recordedLength)
                 {
@@ -522,7 +556,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot intendedSnapshot,
             byte[] intendedManifestBytes,
             ManifestStamp intendedStamp,
-            IOException durabilityFailure)
+            IOException durabilityFailure,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             m_expectedManifest = null;
             m_expectedGeneration = null;
@@ -530,7 +565,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             LoadedGeneration actual;
             try
             {
-                actual = await ReadGenerationAsync(CancellationToken.None)
+                actual = await ReadGenerationAsync(CancellationToken.None, evidence)
                     .ConfigureAwait(false) ??
                     throw new InvalidDataException(
                         "The primary manifest is missing after its atomic switch.");
@@ -567,18 +602,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private ValueTask<LoadedGeneration?> ReadGenerationAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             return ReadGenerationAsync(
                 Path.Combine(m_root, ManifestFile),
                 "primary manifest",
-                cancellationToken);
+                cancellationToken,
+                evidence);
         }
 
         private async ValueTask<LoadedGeneration?> ReadGenerationAsync(
             string manifestPath,
             string manifestRole,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             byte[] manifestBytes;
             try
@@ -619,8 +657,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "The registry was left unchanged.",
                     ex);
             }
-            if (manifest.SchemaVersion < OldestSupportedSchemaVersion ||
-                manifest.SchemaVersion > CurrentSchemaVersion)
+            if (manifest.SchemaVersion is < OldestSupportedSchemaVersion or
+                > CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
                     $"WoT registry {manifestRole} '{manifestPath}' uses schema " +
@@ -630,13 +668,35 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             manifest = MigrateManifest(manifest);
 
+            List<string>? deferred = evidence is null ? null : [];
             WotRegistrySnapshot loaded = await LoadSnapshotAsync(
                     manifest,
                     manifestRole,
                     suppliedBlobs: null,
-                    deferredVerifications: null,
+                    deferredVerifications: deferred,
                     cancellationToken)
                 .ConfigureAwait(false);
+            if (deferred is not null)
+            {
+                foreach (WotResource resource in loaded.AllResources())
+                {
+                    foreach (WotResourceVersion version in resource.RetainedVersions)
+                    {
+                        if (!version.HasContent)
+                        {
+                            continue;
+                        }
+                        long length = evidence!.TryGetValue(version.DigestHex, out ContentEvidence? retained)
+                            ? retained.ContentLength
+                            : await VerifyBlobFromResourceStoreAsync(
+                                version.DigestHex, manifestRole, cancellationToken).ConfigureAwait(false);
+                        if (length != version.ContentLength)
+                        {
+                            throw new InvalidDataException("Manifest content length differs from immutable evidence.");
+                        }
+                    }
+                }
+            }
             return new LoadedGeneration(
                 loaded,
                 new ManifestStamp(
@@ -648,11 +708,25 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static ManifestDto MigrateManifest(ManifestDto manifest)
         {
-            if (manifest.SchemaVersion == CurrentSchemaVersion)
+            if (manifest.SchemaVersion >= 5)
             {
+                manifest.SchemaVersion = CurrentSchemaVersion;
                 return manifest;
             }
 
+            foreach (GroupDto group in manifest.Groups ?? [])
+            {
+                group.AuthorityEstablished = group.CatalogUri is not null;
+                foreach (ResourceDto resource in group.Resources ?? [])
+                {
+                    resource.AuthorityEstablished = WotRegistryIdentity.IsAbsoluteUri(resource.ThingId);
+                }
+            }
+            if (manifest.SchemaVersion == 4)
+            {
+                manifest.SchemaVersion = CurrentSchemaVersion;
+                return manifest;
+            }
             foreach (GroupDto group in manifest.Groups ?? [])
             {
                 foreach (ResourceDto resource in group.Resources ?? [])
@@ -712,6 +786,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// disk wants.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="InvalidDataException">
+        /// The manifest contains invalid document kinds, identities or ownership.
+        /// </exception>
         private async ValueTask<WotRegistrySnapshot> LoadSnapshotAsync(
             ManifestDto manifest,
             string manifestRole,
@@ -723,9 +800,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ToLabels(manifest.RegistryLabels);
             long generation = manifest.Generation;
             var loadedBlobs = new Dictionary<string, long>(StringComparer.Ordinal);
+            var dependencyGraphs = new DependencyGraphReader(manifest.DependencyGraphs);
             ImmutableDictionary<string, WotResourceGroup>.Builder groups =
                 ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
-            var identities = new HashSet<string>(StringComparer.Ordinal)
+            var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 RegistryXid,
                 RegistryNodeIdPath
@@ -735,6 +813,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                 foreach (GroupDto groupDto in manifest.Groups)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (groupDto.AuthorityEstablished is null ||
+                        groupDto.AuthorityEstablished.Value != (groupDto.CatalogUri is not null) ||
+                        (groupDto.AuthorityEstablished.Value &&
+                            (!WotRegistryIdentity.IsAbsoluteUri(groupDto.CatalogUri) ||
+                                !string.Equals(groupDto.Name, groupDto.CatalogUri, StringComparison.Ordinal))))
+                    {
+                        throw new InvalidDataException("The catalogue authority mapping is missing or contradictory.");
+                    }
+                    if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)groupDto.Kind))
+                    {
+                        throw new InvalidDataException("WoT registry manifest group has an invalid document kind.");
+                    }
                     if (string.IsNullOrEmpty(groupDto.GroupId))
                     {
                         throw new InvalidDataException(
@@ -748,7 +838,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         !identities.Add(groupNodeIdPath))
                     {
                         throw new InvalidDataException(
-                            $"WoT registry manifest contains duplicate group id or " +
+                            "WoT registry manifest contains duplicate group id or " +
                             $"identity '{groupDto.GroupId}'.");
                     }
                     ImmutableDictionary<string, WotResource>.Builder resources =
@@ -758,15 +848,21 @@ namespace Opc.Ua.WotCon.Server.Registry
                         foreach (ResourceDto resourceDto in groupDto.Resources)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
+                            if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)resourceDto.Kind) ||
+                                resourceDto.Kind != groupDto.Kind)
+                            {
+                                throw new InvalidDataException(
+                                    "WoT registry manifest resource has an invalid document kind.");
+                            }
                             if (!string.Equals(
                                 resourceDto.GroupId,
                                 groupDto.GroupId,
                                 StringComparison.Ordinal))
                             {
                                 throw new InvalidDataException(
-                                    $"WoT registry manifest resource " +
+                                    "WoT registry manifest resource " +
                                     $"'{resourceDto.GroupId}/{resourceDto.ResourceId}' " +
-                                    $"does not belong to containing group " +
+                                    "does not belong to containing group " +
                                     $"'{groupDto.GroupId}'.");
                             }
                             if (string.IsNullOrEmpty(resourceDto.ResourceId))
@@ -786,7 +882,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                                 !identities.Add(resourceNodeIdPath))
                             {
                                 throw new InvalidDataException(
-                                    $"WoT registry manifest contains duplicate resource id " +
+                                    "WoT registry manifest contains duplicate resource id " +
                                     $"or identity '{resourceXid}'.");
                             }
                             WotResource resource = await LoadResourceAsync(
@@ -795,6 +891,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                                     manifestRole,
                                     suppliedBlobs,
                                     deferredVerifications,
+                                    dependencyGraphs,
                                     cancellationToken)
                                 .ConfigureAwait(false);
                             resources[resource.ResourceId] = resource;
@@ -809,14 +906,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                         groupDto.Name,
                         groupDto.Description,
                         groupDto.Epoch,
-                        ToLabels(groupDto.Labels));
+                        ToLabels(groupDto.Labels),
+                        groupDto.CatalogUri);
                     groups[group.GroupId] = group;
                     generation = Math.Max(generation, groupDto.Epoch);
                 }
             }
 
-            return new WotRegistrySnapshot(
-                generation, groups.ToImmutable(), registryLabels);
+            ByteString graphState = default;
+            if (manifest.CanonicalViewGraphState is not null)
+            {
+                try
+                {
+                    graphState = ByteString.From(Convert.FromBase64String(manifest.CanonicalViewGraphState));
+                }
+                catch (FormatException failure)
+                {
+                    throw new InvalidDataException(
+                        $"The {manifestRole} contains an invalid canonical View graph carrier.", failure);
+                }
+            }
+            var snapshot = new WotRegistrySnapshot(
+                generation, groups.ToImmutable(), registryLabels, graphState, manifest.RefreshGeneration);
+            WotRegistryIdentity.ValidateSnapshot(snapshot);
+            return snapshot;
         }
 
         private async ValueTask<WotResource> LoadResourceAsync(
@@ -825,8 +938,24 @@ namespace Opc.Ua.WotCon.Server.Registry
             string manifestRole,
             IReadOnlyDictionary<string, byte[]>? suppliedBlobs,
             List<string>? deferredVerifications,
+            DependencyGraphReader dependencyGraphs,
             CancellationToken cancellationToken)
         {
+            if (dto.AuthorityEstablished is null ||
+                dto.AuthorityEstablished.Value != WotRegistryIdentity.IsAbsoluteUri(dto.ThingId))
+            {
+                throw new InvalidDataException("The resource source-authority mapping is missing or invalid.");
+            }
+            foreach (VersionDto version in dto.Versions ?? [])
+            {
+                ValidateVersionId(version.VersionId);
+            }
+            if (dto.Versions is { Length: > 0 } &&
+                !dto.Versions.Any(version => string.Equals(
+                    version.VersionId, dto.DefaultVersionId, StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException("The resource is missing its exact default Version.");
+            }
             ImmutableArray<WotResourceVersion>.Builder versions =
                 ImmutableArray.CreateBuilder<WotResourceVersion>();
             var versionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -835,16 +964,25 @@ namespace Opc.Ua.WotCon.Server.Registry
                 version.Title is not null ||
                 version.BaseUri is not null ||
                 version.ModelVersion is not null) == true;
-            if (dto.Versions is not null)
+            WotResourceVersion? committedVersion = null;
+            if (dto.Versions is not null || dto.CommittedVersion is not null)
             {
-                foreach (VersionDto version in dto.Versions)
+                foreach (VersionDto version in EnumerateVersionDtos(dto))
                 {
+                    bool committed = ReferenceEquals(version, dto.CommittedVersion);
+                    if (version.DocumentId is not null &&
+                        dto.ThingId is not null &&
+                        !string.Equals(version.DocumentId, dto.ThingId, StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            "A Version and its Resource contain incompatible document identities.");
+                    }
                     if (string.IsNullOrEmpty(version.VersionId) ||
-                        !versionIds.Add(version.VersionId))
+                        (!committed && !versionIds.Add(version.VersionId)))
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' " +
-                            $"contains a duplicate or empty version id " +
+                            "contains a duplicate or empty version id " +
                             $"'{version.VersionId}'.");
                     }
                     ValidateVersionId(version.VersionId);
@@ -913,7 +1051,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         }
                         loadedBlobs.Add(digestHex, contentLength);
                     }
-                    versions.Add(new WotResourceVersion(
+                    var restoredVersion = new WotResourceVersion(
                         version.VersionId,
                         hasContent ? FromHexDigest(digestHex) : ByteString.Empty,
                         contentLength,
@@ -922,19 +1060,37 @@ namespace Opc.Ua.WotCon.Server.Registry
                         ParseDate(version.CreatedAt),
                         ParseDate(version.ModifiedAt))
                     {
-                        Epoch = version.Epoch.GetValueOrDefault(1),
+                        Epoch = version.Epoch ?? 1,
                         Labels = ToLabels(version.Labels),
                         HasContent = hasContent,
                         Validation = FromDto(version.Validation),
-                        DocumentId = hasPerVersionDocumentMetadata
+                        DocumentId = committed || hasPerVersionDocumentMetadata
                             ? version.DocumentId
                             : dto.ThingId,
-                        Title = hasPerVersionDocumentMetadata
+                        Title = committed || hasPerVersionDocumentMetadata
                             ? version.Title
                             : dto.Title,
                         BaseUri = version.BaseUri,
-                        ModelVersion = version.ModelVersion
-                    });
+                        ModelVersion = version.ModelVersion,
+                        Dependencies = FromDto(version.Dependencies, digestHex),
+                        DependencySnapshot = FromDto(
+                            version.DependencySnapshot, version.VersionId, committed: true, dependencyGraphs),
+                        LastDependencyAttempt = FromDto(
+                            version.LastDependencyAttempt, version.VersionId, committed: false, dependencyGraphs)
+                    };
+                    if (committed)
+                    {
+                        if (version.VersionId != dto.ActiveVersionId || !restoredVersion.HasContent ||
+                            !versionIds.Contains(version.VersionId))
+                        {
+                            throw new InvalidDataException("The committed input has no matching active Version.");
+                        }
+                        committedVersion = restoredVersion;
+                    }
+                    else
+                    {
+                        versions.Add(restoredVersion);
+                    }
                 }
             }
 
@@ -977,7 +1133,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     version.VersionId,
                     dto.DefaultVersionId ?? dto.DesiredVersionId,
                     StringComparison.Ordinal));
-            return new WotResource(
+            WotResource resource = new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
                 (WoTDocumentKindEnum)dto.Kind,
@@ -998,7 +1154,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 rootNodeId: ParseNodeId(dto.RootNodeId),
                 name: dto.Name,
                 description: dto.Description,
-                thingId: selectedVersion?.DocumentId ?? dto.ThingId,
+                thingId: dto.ThingId,
                 title: selectedVersion?.Title ?? dto.Title,
                 labels: ToLabels(dto.Labels))
             {
@@ -1008,23 +1164,66 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MetaModifiedAt = string.IsNullOrEmpty(dto.MetaModifiedAt)
                     ? derivedMetaModifiedAt
                     : ParseDate(dto.MetaModifiedAt)
-            };
+            }.WithCommittedVersion(committedVersion);
+            if (dto.CommittedInputs is not null)
+            {
+                var inputs = new List<WotResource>(dto.CommittedInputs.Length);
+                foreach (ResourceDto input in dto.CommittedInputs)
+                {
+                    if (input is null || input.CommittedInputs is not null || input.CommittedVersion is not null ||
+                        input.ActiveVersionId is not null || input.Enabled || input.Versions?.Length != 1)
+                    {
+                        throw new InvalidDataException(
+                            "A retained resolution input is not a flat exact-Version record.");
+                    }
+                    ValidateSegment(input.GroupId, "retained input group id");
+                    ValidateSegment(input.ResourceId, "retained input resource id");
+                    inputs.Add(await LoadResourceAsync(
+                        input, loadedBlobs, manifestRole, suppliedBlobs, deferredVerifications,
+                        dependencyGraphs, cancellationToken)
+                        .ConfigureAwait(false));
+                }
+                try
+                {
+                    resource = resource.WithCommittedInputs(inputs.ToArrayOf());
+                }
+                catch (ArgumentException failure)
+                {
+                    throw new InvalidDataException("The committed resolution input image is invalid.", failure);
+                }
+            }
+            return resource;
+        }
+
+        private static IEnumerable<VersionDto> EnumerateVersionDtos(ResourceDto resource)
+        {
+            foreach (VersionDto version in resource.Versions ?? [])
+            {
+                yield return version;
+            }
+            if (resource.CommittedVersion is not null)
+            {
+                yield return resource.CommittedVersion;
+            }
         }
 
         private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
         {
+            var dependencyGraphs = new DependencyGraphWriter();
             var groups = new List<GroupDto>(snapshot.Groups.Count);
             foreach (WotResourceGroup group in snapshot.Groups.Values)
             {
                 var resources = new List<ResourceDto>(group.Resources.Count);
                 foreach (WotResource resource in group.Resources.Values)
                 {
-                    resources.Add(ToDto(resource));
+                    resources.Add(ToDto(resource, dependencyGraphs));
                 }
                 groups.Add(new GroupDto
                 {
                     GroupId = group.GroupId,
                     Kind = (int)group.Kind,
+                    CatalogUri = group.CatalogUri,
+                    AuthorityEstablished = group.CatalogUri is not null,
                     Name = group.Name,
                     Description = group.Description,
                     Epoch = group.Epoch,
@@ -1036,35 +1235,22 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 SchemaVersion = CurrentSchemaVersion,
                 Generation = snapshot.Generation,
+                RefreshGeneration = snapshot.RefreshGeneration,
+                CanonicalViewGraphState = snapshot.CanonicalViewGraphState.IsNull
+                    ? null
+                    : Convert.ToBase64String(snapshot.CanonicalViewGraphState.Span.ToArray()),
                 RegistryLabels = FromLabels(snapshot.Labels),
-                Groups = groups.Count == 0 ? null : [.. groups]
+                Groups = groups.Count == 0 ? null : [.. groups],
+                DependencyGraphs = dependencyGraphs.ToArray()
             };
         }
 
-        private static ResourceDto ToDto(WotResource resource)
+        private static ResourceDto ToDto(WotResource resource, DependencyGraphWriter dependencyGraphs)
         {
             var versions = new VersionDto[resource.Versions.Length];
             for (int i = 0; i < resource.Versions.Length; i++)
             {
-                WotResourceVersion v = resource.Versions[i];
-                versions[i] = new VersionDto
-                {
-                    VersionId = v.VersionId,
-                    ContentType = v.ContentType,
-                    Format = v.Format,
-                    CreatedAt = FormatDate(v.CreatedAt),
-                    ModifiedAt = FormatDate(v.ModifiedAt),
-                    DigestHex = v.DigestHex,
-                    ContentLength = v.ContentLength,
-                    Epoch = v.Epoch,
-                    Labels = FromLabels(v.Labels),
-                    HasContent = v.HasContent,
-                    Validation = ToDto(v.Validation),
-                    DocumentId = v.DocumentId,
-                    Title = v.Title,
-                    BaseUri = v.BaseUri,
-                    ModelVersion = v.ModelVersion
-                };
+                versions[i] = ToDto(resource.Versions[i], dependencyGraphs);
             }
             return new ResourceDto
             {
@@ -1076,6 +1262,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DefaultVersionId = resource.DefaultVersionId,
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
+                CommittedVersion = resource.CommittedVersion is null
+                    ? null : ToDto(resource.CommittedVersion, dependencyGraphs),
+                CommittedInputs = resource.CommittedInputs.IsNull
+                    ? null : resource.CommittedInputs.ConvertAll(input => ToDto(input, dependencyGraphs)).ToArray(),
                 Enabled = resource.Enabled,
                 LoadState = (int)resource.LoadState,
                 Epoch = resource.Epoch,
@@ -1084,6 +1274,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MaterializedNodeCount = resource.MaterializedNodeCount,
                 RootNodeId = resource.RootNodeId.IsNull ? null : resource.RootNodeId.ToString(),
                 ThingId = resource.ThingId,
+                AuthorityEstablished = WotRegistryIdentity.IsAbsoluteUri(resource.SourceId),
                 Title = resource.Title,
                 Diagnostics = resource.Diagnostics.IsDefaultOrEmpty
                     ? null
@@ -1092,6 +1283,31 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Labels = FromLabels(resource.MetaLabels),
                 MetaCreatedAt = FormatDate(resource.MetaCreatedAt),
                 MetaModifiedAt = FormatDate(resource.MetaModifiedAt)
+            };
+        }
+
+        private static VersionDto ToDto(WotResourceVersion version, DependencyGraphWriter dependencyGraphs)
+        {
+            return new VersionDto
+            {
+                VersionId = version.VersionId,
+                ContentType = version.ContentType,
+                Format = version.Format,
+                CreatedAt = FormatDate(version.CreatedAt),
+                ModifiedAt = FormatDate(version.ModifiedAt),
+                DigestHex = version.DigestHex,
+                ContentLength = version.ContentLength,
+                Epoch = version.Epoch,
+                Labels = FromLabels(version.Labels),
+                HasContent = version.HasContent,
+                Validation = ToDto(version.Validation),
+                DocumentId = version.DocumentId,
+                Title = version.Title,
+                BaseUri = version.BaseUri,
+                ModelVersion = version.ModelVersion,
+                Dependencies = ToDto(version.Dependencies),
+                DependencySnapshot = ToDto(version.DependencySnapshot, dependencyGraphs),
+                LastDependencyAttempt = ToDto(version.LastDependencyAttempt, dependencyGraphs)
             };
         }
 
@@ -1118,6 +1334,177 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string> labels)
         {
             return labels.Count == 0 ? null : new Dictionary<string, string>(labels);
+        }
+
+        private static DependenciesDto? ToDto(WotResourceDependencies? dependencies)
+        {
+            return dependencies is null ? null : new DependenciesDto
+            {
+                IndexVersion = WotResourceDependencies.CurrentIndexVersion,
+                ContentDigest = WotContentDigest.ToHex(dependencies.ContentDigest),
+                References = dependencies.References.ToList().Select(reference => new DependencyReferenceDto
+                {
+                    TargetUri = reference.TargetUri,
+                    LookupUri = reference.LookupUri,
+                    RefType = reference.RefType,
+                    RequiresOrdering = reference.RequiresOrdering,
+                    Lookup = reference.Lookup
+                }).ToArray(),
+                OwnedModelUris = dependencies.OwnedModelUris.ToArray(),
+                RequiredModelUris = dependencies.RequiredModelUris.ToArray(),
+                DefinedNodeIds = dependencies.DefinedNodeIds.ToArray(),
+                DataTypeDefinitionIds = dependencies.DataTypeDefinitionIds.ToArray(),
+                DataTypeDefinitionNames = dependencies.DataTypeDefinitionNames.ToArray(),
+                Error = dependencies.Error
+            };
+        }
+
+        private static WotResourceDependencies? FromDto(DependenciesDto? dto, string digestHex)
+        {
+            if (dto is null)
+            {
+                return null;
+            }
+            if (dto.ContentDigest != digestHex || dto.References is null ||
+                dto.OwnedModelUris is null || dto.RequiredModelUris is null || dto.DefinedNodeIds is null ||
+                dto.Error is null)
+            {
+                throw new InvalidDataException("Dependency metadata does not identify the exact Version content.");
+            }
+            if (dto.IndexVersion == 0)
+            {
+                return null;
+            }
+            if (dto.IndexVersion != WotResourceDependencies.CurrentIndexVersion || dto.DataTypeDefinitionIds is null ||
+                dto.DataTypeDefinitionNames is null || dto.References.Any(reference =>
+                    reference.Lookup is not (WotResourceReferenceLookup.Document or
+                        WotResourceReferenceLookup.DataTypeName or WotResourceReferenceLookup.DataTypeNodeId)))
+            {
+                throw new InvalidDataException("Dependency metadata has an unsupported or incomplete index version.");
+            }
+            return new WotResourceDependencies(
+                FromHexDigest(digestHex),
+                dto.References.Select(reference => new WotResourceReference(
+                    reference.TargetUri ?? throw new InvalidDataException("Missing dependency target."),
+                    reference.LookupUri ?? throw new InvalidDataException("Missing contextual dependency identity."),
+                    reference.RefType ?? throw new InvalidDataException("Missing dependency relation."),
+                    reference.RequiresOrdering,
+                    reference.Lookup)).ToArrayOf(),
+                dto.OwnedModelUris.ToArrayOf(),
+                dto.RequiredModelUris.ToArrayOf(),
+                dto.DefinedNodeIds.ToArrayOf(),
+                dto.Error,
+                dto.DataTypeDefinitionIds.ToArrayOf(),
+                dto.DataTypeDefinitionNames.ToArrayOf());
+        }
+
+        private static DependencySnapshotDto? ToDto(
+            WotDependencySnapshot? snapshot, DependencyGraphWriter dependencyGraphs)
+        {
+            return snapshot is null ? null : new DependencySnapshotDto
+            {
+                SourceVersionId = snapshot.SourceVersionId,
+                Generation = snapshot.Generation,
+                RequestId = snapshot.RequestId,
+                ResolvedAt = FormatDate(snapshot.ResolvedAt),
+                IsCommitted = snapshot.IsCommitted,
+                EffectiveInputDigest = snapshot.EffectiveInputDigest.Length == 0
+                    ? string.Empty : WotContentDigest.ToHex(snapshot.EffectiveInputDigest),
+                GraphIndex = dependencyGraphs.GetIndex(snapshot)
+            };
+        }
+
+        private static DependencyGraphDto ToGraphDto(WotDependencySnapshot snapshot)
+        {
+            return new DependencyGraphDto
+            {
+                Edges = snapshot.Edges.ToList().Select(edge => new DependencyEdgeDto
+                {
+                    SourceXid = edge.SourceXid,
+                    TargetHref = edge.TargetHref,
+                    TargetXid = edge.TargetXid,
+                    RefType = edge.RefType,
+                    Resolved = edge.Resolved
+                }).ToArray(),
+                Targets = snapshot.Targets.ToList().Select(target => new DependencyTargetDto
+                {
+                    EdgeIndex = target.EdgeIndex,
+                    OriginRegistry = target.OriginRegistry is null ? null : new RegistryOriginDto
+                    {
+                        OriginUri = target.OriginRegistry.OriginUri,
+                        ServerUri = target.OriginRegistry.ServerUri,
+                        RegistryNodeId = target.OriginRegistry.RegistryNodeId.IsNull
+                            ? null : target.OriginRegistry.RegistryNodeId.ToString()
+                    },
+                    VersionXid = target.VersionXid,
+                    DocumentUri = target.DocumentUri,
+                    VersionNodeId = target.VersionNodeId.IsNull ? null : target.VersionNodeId.ToString(),
+                    ContentDigest = WotContentDigest.ToHex(target.ContentDigest)
+                }).ToArray()
+            };
+        }
+
+        private static WotDependencySnapshot? FromDto(
+            DependencySnapshotDto? dto, string versionId, bool committed, DependencyGraphReader dependencyGraphs)
+        {
+            if (dto is null)
+            {
+                return null;
+            }
+            if (dto.SourceVersionId != versionId || dto.RequestId is null ||
+                string.IsNullOrEmpty(dto.ResolvedAt) || dto.IsCommitted != committed ||
+                dto.EffectiveInputDigest is null ||
+                ((committed || dto.EffectiveInputDigest.Length != 0) && !IsSha256Hex(dto.EffectiveInputDigest)))
+            {
+                throw new InvalidDataException("A dependency observation does not identify its exact Version state.");
+            }
+            try
+            {
+                (ArrayOf<WotDependency> edges, ArrayOf<WotDependencyTargetPin> targets) = dependencyGraphs.Read(dto);
+                return new WotDependencySnapshot(
+                    versionId, dto.Generation, dto.RequestId, ParseDate(dto.ResolvedAt), dto.IsCommitted,
+                    dto.EffectiveInputDigest.Length == 0 ? ByteString.Empty : FromHexDigest(dto.EffectiveInputDigest),
+                    edges, targets);
+            }
+            catch (Exception exception) when (exception is ArgumentException or FormatException)
+            {
+                throw new InvalidDataException("The persisted dependency observation is invalid.", exception);
+            }
+        }
+
+        private static WotDependencyTargetPin FromDto(DependencyTargetDto dto)
+        {
+            if (dto.VersionXid is null || dto.DocumentUri is null ||
+                dto.ContentDigest is null || !IsSha256Hex(dto.ContentDigest))
+            {
+                throw new InvalidDataException("A dependency target is missing its exact content pin.");
+            }
+            WotRegistryOrigin? origin = null;
+            if (dto.OriginRegistry is { } source)
+            {
+                if (source.OriginUri is null || source.ServerUri is null)
+                {
+                    throw new InvalidDataException("The dependency target registry origin is incomplete.");
+                }
+                origin = new WotRegistryOrigin(
+                    source.OriginUri, source.ServerUri, ParseDependencyNodeId(source.RegistryNodeId));
+            }
+            return new WotDependencyTargetPin(
+                dto.EdgeIndex, origin, dto.VersionXid, dto.DocumentUri,
+                ParseDependencyNodeId(dto.VersionNodeId), FromHexDigest(dto.ContentDigest));
+        }
+
+        private static ExpandedNodeId ParseDependencyNodeId(string? value)
+        {
+            if (value is null)
+            {
+                return ExpandedNodeId.Null;
+            }
+            if (!ExpandedNodeId.TryParse(value, out ExpandedNodeId nodeId))
+            {
+                throw new InvalidDataException("A dependency observation contains an invalid portable NodeId.");
+            }
+            return nodeId;
         }
 
         private static ValidationDto? ToDto(WoTValidationOutcomeDataType? validation)
@@ -1166,9 +1553,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private async ValueTask<StorageLock> AcquireStorageLockAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool writeIntent = true)
         {
-            EnsureRootDirectoryDurable();
+            if (writeIntent)
+            {
+                EnsureRootDirectoryDurable();
+            }
+            else if (!Directory.Exists(m_root) || !File.Exists(m_lockPath))
+            {
+                throw new InvalidOperationException("The loaded registry storage root is no longer present.");
+            }
 
             while (true)
             {
@@ -1180,7 +1575,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         lockStream = new FileStream(
                             m_lockPath,
-                            FileMode.OpenOrCreate,
+                            writeIntent ? FileMode.OpenOrCreate : FileMode.Open,
                             FileAccess.ReadWrite,
                             FileShare.None,
                             bufferSize: 1,
@@ -1226,7 +1621,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private string[] BuildRootDurabilityPath()
         {
             var components = new Stack<string>();
-            DirectoryInfo? current = new DirectoryInfo(m_root);
+            var current = new DirectoryInfo(m_root);
             while (current is not null && !current.Exists)
             {
                 components.Push(current.FullName);
@@ -1271,13 +1666,34 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// document never requires holding it in memory - which is the point of
         /// keeping bytes out of the snapshot in the first place.
         /// </remarks>
+        /// <exception cref="InvalidDataException">
+        /// A referenced blob is missing or its digest does not match.
+        /// </exception>
+        /// <exception cref="IOException">
+        /// A blob cannot be read completely from the resource store.
+        /// </exception>
         private async ValueTask<long> VerifyBlobFromResourceStoreAsync(
             string expectedDigest,
             string manifestRole,
             CancellationToken cancellationToken)
         {
-            long length = await m_resourceStore.GetLengthAsync(expectedDigest, cancellationToken)
+            long length = await ResourceStore.GetLengthAsync(expectedDigest, cancellationToken)
                 .ConfigureAwait(false);
+            return await VerifyBlobContentsAsync(
+                expectedDigest,
+                manifestRole,
+                length,
+                (offset, count, ct) => ResourceStore.ReadAsync(expectedDigest, offset, count, ct),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async ValueTask<long> VerifyBlobContentsAsync(
+            string expectedDigest,
+            string manifestRole,
+            long length,
+            Func<long, int, CancellationToken, ValueTask<ByteString>> readAsync,
+            CancellationToken cancellationToken)
+        {
             if (length < 0)
             {
                 throw new InvalidDataException(
@@ -1294,9 +1710,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString chunk;
                 try
                 {
-                    chunk = await m_resourceStore
-                        .ReadAsync(expectedDigest, offset, take, cancellationToken)
-                        .ConfigureAwait(false);
+                    chunk = await readAsync(offset, take, cancellationToken).ConfigureAwait(false);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
@@ -1312,7 +1726,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         $"{manifestRole} could not be read. The registry was left unchanged.",
                         ex);
                 }
-                if (chunk.IsNull || chunk.Length == 0)
+                if (chunk.IsNull || chunk.Length == 0 || chunk.Length > take)
                 {
                     throw new InvalidDataException(
                         $"WoT registry document '{expectedDigest}' referenced by the " +
@@ -1342,59 +1756,6 @@ namespace Opc.Ua.WotCon.Server.Registry
 #endif
         }
 
-        private async ValueTask<byte[]> ReadBlobAsync(
-            string path,
-            string expectedDigest,
-            string manifestRole,
-            CancellationToken cancellationToken)
-        {
-            byte[] content;
-            try
-            {
-                content = await ReadAllBytesAsync(path, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (FileNotFoundException ex)
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob '{path}' referenced by the {manifestRole} " +
-                    "is missing. The registry was left unchanged.",
-                    ex);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob directory for '{path}' referenced by the " +
-                    $"{manifestRole} is missing. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-            catch (IOException ex)
-            {
-                throw new IOException(
-                    $"Unable to read WoT registry blob '{path}'. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                throw new IOException(
-                    $"Access to WoT registry blob '{path}' was denied. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-
-            string actualDigest = WotContentDigest.ToHex(WotContentDigest.Compute(content));
-            if (!string.Equals(expectedDigest, actualDigest, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob '{path}' has SHA-256 '{actualDigest}', " +
-                    $"but the {manifestRole} requires '{expectedDigest}'. " +
-                    "The registry was left unchanged.");
-            }
-            return content;
-        }
-
         private static bool IsSha256Hex(string? value)
         {
             if (value?.Length != Sha256HexLength)
@@ -1403,9 +1764,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             foreach (char character in value)
             {
-                if (!((character >= '0' && character <= '9') ||
-                    (character >= 'a' && character <= 'f') ||
-                    (character >= 'A' && character <= 'F')))
+                if (character is not ((>= '0' and <= '9') or
+                    (>= 'a' and <= 'f') or
+                    (>= 'A' and <= 'F')))
                 {
                     return false;
                 }
@@ -1415,7 +1776,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static ByteString FromHexDigest(string digestHex)
         {
-            var bytes = new byte[Sha256HexLength / 2];
+            byte[] bytes = new byte[Sha256HexLength / 2];
             for (int i = 0; i < bytes.Length; i++)
             {
                 // TODO: the span overload of byte.Parse is only available on
@@ -1434,6 +1795,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static void ValidateSegment(string value, string description)
         {
+            if (WotRegistryIdentity.IsIdentifier(value))
+            {
+                return;
+            }
             string normalized;
             try
             {
@@ -1511,7 +1876,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string rollbackMarker = Path.Combine(
                 m_root,
                 ManifestFile + ".rollback-" + Guid.NewGuid().ToString("N"));
-            byte[] markerBytes = Array.Empty<byte>();
+            byte[] markerBytes = [];
             await WriteThroughAsync(
                     rollbackMarker,
                     markerBytes,
@@ -1720,6 +2085,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// that a corrupted or unwritable existing blob is reported exactly as
         /// it is on every other path into the blob directory.
         /// </remarks>
+        /// <exception cref="InvalidDataException">
+        /// A referenced staged or committed blob fails verification.
+        /// </exception>
         private async ValueTask<List<string>> PromoteStagedBlobsAsync(
             WotRegistrySnapshot snapshot,
             PristineCommitArtifacts? pristineArtifacts,
@@ -1733,7 +2101,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (WotResource resource in snapshot.AllResources())
             {
-                foreach (WotResourceVersion version in resource.Versions)
+                foreach (WotResourceVersion version in resource.RetainedVersions)
                 {
                     if (!version.HasContent)
                     {
@@ -1918,7 +2286,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             ManifestStamp expectedStamp,
             long expectedGeneration,
             PristineCommitArtifacts? pristineArtifacts,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null,
+            Action? beforePristineRollback = null)
         {
             string path = Path.Combine(m_root, ManifestFile);
             string directory = Path.GetDirectoryName(path)!;
@@ -1947,6 +2317,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         IsConfirmedPreSwitchFailure(failure))
                 {
                     preserveTemporary = true;
+                    beforePristineRollback?.Invoke();
                     await RollbackPristinePreSwitchFailureAsync(
                             intendedSnapshot,
                             pristineArtifacts,
@@ -1983,7 +2354,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                                 expectedGeneration,
                                 tmp,
                                 replaceBackupPath,
-                                replaceFailure)
+                                replaceFailure,
+                                evidence)
                             .ConfigureAwait(false);
                         throw;
                     }
@@ -2012,19 +2384,23 @@ namespace Opc.Ua.WotCon.Server.Registry
             long expectedGeneration,
             string temporaryManifestPath,
             string replaceBackupPath,
-            Exception replaceFailure)
+            Exception replaceFailure,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             ManifestCandidate primary = await InspectManifestCandidateAsync(
                     Path.Combine(m_root, ManifestFile),
-                    "primary manifest")
+                    "primary manifest",
+                    evidence)
                 .ConfigureAwait(false);
             ManifestCandidate temporary = await InspectManifestCandidateAsync(
                     temporaryManifestPath,
-                    "staged manifest")
+                    "staged manifest",
+                    evidence)
                 .ConfigureAwait(false);
             ManifestCandidate backup = await InspectManifestCandidateAsync(
                     replaceBackupPath,
-                    "replace backup manifest")
+                    "replace backup manifest",
+                    evidence)
                 .ConfigureAwait(false);
 
             if (MatchesIntended(
@@ -2068,14 +2444,16 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private async ValueTask<ManifestCandidate> InspectManifestCandidateAsync(
             string path,
-            string role)
+            string role,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             try
             {
                 LoadedGeneration? generation = await ReadGenerationAsync(
                         path,
                         role,
-                        CancellationToken.None)
+                        CancellationToken.None,
+                        evidence)
                     .ConfigureAwait(false);
                 return generation is null
                     ? ManifestCandidate.Missing(path, role)
@@ -2151,7 +2529,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     int error = Marshal.GetLastWin32Error();
                     throw new IOException(
                         $"Unable to open WoT registry directory '{path}' for a " +
-                        $"durability flush.",
+                        "durability flush.",
                         new Win32Exception(error));
                 }
                 if (!FlushFileBuffers(handle))
@@ -2172,7 +2550,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 int error = Marshal.GetLastWin32Error();
                 throw new IOException(
                     $"Unable to open WoT registry directory '{path}' for a " +
-                    $"durability flush.",
+                    "durability flush.",
                     new Win32Exception(error));
             }
             if (Fsync(directory) != 0)
@@ -2390,6 +2768,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 Interlocked.Exchange(ref m_stream, null)?.Dispose();
             }
+
             private FileStream? m_stream;
         }
 
@@ -2556,7 +2935,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 4;
+        private const int CurrentSchemaVersion = 6;
         private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
@@ -2568,6 +2947,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const uint OpenExisting = 3;
         private const uint FileFlagBackupSemantics = 0x02000000;
         private static readonly TimeSpan s_lockRetryDelay = TimeSpan.FromMilliseconds(25);
+
         private static readonly StringComparer s_fileSystemPathComparer =
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? StringComparer.OrdinalIgnoreCase
@@ -2577,7 +2957,6 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly string m_blobsFolder;
         private readonly string m_stagingFolder;
         private readonly StagedResourceStore? m_stagedStore;
-        private readonly IXRegistryResourceStore m_resourceStore;
         private readonly string m_lockPath;
         private readonly Action<DirectorySyncPhase>? m_directorySyncFailureInjector;
         private readonly Action<string, string, string>? m_manifestReplace;
@@ -2601,6 +2980,17 @@ namespace Opc.Ua.WotCon.Server.Registry
             public long Generation { get; set; }
 
             /// <summary>
+            /// Gets or sets the last committed materialization generation.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+            public uint RefreshGeneration { get; set; }
+
+            /// <summary>
+            /// Gets or sets the optional canonical View graph carrier in base64.
+            /// </summary>
+            public string? CanonicalViewGraphState { get; set; }
+
+            /// <summary>
             /// Gets or sets registry-level labels persisted with the manifest.
             /// </summary>
             public Dictionary<string, string>? RegistryLabels { get; set; }
@@ -2609,6 +2999,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the resource groups contained in the generation.
             /// </summary>
             public GroupDto[]? Groups { get; set; }
+
+            /// <summary>
+            /// Gets or sets shared exact dependency graphs referenced by Version observations.
+            /// </summary>
+            public DependencyGraphDto[]? DependencyGraphs { get; set; }
         }
 
         /// <summary>
@@ -2625,6 +3020,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the serialized group kind.
             /// </summary>
             public int Kind { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exact catalogue authority.
+            /// </summary>
+            public string? CatalogUri { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether this record has an established authority mapping.
+            /// </summary>
+            public bool? AuthorityEstablished { get; set; }
 
             /// <summary>
             /// Gets or sets the display name stored for the group.
@@ -2731,6 +3136,88 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the Thing Model <c>version.model</c> value.
             /// </summary>
             public string? ModelVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exact content's dependency metadata.
+            /// </summary>
+            public DependenciesDto? Dependencies { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last committed exact-Version dependency graph.
+            /// </summary>
+            public DependencySnapshotDto? DependencySnapshot { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last actual dependency attempt, separately from the committed graph.
+            /// </summary>
+            public DependencySnapshotDto? LastDependencyAttempt { get; set; }
+        }
+
+        internal sealed class DependencySnapshotDto
+        {
+            public string? SourceVersionId { get; set; }
+            public uint Generation { get; set; }
+            public string? RequestId { get; set; }
+            public string? ResolvedAt { get; set; }
+            public bool IsCommitted { get; set; }
+            public string? EffectiveInputDigest { get; set; }
+            public int? GraphIndex { get; set; }
+            public DependencyEdgeDto[]? Edges { get; set; }
+            public DependencyTargetDto[]? Targets { get; set; }
+        }
+
+        internal sealed class DependencyEdgeDto
+        {
+            public string? SourceXid { get; set; }
+            public string? TargetHref { get; set; }
+            public string? TargetXid { get; set; }
+            public string? RefType { get; set; }
+            public bool Resolved { get; set; }
+        }
+
+        internal sealed class DependencyTargetDto
+        {
+            public uint EdgeIndex { get; set; }
+            public RegistryOriginDto? OriginRegistry { get; set; }
+            public string? VersionXid { get; set; }
+            public string? DocumentUri { get; set; }
+            public string? VersionNodeId { get; set; }
+            public string? ContentDigest { get; set; }
+        }
+
+        internal sealed class RegistryOriginDto
+        {
+            public string? OriginUri { get; set; }
+            public string? ServerUri { get; set; }
+            public string? RegistryNodeId { get; set; }
+        }
+
+        /// <summary>
+        /// Persists the dependency index inside its owning Version's existing manifest entry.
+        /// </summary>
+        internal sealed class DependenciesDto
+        {
+            public int IndexVersion { get; set; }
+            public string? ContentDigest { get; set; }
+            public DependencyReferenceDto[]? References { get; set; }
+            public string[]? OwnedModelUris { get; set; }
+            public string[]? RequiredModelUris { get; set; }
+            public string[]? DefinedNodeIds { get; set; }
+            public string[]? DataTypeDefinitionIds { get; set; }
+            public string[]? DataTypeDefinitionNames { get; set; }
+            public string? Error { get; set; }
+        }
+
+        /// <summary>
+        /// Persists one original/contextual semantic edge.
+        /// </summary>
+        internal sealed class DependencyReferenceDto
+        {
+            public string? TargetUri { get; set; }
+            public string? LookupUri { get; set; }
+            public string? RefType { get; set; }
+            public bool RequiresOrdering { get; set; }
+            public WotResourceReferenceLookup Lookup { get; set; }
         }
 
         /// <summary>
@@ -2830,6 +3317,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? ActiveVersionId { get; set; }
 
             /// <summary>
+            /// Gets or sets the exact input retained by the committed materialization image.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public VersionDto? CommittedVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets flat exact-Version inputs retained without activation by this publication.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public ResourceDto[]? CommittedInputs { get; set; }
+
+            /// <summary>
             /// Gets or sets whether the resource participates in materialization.
             /// </summary>
             public bool Enabled { get; set; }
@@ -2868,6 +3367,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the Thing Description identifier discovered in the active version.
             /// </summary>
             public string? ThingId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the exact source-authority mapping is established.
+            /// </summary>
+            public bool? AuthorityEstablished { get; set; }
 
             /// <summary>
             /// Gets or sets the Thing Description title discovered in the active version.
@@ -2917,6 +3421,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     [JsonSerializable(typeof(FileWotRegistryStore.GroupDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ResourceDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.VersionDto))]
+    [JsonSerializable(typeof(FileWotRegistryStore.DependencyGraphDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ValidationDto))]
     internal sealed partial class WotRegistryStoreJson : JsonSerializerContext;
 }

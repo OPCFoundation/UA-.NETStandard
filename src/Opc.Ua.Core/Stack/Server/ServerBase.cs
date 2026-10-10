@@ -1014,7 +1014,7 @@ namespace Opc.Ua
         /// Optional session binding provider supplied by a direct host or its DI container.
         /// Set before startup. Managed servers supply their session manager by default.
         /// </summary>
-        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
@@ -1176,7 +1176,7 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    SessionBindingProvider = SessionBindingProvider ?? this as IServerSessionBindingProvider,
                     ResourceIsolationProvider = ResourceIsolationProvider
                 };
 

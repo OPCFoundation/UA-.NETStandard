@@ -57,6 +57,7 @@ namespace Opc.Ua.WotCon.Bindings
             Bounds = bounds ?? WotBindingBounds.Default;
             EndpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
             Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
+            MessageContext = ServiceMessageContext.Create(Telemetry);
         }
 
         /// <summary>
@@ -83,6 +84,26 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the telemetry context used for executor diagnostics.
         /// </summary>
         public ITelemetryContext? Telemetry { get; }
+
+        /// <summary>
+        /// Gets the value context and registered factories available to payload decoders.
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; private init; }
+
+        internal bool HasExplicitMessageContext { get; private init; }
+
+        /// <summary>
+        /// Returns an executor context with the host's namespace and type-factory context.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotExecutorContext WithMessageContext(IServiceMessageContext context)
+        {
+            return new WotExecutorContext(Credentials, Codecs, Bounds, EndpointPolicy, Telemetry)
+            {
+                MessageContext = context ?? throw new ArgumentNullException(nameof(context)),
+                HasExplicitMessageContext = true
+            };
+        }
     }
 
     /// <summary>
@@ -182,8 +203,15 @@ namespace Opc.Ua.WotCon.Bindings
         public IServiceMessageContext? Context { get; private init; }
 
         /// <summary>
+        /// Gets independently captured native occurrence facts, when the
+        /// executor can retain an authenticated source binding.
+        /// </summary>
+        public WotCapturedEvent? CapturedEvent { get; private init; }
+
+        /// <summary>
         /// Returns a notification with the context of its selected values.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotNotification WithContext(IServiceMessageContext context)
         {
             if (context is null)
@@ -192,7 +220,17 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return new WotNotification(Value, EventFields, Data, context.NamespaceUris.ToArrayOf())
             {
-                Context = context
+                Context = context,
+                CapturedEvent = CapturedEvent
+            };
+        }
+
+        internal WotNotification WithCapturedEvent(WotCapturedEvent capturedEvent)
+        {
+            return new WotNotification(Value, EventFields, Data, NamespaceUris)
+            {
+                Context = Context,
+                CapturedEvent = capturedEvent
             };
         }
     }
@@ -223,6 +261,11 @@ namespace Opc.Ua.WotCon.Bindings
         public DataValue Value { get; }
 
         /// <summary>
+        /// Gets the source namespace and encoding context of the read value.
+        /// </summary>
+        public IServiceMessageContext? Context { get; private init; }
+
+        /// <summary>
         /// Gets the error message on failure, if any.
         /// </summary>
         public string? Error { get; }
@@ -231,6 +274,18 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets whether the operation succeeded.
         /// </summary>
         public bool Success => StatusCode.IsGood(Status);
+
+        /// <summary>
+        /// Returns a read result with the context of its namespace-bearing value.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotReadResult WithContext(IServiceMessageContext context)
+        {
+            return new WotReadResult(Status, Value, Error)
+            {
+                Context = context ?? throw new ArgumentNullException(nameof(context))
+            };
+        }
     }
 
     /// <summary>
@@ -276,6 +331,7 @@ namespace Opc.Ua.WotCon.Bindings
             Status = status;
             Outputs = outputs ?? [];
             Error = error;
+            OperationResult = new ServiceResult(status, error is null ? LocalizedText.Null : new LocalizedText(error));
         }
 
         /// <summary>
@@ -295,6 +351,18 @@ namespace Opc.Ua.WotCon.Bindings
         public IServiceMessageContext? Context { get; private init; }
 
         /// <summary>
+        /// Gets the operation status and diagnostic text, independent of any
+        /// transport response StringTable.
+        /// </summary>
+        public ServiceResult OperationResult { get; private init; }
+
+        /// <summary>
+        /// Gets the input results in argument order. Diagnostic indexes are
+        /// resolved against their source StringTable before these results are stored.
+        /// </summary>
+        public ArrayOf<ServiceResult> InputArgumentResults { get; private init; }
+
+        /// <summary>
         /// Gets the error message on failure, if any.
         /// </summary>
         public string? Error { get; }
@@ -307,11 +375,47 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a result with the context needed to interpret namespace-bearing outputs.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotInvokeResult WithContext(IServiceMessageContext context)
         {
             return new WotInvokeResult(Status, Outputs, Error)
             {
-                Context = context ?? throw new ArgumentNullException(nameof(context))
+                Context = context ?? throw new ArgumentNullException(nameof(context)),
+                OperationResult = OperationResult,
+                InputArgumentResults = InputArgumentResults
+            };
+        }
+
+        /// <summary>
+        /// Returns a result carrying resolved operation and per-input diagnostics.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public WotInvokeResult WithResultDetails(ServiceResult operationResult, ArrayOf<ServiceResult> inputResults)
+        {
+            if (operationResult is null)
+            {
+                throw new ArgumentNullException(nameof(operationResult));
+            }
+            if (!operationResult.StatusCode.Equals(Status, StatusCodeComparison.AllBits))
+            {
+                throw new ArgumentException("The diagnostic result must have the invocation status.",
+                    nameof(operationResult));
+            }
+            ArrayOf<ServiceResult> ownedInputs = inputResults.Span.ToArray();
+            foreach (ServiceResult result in ownedInputs)
+            {
+                if (result is null)
+                {
+                    throw new ArgumentException(
+                        "Input results must retain every argument position.", nameof(inputResults));
+                }
+            }
+            return new WotInvokeResult(Status, Outputs, Error)
+            {
+                Context = Context,
+                OperationResult = operationResult,
+                InputArgumentResults = ownedInputs
             };
         }
     }
@@ -380,9 +484,20 @@ namespace Opc.Ua.WotCon.Bindings
         /// Initializes an invocation with ordered inputs and their source context.
         /// </summary>
         public WotInvokeRequest(ArrayOf<Variant> inputs, IServiceMessageContext context)
+            : this(inputs, context, DiagnosticsMasks.None)
+        {
+        }
+
+        /// <summary>
+        /// Initializes an invocation with requested diagnostics. Server-internal
+        /// permission flags are not transferred to the source Session.
+        /// </summary>
+        public WotInvokeRequest(
+            ArrayOf<Variant> inputs, IServiceMessageContext context, DiagnosticsMasks diagnosticsMask)
         {
             Inputs = inputs;
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            DiagnosticsMask = diagnosticsMask & DiagnosticsMasks.All;
         }
 
         /// <summary>
@@ -394,6 +509,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the context of the input values.
         /// </summary>
         public IServiceMessageContext Context { get; }
+
+        /// <summary>
+        /// Gets the requested service and operation diagnostics, excluding local permissions.
+        /// </summary>
+        public DiagnosticsMasks DiagnosticsMask { get; }
     }
 
     /// <summary>

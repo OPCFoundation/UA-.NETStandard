@@ -177,6 +177,7 @@ namespace Opc.Ua.Server
             m_server = server;
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
+            SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
             Id = id;
             NodeId = itemToMonitor.NodeId;
@@ -393,6 +394,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
 
+        internal NodeState? SourceMetadata { get; private set; }
+
         /// <inheritdoc/>
         bool IDetachableMonitoredItem.IsDetached
         {
@@ -434,7 +437,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType { get; }
+        public int MonitoredItemType { get; private init; }
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -443,6 +446,7 @@ namespace Opc.Ua.Server
         {
             get
             {
+                EnsureSourceRetirement(includeCaptured: false);
                 if (MonitoringMode == MonitoringMode.Disabled ||
                     (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
                 {
@@ -685,10 +689,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
+            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
+                SourceMetadata = metadata;
                 m_isDetached = false;
                 m_isDeleted = false;
             }
@@ -829,6 +835,14 @@ namespace Opc.Ua.Server
         /// Whether the monitored item should report a value without checking if it was changed.
         /// </summary>
         public bool AlwaysReportUpdates { get; set; }
+
+        internal bool UsesExternalValueSource
+        {
+            get => (MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
+            init => MonitoredItemType = value
+                ? MonitoredItemType | MonitoredItemTypeMask.ExternalValueSource
+                : MonitoredItemType & ~MonitoredItemTypeMask.ExternalValueSource;
+        }
 
         /// <summary>
         /// Returns a description of the item being monitored.
@@ -1312,8 +1326,18 @@ namespace Opc.Ua.Server
             bool ignoreFilters,
             bool initialValue)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                EnsureSourceRetirement();
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
+                EnsureSourceRetirement();
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1321,7 +1345,9 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (MonitoringMode == MonitoringMode.Disabled)
+                if (m_isDisposed ||
+                    MonitoringMode == MonitoringMode.Disabled ||
+                    (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -1337,6 +1363,12 @@ namespace Opc.Ua.Server
                     error,
                     ignoreFilters,
                     initialValue: initialValue);
+                if (m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
+                {
+                    QueueNodeIdUnknown();
+                }
             }
         }
 
@@ -1584,6 +1616,7 @@ namespace Opc.Ua.Server
             result.ClientHandle = ClientHandle;
             result.Handle = instance;
             result.EventFields = eventFieldValues;
+            m_server.EventManager?.RegisterEventFields(result, instance);
             return result;
         }
 
@@ -1606,9 +1639,22 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
 
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1671,8 +1717,20 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void QueueEvent(EventFieldList fields)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
@@ -2273,6 +2331,60 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
+        {
+            if (managerHandle is not NodeHandle { Node: { } source })
+            {
+                return null;
+            }
+            if (source is not BaseVariableState variable)
+            {
+                return new BaseObjectState(null) { NodeId = source.NodeId };
+            }
+            var metadata = new BaseDataVariableState(null)
+            {
+                NodeId = source.NodeId,
+                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
+                    ? DataTypeIds.Number
+                    : variable.DataType,
+                MinimumSamplingInterval = variable.MinimumSamplingInterval
+            };
+            if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
+                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+            {
+                metadata.AddChild(new PropertyState(metadata)
+                {
+                    BrowseName = QualifiedName.From(BrowseNames.EURange),
+                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
+                });
+            }
+            return metadata;
+        }
+
+        private bool CanQueueSourceEmission()
+        {
+            return !m_isDetached &&
+                (!m_isDeleted ||
+                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0) ||
+                    (m_server.NodeManager is MasterNodeManager master &&
+                        master.HasCapturedSourceEmission(NodeManager) &&
+                        !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+        }
+
+        private void EnsureSourceRetirement(bool includeCaptured = true)
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured))
+                {
+                    m_isDeleted = true;
+                    QueueNodeIdUnknown();
+                }
+            }
+        }
+
         private void QueueNodeIdUnknown()
         {
             // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
@@ -2300,6 +2412,16 @@ namespace Opc.Ua.Server
                 StatusCodes.BadNodeIdUnknown,
                 utcNow,
                 utcNow);
+        }
+
+        private static bool IsBadNodeIdUnknown(in DataValue value, ServiceResult? error)
+        {
+            if (error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code)
+            {
+                return true;
+            }
+
+            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -2436,7 +2558,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2448,7 +2570,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {
@@ -2523,7 +2645,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2535,7 +2657,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {

@@ -176,6 +176,24 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional capability for abandoning a Session's projected file handles without committing writes.
+    /// </summary>
+    /// <remarks>
+    /// Discard only the specified Session's handles and staged buffers. Other Sessions and persisted
+    /// content remain unchanged. Repeated discard is safe. An explicit Close already committing may
+    /// finish and must retain its reservation until completion.
+    /// </remarks>
+    public interface IXRegistryProjectedResourceSessionDiscard
+    {
+        /// <summary>
+        /// Discards all unclosed handles belonging to the specified Session, without invoking Close.
+        /// </summary>
+        /// <param name="sessionId">The Session whose handles are abandoned.</param>
+        /// <param name="ct">Cancels cleanup before it begins.</param>
+        ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections whose <see cref="IXRegistryProjectedResourceFile"/>
     /// can service Open/Read/Write/Close/GetPosition/SetPosition calls arriving through a
     /// <em>different</em> FileState (the logical Resource's inherited FileType members) while
@@ -233,6 +251,24 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional asynchronous Open for file providers that acquire owner-managed Version leases.
+    /// Subsequent operations use the same handle table as the synchronous forwarding capability.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedResourceFileHandleForwarder :
+        IXRegistryProjectedResourceFileHandleForwarder
+    {
+        /// <summary>
+        /// Opens and fully initializes a handle before it is returned to the caller.
+        /// </summary>
+        ValueTask<OpenMethodStateResult> ForwardOpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections that can atomically claim
     /// an existing content-less resource for its first write.
     /// </summary>
@@ -246,6 +282,19 @@ namespace Opc.Ua.XRegistry.Server
         ServiceResult TryOpenContentlessWriteHandle(
             ISystemContext context,
             out uint fileHandle);
+    }
+
+    /// <summary>
+    /// Optional asynchronous contentless-Version claim for providers with owner-managed leases.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedContentlessResourceFile : IXRegistryProjectedContentlessResourceFile
+    {
+        /// <summary>
+        /// Reserves a writer only while the exact Version is contentless, including after owner acquisition.
+        /// </summary>
+        ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -698,5 +747,14 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets optional generic xRegistry event configuration.
         /// </summary>
         public XRegistryServerOptions? EventOptions { get; }
+
+        /// <summary>
+        /// Gets an optional dispatcher that orders current-state reconciliation
+        /// with the host's domain notifications. The operation uses the generation
+        /// captured before dispatch, not later state. Immutable supplied transitions
+        /// remain ordered by their caller.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            ProjectionDispatcher { get; init; }
     }
 }

@@ -69,7 +69,7 @@ namespace Opc.Ua.Wot
         {
             get
             {
-                var names = new string[m_selections.Count];
+                string[] names = new string[m_selections.Count];
                 m_selections.Keys.CopyTo(names, 0);
                 Array.Sort(names, StringComparer.Ordinal);
                 return names;
@@ -119,7 +119,7 @@ namespace Opc.Ua.Wot
                 clauses = found.Clauses;
                 return true;
             }
-            clauses = ArrayOf<WotResolvedEventSelectClause>.Empty;
+            clauses = [];
             return false;
         }
 
@@ -237,9 +237,18 @@ namespace Opc.Ua.Wot
         public WotEventSelectionResolver(
             IWotThingResolver thingResolver,
             WotNodeSetConverterOptions? options = null)
+            : this(thingResolver, null, options)
+        {
+        }
+
+        internal WotEventSelectionResolver(
+            IWotThingResolver thingResolver,
+            IWotNodeResolver? nodeResolver,
+            WotNodeSetConverterOptions? options)
         {
             m_thingResolver = thingResolver ??
                 throw new ArgumentNullException(nameof(thingResolver));
+            m_nodeResolver = nodeResolver ?? NullWotNodeResolver.Instance;
             m_options = options ?? new WotNodeSetConverterOptions();
             m_options.Validate();
         }
@@ -302,7 +311,7 @@ namespace Opc.Ua.Wot
                 StringComparer.Ordinal);
             using var scope = new ResolutionScope(
                 resolutionContext ??
-                    new WotResolutionContext(m_options.ToResolverOptions()));
+                new WotResolutionContext(m_options.ToResolverOptions()));
             await BuildDefinitionIndexAsync(document, scope, cancellationToken)
                 .ConfigureAwait(false);
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
@@ -359,8 +368,7 @@ namespace Opc.Ua.Wot
             int errorsBefore = CountErrors(diagnostics);
 
             var baseline = new List<WotResolvedEventSelectClause>();
-            JsonElement effectiveData = default;
-            bool hasEffectiveData = affordance.TryGetProperty(DataMember, out effectiveData) &&
+            bool hasEffectiveData = affordance.TryGetProperty(DataMember, out JsonElement effectiveData) &&
                 effectiveData.ValueKind == JsonValueKind.Object;
 
             if (affordance.TryGetProperty(
@@ -374,15 +382,15 @@ namespace Opc.Ua.Wot
                         "affordance shall be a document URI with an optional RFC 6901 JSON " +
                         "Pointer (WoT Binding Section 6.1).",
                         where + "/" + WotEventSelectClauses.TypeDefinitionReferenceTerm);
-                    return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    return [];
                 }
                 string link = reference.GetString() ?? string.Empty;
                 EventTypeDefinition? definition = await ResolveDefinitionAsync(
-                        document, link, where, scope, cancellationToken)
+                        document, link, where, scope, cancellationToken, affordance)
                     .ConfigureAwait(false);
                 if (definition is null)
                 {
-                    return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    return [];
                 }
                 if (!hasEffectiveData)
                 {
@@ -394,7 +402,7 @@ namespace Opc.Ua.Wot
                 }
                 if (!TryDeriveBaseline(document, definition, where, diagnostics, baseline))
                 {
-                    return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    return [];
                 }
             }
 
@@ -412,7 +420,7 @@ namespace Opc.Ua.Wot
             {
                 if (!WotEventSelectClauses.TryParse(
                     authored,
-                    prefix => ResolvePrefix(document, prefix),
+                    prefix => ResolvePrefix(document, prefix, affordance),
                     out ArrayOf<WotEventSelectClause> parsed,
                     out string parseError,
                     out int parseIndex))
@@ -423,7 +431,7 @@ namespace Opc.Ua.Wot
                         parseIndex < 0
                             ? where + "/" + WotEventSelectClauses.Term
                             : where + "/" + WotEventSelectClauses.Term + "/" + Index(parseIndex));
-                    return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    return [];
                 }
                 for (int ii = 0; ii < parsed.Count; ii++)
                 {
@@ -434,11 +442,12 @@ namespace Opc.Ua.Wot
                             clause.TypeDefinitionReference,
                             at,
                             scope,
-                            cancellationToken)
+                            cancellationToken,
+                            authored[ii])
                         .ConfigureAwait(false);
                     if (target is null)
                     {
-                        return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                        return [];
                     }
                     if (!clause.IsConditionIdSelection &&
                         !DeclaresMember(target.Data, clause.MemberPath) &&
@@ -451,17 +460,28 @@ namespace Opc.Ua.Wot
                             "does not declare; a clause names a field of the type it names " +
                             "(WoT Binding Section 6.1).",
                             at);
-                        return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                        return [];
+                    }
+                    string? resolvedPath = ResolvePayloadBrowsePath(document, authored[ii], clause);
+                    if (resolvedPath is null)
+                    {
+                        AddError(diagnostics,
+                            $"The clause path '{clause.BrowsePath}' has an unbound namespace prefix.", at);
+                        return [];
                     }
                     explicitClauses.Add(new WotResolvedEventSelectClause(
                         target.TypeDefinitionId,
                         clause.BrowsePath,
                         WotEventSelectClauseSource.Explicit,
-                        clause.TypeDefinitionReference));
+                        clause.TypeDefinitionReference)
+                    {
+                        ResolvedPathElements = ResolvePathElements(document, authored[ii], clause.PathElements)
+                    }.WithPayloadSchema(target.PayloadSchema, resolvedPath));
                 }
             }
 
-            ArrayOf<WotResolvedEventSelectClause> final = Overlay(baseline, explicitClauses);
+            ArrayOf<WotResolvedEventSelectClause> final = Overlay(
+                baseline, explicitClauses, prefix => ResolvePrefix(document, prefix));
             if (final.Count == 0)
             {
                 AddError(
@@ -469,7 +489,7 @@ namespace Opc.Ua.Wot
                     "The affordance states a selection that is empty; an event MonitoredItem " +
                     "created with no select clause returns nothing (WoT Binding Section 6.1).",
                     where);
-                return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                return [];
             }
 
             if (!WotEventSelectClauses.TryFindMaterializedCollision(
@@ -480,7 +500,7 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     collision,
                     collisionIndex < 0 ? where : where + "/" + WotEventSelectClauses.Term);
-                return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                return [];
             }
 
             if (hasEffectiveData && effectiveData.TryGetProperty(PropertiesMember, out _))
@@ -500,13 +520,75 @@ namespace Opc.Ua.Wot
                         "the affordance's effective data schema declares no such member " +
                         "(WoT Binding Section 6.1).",
                         where);
-                    return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    return [];
                 }
             }
 
-            return CountErrors(diagnostics) == errorsBefore
-                ? final
-                : ArrayOf<WotResolvedEventSelectClause>.Empty;
+            if (CountErrors(diagnostics) != errorsBefore)
+            {
+                return [];
+            }
+            return await ResolveOccurrenceDeclarationsAsync(final, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async System.Threading.Tasks.ValueTask<ArrayOf<WotResolvedEventSelectClause>>
+            ResolveOccurrenceDeclarationsAsync(
+                ArrayOf<WotResolvedEventSelectClause> clauses,
+                System.Threading.CancellationToken cancellationToken)
+        {
+            var verified = new List<WotResolvedEventSelectClause>(clauses.Count);
+            for (int index = 0; index < clauses.Count; index++)
+            {
+                WotResolvedEventSelectClause clause = clauses[index];
+                if (clause.ResolvedPathElements.Count != 1 ||
+                    clause.ResolvedPathElements[0] != "{}EventId")
+                {
+                    verified.Add(clause);
+                    continue;
+                }
+                (WotTypeDeclaration? declaration, string? failure) =
+                    await ResolveOccurrenceDeclarationAsync(clause.TypeDefinitionId, cancellationToken)
+                        .ConfigureAwait(false);
+                verified.Add(clause.WithDeclaration(declaration, failure));
+            }
+            return verified.ToArrayOf();
+        }
+
+        private async System.Threading.Tasks.ValueTask<(WotTypeDeclaration? Declaration, string? Failure)>
+            ResolveOccurrenceDeclarationAsync(
+                string typeNodeId,
+                System.Threading.CancellationToken cancellationToken)
+        {
+            WotTypeBinding binding = await WotNodeSetConverter.VerifyEventTypeBindingAsync(
+                typeNodeId, false, m_nodeResolver, cancellationToken).ConfigureAwait(false);
+            if (binding is not { Outcome: WotTypeBindingOutcome.Bound, NodeId: { } identity })
+            {
+                return (null, binding.Detail);
+            }
+            WotTypeDeclarationSet? set = binding.DeclarationSet;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (set is null)
+            {
+                return !binding.HasTypeContext &&
+                    (identity == WotVocabulary.BaseEventType || WotVocabulary.TryGetConditionTypeName(identity, out _))
+                    ? (WotNodeSetConverter.StandardEventIdDeclaration(identity), null)
+                    : (null, $"The local context supplies no declarations for query EventType '{identity}'.");
+            }
+            if (!set.IsComplete ||
+                !WotPortableIdentity.IsPortableNodeId(set.TypeNodeId) ||
+                WotNodeSetConverter.NormalizeExpandedNodeId(set.TypeNodeId) != identity)
+            {
+                return (null, $"The declarations of query EventType '{identity}' are incomplete or identify " +
+                    $"a different type. {set.Detail}");
+            }
+            var declarations = WotDeclarationCatalog.Create(
+                identity, WotDeclarationScope.Effective, set, capabilityOffered: true);
+            IReadOnlyList<WotTypeDeclaration> matches = declarations.Match(WotVocabulary.OpcUaNamespace, "EventId");
+            if (matches.Count != 1)
+            {
+                return (null, $"The query EventType '{identity}' has no unique namespace-zero EventId declaration.");
+            }
+            return (matches[0] with { ArrayDimensions = [.. matches[0].ArrayDimensions] }, null);
         }
 
         /// <summary>
@@ -517,7 +599,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         internal static ArrayOf<WotResolvedEventSelectClause> Overlay(
             List<WotResolvedEventSelectClause> baseline,
-            List<WotResolvedEventSelectClause> explicitClauses)
+            List<WotResolvedEventSelectClause> explicitClauses,
+            Func<string, string?>? resolvePrefix = null)
         {
             if (explicitClauses.Count == 0)
             {
@@ -531,21 +614,38 @@ namespace Opc.Ua.Wot
                 WotEventSelectClauses.GetMaterializedMemberPaths<WotResolvedEventSelectClause>(
                     combined.ToArray());
 
-            var replaced = new HashSet<string>(StringComparer.Ordinal);
+            var replaced = new HashSet<ArrayOf<string>>(s_memberPathComparer);
             for (int ii = baseline.Count; ii < combined.Count; ii++)
             {
-                replaced.Add(WotEventSelectClauses.FormatMemberPath(members[ii]));
+                replaced.Add(QualifiedMaterializedPath(combined[ii], members[ii], resolvePrefix));
             }
             var result = new List<WotResolvedEventSelectClause>(combined.Count);
             for (int ii = 0; ii < baseline.Count; ii++)
             {
-                if (!replaced.Contains(WotEventSelectClauses.FormatMemberPath(members[ii])))
+                if (!replaced.Contains(QualifiedMaterializedPath(baseline[ii], members[ii], resolvePrefix)))
                 {
                     result.Add(baseline[ii]);
                 }
             }
             result.AddRange(explicitClauses);
             return result.ToArray();
+        }
+
+        private static ArrayOf<string> QualifiedMaterializedPath(
+            WotResolvedEventSelectClause clause,
+            ArrayOf<string> members,
+            Func<string, string?>? resolvePrefix)
+        {
+            ArrayOf<string> source = clause.ResolvedPathElements.IsNull
+                ? clause.PathElements
+                : clause.ResolvedPathElements;
+            var path = new List<string>(members.Count);
+            for (int index = 0; index < members.Count; index++)
+            {
+                path.Add(WotEventSelectClauses.NormalizeQualifiedElement(
+                    index < source.Count ? source[index] : members[index], resolvePrefix));
+            }
+            return path.ToArrayOf();
         }
 
         /// <summary>
@@ -560,7 +660,7 @@ namespace Opc.Ua.Wot
             List<WotResolvedEventSelectClause> baseline)
         {
             var leaves = new List<Leaf>();
-            if (!Walk(document, definition, definition.Data, [], [], string.Empty, where,
+            if (!Walk(definition.Document, definition, definition.Data, [], [], [], string.Empty, where,
                 diagnostics, leaves))
             {
                 return false;
@@ -589,22 +689,37 @@ namespace Opc.Ua.Wot
                 }
                 else if (leaf.Members.Length > 1 &&
                     string.Equals(
-                        leaf.Members[leaf.Members.Length - 1],
+                        leaf.Members[^1],
                         WotEventSelectClauses.StateNameMember,
                         StringComparison.Ordinal) &&
                     (WotEventSelectClauses.IsStateVariableFieldName(
-                            leaf.Members[leaf.Members.Length - 2]) ||
+                            leaf.Members[^2]) ||
                         ReachesThroughParent(leaves, ii)))
                 {
                     take = leaf.Members.Length - 1;
                 }
-                var elements = new string[take];
+                string[] elements = new string[take];
+                string[] qualified = new string[take];
                 Array.Copy(leaf.Elements, elements, take);
+                Array.Copy(leaf.QualifiedElements, qualified, take);
+                string[] resolvedElements = new string[take];
+                string pointer = string.Empty;
+                for (int index = 0; index < take; index++)
+                {
+                    pointer += "/properties/" + EscapePointerToken(leaf.Members[index]);
+                    resolvedElements[index] = definition.PayloadSchema.TryGetTypeBinding(
+                        pointer, out WotPayloadTypeBinding? binding) &&
+                        binding.ResolvedBrowseName is { } resolvedName
+                        ? resolvedName : elements[index];
+                }
                 baseline.Add(new WotResolvedEventSelectClause(
                     definition.TypeDefinitionId,
                     WotEventSelectClauses.JoinBrowsePath(elements),
                     WotEventSelectClauseSource.LinkedEventType,
-                    definition.Reference));
+                    definition.Reference)
+                {
+                    ResolvedPathElements = qualified
+                }.WithPayloadSchema(definition.PayloadSchema, WotEventSelectClauses.JoinBrowsePath(resolvedElements)));
             }
             return true;
         }
@@ -615,6 +730,7 @@ namespace Opc.Ua.Wot
             JsonElement schema,
             string[] members,
             string[] elements,
+            string[] qualifiedElements,
             string at,
             string where,
             List<WotDiagnostic> diagnostics,
@@ -624,7 +740,7 @@ namespace Opc.Ua.Wot
                 !schema.TryGetProperty(PropertiesMember, out JsonElement properties) ||
                 properties.ValueKind != JsonValueKind.Object)
             {
-                leaves.Add(new Leaf(members, elements));
+                leaves.Add(new Leaf(members, elements, qualifiedElements));
                 return true;
             }
 
@@ -635,11 +751,11 @@ namespace Opc.Ua.Wot
             }
             if (names.Count == 0)
             {
-                leaves.Add(new Leaf(members, elements));
+                leaves.Add(new Leaf(members, elements, qualifiedElements));
                 return true;
             }
             if (names.Count > 1 &&
-                !TryReadFieldOrder(schema, names, out names!))
+                !TryReadFieldOrder(schema, names, out names))
             {
                 AddError(
                     diagnostics,
@@ -675,6 +791,8 @@ namespace Opc.Ua.Wot
                     child,
                     Append(members, name),
                     Append(elements, element),
+                    Append(qualifiedElements, WotEventSelectClauses.NormalizeQualifiedElement(
+                        element, prefix => document.TryGetContextPrefix(prefix, out string uri, child) ? uri : null)),
                     at.Length == 0 ? name : at + "/" + name,
                     where,
                     diagnostics,
@@ -728,17 +846,15 @@ namespace Opc.Ua.Wot
             string reference,
             string where,
             ResolutionScope scope,
-            System.Threading.CancellationToken cancellationToken)
+            System.Threading.CancellationToken cancellationToken,
+            JsonElement carryingNode = default)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
-
-            // The same raw reference text resolves to different definitions
-            // under different @context mappings, so the chain is only revisiting
-            // a definition when both the text and the document it is read in
-            // repeat. Keying on the text alone rejected "x:Type" in document A
-            // followed by "x:Type" in document B as cyclic.
-            var seen = new HashSet<(WotDocument, string)>();
+            var seen = new HashSet<JsonElement>();
             string current = reference;
+            string origin = string.Empty;
+            WotDocument currentDocument = document;
+            WotDocument dataDocument = document;
             bool carriesAnnotation = false;
             bool sawAnnotation = false;
             string? typeDefinitionId = null;
@@ -746,24 +862,18 @@ namespace Opc.Ua.Wot
             bool hasData = false;
             int maxDepth = Math.Max(1, scope.Context.Options.MaxDepth);
 
-            // A chained reference is written in the context of the document
-            // that declares the definition carrying it, not in the context of
-            // the document that started the chain.
-            WotDocument context = document;
-
             for (int depth = 0; depth < maxDepth; depth++)
             {
-                WotDocument resolvedIn = context;
-                ResolvedDefinition located = await ResolveReferenceTargetAsync(
-                        resolvedIn, current, where, scope, cancellationToken)
+                DefinitionCandidate? located = await ResolveReferenceTargetAsync(
+                        currentDocument, carryingNode, origin, current, where, scope, cancellationToken)
                     .ConfigureAwait(false);
-                if (!located.Found)
+                if (!located.HasValue)
                 {
                     return null;
                 }
-                JsonElement definition = located.Definition;
-                context = located.Owner ?? context;
-                if (!seen.Add((resolvedIn, current)))
+                DefinitionCandidate candidate = located.Value;
+                JsonElement definition = candidate.Element;
+                if (!seen.Add(definition))
                 {
                     AddError(
                         diagnostics,
@@ -800,10 +910,11 @@ namespace Opc.Ua.Wot
                 {
                     typeDefinitionId = id.GetString();
                 }
-                if (!hasData && definition.TryGetProperty(DataMember, out JsonElement candidate))
+                if (!hasData && definition.TryGetProperty(DataMember, out JsonElement candidateData))
                 {
                     hasData = true;
-                    data = candidate;
+                    data = candidateData;
+                    dataDocument = located.Value.Document;
                 }
 
                 if (!definition.TryGetProperty(
@@ -813,9 +924,12 @@ namespace Opc.Ua.Wot
                 {
                     return Validate(
                         reference, carriesAnnotation, typeDefinitionId, hasData, data,
-                        where, diagnostics);
+                        dataDocument, where, diagnostics, scope);
                 }
                 current = chained.GetString() ?? string.Empty;
+                currentDocument = located.Value.Document;
+                origin = located.Value.Origin;
+                carryingNode = definition;
             }
 
             AddError(
@@ -833,8 +947,10 @@ namespace Opc.Ua.Wot
             string? typeDefinitionId,
             bool hasData,
             JsonElement data,
+            WotDocument dataDocument,
             string where,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            ResolutionScope scope)
         {
             if (!carriesAnnotation)
             {
@@ -871,7 +987,14 @@ namespace Opc.Ua.Wot
                     where);
                 return null;
             }
-            return new EventTypeDefinition(reference, typeDefinitionId, data);
+            (WotDocument owner, JsonElement ownedData) = scope.GetPayloadOwner(dataDocument, data);
+            WotPayloadSchema payload = WotNodeSetConverter.CapturePayloadSchema(
+                owner, WotAffordanceKind.Property, ownedData);
+            foreach (WotDiagnostic diagnostic in payload.Diagnostics)
+            {
+                diagnostics.Add(diagnostic);
+            }
+            return new EventTypeDefinition(reference, typeDefinitionId, ownedData, owner, payload);
         }
 
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
@@ -944,7 +1067,9 @@ namespace Opc.Ua.Wot
         }
 
         private static bool TryReadFieldOrder(
-            JsonElement schema, List<string> names, out List<string>? ordered)
+            JsonElement schema,
+            List<string> names,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out List<string>? ordered)
         {
             ordered = null;
             if (!schema.TryGetProperty(WotEventSelectClauses.FieldOrderTerm, out JsonElement order) ||
@@ -1066,13 +1191,13 @@ namespace Opc.Ua.Wot
         {
             if (memberPath.Count < 2 ||
                 !string.Equals(
-                    memberPath[memberPath.Count - 1],
+                    memberPath[^1],
                     WotEventSelectClauses.StateNameMember,
                     StringComparison.Ordinal))
             {
                 return memberPath;
             }
-            var trimmed = new string[memberPath.Count - 1];
+            string[] trimmed = new string[memberPath.Count - 1];
             for (int ii = 0; ii < trimmed.Length; ii++)
             {
                 trimmed[ii] = memberPath[ii];
@@ -1080,14 +1205,58 @@ namespace Opc.Ua.Wot
             return trimmed;
         }
 
-        private static string? ResolvePrefix(WotDocument document, string prefix)
+        private static string? ResolvePayloadBrowsePath(
+            WotDocument document, JsonElement carryingNode, WotEventSelectClause clause)
         {
-            return document.TryGetContextPrefix(prefix, out string uri) ? uri : null;
+            string[] elements = new string[clause.PathElements.Count];
+            for (int index = 0; index < elements.Length; index++)
+            {
+                string element = clause.PathElements[index];
+                elements[index] = element;
+                if (element.StartsWith("nsu=", StringComparison.Ordinal) || element.StartsWith('{'))
+                {
+                    continue;
+                }
+                int separator = element.IndexOf(':', 0);
+                if (separator <= 0 || separator + 1 >= element.Length)
+                {
+                    continue;
+                }
+                if (!document.TryGetContextPrefix(element[..separator], out string uri, carryingNode))
+                {
+                    return null;
+                }
+                string name = element[(separator + 1)..];
+                elements[index] = uri == WotVocabulary.OpcUaNamespace
+                    ? name : "nsu=" + CoreUtils.EscapeUri(uri) + ";" + name;
+            }
+            return WotEventSelectClauses.JoinBrowsePath(elements);
+        }
+
+        private static string? ResolvePrefix(
+            WotDocument document, string prefix, JsonElement carryingNode = default)
+        {
+            return document.TryGetContextPrefix(prefix, out string uri, carryingNode) ? uri : null;
+        }
+
+        private static ArrayOf<string> ResolvePathElements(
+            WotDocument document,
+            JsonElement carryingNode,
+            ArrayOf<string> elements)
+        {
+            var resolved = new List<string>(elements.Count);
+            foreach (string element in elements)
+            {
+                resolved.Add(WotEventSelectClauses.NormalizeQualifiedElement(
+                    element,
+                    prefix => document.TryGetContextPrefix(prefix, out string uri, carryingNode) ? uri : null));
+            }
+            return resolved.ToArrayOf();
         }
 
         private static string[] Append(string[] values, string value)
         {
-            var appended = new string[values.Length + 1];
+            string[] appended = new string[values.Length + 1];
             Array.Copy(values, appended, values.Length);
             appended[values.Length] = value;
             return appended;
@@ -1139,15 +1308,18 @@ namespace Opc.Ua.Wot
         /// </summary>
         private readonly struct Leaf
         {
-            public Leaf(string[] members, string[] elements)
+            public Leaf(string[] members, string[] elements, string[] qualifiedElements)
             {
                 Members = members;
                 Elements = elements;
+                QualifiedElements = qualifiedElements;
             }
 
             public string[] Members { get; }
 
             public string[] Elements { get; }
+
+            public string[] QualifiedElements { get; }
         }
 
         /// <summary>
@@ -1157,11 +1329,18 @@ namespace Opc.Ua.Wot
         /// </summary>
         private sealed class EventTypeDefinition
         {
-            public EventTypeDefinition(string reference, string typeDefinitionId, JsonElement data)
+            public EventTypeDefinition(
+                string reference,
+                string typeDefinitionId,
+                JsonElement data,
+                WotDocument document,
+                WotPayloadSchema payloadSchema)
             {
                 Reference = reference;
                 TypeDefinitionId = typeDefinitionId;
                 Data = data;
+                Document = document;
+                PayloadSchema = payloadSchema;
             }
 
             public string Reference { get; }
@@ -1169,6 +1348,10 @@ namespace Opc.Ua.Wot
             public string TypeDefinitionId { get; }
 
             public JsonElement Data { get; }
+
+            public WotDocument Document { get; }
+
+            public WotPayloadSchema PayloadSchema { get; }
         }
 
         /// <summary>
@@ -1244,6 +1427,28 @@ namespace Opc.Ua.Wot
                     : default;
             }
 
+            public (WotDocument Document, JsonElement Schema) GetPayloadOwner(WotDocument referring, JsonElement schema)
+            {
+                if (referring.Owns(schema))
+                {
+                    return (referring, schema);
+                }
+                foreach (WotDocument loaded in m_loaded.Values)
+                {
+                    if (loaded.Owns(schema))
+                    {
+                        return (loaded, schema);
+                    }
+                }
+                // The built-in catalog's detached schemas have only the standard context.
+                if (!m_payloadDocuments.TryGetValue(schema, out WotDocument? owner))
+                {
+                    owner = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(schema.GetRawText()));
+                    m_payloadDocuments.Add(schema, owner);
+                }
+                return (owner, owner.RootElement);
+            }
+
             public void Dispose()
             {
                 foreach (WotDocument opened in m_loaded.Values)
@@ -1251,6 +1456,11 @@ namespace Opc.Ua.Wot
                     opened.Dispose();
                 }
                 m_loaded.Clear();
+                foreach (WotDocument payload in m_payloadDocuments.Values)
+                {
+                    payload.Dispose();
+                }
+                m_payloadDocuments.Clear();
                 m_unresolvable.Clear();
                 m_reported.Clear();
                 m_linkedData.Clear();
@@ -1261,9 +1471,41 @@ namespace Opc.Ua.Wot
             private readonly HashSet<string> m_unresolvable = new(StringComparer.Ordinal);
             private readonly HashSet<string> m_reported = new(StringComparer.Ordinal);
             private readonly Dictionary<string, byte[]> m_linkedData = new(StringComparer.Ordinal);
+            private readonly Dictionary<JsonElement, WotDocument> m_payloadDocuments = [];
         }
 
+        private sealed class MemberPathComparer : IEqualityComparer<ArrayOf<string>>
+        {
+            public bool Equals(ArrayOf<string> first, ArrayOf<string> second)
+            {
+                if (first.Count != second.Count)
+                {
+                    return false;
+                }
+                for (int index = 0; index < first.Count; index++)
+                {
+                    if (!string.Equals(first[index], second[index], StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            public int GetHashCode(ArrayOf<string> path)
+            {
+                var hash = new HashCode();
+                foreach (string element in path)
+                {
+                    hash.Add(element, StringComparer.Ordinal);
+                }
+                return hash.ToHashCode();
+            }
+        }
+
+        private static readonly MemberPathComparer s_memberPathComparer = new();
         private readonly IWotThingResolver m_thingResolver;
+        private readonly IWotNodeResolver m_nodeResolver;
         private readonly WotNodeSetConverterOptions m_options;
     }
 }

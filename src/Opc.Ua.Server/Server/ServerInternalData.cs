@@ -1189,6 +1189,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            EventManager?.AdmitEvent(context, e);
             ServerObject?.ReportEvent(context, e);
         }
 
@@ -1226,6 +1227,7 @@ namespace Opc.Ua.Server
                 return default;
             }
 
+            EventManager.AdmitEvent(context, e);
             return serverObject.ReportEventAsync(context, e, cancellationToken);
         }
 

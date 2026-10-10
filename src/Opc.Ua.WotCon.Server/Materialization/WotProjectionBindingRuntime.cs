@@ -42,12 +42,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// freshly imported NodeSet by <see cref="WotProjectionBindingRuntimeFactory"/>.
     /// It groups executable, target-mapped compiled forms by their resolved
     /// target variable, wires either a direct (whole-value) or a structured
-    /// (field-by-field) handler per group, and owns every channel it lazily
+    /// (field-by-field) handler per group, and owns every channel it
     /// opens for the lifetime of the generation. Local Method and EventType
     /// identities are resolved independently of those property target mappings.
     /// Event subscriptions and Condition occurrence routes share that ownership.
     /// </summary>
-    public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable
+    public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable, IWotPublishedProjectionRuntime
     {
         internal WotProjectionBindingRuntime(
             INodeManagerBuilder builder,
@@ -70,9 +70,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Groups the closure's target-mapped, executable compiled forms by
-        /// resolved target variable and wires each group. Runs entirely
-        /// against the address space (no transport I/O); channel opens are
-        /// deferred to first use. Condition instance registration is asynchronous.
+        /// resolved target variable and wires each group. Property and local
+        /// event channels remain lazy. Native transparent events and captured
+        /// Condition actions validate their source before the generation is published.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// See <see cref="IWotProjectionBindingRuntimeFactory.CreateAsync"/>.
@@ -88,13 +88,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
+                var selected = new HashSet<(WotAffordanceKind Kind, string Name, string Pointer,
+                    WoTBindingCapabilityEnum Operation)>();
                 foreach (WotCompiledForm form in plan.CompiledForms)
                 {
-                    if (form is null || form.TargetMapping.IsEmpty || !form.IsExecutable)
+                    if (form is null || !form.IsExecutable)
                     {
-                        // Not target-mapped, or validated but not executable:
-                        // out of scope for this runtime.
                         continue;
+                    }
+                    WotTargetMappingDescriptor target = form.TargetMapping;
+                    if (target.IsEmpty)
+                    {
+                        WotProjectedAffordance? local = plan.ProjectedAffordances.Find(declaration =>
+                            declaration.Kind == WotAffordanceKind.Property &&
+                            form.AffordanceKind == declaration.Kind &&
+                            form.JsonPointer.StartsWith(declaration.JsonPointer + "/forms/", StringComparison.Ordinal));
+                        if (local is null)
+                        {
+                            continue;
+                        }
+                        NodeId localId = ResolveLocalNodeId(local.NodeId, plan.ResourceXid, local.JsonPointer);
+                        target = new WotTargetMappingDescriptor(targetNodeId: localId.ToString());
                     }
 
                     if (form.Operation is not (WoTBindingCapabilityEnum.ReadProperty
@@ -108,12 +122,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             form.OpToken);
                     }
 
-                    BaseVariableState variable = m_resolver.Resolve(m_builder, form.TargetMapping);
+                    int formSegment = form.JsonPointer.LastIndexOf("/forms/", StringComparison.Ordinal);
+                    string pointer = formSegment < 0 ? form.JsonPointer : form.JsonPointer.Substring(0, formSegment);
+                    if (!selected.Add((form.AffordanceKind, form.AffordanceName, pointer, form.Operation)))
+                    {
+                        continue;
+                    }
+                    BaseVariableState variable = m_resolver.Resolve(m_builder, target);
                     if (!groups.TryGetValue(variable.NodeId, out VariableGroup? group))
                     {
                         group = new VariableGroup(variable);
                         groups.Add(variable.NodeId, group);
                     }
+                    m_formOwners.TryAdd(form, plan);
                     group.Entries.Add(form);
                 }
             }
@@ -124,7 +145,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             await WireProjectedEventsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
-            WireProjectedMethods(bindingPlans);
+            await WireProjectedMethodsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (WotProjectedEventBinding binding in m_events.Values)
+            {
+                binding.ValidatePreparedSource();
+            }
             RegisterEventPublishers();
         }
 
@@ -149,6 +175,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 errors = [ex];
+            }
+            foreach (WotObservedPropertySource source in m_observedProperties)
+            {
+                try
+                {
+                    await source.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    (errors ??= []).Add(ex);
+                }
             }
             foreach (WotProjectedEventSource source in m_eventSources)
             {
@@ -225,13 +262,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             WotCompiledForm? read = null;
             WotCompiledForm? write = null;
+            WotCompiledForm? observe = null;
             foreach (WotCompiledForm entry in group.Entries)
             {
                 switch (entry.Operation)
                 {
                     case WoTBindingCapabilityEnum.ObserveProperty:
-                        // Local monitored items sample the async read handler;
-                        // no separate observe bridge is created.
+                        if (observe is not null)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadConfigurationError,
+                                "Target '{0}' has more than one observeproperty target mapping.",
+                                group.Variable.NodeId);
+                        }
+                        observe = entry;
                         continue;
                     case WoTBindingCapabilityEnum.ReadProperty:
                         if (read is not null)
@@ -264,6 +308,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 nodeBuilder.OnWrite(BuildDirectWriteHandler(GetOrCreateSlot(write)));
             }
+            if (observe is not null && (read is null || !SharesAuthoredForm(read, observe)))
+            {
+                m_observedProperties.Add(new WotObservedPropertySource(
+                    nodeBuilder, GetOrCreateSlot(observe), read is not null,
+                    m_options.MaxQueuedPropertyValues, m_generationToken));
+            }
         }
 
         /// <summary>
@@ -285,12 +335,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             var readByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
             var writeByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
+            var observeByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
             foreach (WotCompiledForm entry in group.Entries)
             {
                 string fieldPath = entry.TargetMapping.FieldPath ?? string.Empty;
                 switch (entry.Operation)
                 {
                     case WoTBindingCapabilityEnum.ObserveProperty:
+                        if (observeByPath.ContainsKey(fieldPath))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadConfigurationError,
+                                "Target '{0}' field '{1}' has more than one observeproperty mapping.",
+                                targetNodeId,
+                                fieldPath);
+                        }
+                        observeByPath.Add(fieldPath, entry);
                         continue;
                     case WoTBindingCapabilityEnum.ReadProperty:
                         if (readByPath.ContainsKey(fieldPath))
@@ -340,13 +400,41 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 nodeBuilder.OnWrite(BuildStructuredWriteHandler(state));
             }
+            if (observeByPath.Any(pair => !readByPath.TryGetValue(pair.Key, out WotCompiledForm? read) ||
+                !SharesAuthoredForm(read, pair.Value)))
+            {
+                List<(string Path, WotBindingChannelSlot Slot)> observeSlots = [.. observeByPath
+                    .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => (pair.Key, GetOrCreateSlot(pair.Value)))];
+                var observed = new WotStructuredGroupState(
+                    m_builder.Context.EncodeableFactory,
+                    m_builder.Context.NamespaceUris,
+                    group.Variable.DataType,
+                    targetNodeId,
+                    observeSlots,
+                    []);
+                m_observedProperties.Add(new WotObservedPropertySource(
+                    nodeBuilder,
+                    (notification, token) => WotStructuredPropertyObservation.StartAsync(
+                        observed, m_builder.Context, notification, token),
+                    readSlots.Count > 0,
+                    m_options.MaxQueuedPropertyValues,
+                    m_generationToken));
+            }
+        }
+
+        private bool SharesAuthoredForm(WotCompiledForm first, WotCompiledForm second)
+        {
+            return first.JsonPointer == second.JsonPointer &&
+                ReferenceEquals(m_formOwners[first], m_formOwners[second]);
         }
 
         private WotBindingChannelSlot GetOrCreateSlot(WotCompiledForm form)
         {
             if (!m_slots.TryGetValue(form, out WotBindingChannelSlot? slot))
             {
-                slot = new WotBindingChannelSlot(form, m_channelFactory);
+                slot = new WotBindingChannelSlot(
+                    form, m_channelFactory, m_builder.Context.AsMessageContext(), m_generationToken);
                 m_slots.Add(form, slot);
             }
             return slot;
@@ -357,13 +445,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return async (context, node, indexRange, dataEncoding, cancellationToken) =>
             {
                 IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                WotReadResult result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
-                if (!result.Success)
+                WotReadResult result;
+                bool nativeRead = channel is IWotPropertyBindingChannel;
+                if (channel is IWotPropertyBindingChannel propertyChannel)
+                {
+                    var request = new WotReadRequest(context.AsMessageContext(), indexRange, dataEncoding);
+                    result = await propertyChannel.ReadAsync(request, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
+                }
+                bool isWholeValue = !nativeRead || (indexRange.IsNull && dataEncoding.IsNull);
+                if (StatusCode.IsBad(result.Status))
                 {
                     DateTimeUtc failedTimestamp = result.Value.SourceTimestamp != DateTimeUtc.MinValue
                         ? result.Value.SourceTimestamp
                         : DateTimeUtc.Now;
-                    if (node is BaseVariableState failedVariable)
+                    if (isWholeValue && node is BaseVariableState failedVariable)
                     {
                         failedVariable.Value = Variant.Null;
                         failedVariable.StatusCode = result.Status;
@@ -375,21 +474,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         result.Status,
                         failedTimestamp);
                 }
-                DataValue value = result.Value;
+                DataValue value = TranslateReadValue(result, context);
+                StatusCode status = SelectStatus(value.StatusCode, result.Status);
                 DateTimeUtc timestamp = value.SourceTimestamp != DateTimeUtc.MinValue
                     ? value.SourceTimestamp
                     : DateTimeUtc.Now;
-                if (node is BaseVariableState variable)
+                if (isWholeValue && node is BaseVariableState variable)
                 {
                     variable.Value = value.WrappedValue;
-                    variable.StatusCode = value.StatusCode;
+                    variable.StatusCode = status;
                     variable.Timestamp = timestamp;
                 }
-                return new AttributeReadResult(
-                    ServiceResult.Good,
-                    value.WrappedValue,
-                    value.StatusCode,
-                    timestamp);
+                return nativeRead
+                    ? new AttributeReadResult(ServiceResult.Good, value.WrappedValue, status, timestamp)
+                    : ApplyReadConstraints(context, indexRange, dataEncoding, value.WrappedValue, status, timestamp);
             };
         }
 
@@ -398,11 +496,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return async (context, node, indexRange, value, cancellationToken) =>
             {
                 IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                WotWriteResult result = await channel
-                    .WriteAsync(new DataValue(value), cancellationToken)
-                    .ConfigureAwait(false);
-                return new AttributeWriteResult(
-                    result.Success ? ServiceResult.Good : new ServiceResult(result.Status));
+                WotWriteResult result = await WritePropertyAsync(
+                    channel, value, context.AsMessageContext(), indexRange, cancellationToken).ConfigureAwait(false);
+                return new AttributeWriteResult(new ServiceResult(result.Status));
             };
         }
 
@@ -428,17 +524,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 List<(WotFieldPathPlan Plan, WotBindingChannelSlot Slot)> fields = resolution.ReadFields;
+                IServiceMessageContext messageContext = context.AsMessageContext();
                 var tasks = new Task<(WotFieldPathPlan Plan, WotReadResult Result)>[fields.Count];
                 for (int i = 0; i < fields.Count; i++)
                 {
-                    tasks[i] = ReadFieldAsync(fields[i].Plan, fields[i].Slot, cancellationToken);
+                    tasks[i] = ReadFieldAsync(fields[i].Plan, fields[i].Slot, messageContext, cancellationToken);
                 }
                 (WotFieldPathPlan Plan, WotReadResult Result)[] results = await Task.WhenAll(tasks)
                     .ConfigureAwait(false);
 
                 foreach ((WotFieldPathPlan _, WotReadResult result) in results)
                 {
-                    if (!result.Success)
+                    if (StatusCode.IsBad(result.Status))
                     {
                         DateTimeUtc failedTimestamp = result.Value.SourceTimestamp != DateTimeUtc.MinValue
                             ? result.Value.SourceTimestamp
@@ -451,12 +548,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach ((WotFieldPathPlan plan, WotReadResult result) in results)
                 {
                     IStructure parent = WotStructuredFieldNavigator.CreateOrGetChild(root, plan.IntermediateSegments);
-                    parent[plan.LeafFieldName] = result.Value.WrappedValue;
+                    parent[plan.LeafFieldName] = TranslateReadValue(result, context).WrappedValue;
                 }
 
                 (StatusCode status, DateTimeUtc timestamp) = AggregateFieldMetadata(results);
-                return new AttributeReadResult(
-                    ServiceResult.Good,
+                return ApplyReadConstraints(
+                    context,
+                    indexRange,
+                    dataEncoding,
                     new Variant(new ExtensionObject(rootEncodeable)),
                     status,
                     timestamp);
@@ -467,6 +566,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return async (context, node, indexRange, value, cancellationToken) =>
             {
+                if (!indexRange.IsNull)
+                {
+                    return new AttributeWriteResult(new ServiceResult(StatusCodes.BadWriteNotSupported));
+                }
                 WotStructuredGroupResolution resolution = state.EnsureResolved();
                 if (!resolution.Success)
                 {
@@ -495,37 +598,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 WotWriteResult[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
+                StatusCode status = StatusCodes.Good;
                 foreach (WotWriteResult result in results)
                 {
-                    if (!result.Success)
-                    {
-                        return new AttributeWriteResult(new ServiceResult(result.Status));
-                    }
+                    status = SelectStatus(status, result.Status);
                 }
-                return new AttributeWriteResult(ServiceResult.Good);
+                return new AttributeWriteResult(new ServiceResult(status));
             };
         }
 
         /// <summary>
-        /// Aggregates the per-field metadata of an all-succeeded structured
-        /// read into a single status/timestamp pair for the composed value:
-        /// the first non-default Good status found across the fields (or
-        /// plain <see cref="StatusCodes.Good"/> if every field reported it),
-        /// and the oldest non-<see cref="DateTimeUtc.MinValue"/> source
+        /// Aggregates per-field metadata into the first non-default status
+        /// at the highest severity and the oldest
+        /// non-<see cref="DateTimeUtc.MinValue"/> source
         /// timestamp across the fields (or now, if none carried one).
         /// </summary>
-        private static (StatusCode Status, DateTimeUtc Timestamp) AggregateFieldMetadata(
+        internal static (StatusCode Status, DateTimeUtc Timestamp) AggregateFieldMetadata(
             (WotFieldPathPlan Plan, WotReadResult Result)[] results)
         {
             StatusCode status = StatusCodes.Good;
             DateTimeUtc oldest = DateTimeUtc.MinValue;
             foreach ((WotFieldPathPlan _, WotReadResult result) in results)
             {
-                StatusCode fieldStatus = result.Value.StatusCode;
-                if (status == StatusCodes.Good && fieldStatus != StatusCodes.Good)
-                {
-                    status = fieldStatus;
-                }
+                StatusCode fieldStatus = SelectStatus(result.Value.StatusCode, result.Status);
+                status = SelectStatus(status, fieldStatus);
 
                 DateTimeUtc fieldTimestamp = result.Value.SourceTimestamp;
                 if (fieldTimestamp != DateTimeUtc.MinValue &&
@@ -537,11 +633,62 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return (status, oldest == DateTimeUtc.MinValue ? DateTimeUtc.Now : oldest);
         }
 
+        private static StatusCode SelectStatus(StatusCode current, StatusCode candidate)
+        {
+            if (current.Code == StatusCodes.Good.Code ||
+                (StatusCode.IsBad(candidate) && StatusCode.IsNotBad(current)) ||
+                (StatusCode.IsUncertain(candidate) && StatusCode.IsGood(current)))
+            {
+                return candidate;
+            }
+            return current;
+        }
+
+        private static DataValue TranslateReadValue(WotReadResult result, ISystemContext context)
+        {
+            DataValue value = result.Value;
+            if (StatusCode.IsBad(value.StatusCode) || !WotBindingValueMapper.RequiresContext(value.WrappedValue))
+            {
+                return value;
+            }
+            IServiceMessageContext source = result.Context ??
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory);
+            Variant mapped = WotBindingValueMapper.Translate(
+                value.WrappedValue, source, context.AsMessageContext(), allowNamespaceGrowth: true);
+            return value.WithWrappedValue(mapped);
+        }
+
+        private static AttributeReadResult ApplyReadConstraints(
+            ISystemContext context,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            Variant value,
+            StatusCode status,
+            DateTimeUtc timestamp)
+        {
+            if (StatusCode.IsNotBad(status))
+            {
+                ServiceResult result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context, indexRange, dataEncoding, ref value);
+                if (ServiceResult.IsBad(result))
+                {
+                    return new AttributeReadResult(result, Variant.Null, result.StatusCode, timestamp);
+                }
+            }
+            return new AttributeReadResult(ServiceResult.Good, value, status, timestamp);
+        }
+
         private static async Task<(WotFieldPathPlan Plan, WotReadResult Result)> ReadFieldAsync(
-            WotFieldPathPlan plan, WotBindingChannelSlot slot, CancellationToken cancellationToken)
+            WotFieldPathPlan plan,
+            WotBindingChannelSlot slot,
+            IServiceMessageContext messageContext,
+            CancellationToken cancellationToken)
         {
             IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-            WotReadResult result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
+            WotReadResult result = channel is IWotPropertyBindingChannel propertyChannel
+                ? await propertyChannel.ReadAsync(new WotReadRequest(messageContext), cancellationToken)
+                    .ConfigureAwait(false)
+                : await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
             return (plan, result);
         }
 
@@ -568,13 +715,42 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             Variant fieldValue = parent[plan.LeafFieldName];
             IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-            return await channel.WriteAsync(new DataValue(fieldValue), cancellationToken).ConfigureAwait(false);
+            return await WritePropertyAsync(channel, fieldValue, messageContext, default, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private static async ValueTask<WotWriteResult> WritePropertyAsync(
+            IWotBindingChannel channel,
+            Variant value,
+            IServiceMessageContext messageContext,
+            NumericRange indexRange,
+            CancellationToken cancellationToken)
+        {
+            if (channel is IWotPropertyBindingChannel propertyChannel)
+            {
+                var request = new WotWriteRequest(new DataValue(value), messageContext, indexRange);
+                return await propertyChannel.WriteAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+            if (!indexRange.IsNull)
+            {
+                return new WotWriteResult(
+                    StatusCodes.BadWriteNotSupported, "The property channel does not support native indexed writes.");
+            }
+            Variant writtenValue = value;
+            if (WotBindingValueMapper.RequiresContext(value))
+            {
+                var independent = new ServiceMessageContext(messageContext.Telemetry, messageContext.Factory);
+                writtenValue = WotBindingValueMapper.Translate(value, messageContext, independent);
+            }
+            return await channel.WriteAsync(new DataValue(writtenValue), cancellationToken).ConfigureAwait(false);
         }
 
         private readonly INodeManagerBuilder m_builder;
         private readonly IWotBindingChannelFactory m_channelFactory;
         private readonly IWotTargetVariableResolver m_resolver;
+        private readonly Dictionary<WotCompiledForm, WotBindingPlan> m_formOwners = [];
         private readonly Dictionary<WotCompiledForm, WotBindingChannelSlot> m_slots = [];
+        private readonly List<WotObservedPropertySource> m_observedProperties = [];
         private readonly IWotProjectionEventPublisher m_eventPublisher;
         private readonly IWotProjectionConditionFactory m_conditionFactory;
         private readonly WotProjectionBindingRuntimeOptions m_options;

@@ -65,7 +65,12 @@ namespace Opc.Ua.Wot
         /// difference between "this model does not define that" and "this
         /// model defines that, but it is not a ReferenceType".
         /// </remarks>
-        ReferenceType
+        ReferenceType,
+
+        /// <summary>
+        /// A DataType used by a value schema or Structure field.
+        /// </summary>
+        DataType
     }
 
     /// <summary>
@@ -75,7 +80,41 @@ namespace Opc.Ua.Wot
     /// The node's identity, as a portable ExpandedNodeId string.
     /// </param>
     /// <param name="NodeClass">The node's NodeClass.</param>
-    public readonly record struct WotResolvedNode(string NodeId, WotExpectedNodeClass NodeClass);
+    public readonly record struct WotResolvedNode(string NodeId, WotExpectedNodeClass NodeClass)
+    {
+        /// <summary>
+        /// Gets whether the resolved type is abstract.
+        /// </summary>
+        public bool IsAbstract { get; init; }
+
+        /// <summary>
+        /// Gets the portable identities of known supertypes, nearest first.
+        /// </summary>
+        public ArrayOf<string> SupertypeNodeIds { get; init; }
+
+        /// <summary>
+        /// Gets the directly stated supertypes, resolved to portable identities.
+        /// A null array means the provider does not expose direct references;
+        /// an empty array means the source states none. Declaration summaries
+        /// do not remove these source references.
+        /// </summary>
+        public ArrayOf<string> DirectSupertypeNodeIds { get; init; }
+
+        /// <summary>
+        /// Gets the portable DataType identity of a resolved VariableType, when available.
+        /// </summary>
+        public string? DataTypeNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the ValueRank of a resolved VariableType, when available.
+        /// </summary>
+        public int? ValueRank { get; init; }
+
+        /// <summary>
+        /// Gets the ArrayDimensions of a resolved VariableType.
+        /// </summary>
+        public ArrayOf<uint> ArrayDimensions { get; init; }
+    }
 
     /// <summary>
     /// Resolves a name or an identifier a WoT document uses to the OPC UA Node
@@ -306,7 +345,7 @@ namespace Opc.Ua.Wot
     /// existing document projects to.
     /// </remarks>
     public sealed class WotCompositeNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -441,6 +480,31 @@ namespace Opc.Ua.Wot
             }
 
             return null;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
+            string graphId,
+            CancellationToken cancellationToken = default)
+        {
+            if (graphId is null)
+            {
+                throw new ArgumentNullException(nameof(graphId));
+            }
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is not IWotDataTypeDefinitionResolver definitions)
+                {
+                    continue;
+                }
+                ArrayOf<WotDataTypeDefinitionSource> matches = await definitions
+                    .ResolveDataTypeDefinitionsAsync(graphId, cancellationToken).ConfigureAwait(false);
+                if (matches.Count != 0)
+                {
+                    return matches;
+                }
+            }
+            return ArrayOf<WotDataTypeDefinitionSource>.Empty;
         }
 
         /// <summary>

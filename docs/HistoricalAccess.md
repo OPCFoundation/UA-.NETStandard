@@ -630,7 +630,34 @@ Pagination rules:
 1. On the first page, the framework passes a default (empty) token.
 2. On subsequent pages, the framework passes back the exact `NextToken` from the previous page.
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
-4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is serialised to the wire as the OPC UA continuation point and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+
+The stock session cache keeps available and checked-out history uses until they finish or are
+discarded. Resumption uses the original provider and source, query, timestamp selection, index
+range, data encoding, and event filter. The current Session's permissions still apply.
+The requesting Node remains distinct from the provider's source Node for Annotations reads.
+Single-use identifiers change between pages. An empty final page is permitted: the stock
+annotation provider returns one after an exactly full data page.
+
+When a source participates in dynamic NodeManager retirement, paginated providers additionally
+implement `IHistorianContinuationDependencies`. Its `TryGetContinuationDependencies` method
+returns an `ArrayOf<NodeId>` containing all additional local Nodes needed by this token and
+every successor page. The framework resolves their exact owners from the captured routes.
+Returning `true` with an empty array promises that no extra owner is needed; returning `false`
+rejects pagination with `BadNotSupported` and no partial result. Do not guess from token bytes
+or declare only the next page's dependencies. Existing provider registration, injection, and
+direct construction paths remain unchanged; there is no separate continuation registry.
+
+The stock provider supplies this declaration. Custom providers on non-dynamic sources and
+non-paginated reads remain compatible without it. Dynamic pagination uses the stock session
+cache; an external cache's ownership-reporting interface alone cannot restore the captured
+dispatch scope. Graceful retirement preserves exact source/dependency ownership through final
+page, release, eviction, failure/cancellation, and Session teardown. Immediate retirement
+invalidates old access. See [NodeManager continuation points](NodeManagers.md#continuation-points).
+
+Mirrored continuation envelopes contain identifiers and owner metadata, not reconstructible
+provider state. A standby consumes that metadata for cleanup but cannot resume opaque history
+state from it.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,

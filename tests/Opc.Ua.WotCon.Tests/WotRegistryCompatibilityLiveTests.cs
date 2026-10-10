@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Tests
     public sealed class WotRegistryCompatibilityLiveTests
     {
         [Test]
-        public async Task RegistryWithoutOptionalVersionCapabilityPreservesLifecycleAndLegacyMetadata()
+        public async Task RegistryWithoutPreparedCapabilityKeepsValidationAndLegacyMetadata()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string pkiRoot = Path.Combine(
@@ -80,6 +80,7 @@ namespace Opc.Ua.WotCon.Tests
             var options = new WotRegistryServerOptions
             {
                 AutoRefresh = true,
+                IdentityBindings = Registry.WotRegistryTestAuthorities.ForResources("legacy", "legacy-model"),
                 ManagementAccess = new WotManagementAccessPolicy
                 {
                     MinimumSecurityMode = MessageSecurityMode.None,
@@ -88,7 +89,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             };
             var factory = new WotRegistryNodeManagerFactory(options, legacy, coordinator);
-            Opc.Ua.Server.NodeManagerRegistration registration =
+            Ua.Server.NodeManagerRegistration registration =
                 await server.NodeManagerLifecycle
                 .AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
@@ -163,7 +164,7 @@ namespace Opc.Ua.WotCon.Tests
                 await model.UploadNewVersionAsync(
                         ByteString.From(TestMaterialization.Tm("urn:legacy-model")))
                     .ConfigureAwait(false);
-                var projectedModel = nodeManager.FindPredefinedNode<ThingModelFileState>(
+                ThingModelFileState projectedModel = nodeManager.FindPredefinedNode<ThingModelFileState>(
                     model.ResourceNodeId)!;
                 bool modelMetadataProjected = await WaitForAsync(() =>
                     string.Equals(
@@ -171,31 +172,40 @@ namespace Opc.Ua.WotCon.Tests
                         "urn:legacy-model-1",
                         StringComparison.Ordinal)).ConfigureAwait(false);
 
-                await resource.SetEnabledAsync(false, expectedEpoch: 0).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await resource.SetEnabledAsync(false, expectedEpoch: 0)
+                    .ConfigureAwait(false), Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
                 await resource.SetDefaultVersionAsync(
                         stored.DefaultVersionId!,
                         expectedEpoch: 0)
                     .ConfigureAwait(false);
-                await resource.DeleteAsync(expectedEpoch: 0).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await resource.DeleteAsync(expectedEpoch: 0).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
                     Assert.That(versionId, Is.Empty);
-                    Assert.That(materialized, Is.True);
-                    Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                    Assert.That(materialized, Is.False,
+                        "A provider without prepared publication must not get an unsafe activation fallback.");
+                    Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                     Assert.That(stored.DefaultVersion, Is.Not.Null);
                     Assert.That(stored.ThingId, Is.EqualTo("urn:legacy"));
                     Assert.That(stored.Title, Is.EqualTo("urn:legacy-1"));
                     Assert.That(tdMetadataProjected, Is.True);
                     Assert.That(modelMetadataProjected, Is.True);
                     Assert.That(
-                        reportedEvents.Any(evt =>
-                            evt is WoTResourceEventState &&
-                            evt.SourceNode!.Value == resource.ResourceNodeId),
-                        Is.True);
+                        materializationEvents.Any(evt =>
+                            evt.Kind == WotMaterializationEventKind.Resource &&
+                            evt.Xid == stored.Xid && evt.ResourceId == "legacy"),
+                        Is.False);
+                    NodeId abstractResourceEvent = ExpandedNodeId.ToNodeId(
+                        ObjectTypeIds.WoTResourceEventType, server.CurrentInstance.NamespaceUris);
+                    Assert.That(reportedEvents.Any(evt =>
+                        evt.EventType!.Value == abstractResourceEvent), Is.False);
                     Assert.That(inner.Current.FindResource(
                         WotRegistryGroups.ThingDescriptions,
-                        "legacy"), Is.Null);
+                        "legacy"), Is.Not.Null);
+                    Assert.That(inner.Current.FindResource(
+                        WotRegistryGroups.ThingDescriptions, "legacy")!.Enabled, Is.True);
                 });
             }
             finally
@@ -239,87 +249,109 @@ namespace Opc.Ua.WotCon.Tests
             public event EventHandler<WotRegistryChangedEventArgs>? Changed;
 
             public ValueTask InitializeAsync(CancellationToken cancellationToken = default)
-                => m_inner.InitializeAsync(cancellationToken);
+            {
+                return m_inner.InitializeAsync(cancellationToken);
+            }
 
             public ValueTask<WotResourceGroup> GetOrCreateGroupAsync(
                 string groupId,
                 WoTDocumentKindEnum kind,
                 string? name = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.GetOrCreateGroupAsync(groupId, kind, name, cancellationToken);
+            {
+                return m_inner.GetOrCreateGroupAsync(groupId, kind, name, cancellationToken);
+            }
 
             public ValueTask<WotResourceGroup?> TryCreateGroupAsync(
                 string groupId,
                 WoTDocumentKindEnum kind,
                 string? name = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.TryCreateGroupAsync(groupId, kind, name, cancellationToken);
+            {
+                return m_inner.TryCreateGroupAsync(groupId, kind, name, cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
                 string groupId,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.DeleteGroupAsync(groupId, expectedEpoch, cancellationToken);
+            {
+                return m_inner.DeleteGroupAsync(groupId, expectedEpoch, cancellationToken);
+            }
 
             public ValueTask<(WotResource Resource, bool Created)> GetOrCreateResourceAsync(
                 string groupId,
                 string resourceId,
                 WoTDocumentKindEnum kind,
                 CancellationToken cancellationToken = default)
-                => m_inner.GetOrCreateResourceAsync(
-                    groupId,
-                    resourceId,
-                    kind,
-                    cancellationToken);
+            {
+                return m_inner.GetOrCreateResourceAsync(
+                                groupId,
+                                resourceId,
+                                kind,
+                                cancellationToken);
+            }
 
             public ValueTask<WotResource?> TryCreateResourceAsync(
                 string groupId,
                 string resourceId,
                 WoTDocumentKindEnum kind,
                 CancellationToken cancellationToken = default)
-                => m_inner.TryCreateResourceAsync(
-                    groupId,
-                    resourceId,
-                    kind,
-                    cancellationToken);
+            {
+                return m_inner.TryCreateResourceAsync(
+                                groupId,
+                                resourceId,
+                                kind,
+                                cancellationToken);
+            }
 
             public ValueTask<WoTValidationOutcomeDataType> ValidateResourceAsync(
                 string groupId,
                 string resourceId,
                 CancellationToken cancellationToken = default)
-                => m_inner.ValidateResourceAsync(groupId, resourceId, cancellationToken);
+            {
+                return m_inner.ValidateResourceAsync(groupId, resourceId, cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> UpsertResourceAsync(
                 WotUpsertResourceRequest request,
                 CancellationToken cancellationToken = default)
-                => m_inner.UpsertResourceAsync(request, cancellationToken);
+            {
+                return m_inner.UpsertResourceAsync(request, cancellationToken);
+            }
 
             public ValueTask<ByteString> ReadContentAsync(
                 WotResourceVersion version,
                 CancellationToken cancellationToken = default)
-                => m_inner.ReadContentAsync(version, cancellationToken);
+            {
+                return m_inner.ReadContentAsync(version, cancellationToken);
+            }
 
             public ValueTask<ByteString> ReadContentChunkAsync(
                 string digestHex,
                 long offset,
                 int count,
                 CancellationToken cancellationToken = default)
-                => m_inner.ReadContentChunkAsync(
-                    digestHex,
-                    offset,
-                    count,
-                    cancellationToken);
+            {
+                return m_inner.ReadContentChunkAsync(
+                                digestHex,
+                                offset,
+                                count,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
                 string groupId,
                 string resourceId,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.DeleteResourceAsync(
-                    groupId,
-                    resourceId,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.DeleteResourceAsync(
+                                groupId,
+                                resourceId,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> SetDefaultVersionAsync(
                 string groupId,
@@ -327,12 +359,14 @@ namespace Opc.Ua.WotCon.Tests
                 string versionId,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.SetDefaultVersionAsync(
-                    groupId,
-                    resourceId,
-                    versionId,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.SetDefaultVersionAsync(
+                                groupId,
+                                resourceId,
+                                versionId,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> SetEnabledAsync(
                 string groupId,
@@ -340,29 +374,35 @@ namespace Opc.Ua.WotCon.Tests
                 bool enabled,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.SetEnabledAsync(
-                    groupId,
-                    resourceId,
-                    enabled,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.SetEnabledAsync(
+                                groupId,
+                                resourceId,
+                                enabled,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> AddRegistryLabelAsync(
                 string key,
                 string value,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.AddRegistryLabelAsync(
-                    key,
-                    value,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.AddRegistryLabelAsync(
+                                key,
+                                value,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> RemoveRegistryLabelAsync(
                 string key,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.RemoveRegistryLabelAsync(key, expectedEpoch, cancellationToken);
+            {
+                return m_inner.RemoveRegistryLabelAsync(key, expectedEpoch, cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> AddGroupLabelAsync(
                 string groupId,
@@ -370,23 +410,27 @@ namespace Opc.Ua.WotCon.Tests
                 string value,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.AddGroupLabelAsync(
-                    groupId,
-                    key,
-                    value,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.AddGroupLabelAsync(
+                                groupId,
+                                key,
+                                value,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> RemoveGroupLabelAsync(
                 string groupId,
                 string key,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.RemoveGroupLabelAsync(
-                    groupId,
-                    key,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.RemoveGroupLabelAsync(
+                                groupId,
+                                key,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> AddResourceLabelAsync(
                 string groupId,
@@ -395,13 +439,15 @@ namespace Opc.Ua.WotCon.Tests
                 string value,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.AddResourceLabelAsync(
-                    groupId,
-                    resourceId,
-                    key,
-                    value,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.AddResourceLabelAsync(
+                                groupId,
+                                resourceId,
+                                key,
+                                value,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask<WotRegistryMutationResult> RemoveResourceLabelAsync(
                 string groupId,
@@ -409,17 +455,21 @@ namespace Opc.Ua.WotCon.Tests
                 string key,
                 long? expectedEpoch = null,
                 CancellationToken cancellationToken = default)
-                => m_inner.RemoveResourceLabelAsync(
-                    groupId,
-                    resourceId,
-                    key,
-                    expectedEpoch,
-                    cancellationToken);
+            {
+                return m_inner.RemoveResourceLabelAsync(
+                                groupId,
+                                resourceId,
+                                key,
+                                expectedEpoch,
+                                cancellationToken);
+            }
 
             public ValueTask ApplyProjectionResultsAsync(
                 IReadOnlyList<WotResourceProjection> projections,
                 CancellationToken cancellationToken = default)
-                => m_inner.ApplyProjectionResultsAsync(projections, cancellationToken);
+            {
+                return m_inner.ApplyProjectionResultsAsync(projections, cancellationToken);
+            }
 
             private void OnInnerChanged(object? sender, WotRegistryChangedEventArgs e)
             {
@@ -435,12 +485,12 @@ namespace Opc.Ua.WotCon.Tests
             private static WotRegistrySnapshot WithoutVersionMetadata(
                 WotRegistrySnapshot snapshot)
             {
-                ImmutableDictionary<string, WotResourceGroup> groups = snapshot.Groups
+                var groups = snapshot.Groups
                     .ToImmutableDictionary(
                         pair => pair.Key,
                         pair =>
                         {
-                            ImmutableDictionary<string, WotResource> resources =
+                            var resources =
                                 pair.Value.Resources.ToImmutableDictionary(
                                     resource => resource.Key,
                                     resource => resource.Value.With(

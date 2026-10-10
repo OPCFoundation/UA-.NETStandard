@@ -77,6 +77,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
+            Declarations = set.Declarations;
             m_byName = new Dictionary<string, List<WotTypeDeclaration>>(StringComparer.Ordinal);
             foreach (WotTypeDeclaration declaration in set.Declarations)
             {
@@ -124,6 +125,11 @@ namespace Opc.Ua.Wot
         /// Gets whether declarations were resolved and can be matched against.
         /// </summary>
         public bool HasDeclarations => m_byName is not null;
+
+        /// <summary>
+        /// Gets the declarations supplied by the authoritative local context.
+        /// </summary>
+        public ArrayOf<WotTypeDeclaration> Declarations { get; }
 
         /// <summary>
         /// Builds a catalog for a document bound to <paramref name="typeNodeId"/>.

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -135,22 +137,34 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private enum WotEventFieldKind
         {
-            /// <summary>A ByteString, carried base64-encoded.</summary>
+            /// <summary>
+            /// A ByteString, carried base64-encoded.
+            /// </summary>
             ByteString,
 
-            /// <summary>A NodeId, String, LocalizedText or StatusCode.</summary>
+            /// <summary>
+            /// A NodeId, String, LocalizedText or StatusCode.
+            /// </summary>
             Text,
 
-            /// <summary>A UtcTime.</summary>
+            /// <summary>
+            /// A UtcTime.
+            /// </summary>
             UtcTime,
 
-            /// <summary>A Severity: an integer OPC 10000-5 bounds 1..1000.</summary>
+            /// <summary>
+            /// A Severity: an integer OPC 10000-5 bounds 1..1000.
+            /// </summary>
             Severity,
 
-            /// <summary>A Boolean.</summary>
+            /// <summary>
+            /// A Boolean.
+            /// </summary>
             Flag,
 
-            /// <summary>A Double.</summary>
+            /// <summary>
+            /// A Double.
+            /// </summary>
             Analog,
 
             /// <summary>
@@ -404,7 +418,7 @@ namespace Opc.Ua.Wot
                 !TryGetNonEmptyString(affordance, ConditionTypeTerm, out string compactName) ||
                 !compactName.StartsWith("ua:", StringComparison.Ordinal) ||
                 !WotVocabulary.TryGetConditionTypeNodeId(
-                    compactName.Substring(3), out string nodeId))
+                    compactName[3..], out string nodeId))
             {
                 return false;
             }
@@ -556,10 +570,12 @@ namespace Opc.Ua.Wot
         /// <c>null</c> where no resolver held the documents the affordances
         /// link to.
         /// </param>
+        /// <param name="affordanceBindings">The already verified Condition type bindings.</param>
         /// <param name="diagnostics">The diagnostics sink.</param>
         private static void ValidateConditions(
             WotDocument document,
             WotEventSelectionCatalog? eventSelections,
+            Dictionary<JsonElement, WotTypeBinding> affordanceBindings,
             List<WotDiagnostic> diagnostics)
         {
             var conditionEvents = new HashSet<string>(StringComparer.Ordinal);
@@ -574,7 +590,22 @@ namespace Opc.Ua.Wot
                 }
 
                 conditionEvents.Add(affordance.Key);
-                string pointer = "/events/" + affordance.Key;
+                string pointer = "/events/" + EscapeJsonPointerToken(affordance.Key);
+                WotTypeBinding binding = affordanceBindings[affordance.Value];
+                if (binding.Outcome is WotTypeBindingOutcome.Invalid or WotTypeBindingOutcome.Unresolved)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        binding.Outcome == WotTypeBindingOutcome.Invalid
+                            ? WotDiagnosticCode.ConditionTypeConflict
+                            : WotDiagnosticCode.UnresolvedConditionType,
+                        binding.Detail!,
+                        WotLocation.FromPointer(pointer +
+                            "/" +
+                            (HasNonEmptyString(affordance.Value, ConditionTypeIdTerm)
+                                ? ConditionTypeIdTerm
+                                : ConditionTypeTerm))));
+                }
 
                 // Section 13.3: a Condition notification a consumer cannot tie
                 // back to an occurrence cannot be acknowledged, confirmed or
@@ -582,18 +613,19 @@ namespace Opc.Ua.Wot
                 // It is the one hard requirement: every other Condition field
                 // is present in 'data' where the affordance selects it and is
                 // not otherwise required.
-                if (!DeclaresDataField(affordance.Value, EventIdField))
+                if (!DeclaresConditionEventId(document, affordance.Key, affordance.Value, eventSelections))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ConditionEventIdMissing,
                         $"An event affordance carrying '{ConditionTypeTerm}' shall declare " +
-                        $"'{EventIdField}' in its 'data' object (WoT Binding Section 13.3).",
+                        $"'{EventIdField}' as the namespace-zero scalar ByteString occurrence field in its " +
+                        "own or linked 'data' object (WoT Binding Section 13.3).",
                         WotLocation.FromPointer(pointer)));
                 }
                 else if (eventSelections is not null &&
                     !SelectsConditionEventId(
-                        affordance.Key, affordance.Value, eventSelections))
+                        affordance.Key, affordance.Value, eventSelections, out string? declarationFailure))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
@@ -602,7 +634,10 @@ namespace Opc.Ua.Wot
                         $"'{EventIdField}' as well as declare it: the resolved selection of " +
                         "WoT Binding Section 6.1 decides what a notification carries, so a " +
                         "selection that omits the field describes a notification that never " +
-                        "carries it (WoT Binding Section 13.3).",
+                        "carries it (WoT Binding Section 13.3). " +
+                        (declarationFailure ??
+                            ("Only the scalar ByteString declaration BaseEventType.EventId at the " +
+                                "namespace-zero one-element path identifies the occurrence.")),
                         WotLocation.FromPointer(
                             pointer + "/" + EscapeJsonPointerToken(WotEventSelectClauses.Term))));
                 }
@@ -668,13 +703,59 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Gets whether an affordance declares a named field in its
-        /// <c>data</c> schema.
+        /// Checks the known occurrence member of the effective schema without
+        /// treating its spelling or JSON value kind as declaration evidence.
         /// </summary>
-        private static bool DeclaresDataField(JsonElement affordance, string field)
+        private static bool DeclaresConditionEventId(
+            WotDocument document,
+            string eventKey,
+            JsonElement affordance,
+            WotEventSelectionCatalog? selections)
         {
-            return affordance.TryGetProperty("data", out JsonElement data) &&
-                DeclaresSchemaMember(data, field);
+            if (affordance.TryGetProperty(DataMember, out JsonElement data))
+            {
+                return HasCompatibleOccurrenceSchema(data, document);
+            }
+            if (selections is null || !selections.TryGetLinkedData(eventKey, out ReadOnlyMemory<byte> linked))
+            {
+                return false;
+            }
+            using var schema = JsonDocument.Parse(linked);
+            return HasCompatibleOccurrenceSchema(schema.RootElement, null);
+        }
+
+        private static bool HasCompatibleOccurrenceSchema(JsonElement data, WotDocument? document)
+        {
+            if (data.ValueKind != JsonValueKind.Object ||
+                !data.TryGetProperty(PropertiesMember, out JsonElement properties) ||
+                properties.ValueKind != JsonValueKind.Object ||
+                !properties.TryGetProperty(EventIdField, out JsonElement field) ||
+                field.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            if (document is not null &&
+                field.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+                (browseName.ValueKind != JsonValueKind.String ||
+                    !WotPortableIdentity.TryResolveQualifiedName(
+                        browseName.GetString(), document, field, out WotBrowsePathElement name) ||
+                    name.NamespaceUri != WotVocabulary.OpcUaNamespace ||
+                    name.Name != EventIdField))
+            {
+                return false;
+            }
+            if ((field.TryGetProperty("uav:mapToType", out JsonElement dataType) ||
+                field.TryGetProperty("uav:dataTypeId", out dataType)) &&
+                (dataType.ValueKind != JsonValueKind.String ||
+                    !WotPortableIdentity.IsPortableNodeId(dataType.GetString()) ||
+                    !AreSameExpandedNodeId(dataType.GetString()!, WotVocabulary.ByteString)))
+            {
+                return false;
+            }
+            return !field.TryGetProperty("uav:valueRank", out JsonElement rank) ||
+                (rank.ValueKind == JsonValueKind.Number &&
+                    rank.TryGetInt32(out int value) &&
+                    value == ValueRanks.Scalar);
         }
 
         /// <summary>
@@ -698,8 +779,10 @@ namespace Opc.Ua.Wot
         private static bool SelectsConditionEventId(
             string affordanceName,
             JsonElement affordance,
-            WotEventSelectionCatalog eventSelections)
+            WotEventSelectionCatalog eventSelections,
+            out string? failure)
         {
+            failure = null;
             if (!WotEventSelectionResolver.StatesSelection(affordance))
             {
                 return true;
@@ -711,9 +794,261 @@ namespace Opc.Ua.Wot
             }
             for (int ii = 0; ii < clauses.Count; ii++)
             {
-                if (string.Equals(clauses[ii].FieldName, EventIdField, StringComparison.Ordinal))
+                WotResolvedEventSelectClause clause = clauses[ii];
+                failure ??= clause.DeclarationFailure;
+                if (clause.ResolvedPathElements.Count == 1 &&
+                    clause.ResolvedPathElements[0] == "{}EventId" &&
+                    clause.Declaration is { Kind: WotDeclarationKind.Variable } declared &&
+                    declared.ValueRank == ValueRanks.Scalar &&
+                    declared.NamespaceUri == WotVocabulary.OpcUaNamespace &&
+                    declared.BrowseName == EventIdField &&
+                    declared.ArrayDimensions.Count == 0 &&
+                    WotPortableIdentity.IsPortableNodeId(declared.DeclaringTypeNodeId) &&
+                    WotPortableIdentity.IsPortableNodeId(declared.NodeId) &&
+                    WotPortableIdentity.IsPortableNodeId(declared.DataType) &&
+                    AreSameExpandedNodeId(declared.DeclaringTypeNodeId, WotVocabulary.BaseEventType) &&
+                    AreSameExpandedNodeId(declared.NodeId, "i=2042") &&
+                    AreSameExpandedNodeId(declared.DataType, WotVocabulary.ByteString))
                 {
                     return true;
+                }
+            }
+            return false;
+        }
+
+        internal static WotTypeDeclaration StandardEventIdDeclaration(string queryTypeNodeId)
+        {
+            return new WotTypeDeclaration
+            {
+                NamespaceUri = WotVocabulary.OpcUaNamespace,
+                BrowseName = EventIdField,
+                Kind = WotDeclarationKind.Variable,
+                DeclaringTypeNodeId = WotVocabulary.BaseEventType,
+                NodeId = "i=2042",
+                DataType = WotVocabulary.ByteString,
+                ValueRank = ValueRanks.Scalar,
+                ReferenceTypeName = "HasProperty",
+                TypeDefinitionNodeId = WotVocabulary.PropertyType,
+                ModellingRule = WotModellingRule.Mandatory,
+                IsInherited = queryTypeNodeId != WotVocabulary.BaseEventType
+            };
+        }
+
+        private static void ValidateRestoredConditions(
+            WotDocument document,
+            UANodeSet native,
+            List<WotDiagnostic> diagnostics)
+        {
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(native, WotNodeSetAliases.Instance);
+            Dictionary<string, UANode?> index = BuildArchivedFactIndex(native, aliases);
+            var identities = new UANodeSet
+            {
+                NamespaceUris = native.NamespaceUris is null ? null : (string[])native.NamespaceUris.Clone()
+            };
+            foreach (KeyValuePair<string, JsonElement> entry in document.Events)
+            {
+                JsonElement affordance = entry.Value;
+                if (affordance.ValueKind != JsonValueKind.Object ||
+                    (!affordance.TryGetProperty(ConditionTypeTerm, out _) &&
+                        !affordance.TryGetProperty(ConditionTypeIdTerm, out _)))
+                {
+                    continue;
+                }
+                string pointer = "/events/" + EscapeJsonPointerToken(entry.Key);
+                UANode? node = FindArchivedNode(
+                    document, affordance, entry.Key, index, identities, aliases, pointer, diagnostics);
+                if (node is not null)
+                {
+                    ValidateRestoredConditionType(
+                        document, affordance, node, native, index, identities, aliases, pointer, diagnostics);
+                }
+            }
+        }
+
+        private static void ValidateRestoredConditionType(
+            WotDocument document,
+            JsonElement authored,
+            UANode node,
+            UANodeSet native,
+            Dictionary<string, UANode?> index,
+            UANodeSet identities,
+            INodeSetAliasResolver aliases,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            bool hasPin = authored.TryGetProperty(ConditionTypeIdTerm, out _);
+            string? pin = GetElementString(authored, ConditionTypeIdTerm);
+            string? hint = GetElementString(authored, ConditionTypeTerm);
+            bool validHint = !authored.TryGetProperty(ConditionTypeTerm, out _) ||
+                !string.IsNullOrWhiteSpace(hint);
+            string? hintedId = null;
+            if (hint is not null)
+            {
+                if (TryResolveConditionTypeName(document, hint, out string standard, authored))
+                {
+                    hintedId = standard;
+                }
+                else if (WotPortableIdentity.TryResolveQualifiedName(hint, document, authored, out _))
+                {
+                    string name = ToNodeSetQualifiedName(document, hint, identities, diagnostics, authored);
+                    if (index.TryGetValue("name:" + NormalizeArchivedBrowseName(name), out UANode? named) &&
+                        named is UAObjectType)
+                    {
+                        hintedId = NormalizeExpandedNodeId(
+                            ToPortableNodeId(ResolveArchivedAlias(named.NodeId, aliases), native.NamespaceUris)!);
+                    }
+                }
+            }
+            WotTypeBinding binding = ReadRestoredEventTypeBinding(node, native, index, aliases);
+            string? expected = pin ?? hintedId;
+            bool matches = validHint &&
+                binding.Outcome == WotTypeBindingOutcome.Bound &&
+                expected is not null &&
+                WotPortableIdentity.IsPortableNodeId(expected) &&
+                (!hasPin || (pin is not null && (hintedId is null || AreSameExpandedNodeId(pin, hintedId)))) &&
+                ContainsVerifiedConditionType(binding, NormalizeExpandedNodeId(expected));
+            if (!matches)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NativeProjectionConflict,
+                    "The readable Condition type conflicts with the authoritative native ObjectType ancestry. " +
+                    binding.Detail,
+                    WotLocation.FromPointer(pointer + "/" + (hasPin ? ConditionTypeIdTerm : ConditionTypeTerm))));
+            }
+        }
+
+        private static WotTypeBinding ReadRestoredEventTypeBinding(
+            UANode node,
+            UANodeSet native,
+            Dictionary<string, UANode?> index,
+            INodeSetAliasResolver aliases)
+        {
+            string current = ResolveArchivedAlias(node.NodeId, aliases);
+            string identity = NormalizeExpandedNodeId(ToPortableNodeId(current, native.NamespaceUris) ?? current);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var ancestors = new List<string>();
+            for (int depth = 0; depth <= WotTypeDeclarations.MaxSupertypeDepth; depth++)
+            {
+                if (!visited.Add(current))
+                {
+                    return WotTypeBinding.Invalid($"The native ancestry revisits '{current}'.");
+                }
+                bool isHeld = index.TryGetValue("id:" + current, out UANode? held);
+                if (isHeld && held is not UAObjectType)
+                {
+                    return WotTypeBinding.Invalid($"The native type '{current}' is not a unique ObjectType.");
+                }
+                string portable = NormalizeExpandedNodeId(ToPortableNodeId(current, native.NamespaceUris) ?? current);
+                bool standard = TryBindStandardEventType(portable, false, out WotTypeBinding known);
+                if (standard && known.Outcome != WotTypeBindingOutcome.Bound)
+                {
+                    return known;
+                }
+                if (depth == WotTypeDeclarations.MaxSupertypeDepth && !standard)
+                {
+                    break;
+                }
+                if (held is null && !standard)
+                {
+                    return WotTypeBinding.Unresolved($"The native type '{current}' is not held.");
+                }
+                HashSet<string> parents = ReadNativeSupertypes(current, held, index, aliases);
+                if (parents.Count > 1 || (parents.Count == 0 && !standard))
+                {
+                    return WotTypeBinding.Invalid($"The native type '{current}' has no unique supertype.");
+                }
+                string? next = null;
+                foreach (string parent in parents)
+                {
+                    next = parent;
+                }
+                if (standard)
+                {
+                    string expected = known.VerifiedSupertypes.Count == 0
+                        ? WotVocabulary.BaseObjectType
+                        : known.VerifiedSupertypes[0];
+                    if (next is not null &&
+                        !AreSameExpandedNodeId(ToPortableNodeId(next, native.NamespaceUris) ?? next, expected))
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The native supertype of standard EventType '{portable}' is not '{expected}'.");
+                    }
+                    if (portable == WotVocabulary.BaseEventType)
+                    {
+                        bool invalidRoot =
+                            index.TryGetValue("id:" + WotVocabulary.BaseObjectType, out UANode? root) &&
+                            root is not UAObjectType;
+                        if (invalidRoot ||
+                            ReadNativeSupertypes(WotVocabulary.BaseObjectType, root, index, aliases).Count != 0)
+                        {
+                            return WotTypeBinding.Invalid("The native BaseObjectType is not an ObjectType root.");
+                        }
+                        return CompleteVerifiedEventBinding(identity, true, ancestors, [], hasTypeContext: true);
+                    }
+                    next = expected;
+                }
+                current = next!;
+                ancestors.Add(NormalizeExpandedNodeId(ToPortableNodeId(current, native.NamespaceUris) ?? current));
+            }
+            return WotTypeBinding.Invalid(
+                $"The native ancestry exceeds {WotTypeDeclarations.MaxSupertypeDepth} supertypes.");
+        }
+
+        private static HashSet<string> ReadNativeSupertypes(
+            string identity,
+            UANode? held,
+            Dictionary<string, UANode?> index,
+            INodeSetAliasResolver aliases)
+        {
+            var parents = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Reference reference in held?.References ?? [])
+            {
+                if (!reference.IsForward &&
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype)
+                {
+                    parents.Add(ResolveArchivedAlias(reference.Value, aliases));
+                }
+            }
+            foreach (KeyValuePair<string, UANode?> candidate in index)
+            {
+                if (!candidate.Key.StartsWith("id:", StringComparison.Ordinal) ||
+                    candidate.Value is not UAObjectType parent)
+                {
+                    continue;
+                }
+                foreach (Reference reference in parent.References ?? [])
+                {
+                    if (reference.IsForward &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype &&
+                        ResolveArchivedAlias(reference.Value, aliases) == identity)
+                    {
+                        parents.Add(ResolveArchivedAlias(parent.NodeId, aliases));
+                    }
+                }
+            }
+            return parents;
+        }
+
+        private static bool ContainsVerifiedConditionType(WotTypeBinding binding, string identity)
+        {
+            if (binding.NodeId == identity)
+            {
+                return true;
+            }
+            if (binding.NodeId == WotVocabulary.ConditionType)
+            {
+                return false;
+            }
+            foreach (string ancestor in binding.VerifiedSupertypes)
+            {
+                if (ancestor == identity)
+                {
+                    return true;
+                }
+                if (ancestor == WotVocabulary.ConditionType)
+                {
+                    break;
                 }
             }
             return false;
@@ -784,10 +1119,6 @@ namespace Opc.Ua.Wot
             value = string.Empty;
             return false;
         }
-
-        // ------------------------------------------------------------------
-        // NodeSet -> WoT
-        // ------------------------------------------------------------------
 
         /// <summary>
         /// What an EventType projects: the ConditionType it derives from, if
@@ -1256,6 +1587,7 @@ namespace Opc.Ua.Wot
             }
             if (declared is not null)
             {
+                WriteLocalizedTextContext(writer, null, declared.Description, defaultLocale);
                 WriteLocalizedDescription(writer, declared.Description, defaultLocale);
             }
             writer.WriteEndObject();
@@ -1280,7 +1612,8 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
-            WriteArgumentJsonType(writer, field.DataType);
+            WriteLocalizedTextContext(writer, field.DisplayName, field.Description, defaultLocale);
+            WriteRankedJsonType(writer, field.DataType, field.ValueRank);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(
@@ -1294,7 +1627,7 @@ namespace Opc.Ua.Wot
                 ToPortableDataTypeId(field.DataType, nodeSet));
             writer.WriteNumber("uav:valueRank", field.ValueRank);
             WriteFieldArrayDimensions(writer, field.ArrayDimensions);
-            WriteModellingRule(writer, field);
+            WriteModellingRule(writer, field, nodeSet);
             writer.WriteEndObject();
         }
 
@@ -1462,75 +1795,367 @@ namespace Opc.Ua.Wot
             return false;
         }
 
-        // ------------------------------------------------------------------
-        // WoT -> NodeSet
-        // ------------------------------------------------------------------
+        /// <summary>
+        /// Completes only built-in bindings for synchronous conversion.
+        /// Companion bindings require the asynchronous local context.
+        /// </summary>
+        private static Dictionary<JsonElement, WotTypeBinding> CompleteConditionBindings(
+            WotDocument document,
+            Dictionary<JsonElement, WotTypeBinding>? bindings)
+        {
+            bindings ??= [];
+            foreach (JsonElement eventAffordance in document.Events.Values)
+            {
+                if (!bindings.ContainsKey(eventAffordance))
+                {
+                    bindings.Add(eventAffordance, ReadConditionTypeBinding(document, eventAffordance));
+                }
+            }
+            return bindings;
+        }
+
+        private static WotTypeBinding ReadConditionTypeBinding(WotDocument document, JsonElement affordance)
+        {
+            string? hint = GetElementString(affordance, ConditionTypeTerm);
+            string? pin = GetElementString(affordance, ConditionTypeIdTerm);
+            if (hint is null && pin is null)
+            {
+                return WotTypeBinding.None;
+            }
+            if (pin is not null && !WotPortableIdentity.IsPortableNodeId(pin))
+            {
+                return WotTypeBinding.Invalid(
+                    $"'{ConditionTypeIdTerm}' shall name a portable ConditionType identity, not '{pin}'.");
+            }
+            string? hintedId = hint is not null &&
+                TryResolveConditionTypeName(document, hint, out string known, affordance)
+                    ? known
+                    : null;
+            if (pin is not null && hintedId is not null && !AreSameExpandedNodeId(pin, hintedId))
+            {
+                return WotTypeBinding.Invalid(
+                    $"'{ConditionTypeTerm}' names '{hint}' and '{ConditionTypeIdTerm}' pins '{pin}', " +
+                    "which are different ConditionTypes (WoT Binding Section 13.2).");
+            }
+            string? identity = pin ?? hintedId;
+            if (identity is not null &&
+                TryBindStandardEventType(NormalizeExpandedNodeId(identity), true, out WotTypeBinding binding))
+            {
+                return binding;
+            }
+            return WotTypeBinding.Unresolved(
+                $"The ConditionType '{identity ?? hint}' requires verified ObjectType ancestry from the " +
+                "local context. A name or pin alone does not establish a Condition (WoT Binding Section 13.2).");
+        }
+
+        private static async ValueTask<WotTypeBinding> ResolveConditionTypeBindingAsync(
+            WotDocument document,
+            JsonElement affordance,
+            IWotNodeResolver resolver,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WotTypeBinding local = ReadConditionTypeBinding(document, affordance);
+            if (local.Outcome is WotTypeBindingOutcome.None or WotTypeBindingOutcome.Invalid)
+            {
+                return local;
+            }
+            string? pin = GetElementString(affordance, ConditionTypeIdTerm);
+            string? hint = GetElementString(affordance, ConditionTypeTerm);
+            if (local.Outcome == WotTypeBindingOutcome.Bound &&
+                (hint is null || TryResolveConditionTypeName(document, hint, out _, affordance)))
+            {
+                return await VerifyEventTypeBindingAsync(local.NodeId!, true, resolver, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            ArrayOf<WotResolvedNode> matches = [];
+            if (hint is not null &&
+                WotPortableIdentity.TryResolveQualifiedName(hint, document, affordance, out WotBrowsePathElement name))
+            {
+                matches = await resolver.ResolveByBrowseNameAsync(
+                    name.NamespaceUri!, name.Name, WotExpectedNodeClass.ObjectType, cancellationToken)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (pin is null)
+            {
+                if (matches.Count == 0)
+                {
+                    return local;
+                }
+                if (matches.Count != 1)
+                {
+                    return WotTypeBinding.Ambiguous(
+                        $"The ConditionType hint '{hint}' resolves to more than one type.");
+                }
+                if (matches[0].NodeClass != WotExpectedNodeClass.ObjectType)
+                {
+                    return WotTypeBinding.Invalid($"The ConditionType hint '{hint}' does not name an ObjectType.");
+                }
+                pin = matches[0].NodeId;
+            }
+            else if (matches.Count > 0)
+            {
+                bool agrees = false;
+                foreach (WotResolvedNode match in matches)
+                {
+                    agrees |= match.NodeClass == WotExpectedNodeClass.ObjectType &&
+                        AreSameExpandedNodeId(pin, match.NodeId);
+                }
+                if (!agrees)
+                {
+                    return WotTypeBinding.Invalid(
+                        $"The ConditionType hint '{hint}' and pin '{pin}' resolve to different types.");
+                }
+            }
+            return await VerifyEventTypeBindingAsync(pin, true, resolver, cancellationToken).ConfigureAwait(false);
+        }
 
         /// <summary>
-        /// Resolves the ConditionType an event affordance names, rejecting a
-        /// readable hint and a definitive pin that disagree.
+        /// Verifies one EventType's exact identity and bounded native ancestry.
+        /// The result retains the requested type, not its known ancestor.
         /// </summary>
-        /// <remarks>
-        /// Section 13.2 makes the pin the definitive identity of <em>the
-        /// same</em> type the compact name reads, so a disagreement is not a
-        /// precedence question: honouring either one silently discards what the
-        /// other says. The document is reported invalid and the pin is used, so
-        /// that the rest of the conversion still has one coherent answer to
-        /// work from.
-        /// </remarks>
+        internal static async ValueTask<WotTypeBinding> VerifyEventTypeBindingAsync(
+            string typeNodeId,
+            bool requireCondition,
+            IWotNodeResolver resolver,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!WotPortableIdentity.IsPortableNodeId(typeNodeId))
+            {
+                return WotTypeBinding.Invalid($"'{typeNodeId}' is not a portable type identity.");
+            }
+            string identity = NormalizeExpandedNodeId(typeNodeId);
+            WotTypeDeclarationSet? declarations = resolver is IWotTypeDeclarationResolver capability
+                ? await capability.ResolveDeclarationsAsync(identity, WotDeclarationScope.Effective, cancellationToken)
+                    .ConfigureAwait(false)
+                : null;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (declarations is not null &&
+                (!declarations.IsComplete ||
+                    !WotPortableIdentity.IsPortableNodeId(declarations.TypeNodeId) ||
+                    !AreSameExpandedNodeId(declarations.TypeNodeId, identity)))
+            {
+                return WotTypeBinding.Invalid(
+                    $"The declarations of EventType '{identity}' are incomplete or identify a different type. " +
+                    declarations.Detail);
+            }
+            string current = identity;
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var ancestors = new List<string>();
+            var reportedAncestries = new List<(int Offset, ArrayOf<string> Ancestors)>();
+            bool hasTypeContext = false;
+            bool holdsStandardNamespace = await resolver.HoldsNamespaceAsync(
+                WotVocabulary.OpcUaNamespace, cancellationToken).ConfigureAwait(false);
+            for (int depth = 0; depth <= WotTypeDeclarations.MaxSupertypeDepth; depth++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!visited.Add(current))
+                {
+                    return WotTypeBinding.Invalid($"The EventType ancestry revisits '{current}'.");
+                }
+                bool standard = TryBindStandardEventType(current, false, out WotTypeBinding known);
+                if (standard && known.Outcome != WotTypeBindingOutcome.Bound)
+                {
+                    return known;
+                }
+                if (standard && !holdsStandardNamespace && resolver is not IWotTypeDeclarationResolver)
+                {
+                    ancestors.AddRange(known.VerifiedSupertypes);
+                    return CompleteVerifiedEventBinding(
+                        identity, requireCondition, ancestors, reportedAncestries, hasTypeContext, declarations);
+                }
+                if (depth == WotTypeDeclarations.MaxSupertypeDepth && !standard)
+                {
+                    break;
+                }
+                WotResolvedNode? found = await resolver.ResolveByNodeIdAsync(current, cancellationToken)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (found is null && !standard)
+                {
+                    return WotTypeBinding.Unresolved($"The EventType ancestor '{current}' could not be resolved.");
+                }
+                ArrayOf<string> parents = [];
+                if (found is { } node)
+                {
+                    hasTypeContext = true;
+                    if (!WotPortableIdentity.IsPortableNodeId(node.NodeId) ||
+                        !AreSameExpandedNodeId(current, node.NodeId) ||
+                        node.NodeClass != WotExpectedNodeClass.ObjectType)
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"Resolving '{current}' did not return that exact ObjectType identity.");
+                    }
+                    if (node.SupertypeNodeIds.Count > WotTypeDeclarations.MaxSupertypeDepth)
+                    {
+                        break;
+                    }
+                    var reported = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (string ancestor in node.SupertypeNodeIds)
+                    {
+                        if (!WotPortableIdentity.IsPortableNodeId(ancestor))
+                        {
+                            return WotTypeBinding.Invalid(
+                                $"The EventType ancestor '{ancestor}' is not a portable identity.");
+                        }
+                        string normalized = NormalizeExpandedNodeId(ancestor);
+                        if (visited.Contains(normalized) || !reported.Add(normalized))
+                        {
+                            return WotTypeBinding.Invalid($"The reported EventType ancestry revisits '{normalized}'.");
+                        }
+                    }
+                    reportedAncestries.Add((ancestors.Count, node.SupertypeNodeIds));
+                    if (!node.DirectSupertypeNodeIds.IsNull)
+                    {
+                        if (node.DirectSupertypeNodeIds.Count > 1)
+                        {
+                            return WotTypeBinding.Invalid($"The ObjectType '{current}' has multiple supertypes.");
+                        }
+                        parents = node.DirectSupertypeNodeIds;
+                    }
+                    else if (node.SupertypeNodeIds.Count != 0)
+                    {
+                        parents = [node.SupertypeNodeIds[0]];
+                    }
+                }
+                string? parent = parents.Count == 0 ? null : parents[0];
+                if (parent is not null && !WotPortableIdentity.IsPortableNodeId(parent))
+                {
+                    return WotTypeBinding.Invalid($"The EventType ancestor '{parent}' is not a portable identity.");
+                }
+                if (standard)
+                {
+                    string expected = known.VerifiedSupertypes.Count == 0
+                        ? WotVocabulary.BaseObjectType
+                        : known.VerifiedSupertypes[0];
+                    if (parent is not null && !AreSameExpandedNodeId(parent, expected))
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The supplied supertype of standard EventType '{current}' is not '{expected}'.");
+                    }
+                    if (current == WotVocabulary.BaseEventType)
+                    {
+                        WotResolvedNode? baseObject = await resolver.ResolveByNodeIdAsync(
+                            WotVocabulary.BaseObjectType, cancellationToken).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (baseObject is { } root &&
+                            (!WotPortableIdentity.IsPortableNodeId(root.NodeId) ||
+                                !AreSameExpandedNodeId(root.NodeId, WotVocabulary.BaseObjectType) ||
+                                root.NodeClass != WotExpectedNodeClass.ObjectType ||
+                                root.SupertypeNodeIds.Count != 0 ||
+                                root.DirectSupertypeNodeIds.Count != 0))
+                        {
+                            return WotTypeBinding.Invalid("The supplied BaseObjectType is not an ObjectType root.");
+                        }
+                        return CompleteVerifiedEventBinding(
+                            identity, requireCondition, ancestors, reportedAncestries, hasTypeContext, declarations);
+                    }
+                    parent = expected;
+                }
+                if (parent is null)
+                {
+                    return WotTypeBinding.Unresolved($"The ObjectType '{current}' has no verified event ancestry.");
+                }
+                current = NormalizeExpandedNodeId(parent);
+                ancestors.Add(current);
+            }
+            return WotTypeBinding.Invalid(
+                $"The EventType ancestry exceeds {WotTypeDeclarations.MaxSupertypeDepth} supertypes.");
+        }
+
+        private static WotTypeBinding CompleteVerifiedEventBinding(
+            string identity,
+            bool requireCondition,
+            List<string> ancestors,
+            List<(int Offset, ArrayOf<string> Ancestors)> reportedAncestries,
+            bool hasTypeContext,
+            WotTypeDeclarationSet? declarations = null)
+        {
+            if (requireCondition &&
+                identity != WotVocabulary.ConditionType &&
+                !ancestors.Contains(WotVocabulary.ConditionType))
+            {
+                return WotTypeBinding.Invalid($"The ObjectType '{identity}' is not a ConditionType.");
+            }
+            foreach ((int offset, ArrayOf<string> reported) in reportedAncestries)
+            {
+                for (int index = 0; index < reported.Count; index++)
+                {
+                    int position = offset + index;
+                    string expected = position < ancestors.Count
+                        ? ancestors[position]
+                        : position == ancestors.Count ? WotVocabulary.BaseObjectType : string.Empty;
+                    if (NormalizeExpandedNodeId(reported[index]) != expected)
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The reported EventType ancestry of '{identity}' is not one coherent chain.");
+                    }
+                }
+            }
+            return WotTypeBinding.Bound(identity, ancestors.ToArrayOf(), hasTypeContext, declarations);
+        }
+
+        private static bool TryBindStandardEventType(
+            string identity,
+            bool requireCondition,
+            out WotTypeBinding binding)
+        {
+            if (identity == WotVocabulary.BaseObjectType ||
+                (requireCondition && identity == WotVocabulary.BaseEventType))
+            {
+                binding = WotTypeBinding.Invalid($"The ObjectType '{identity}' is not a ConditionType.");
+                return true;
+            }
+            if (identity != WotVocabulary.BaseEventType &&
+                !WotVocabulary.TryGetConditionTypeName(identity, out _))
+            {
+                binding = WotTypeBinding.None;
+                return false;
+            }
+            var ancestors = new List<string>();
+            string current = identity;
+            while (current != WotVocabulary.BaseEventType)
+            {
+                foreach (WotStandardEventType type in s_standardEventTypes)
+                {
+                    if (type.NodeId == current)
+                    {
+                        current = type.SuperTypeNodeId;
+                        ancestors.Add(current);
+                        break;
+                    }
+                }
+            }
+            binding = WotTypeBinding.Bound(identity, ancestors.ToArrayOf());
+            return true;
+        }
+
+        private static string InheritedStandardEventType(WotTypeBinding binding)
+        {
+            if (binding.NodeId is { } identity && WotVocabulary.TryGetConditionTypeName(identity, out _))
+            {
+                return identity;
+            }
+            foreach (string ancestor in binding.VerifiedSupertypes)
+            {
+                if (WotVocabulary.TryGetConditionTypeName(ancestor, out _))
+                {
+                    return ancestor;
+                }
+            }
+            return WotVocabulary.BaseEventType;
+        }
+
         private static string ResolveConditionSupertype(
-            WotDocument document,
-            JsonElement eventAffordance,
-            string key,
+            WotTypeBinding binding,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            string? hint = GetElementString(eventAffordance, ConditionTypeTerm);
-            string hintNodeId = string.Empty;
-            bool hintResolved = hint is not null &&
-                TryResolveConditionTypeName(document, hint, out hintNodeId);
-            if (!hintResolved)
-            {
-                hintNodeId = string.Empty;
-            }
-
-            string? pinned = GetElementString(eventAffordance, ConditionTypeIdTerm);
-            if (pinned is not null)
-            {
-                string pinnedNodeId = ToNodeSetNodeId(pinned, nodeSet, diagnostics);
-                if (hintResolved &&
-                    !string.Equals(hintNodeId, pinnedNodeId, StringComparison.Ordinal))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.ConditionTypeConflict,
-                        $"'{ConditionTypeTerm}' names '{hint}' and '{ConditionTypeIdTerm}' " +
-                        $"pins '{pinned}', which are different ConditionTypes. The pin is " +
-                        "the definitive identity of the type the compact name reads, so the " +
-                        "two shall agree (WoT Binding Section 13.2).",
-                        WotLocation.FromPointer(
-                            "/events/" + EscapeJsonPointerToken(key) + "/" + ConditionTypeIdTerm)));
-                }
-                return pinnedNodeId;
-            }
-
-            if (hint is null)
-            {
-                return WotVocabulary.BaseEventType;
-            }
-            if (hintResolved)
-            {
-                return hintNodeId;
-            }
-
-            diagnostics.Add(new WotDiagnostic(
-                WotDiagnosticSeverity.Error,
-                WotDiagnosticCode.UnresolvedConditionType,
-                $"'{hint}' is not a ConditionType this Binding resolves. Pin it with " +
-                $"'{ConditionTypeIdTerm}' (WoT Binding Section 13.2).",
-                WotLocation.FromPointer(
-                    "/events/" + EscapeJsonPointerToken(key) + "/" + ConditionTypeTerm)));
-            return WotVocabulary.BaseEventType;
+            return binding is { Outcome: WotTypeBindingOutcome.Bound, NodeId: { } identity }
+                ? ToNodeSetNodeId(identity, nodeSet, diagnostics)
+                : WotVocabulary.BaseEventType;
         }
 
         /// <summary>
@@ -1541,16 +2166,17 @@ namespace Opc.Ua.Wot
         /// which Section 5.1.2 resolves through the document's own
         /// <c>@context</c> rather than by its literal prefix - an author may
         /// bind a second prefix to the OPC UA namespace. Only that namespace
-        /// resolves without a local context; a companion ConditionType has to
-        /// be pinned.
+        /// resolves without a local context; companion types are verified
+        /// asynchronously through the supplied node resolver.
         /// </remarks>
         private static bool TryResolveConditionTypeName(
             WotDocument document,
             string compactName,
-            out string nodeId)
+            out string nodeId,
+            JsonElement carryingNode = default)
         {
             if (TrySplitCompactModelName(compactName, out string prefix, out string local) &&
-                TryGetContextNamespace(document, prefix, out string namespaceUri) &&
+                document.TryGetContextPrefix(prefix, out string namespaceUri, carryingNode) &&
                 string.Equals(
                     namespaceUri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal) &&
                 WotVocabulary.TryGetConditionTypeNodeId(local, out string found))
@@ -1621,9 +2247,10 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> eventReferences,
             List<WotDiagnostic> diagnostics,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            DataTypeDefinitionContext? dataTypes = null)
         {
-            System.Text.Json.JsonDocument? linked = null;
+            JsonDocument? linked = null;
             try
             {
                 if (!eventAffordance.TryGetProperty(DataMember, out JsonElement data) ||
@@ -1639,7 +2266,7 @@ namespace Opc.Ua.Wot
                     {
                         return;
                     }
-                    linked = System.Text.Json.JsonDocument.Parse(
+                    linked = JsonDocument.Parse(
                         linkedData,
                         WotDocument.ReparseOptions);
                     data = linked.RootElement;
@@ -1652,7 +2279,7 @@ namespace Opc.Ua.Wot
                 SynthesizeEventFieldMembers(
                     document, nodeSet, eventAffordance, data, properties, key,
                     superTypeNodeId, eventNodeId, eventLocal, rootLocal, items,
-                    eventReferences, diagnostics);
+                    eventReferences, diagnostics, dataTypes, eventSelections, linked is not null);
             }
             finally
             {
@@ -1674,13 +2301,17 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> eventReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext? dataTypes,
+            WotEventSelectionCatalog? eventSelections,
+            bool linked)
         {
             bool isCondition = HasNonEmptyString(eventAffordance, ConditionTypeTerm) ||
                 HasNonEmptyString(eventAffordance, ConditionTypeIdTerm);
             HashSet<string> inherited = InheritedEventFieldNames(superTypeNodeId, isCondition);
             HashSet<string> required = ReadRequiredFields(data);
-            var declared = new HashSet<string>(StringComparer.Ordinal);
+            var declared = new HashSet<(string NamespaceUri, string Name)>();
+            var unqualified = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (JsonProperty member in properties.EnumerateObject())
             {
@@ -1702,13 +2333,27 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
-                string local = LocalName(GetElementString(member.Value, "uav:browseName"))
-                    ?? member.Name;
-                if (inherited.Contains(local) || inherited.Contains(member.Name))
+                string? authoredName = GetElementString(member.Value, "uav:browseName");
+                if (!TryResolveEventFieldName(
+                    document, nodeSet, member.Value, member.Name, inherited,
+                    linked ? eventSelections : null, key, out WotBrowsePathElement fieldName))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.EventFieldInvalid,
+                        $"The event field '{member.Name}' has no resolvable qualified BrowseName.",
+                        WotLocation.FromPointer(pointer)));
+                    continue;
+                }
+                string local = fieldName.Name;
+                if (fieldName.NamespaceUri == WotVocabulary.OpcUaNamespace && inherited.Contains(local))
                 {
                     continue;
                 }
-                if (!declared.Add(local))
+                bool isUnqualified = authoredName is null ||
+                    string.Equals(authoredName, local, StringComparison.Ordinal);
+                if (!declared.Add((fieldName.NamespaceUri!, local)) ||
+                    (isUnqualified && !unqualified.Add(local)))
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
@@ -1721,10 +2366,57 @@ namespace Opc.Ua.Wot
                 }
 
                 SynthesizeEventField(
-                    document, nodeSet, member.Value, local,
+                    document, nodeSet, eventAffordance, member.Value, fieldName,
                     required.Contains(member.Name) || required.Contains(local),
-                    eventNodeId, eventLocal, rootLocal, items, eventReferences, diagnostics);
+                    eventNodeId, eventLocal, rootLocal, items, eventReferences, diagnostics, dataTypes);
             }
+        }
+
+        private static bool TryResolveEventFieldName(
+            WotDocument document,
+            UANodeSet nodeSet,
+            JsonElement schema,
+            string member,
+            HashSet<string> inherited,
+            WotEventSelectionCatalog? linkedSelections,
+            string eventKey,
+            out WotBrowsePathElement name)
+        {
+            string? authored = GetElementString(schema, "uav:browseName");
+            if (linkedSelections is not null &&
+                (authored is not null || inherited.Contains(member)) &&
+                linkedSelections.TryGetSelection(eventKey, out ArrayOf<WotResolvedEventSelectClause> clauses))
+            {
+                foreach (WotResolvedEventSelectClause clause in clauses)
+                {
+                    if (clause.MemberPath.Count == 0 ||
+                        clause.MemberPath[0] != member ||
+                        clause.ResolvedPathElements.Count == 0)
+                    {
+                        continue;
+                    }
+                    string element = clause.ResolvedPathElements[0];
+                    if (element.StartsWith("{}", StringComparison.Ordinal))
+                    {
+                        name = new WotBrowsePathElement(WotVocabulary.OpcUaNamespace, element[2..]);
+                        return true;
+                    }
+                    if (element.Length > 0 && element[0] == '{')
+                    {
+                        WotEventSelectClauses.SplitElement(element, out string? namespaceUri, out string local);
+                        name = new WotBrowsePathElement(
+                            string.IsNullOrEmpty(namespaceUri) ? WotVocabulary.OpcUaNamespace : namespaceUri, local);
+                        return true;
+                    }
+                }
+            }
+            if (authored is not null)
+            {
+                return WotPortableIdentity.TryResolveQualifiedName(authored, document, schema, out name);
+            }
+            name = new WotBrowsePathElement(
+                inherited.Contains(member) ? WotVocabulary.OpcUaNamespace : GeneratedNamespaceUri(nodeSet), member);
+            return true;
         }
 
         /// <summary>
@@ -1739,30 +2431,39 @@ namespace Opc.Ua.Wot
         private static void SynthesizeEventField(
             WotDocument document,
             UANodeSet nodeSet,
+            JsonElement eventAffordance,
             JsonElement schema,
-            string local,
+            WotBrowsePathElement fieldName,
             bool required,
             string eventNodeId,
             string eventLocal,
             string rootLocal,
             List<UANode> items,
             List<Reference> eventReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext? dataTypes)
         {
+            string local = fieldName.Name;
+            string modelUri = GeneratedNamespaceUri(nodeSet);
             string? authoredNodeId = GetElementString(schema, "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNestedNodeId(nodeSet, rootLocal, eventLocal, local)
+                ? GenerateNodeId(nodeSet, new ArrayOf<WotBrowsePathElement>(
+                [
+                    DocumentPathElement(document, document.RootElement, modelUri, rootLocal),
+                    DocumentPathElement(document, eventAffordance, modelUri, eventLocal),
+                    document.GetAllocatedMemberPathElement(schema, modelUri, fieldName)
+                ]))
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
-            string? authoredBrowseName = GetElementString(schema, "uav:browseName");
+            string browseName = fieldName.NamespaceUri == WotVocabulary.OpcUaNamespace
+                ? local
+                : "nsu=" + CoreUtils.EscapeUri(fieldName.NamespaceUri!) + ";" + local;
             var field = new UAVariable
             {
                 NodeId = nodeId,
-                BrowseName = authoredBrowseName is null
-                    ? "1:" + local
-                    : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics),
-                DisplayName = ReadTitle(schema, GetDeclaredLocale(document), local),
+                BrowseName = ToNodeSetQualifiedName(document, browseName, nodeSet, diagnostics, schema),
+                DisplayName = ReadTitle(document, schema, local),
                 ParentNodeId = eventNodeId,
-                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
+                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 ValueRank = GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ArrayDimensions = ReadArrayDimensions(schema, local, diagnostics),
                 AccessLevel = AccessLevelCurrentRead,
@@ -1793,7 +2494,7 @@ namespace Opc.Ua.Wot
             string? description = GetElementString(schema, "description");
             if (description is not null)
             {
-                field.Description = ReadDescription(schema, GetDeclaredLocale(document));
+                field.Description = ReadDescription(document, schema);
             }
             items.Add(field);
             eventReferences.Add(new Reference
@@ -1838,6 +2539,7 @@ namespace Opc.Ua.Wot
         /// and is reported when it is created.
         /// </remarks>
         private static string EventNodeId(
+            WotDocument document,
             JsonElement eventAffordance,
             string key,
             string rootLocal,
@@ -1847,7 +2549,7 @@ namespace Opc.Ua.Wot
             string? authoredNodeId = GetElementString(eventAffordance, "uav:id");
             var ignored = new List<WotDiagnostic>();
             return authoredNodeId is null
-                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
+                ? GenerateMemberNodeId(document, nodeSet, rootLocal, local, eventAffordance)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, ignored);
         }
 
@@ -1872,7 +2574,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             JsonElement action,
             string key,
-            UANodeSet nodeSet,
+            Dictionary<JsonElement, WotTypeBinding> affordanceBindings,
             List<WotDiagnostic> diagnostics)
         {
             if (!TryGetNonEmptyString(action, ConditionActionTerm, out string conditionAction) ||
@@ -1901,14 +2603,10 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            // Resolving the target's ConditionType a second time is deliberate:
-            // it is resolved without diagnostics here, because any complaint
-            // about that event belongs to the event, not to the action that
-            // names it.
-            var ignored = new List<WotDiagnostic>();
-            string conditionType = ResolveConditionSupertype(
-                document, target, actsOn, nodeSet, ignored);
-            if (!DeclaresConditionMethod(conditionType, declaration.DeclaringTypeNodeId))
+            WotTypeBinding binding = affordanceBindings[target];
+            string conditionType = binding.NodeId ?? WotVocabulary.BaseEventType;
+            if (binding.Outcome != WotTypeBindingOutcome.Bound ||
+                !DeclaresConditionMethod(InheritedStandardEventType(binding), declaration.DeclaringTypeNodeId))
             {
                 if (WotVocabulary.TryGetConditionTypeName(conditionType, out string typeName) ||
                     string.Equals(

@@ -46,14 +46,17 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// preserving argument order and <see cref="DataValue"/> / <see cref="StatusCode"/>
     /// metadata.
     /// </summary>
-    internal sealed class OpcUaWotBindingChannel : IWotContextualBindingChannel
+    internal sealed partial class OpcUaWotBindingChannel :
+        IWotContextualBindingChannel, IWotPropertyBindingChannel, IWotCapturedConditionActionChannel,
+        IWotCapturedEventChannel
     {
         public OpcUaWotBindingChannel(
             ISession session,
             bool disposeSession,
             WotCompiledForm form,
             WotExecutorContext context,
-            OpcUaWotBindingOptions options)
+            OpcUaWotBindingOptions options,
+            WotEventSource? eventSource = null)
         {
             m_session = session;
             m_disposeSession = disposeSession;
@@ -62,62 +65,53 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             m_nodeId = form.Addressing.Target;
             m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
             m_context = context;
+            m_eventSource = eventSource;
+            if (form.Addressing.BrowsePathTarget is not null)
+            {
+                m_session.SessionConfigurationChanged += OnPathConfigurationChanged;
+            }
         }
 
         public WotCompiledForm Form { get; }
 
-        public async ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
+        public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
-            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
-            {
-                return new WotReadResult(
-                    StatusCodes.BadNodeIdInvalid,
-                    DataValue.FromStatusCode(StatusCodes.BadNodeIdInvalid),
-                    $"'{m_nodeId}' is not a valid NodeId.");
-            }
-            try
-            {
-                DataValue value = await m_session.ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
-                return new WotReadResult(value.StatusCode, value);
-            }
-            catch (ServiceResultException ex)
-            {
-                StatusCode status = ex.StatusCode;
-                return new WotReadResult(status, DataValue.FromStatusCode(status), ex.Message);
-            }
+            return ReadCoreAsync(default, default, null, cancellationToken);
         }
 
-        public async ValueTask<WotWriteResult> WriteAsync(
+        public ValueTask<WotReadResult> ReadAsync(
+            WotReadRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            return ReadCoreAsync(request.IndexRange, request.DataEncoding, request.Context, cancellationToken);
+        }
+
+        public ValueTask<WotWriteResult> WriteAsync(
             DataValue value, CancellationToken cancellationToken = default)
         {
-            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
+            return WriteCoreAsync(value, default, null, cancellationToken);
+        }
+
+        public ValueTask<WotWriteResult> WriteAsync(
+            WotWriteRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
             {
-                return new WotWriteResult(StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid NodeId.");
+                throw new ArgumentNullException(nameof(request));
             }
-            try
-            {
-                var write = new WriteValue
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue(value.WrappedValue)
-                };
-                WriteResponse response = await m_session
-                    .WriteAsync(null, new WriteValue[] { write }, cancellationToken).ConfigureAwait(false);
-                StatusCode status = response.Results is { Count: > 0 }
-                    ? response.Results[0] : StatusCodes.BadUnexpectedError;
-                return new WotWriteResult(status, StatusCode.IsBad(status) ? status.ToString() : null);
-            }
-            catch (ServiceResultException ex)
-            {
-                return new WotWriteResult(ex.StatusCode, ex.Message);
-            }
+            return WriteCoreAsync(request.Value, request.IndexRange, request.Context, cancellationToken);
         }
 
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
-            return InvokeCoreAsync(inputs is null ? [] : inputs.ToArrayOf(), null, cancellationToken);
+            return InvokeCoreAsync(
+                inputs is null ? [] : inputs.ToArrayOf(),
+                m_context.HasExplicitMessageContext ? m_context.MessageContext : null,
+                DiagnosticsMasks.None, cancellationToken);
         }
 
         public ValueTask<WotInvokeResult> InvokeAsync(
@@ -127,65 +121,65 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            return InvokeCoreAsync(request.Inputs, request.Context, cancellationToken);
+            return InvokeCoreAsync(request.Inputs, request.Context, request.DiagnosticsMask, cancellationToken);
         }
 
-        public ValueTask<IWotSubscription> ObserveAsync(
+        public async ValueTask<IWotSubscription> ObserveAsync(
             Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
         {
             if (onNotification is null)
             {
                 throw new ArgumentNullException(nameof(onNotification));
             }
-            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid NodeId.");
-            }
+            ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Variable, cancellationToken)
+                .ConfigureAwait(false);
             // Native data-change subscription: the server samples and reports
             // changes (Part 4 §5.12); no client-side polling is involved.
-            return CreateMonitoredSubscriptionAsync(
-                nodeId,
+            return await CreateMonitoredSubscriptionAsync(
+                target,
                 NodeClass.Variable,
                 Attributes.Value,
                 filter: null,
                 queueSize: 1,
-                translate: static (_, notificationValue) => notificationValue is MonitoredItemNotification change
-                    ? new WotNotification(change.Value)
+                translate: (_, notificationValue, sourceContext) =>
+                    notificationValue is MonitoredItemNotification change
+                    ? new WotNotification(change.Value).WithContext(sourceContext)
                     : null,
                 onNotification,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         public ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
         {
-            if (onEvent is null)
-            {
-                throw new ArgumentNullException(nameof(onEvent));
-            }
-            if (!TryResolveNodeId(m_nodeId, out NodeId notifierId))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid event notifier NodeId.");
-            }
-            EventFilter filter = BuildEventFilter();
-            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
-            return CreateMonitoredSubscriptionAsync(
-                notifierId,
-                NodeClass.Object,
-                Attributes.EventNotifier,
-                filter,
-                queueSize: m_options.EventQueueSize,
-                translate: (_, notificationValue) => notificationValue is EventFieldList eventFields
-                    ? BuildEventNotification(selection, eventFields)
-                    : null,
-                onEvent,
-                cancellationToken);
+            return SubscribeEventCoreAsync(onEvent, [], cancellationToken);
+        }
+
+        public ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+            bool captureConditionFields,
+            Action<WotNotification> onEvent,
+            CancellationToken cancellationToken = default)
+        {
+            return SubscribeCapturedEventAsync(captureConditionFields
+                ? Ua.ObjectTypeIds.ConditionType : Ua.ObjectTypeIds.BaseEventType, onEvent, cancellationToken);
+        }
+
+        public ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+            NodeId coreEventType,
+            Action<WotNotification> onEvent,
+            CancellationToken cancellationToken = default)
+        {
+            return SubscribeEventCoreAsync(
+                onEvent, WotCapturedEvent.GetRequiredSelectClauses(coreEventType), cancellationToken);
         }
 
         public ValueTask DisposeAsync()
         {
+            m_eventSource?.DisposeBinding();
+            if (Form.Addressing.BrowsePathTarget is not null)
+            {
+                m_session.SessionConfigurationChanged -= OnPathConfigurationChanged;
+            }
             if (m_disposeSession)
             {
                 m_session.Dispose();
@@ -193,36 +187,182 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return default;
         }
 
-        private async ValueTask<WotInvokeResult> InvokeCoreAsync(
-            ArrayOf<Variant> inputs,
+        private async ValueTask<IWotSubscription> SubscribeEventCoreAsync(
+            Action<WotNotification> onEvent,
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements,
+            CancellationToken cancellationToken)
+        {
+            if (onEvent is null)
+            {
+                throw new ArgumentNullException(nameof(onEvent));
+            }
+            if (!captureRequirements.IsEmpty && m_eventSource is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The source cannot retain a binding for private Core event capture.");
+            }
+            ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Object | NodeClass.View, cancellationToken)
+                .ConfigureAwait(false);
+            EventFilter filter = BuildEventFilter(
+                captureRequirements, out ArrayOf<int> captureIndexes, target.State?.NamespaceUris);
+            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
+            ArrayOf<WotResolvedEventSelectClause> captureClauses = captureRequirements.IsEmpty
+                ? selection.Clauses : captureRequirements;
+            return await CreateMonitoredSubscriptionAsync(
+                target,
+                NodeClass.Object,
+                Attributes.EventNotifier,
+                filter,
+                queueSize: m_options.EventQueueSize,
+                translate: (_, notificationValue, sourceContext) => notificationValue is EventFieldList eventFields
+                    ? BuildCapturedEventNotification(
+                        selection, captureClauses, captureIndexes,
+                        filter.SelectClauses.Count, eventFields, sourceContext)
+                    : null,
+                onEvent,
+                cancellationToken,
+                captureRequirements).ConfigureAwait(false);
+        }
+
+        private async ValueTask<WotReadResult> ReadCoreAsync(
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
             IServiceMessageContext? inputContext,
             CancellationToken cancellationToken)
         {
-            if (!Form.Addressing.Metadata.TryGetValue("componentOf", out string? objectRef) ||
+            try
+            {
+                ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Variable, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!dataEncoding.IsNull && inputContext is not null)
+                {
+                    Variant encoding = WotBindingValueMapper.Translate(
+                        new Variant(dataEncoding), inputContext,
+                        target.State?.CreateContext() ?? CreateSourceContext());
+                    if (!encoding.TryGetValue(out dataEncoding))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDataEncodingInvalid, "The data encoding must be a QualifiedName.");
+                    }
+                }
+                ValidatePathSessionState(target.State);
+                DataValue value;
+                if (indexRange.IsNull && dataEncoding.IsNull)
+                {
+                    value = await m_session.ReadValueAsync(target.NodeId, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    ArrayOf<ReadValueId> requests =
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = target.NodeId,
+                            AttributeId = Attributes.Value,
+                            IndexRange = indexRange.ToString(),
+                            DataEncoding = dataEncoding
+                        }
+                    ];
+                    ReadResponse response = await m_session.ReadAsync(
+                        null, 0, TimestampsToReturn.Both, requests, cancellationToken).ConfigureAwait(false);
+                    ClientBase.ValidateResponse(response.Results, requests);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                    value = response.Results[0];
+                }
+                ValidatePathSessionState(target.State);
+                return new WotReadResult(value.StatusCode, value)
+                    .WithContext(target.State?.CreateContext() ?? CreateSourceContext());
+            }
+            catch (ServiceResultException ex)
+            {
+                StatusCode status = ex.StatusCode;
+                return new WotReadResult(status, DataValue.FromStatusCode(status), ex.Message);
+            }
+        }
+
+        private async ValueTask<WotWriteResult> WriteCoreAsync(
+            DataValue value,
+            NumericRange indexRange,
+            IServiceMessageContext? inputContext,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Variable, cancellationToken)
+                    .ConfigureAwait(false);
+                Variant writtenValue = inputContext is null
+                    ? value.WrappedValue
+                    : WotBindingValueMapper.Translate(
+                        value.WrappedValue, inputContext, target.State?.CreateContext() ?? CreateSourceContext());
+                ArrayOf<WriteValue> requests =
+                [
+                    new WriteValue
+                    {
+                        NodeId = target.NodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = indexRange.ToString(),
+                        Value = new DataValue(writtenValue)
+                    }
+                ];
+                ValidatePathSessionState(target.State);
+                WriteResponse response = await m_session.WriteAsync(null, requests, cancellationToken)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, requests);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                StatusCode status = response.Results[0];
+                return new WotWriteResult(status, StatusCode.IsBad(status) ? status.ToString() : null);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new WotWriteResult(ex.StatusCode, ex.Message);
+            }
+        }
+
+        private async ValueTask<WotInvokeResult> InvokeCoreAsync(
+            ArrayOf<Variant> inputs,
+            IServiceMessageContext? inputContext,
+            DiagnosticsMasks diagnosticsMask,
+            CancellationToken cancellationToken)
+        {
+            bool explicitReceiver = Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef);
+            string receiverTerm = explicitReceiver ? "uav:callObjectId" : "uav:componentOf";
+            if ((!explicitReceiver && !Form.Addressing.Metadata.TryGetValue("componentOf", out objectRef)) ||
                 string.IsNullOrEmpty(objectRef) ||
-                !TryResolveNodeId(objectRef!, out NodeId objectId))
+                (explicitReceiver && !WotPortableIdentity.IsPortableNodeId(objectRef)))
             {
                 return new WotInvokeResult(
                     StatusCodes.BadNodeIdInvalid, null,
-                    "An OPC UA action requires a uav:componentOf object NodeId.");
-            }
-            if (!TryResolveNodeId(m_nodeId, out NodeId methodId))
-            {
-                return new WotInvokeResult(
-                    StatusCodes.BadNodeIdInvalid, null, $"'{m_nodeId}' is not a valid method NodeId.");
+                    $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
             }
             try
             {
                 if (Form.ConditionInvocation is { } invocation)
                 {
                     inputs = invocation.NormalizeInputs(inputs);
+                    if (inputs.Count != 2)
+                    {
+                        return new WotInvokeResult(
+                            inputs.Count < 2 ? StatusCodes.BadArgumentsMissing : StatusCodes.BadTooManyArguments,
+                            error: "A Condition occurrence action requires EventId and Comment; " +
+                                "only an explicitly optional Comment can be supplied as a typed null.");
+                    }
+                }
+                Form.Payload.ValidateInputs(inputs, inputContext ?? CreateSourceContext());
+                ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Method, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!TryResolveNodeId(objectRef!, out NodeId objectId, target.State?.NamespaceUris))
+                {
+                    return new WotInvokeResult(
+                        StatusCodes.BadNodeIdInvalid, null,
+                        $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
                 }
                 if (inputContext is not null)
                 {
+                    ServiceMessageContext sourceContext = target.State?.CreateContext() ?? CreateSourceContext();
                     var destination = new ServiceMessageContext(inputContext, inputContext.Telemetry)
                     {
-                        NamespaceUris = m_session.NamespaceUris,
-                        ServerUris = m_session.ServerUris
+                        NamespaceUris = sourceContext.NamespaceUris,
+                        ServerUris = sourceContext.ServerUris
                     };
                     inputs = inputs.ConvertAll(value =>
                         WotBindingValueMapper.Translate(value, inputContext, destination));
@@ -232,32 +372,95 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     new CallMethodRequest
                     {
                         ObjectId = objectId,
-                        MethodId = methodId,
+                        MethodId = target.NodeId,
                         InputArguments = inputs
                     }
                 ];
-                CallResponse response = await m_session.CallAsync(null, requests, cancellationToken)
+                RequestHeader? header = diagnosticsMask == DiagnosticsMasks.None
+                    ? null : new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask };
+                ValidatePathSessionState(target.State);
+                CallResponse response = await m_session.CallAsync(header, requests, cancellationToken)
                     .ConfigureAwait(false);
                 ClientBase.ValidateResponse(response.Results, requests);
                 ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                ValidatePathSessionState(target.State);
                 CallMethodResult result = response.Results[0];
+                ValidateInvocationDetails(result, inputs.Count, response);
+                ServiceResult operation = ClientBase.GetResult(
+                    result.StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader);
+                ArrayOf<StatusCode> argumentStatuses = result.InputArgumentResults;
+                ClientBase.ValidateDiagnosticInfos(result.InputArgumentDiagnosticInfos, argumentStatuses);
+                var argumentResults = new ServiceResult[argumentStatuses.Count];
+                for (int i = 0; i < argumentResults.Length; i++)
+                {
+                    argumentResults[i] = ClientBase.GetResult(
+                        argumentStatuses[i], i, result.InputArgumentDiagnosticInfos, response.ResponseHeader);
+                }
                 if (StatusCode.IsBad(result.StatusCode))
                 {
-                    throw ServiceResultException.Create(
-                        result.StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader.StringTable);
+                    return new WotInvokeResult(result.StatusCode, error: operation.ToString())
+                        .WithResultDetails(operation, argumentResults)
+                        .WithContext(target.State?.CreateContext() ?? CreateSourceContext());
                 }
                 ArrayOf<Variant> outputs = result.OutputArguments;
+                ServiceMessageContext outputContext = target.State?.CreateContext() ?? CreateSourceContext();
+                Form.Payload.ValidateOutputs(outputs, outputContext);
                 var results = new DataValue[outputs.Count];
                 for (int i = 0; i < outputs.Count; i++)
                 {
                     results[i] = new DataValue(outputs[i], StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now);
                 }
-                return new WotInvokeResult(result.StatusCode, results).WithContext(CreateSourceContext());
+                return new WotInvokeResult(result.StatusCode, results)
+                    .WithResultDetails(operation, argumentResults)
+                    .WithContext(outputContext);
             }
             catch (ServiceResultException ex)
             {
-                return new WotInvokeResult(ex.StatusCode, null, ex.Message);
+                return new WotInvokeResult(ex.StatusCode, null, ex.Message).WithResultDetails(ex.Result, []);
             }
+        }
+
+        private static void ValidateInvocationDetails(CallMethodResult result, int inputCount, CallResponse response)
+        {
+            int resultsCount = result.InputArgumentResults.Count;
+            int diagnosticsCount = result.InputArgumentDiagnosticInfos.Count;
+            if ((resultsCount != 0 &&
+                (resultsCount != inputCount || result.StatusCode != StatusCodes.BadInvalidArgument)) ||
+                (diagnosticsCount != 0 && diagnosticsCount != resultsCount))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "The server returned inconsistent Call input-result details.");
+            }
+            ArrayOf<string> strings = response.ResponseHeader.StringTable;
+            foreach (DiagnosticInfo? diagnostic in response.DiagnosticInfos)
+            {
+                ValidateDiagnosticIndexes(diagnostic, strings.Count);
+            }
+            foreach (DiagnosticInfo? diagnostic in result.InputArgumentDiagnosticInfos)
+            {
+                ValidateDiagnosticIndexes(diagnostic, strings.Count);
+            }
+        }
+
+        private static void ValidateDiagnosticIndexes(DiagnosticInfo? diagnostic, int stringCount)
+        {
+            for (int depth = 0; diagnostic is not null; depth++, diagnostic = diagnostic.InnerDiagnosticInfo)
+            {
+                if (depth >= DiagnosticInfo.MaxInnerDepth ||
+                    !IsValidIndex(diagnostic.SymbolicId, stringCount) ||
+                    !IsValidIndex(diagnostic.NamespaceUri, stringCount) ||
+                    !IsValidIndex(diagnostic.Locale, stringCount) ||
+                    !IsValidIndex(diagnostic.LocalizedText, stringCount))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The server returned invalid Call diagnostic indexes or depth.");
+                }
+            }
+        }
+
+        private static bool IsValidIndex(int index, int count)
+        {
+            return index >= -1 && index < count;
         }
 
         /// <summary>
@@ -275,14 +478,15 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             Justification = "Ownership of the subscription is transferred to the caller (an " +
                 "IWotSubscription), who disposes it; on failure it is disposed in the catch block.")]
         private async ValueTask<IWotSubscription> CreateMonitoredSubscriptionAsync(
-            NodeId targetId,
+            ResolvedPathTarget target,
             NodeClass nodeClass,
             uint attributeId,
             MonitoringFilter? filter,
             uint queueSize,
-            Func<MonitoredItem, IEncodeable, WotNotification?> translate,
+            Func<MonitoredItem, IEncodeable, IServiceMessageContext, WotNotification?> translate,
             Action<WotNotification> onNotification,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements = default)
         {
             int interval = NormalizeInterval(m_options.ObserveInterval);
             var subscription = new Subscription(m_session.DefaultSubscription)
@@ -292,19 +496,24 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 PublishingInterval = interval
             };
             m_session.AddSubscription(subscription);
+            OpcUaMonitoredItemSubscription? lifetime = null;
             try
             {
+                ValidatePathSessionState(target.State);
                 await subscription.CreateAsync(cancellationToken).ConfigureAwait(false);
 
                 var item = new MonitoredItem(subscription.DefaultItem)
                 {
-                    StartNodeId = targetId,
+                    StartNodeId = target.NodeId,
                     NodeClass = nodeClass,
                     AttributeId = attributeId,
                     DisplayName = Form.AffordanceName,
                     SamplingInterval = interval,
                     QueueSize = queueSize,
-                    DiscardOldest = true
+                    DiscardOldest = true,
+                    MonitoringMode = target.State is not null
+                        ? MonitoringMode.Disabled
+                        : subscription.DefaultItem.MonitoringMode
                 };
                 if (filter is not null)
                 {
@@ -313,13 +522,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
                 void OnItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
                 {
-                    WotNotification? notification = translate(monitoredItem, e.NotificationValue);
+                    if (target.State is not null)
+                    {
+                        lifetime?.PublishPathNotification(monitoredItem, e.NotificationValue, translate);
+                        return;
+                    }
+                    WotNotification? notification = translate(
+                        monitoredItem, e.NotificationValue, CreateSourceContext());
                     if (notification is not null)
                     {
                         onNotification(notification);
                     }
                 }
                 item.Notification += OnItemNotification;
+                lifetime = new OpcUaMonitoredItemSubscription(
+                    Form, m_session, subscription, item, OnItemNotification, this, onNotification, target.State,
+                    captureRequirements);
 
                 subscription.AddItem(item);
                 await subscription.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -333,11 +551,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         item.Status.Error?.ToString() ?? "The server rejected the monitored item.");
                 }
 
-                return new OpcUaMonitoredItemSubscription(Form, m_session, subscription, item, OnItemNotification);
+                await lifetime.StartPathMaintenanceAsync(cancellationToken).ConfigureAwait(false);
+                return lifetime;
             }
             catch
             {
-                await RemoveSubscriptionSafeAsync(subscription).ConfigureAwait(false);
+                try
+                {
+                    if (lifetime is not null)
+                    {
+                        await lifetime.StopPathMaintenanceAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await RemoveSubscriptionSafeAsync(subscription).ConfigureAwait(false);
+                }
                 throw;
             }
         }
@@ -364,7 +593,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// The planner always compiles the effective selection - the eight
         /// mandatory <c>BaseEventType</c> fields when the affordance states
         /// none, the complete authored list when it states one - so this method
-        /// resolves rather than decides. Resolution is what needs a session:
+        /// retains that public prefix and appends private Core capture operands
+        /// when the source supports occurrence capture. Resolution needs a session:
         /// a portable ExpandedNodeId and a NamespaceUri-qualified path element
         /// only become a <see cref="NodeId"/> and a <see cref="QualifiedName"/>
         /// against a namespace table, and a table exists only once a session
@@ -378,13 +608,17 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// deliver an event whose <c>data</c> object the document does not
         /// describe.
         /// </exception>
-        private EventFilter BuildEventFilter()
+        private EventFilter BuildEventFilter(
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements,
+            out ArrayOf<int> captureIndexes,
+            NamespaceTable? namespaceUris = null)
         {
+            namespaceUris ??= m_session.NamespaceUris;
             WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
             var filter = new EventFilter();
             foreach (WotResolvedEventSelectClause clause in selection.Clauses)
             {
-                if (!TryResolveNodeId(clause.TypeDefinitionId, out NodeId typeDefinitionId))
+                if (!TryResolveNodeId(clause.TypeDefinitionId, out NodeId typeDefinitionId, namespaceUris))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadTypeDefinitionInvalid,
@@ -397,9 +631,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     AttributeId = clause.IsConditionIdSelection
                         ? Attributes.NodeId
                         : Attributes.Value,
-                    BrowsePath = ResolveBrowsePath(clause)
+                    BrowsePath = ResolveBrowsePath(clause, namespaceUris)
                 };
                 filter.SelectClauses = filter.SelectClauses.AddItem(operand);
+            }
+            if (captureRequirements.IsEmpty)
+            {
+                int index = 0;
+                captureIndexes = selection.Clauses.ConvertAll(_ => index++);
+            }
+            else
+            {
+                captureIndexes = AppendRequiredEventFields(filter, captureRequirements);
             }
             return filter;
         }
@@ -417,17 +660,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// Thrown when a path element names a NamespaceUri the Server's
         /// namespace table does not hold.
         /// </exception>
-        private ArrayOf<QualifiedName> ResolveBrowsePath(WotResolvedEventSelectClause clause)
+        private static ArrayOf<QualifiedName> ResolveBrowsePath(
+            WotResolvedEventSelectClause clause, NamespaceTable namespaceUris)
         {
             ArrayOf<string> elements = clause.PathElements;
             if (elements.Count == 0)
             {
-                return ArrayOf<QualifiedName>.Empty;
+                return [];
             }
             var names = new QualifiedName[elements.Count];
             for (int ii = 0; ii < elements.Count; ii++)
             {
-                names[ii] = WotBindingValueMapper.ResolveBrowseName(elements[ii], m_session.NamespaceUris);
+                names[ii] = WotBindingValueMapper.ResolveBrowseName(elements[ii], namespaceUris);
             }
             return names;
         }
@@ -463,22 +707,25 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// </para>
         /// </remarks>
         private WotNotification BuildEventNotification(
-            WotEventSelection selection, EventFieldList eventFields)
+            WotEventSelection selection, EventFieldList eventFields, IServiceMessageContext sourceContext,
+            WotCapturedEvent? captured = null)
         {
             ArrayOf<Variant> values = eventFields.EventFields;
             int count = Math.Min(selection.Clauses.Count, values.Count);
 
-            DateTimeUtc sourceTimestamp = DateTimeUtc.Now;
-            DateTimeUtc serverTimestamp = DateTimeUtc.Now;
+            DateTimeUtc sourceTimestamp = captured is { HasTime: true } ? captured.Time : DateTimeUtc.Now;
+            DateTimeUtc serverTimestamp = captured is { HasReceiveTime: true } ? captured.ReceiveTime : DateTimeUtc.Now;
             for (int i = 0; i < count; i++)
             {
                 string name = selection.Clauses[i].FieldName;
-                if (string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
+                if (captured is not { HasTime: true } &&
+                    string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc time))
                 {
                     sourceTimestamp = time;
                 }
-                else if (string.Equals(name, EventBrowseNames.ReceiveTime, StringComparison.Ordinal) &&
+                else if (captured is not { HasReceiveTime: true } &&
+                    string.Equals(name, EventBrowseNames.ReceiveTime, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc receiveTime))
                 {
                     serverTimestamp = receiveTime;
@@ -536,13 +783,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
 
             var dataValue = new DataValue(primary, StatusCodes.Good, sourceTimestamp, serverTimestamp);
-            return new WotNotification(dataValue, fields, data.Build()).WithContext(CreateSourceContext());
+            return new WotNotification(dataValue, fields, data.Build()).WithContext(sourceContext);
         }
 
         private ServiceMessageContext CreateSourceContext()
         {
             return new ServiceMessageContext(
-                m_context.Telemetry ?? AmbientMessageContext.Telemetry ??
+                m_context.Telemetry ??
+                AmbientMessageContext.Telemetry ??
                     TelemetryExtensions.InternalOnly__TelemetryHook(), m_session.Factory)
             {
                 NamespaceUris = new NamespaceTable(m_session.NamespaceUris),
@@ -603,18 +851,24 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// form), so it is parsed as an <see cref="ExpandedNodeId"/> and
         /// resolved against the connected session's namespace table.
         /// </summary>
-        private bool TryResolveNodeId(string value, out NodeId nodeId)
+        private bool TryResolveNodeId(string value, out NodeId nodeId, NamespaceTable? namespaceUris = null)
         {
-            if (TryParseNodeId(value, out nodeId))
-            {
-                return true;
-            }
-            if (!ExpandedNodeId.TryParse(value, out ExpandedNodeId expanded) || expanded.IsNull)
+            bool parsed = ExpandedNodeId.TryParse(value, out ExpandedNodeId expanded);
+            if (parsed && expanded.ServerIndex != 0)
             {
                 nodeId = NodeId.Null;
                 return false;
             }
-            nodeId = ExpandedNodeId.ToNodeId(expanded, m_session.NamespaceUris);
+            if (TryParseNodeId(value, out nodeId))
+            {
+                return true;
+            }
+            if (!parsed || expanded.IsNull)
+            {
+                nodeId = NodeId.Null;
+                return false;
+            }
+            nodeId = ExpandedNodeId.ToNodeId(expanded, namespaceUris ?? m_session.NamespaceUris);
             return !nodeId.IsNull;
         }
 
@@ -653,44 +907,60 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// <see cref="ISession.RemoveSubscriptionAsync"/>) before releasing the
         /// local <see cref="Subscription"/>, so no session/subscription leaks.
         /// </summary>
-        private sealed class OpcUaMonitoredItemSubscription : IWotSubscription
+        private sealed partial class OpcUaMonitoredItemSubscription : IWotSubscription
         {
             public OpcUaMonitoredItemSubscription(
                 WotCompiledForm form,
                 ISession session,
                 Subscription subscription,
                 MonitoredItem item,
-                MonitoredItemNotificationEventHandler handler)
+                MonitoredItemNotificationEventHandler handler,
+                OpcUaWotBindingChannel owner,
+                Action<WotNotification> onNotification,
+                PathSessionState? sessionState,
+                ArrayOf<WotResolvedEventSelectClause> captureRequirements)
             {
                 Form = form;
                 m_session = session;
                 m_subscription = subscription;
                 m_item = item;
                 m_handler = handler;
+                m_captureRequirements = captureRequirements;
+                m_pathRefresh = sessionState is null
+                    ? null
+                    : new PathRefresh(this, owner, onNotification, sessionState);
             }
 
             public WotCompiledForm Form { get; }
 
             public async ValueTask DisposeAsync()
             {
-                m_item.Notification -= m_handler;
                 try
                 {
-                    await m_session.RemoveSubscriptionAsync(m_subscription, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    await StopPathMaintenanceAsync().ConfigureAwait(false);
                 }
-                catch (ServiceResultException)
+                finally
                 {
-                    // Best-effort server-side cleanup; the session may already
-                    // be closed or the subscription already removed.
+                    m_item.Notification -= m_handler;
+                    try
+                    {
+                        await m_session.RemoveSubscriptionAsync(m_subscription, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException)
+                    {
+                        // Best-effort server-side cleanup; the session may already
+                        // be closed or the subscription already removed.
+                    }
+                    m_subscription.Dispose();
                 }
-                m_subscription.Dispose();
             }
 
             private readonly ISession m_session;
             private readonly Subscription m_subscription;
-            private readonly MonitoredItem m_item;
+            private MonitoredItem m_item;
             private readonly MonitoredItemNotificationEventHandler m_handler;
+            private readonly ArrayOf<WotResolvedEventSelectClause> m_captureRequirements;
         }
 
         private readonly ISession m_session;
@@ -699,6 +969,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private readonly OpcUaWotBindingOptions m_options;
         private readonly string m_nodeId;
         private readonly ILogger m_logger;
+        private readonly WotEventSource? m_eventSource;
     }
 
     internal static partial class OpcUaWotBindingChannelLog

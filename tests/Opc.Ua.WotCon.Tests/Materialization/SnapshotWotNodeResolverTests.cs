@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -88,12 +89,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(matches, Has.Count.EqualTo(1));
             Assert.That(
                 matches[0].NodeId,
-                Is.EqualTo(Opc.Ua.Wot.WotPortableIdentity.GenerateNodeId(
+                Is.EqualTo(WotPortableIdentity.GenerateNodeId(
                     PumpNamespace,
-                    new ArrayOf<Opc.Ua.Wot.WotBrowsePathElement>(
+                    new ArrayOf<WotBrowsePathElement>(
                         new[]
                         {
-                            new Opc.Ua.Wot.WotBrowsePathElement(PumpNamespace, "Tank")
+                            new WotBrowsePathElement(PumpNamespace, "Tank")
                         }))),
                 "The index and the conversion derive one generated identity, by the " +
                 "Annex G.1 formula, from the same two inputs.");
@@ -190,16 +191,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task ReportsEverySiblingMatchSoAmbiguityIsVisibleAsync()
         {
             SnapshotWotNodeResolver resolver = await ResolverAsync(
-                (WoTDocumentKindEnum.ThingModel, "tank-a", Tm("Tank", "i=1042")),
-                (WoTDocumentKindEnum.ThingModel, "tank-b", Tm("Tank", "i=2042")))
+                (WoTDocumentKindEnum.ThingModel, "tank-a", Tm("Tank", "i=1042", "urn:test:snapshot:tank-a")),
+                (WoTDocumentKindEnum.ThingModel, "tank-b", Tm("Tank", "i=2042", "urn:test:snapshot:tank-b")))
                 .ConfigureAwait(false);
 
+            Assert.That(resolver.Snapshot.AllResources().Count(), Is.EqualTo(2),
+                "The fixture must provision two distinct model identities.");
             ArrayOf<WotResolvedNode> matches = await resolver
                 .ResolveByBrowseNameAsync(
                     PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType)
                 .ConfigureAwait(false);
 
             Assert.That(matches, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task RepeatedModelIdentityIsIndexedOnceDespiteDifferentResourceAliasesAsync()
+        {
+            SnapshotWotNodeResolver resolver = await ResolverAsync(
+                (WoTDocumentKindEnum.ThingModel, "tank-a", Tm("Tank", "i=1042")),
+                (WoTDocumentKindEnum.ThingModel, "tank-b", Tm("Tank", "i=1042")))
+                .ConfigureAwait(false);
+
+            Assert.That(resolver.Snapshot.AllResources().Count(), Is.EqualTo(1));
+            ArrayOf<WotResolvedNode> matches = await resolver.ResolveByBrowseNameAsync(
+                PumpNamespace, "Tank", WotExpectedNodeClass.ObjectType).ConfigureAwait(false);
+
+            Assert.That(matches, Has.Count.EqualTo(1));
+            Assert.That(matches[0].NodeId, Is.EqualTo("nsu=urn:test:pump;i=1042"));
         }
 
         /// <summary>
@@ -238,7 +257,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             // Registered as a Thing Description, but the bytes are a Thing
             // Model. Its content is present, so only the Kind check can
             // exclude it.
-            ByteString disguised = ByteString.From(Tm("Tank", "i=1042"));
+            var disguised = ByteString.From(Tm("Tank", "i=1042"));
             byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(disguised))] = disguised;
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -271,7 +290,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var service = new WotRegistryService();
             for (int ii = 0; ii < 6; ii++)
             {
-                ByteString bytes = ByteString.From(Tm("Tank" + ii, "i=" + (1000 + ii)));
+                var bytes = ByteString.From(Tm(
+                    "Tank" + ii, "i=" + (1000 + ii), "urn:test:snapshot:tank-" + ii));
                 byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(bytes))] = bytes;
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
@@ -282,6 +302,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }).ConfigureAwait(false);
             }
 
+            Assert.That(service.Current.AllResources().Count(), Is.EqualTo(6),
+                "The fixture must provision six distinct model identities before applying the index budget.");
             var resolver = new SnapshotWotNodeResolver(
                 service.Current,
                 byDigest,
@@ -432,7 +454,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var service = new WotRegistryService();
             foreach ((WoTDocumentKindEnum kind, string id, byte[] content) in docs)
             {
-                ByteString bytes = ByteString.From(content);
+                var bytes = ByteString.From(content);
                 byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(bytes))] = bytes;
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
@@ -447,9 +469,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new SnapshotWotNodeResolver(service.Current, byDigest);
         }
 
-        private static byte[] Tm(string browseName, string identifier)
+        private static byte[] Tm(string browseName, string identifier, string? documentId = null)
         {
-            return Document("tm:ThingModel", browseName, identifier);
+            return Document("tm:ThingModel", browseName, identifier, documentId: documentId);
         }
 
         /// <summary>
@@ -496,7 +518,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string identifier,
             bool includeUavId = true,
             string? extraTypeToken = null,
-            string? extraMembers = null)
+            string? extraMembers = null,
+            string? documentId = null)
         {
             var builder = new StringBuilder();
             builder.Append("{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",")
@@ -509,7 +532,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 builder.Append(",\"").Append(extraTypeToken).Append('"');
             }
             builder.Append("],")
-                .Append("\"id\":\"").Append(PumpNamespace).Append("\",")
+                .Append("\"id\":\"").Append(documentId ?? PumpNamespace).Append("\",")
                 .Append("\"title\":\"").Append(browseName).Append("\",")
                 .Append("\"uav:browseName\":\"pump:").Append(browseName).Append("\",");
             if (includeUavId)

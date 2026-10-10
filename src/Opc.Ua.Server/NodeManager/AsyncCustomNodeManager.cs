@@ -714,6 +714,12 @@ namespace Opc.Ua.Server
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
 
+        internal bool SupportsSourceEmissionCutoff =>
+            (m_monitoredItemManager.GetType() == typeof(MonitoredNodeMonitoredItemManager) ||
+                m_monitoredItemManager.GetType() == typeof(SamplingGroupMonitoredItemManager)) &&
+            m_monitoredItemManager.MonitoredItems.Values.All(item =>
+                item is null || item.GetType() == typeof(MonitoredItem));
+
         /// <inheritdoc/>
         async ValueTask<IReadOnlyList<IMonitoredItem>>
             INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
@@ -899,6 +905,10 @@ namespace Opc.Ua.Server
                 return validationResult;
             }
 
+            if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0)
+            {
+                return ServiceResult.Good;
+            }
             (ServiceResult readResult, _) = await ReadMonitoredValueAsync(
                 context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
             return IsFatalInitialReadError(readResult)
@@ -1061,6 +1071,8 @@ namespace Opc.Ua.Server
             }
 
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            bool externalValues =
+                (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
             DataValue initialValue = default;
             ServiceResult readResult = ServiceResult.Good;
             if (isEvent)
@@ -1082,11 +1094,14 @@ namespace Opc.Ua.Server
                     return validationResult;
                 }
 
-                (readResult, initialValue) = await ReadMonitoredValueAsync(
-                    context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
-                if (IsFatalInitialReadError(readResult))
+                if (!externalValues)
                 {
-                    return readResult;
+                    (readResult, initialValue) = await ReadMonitoredValueAsync(
+                        context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
+                    if (IsFatalInitialReadError(readResult))
+                    {
+                        return readResult;
+                    }
                 }
             }
 
@@ -1109,7 +1124,10 @@ namespace Opc.Ua.Server
                     }
                     if (!isEvent)
                     {
-                        sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                        if (!externalValues)
+                        {
+                            sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                        }
                         return result;
                     }
                     monitoredNode = handle.MonitoredNode;
@@ -2624,12 +2642,10 @@ namespace Opc.Ua.Server
 
             bool isInverse = !item.IsForward;
 
-            if (source.ReferenceExists(item.ReferenceTypeId, isInverse, item.TargetNodeId))
+            if (!source.AddReferenceIfMissing(item.ReferenceTypeId, isInverse, item.TargetNodeId))
             {
                 return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed));
             }
-
-            source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
 
             // Part 3 5.x/9.32.2: the NodeVersion of the source is updated and a
             // ModelChangeEvent reported whenever one of its References is added.
@@ -6102,6 +6118,12 @@ namespace Opc.Ua.Server
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
         }
 
+        private IHistorianProvider? ResolveHistoryReadProvider(ServerSystemContext context, NodeState node)
+        {
+            return (context.OperationContext?.Session?.ContinuationPoints as SessionContinuationPoints)?
+                .GetRestoredHistoryProvider(node.NodeId) ?? ResolveHistorianProvider(node);
+        }
+
         private static bool HasHistoryWritePermission(
             ServerSystemContext context,
             BaseVariableState variable)
@@ -6316,7 +6338,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IHistorianProvider? annotationProvider = ResolveHistorianProvider(parent);
+                    IHistorianProvider? annotationProvider = ResolveHistoryReadProvider(context, parent);
                     if (annotationProvider == null)
                     {
                         errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6341,7 +6363,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6405,7 +6427,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6476,7 +6498,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -6534,7 +6556,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -7605,70 +7627,8 @@ namespace Opc.Ua.Server
                cancellationToken
             ).ConfigureAwait(false);
 
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore set here to the argument results
-                // and return a Bad status code.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
 
         /// <summary>
@@ -7754,7 +7714,7 @@ namespace Opc.Ua.Server
                         : ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
                             "The event source could not complete subscription cleanup.");
                 }
-                if (result.StatusCode == StatusCodes.BadNotSupported ||
+                if ((result.StatusCode == StatusCodes.BadNotSupported && !CanSubscribeToEvents(kvp.Value)) ||
                     (unsubscribe && result.StatusCode == StatusCodes.BadNodeIdUnknown))
                 {
                     continue;
@@ -8012,13 +7972,20 @@ namespace Opc.Ua.Server
         /// <param name="node">The notifier node.</param>
         /// <param name="e">The event.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnReportEventAsync(
+        protected virtual async ValueTask OnReportEventAsync(
             ISystemContext context,
             NodeState node,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            return Server.ReportEventAsync(context, e, cancellationToken);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            await Server.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -8054,12 +8021,11 @@ namespace Opc.Ua.Server
                         source,
                         monitoredItem,
                         unsubscribe);
-
-                // This call recursively updates a reference count all nodes in the notifier
-                // hierarchy below the area. Sources with a reference count of 0 do not have
-                // any active subscriptions so they do not need to report events.
-                if (ServiceResult.IsGood(serviceResult) &&
-                    wasSubscribed == unsubscribe)
+                if (ServiceResult.IsBad(serviceResult))
+                {
+                    return serviceResult;
+                }
+                if (wasSubscribed == unsubscribe)
                 {
                     source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
@@ -8074,10 +8040,11 @@ namespace Opc.Ua.Server
                     await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch
+                catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
                     if (!unsubscribe && !wasSubscribed)
                     {
+                        var compensationFailures = new List<Exception>();
                         bool removed = false;
                         // This operation was already admitted. Rollback must also work after
                         // cancellation or shutdown has closed admission for new operations.
@@ -8088,8 +8055,12 @@ namespace Opc.Ua.Server
                                     monitoredItem.Id, out IEventMonitoredItem? registered) &&
                                 ReferenceEquals(registered, monitoredItem))
                             {
-                                m_monitoredItemManager.SubscribeToEvents(
+                                (_, ServiceResult removeResult) = m_monitoredItemManager.SubscribeToEvents(
                                     context, source, monitoredItem, unsubscribe: true);
+                                if (ServiceResult.IsBad(removeResult))
+                                {
+                                    compensationFailures.Add(new ServiceResultException(removeResult));
+                                }
                                 source.SetAreEventsMonitored(context, false, true);
                                 removed = true;
                                 if (!monitoredNode.HasMonitoredItems)
@@ -8097,6 +8068,10 @@ namespace Opc.Ua.Server
                                     monitoredNode.Dispose();
                                 }
                             }
+                        }
+                        catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(cleanupFailure);
                         }
                         finally
                         {
@@ -8111,8 +8086,15 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                             {
-                                m_logger.NodeManagerDeferredCleanupFailed(cleanupFailure);
+                                compensationFailures.Add(cleanupFailure);
                             }
+                        }
+                        if (compensationFailures.Count > 0)
+                        {
+                            compensationFailures.Insert(0, exception);
+                            throw new AggregateException(
+                                "Event subscription creation and compensation both failed.",
+                                compensationFailures);
                         }
                     }
                     throw;
@@ -8643,6 +8625,12 @@ namespace Opc.Ua.Server
             {
                 if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
                 {
+                    bool admitted = MasterNodeManager.TryBeginCustomSourceCreation(Server, this, out var admission);
+                    using var creationAdmission = admission;
+                    if (!admitted)
+                    {
+                        return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
+                    }
                     if (m_monitoredItemManager is not ICustomMonitoredItemManager customManager)
                     {
                         return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
@@ -8694,6 +8682,19 @@ namespace Opc.Ua.Server
             bool created = false;
             try
             {
+                if (decision.QueueInitialValue &&
+                    dataChangeMonitoredItem is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                    {
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            dataChangeMonitoredItem,
+                            componentCacheReferenceAdded);
+                    }
+                    return (StatusCodes.BadConfigurationError, filterResult, null);
+                }
                 ServiceResult error = ServiceResult.Good;
                 if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
                     decision.QueueInitialValue)
@@ -10920,7 +10921,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A wrapper for the browser that provides a lock.
         /// </summary>
-        private class BrowserContext : IDisposable
+        private class BrowserContext : IDisposable, IBrowseContinuationDependencies
         {
             /// <summary>
             /// Gets the browser retained by the continuation point.
@@ -10938,6 +10939,16 @@ namespace Opc.Ua.Server
             public BrowserContext(INodeBrowser browser)
             {
                 Browser = browser;
+            }
+
+            public bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+            {
+                if (Browser is IBrowseContinuationDependencies dependencies)
+                {
+                    return dependencies.TryGetContinuationDependencies(out targetIds);
+                }
+                targetIds = default;
+                return false;
             }
 
             /// <summary>

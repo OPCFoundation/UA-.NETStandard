@@ -39,7 +39,7 @@ namespace Opc.Ua
     /// This capability supplements existing transport callbacks and session managers without
     /// changing their contracts. It must not run service validation or refresh session activity.
     /// </remarks>
-    public interface ISessionBindingProvider
+    public interface IServerSessionBindingProvider
     {
         /// <summary>
         /// Whether a channel has any distinct activated sessions still owned by the manager.

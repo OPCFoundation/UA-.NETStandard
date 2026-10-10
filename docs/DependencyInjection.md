@@ -903,7 +903,7 @@ capacities. The server owns and disposes only the default provider it creates.
 ### Committed session bindings
 
 Managed servers automatically supply their session manager's committed-binding
-view to transport listeners. A custom `ISessionBindingProvider` registered as a
+view to transport listeners. A custom `IServerSessionBindingProvider` registered as a
 singleton is applied by the hosted server; direct hosts can assign
 `ServerBase.SessionBindingProvider` before startup. This optional seam preserves
 existing session-manager and transport-callback interfaces. Its snapshots are

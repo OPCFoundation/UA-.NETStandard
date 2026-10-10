@@ -9,7 +9,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "links": [
@@ -26,6 +32,9 @@
   "title": "Operational",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns4:Operational",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1"
+  ],
   "uav:hasComponent": [
     "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements"
   ],

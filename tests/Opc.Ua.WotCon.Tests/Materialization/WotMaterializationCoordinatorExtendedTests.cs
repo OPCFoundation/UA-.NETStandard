@@ -51,24 +51,33 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
+        private IWotInvocationProjectionHost m_preparedHost = null!;
+        private PreparedWotTestRuntime? m_runtime;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
+            m_preparedHost = m_runtime.Observe(m_host.RecordCommitted);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_registry.Dispose();
+            m_coordinator?.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null!;
         }
 
         private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
@@ -118,14 +127,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RemoveAllAsyncRetiresPreviouslyProjectedClosures()
         {
+            int registrations = m_runtime!.Lifecycle.Registrations.Count;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
             Assert.That(m_host.AddCount, Is.EqualTo(1));
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations + 1));
 
             await m_coordinator.RemoveAllAsync();
 
             Assert.That(m_host.RemoveCount, Is.EqualTo(1),
                 "RemoveAllAsync must retire the live projection.");
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations));
         }
 
         [Test]
@@ -263,14 +275,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task OversizedResolverResponseIsReportedAsBindingFailure()
+        public async Task OversizedResolverResponseFailsDependencyResolutionBeforePublication()
         {
             var events = new List<WotMaterializationEventArgs>();
             var resolver = new RecordingResolver(_ => new MemoryStream(new byte[16]));
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 converterOptions: new WotNodeSetConverterOptions { MaxResolverDocumentBytes = 8 },
                 documentConverter: m_converter,
                 nodeSetResolver: resolver);
@@ -282,11 +294,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(result.Results.Single().Phase, Is.EqualTo(WoTPhaseEnum.DependencyResolution));
+                Assert.That(result.Results.Single().Message, Does.Contain("urn:oversized").And.Contain("exceeded 8"));
                 Assert.That(resolver.RequestedNamespaces, Does.Contain("urn:oversized"));
+                Assert.That(m_host.Operations, Is.Empty);
+                Assert.That(result.NewGeneration, Is.Zero);
+                Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!
+                    .RootNodeId.IsNull, Is.True);
                 Assert.That(
                     events.Any(e =>
-                        e.Kind == WotMaterializationEventKind.BindingFailure &&
+                        e.Kind == WotMaterializationEventKind.LoadFailure &&
+                        e.Phase == WoTPhaseEnum.DependencyResolution &&
+                        e.ResourceId == "td-a" && e.Generation == 0 &&
                         e.Reason.Contains("exceeded", StringComparison.Ordinal)),
                     Is.True);
             });
@@ -295,14 +315,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RetiredProjectionNamespaceIsResolvedAgainDespiteStaleNamespaceTableEntry()
         {
-            var namespaces = new NamespaceTable();
+            NamespaceTable namespaces = m_runtime!.Namespaces;
             namespaces.GetIndexOrAppend("urn:wot:thingdescriptions/old");
             var resolver = new RecordingResolver(
                 uri => new MemoryStream(TestNodeSets.XmlBytes(uri)));
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: resolver)
             {
@@ -313,6 +333,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
             await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "old");
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(namespaces.GetIndex("urn:wot:thingdescriptions/old"), Is.GreaterThanOrEqualTo(0));
             m_converter.RequiredNamespace = "urn:wot:thingdescriptions/old";
             await RegisterTd("new", TestMaterialization.Td("urn:new"));
 

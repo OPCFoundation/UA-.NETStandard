@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server;
@@ -41,6 +42,175 @@ namespace Opc.Ua.WotCon.Tests
     [Category("WotCon")]
     public sealed class WotRegistryNodeManagerTests
     {
+        [Test]
+        public async Task ReconcileQueueRetainsVersionUntilQueuedFailureIsDelivered()
+        {
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
+            var operations = new List<string>();
+            bool versionPresent = false;
+            using var queue = new WotRegistryReconcileQueue(async change =>
+            {
+                if (change.Current.Generation == 1)
+                {
+                    entered.SetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    return;
+                }
+                versionPresent = change.Current.FindResource("g", "r")?.FindVersion("v1") is not null;
+                operations.Add(versionPresent ? "create" : "delete");
+            });
+            WotRegistrySnapshot empty0 = Snapshot(0, hasResource: false);
+            WotRegistrySnapshot empty1 = Snapshot(1, hasResource: false);
+            WotRegistrySnapshot created2 = Snapshot(2, hasResource: true);
+            WotRegistrySnapshot deleted3 = Snapshot(3, hasResource: false);
+            queue.Enqueue(Change(empty0, empty1));
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                queue.Enqueue(Change(empty1, created2));
+                queue.Enqueue(() =>
+                {
+                    Assert.That(versionPresent, Is.True,
+                        "A queued failure must run after creation and before the matching Version is retired.");
+                    operations.Add("failure");
+                    return Task.CompletedTask;
+                });
+                queue.Enqueue(Change(created2, deleted3));
+                release.SetResult(true);
+                await queue.CompleteAsync().ConfigureAwait(false);
+                Assert.That(operations, Is.EqualTo(s_expectedFailureOperations));
+                Assert.That(versionPresent, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task CancelledIdleWaitDoesNotDiscardQueuedEvents()
+        {
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
+            bool delivered = false;
+            using var queue = new WotRegistryReconcileQueue(async _ =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+            });
+            queue.Enqueue(Change(Snapshot(0, false), Snapshot(1, false)));
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                queue.Enqueue(() =>
+                {
+                    delivered = true;
+                    return Task.CompletedTask;
+                });
+                using var cancellation = new CancellationTokenSource();
+                Task waiting = queue.WhenIdleAsync(cancellation.Token).AsTask();
+                cancellation.Cancel();
+                await Assert.ThatAsync(async () => await waiting.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                Assert.That(delivered, Is.False);
+                release.SetResult(true);
+                await queue.CompleteAsync().ConfigureAwait(false);
+                Assert.That(delivered, Is.True);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task AcceptedProjectionDispatchSurvivesCallerCancellation()
+        {
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
+            bool dispatched = false;
+            using var queue = new WotRegistryReconcileQueue(async _ =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+            });
+            queue.Enqueue(Change(Snapshot(0, false), Snapshot(1, false)));
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                using var cancellation = new CancellationTokenSource();
+                Task operation = queue.EnqueueAsync(token =>
+                {
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    dispatched = true;
+                    return default;
+                }, cancellation.Token).AsTask();
+                cancellation.Cancel();
+                await Assert.ThatAsync(async () => await operation.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                Assert.That(dispatched, Is.False);
+                release.SetResult(true);
+                await queue.CompleteAsync().ConfigureAwait(false);
+                Assert.That(dispatched, Is.True);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task FailedProjectionDispatchDoesNotPoisonQueueCleanup()
+        {
+            var failure = new InvalidOperationException("Projection dispatch failed.");
+            using var queue = new WotRegistryReconcileQueue(_ => Task.CompletedTask);
+            Task operation = queue.EnqueueAsync(_ => throw failure, CancellationToken.None).AsTask();
+            await Assert.ThatAsync(async () => await operation.ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+            bool laterDelivered = false;
+            queue.Enqueue(() =>
+            {
+                laterDelivered = true;
+                return Task.CompletedTask;
+            });
+            await queue.CompleteAsync().ConfigureAwait(false);
+            Assert.That(laterDelivered, Is.True);
+        }
+
+        [Test]
+        public async Task DisposingQueueCompletesPendingProjectionWaiter()
+        {
+            TaskCompletionSource<bool> entered = NewSignal();
+            TaskCompletionSource<bool> release = NewSignal();
+            bool dispatched = false;
+            using var queue = new WotRegistryReconcileQueue(async _ =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+            });
+            queue.Enqueue(Change(Snapshot(0, false), Snapshot(1, false)));
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                Task operation = queue.EnqueueAsync(_ =>
+                {
+                    dispatched = true;
+                    return default;
+                }, CancellationToken.None).AsTask();
+                queue.Dispose();
+                await Assert.ThatAsync(async () => await operation.ConfigureAwait(false),
+                    Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+                release.SetResult(true);
+                await queue.WhenIdleAsync().ConfigureAwait(false);
+                Assert.That(dispatched, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
         [Test]
         public async Task ReconcileQueuePreservesCreateThenDeleteWhileOccupied()
         {
@@ -247,5 +417,6 @@ namespace Opc.Ua.WotCon.Tests
         private static readonly long[] s_expectedGenerations = [1, 2, 3];
         private static readonly long[] s_expectedRestartedGenerations = [1, 2];
         private static readonly string[] s_expectedInteractions = ["create", "delete"];
+        private static readonly string[] s_expectedFailureOperations = ["create", "failure", "delete"];
     }
 }

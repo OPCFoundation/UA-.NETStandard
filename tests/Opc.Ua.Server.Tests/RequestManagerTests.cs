@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -511,6 +513,172 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 otherContext.OperationStatus.Code,
                 Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancelRequestsAllowsCallbacksToCompleteAndAdmitRequests(bool admitReplacement)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var replacementLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime);
+            OperationContext second = CreateOperationContext(42, secondLifetime);
+            OperationContext other = CreateOperationContext(99, otherLifetime);
+            OperationContext replacement = CreateOperationContext(42, replacementLifetime);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            m_requestManager.RequestReceived(other);
+            var cancelled = new List<uint>();
+            var statuses = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, status) =>
+            {
+                cancelled.Add(id);
+                statuses.Add(status.Code);
+            };
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(() =>
+            {
+                m_requestManager.RequestCompleted(first);
+                if (admitReplacement)
+                {
+                    m_requestManager.RequestReceived(replacement);
+                }
+            });
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(
+                () => m_requestManager.RequestCompleted(second));
+
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint count);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(count, Is.EqualTo(2U));
+                Assert.That(cancelled, Is.EquivalentTo(new[] { first.RequestId, second.RequestId }));
+                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(first.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(second.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+                Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            });
+
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint remaining);
+            Assert.That(remaining, Is.EqualTo(admitReplacement ? 1U : 0U));
+            Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.EqualTo(admitReplacement));
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TimerExpiryAllowsCallbacksToCompleteAndAdmitRequests(bool admitReplacement)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var replacementLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime, 100);
+            OperationContext second = CreateOperationContext(43, secondLifetime, 100);
+            OperationContext other = CreateOperationContext(99, otherLifetime);
+            OperationContext replacement = CreateOperationContext(44, replacementLifetime, 60_000);
+            DateTime latestDeadline = first.OperationDeadline > second.OperationDeadline
+                ? first.OperationDeadline : second.OperationDeadline;
+            var clock = new FakeTimeProvider(new DateTimeOffset(latestDeadline).AddSeconds(1));
+            Assert.That(replacement.OperationDeadline, Is.GreaterThan(clock.GetUtcNow().UtcDateTime.AddSeconds(1)));
+            m_requestManager.Dispose();
+            m_requestManager = new RequestManager(m_mockServer.Object, clock);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            m_requestManager.RequestReceived(other);
+            var cancelled = new List<uint>();
+            var statuses = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, status) =>
+            {
+                cancelled.Add(id);
+                statuses.Add(status.Code);
+            };
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(() =>
+            {
+                m_requestManager.RequestCompleted(first);
+                if (admitReplacement)
+                {
+                    m_requestManager.RequestReceived(replacement);
+                }
+            });
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(
+                () => m_requestManager.RequestCompleted(second));
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancelled, Is.EquivalentTo(new[] { first.RequestId, second.RequestId }));
+                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadTimeout));
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+                Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            });
+            if (!admitReplacement)
+            {
+                m_requestManager.RequestReceived(replacement);
+            }
+            clock.Advance(replacement.OperationDeadline - clock.GetUtcNow().UtcDateTime + TimeSpan.FromSeconds(1));
+
+            Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(cancelled, Is.EquivalentTo(
+                new[] { first.RequestId, second.RequestId, replacement.RequestId }));
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancellationSkipsRequestsCompletedByAnotherCallback(bool expire)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime, 100);
+            OperationContext second = CreateOperationContext(42, secondLifetime, 100);
+            DateTime latestDeadline = first.OperationDeadline > second.OperationDeadline
+                ? first.OperationDeadline : second.OperationDeadline;
+            var clock = new FakeTimeProvider(new DateTimeOffset(latestDeadline).AddSeconds(1));
+            m_requestManager.Dispose();
+            m_requestManager = new RequestManager(m_mockServer.Object, clock);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            var cancelled = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, _) => cancelled.Add(id);
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(CompleteBoth);
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(CompleteBoth);
+
+            uint count = 0;
+            if (expire)
+            {
+                clock.Advance(TimeSpan.FromSeconds(1));
+            }
+            else
+            {
+                m_requestManager.CancelRequests(first.SessionId, 42, out count);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested ^
+                    secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(cancelled, Has.Count.EqualTo(1));
+                if (!expire)
+                {
+                    Assert.That(count, Is.EqualTo(1U));
+                }
+            });
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint remaining);
+            Assert.That(remaining, Is.Zero);
+
+            void CompleteBoth()
+            {
+                m_requestManager.RequestCompleted(first);
+                m_requestManager.RequestCompleted(second);
+            }
         }
 
         [Test]

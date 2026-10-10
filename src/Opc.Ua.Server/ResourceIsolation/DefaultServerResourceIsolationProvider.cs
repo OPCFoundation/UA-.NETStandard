@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         public DefaultServerResourceIsolationProvider(
             ServerResourceIsolationPlan plan,
             ITelemetryContext telemetry,
-            ISessionBindingProvider? sessionBindings = null,
+            IServerSessionBindingProvider? sessionBindings = null,
             IResourceIsolationClassifier? classifier = null)
         {
             Plan = plan ?? throw new ArgumentNullException(nameof(plan));
@@ -964,7 +964,7 @@ namespace Opc.Ua.Server
         private readonly StageState[] m_stages = new StageState[kStageCount];
         private readonly Dictionary<string, OwnerState> m_owners = new(StringComparer.Ordinal);
         private readonly ConditionalWeakTable<ResourceIsolationOwner, OwnerIdentity> m_classifications = new();
-        private readonly ISessionBindingProvider? m_sessionBindings;
+        private readonly IServerSessionBindingProvider? m_sessionBindings;
         private readonly IResourceIsolationClassifier? m_classifier;
         private readonly Meter m_meter;
         private readonly Counter<long> m_rejections;

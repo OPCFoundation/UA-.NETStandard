@@ -52,7 +52,7 @@ namespace Opc.Ua.WotCon.Client
     /// proxy is reused directly rather than re-resolved per call.
     /// </para>
     /// </summary>
-    public sealed class WotRegistryClient : XRegistryClient
+    public sealed partial class WotRegistryClient : XRegistryClient
     {
         /// <summary>
         /// The well-known reserved group id that always holds Thing
@@ -86,6 +86,9 @@ namespace Opc.Ua.WotCon.Client
                 ValidateRegistryObjectId(registryObjectId),
                 telemetry)
         {
+            IEncodeableFactoryBuilder types = session.MessageContext.Factory.Builder;
+            types.AddOpcUaXRegistry().AddOpcUaWotCon();
+            types.Commit();
             Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
         }
 
@@ -95,6 +98,9 @@ namespace Opc.Ua.WotCon.Client
         /// fetched the server namespace table yet, so this appends rather than failing — matching
         /// what <see cref="ForServerAsync"/> does.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="session"/> is <c>null</c>.
+        /// </exception>
         private static string EnsureRegistryNamespace(ISession session)
         {
             if (session is null)
@@ -109,6 +115,9 @@ namespace Opc.Ua.WotCon.Client
         /// Rejects a null registry root. The WoT registry root is server-specific and discovered by
         /// Browse, so unlike the base model there is no well-known identifier to fall back to.
         /// </summary>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="registryObjectId"/> is null.
+        /// </exception>
         private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)
         {
             if (registryObjectId.IsNull)
@@ -186,6 +195,8 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Group id is required.", nameof(groupId));
             }
             NodeId groupNodeId = await Proxy.CreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct, distinct)
                 .ConfigureAwait(false);
@@ -207,6 +218,8 @@ namespace Opc.Ua.WotCon.Client
             }
             (NodeId groupNodeId, bool created) = await Proxy
                 .GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             WotRegistryGroupClient group = await OpenGroupClientAsync(
                 Session, groupNodeId, groupId, Telemetry, ct, distinct).ConfigureAwait(false);
@@ -289,6 +302,9 @@ namespace Opc.Ua.WotCon.Client
         /// generation.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects Refresh or returns invalid output arguments.
+        /// </exception>
         public async ValueTask<WotRegistryRefreshResult> RefreshAsync(
             ArrayOf<WoTResourceSelectorDataType> selection,
             WoTRefreshOptionsDataType options,
@@ -387,8 +403,8 @@ namespace Opc.Ua.WotCon.Client
             var decoded = new T[extensions.Count];
             for (int i = 0; i < extensions.Count; i++)
             {
-                if (!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
-                    !TryDecodeBinaryExtension(extensions[i], out item) ||
+                if ((!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
+                    !TryDecodeBinaryExtension(extensions[i], out item)) ||
                     item is null)
                 {
                     return false;
@@ -668,7 +684,7 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Document content is required.", nameof(content));
             }
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             GroupId = groupId;
             ResourceId = resourceId;
             Content = content;

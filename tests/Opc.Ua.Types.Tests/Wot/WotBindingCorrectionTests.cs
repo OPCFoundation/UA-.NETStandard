@@ -82,6 +82,16 @@ namespace Opc.Ua.Types.Tests.Wot
             "uav:symmetric"
         ];
 
+        private static readonly string[] s_additionalTerms =
+        [
+            "uav:callObjectId",
+            "uav:argumentLayout",
+            "uav:projectionKind",
+            "uav:declaration",
+            "uav:defaultEncodings",
+            "uav:eventIdentityMode"
+        ];
+
         [Test]
         public void AnEventDataSchemaWithoutPropertiesIsPreservedAsResidue()
         {
@@ -135,8 +145,8 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
 
             Assert.That(
-                nodeSet.Items!.Any(i => i.BrowseName?.EndsWith("Cause", StringComparison.Ordinal)
-                    == true),
+                nodeSet.Items!.Any(i => i.BrowseName?.EndsWith("Cause", StringComparison.Ordinal) ==
+                    true),
                 Is.True,
                 "A schema the converter materializes becomes Nodes, and is therefore not " +
                 "also carried as residue.");
@@ -187,7 +197,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
-                "\"uav:browseName\":\"pump:Reset\"," + term + "}}",
+                "\"uav:browseName\":\"pump:Reset\"," +
+                term +
+                "}}",
                 new WotNodeSetConverterOptions());
 
             AssertRejectedPlacement(result);
@@ -350,7 +362,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = Convert(
                 "\"properties\":{\"speed\":{\"type\":\"number\"," +
                 "\"uav:browseName\":\"pump:Speed\"," +
-                "\"" + opaque + "\":{\"pump:vendor\":{" +
+                "\"" +
+                opaque +
+                "\":{\"pump:vendor\":{" +
                 "\"uav:scaleFactor\":0,\"uav:decimalPlaces\":-1," +
                 "\"uav:engineeringUnits\":{\"displayName\":\"\"}," +
                 "\"uav:unitProperty\":\"not a pointer\"," +
@@ -493,8 +507,14 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     WotBindingConformance.VocabularyTerms.Count,
-                    Is.EqualTo(113),
-                    "The published @context of revision 1.1 mints 113 uav IRIs.");
+                    Is.EqualTo(113 + s_additionalTerms.Length),
+                    "The implementation retains the 113 revision 1.1 IRIs and recognizes the published " +
+                    "Call, projection, declaration, encoding, and event-identity terms.");
+                foreach (string term in s_additionalTerms)
+                {
+                    Assert.That(WotBindingConformance.IsKnownTerm(term), Is.True, term);
+                    Assert.That(WotBindingConformance.VocabularyTerms.ToArray(), Does.Contain(term));
+                }
                 Assert.That(
                     WotBindingConformance.ScopedTerms.Count,
                     Is.EqualTo(13),
@@ -638,7 +658,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotUnitMigrationResult migration = WotUnitMigration.MoveQuantityKinds(document);
 
             Assert.That(migration.Changed, Is.True);
-            using WotDocument migrated = WotDocument.Parse(migration.Document!);
+            using var migrated = WotDocument.Parse(migration.Document!);
             JsonElement speed = migrated.Properties["speed"];
             Assert.Multiple(() =>
             {
@@ -725,7 +745,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void TheMigrationHelperResolvesADocumentBoundPrefixToTheSameIri()
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(
                     "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
                     "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
@@ -753,7 +773,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(128)]
         public void TheMigrationHelperReadsEveryDocumentTheLibraryAccepts(int depth)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(NestedThingModel(depth)));
 
             WotUnitMigrationResult migration = WotUnitMigration.MoveQuantityKinds(document);
@@ -765,7 +785,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.False,
                     "WotDocument.Parse accepts 128 levels by default, so a migration that " +
                     "re-read the document at 64 would refuse a document the library had no " +
-                    "trouble with: " + migration.Error);
+                    "trouble with: " +
+                    migration.Error);
                 Assert.That(
                     migration.Changed,
                     Is.True,
@@ -777,7 +798,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void TheMigrationHelperHonoursAConfiguredDepthAndReportsInsteadOfThrowing()
         {
             var shallow = new WotNodeSetConverterOptions { MaxJsonDepth = 8 };
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(NestedThingModel(40)));
 
             WotUnitMigrationResult migration =
@@ -833,7 +854,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 WotDocument.MeasureCompactUtf8(metadata),
-                Is.EqualTo(Encoding.UTF8.GetByteCount("{\"pump:b\":1.0,\"pump:a\":1e3}")),
+                Is.EqualTo(Encoding.UTF8.GetByteCount(/*lang=json,strict*/ "{\"pump:b\":1.0,\"pump:a\":1e3}")),
                 "The compact received form is the received text with insignificant " +
                 "whitespace removed, and nothing else.");
         }
@@ -848,7 +869,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 WotDocument.MeasureCompactUtf8(metadata),
-                Is.EqualTo(Encoding.UTF8.GetByteCount("{\"pump:a\":\"\u00e4\u20ac\ud83d\ude00\"}")),
+                Is.EqualTo(Encoding.UTF8.GetByteCount(/*lang=json,strict*/ "{\"pump:a\":\"\u00e4\u20ac\ud83d\ude00\"}")),
                 "The measured size is the length in octets of the UTF-8 encoding: two for " +
                 "U+00E4, three for U+20AC and four for the supplementary scalar.");
         }
@@ -863,7 +884,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 WotDocument.MeasureCompactUtf8(metadata),
-                Is.EqualTo(Encoding.UTF8.GetByteCount("{\"pump:a\":\"a b\\tc\"}")),
+                Is.EqualTo(Encoding.UTF8.GetByteCount(/*lang=json,strict*/ "{\"pump:a\":\"a b\\tc\"}")),
                 "Whitespace is insignificant only outside a string literal, and an escape " +
                 "keeps the spelling it was written with.");
         }
@@ -920,7 +941,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     json,
-                    Is.EqualTo("{\"b\":1.0,\"a\":\"kept\"}"),
+                    Is.EqualTo(/*lang=json,strict*/ "{\"b\":1.0,\"a\":\"kept\"}"),
                     "Section 6.6 forbids a consumer to reorder or reformat a value it " +
                     "preserves, so the retained bytes are the ones the author wrote.");
                 Assert.That(
@@ -1004,7 +1025,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\",\"uav:referenceType\"]," +
                 "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"}");
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
 
             WotConversionResult<UANodeSet> result =
                 WotNodeSetConverter.ToNodeSetResult(document, new WotNodeSetConverterOptions());
@@ -1050,7 +1071,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Trace\"}," +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"p2:Trace\"}]}}}");
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
 
             WotConversionResult<UANodeSet> result =
                 WotNodeSetConverter.ToNodeSetResult(document, new WotNodeSetConverterOptions());
@@ -1208,7 +1229,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"Severity\":{\"type\":\"integer\"}," +
                 "\"ConditionId\":{\"type\":\"string\"}," +
                 "\"LastSeverity\":{\"type\":\"integer\"}}}," +
-                clauses + "}}";
+                clauses +
+                "}}";
         }
 
         private static (string Members, int Measured) OpaqueOfSize(int octets)
@@ -1217,7 +1239,7 @@ namespace Opc.Ua.Types.Tests.Wot
             const string suffix = "\"}";
             int padding = octets - prefix.Length - suffix.Length;
             string value = prefix + new string('x', padding) + suffix;
-            using JsonDocument parsed = JsonDocument.Parse(value);
+            using var parsed = JsonDocument.Parse(value);
             return ("\"uav:metadata\":" + value,
                 (int)WotDocument.MeasureCompactUtf8(parsed.RootElement));
         }
@@ -1276,7 +1298,7 @@ namespace Opc.Ua.Types.Tests.Wot
 #if NET6_0_OR_GREATER
             return System.Security.Cryptography.SHA256.HashData(bytes);
 #else
-            using System.Security.Cryptography.SHA256 sha =
+            using var sha =
                 System.Security.Cryptography.SHA256.Create();
             return sha.ComputeHash(bytes);
 #endif
@@ -1293,8 +1315,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"MaterialReference\"," +
                 "\"uav:browseName\":\"pump:MaterialReference\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=5001\"," +
-                members + "}");
-            using WotDocument document = WotDocument.Parse(json);
+                members +
+                "}");
+            using var document = WotDocument.Parse(json);
             return WotNodeSetConverter.ToNodeSetResult(document, new WotNodeSetConverterOptions());
         }
 
@@ -1331,7 +1354,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," +
-                members + "}");
+                members +
+                "}");
             return WotDocument.Parse(json);
         }
     }

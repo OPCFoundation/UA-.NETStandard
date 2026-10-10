@@ -34,6 +34,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotSpecRequirementLedger.cs">
+      <Link>Wot\WotSpecRequirementLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-spec-requirements.json">
+      <Link>Wot\Assets\wot-spec-requirements.json</Link>
+      <LogicalName>wot-spec-requirements.json</LogicalName>
+    </EmbeddedResource>
     <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
   <ItemGroup>

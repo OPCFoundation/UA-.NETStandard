@@ -40,7 +40,7 @@ namespace Opc.Ua.Types.Tests.Nodes
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class TypeTableTests
+    public partial class TypeTableTests
     {
         private static readonly NodeId s_rootTypeId = new(1000);
         private static readonly NodeId s_childTypeId = new(1001);

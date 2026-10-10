@@ -94,7 +94,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Not.Null);
-            Assert.That(result.HasErrors, Is.False);
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
             Assert.That(result.Diagnostics.Any(IsTypeBindingError), Is.False);
         }
 
@@ -131,7 +133,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"ua\":\"http://opcfoundation.org/UA/\"," +
-                "\"pump\":\"" + BindingNamespace + "\"}]," +
+                "\"pump\":\"" +
+                BindingNamespace +
+                "\"}]," +
                 "\"@type\":[\"Thing\",\"uav:object\",\"pump:MissingType\"]," +
                 "\"title\":\"Tank\",\"uav:browseName\":\"pump:Tank\"," +
                 "\"uav:id\":\"nsu=urn:test:binding;i=5001\"," +
@@ -166,7 +170,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static async Task<WotConversionResult<UANodeSet>> ConvertWithHeldNamespaceAsync(
             byte[] json)
         {
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             return await WotNodeSetConverter.ToNodeSetResultAsync(
                 document,
                 null,
@@ -199,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotExpectedNodeClass expected,
                 CancellationToken cancellationToken = default)
             {
-                return new ValueTask<ArrayOf<WotResolvedNode>>(ArrayOf<WotResolvedNode>.Empty);
+                return new ValueTask<ArrayOf<WotResolvedNode>>([]);
             }
 
             public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(

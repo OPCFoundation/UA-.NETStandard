@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,12 +48,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Enriches only source-declared affordances, found by portable local
         /// identity. A missing declaration is an error, never an implicit node.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static async Task<ArrayOf<SampleDocument>> BindPumpDocumentsAsync(
             ArrayOf<SampleDocument> documents,
             CancellationToken cancellationToken = default)
         {
             Dictionary<string, JsonObject> roots = ParseRoots(documents);
-            Dictionary<string, NativeBindingNode> nativeNodes = ReadNativeBindingNodes(documents);
+            Dictionary<string, BindingNode> bindingNodes = ReadBindingNodes(documents);
             foreach (string pumpName in s_pumpNames)
             {
                 for (int bindingIndex = 0; bindingIndex < PropertyBindings.Count; bindingIndex++)
@@ -60,7 +62,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     PropertyBinding binding = PropertyBindings[bindingIndex];
                     AffordanceLocation location = FindAffordance(
                         roots, "properties", LocalNodeId(pumpName, binding.LocalPath));
-                    RequireBindingOwner(location, nativeNodes, WotAffordanceKind.Property);
+                    RequireBindingOwner(location, bindingNodes, WotAffordanceKind.Property);
                     JsonObject property = location.Affordance;
                     property["uav:mapToNodeId"] = LocalNodeId(pumpName, binding.LocalPath);
                     property["forms"] = new JsonArray
@@ -83,7 +85,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         AffordanceLocation location = FindAffordance(
                             roots, "actions", LocalNodeId(pumpName, source + operation));
-                        RequireBindingOwner(location, nativeNodes, WotAffordanceKind.Action);
+                        RequireBindingOwner(location, bindingNodes, WotAffordanceKind.Action);
                         location.Affordance["forms"] = new JsonArray
                         {
                             CreateOwnedActionForm(source, pumpName, operation)
@@ -96,7 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     AffordanceLocation location = FindAffordance(
                         roots, "events", LocalNodeId(pumpName, alarm + "Alarm"));
-                    RequireBindingOwner(location, nativeNodes, WotAffordanceKind.Event);
+                    RequireBindingOwner(location, bindingNodes, WotAffordanceKind.Event);
                     await BindAlarmEventAsync(
                         documents, location, pumpName, alarm, source, cancellationToken).ConfigureAwait(false);
                     AddSourceSecurity(location.Root);
@@ -104,7 +106,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         AffordanceLocation action = FindAffordance(
                             roots, "actions", LocalNodeId(pumpName, alarm + operation));
-                        RequireBindingOwner(action, nativeNodes, WotAffordanceKind.Action);
+                        RequireBindingOwner(action, bindingNodes, WotAffordanceKind.Action);
                         if (!string.Equals(action.ResourceId, location.ResourceId, StringComparison.Ordinal))
                         {
                             throw new InvalidOperationException(
@@ -131,10 +133,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
             }
 
-            return documents.ToArrayOf(document => document with
+            var bound = documents.ToArrayOf(document => document with
             {
                 Json = FormatJson(roots[document.ResourceId])
             });
+            if (roots.Values.Any(root => root.ContainsKey("uav:nodes") || root.ContainsKey("uav:nodeSet")))
+            {
+                await ReadPumpDocumentSetAsync(bound, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            return bound;
         }
 
         public static string AffordanceReference(
@@ -186,7 +193,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string definitionName = alarm + "ConditionType";
             if (location.Root["schemaDefinitions"] is not JsonObject definitions)
             {
-                definitions = new JsonObject();
+                definitions = [];
                 location.Root["schemaDefinitions"] = definitions;
             }
             // These local EventTypes declare no additional fields. Their
@@ -315,8 +322,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         continue;
                     }
-                    string memberPointer = pointer + "/" + name.Replace("~", "~0", StringComparison.Ordinal)
-                        .Replace("/", "~1", StringComparison.Ordinal);
+                    string memberPointer = pointer +
+                        "/" +
+                        name.Replace("~", "~0", StringComparison.Ordinal)
+                            .Replace("/", "~1", StringComparison.Ordinal);
                     if (string.Equals(
                         affordance["uav:id"]?.GetValue<string>(), nodeId, StringComparison.Ordinal))
                     {
@@ -330,19 +339,20 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
-        private static Dictionary<string, NativeBindingNode> ReadNativeBindingNodes(ArrayOf<SampleDocument> documents)
+        private static Dictionary<string, BindingNode> ReadBindingNodes(ArrayOf<SampleDocument> documents)
         {
-            var nodes = new Dictionary<string, NativeBindingNode>(StringComparer.Ordinal);
+            var nodes = new Dictionary<string, BindingNode>(StringComparer.Ordinal);
             foreach (SampleDocument document in documents)
             {
                 using var parsed = WotDocument.Parse(document.Json.Memory, CreateLargeDocumentOptions());
-                if (!parsed.RootElement.TryGetProperty("uav:nodes", out _) &&
+                // A fully readable type partition can still own an EventType used by a native instance.
+                if (parsed.Kind != WotDocumentKind.ThingModel &&
+                    !parsed.RootElement.TryGetProperty("uav:nodes", out _) &&
                     !parsed.RootElement.TryGetProperty("uav:nodeSet", out _))
                 {
                     continue;
                 }
-                UANodeSet partition = RequireValue(
-                    WotNodeSetConverter.ToNodeSetResult(parsed, CreateLargeDocumentOptions()), document.ResourceId);
+                UANodeSet partition = ReadOwnedPartition(parsed, document.ResourceId);
                 var namespaceUris = new NamespaceTable();
                 foreach (string uri in partition.NamespaceUris ?? [])
                 {
@@ -350,21 +360,50 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 foreach (UANode node in partition.Items ?? [])
                 {
+                    string localId = node.NodeId ??
+                        throw new InvalidOperationException("A converted NodeId is missing.");
                     string id = NodeId.ToExpandedNodeId(
-                        NodeId.Parse(node.NodeId ?? throw new InvalidOperationException("A native NodeId is missing.")),
+                        NodeId.Parse(localId),
                         namespaceUris).ToString();
-                    if (!nodes.TryAdd(id, new NativeBindingNode(document.ResourceId, node)))
+                    if (!nodes.TryAdd(id, new BindingNode(document.ResourceId, node)))
                     {
-                        throw new InvalidOperationException($"Multiple native partitions own '{id}'.");
+                        throw new InvalidOperationException($"Multiple converted partitions own '{id}'.");
                     }
                 }
             }
             return nodes;
         }
 
+        /// <summary>
+        /// Reads partition ownership without treating linked readable claims as
+        /// self-contained. The complete document set validates those claims.
+        /// </summary>
+        public static UANodeSet ReadOwnedPartition(WotDocument document, string origin)
+        {
+            bool native = document.RootElement.TryGetProperty("uav:nodes", out JsonElement projection);
+            bool archived = document.RootElement.TryGetProperty("uav:nodeSet", out JsonElement archive);
+            if (!native && !archived)
+            {
+                return RequireValue(
+                    WotNodeSetConverter.ToNodeSetResult(document, CreateLargeDocumentOptions()), origin);
+            }
+            var preserved = new JsonObject();
+            if (native)
+            {
+                preserved["uav:nodes"] = JsonNode.Parse(projection.GetRawText());
+            }
+            if (archived)
+            {
+                preserved["uav:nodeSet"] = JsonNode.Parse(archive.GetRawText());
+            }
+            using var carrier = WotDocument.Parse(FormatJson(preserved).Memory, CreateLargeDocumentOptions());
+            return RequireValue(
+                WotNodeSetConverter.ToNodeSetResult(carrier, CreateLargeDocumentOptions()), origin);
+        }
+
         private static void RequireBindingOwner(
             AffordanceLocation location,
-            Dictionary<string, NativeBindingNode> nativeNodes,
+            Dictionary<string, BindingNode> bindingNodes,
             WotAffordanceKind kind)
         {
             if (!location.Root.ContainsKey("uav:nodes") && !location.Root.ContainsKey("uav:nodeSet"))
@@ -372,7 +411,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 return;
             }
             string id = location.Affordance["uav:id"]!.GetValue<string>();
-            if (!nativeNodes.TryGetValue(id, out NativeBindingNode? native) ||
+            if (!bindingNodes.TryGetValue(id, out BindingNode? native) ||
                 (kind != WotAffordanceKind.Event && native.ResourceId != location.ResourceId) ||
                 !(kind switch
                 {
@@ -411,14 +450,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
             JsonObject Affordance,
             string Pointer);
 
-        private sealed record NativeBindingNode(string ResourceId, UANode Node);
+        private sealed record BindingNode(string ResourceId, UANode Node);
 
         private static readonly string[] s_pumpNames = ["Pump1", "Pump2"];
         private static readonly string[] s_conditionOperations = ["Acknowledge", "Confirm"];
+
         private static readonly string[] s_alarmStateNames =
         [
             "EnabledState", "AckedState", "ConfirmedState", "ActiveState"
         ];
+
         private static readonly string[] s_requiredAlarmPaths =
         [
             "EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity",

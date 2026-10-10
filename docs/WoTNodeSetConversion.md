@@ -102,6 +102,15 @@ path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every
 vendored specification example that converts is run through exactly that
 sequence by `WotNodeSetImportTests`, and so is every preservation mode.
 
+`ResolveAffordanceNodes` connects source interaction JSON Pointers to Nodes in
+the produced NodeSet. It reuses the converter's qualified identity allocation
+and confirms the actual NodeClass, or resolves an unauthored identity through
+one qualified declaration owned by the converted root. It does not replace a
+missing explicit identity with a name match, choose among ambiguous Nodes, or
+treat a remote ServerIndex as a local Node. The runtime receives these identities
+through `WotConversionOutput.ProjectedAffordances` rather than borrowing the
+upstream form's target.
+
 ### Modelling rules and the two placeholder identifiers
 
 OPC 10000-5 assigns `OptionalPlaceholder` the identifier `11508` and
@@ -127,6 +136,10 @@ NodeSet2 projection. Rows marked **Fails** emit an error diagnostic and
 warnings or informational diagnostics are noted where the code emits
 them.
 
+The `ns=1` examples below assume a single synthesized model namespace. Actual
+indices come from the namespace table: an auxiliary context namespace does not
+become the owning model merely because it occurs first.
+
 | Missing WoT input | Behaviour | Materialized value |
 |---|---|---|
 | Convertible content: no `uav:nodeSet`, no `uav:nodes`, and neither a Thing Model nor a Thing Description kind | **Fails** | `NoConvertibleContent` error; no NodeSet is returned. |
@@ -136,9 +149,9 @@ them.
 | Root `uav:browseName` | **Default** | `1:<rootLocal>`. |
 | Root `title` | **Default** | Root `DisplayName` becomes `<rootLocal>`. |
 | Thing Model root event annotation `uav:eventType` | **Default** | Root is a non-abstract `UAObjectType` with inverse `HasSubtype` to `BaseObjectType` (`i=58`). If the event annotation is present, the default supertype is `BaseEventType` (`i=2041`). |
-| Thing Description root type information | **Default** / **Bound** / **Fails** | Absent: root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). Present: a `ua:HasTypeDefinition` link (WoT Binding Section 5.2.1) whose `href` is the ExpandedNodeId of the type, and/or a compact model name in `@type`, binds the root to that type so the converter reuses the existing type rather than defining a second one. The two forms are resolved against the Section 5.1.5 local context — the sibling documents of the conversion first, a loaded AddressSpace as the fallback — supplied through `IWotNodeResolver`. A binding that names a type the local context does not hold **fails** (`UnresolvedTypeBinding`) rather than falling back to `BaseObjectType`; two bindings that disagree, an ambiguous name with nothing to settle it, or a resolved type of the wrong NodeClass **fail** as `AmbiguousTypeBinding`. A compact name is a binding when its namespace is one the local context holds; any other `@type` member is ordinary annotation and is retained as residue. |
+| Thing Description root type information | **Default** / **Bound** / **Fails** | Absent: root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). Present: a `ua:HasTypeDefinition` link names the type by ExpandedNodeId or by the IRI of a document projecting it; a compact model name in `@type` may also name the type. Native identifiers and model names resolve against sibling documents first, then a loaded AddressSpace, through `IWotNodeResolver`. A document IRI resolves only through `IWotThingResolver`, with compact and relative references expanded in the link's effective context. It never falls back to an AddressSpace lookup. An unresolved binding **fails** with `UnresolvedTypeBinding`, rather than using `BaseObjectType`; conflicting or wrong-class bindings report `InvalidTypeBinding`, and unresolved ambiguity reports `AmbiguousTypeBinding`. A compact name is a binding when its namespace is held by the local context; other `@type` members remain annotations. |
 | Root `description` | **Default** | No `Description` field is materialized. |
-| Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
+| Property affordance `uav:browseName` | **Default** / **Bound** | The affordance map key is used as the local name. For a bound instance, an unqualified member populates a uniquely named loaded declaration using that declaration's QName; ambiguous declarations fail. Otherwise the synthesized model namespace is used. Explicit qualified names are not replaced by local-name guesses. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>`. |
 | Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
 | Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead \| CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
@@ -146,7 +159,7 @@ them.
 | Property `description` | **Default** | No `Description` field is materialized for the variable. A `descriptions` map materializes one `LocalizedText` per locale. |
 | Property `uav:valueRank` (Sections 7, 9.1) | **Default** / **Fails** | Absent: `ValueRank` `-1` (Scalar), which is what a NodeSet omits. Present: the stated rank, so `-3`, `-2`, `-1`, `0` and a fixed positive rank stay distinct. Not an integer literal, or below `-3`: `InvalidValueRank` error. |
 | Property `uav:arrayDimensions` (Sections 7, 9.1) | **Default** / **Fails** | Absent: no `ArrayDimensions` attribute. Present: the ordered bounds, with `0` meaning a dimension whose length is not fixed. Not an array of non-negative integers, a length other than a fixed `uav:valueRank`, or any dimension against a rank that fixes none: `InvalidValueRank` error. |
-| Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An affordance that binds itself to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`, which is the only ReferenceType OPC 10000-3 reaches a Property through. |
+| Property type definition | **Default** / **Bound** / **Fails** | Absent: `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An explicit binding retains the resolved VariableType. A document-IRI binding uses the same bounded Thing resolution as a root binding, including the property's and link's scoped context. Known standard class facts or a positive resolver answer must establish VariableType; namespace zero alone and a resolver's `NodeClass.Any` are not class evidence. An affordance bound to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`. |
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Action affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
@@ -178,10 +191,10 @@ them.
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local language-neutral override. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
-| `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
-| `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
-| `uav:actionConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
-| `uav:eventConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:metadata` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: retained through residue, subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:propertyConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:actionConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:eventConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
 | `uav:includeInherited` (Section 6.8) | **Default** / **Fails** | Absent: no inheritance-span flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
@@ -192,6 +205,15 @@ The following sections describe generated NodeId identity and the distinct
 measurements used for preserved JSON values.
 
 ### Verified linked document sets
+
+Document-set import defaults to `WotDocumentSetMode.PartitionReconstruction`.
+The explicit `IndependentReadableModels` option additionally supports readable
+models authored with different namespace tables, using a deterministic URI
+union and semantic identity/value rebasing on both `ToNodeSetAsync` and
+`MergeNodeSetPartitions`. It never retries a failed reconstruction and does not
+relax authoritative headers or ownership. See
+[independent readable-model import](WoTIndependentModels.md) for opt-in examples,
+codec contexts, bounds and registry configuration.
 
 `WotNodeSetConverter.FromNodeSetDocumentsAsync` exports a linked set and
 reconstructs it before returning success. Each document root owns a disjoint
@@ -212,6 +234,7 @@ can regroup. Reference direction and order, definition-field and argument order,
 attributes, values, and metadata remain compared. The synchronous
 `FromNodeSetDocuments` API produces the readable candidate; use the asynchronous
 API when verified reconstruction is required.
+The import-mode option does not change this export verification algorithm.
 
 `MergeNodeSetPartitions` applies the same bounded ownership and header rules
 to already converted partitions without modifying its inputs. The registry
@@ -249,10 +272,52 @@ instead of discarding it or guessing how to interpret its records. This does
 not bypass validation of supported content; malformed supported grammars and
 invalid archival digests remain errors.
 
-When an archival `uav:nodeSet` is present, known readable facts are checked
-against that baseline and conflicts are reported rather than overwritten.
-Routing-only enrichment does not grant permission to add or replace archived
-model facts.
+Non-model `@type` annotations on the root, properties, actions and events are
+retained as residue and merged with the regenerated type markers. Repeated
+annotations are not duplicated, their authored order and carrying context are
+retained, and residue cannot introduce a contradictory NodeClass or document
+kind. An affordance link's residue stays on that affordance's own link; it does
+not create an annotated relationship on the document root.
+
+Known numeric members of a supported native record must fit their declared
+Byte, UInt16, UInt32 or Int32 representation; a sampling interval must remain
+finite. A present fractional or out-of-range integer is an error, not permission
+to restore the missing-member default. Diagnostics identify the exact node,
+model, permission or datatype-field JSON Pointer, and conversion returns no
+partial NodeSet. Defaults still apply when the member is absent.
+
+Supported native `uav:nodes` records and archival `uav:nodeSet` content use the
+same selective readable-fact checks. Supplied identities, NodeClasses,
+BrowseNames, type and encoding claims, ranks, values, modelling rules,
+References and represented localized metadata must agree with the preserved
+Nodes. Conflicts report `NativeProjectionConflict` with the source pointer and
+native-form identity. Missing readable facts are not requests to synthesize
+over preserved content; forms, security and other routing-only enrichment do
+not grant permission to add or replace model facts.
+
+Identity, class and simple attribute checks read the preserved facts directly;
+they do not require generating unasserted nested readable schemas. An empty
+preserved model still rejects unmatched readable affordance and DataType
+identities. Name-only DataType claims resolve against the preserved DataTypes'
+qualified BrowseNames; an unknown or ambiguous name does not create a Node.
+Authored and regenerated names use their respective effective contexts.
+Complex facts are projected only for the requested Nodes while retaining the
+complete native context and stable generated names. Projection depth or
+affordance-budget errors are reported, not used as a partial comparison that
+can authorize success.
+
+A Condition action's `uav:actsOn` pairing does not move a locally owned Method to
+the EventType. Omitting `Comment` from an input's `required` set is compatible
+with the native signature only for an occurrence action whose native arguments
+are scalar ByteString `EventId` and scalar LocalizedText `Comment`, in that order.
+Other required arguments remain required; `uav:fieldOrder` remains ordered.
+
+For linked partitions, these checks run after the complete owned model context
+has been prepared and its headers checked, so a referenced Node in another
+partition is not mistaken for a missing Node. Final validation is not skipped.
+Symmetric References accept either stored direction; asymmetric directions
+remain significant. Native XML values and extension fragments retain their
+whitespace text, with the same DTD and external-entity restrictions.
 
 ### Generated NodeIds follow Annex G.1
 
@@ -267,9 +332,9 @@ Node's absolute browse path in OPC 10000-4 Annex A.2 relative-path syntax: each
 element is preceded by `/`, an element of the base OPC UA namespace is written
 bare, any other element is `nsu=<percent-encoded NamespaceUri>;<name>`, and the
 Annex A.2 reserved characters `&/.<>:#!` are escaped with `&` inside a name. A
-NodeSet file carries the same identity in its NodeSet-local spelling,
-`ns=1;s=<P>`, because namespace index 1 is `U`; the reverse mapping renders it
-back as `nsu=U;s=P`.
+NodeSet file carries the same identity as `ns=<index-of-U>;s=<P>`; the reverse
+mapping renders it back as `nsu=U;s=P`. The owning model namespace and every
+path element's namespace are resolved independently.
 
 `WotPortableIdentity.GenerateNodeId` / `GenerateBrowsePath` is the single
 implementation, so a conversion and a published Annex G.1 vector measure the
@@ -284,10 +349,49 @@ identifier from a member named `B` of `Root/A`, and a base-namespace
 name. A document-authored `uav:id` always wins over generation; author one when
 the identity must be fixed independently of its browse path.
 
+Compact names use their effective ordered context, including local and
+term-scoped bindings. A child prefix redefinition does not reinterpret its
+siblings. Generated identities, readable map keys, declaration views and residue
+selectors share the same qualified-name allocation, so collision suffixes do not
+detach annotations from their Nodes. Authored NodeIds and BrowseNames remain
+authoritative; duplicate authored identities are errors rather than requests to
+rename a Node.
+
+### Component-template declarations
+
+A component-template link's `href` identifies an ObjectType or VariableType.
+Its `uav:declaration` identifies the distinct Object or Variable declaration
+instantiated from that type. The declaration has its own BrowseName, optional
+NodeId and modelling rule; using one type twice creates two declarations, not
+two renamed copies of the type. A VariableType provider also supplies its
+DataType, ValueRank and ArrayDimensions through `WotResolvedNode`.
+
+Preserved-fact validation follows owner-to-declaration and declaration-to-TypeDefinition
+references, checking the declaration's qualified name and modelling rule. It does
+not demand an owner-to-type HasComponent reference or overlay readable assertions
+onto authoritative native or archived Nodes.
+
+Explicit `uav:declaration` handling is currently a converter extension to the
+advertised 1.1 vocabulary. The coordinated successor-vocabulary update is still
+required before claiming that annotation as part of strict advertised conformance.
+
+Comparisons between authored array-item schemas and the shape generated from
+DataType/rank facts use JSON value equality on every supported target, including
+.NET 8. Object-member order and equivalent decimal spellings do not create
+residue, but distinct high-precision numbers are never collapsed by floating-point
+rounding. Array order and the order of repeated properties remain significant.
+This comparison does not rewrite retained JSON or change preservation digests.
+
 ### Preservation digests and the two things that can be measured
 
 Annex G distinguishes three measurements over a JSON value, and this
 implementation keeps them apart. Two of them are digests; the third is a size.
+
+`WotDocument` accepts one leading UTF-8 byte-order mark for parsing while retaining
+it in `Utf8Json` and exact `Write` output. The full received length, including the
+preamble, counts toward the document byte limit. Canonical output represents the
+JSON value and does not include the preamble. Repeated, misplaced or incomplete
+preambles remain invalid JSON input.
 
 * **A digest over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is
   the SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
@@ -325,6 +429,23 @@ implementation keeps them apart. Two of them are digests; the third is a size.
   a scanner with one bit of state, so two implementations that received the same
   bytes measure the same number. The depth and key-count bounds are measured
   over the parsed value, where formatting cannot matter.
+
+When rebuilding a document, opaque residue values are written from their retained
+raw JSON after normal residue conflict checks. This preserves member-name and
+string escapes, number spellings, member and array order, and whitespace inside
+each value. Equal JSON values at different locations keep their own spellings,
+including values carried through arrays or attached to regenerated links.
+The surrounding document may be formatted independently. Combined document-depth
+limits still apply, and another residue entry cannot be silently hidden by a raw
+value. These guarantees apply whether or not a native preservation envelope is requested.
+
+The four explicit opaque members are also converter semantic boundaries.
+Model-looking keys such as `uav:id`, `uav:dataTypeName`, `uav:dataTypeDefinition`
+and `uav:externalSchema`, or a nested `@context`, remain payload data inside
+them. They do not contribute Nodes or DataType definitions and are not removed
+as redundant mapped annotations. Ordinary mapped terms outside those boundaries
+retain their normal conversion behavior; the outer opaque-object shape and
+resource limits still apply.
 
 ### Unmapped reference vocabulary is residue
 
@@ -490,6 +611,22 @@ from either and real companion models write it from the Object. An alias is
 resolved rather than emitted, since a name like `DataType="Structure"` means
 nothing outside the document that defines it.
 
+Opaque and literal members directly on a DataType definition are preserved as
+unmapped residue alongside the regenerated native facts. Their residue pointers
+use the generated definition order located through the resolved native DataType
+identity, not the authored collection index. Their original JSON bytes remain
+unchanged through projection and native round trips; mapped definition members
+are not copied into residue. A preserved definition context keeps namespaced
+opaque keys bound to their original owner without replacing the root context.
+Generated DataType names use their namespace-URI form when that local context
+is restored, so a reset or prefix rebinding cannot change the native identity.
+Generated localized-text overrides remain effective within the restored scope.
+Conflicting complete context residue members for the same definition are rejected
+in either order, including an explicit JSON `null`; absence is not a JSON-null
+value. Single contexts and equal duplicates remain accepted.
+Standard context references already emitted by the generator are not restored
+over its complete root context array.
+
 **Known gap.** An inferred definition's own DataSchema terms
 (`uav:fieldOrder`, `properties`, `required`, `oneOf`) still travel as residue
 rather than being re-derived from the definition, so a document that relies on
@@ -499,6 +636,10 @@ derive the schema from the definition, normalize both, and require the two
 semantic normal forms to be equal.
 
 ## Model and platform vocabulary (Section 6)
+
+For execution of a form's source browse path, see
+[OPC UA browse-path targets](WotBrowsePathTargets.md). Runtime resolution is
+separate from preserving model annotations during NodeSet conversion.
 
 The WoT Binding Section 6 model- and platform-vocabulary terms
 (composition, containment, naming, semantics, inheritance) and the
@@ -526,19 +667,24 @@ handles them in one direction with full round-trip fidelity:
   that also carries `uav:browseName` round-trips under that browse name's
   local part rather than its original map key.
 
-The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
-`uav:actionConfiguration` and `uav:eventConfiguration` are never read and
-never cause rejection; they are carried verbatim. Their **shape** is
-checked, because a consumer that must carry a value unchanged and must
-not reject it is otherwise obliged to carry an unbounded, unattributable
-value (Section 6.6): every top-level key is an absolute IRI or a compact
-IRI whose prefix the document's `@context` binds, and the object stays
-within 65 536 octets in the **compact received form** of Annex G.4 (see
+### Opaque-object bounds
+
+Structural validation of `uav:metadata`, `uav:propertyConfiguration`,
+`uav:actionConfiguration` and `uav:eventConfiguration` checks the object
+shape and its limits, separately from their business values. Each object stays
+within 65 536 UTF-8 octets in the **compact received form** of Annex G.4 (see
 [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)),
-32 levels of nesting and 256 top-level keys. Revision 1.0 stated no key
-rule, so a document whose keys are not namespaced is **preserved** and
-reported as deprecated rather than rejected; strict conformance (below)
-turns the same finding into an error.
+32 nested containers and 256 top-level keys. The outer object counts as one
+container; each nested object or array adds a level, while scalar leaves add none.
+Exact limits are accepted. Shape or limit violations are errors in every
+consumer mode and vocabulary revision, including unknown revisions.
+
+Authored top-level keys name their owner with an absolute IRI or a compact IRI
+whose prefix the document's `@context` binds. Revision 1.0 stated no key rule:
+consumers preserve legacy keys and report a warning, even with strict conformance.
+`AuthoringValidation = true`, rather than consumer strictness, makes the
+deprecated key spelling an error. That compatibility allowance never relaxes
+the structural bounds.
 
 ## Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)
 
@@ -725,9 +871,10 @@ every locale.
 **NodeSet to WoT.** The document's default locale is the locale the root Node's
 own `DisplayName` (or `Description`) states, declared as the `@language` of the
 generated `@context`; a source that names none declares none, and Section
-9.1.1's `en` then applies. A Node with one locale writes `title` and
-`description` alone. A Node with several writes the plural `titles` and
-`descriptions` maps as well. The plural member is **authoritative**: it carries
+9.1.1's `en` then applies. A Node with only the default locale writes `title`
+and `description` alone. A Node with a non-default locale, including a singleton
+translation, writes the plural `titles` and `descriptions` maps as well.
+The plural member is **authoritative**: it carries
 every locale the source had, and the singular member is the default projection a
 consumer that knows nothing of the plural members reads. Where the plural member
 has an entry for the document's default locale the singular member is that
@@ -742,21 +889,30 @@ is written in the default locale, and nothing is pushed into the exceptional
 Asserting no locale is a claim a JSON-LD reader has to be told about. `title` and
 `description` are terms of the W3C Thing Description context, and a `@context`
 that declares `@language` tags every unqualified value with it - so a German
-singular member would expand as English text. Where any projected text states no
-entry for the document's default locale, the generated `@context` therefore
-carries **one** further entry re-declaring the two terms with `"@language": null`.
-It is written only where the document needs it: adding it unconditionally would
-strip the language tag from every document this library writes. Being derived
-from the projected Nodes it is re-derivable and is not also captured as residue;
-an author's own override of the same terms says something different and is kept.
+singular member would expand as English text. Each carrying object with a
+fallback title or description therefore has its own local `@context`, with
+`"@language": null` only on the affected term. A German fallback title does not
+remove the language of an English description. The root context handles only
+root text; it cannot replace the overrides needed inside TD property-scoped
+contexts. Generated overrides are derived from the native localized values and
+are not duplicated as residue. An authored context is retained with its
+declaration and checked against authoritative native facts before restoration.
+
+Positive term-language overrides also matter: a German default needs an explicit
+`"@language": "de"` on the singular term where TD fixes that term's language to
+English. Untagged native text uses a neutral term definition. Methods, events and
+DataType metadata explicitly state their term languages where an enclosing
+override could otherwise leak into them. Index-map keys are labels, not predicates
+that activate a scoped context.
 
 The same problem has a different answer inside `uav:engineeringUnits`. Section
 6.4.1 mints `displayName` and `description` there as **short members under a
 type-scoped context**, so a root-level override cannot reach them: the scoped
 context is entered on that object and nowhere else. Where the EUInformation's
 text is not in the document's default locale, the object therefore carries its
-own node-local `@context` re-declaring `displayName` as `uav:unitDisplayName`
-and `description` as `uav:unitDescription`, each with `"@language": null`.
+own node-local `@context` re-declaring the affected `displayName` as
+`uav:unitDisplayName` or `description` as `uav:unitDescription`, with
+`"@language": null`. A text that already uses the default locale is not overridden.
 `namespaceUri` and `unitId` are short members of that same scoped context, which
 is why the generated document names the Binding context itself
 (`http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld`)
@@ -771,8 +927,28 @@ entry written first — the one the Node's own attribute carries — is the
 default-locale entry where the map has one and the code-point-first entry
 otherwise, which is the same entry the singular member carries, so the round
 trip is stable. A singular member alone becomes one `LocalizedText` tagged with
-the document's declared `@language`, or untagged where the context declares none
-— the form a UANodeSet writes when it names one language without saying which.
+its effective term language. Inline property-scoped contexts, ordered contexts,
+local overrides and context resets are evaluated at the carrying object. An
+explicit term language overrides the ambient `@language`; a null term language
+leaves the native text untagged. Contexts and opaque payloads remain traversal
+boundaries for model metadata. Restoring an authored contextual declaration is
+bounded by the combined document size and depth limits and cannot overwrite
+contradictory native model facts.
+
+Plural selection uses the carrying object's ambient language independently of
+the singular term's language: a neutral fallback does not reset display selection
+to English. Preserved contextual schemas freeze their selected text languages so
+adding the generated document's TD context cannot silently retag them. Mapped
+datatype bindings and unit pointers continue to come from the resolved/native
+model rather than stale lexical names.
+
+If the root's native text cannot reproduce an authored selection locale, that
+locale is retained as bounded, integrity-checked residue and restored before
+generating localized members. Neutral root text therefore cannot erase a German
+selection inherited by its children. Context definitions retain their lexical
+JSON so formatting alone does not create a false preservation conflict.
+Contextual semantic type arrays may be empty; regenerated native NodeClass
+markers are retained but are not duplicated in residue.
 
 The same selection is used wherever a term reduces a `LocalizedText` to one
 string: a ReferenceType's `uav:inverseName`, and the `displayName` and
@@ -780,6 +956,14 @@ string: a ReferenceType's `uav:inverseName`, and the `displayName` and
 Variable is taken in that same locale, so a multi-locale `EUInformation` states
 one text in both places instead of falling back to preservation because the two
 disagree.
+
+An `EUInformation` value has only one native `LocalizedText` per text member.
+Import selects that value using the unit object's effective locale. Other
+authored translations are retained as per-language residue and merged with the
+regenerated native translation on export, including repeated round trips.
+The selected native translation is not duplicated in residue. The same principle
+applies to a Method Argument's single native Description: additional locales are
+preserved without treating them as contradictory native descriptions.
 
 The mapping applies to the root, to property, action and event affordances, to
 event fields, to `Method` argument descriptions, and to DataType definitions and
@@ -801,13 +985,19 @@ construction: a count that disagrees with a fixed rank, or any dimension against
 a rank that fixes none, is an `InvalidValueRank` error rather than a silently
 malformed Variable.
 
+Readable exports use ordinary array schemas for fixed array and matrix ranks,
+with nested `items` for additional dimensions and the scalar DataType mapping at
+the leaf. Archive consistency uses the same rank-aware shape while independently
+checking the authoritative DataType, ValueRank and dimension bounds.
+
 ## Method arguments (Section 9.1)
 
 A UA Method's `InputArguments` and `OutputArguments` are the WoT action's
 `input` and `output` DataSchemas, in both directions.
 
 **NodeSet to WoT.** The `Argument` structures the argument Properties hold are
-decoded into an object DataSchema whose members are the arguments, whose
+decoded into an object DataSchema marked `uav:argumentLayout: "named"`,
+whose members are the arguments, whose
 `uav:fieldOrder` states their declaration order — the order an OPC 10000-4
 `Call` is positional over — and whose `required` lists all of them, because a
 Call supplies all of them. Each member carries the WoT type members that stand for its DataType, the
@@ -821,15 +1011,49 @@ projection.
 
 **WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
 
+An explicit `uav:argumentLayout: "single"` maps the complete DataSchema to
+one native argument; its object properties remain Structure fields rather
+than becoming separate arguments. An explicit `named` layout requires an
+object schema and a complete, duplicate-free `uav:fieldOrder`, including for
+one property. It cannot also identify a whole-value DataType. Invalid layouts
+produce `MethodArgumentSchemaInvalid`. Existing unambiguous implicit member
+maps remain readable for compatibility; generated documents state the layout.
+
+`WotNodeSetConverter.GetMethodArgumentLayout(action, "input")` (or `"output"`)
+uses that same mapping without creating Nodes. Its immutable
+`WotMethodArgumentLayout` retains the complete schema, argument count and
+ordered names; `GetArgumentSchema(index)` returns a native position's schema
+and rejects out-of-range indexes. An absent schema has layout `None` and zero
+arguments. Standard binding planners retain both layouts on
+`WotPayloadDescriptor.InputLayout` and `OutputLayout`.
+
+An authored single-value schema is retained through NodeSet round trips rather
+than replaced by a named argument wrapper. Reapplying that schema requires its
+normalized argument count, DataType and rank facts to agree with the native
+argument declaration. Changed native facts produce a preservation conflict;
+the source schema cannot rewrite them. A materialized inline or externally
+resolved definition contributes its resolved portable DataType binding to the
+retained schema, without duplicating the complete definition in residue. The
+conversion's existing resolved datatype closure supplies this identity.
+Combined JSON depth and size limits also apply when restoring the retained schema.
+
 ## ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)
 
 The readable mapping carries some References structurally — containment as
 affordances and `uav:hasComponent` / `uav:componentOf`, the type hierarchy as
-`tm:extends`, the type definition as a `ua:HasTypeDefinition` link, the
+a canonical `ua:HasSupertype` link with `uav:refId: "i=45"`, the type definition
+as a `ua:HasTypeDefinition` link, the
 modelling rule as `uav:modellingRule`, the event source as an event affordance
 and a DataType's encodings as `uav:defaultEncodingId`. Section 6.2 says a
 Reference is a single relation and a document shall not be read as declaring
 two, so none of those is written a second time.
+
+Forward and inverse storage of an edge describe the same graph. A Variable or
+Method reached through more than one ownership relationship is emitted once by
+NodeId; additional distinct relationships remain typed links. Equivalent hierarchy
+spellings share one link and its residue rather than duplicating it. External
+companion aliases remain resolvable after reference identities are normalized;
+an alias does not supply an InverseName that the source never declared.
 
 **NodeSet to WoT.** Every *other* Reference — a companion model's own
 ReferenceType, `ua:HasInterface`, `ua:Organizes` — is written as a typed link:

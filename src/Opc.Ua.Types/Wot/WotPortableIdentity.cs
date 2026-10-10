@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Opc.Ua.Wot
 {
@@ -97,7 +98,7 @@ namespace Opc.Ua.Wot
                 throw new ArgumentNullException(nameof(namespaceUri));
             }
             return new StringBuilder("nsu=")
-                .Append(namespaceUri)
+                .Append(CoreUtils.EscapeUri(namespaceUri))
                 .Append(";s=")
                 .Append(GenerateBrowsePath(path))
                 .ToString();
@@ -191,9 +192,11 @@ namespace Opc.Ua.Wot
                 {
                     return false;
                 }
-                identifier = value.Substring(delimiter + 1);
+                identifier = value[(delimiter + 1)..];
             }
-            return HasIdentifierType(identifier);
+            return HasIdentifierType(identifier) &&
+                NodeId.TryParse(identifier, out NodeId parsed) &&
+                parsed.NamespaceIndex == 0;
         }
 
         /// <summary>
@@ -234,6 +237,40 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        internal static bool TryResolveQualifiedName(
+            string? value,
+            WotDocument document,
+            JsonElement carryingNode,
+            out WotBrowsePathElement qualifiedName)
+        {
+            qualifiedName = default;
+            if (!IsPortableQualifiedName(value))
+            {
+                return false;
+            }
+            if (value!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = value.IndexOf(';', 4);
+                qualifiedName = new WotBrowsePathElement(
+                    CoreUtils.UnescapeUri(value.AsSpan(4, delimiter - 4)),
+                    value[(delimiter + 1)..]);
+                return true;
+            }
+            int colon = value.IndexOf(':', StringComparison.Ordinal);
+            if (colon < 0)
+            {
+                qualifiedName = new WotBrowsePathElement(WotVocabulary.OpcUaNamespace, value);
+                return true;
+            }
+            if (!document.TryGetContextPrefix(
+                value[..colon], out string namespaceUri, carryingNode))
+            {
+                return false;
+            }
+            qualifiedName = new WotBrowsePathElement(namespaceUri, value[(colon + 1)..]);
+            return true;
+        }
+
         /// <summary>
         /// Gets whether a browse path has a starting Node (Section 5.1.4).
         /// </summary>
@@ -243,6 +280,9 @@ namespace Opc.Ua.Wot
         /// what it is relative to; without one it names a sequence of steps from
         /// nowhere. Either kind is unresolvable when an element uses a numeric
         /// NamespaceIndex, which is never persisted.
+        /// This is an annotation portability check: Root and a final folder
+        /// separator remain valid here. A native operation additionally needs
+        /// the complete target validated by <see cref="WotBrowsePathTarget"/>.
         /// </remarks>
         /// <param name="path">The authored browse path.</param>
         /// <param name="anchored">
@@ -260,14 +300,30 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            foreach (string element in SplitPath(path))
+            try
             {
-                if (!IsPortableQualifiedName(element))
+                var parsed = RelativePathFormatter.ParsePortable(
+                    path, new NamespaceTable(), static _ => "urn:wot:lexical-prefix", 1024);
+                if (parsed.Elements.Count == 0)
                 {
                     return false;
                 }
+                for (int index = 0; index < parsed.Elements.Count; index++)
+                {
+                    RelativePathFormatter.Element element = parsed.Elements[index];
+                    if ((element.TargetName.IsNull || string.IsNullOrEmpty(element.TargetName.Name)) &&
+                        (index != parsed.Elements.Count - 1 ||
+                            element.ElementType != RelativePathFormatter.ElementType.AnyHierarchical))
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
-            return true;
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -310,9 +366,88 @@ namespace Opc.Ua.Wot
 #if NET6_0_OR_GREATER
             return ByteString.From(SHA256.HashData(encoded));
 #else
-            using SHA256 algorithm = SHA256.Create();
+            using var algorithm = SHA256.Create();
             return ByteString.From(algorithm.ComputeHash(encoded));
 #endif
+        }
+
+        /// <summary>
+        /// Returns a canonical portable NodeId, preserving string payloads and escaping the NamespaceUri once.
+        /// </summary>
+        public static string CanonicalNodeId(string value)
+        {
+            if (!IsPortableNodeId(value))
+            {
+                throw new ArgumentException("A portable NodeId is required.", nameof(value));
+            }
+            ExpandedNodeId expanded = ExpandedNodeId.Parse(value);
+            int delimiter = value.StartsWith("nsu=", StringComparison.Ordinal) ? value.IndexOf(';', 4) : -1;
+            NodeId identifier = NodeId.Parse(delimiter < 0 ? value : value[(delimiter + 1)..]);
+            if (identifier.IsNull)
+            {
+                throw new ArgumentException("A canonical identity cannot be null.", nameof(value));
+            }
+            string? uri = expanded.NamespaceUri;
+            return string.IsNullOrEmpty(uri) || string.Equals(uri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal)
+                ? identifier.ToString()
+                : "nsu=" + CoreUtils.EscapeUri(uri) + ";" + identifier;
+        }
+
+        /// <summary>
+        /// Reads the single URI query component naming a target NodeId, decoding its value once.
+        /// The remaining endpoint retains other query components and excludes the fragment.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="FormatException">More than one target identifier is present.</exception>
+        public static string? ReadUriTargetNodeId(string href, out string endpoint)
+        {
+            if (href is null)
+            {
+                throw new ArgumentNullException(nameof(href));
+            }
+            int fragment = href.IndexOf('#', StringComparison.Ordinal);
+            endpoint = fragment < 0 ? href : href[..fragment];
+            int query = endpoint.IndexOf('?', StringComparison.Ordinal);
+            if (query < 0)
+            {
+                return null;
+            }
+            string? nodeId = null;
+            var remaining = new List<string>();
+            foreach (string component in endpoint[(query + 1)..].Split('&'))
+            {
+                int equals = component.IndexOf('=', StringComparison.Ordinal);
+                if (equals >= 0 && string.Equals(
+                    Uri.UnescapeDataString(component[..equals]), "id", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (nodeId is not null)
+                    {
+                        throw new FormatException("A URI cannot identify more than one target NodeId.");
+                    }
+                    nodeId = Uri.UnescapeDataString(component[(equals + 1)..]);
+                }
+                else
+                {
+                    remaining.Add(component);
+                }
+            }
+            endpoint = endpoint[..query] + (remaining.Count == 0 ? string.Empty : "?" + string.Join("&", remaining));
+            return nodeId;
+        }
+
+        /// <summary>
+        /// Computes the full SHA-256 of canonical, unique, code-point-ordered semantic membership.
+        /// </summary>
+        public static ByteString ProjectionMembershipDigest(ArrayOf<string> members)
+        {
+            var distinct = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string member in members)
+            {
+                distinct.Add(CanonicalNodeId(member));
+            }
+            var ordered = new List<string>(distinct);
+            ordered.Sort(WotCodePointComparer.Instance);
+            return SequenceDigest(ordered.ToArrayOf());
         }
 
         /// <summary>
@@ -367,36 +502,55 @@ namespace Opc.Ua.Wot
         /// Splits a browse path into its elements, honouring the <c>&amp;</c>
         /// escape so an escaped separator inside a name does not split it.
         /// </summary>
-        private static List<string> SplitPath(string path)
+        /// <summary>
+        /// Allocates a projection name or qualified identity segment within its caller's scope.
+        /// </summary>
+        internal static string AllocateName(string? candidate, HashSet<string> used)
         {
-            var elements = new List<string>();
-            var current = new StringBuilder();
-            bool started = false;
-            for (int ii = 0; ii < path.Length; ii++)
+            string name = string.IsNullOrEmpty(candidate) ? "member" : candidate!;
+            if (used.Add(name))
             {
-                char character = path[ii];
-                if (character == '&' && ii + 1 < path.Length)
-                {
-                    current.Append(path[++ii]);
-                    continue;
-                }
-                if (character == '/')
-                {
-                    if (started)
-                    {
-                        elements.Add(current.ToString());
-                        current.Clear();
-                    }
-                    started = true;
-                    continue;
-                }
-                current.Append(character);
+                return name;
             }
-            if (current.Length != 0)
+            int suffix = 2;
+            string unique = name + "_" + suffix.ToString(CultureInfo.InvariantCulture);
+            while (!used.Add(unique))
             {
-                elements.Add(current.ToString());
+                suffix++;
+                unique = name + "_" + suffix.ToString(CultureInfo.InvariantCulture);
             }
-            return elements;
+            return unique;
+        }
+
+        /// <summary>
+        /// Gets the local authored BrowseName, falling back to the affordance key.
+        /// </summary>
+        internal static string AffordanceName(JsonElement affordance, string key)
+        {
+            return affordance.ValueKind == JsonValueKind.Object &&
+                affordance.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+                browseName.ValueKind == JsonValueKind.String
+                ? LocalName(browseName.GetString()) ?? key
+                : key;
+        }
+
+        internal static string? LocalName(string? browseName)
+        {
+            if (string.IsNullOrEmpty(browseName))
+            {
+                return null;
+            }
+            if (browseName!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = browseName.IndexOf(';', 4);
+                return delimiter >= 0 && delimiter + 1 < browseName.Length
+                    ? browseName[(delimiter + 1)..]
+                    : null;
+            }
+            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
+            return colon >= 0 && colon + 1 < browseName.Length
+                ? browseName[(colon + 1)..]
+                : browseName;
         }
 
         /// <summary>

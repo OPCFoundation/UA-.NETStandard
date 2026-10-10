@@ -162,8 +162,25 @@ namespace Microsoft.Extensions.DependencyInjection
                     : resourceStore is null
                         ? new FileWotRegistryStore(options.StorageFolder!)
                         : new FileWotRegistryStore(options.StorageFolder!, resourceStore);
-                return new WotRegistryService(store, options.Bounds);
+                return new WotRegistryService(
+                    store, options.Bounds, options.IdentityBindings, options.ProjectionCompatibilityMode);
             });
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotTypedRegistryService ??
+                throw new InvalidOperationException("The registered registry does not support typed provisioning."));
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryVersionLeaseProvider ??
+                throw new InvalidOperationException("The registered registry does not support Version leases."));
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryDependencySnapshotProvider ??
+                throw new InvalidOperationException("The registered registry does not support dependency snapshots."));
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryRecoveryResolver ??
+                throw new InvalidOperationException("The registered registry cannot resolve recovery evidence."));
 
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(
@@ -175,7 +192,12 @@ namespace Microsoft.Extensions.DependencyInjection
             // the in-memory host, which is also the seam's test double.
             services.TryAddSingleton<IWotViewProjectionHost>(sp =>
                 new LifecycleWotViewProjectionHost(
-                    sp.GetRequiredService<INodeManagerLifecycle>()));
+                    sp.GetRequiredService<INodeManagerLifecycle>(),
+                    sp.GetRequiredService<WotRegistryServerOptions>().RetirementPolicy));
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotViewProjectionHost>() as IWotPreparedViewProjectionHost ??
+                throw new InvalidOperationException("The registered View host does not support prepared publication."));
 
             services.TryAddSingleton(sp =>
             {
@@ -183,14 +205,25 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<WotRegistryServerOptions>();
                 var converterOptions = new WotNodeSetConverterOptions
                 {
+                    MaxJsonDepth = options.Bounds.MaxJsonDepth,
                     MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
-                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes
+                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
+                    DocumentSetMode = options.DocumentSetMode,
+                    ProjectionCompatibilityMode = options.ProjectionCompatibilityMode,
+                    ProjectionFormProvider = sp.GetService<IWotProjectionFormProvider>() ??
+                        options.ProjectionFormProvider,
+                    ValueEncodingContext = sp.GetService<IServiceMessageContext>()
                 };
-                return new WotMaterializationCoordinator(
+                converterOptions.Validate();
+                return converterOptions;
+            });
+
+            services.TryAddSingleton(sp =>
+                new WotMaterializationCoordinator(
                     sp.GetRequiredService<IWotRegistryService>(),
                     sp.GetRequiredService<IWotProjectionHost>(),
                     sp.GetRequiredService<IWotBinderRegistry>(),
-                    converterOptions,
+                    sp.GetRequiredService<WotNodeSetConverterOptions>(),
                     // Both seams are optional: a deployment that registers neither gets exactly
                     // the previous behaviour. Registering an IWotDocumentConverter replaces the
                     // Thing Description to NodeSet conversion; registering IWotNodeSetContributor
@@ -199,8 +232,10 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<IWotDocumentConverter>(),
                     sp.GetServices<IWotNodeSetContributor>(),
                     sp.GetService<IWotNodeSetResolver>(),
-                    sp.GetService<IWotViewProjectionHost>());
-            });
+                    sp.GetService<IWotViewProjectionHost>()));
+
+            services.TryAddSingleton<IWotRefreshCaptureProvider>(sp =>
+                sp.GetRequiredService<WotMaterializationCoordinator>());
 
             services.TryAddSingleton(sp =>
                 new WotRegistryNodeManagerFactory(

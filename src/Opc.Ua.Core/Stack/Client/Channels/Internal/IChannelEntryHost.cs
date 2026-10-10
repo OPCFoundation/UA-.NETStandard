@@ -30,7 +30,9 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -102,6 +104,18 @@ namespace Opc.Ua
         /// <param name="current">The material currently owned by the entry.</param>
         /// <returns>A caller-owned snapshot. Disposing it does not release the entry's handles.</returns>
         ClientChannelCertificateSnapshot SnapshotClientCertificate(ClientChannelCertificateSnapshot current);
+
+        /// <summary>
+        /// Opens a transport using certificate references retained by the entry until transport closure.
+        /// The transport and entry share these idempotently disposed handles, not the manager's reusable handles.
+        /// </summary>
+        new ValueTask<ITransportChannel> CreateChannelAsync(
+            ConfiguredEndpoint endpoint,
+            IServiceMessageContext context,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            ITransportWaitingConnection? connection,
+            CancellationToken ct);
 
         /// <summary>
         /// Starts a trace for one coalesced entry reconnect cycle.

@@ -123,7 +123,24 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            ThrowIfDisposed();
+            try
+            {
+                ThrowIfDisposed();
+                if (endpoint is null)
+                {
+                    throw new ArgumentNullException(nameof(endpoint));
+                }
+                if (context is null)
+                {
+                    throw new ArgumentNullException(nameof(context));
+                }
+            }
+            catch
+            {
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
+                throw;
+            }
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel;
@@ -1297,7 +1314,8 @@ namespace Opc.Ua
         }
 
         private readonly ClientChannelManagerCertRotation m_certRotation;
-#pragma warning disable IDE0052 // Background certificate-rotation task is retained so it is not garbage-collected early.
+        // Background certificate-rotation task is retained so it is not garbage-collected early.
+#pragma warning disable IDE0052
         private Task? m_certificateRotationTask;
 #pragma warning restore IDE0052
 
@@ -1330,6 +1348,26 @@ namespace Opc.Ua
         ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
+        }
+
+        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
+            ConfiguredEndpoint endpoint,
+            IServiceMessageContext context,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            ITransportWaitingConnection? reverseConnection,
+            CancellationToken ct)
+        {
+            // The entry already retains these handles until the transport closes.
+            // Share them with settings so non-adopting transports cannot leak
+            // additional references; disposing a handle twice is idempotent.
+            return CreateChannelAsync(
+                endpoint,
+                context,
+                clientCertificate,
+                clientCertificateChain,
+                reverseConnection,
+                ct);
         }
 
         /// <inheritdoc/>

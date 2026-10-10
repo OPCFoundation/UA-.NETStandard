@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -74,50 +75,88 @@ namespace Opc.Ua.WotCon.Bindings
                 : inputs;
         }
 
-        internal static WotConditionInvocation? FromAffordance(WotAffordanceForm form)
+        internal void ValidateLayout(WotPayloadDescriptor payload)
         {
-            JsonElement affordance = form.AffordanceElement;
-            if (form.Kind != WotAffordanceKind.Action || affordance.ValueKind != JsonValueKind.Object ||
-                !affordance.TryGetProperty("uav:conditionAction", out JsonElement actionElement) ||
-                actionElement.ValueKind != JsonValueKind.String)
+            if (payload.InputLayout is not null &&
+                (!TryGetCommentPolicy(payload, out bool optional) || optional != CommentOptional))
             {
-                return null;
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The Condition invocation policy disagrees with its resolved native signature.");
             }
-            string? action = actionElement.GetString();
-            if (action is not ("Acknowledge" or "Confirm" or "AddComment"))
-            {
-                return null;
-            }
-            bool optional = false;
-            if (affordance.TryGetProperty("input", out JsonElement input) &&
-                input.ValueKind == JsonValueKind.Object && HasCanonicalInputOrder(input))
-            {
-                optional = !input.TryGetProperty("required", out JsonElement required) ||
-                    (required.ValueKind == JsonValueKind.Array &&
-                        !required.EnumerateArray().Any(member =>
-                            member.ValueKind == JsonValueKind.String && member.GetString() == "Comment"));
-            }
-            return new WotConditionInvocation(action, optional);
         }
 
-        private static bool HasCanonicalInputOrder(JsonElement input)
+        internal static bool TryCreate(
+            WotAffordanceForm form,
+            WotPayloadDescriptor payload,
+            out WotConditionInvocation? invocation,
+            out string? error)
         {
-            if (!input.TryGetProperty("properties", out JsonElement properties) ||
-                properties.ValueKind != JsonValueKind.Object ||
-                !properties.TryGetProperty("EventId", out _))
-            {
-                return false;
-            }
-            int count = properties.EnumerateObject().Count();
-            if (count == 1)
+            invocation = null;
+            error = null;
+            JsonElement affordance = payload.Schema?.Definition ?? form.AffordanceElement;
+            if (form.Kind != WotAffordanceKind.Action ||
+                affordance.ValueKind != JsonValueKind.Object ||
+                !affordance.TryGetProperty("uav:conditionAction", out JsonElement actionElement))
             {
                 return true;
             }
-            return count == 2 && properties.TryGetProperty("Comment", out _) &&
-                input.TryGetProperty("uav:fieldOrder", out JsonElement order) &&
-                order.ValueKind == JsonValueKind.Array && order.GetArrayLength() == 2 &&
-                order[0].ValueKind == JsonValueKind.String && order[0].GetString() == "EventId" &&
-                order[1].ValueKind == JsonValueKind.String && order[1].GetString() == "Comment";
+            string? action = actionElement.ValueKind == JsonValueKind.String ? actionElement.GetString() : null;
+            if (action is "Enable" or "Disable")
+            {
+                if (payload.InputLayout?.ArgumentCount == 0 && payload.OutputLayout?.ArgumentCount == 0)
+                {
+                    return true;
+                }
+                error = "Enable and Disable retain their zero-input, zero-output native signatures.";
+                return false;
+            }
+            if (action is not ("Acknowledge" or "Confirm" or "AddComment") ||
+                !TryGetCommentPolicy(payload, out bool optional))
+            {
+                error = "A Condition occurrence action requires the ordered scalar ByteString EventId " +
+                    "and LocalizedText Comment signature, with required EventId and no outputs.";
+                return false;
+            }
+            invocation = new WotConditionInvocation(action, optional);
+            return true;
+        }
+
+        private static bool TryGetCommentPolicy(WotPayloadDescriptor payload, out bool optional)
+        {
+            optional = false;
+            WotMethodArgumentLayout? input = payload.InputLayout;
+            if (input is null ||
+                input.Kind != WotMethodArgumentLayoutKind.Named ||
+                input.ArgumentCount != 2 ||
+                input.FieldOrder[0] != "EventId" ||
+                input.FieldOrder[1] != "Comment" ||
+                payload.OutputLayout?.ArgumentCount != 0 ||
+                !input.Schema.TryGetProperty("required", out JsonElement required) ||
+                required.ValueKind != JsonValueKind.Array ||
+                !required.EnumerateArray().Any(member =>
+                    member.ValueKind == JsonValueKind.String && member.GetString() == "EventId"))
+            {
+                return false;
+            }
+            WotPayloadSchema schema = payload.GetActionSchema();
+            if (!HasNativeType(schema, "EventId", Ua.DataTypeIds.ByteString) ||
+                !HasNativeType(schema, "Comment", Ua.DataTypeIds.LocalizedText))
+            {
+                return false;
+            }
+            optional = !required.EnumerateArray().Any(member =>
+                member.ValueKind == JsonValueKind.String && member.GetString() == "Comment");
+            return true;
+        }
+
+        private static bool HasNativeType(WotPayloadSchema schema, string name, NodeId expected)
+        {
+            return schema.TryGetTypeBinding("/input/properties/" + name, out WotPayloadTypeBinding? binding) &&
+                binding.TypeInfo.ValueRank == ValueRanks.Scalar &&
+                binding.DataTypeId.ServerIndex == 0 &&
+                (string.IsNullOrEmpty(binding.DataTypeId.NamespaceUri) ||
+                    binding.DataTypeId.NamespaceUri == Ua.Namespaces.OpcUa) &&
+                binding.DataTypeId.InnerNodeId == expected;
         }
     }
 }

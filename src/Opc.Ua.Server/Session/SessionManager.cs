@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SessionManager : ISessionManager, ISessionBindingProvider
+    public class SessionManager : ISessionManager, IServerSessionBindingProvider
     {
         /// <summary>
         /// Initializes the manager with its configuration.

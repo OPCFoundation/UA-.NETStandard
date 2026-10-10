@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -152,7 +153,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
-            using WotDocument canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
+            using var canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
 
             Assert.That(canonical.Properties["Measurement"].GetProperty("maximum").GetRawText(),
                 Is.EqualTo("473.15"));
@@ -422,6 +423,55 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EngineeringUnitsUseTheDeclaredLocaleAndRetainEveryTranslation(bool localLanguage)
+        {
+            using WotDocument original = ParseThingModel(
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"unit\":\"Drehzahl\"," +
+                "\"uav:unitProperty\":\"/properties/speedUnit\"}," +
+                "\"speedUnit\":{\"type\":\"string\",\"uav:browseName\":\"ua:EngineeringUnits\"," +
+                "\"uav:engineeringUnits\":{" +
+                "\"namespaceUri\":\"" +
+                WotAnalogTestData.UnitAuthority +
+                "\"," +
+                "\"unitId\":5340017,\"displayName\":\"Drehzahl\"," +
+                "\"displayNames\":{\"de\":\"Drehzahl\",\"en\":\"rotation\"}," +
+                "\"description\":\"Drehende Welle\"," +
+                "\"descriptions\":{\"de\":\"Drehende Welle\",\"en\":\"Rotating shaft\"}}}}");
+            JsonObject root = JsonNode.Parse(original.Utf8Json.Span)!.AsObject();
+            root["@context"]![1]!["@language"] = localLanguage ? "en" : "de";
+            if (localLanguage)
+            {
+                root["properties"]!["speedUnit"]!["uav:engineeringUnits"]!["@context"] =
+                    JsonNode.Parse("{\"@language\":\"de\"}");
+            }
+            using var document = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            UANodeSet source = result.Value!;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                UAVariable unit = source.Items!.OfType<UAVariable>()
+                    .Single(variable => variable.BrowseName == "EngineeringUnits");
+                System.Xml.XmlElement display = unit.Value!.GetElementsByTagName("DisplayName", Namespaces.OpcUaXsd)
+                    .OfType<System.Xml.XmlElement>().Single();
+                Assert.That(display.GetElementsByTagName("Locale", Namespaces.OpcUaXsd)[0]!.InnerText, Is.EqualTo("de"));
+                Assert.That(display.GetElementsByTagName("Text", Namespaces.OpcUaXsd)[0]!.InnerText, Is.EqualTo("Drehzahl"));
+
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(source);
+                JsonElement units = restored.Properties["EngineeringUnits"].GetProperty("uav:engineeringUnits");
+                Assert.That(units.GetProperty("displayName").GetString(), Is.EqualTo("Drehzahl"));
+                Assert.That(units.GetProperty("displayNames").GetProperty("de").GetString(), Is.EqualTo("Drehzahl"));
+                Assert.That(units.GetProperty("displayNames").GetProperty("en").GetString(), Is.EqualTo("rotation"));
+                Assert.That(units.GetProperty("descriptions").GetProperty("de").GetString(), Is.EqualTo("Drehende Welle"));
+                Assert.That(units.GetProperty("descriptions").GetProperty("en").GetString(), Is.EqualTo("Rotating shaft"));
+                source = WotNodeSetConverter.ToNodeSet(restored);
+            }
+        }
+
         [Test]
         public void AnalogNodeSetRoundTripsWithoutTheStructuredFallback()
         {
@@ -594,10 +644,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ThePublishedThingModelProjectsItsUnitPointerAndRangesAsync()
+        public async Task AUnitModelWithComponentDeclarationsProjectsItsUnitPointerAndRangesAsync()
         {
-            using var document = WotDocument.Parse(
-                ReadExample("02-thing-model-pump.jsonld"));
+            using WotDocument document = ReadUnitModelWithComponentDeclaration();
 
             WotConversionResult<UANodeSet> result =
                 await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
@@ -630,10 +679,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ThePublishedThingModelImportsAsANodeSetAsync()
+        public async Task AUnitModelWithComponentDeclarationsImportsAsANodeSetAsync()
         {
-            using var document = WotDocument.Parse(
-                ReadExample("02-thing-model-pump.jsonld"));
+            using WotDocument document = ReadUnitModelWithComponentDeclaration();
 
             // The example links its event affordances to the definitions
             // example 27 declares, so converting it is converting a document
@@ -653,7 +701,40 @@ namespace Opc.Ua.Types.Tests.Wot
             var reread = UANodeSet.Read(stream);
 
             Assert.That(reread, Is.Not.Null);
-            Assert.That(reread!.Items, Has.Length.EqualTo(nodeSet.Items!.Length));
+            Assert.That(reread!.Items!.OfType<UAObject>().Any(instance =>
+                instance.BrowseName!.EndsWith(":Impeller", StringComparison.Ordinal) &&
+                instance.References!.Any(reference => reference.ReferenceType == "HasTypeDefinition")), Is.True);
+        }
+
+        [Test]
+        public async Task ThePinnedLegacyModelDoesNotTurnAComponentTypeIntoAnInstanceAsync()
+        {
+            JsonObject model = JsonNode.Parse(ReadExample("02-thing-model-pump.jsonld"))!.AsObject();
+            JsonObject component = model["links"]!.AsArray().OfType<JsonObject>()
+                .Single(link => link["rel"]?.GetValue<string>() == "ua:HasComponent");
+            Assert.That(component.Remove("uav:declaration"), Is.True,
+                "The current example declares the component; remove it only from this legacy negative fixture.");
+            using var document = WotDocument.Parse(WotTestData.Utf8(model.ToJsonString()));
+            WotConversionResult<UANodeSet> result =
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotDiagnosticCode.ValidationError &&
+                d.Message.Contains("uav:declaration", StringComparison.Ordinal)), Is.True);
+        }
+
+        private static WotDocument ReadUnitModelWithComponentDeclaration()
+        {
+            JsonObject model = JsonNode.Parse(ReadExample("02-thing-model-pump.jsonld"))!.AsObject();
+            JsonObject component = model["links"]!.AsArray().OfType<JsonObject>()
+                .Single(link => link["rel"]?.GetValue<string>() == "ua:HasComponent");
+            component["uav:declaration"] = new JsonObject { ["uav:browseName"] = "pump:Impeller" };
+            foreach (KeyValuePair<string, JsonNode?> property in model["properties"]!.AsObject())
+            {
+                property.Value!["@type"] = "uav:variable";
+            }
+            return WotDocument.Parse(WotTestData.Utf8(model.ToJsonString()));
         }
 
         private static string ModellingRuleOf(UANode node)
@@ -695,15 +776,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         internal static byte[] ReadExample(string name)
         {
-            string resource = typeof(WotUnitsAndRangesTests).Assembly
-                .GetManifestResourceNames()
-                .Single(n => n.EndsWith("Wot.Assets." + name, StringComparison.Ordinal));
-            using System.IO.Stream? stream = typeof(WotUnitsAndRangesTests).Assembly
-                .GetManifestResourceStream(resource);
-            Assert.That(stream, Is.Not.Null, $"The example '{name}' should be embedded.");
-            using var buffer = new System.IO.MemoryStream();
-            stream!.CopyTo(buffer);
-            return buffer.ToArray();
+            return WotSpecExampleTests.ReadExample(name);
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)

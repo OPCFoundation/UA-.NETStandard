@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -1269,44 +1269,12 @@ namespace Opc.Ua.Server
 
             try
             {
-                // activate the session.
-                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
-                        context,
-                        requestHeader.AuthenticationToken,
-                        clientSignature,
-                        userIdentityToken,
-                        userTokenSignature,
-                        localeIds,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                // The activation has committed and the session now expects the next
-                // request to be signed over serverNonce, which only this response
-                // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
-                // turning their failure into a fault would leave the client with a
-                // nonce the server no longer accepts. Only a session that was closed
-                // concurrently still fails the request with Bad_SessionClosed; its
-                // nonce is moot. The activation gate is already released, so a close
-                // can also start during the steps below; it is checked again after
-                // them.
+                (serverNonce, ServiceResult activationStatus) =
+                    ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                        ? await batchHost.DispatchSessionActivationAsync(
+                            ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
+                        : await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
-
-                if (identityChanged)
-                {
-                    try
-                    {
-                        // post-commit: not bound to the request token, a cancellation
-                        // could only abort the work while the client still gets Good.
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            session.Id,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
-                    }
-                }
 
                 AdditionalParametersType? parameters = null;
                 try
@@ -1406,6 +1374,33 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
+            }
+
+            async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateAndNotifyAsync()
+            {
+                (bool identityChanged, ByteString nonce, ServiceResult status) =
+                    await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                ISession activatedSession = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
+                if (identityChanged)
+                {
+                    try
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ActivateSessionPostCommitStepFailed(e, activatedSession.Id);
+                    }
+                }
+                return (nonce, status);
             }
         }
 
@@ -4065,19 +4060,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?
                 .HasSession(secureChannelId) ?? false;
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.TryGetSessionContext(
+        bool IServerSessionBindingProvider.TryGetSessionContext(
             NodeId authenticationToken,
             SecureChannelContext channelContext,
             [NotNullWhen(true)] out SessionBindingContext? context)
         {
-            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            if (m_serverInternal?.SessionManager is IServerSessionBindingProvider provider)
             {
                 return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
             }
@@ -4443,6 +4438,7 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                ((NodeManagerLifecycle)NodeManagerLifecycle).BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -4739,9 +4735,44 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
+            // Capture initial ownership before Running admits runtime registrations.
+            ArrayOf<IAsyncNodeManager> initialManagers = [.. m_serverInternal.NodeManager.AsyncNodeManagers];
             // set the server status as running, or NoConfiguration while the
             // application is in the application setup state (OPC 10000-12 G.2).
             SetServerState(StartupServerState);
+
+            try
+            {
+                await ((NodeManagerLifecycle)NodeManagerLifecycle)
+                    .CompleteStartupAsync(initialManagers, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.Message(ex, "A NodeManager failed during startup readiness.");
+                Exception? cleanupFailure = null;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(ServerError))
+                    {
+                        cleanupFailure = new ServiceResultException(ServerError);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
+                {
+                    cleanupFailure = cleanupException;
+                }
+                if (cleanupFailure is not null)
+                {
+                    var failure = new AggregateException(
+                        "NodeManager startup readiness and server cleanup failed.", ex, cleanupFailure);
+                    ServerError = new ServiceResult(failure);
+                    throw failure;
+                }
+                ServerError = new ServiceResult(ex);
+                throw;
+            }
 
             // all initialization is complete.
             m_logger.ServerStarted();
@@ -5466,8 +5497,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When
@@ -5644,9 +5682,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
         /// </summary>
-        internal async ValueTask RefreshComplexTypesAsync(
+        internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
+            bool publishResolver = true,
             CancellationToken cancellationToken = default)
         {
             if (LoadComplexTypes)
@@ -5670,8 +5709,13 @@ namespace Opc.Ua.Server
                             additionalNodeManager,
                             cancellationToken)
                         .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
+                if (publishResolver)
+                {
+                    ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
+                return resolver;
             }
+            return null;
         }
 
         /// <inheritdoc/>

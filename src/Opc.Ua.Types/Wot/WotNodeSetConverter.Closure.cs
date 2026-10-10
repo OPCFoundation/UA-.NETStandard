@@ -43,8 +43,9 @@ namespace Opc.Ua.Wot
         /// <remarks>
         /// A concrete Structure or Union that states
         /// <c>uav:hasDefaultEncoding: false</c> has a null
-        /// <c>DefaultEncodingId</c> and no encoding Objects: it exists only as
-        /// a field of another Structure. Selecting it as the DataType of a
+        /// <c>DefaultEncodingId</c> and no Binary encoding. Optional XML/JSON
+        /// encoding Objects do not make it directly selectable. It exists only
+        /// as a field of another Structure. Selecting it as the DataType of a
         /// Variable, an Argument or an Event field produces a Node whose value
         /// no client can encode, and the failure surfaces at run time as an
         /// unresolvable encoding rather than here, where the document that

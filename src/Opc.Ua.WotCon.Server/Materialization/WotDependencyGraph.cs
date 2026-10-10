@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -104,6 +105,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         bool ResolvesOnlyThroughTarget);
 
     /// <summary>
+    /// A strongly connected semantic component. Reciprocal references require
+    /// co-activation, but only true ordering edges can make it invalid.
+    /// </summary>
+    public sealed class WotDependencyComponent
+    {
+        internal WotDependencyComponent(ArrayOf<WotResource> members)
+        {
+            Members = members;
+        }
+
+        /// <summary>
+        /// Gets the component's exact pinned Resources in dependency-first order.
+        /// </summary>
+        public ArrayOf<WotResource> Members { get; }
+    }
+
+    /// <summary>
     /// A dependency closure: a set of resources that must be materialized
     /// together, with Thing Models topologically ordered before the Thing
     /// Descriptions that depend on them. A closure is the default unit of
@@ -118,7 +136,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ImmutableArray<WotDependency> dependencies,
             ImmutableArray<string> diagnostics,
             bool hasCycle,
-            bool hasMissingDependency)
+            bool hasMissingDependency,
+            ArrayOf<WotDependencyComponent> components = default)
         {
             Key = key;
             Members = members;
@@ -127,6 +146,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Diagnostics = diagnostics;
             HasCycle = hasCycle;
             HasMissingDependency = hasMissingDependency;
+            StronglyConnectedComponents = components;
+            ActivationMembers = members.Where(member => member.Enabled).ToArrayOf();
         }
 
         /// <summary>
@@ -165,9 +186,36 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public bool HasMissingDependency { get; }
 
         /// <summary>
+        /// Gets exact input acquisition failures, without discarding their closure membership.
+        /// </summary>
+        public ArrayOf<WotResourceAcquisitionFailure> AcquisitionFailures { get; private init; }
+
+        /// <summary>
+        /// Gets dependency-first semantic SCCs, retaining legal reciprocal references.
+        /// </summary>
+        public ArrayOf<WotDependencyComponent> StronglyConnectedComponents { get; }
+
+        /// <summary>
+        /// Gets the exact Resources to activate, excluding inputs retained only for resolution.
+        /// A publication partition can use definitions from members outside this set.
+        /// </summary>
+        public ArrayOf<WotResource> ActivationMembers { get; internal init; }
+
+        /// <summary>
         /// Gets whether the closure is projectable (no cycle, no missing dependency).
         /// </summary>
-        public bool IsProjectable => !HasCycle && !HasMissingDependency;
+        public bool IsProjectable => !HasCycle && !HasMissingDependency && AcquisitionFailures.IsEmpty;
+
+        internal WotDependencyClosure WithAcquisitionFailures(ArrayOf<WotResourceAcquisitionFailure> failures)
+        {
+            return new WotDependencyClosure(
+                Key, Members, OrderedResources, Dependencies, Diagnostics, HasCycle, HasMissingDependency,
+                StronglyConnectedComponents)
+            {
+                AcquisitionFailures = failures,
+                ActivationMembers = ActivationMembers
+            };
+        }
     }
 
     /// <summary>
@@ -215,7 +263,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <c>tm:extends</c>, and <c>tm:ref</c> pointers, then resolved against the
     /// registry by Thing id, xid, or resource id.
     /// </summary>
-    public static class WotDependencyGraph
+    public static partial class WotDependencyGraph
     {
         /// <summary>
         /// The dependency kind of an event affordance's EventType fast path.
@@ -326,14 +374,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ArgumentNullException(nameof(readContent));
             }
 
-            var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
+            var edges = new Dictionary<string, List<(WotResourceReference Reference, string? TargetXid)>>(
+                StringComparer.Ordinal);
             var byXid = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             var unreadable = new List<string>();
             foreach (WotResource resource in snapshot.AllResources())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 byXid[resource.Xid] = resource;
-                var list = new List<WotDependency>();
+                var list = new List<(WotResourceReference Reference, string? TargetXid)>();
                 edges[resource.Xid] = list;
                 WotResourceVersion? version = resource.DefaultVersion;
                 if (version is null)
@@ -360,16 +409,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     unreadable.Add(resource.Xid);
                     continue;
                 }
-                foreach ((string href, string refType) in ExtractReferences(
-                    content.Memory, maxJsonDepth))
+                foreach (WotResourceReference reference in ReadMetadata(content, maxJsonDepth).References)
                 {
-                    WotResource? resolved = Resolve(snapshot, href);
-                    if (IsLocalFragmentReference(resource, href, refType, resolved))
+                    WotResource? resolved = ResolveReference(snapshot, resource, reference);
+                    if (IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, resolved))
                     {
                         continue;
                     }
-                    list.Add(new WotDependency(
-                        resource.Xid, href, resolved?.Xid, refType, resolved is not null));
+                    list.Add((reference, resolved?.Xid));
                 }
             }
 
@@ -383,7 +430,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 changed = false;
-                foreach (KeyValuePair<string, List<WotDependency>> entry in edges)
+                foreach (KeyValuePair<string, List<(WotResourceReference Reference, string? TargetXid)>> entry in edges)
                 {
                     if (removed.Contains(entry.Key))
                     {
@@ -391,14 +438,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     bool dependsOnRemoved = false;
                     bool losesAReference = false;
-                    foreach (WotDependency edge in entry.Value)
+                    foreach ((WotResourceReference reference, string? targetXid) in entry.Value)
                     {
-                        if (edge.TargetXid is null || !removed.Contains(edge.TargetXid))
+                        if (targetXid is null || !removed.Contains(targetXid))
                         {
                             continue;
                         }
                         dependsOnRemoved = true;
-                        if (!ResolvesWithout(snapshot, edge.TargetHref, removed))
+                        if (!ResolvesWithout(snapshot, byXid[entry.Key], reference, removed))
                         {
                             losesAReference = true;
                         }
@@ -432,22 +479,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// Gets whether an href still resolves once a set of resources is gone.
+        /// Gets whether the contextual reference still resolves after removing Resources.
         /// </summary>
         private static bool ResolvesWithout(
             WotRegistrySnapshot snapshot,
-            string href,
+            WotResource source,
+            WotResourceReference reference,
             HashSet<string> removed)
         {
-            string trimmed = TrimFragment(href);
-            foreach (WotResource candidate in snapshot.AllResources())
-            {
-                if (!removed.Contains(candidate.Xid) && Matches(candidate, trimmed))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return ResolveReference(snapshot, source, reference, removed) is not null;
         }
 
         /// <summary>
@@ -455,14 +495,73 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public static WotResource? Resolve(WotRegistrySnapshot snapshot, string href)
         {
+            return Resolve(snapshot, href, null);
+        }
+
+        private static WotResource? Resolve(
+            WotRegistrySnapshot snapshot, string href, HashSet<string>? excluded)
+        {
             if (snapshot is null || string.IsNullOrWhiteSpace(href))
             {
                 return null;
             }
             string trimmed = TrimFragment(href);
-            // Prefer Thing Models, then any resource, matching by thing id, xid or resource id.
-            return MatchIn(snapshot.ResourcesOfKind(WoTDocumentKindEnum.ThingModel), trimmed)
-                ?? MatchIn(snapshot.AllResources(), trimmed);
+            WotResource? definition = null;
+            WotResource? exact = null;
+            WotResource? relative = null;
+            int definitionCount = 0;
+            int exactCount = 0;
+            int relativeCount = 0;
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                if (excluded?.Contains(resource.Xid) == true)
+                {
+                    continue;
+                }
+                if (DefinesDataType(resource, href))
+                {
+                    definition = resource;
+                    definitionCount++;
+                }
+                if (string.Equals(resource.ThingId, trimmed, StringComparison.Ordinal) ||
+                    string.Equals(resource.Xid, trimmed, StringComparison.Ordinal) ||
+                    string.Equals(RegistryUri(resource), trimmed, StringComparison.Ordinal) ||
+                    resource.Versions.Any(version =>
+                        string.Equals(VersionXid(resource, version), trimmed, StringComparison.Ordinal)))
+                {
+                    exact = resource;
+                    exactCount++;
+                }
+                if (string.Equals(resource.ResourceId, trimmed, StringComparison.Ordinal))
+                {
+                    relative = resource;
+                    relativeCount++;
+                }
+            }
+            if (definitionCount != 0)
+            {
+                return definitionCount == 1 ? definition : null;
+            }
+            if (exactCount != 0)
+            {
+                return exactCount == 1 ? exact : null;
+            }
+            return relativeCount == 1 ? relative : null;
+        }
+
+        private static bool DefinesDataType(WotResource resource, string identity)
+        {
+            return resource.DefaultVersion?.Dependencies?.DataTypeDefinitionIds.Contains(
+                defined => string.Equals(defined, identity, StringComparison.Ordinal)) == true;
+        }
+
+        private static bool DefinesReferencedNode(WotResource resource, WotResourceReference reference)
+        {
+            WotResourceDependencies? metadata = resource.DefaultVersion?.Dependencies;
+            return metadata is not null &&
+                (reference.Lookup == WotResourceReferenceLookup.DataTypeName
+                    ? metadata.DataTypeDefinitionNames : metadata.DefinedNodeIds).Contains(
+                        defined => string.Equals(defined, reference.LookupUri, StringComparison.Ordinal));
         }
 
         internal static bool IsContainmentRelation(string relation)
@@ -479,29 +578,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ReadOnlyMemory<byte> document,
             int maxJsonDepth)
         {
-            var references = new List<(string, string)>();
-            try
-            {
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
-                JsonElement root = json.RootElement;
-                if (root.ValueKind != JsonValueKind.Object)
-                {
-                    return references;
-                }
-                CollectLinks(root, references);
-                CollectContainment(root, references);
-                CollectExtends(root, references);
-                CollectProjects(root, references);
-                CollectEventTypeRefs(root, references);
-                CollectTmRefs(root, references, 0, maxJsonDepth);
-            }
-            catch (JsonException)
-            {
-                // A document that cannot be parsed contributes no edges; its own
-                // projection reports the parse failure.
-            }
-            return references;
+            return ReadMetadata(ByteString.From(document.ToArray()), maxJsonDepth).References
+                .ToList().Select(reference => (reference.TargetUri, reference.RefType)).ToArray();
         }
 
         /// <summary>
@@ -510,11 +588,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Thing Model lands in a single closure), then each component is
         /// topologically ordered.
         /// </summary>
-        public static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
+        public static ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
             int maxJsonDepth,
             Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
+        {
+            return BuildClosuresAsync(snapshot, selected, maxJsonDepth, readContent, [], cancellationToken);
+        }
+
+        internal static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyCollection<WotResource> selected,
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            ArrayOf<ArrayOf<string>> replacementClosures,
             CancellationToken cancellationToken)
         {
             if (selected.Count == 0)
@@ -525,18 +614,68 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // Expand the selection to include resolvable transitive dependencies.
             var byXid = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             var queue = new Queue<WotResource>();
+            var indexedModels = new Dictionary<string, List<WotResource>>(StringComparer.Ordinal);
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                if (resource.DefaultVersion?.Dependencies is not { } metadata)
+                {
+                    continue;
+                }
+                foreach (string model in metadata.OwnedModelUris)
+                {
+                    if (!indexedModels.TryGetValue(model, out List<WotResource>? owners))
+                    {
+                        owners = [];
+                        indexedModels.Add(model, owners);
+                    }
+                    owners.Add(resource);
+                }
+            }
             foreach (WotResource resource in selected)
             {
-                if (!byXid.ContainsKey(resource.Xid))
+                AddResource(resource);
+            }
+
+            // Known dependency metadata can reject incompatible pins before any body acquisition.
+            var metadataQueue = new Queue<WotResource>(byXid.Values);
+            while (metadataQueue.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WotResource resource = metadataQueue.Dequeue();
+                if (resource.DefaultVersion?.Dependencies is not { } metadata)
                 {
-                    byXid[resource.Xid] = resource;
-                    queue.Enqueue(resource);
+                    continue;
+                }
+                foreach (WotResourceReference reference in metadata.References)
+                {
+                    WotResource? target = ResolveReference(snapshot, resource, reference);
+                    if (target is not null &&
+                        !IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, target) &&
+                        AddResource(target))
+                    {
+                        metadataQueue.Enqueue(target);
+                    }
+                }
+                foreach (string model in metadata.RequiredModelUris)
+                {
+                    if (!indexedModels.TryGetValue(model, out List<WotResource>? owners))
+                    {
+                        continue;
+                    }
+                    foreach (WotResource owner in owners)
+                    {
+                        if (AddResource(owner))
+                        {
+                            metadataQueue.Enqueue(owner);
+                        }
+                    }
                 }
             }
 
             var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
             var modelOwners = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             var modelDependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            var failures = new Dictionary<string, WotResourceAcquisitionFailure>(StringComparer.Ordinal);
             while (queue.Count > 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -548,23 +687,59 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
-                ByteString content = await readContent(version, cancellationToken)
-                    .ConfigureAwait(false);
-                CollectModelMembership(resource.Xid, content.Memory, maxJsonDepth, modelOwners, modelDependencies);
-                foreach ((string href, string refType) in ExtractReferences(
-                    content.Span.ToArray(), maxJsonDepth))
+                if (!version.HasContent)
                 {
-                    WotResource? target = Resolve(snapshot, href);
-                    if (IsLocalFragmentReference(resource, href, refType, target))
+                    failures[resource.Xid] = new WotResourceAcquisitionFailure(
+                        resource, version, StatusCodes.BadWaitingForInitialData,
+                        "The required Version has no committed document content.");
+                    continue;
+                }
+                WotResourceDependencies? metadata = version.Dependencies;
+                try
+                {
+                    ByteString content = await readContent(version, cancellationToken).ConfigureAwait(false);
+                    metadata ??= ReadMetadata(content, maxJsonDepth);
+                }
+                catch (Exception exception) when (exception is IOException or ServiceResultException or
+                    UnauthorizedAccessException)
+                {
+                    failures[resource.Xid] = new WotResourceAcquisitionFailure(
+                        resource, version, exception is ServiceResultException service
+                            ? service.StatusCode : StatusCodes.BadResourceUnavailable, exception.Message);
+                }
+                if (metadata is null)
+                {
+                    continue;
+                }
+                foreach (string model in metadata.OwnedModelUris)
+                {
+                    if (!modelOwners.TryGetValue(model, out List<string>? owners))
+                    {
+                        owners = [];
+                        modelOwners.Add(model, owners);
+                    }
+                    owners.Add(resource.Xid);
+                }
+                modelDependencies[resource.Xid] = new HashSet<string>(
+                    metadata.RequiredModelUris.ToList(), StringComparer.Ordinal);
+                foreach (WotResourceReference reference in metadata.References)
+                {
+                    WotResource? target = ResolveReference(snapshot, resource, reference);
+                    if (target is null && reference.Lookup != WotResourceReferenceLookup.Document &&
+                        !snapshot.AllResources().Any(candidate => DefinesReferencedNode(candidate, reference)))
+                    {
+                        continue;
+                    }
+                    if (IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, target))
                     {
                         continue;
                     }
                     list.Add(new WotDependency(
-                        resource.Xid, href, target?.Xid, refType, target is not null));
-                    if (target is not null && !byXid.ContainsKey(target.Xid))
+                        resource.Xid, reference.TargetUri, target?.Xid, reference.RefType,
+                        target?.DefaultVersion?.HasContent == true));
+                    if (target is not null)
                     {
-                        byXid[target.Xid] = target;
-                        queue.Enqueue(target);
+                        AddResource(target);
                     }
                 }
             }
@@ -579,8 +754,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 foreach (WotDependency edge in list)
                 {
-                    if (edge.Resolved &&
-                        edge.TargetXid is not null &&
+                    if (edge.TargetXid is not null &&
                         byXid.ContainsKey(edge.TargetXid))
                     {
                         Union(parent, edge.SourceXid, edge.TargetXid);
@@ -600,7 +774,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (modelOwners.TryGetValue(model, out List<string>? owners))
                     {
-                        Union(parent, dependency.Key, owners[0]);
+                        foreach (string owner in owners)
+                        {
+                            Union(parent, dependency.Key, owner);
+                            if (owner != dependency.Key)
+                            {
+                                edges[dependency.Key].Add(new WotDependency(
+                                    dependency.Key, model, owner, "RequiredModel",
+                                    byXid[owner].DefaultVersion?.HasContent == true));
+                            }
+                        }
                     }
                 }
             }
@@ -621,10 +804,52 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ImmutableArray.CreateBuilder<WotDependencyClosure>();
             foreach (List<WotResource> members in components.Values)
             {
-                closures.Add(BuildClosure(members, edges, byXid));
+                WotDependencyClosure closure = BuildClosure(members, edges, byXid);
+                closures.Add(closure.WithAcquisitionFailures(
+                    members.Where(member => failures.ContainsKey(member.Xid))
+                        .Select(member => failures[member.Xid]).ToArrayOf()));
             }
             // Deterministic order by closure key.
             return [.. closures.OrderBy(c => c.Key, StringComparer.Ordinal)];
+
+            bool AddResource(WotResource resource)
+            {
+                if (byXid.TryGetValue(resource.Xid, out WotResource? existing))
+                {
+                    if (existing.DefaultVersionId != resource.DefaultVersionId)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                            "Selection and dependencies name incompatible Versions of one Resource.");
+                    }
+                    return false;
+                }
+                byXid.Add(resource.Xid, resource);
+                queue.Enqueue(resource);
+                var replacements = new Queue<string>();
+                replacements.Enqueue(resource.Xid);
+                while (replacements.Count != 0)
+                {
+                    string xid = replacements.Dequeue();
+                    foreach (ArrayOf<string> previous in replacementClosures)
+                    {
+                        if (!previous.Contains(xid))
+                        {
+                            continue;
+                        }
+                        foreach (string peer in previous)
+                        {
+                            if (!byXid.ContainsKey(peer) &&
+                                snapshot.FindResourceByXid(peer) is { Enabled: true } required)
+                            {
+                                byXid.Add(peer, required);
+                                queue.Enqueue(required);
+                                replacements.Enqueue(peer);
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
         }
 
         private static void CollectModelMembership(
@@ -657,7 +882,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         {
                             continue;
                         }
-                        if (model.TryGetProperty("modelUri", out JsonElement uri) && uri.ValueKind == JsonValueKind.String)
+                        if (model.TryGetProperty("modelUri", out JsonElement uri) &&
+                            uri.ValueKind == JsonValueKind.String)
                         {
                             owned.Add(uri.GetString()!);
                         }
@@ -736,7 +962,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             $"Unresolved {edge.RefType} dependency '{edge.TargetHref}' " +
                             $"referenced by '{edge.SourceXid}'.");
                     }
-                    else if (edge.TargetXid is not null && memberXids.Contains(edge.TargetXid))
+                    else if (edge.TargetXid is not null && memberXids.Contains(edge.TargetXid) &&
+                        IsOrderingReference(edge.RefType) &&
+                        (edge.TargetXid != member.Xid || edge.RefType != "uav:dataTypeSubtypeOf"))
                     {
                         adjacency[member.Xid].Add(edge.TargetXid);
                     }
@@ -756,6 +984,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var memberArray = members
                 .OrderBy(m => m.Xid, StringComparer.Ordinal)
                 .ToImmutableArray();
+            ArrayOf<WotDependencyComponent> components = BuildStronglyConnectedComponents(
+                memberArray, dependencies.ToImmutable(), ordered);
+            if (!hasCycle)
+            {
+                ordered = components.ToList().SelectMany(component => component.Members.ToList()).ToImmutableArray();
+            }
             return new WotDependencyClosure(
                 key,
                 memberArray,
@@ -763,7 +997,142 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 dependencies.ToImmutable(),
                 diagnostics.ToImmutable(),
                 hasCycle,
-                missing);
+                missing,
+                components);
+        }
+
+        internal static WotDependencyClosure PartitionClosure(
+            WotDependencyClosure closure, HashSet<string> activationXids)
+        {
+            WotResource[] active = [.. closure.ActivationMembers.ToList()
+                .Where(member => activationXids.Contains(member.Xid))];
+            var required = new HashSet<string>(active.Select(member => member.Xid), StringComparer.Ordinal);
+            var pending = new Queue<string>(required);
+            while (pending.Count != 0)
+            {
+                string source = pending.Dequeue();
+                foreach (WotDependency edge in closure.Dependencies.Where(edge => edge.SourceXid == source))
+                {
+                    if (edge.TargetXid is { } target && required.Add(target))
+                    {
+                        pending.Enqueue(target);
+                    }
+                }
+            }
+            List<WotResource> members = [.. closure.Members.Where(member => required.Contains(member.Xid))];
+            var edges = closure.Dependencies.Where(edge => required.Contains(edge.SourceXid))
+                .GroupBy(edge => edge.SourceXid).ToDictionary(group => group.Key, group => group.ToList(),
+                    StringComparer.Ordinal);
+            WotDependencyClosure ordered = BuildClosure(
+                members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
+            return new WotDependencyClosure(
+                string.Join("|", active.OrderBy(member => member.Xid, StringComparer.Ordinal)
+                    .Select(member => member.Xid)),
+                ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
+                ordered.HasCycle, ordered.HasMissingDependency, ordered.StronglyConnectedComponents)
+            {
+                ActivationMembers = active.ToArrayOf()
+            }.WithAcquisitionFailures(closure.AcquisitionFailures.ToList()
+                .Where(failure => required.Contains(failure.Resource.Xid)).ToArrayOf());
+        }
+
+        internal static WotDependencyClosure CombinePublicationClosures(
+            IReadOnlyCollection<WotDependencyClosure> closures)
+        {
+            List<WotResource> members = [.. closures.SelectMany(closure => closure.Members)
+                .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())];
+            var edges = closures.SelectMany(closure => closure.Dependencies).Distinct()
+                .GroupBy(edge => edge.SourceXid).ToDictionary(group => group.Key, group => group.ToList(),
+                    StringComparer.Ordinal);
+            WotDependencyClosure ordered = BuildClosure(
+                members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
+            ArrayOf<WotResource> active = closures.SelectMany(closure => closure.ActivationMembers.ToList())
+                .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())
+                .OrderBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf();
+            return new WotDependencyClosure(
+                string.Join("|", active.ToList().Select(member => member.Xid)),
+                ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
+                ordered.HasCycle, ordered.HasMissingDependency, ordered.StronglyConnectedComponents)
+            {
+                ActivationMembers = active
+            }.WithAcquisitionFailures(closures.SelectMany(closure => closure.AcquisitionFailures.ToList())
+                .GroupBy(failure => failure.Resource.Xid, StringComparer.Ordinal).Select(group => group.First())
+                .ToArrayOf());
+        }
+
+        internal static ArrayOf<WotDependencyComponent> BuildStronglyConnectedComponents(
+            ImmutableArray<WotResource> members,
+            ImmutableArray<WotDependency> dependencies,
+            ImmutableArray<WotResource> ordered)
+        {
+            var forward = members.ToDictionary(member => member.Xid, _ => new List<string>(), StringComparer.Ordinal);
+            var reverse = members.ToDictionary(member => member.Xid, _ => new List<string>(), StringComparer.Ordinal);
+            foreach (WotDependency dependency in dependencies)
+            {
+                if (dependency.Resolved && dependency.TargetXid is { } target && forward.ContainsKey(target))
+                {
+                    forward[dependency.SourceXid].Add(target);
+                    reverse[target].Add(dependency.SourceXid);
+                }
+            }
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var finished = new List<string>();
+            var pending = new Stack<(string Xid, bool Exit)>();
+            foreach (WotResource member in members)
+            {
+                pending.Push((member.Xid, false));
+                while (pending.Count != 0)
+                {
+                    (string xid, bool exit) = pending.Pop();
+                    if (exit)
+                    {
+                        finished.Add(xid);
+                    }
+                    else if (visited.Add(xid))
+                    {
+                        pending.Push((xid, true));
+                        foreach (string target in forward[xid].OrderByDescending(id => id, StringComparer.Ordinal))
+                        {
+                            pending.Push((target, false));
+                        }
+                    }
+                }
+            }
+            visited.Clear();
+            var components = new List<WotDependencyComponent>();
+            var rank = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int i = 0; i < ordered.Length; i++)
+            {
+                rank[ordered[i].Xid] = i;
+            }
+            var byXid = members.ToDictionary(member => member.Xid, StringComparer.Ordinal);
+            for (int i = finished.Count - 1; i >= 0; i--)
+            {
+                if (!visited.Add(finished[i]))
+                {
+                    continue;
+                }
+                var component = new List<WotResource>();
+                var search = new Stack<string>();
+                search.Push(finished[i]);
+                while (search.Count != 0)
+                {
+                    string xid = search.Pop();
+                    component.Add(byXid[xid]);
+                    foreach (string target in reverse[xid])
+                    {
+                        if (visited.Add(target))
+                        {
+                            search.Push(target);
+                        }
+                    }
+                }
+                components.Add(new WotDependencyComponent(component
+                    .OrderBy(member => rank.TryGetValue(member.Xid, out int position) ? position : int.MaxValue)
+                    .ThenBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf()));
+            }
+            components.Reverse();
+            return components.ToArrayOf();
         }
 
         private static (ImmutableArray<WotResource> Ordered, string Cycle) TopologicalSort(
@@ -860,8 +1229,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return string.Equals(resource.ThingId, href, StringComparison.Ordinal) ||
                 string.Equals(resource.Xid, href, StringComparison.Ordinal) ||
                 string.Equals(RegistryUri(resource), href, StringComparison.Ordinal) ||
-                string.Equals(resource.ResourceId, href, StringComparison.Ordinal) ||
-                href.EndsWith("/" + resource.ResourceId, StringComparison.Ordinal);
+                string.Equals(resource.ResourceId, href, StringComparison.Ordinal);
         }
 
         private static string RegistryUri(WotResource resource)

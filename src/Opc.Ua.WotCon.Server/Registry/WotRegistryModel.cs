@@ -66,7 +66,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Computes the SHA-256 digest of the supplied document bytes.
         /// </summary>
         public static ByteString Compute(ByteString content)
-            => Compute(content.IsNull ? default : content.Span);
+        {
+            return Compute(content.IsNull ? default : content.Span);
+        }
 
         /// <summary>
         /// Formats a digest as a lowercase hexadecimal string, or the empty
@@ -234,9 +236,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         public bool HasContent { get; init; } = true;
 
         /// <summary>
-        /// Gets the validation outcome recorded for this Version, if any.
+        /// Gets a defensive copy of the validation outcome recorded for this Version, if any.
         /// </summary>
-        public WoTValidationOutcomeDataType? Validation { get; init; }
+        public WoTValidationOutcomeDataType? Validation
+        {
+            get => (WoTValidationOutcomeDataType?)m_validation?.Clone();
+            init => m_validation = (WoTValidationOutcomeDataType?)value?.Clone();
+        }
+
+        internal bool HasValidationFailure =>
+            m_validation?.FormatOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected ||
+            m_validation?.CompatibilityOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected;
 
         /// <summary>
         /// Gets the document identity parsed from this Version's bytes.
@@ -259,6 +269,23 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ModelVersion { get; init; }
 
         /// <summary>
+        /// Gets the immutable semantic dependency index for these exact bytes.
+        /// Null denotes an older provider that has not supplied the index.
+        /// </summary>
+        public WotResourceDependencies? Dependencies { get; init; }
+
+        /// <summary>
+        /// Gets the last successfully activated dependency graph of this exact Version.
+        /// Null means no committed graph is available.
+        /// </summary>
+        public WotDependencySnapshot? DependencySnapshot { get; init; }
+
+        /// <summary>
+        /// Gets the last completed actual dependency attempt, independently of the committed graph.
+        /// </summary>
+        public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+
+        /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.
         /// </summary>
         public string DigestHex => HasContent ? WotContentDigest.ToHex(Digest) : string.Empty;
@@ -266,6 +293,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Creates a copy with selected Version state replaced.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal WotResourceVersion With(
             ByteString digest = default,
             long? contentLength = null,
@@ -275,7 +303,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? epoch = null,
             ImmutableSortedDictionary<string, string>? labels = null,
             WoTValidationOutcomeDataType? validation = null,
-            bool clearValidation = false)
+            bool clearValidation = false,
+            Guid? incarnationId = null,
+            WotDependencySnapshot? dependencySnapshot = null,
+            WotDependencySnapshot? lastDependencyAttempt = null)
         {
             bool replacesDigest = !digest.IsNull;
             ByteString updatedDigest = replacesDigest ? digest : Digest;
@@ -295,7 +326,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 modifiedAt ?? ModifiedAt)
             {
-                IncarnationId = this.IncarnationId,
+                IncarnationId = incarnationId ?? IncarnationId,
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
                 HasContent = updatedHasContent,
@@ -303,7 +334,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DocumentId = DocumentId,
                 Title = Title,
                 BaseUri = BaseUri,
-                ModelVersion = ModelVersion
+                ModelVersion = ModelVersion,
+                Dependencies = Dependencies,
+                DependencySnapshot = dependencySnapshot ?? DependencySnapshot,
+                LastDependencyAttempt = lastDependencyAttempt ?? LastDependencyAttempt
             };
         }
 
@@ -311,7 +345,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? documentId,
             string? title,
             string? baseUri,
-            string? modelVersion)
+            string? modelVersion,
+            WotResourceDependencies? dependencies = null)
         {
             return new WotResourceVersion(
                 VersionId,
@@ -322,7 +357,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 ModifiedAt)
             {
-                IncarnationId = this.IncarnationId,
+                IncarnationId = IncarnationId,
                 Epoch = Epoch,
                 Labels = Labels,
                 HasContent = HasContent,
@@ -330,9 +365,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DocumentId = documentId,
                 Title = title,
                 BaseUri = baseUri,
-                ModelVersion = modelVersion
+                ModelVersion = modelVersion,
+                Dependencies = dependencies ?? Dependencies,
+                DependencySnapshot = DependencySnapshot,
+                LastDependencyAttempt = LastDependencyAttempt
             };
         }
+
+        private readonly WoTValidationOutcomeDataType? m_validation;
     }
 
     /// <summary>
@@ -385,14 +425,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             ResourceId = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Versions = versions.IsDefault ? [] : versions;
             DefaultVersionId = defaultVersionId;
             DesiredVersionId = desiredVersionId ?? defaultVersionId;
             ActiveVersionId = activeVersionId;
             Enabled = enabled;
             LoadState = loadState;
-            Validation = validation;
+            m_validation = (WoTValidationOutcomeDataType?)validation?.Clone();
             Diagnostics = diagnostics.IsDefault ? [] : diagnostics;
             Epoch = epoch;
             RefreshGeneration = refreshGeneration;
@@ -464,9 +504,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WoTLoadStateEnum LoadState { get; }
 
         /// <summary>
-        /// Gets the last validation outcome, if any.
+        /// Gets a defensive copy of the last validation outcome, if any.
         /// </summary>
-        public WoTValidationOutcomeDataType? Validation { get; }
+        public WoTValidationOutcomeDataType? Validation =>
+            (WoTValidationOutcomeDataType?)m_validation?.Clone();
 
         /// <summary>
         /// Gets the human-readable diagnostics for the last operation.
@@ -509,9 +550,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Description { get; }
 
         /// <summary>
-        /// Gets the WoT Thing id parsed from the default document (TD only).
+        /// Gets the established exact source identity (ThingId or ModelId).
         /// </summary>
         public string? ThingId { get; }
+
+        /// <summary>
+        /// Gets the immutable source identity, independently of the selected Version.
+        /// </summary>
+        public string? SourceId => ThingId;
 
         /// <summary>
         /// Gets the WoT title parsed from the default document.
@@ -554,7 +600,30 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the active version snapshot, if present.
         /// </summary>
-        public WotResourceVersion? ActiveVersion => FindVersion(ActiveVersionId);
+        public WotResourceVersion? ActiveVersion => CommittedVersion ?? FindVersion(ActiveVersionId);
+
+        internal WotResourceVersion? CommittedVersion { get; private set; }
+
+        internal ArrayOf<WotResource> CommittedInputs { get; private set; }
+
+        internal IEnumerable<WotResourceVersion> RetainedVersions
+        {
+            get
+            {
+                foreach (WotResourceVersion version in Versions)
+                {
+                    yield return version;
+                }
+                if (CommittedVersion is not null)
+                {
+                    yield return CommittedVersion;
+                }
+                for (int i = 0; i < CommittedInputs.Count; i++)
+                {
+                    yield return CommittedInputs[i].Versions[0];
+                }
+            }
+        }
 
         /// <summary>
         /// Finds a version by id.
@@ -578,6 +647,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Creates a copy of this resource with selected fields replaced.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public WotResource With(
             ImmutableArray<WotResourceVersion>? versions = null,
             string? defaultVersionId = null,
@@ -601,6 +671,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool clearValidation = false,
             bool clearRootNodeId = false)
         {
+            if (ThingId is not null &&
+                thingId is not null &&
+                !string.Equals(ThingId, thingId, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A Resource's source identity is immutable.", nameof(thingId));
+            }
             return new WotResource(
                 GroupId,
                 ResourceId,
@@ -625,7 +701,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                 labels ?? Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = MetaModifiedAt
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = clearActiveVersion ||
+                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion,
+                CommittedInputs = clearActiveVersion ||
+                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? default : CommittedInputs
             };
         }
 
@@ -659,7 +739,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 updated.Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = modifiedAt ?? MetaModifiedAt
+                MetaModifiedAt = modifiedAt ?? MetaModifiedAt,
+                CommittedVersion = updated.CommittedVersion,
+                CommittedInputs = updated.CommittedInputs
             };
         }
 
@@ -686,15 +768,57 @@ namespace Opc.Ua.WotCon.Server.Registry
                 RootNodeId,
                 Name,
                 Description,
-                documentId,
+                ThingId ?? documentId,
                 title,
                 Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = MetaModifiedAt
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = CommittedVersion,
+                CommittedInputs = CommittedInputs
             };
         }
 
+        internal WotResource WithCommittedVersion(WotResourceVersion? version)
+        {
+            if (version is not null && version.VersionId != ActiveVersionId)
+            {
+                throw new ArgumentException("The committed Version must match the active identity.", nameof(version));
+            }
+            WotResource updated = With();
+            updated.CommittedVersion = version;
+            if (version is null)
+            {
+                updated.CommittedInputs = default;
+            }
+            return updated;
+        }
+
+        internal WotResource WithCommittedInputs(ArrayOf<WotResource> inputs)
+        {
+            if (!inputs.IsNull && (ActiveVersionId is null || CommittedVersion is null))
+            {
+                throw new ArgumentException("Committed inputs require an active publication.", nameof(inputs));
+            }
+            var identities = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotResource input in inputs)
+            {
+                if (input is null || input.Enabled || input.ActiveVersionId is not null ||
+                    input.CommittedVersion is not null || !input.CommittedInputs.IsNull ||
+                    input.Versions.Length != 1 || input.DefaultVersionId != input.Versions[0].VersionId ||
+                    input.DesiredVersionId != input.DefaultVersionId || !input.Versions[0].HasContent ||
+                    !identities.Add(input.Xid))
+                {
+                    throw new ArgumentException(
+                        "A committed resolution input must retain one exact, non-activating Version.", nameof(inputs));
+                }
+            }
+            WotResource updated = With();
+            updated.CommittedInputs = inputs.IsNull ? default : [.. inputs];
+            return updated;
+        }
+
+        private readonly WoTValidationOutcomeDataType? m_validation;
         private static readonly DateTime s_unixEpoch =
             new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
@@ -718,12 +842,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? name = null,
             string? description = null,
             long epoch = 0,
-            ImmutableSortedDictionary<string, string>? labels = null)
+            ImmutableSortedDictionary<string, string>? labels = null,
+            string? catalogUri = null)
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Resources = resources ?? ImmutableDictionary<string, WotResource>.Empty;
-            Name = name ?? groupId;
+            CatalogUri = catalogUri;
+            Name = catalogUri ?? name ?? groupId;
             Description = description ?? string.Empty;
             Epoch = epoch;
             Labels = labels ?? WotLabels.Empty;
@@ -743,6 +869,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the document kind shared by all resources in this group.
         /// </summary>
         public WoTDocumentKindEnum Kind { get; }
+
+        /// <summary>
+        /// Gets the exact catalogue authority, or null for an explicitly unbound legacy group.
+        /// </summary>
+        public string? CatalogUri { get; }
 
         /// <summary>
         /// Gets the resources keyed by resourceid.
@@ -778,7 +909,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableDictionary<string, WotResource> resources,
             long epoch)
         {
-            return new WotResourceGroup(GroupId, Kind, resources, Name, Description, epoch, Labels);
+            return new WotResourceGroup(GroupId, Kind, resources, Name, Description, epoch, Labels, CatalogUri);
         }
 
         /// <summary>
@@ -788,7 +919,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string> labels,
             long epoch)
         {
-            return new WotResourceGroup(GroupId, Kind, Resources, Name, Description, epoch, labels);
+            return new WotResourceGroup(GroupId, Kind, Resources, Name, Description, epoch, labels, CatalogUri);
         }
     }
 
@@ -815,16 +946,46 @@ namespace Opc.Ua.WotCon.Server.Registry
             long generation,
             ImmutableDictionary<string, WotResourceGroup> groups,
             ImmutableSortedDictionary<string, string>? labels = null)
+            : this(generation, groups, labels, default, 0)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a snapshot including its committed projection generation and canonical View graph.
+        /// </summary>
+        public WotRegistrySnapshot(
+            long generation,
+            ImmutableDictionary<string, WotResourceGroup> groups,
+            ImmutableSortedDictionary<string, string>? labels,
+            ByteString canonicalViewGraphState,
+            uint refreshGeneration)
         {
             Generation = generation;
             Groups = groups ?? ImmutableDictionary<string, WotResourceGroup>.Empty;
             Labels = labels ?? WotLabels.Empty;
+            CanonicalViewGraphState = canonicalViewGraphState.IsNull
+                ? default
+                : ByteString.From(canonicalViewGraphState.Span.ToArray());
+            RefreshGeneration = refreshGeneration;
         }
 
         /// <summary>
         /// Gets the monotonically increasing snapshot generation (registry epoch).
         /// </summary>
         public long Generation { get; }
+
+        /// <summary>
+        /// Gets the generation of the last committed materialization publication.
+        /// It is independent of the registry metadata epoch.
+        /// </summary>
+        public uint RefreshGeneration { get; }
+
+        /// <summary>
+        /// Gets the immutable, portable canonical View graph state, or Null for a legacy/absent graph.
+        /// Empty represents an explicitly empty graph, not legacy absence.
+        /// Graph bytes and all affected Resource projections belong to the same registry decision.
+        /// </summary>
+        public ByteString CanonicalViewGraphState { get; }
 
         /// <summary>
         /// Gets the groups keyed by groupid.
@@ -904,7 +1065,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ArgumentNullException(nameof(group));
             }
-            return new WotRegistrySnapshot(generation, Groups.SetItem(group.GroupId, group), Labels);
+            return new WotRegistrySnapshot(
+                generation, Groups.SetItem(group.GroupId, group), Labels,
+                CanonicalViewGraphState, RefreshGeneration);
         }
 
         /// <summary>
@@ -912,7 +1075,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public WotRegistrySnapshot WithoutGroup(string groupId, long generation)
         {
-            return new WotRegistrySnapshot(generation, Groups.Remove(groupId), Labels);
+            return new WotRegistrySnapshot(
+                generation, Groups.Remove(groupId), Labels, CanonicalViewGraphState, RefreshGeneration);
         }
 
         /// <summary>
@@ -921,7 +1085,23 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WotRegistrySnapshot WithLabels(
             ImmutableSortedDictionary<string, string> labels, long generation)
         {
-            return new WotRegistrySnapshot(generation, Groups, labels);
+            return new WotRegistrySnapshot(
+                generation, Groups, labels, CanonicalViewGraphState, RefreshGeneration);
+        }
+
+        /// <summary>
+        /// Produces the metadata image of one materialization decision. Null graph input preserves
+        /// the existing graph; Empty supplies an explicitly empty graph. The caller supplies the committed generations.
+        /// </summary>
+        public WotRegistrySnapshot WithPublicationState(
+            long generation,
+            uint refreshGeneration,
+            ByteString canonicalViewGraphState = default)
+        {
+            return new WotRegistrySnapshot(
+                generation, Groups, Labels,
+                canonicalViewGraphState.IsNull ? CanonicalViewGraphState : canonicalViewGraphState,
+                refreshGeneration);
         }
 
         /// <summary>

@@ -80,44 +80,49 @@ namespace Opc.Ua.Wot
         /// <inheritdoc cref="TitleMember"/>
         internal const string DescriptionsMember = "descriptions";
 
-        /// <summary>
-        /// Chooses the locale the generated document is authored in.
-        /// </summary>
-        /// <remarks>
-        /// The root Node is what the document is about, so the locale it states
-        /// is the locale the document states. A source that names no locale at
-        /// all leaves the choice unstated, and Section 9.1.1's <c>en</c> then
-        /// applies without the document having to claim it.
-        /// </remarks>
-        /// <summary>
-        /// Gets whether any text the document projects states no entry for the
-        /// document's default locale.
-        /// </summary>
-        /// <remarks>
-        /// That is the case Section 9.1.1 admits and a JSON-LD reader would
-        /// otherwise get wrong: the singular member falls back to the
-        /// code-point-first entry, which is a text in some other language, and
-        /// a context declaring <c>@language</c> would tag it as the default
-        /// language all the same.
-        /// </remarks>
-        private static bool RequiresLocalizedTextOverride(
-            UANodeSet nodeSet, string defaultLocale)
+        private static void WriteLocalizedTextContext(
+            Utf8JsonWriter writer,
+            Export.LocalizedText[]? displayName,
+            Export.LocalizedText[]? description,
+            string defaultLocale,
+            bool inheritedLanguageMayDiffer = false)
         {
-            // Reached only where a default locale was derived, which means a
-            // root Node was selected, which means the set has Nodes.
-            foreach (UANode node in nodeSet.Items!)
+            bool titleOverride = (inheritedLanguageMayDiffer && FirstText(displayName) is not null) ||
+                NeedsLocalizedTextOverride(displayName, defaultLocale, FallbackLocale);
+            bool descriptionOverride = (inheritedLanguageMayDiffer && FirstText(description) is not null) ||
+                NeedsLocalizedTextOverride(description, defaultLocale, FallbackLocale);
+            if (titleOverride || descriptionOverride)
             {
-                if (LacksDefaultLocale(node.DisplayName, defaultLocale) ||
-                    LacksDefaultLocale(node.Description, defaultLocale))
+                writer.WritePropertyName("@context");
+                WriteLocalizedTextOverride(
+                    writer, titleOverride, descriptionOverride,
+                    ProjectedTextLocale(displayName, defaultLocale), ProjectedTextLocale(description, defaultLocale));
+            }
+        }
+
+        private static bool NeedsLocalizedTextOverride(
+            Export.LocalizedText[]? texts, string defaultLocale, string? inheritedLanguage)
+        {
+            return FirstText(texts) is not null &&
+                (LacksDefaultLocale(texts, defaultLocale) ||
+                    ProjectedTextLocale(texts, defaultLocale) != inheritedLanguage);
+        }
+
+        private static string? ProjectedTextLocale(Export.LocalizedText[]? texts, string defaultLocale)
+        {
+            foreach (Export.LocalizedText text in texts ?? [])
+            {
+                if (!string.IsNullOrEmpty(text.Value) &&
+                    (string.IsNullOrEmpty(text.Locale) || text.Locale == defaultLocale))
                 {
-                    return true;
+                    return string.IsNullOrEmpty(text.Locale) ? null : text.Locale;
                 }
             }
-            return false;
+            return null;
         }
 
         private static bool LacksDefaultLocale(
-            Opc.Ua.Export.LocalizedText[]? texts, string defaultLocale)
+            Export.LocalizedText[]? texts, string defaultLocale)
         {
             List<KeyValuePair<string, string>> entries =
                 CollectLocales(texts, defaultLocale);
@@ -146,6 +151,48 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Gets display-selection metadata that the root's native text does not encode.
+        /// </summary>
+        internal static bool TryGetUnrepresentedDocumentLocale(
+            WotDocument document, UANodeSet nodeSet, out string? locale)
+        {
+            locale = GetDeclaredLocale(document);
+            return (locale is not null || HasLocalizedMaps(document.RootElement)) &&
+                EffectiveLocale(locale) != EffectiveLocale(SelectDocumentLocale(SelectRootNode(nodeSet)));
+        }
+
+        private static bool HasLocalizedMaps(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (MapsLocalizedText(element, TitlesMember) ||
+                    MapsLocalizedText(element, DescriptionsMember) ||
+                    MapsLocalizedText(element, "displayNames"))
+                {
+                    return true;
+                }
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (!WotDocument.IsSemanticBoundary(member.Name) && HasLocalizedMaps(member.Value))
+                    {
+                        return true;
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    if (HasLocalizedMaps(item))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gets the effective default locale of a generated document.
         /// </summary>
         private static string EffectiveLocale(string? declared)
@@ -165,10 +212,19 @@ namespace Opc.Ua.Wot
         /// a UANodeSet writes when it names one language and does not say
         /// which, and the second states the tag the Nodes carry.
         /// </remarks>
-        private static string? GetDeclaredLocale(WotDocument document)
+        internal static string? GetDeclaredLocale(
+            WotDocument document, JsonElement carryingNode = default, string? term = null)
         {
-            return document.TryGetContext(out JsonElement context) &&
-                TryGetContextNamespace(context, "@language", out string language) &&
+            if (term is not null &&
+                document.TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
+                definition.ValueKind == JsonValueKind.Object &&
+                definition.TryGetProperty("@language", out JsonElement localLanguage))
+            {
+                return localLanguage.ValueKind == JsonValueKind.String
+                    ? localLanguage.GetString()
+                    : null;
+            }
+            return document.TryGetContextPrefix("@language", out string language, carryingNode) &&
                 language.Length > 0
                 ? language
                 : null;
@@ -178,18 +234,18 @@ namespace Opc.Ua.Wot
         /// Gets the effective default locale of a document, which is <c>en</c>
         /// where it declares none (WoT Binding Section 9.1.1).
         /// </summary>
-        private static string GetDocumentLocale(WotDocument document)
+        private static string GetDocumentLocale(WotDocument document, JsonElement carryingNode = default)
         {
-            return EffectiveLocale(GetDeclaredLocale(document));
+            return EffectiveLocale(GetDeclaredLocale(document, carryingNode));
         }
 
         /// <summary>
-        /// Writes a Node's <c>DisplayName</c> as <c>title</c> and, where it
-        /// carries more than one locale, <c>titles</c>.
+        /// Writes a Node's <c>DisplayName</c> as <c>title</c> and carries
+        /// non-default translations in <c>titles</c>.
         /// </summary>
         private static void WriteLocalizedTitle(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.LocalizedText[]? displayName,
+            Export.LocalizedText[]? displayName,
             string defaultLocale,
             string? fallback = null)
         {
@@ -206,12 +262,12 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a Node's <c>Description</c> as <c>description</c> and, where
-        /// it carries more than one locale, <c>descriptions</c>.
+        /// Writes a Node's <c>Description</c> as <c>description</c> and carries
+        /// non-default translations in <c>descriptions</c>.
         /// </summary>
         private static void WriteLocalizedDescription(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.LocalizedText[]? description,
+            Export.LocalizedText[]? description,
             string defaultLocale)
         {
             WriteLocalizedMember(
@@ -231,15 +287,21 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             string singular,
             string plural,
-            Opc.Ua.Export.LocalizedText[]? texts,
-            string defaultLocale)
+            Export.LocalizedText[]? texts,
+            string defaultLocale,
+            bool forceMap = false)
         {
             List<KeyValuePair<string, string>> entries = CollectLocales(texts, defaultLocale);
             if (entries.Count == 0)
             {
                 return;
             }
-            if (entries.Count == 1)
+            bool explicitNonEnglish = defaultLocale != FallbackLocale &&
+                ProjectedTextLocale(texts, defaultLocale) is not null;
+            if (entries.Count == 1 &&
+                string.Equals(entries[0].Key, defaultLocale, StringComparison.Ordinal) &&
+                !forceMap &&
+                !explicitNonEnglish)
             {
                 writer.WriteString(singular, entries[0].Value);
                 return;
@@ -306,7 +368,7 @@ namespace Opc.Ua.Wot
         /// a plural pair would carry, so the two never disagree.
         /// </remarks>
         private static string? SelectLocalizedValue(
-            Opc.Ua.Export.LocalizedText[]? texts,
+            Export.LocalizedText[]? texts,
             string defaultLocale)
         {
             List<KeyValuePair<string, string>> entries = CollectLocales(texts, defaultLocale);
@@ -329,7 +391,7 @@ namespace Opc.Ua.Wot
         /// source order.
         /// </summary>
         private static List<KeyValuePair<string, string>> CollectLocales(
-            Opc.Ua.Export.LocalizedText[]? texts,
+            Export.LocalizedText[]? texts,
             string defaultLocale)
         {
             var entries = new List<KeyValuePair<string, string>>();
@@ -338,7 +400,7 @@ namespace Opc.Ua.Wot
                 return entries;
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Opc.Ua.Export.LocalizedText text in texts)
+            foreach (Export.LocalizedText text in texts)
             {
                 if (string.IsNullOrEmpty(text.Value))
                 {
@@ -368,19 +430,20 @@ namespace Opc.Ua.Wot
         /// alone and the Node keeps the locale-free form a NodeSet writes when
         /// it names one language.
         /// </remarks>
-        private static Opc.Ua.Export.LocalizedText[]? ReadLocalizedText(
+        private static Export.LocalizedText[]? ReadLocalizedText(
             JsonElement element,
             string singular,
             string plural,
             string? singularValue,
-            string? declaredLocale)
+            string? declaredLocale,
+            string? singularLocale)
         {
             string defaultLocale = EffectiveLocale(declaredLocale);
             if (element.ValueKind == JsonValueKind.Object &&
                 element.TryGetProperty(plural, out JsonElement declared) &&
                 declared.ValueKind == JsonValueKind.Object)
             {
-                var texts = new List<Opc.Ua.Export.LocalizedText>();
+                var texts = new List<Export.LocalizedText>();
                 string? leading = null;
                 foreach (JsonProperty entry in declared.EnumerateObject())
                 {
@@ -389,7 +452,7 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
-                    texts.Add(new Opc.Ua.Export.LocalizedText
+                    texts.Add(new Export.LocalizedText
                     {
                         Locale = entry.Name,
                         Value = entry.Value.GetString()
@@ -411,15 +474,12 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            // A document that declares its language states the tag its Nodes
-            // carry, so the singular member is written with it; one that
-            // declares none leaves the tag off, which is what a UANodeSet
-            // writes when it names one language without saying which.
+            // A singular term's language is independent of the plural map's display-selection locale.
             return
             [
-                new Opc.Ua.Export.LocalizedText
+                new Export.LocalizedText
                 {
-                    Locale = declaredLocale ?? string.Empty,
+                    Locale = singularLocale ?? string.Empty,
                     Value = singularValue
                 }
             ];
@@ -430,7 +490,7 @@ namespace Opc.Ua.Wot
         /// among a set of <c>LocalizedText</c> entries (WoT Binding
         /// Section 9.1.1 and Annex G.3).
         /// </summary>
-        private static string CodePointFirstLocale(List<Opc.Ua.Export.LocalizedText> texts)
+        private static string CodePointFirstLocale(List<Export.LocalizedText> texts)
         {
             string first = texts[0].Locale ?? string.Empty;
             for (int ii = 1; ii < texts.Count; ii++)
@@ -450,7 +510,7 @@ namespace Opc.Ua.Wot
         /// (WoT Binding Section 9.1.1).
         /// </summary>
         private static void MoveLeadingLocale(
-            List<Opc.Ua.Export.LocalizedText> texts,
+            List<Export.LocalizedText> texts,
             string locale)
         {
             for (int ii = 0; ii < texts.Count; ii++)
@@ -461,7 +521,7 @@ namespace Opc.Ua.Wot
                 }
                 if (ii > 0)
                 {
-                    Opc.Ua.Export.LocalizedText leading = texts[ii];
+                    Export.LocalizedText leading = texts[ii];
                     texts.RemoveAt(ii);
                     texts.Insert(0, leading);
                 }
@@ -472,9 +532,9 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Reads an affordance's <c>title</c> and <c>titles</c>.
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadTitle(
+        private static Export.LocalizedText[]? ReadTitle(
+            WotDocument document,
             JsonElement element,
-            string? declaredLocale,
             string? fallback = null)
         {
             return ReadLocalizedText(
@@ -482,30 +542,59 @@ namespace Opc.Ua.Wot
                 TitleMember,
                 TitlesMember,
                 GetElementString(element, TitleMember) ?? fallback,
-                declaredLocale);
+                GetDeclaredLocale(document, element),
+                GetDeclaredLocale(document, element, TitleMember));
         }
 
         /// <summary>
         /// Reads an affordance's <c>description</c> and <c>descriptions</c>.
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadDescription(
-            JsonElement element,
-            string? declaredLocale)
+        private static Export.LocalizedText[]? ReadDescription(
+            WotDocument document,
+            JsonElement element)
         {
             return ReadLocalizedText(
                 element,
                 DescriptionMember,
                 DescriptionsMember,
                 GetElementString(element, DescriptionMember),
-                declaredLocale);
+                GetDeclaredLocale(document, element),
+                GetDeclaredLocale(document, element, DescriptionMember));
+        }
+
+        /// <summary>
+        /// Gets the locale of the native text selected from a localized member.
+        /// </summary>
+        internal static string? ReadSelectedLocalizedTextLocale(
+            WotDocument document, JsonElement element, string singular, string plural)
+        {
+            Export.LocalizedText[]? texts = ReadLocalizedText(
+                element, singular, plural, GetElementString(element, singular),
+                GetDeclaredLocale(document, element), GetDeclaredLocale(document, element, singular));
+            return texts is { Length: > 0 } ? texts[0].Locale : null;
+        }
+
+        /// <summary>
+        /// Gets the term language that preserves the selected value across generated TD scopes.
+        /// </summary>
+        internal static string? PreservedTextLanguage(
+            WotDocument document, JsonElement element, string singular, string plural)
+        {
+            if (MapsLocalizedText(element, plural) &&
+                element.GetProperty(plural).EnumerateObject().MoveNext())
+            {
+                string locale = GetDocumentLocale(document, element);
+                return element.GetProperty(plural).TryGetProperty(locale, out _) ? locale : null;
+            }
+            return GetDeclaredLocale(document, element, singular);
         }
 
         /// <summary>
         /// Gets the first non-empty locale a <c>LocalizedText</c> array names.
         /// </summary>
-        private static string? FirstLocale(Opc.Ua.Export.LocalizedText[]? texts)
+        private static string? FirstLocale(Export.LocalizedText[]? texts)
         {
-            foreach (Opc.Ua.Export.LocalizedText text in texts ?? [])
+            foreach (Export.LocalizedText text in texts ?? [])
             {
                 if (!string.IsNullOrEmpty(text.Locale) && !string.IsNullOrEmpty(text.Value))
                 {
@@ -543,16 +632,17 @@ namespace Opc.Ua.Wot
         /// 9.1.1 for one element.
         /// </summary>
         private static void ValidateLocalizedText(
+            WotDocument document,
             JsonElement element,
             string parentPointer,
-            string defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
             ValidateLocalizedMember(
-                element, parentPointer, TitleMember, TitlesMember, defaultLocale, diagnostics);
+                element, parentPointer, TitleMember, TitlesMember,
+                GetDocumentLocale(document, element), diagnostics);
             ValidateLocalizedMember(
                 element, parentPointer, DescriptionMember, DescriptionsMember,
-                defaultLocale, diagnostics);
+                GetDocumentLocale(document, element), diagnostics);
         }
 
         private static void ValidateLocalizedMember(
@@ -636,7 +726,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.InvalidLocalizedText,
                         $"The {plural} member carries no entry for the document's default " +
                         $"locale '{defaultLocale}', so the {singular} member shall equal the " +
-                        $"entry whose language tag is first in ascending Unicode code-point " +
+                        "entry whose language tag is first in ascending Unicode code-point " +
                         $"order ('{codePointFirstLocale}'). The value is a display fallback " +
                         "and asserts no locale (WoT Binding Section 9.1.1).",
                         WotLocation.FromPointer(parentPointer + "/" + singular)));

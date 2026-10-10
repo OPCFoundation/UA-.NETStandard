@@ -18,6 +18,14 @@ Use this package for any application that needs to:
 - transfer subscriptions between sessions,
 - discover endpoints via `DiscoveryClient`.
 
+`Session` and `ManagedSession` also implement the optional
+`ISessionBindingProvider` capability. `CreateBindingAsync` returns an
+`ISessionClient` pinned to its authenticated native channel generation, session
+incarnation and namespace/server maps. Bound requests reject invalidation rather
+than transparently retrying on a replacement peer. Generated ObjectType clients
+consume the binding directly; closing it does not close the owning session.
+Unsupported custom adapters/transports report `BadNotSupported`.
+
 ## Getting started
 
 ```csharp

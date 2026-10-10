@@ -79,18 +79,37 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
-        public ValueTask<bool> HoldsNamespaceAsync(
+        public async ValueTask<bool> HoldsNamespaceAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // A namespace in the Server's table is one it has loaded as an
-            // information model, which is exactly what Section 5.2.1 means by
-            // a namespace the local context holds.
-            return new ValueTask<bool>(
-                !string.IsNullOrEmpty(namespaceUri) &&
-                m_server.NamespaceUris.GetIndex(namespaceUri) >= 0);
+            if (string.IsNullOrEmpty(namespaceUri) || m_server.NamespaceUris.GetIndex(namespaceUri) < 0)
+            {
+                return false;
+            }
+            var loaded = new Dictionary<string, List<WotResolvedNode>>(StringComparer.Ordinal);
+            await AddSubTypesAsync(Ua.ObjectTypeIds.BaseObjectType, loaded, cancellationToken).ConfigureAwait(false);
+            await AddSubTypesAsync(Ua.VariableTypeIds.BaseVariableType, loaded, cancellationToken)
+                .ConfigureAwait(false);
+            await AddSubTypesAsync(Ua.DataTypeIds.BaseDataType, loaded, cancellationToken).ConfigureAwait(false);
+            await AddSubTypesAsync(Ua.ReferenceTypeIds.References, loaded, cancellationToken).ConfigureAwait(false);
+            foreach (List<WotResolvedNode> nodes in loaded.Values)
+            {
+                foreach (WotResolvedNode node in nodes)
+                {
+                    NodeId identity = TryToLocalNodeId(node.NodeId);
+                    if (!identity.IsNull &&
+                        m_server.NamespaceUris.GetString(identity.NamespaceIndex) == namespaceUri &&
+                        node.NodeClass is WotExpectedNodeClass.ObjectType or WotExpectedNodeClass.VariableType or
+                            WotExpectedNodeClass.DataType or WotExpectedNodeClass.ReferenceType)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <inheritdoc/>
@@ -857,7 +876,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// Walks the subtypes of a root type, indexing each by its
+        /// Walks a root type and its subtypes, indexing each by its
         /// NamespaceUri-qualified BrowseName.
         /// </summary>
         private async ValueTask AddSubTypesAsync(
@@ -869,6 +888,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var seen = new HashSet<NodeId>();
             pending.Enqueue(rootTypeId);
             seen.Add(rootTypeId);
+            await IndexTypeAsync(rootTypeId, index, cancellationToken).ConfigureAwait(false);
 
             while (pending.Count > 0)
             {

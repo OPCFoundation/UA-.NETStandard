@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
 
@@ -38,18 +39,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     public sealed partial class WotProjectionBindingRuntime
     {
-        private void WireProjectedMethods(ArrayOf<WotBindingPlan> plans)
+        private async ValueTask WireProjectedMethodsAsync(
+            ArrayOf<WotBindingPlan> plans, CancellationToken cancellationToken)
         {
             var methods = new HashSet<NodeId>();
             var conditionMethods = new HashSet<(WotProjectedEventBinding Event, string Action)>();
-            foreach (WotBindingPlan plan in plans)
+            for (int planIndex = 0; planIndex < plans.Count; planIndex++)
             {
+                WotBindingPlan plan = plans[planIndex];
                 if (plan.IsDeclarationContext)
                 {
                     continue;
                 }
-                foreach (WotProjectedAffordance local in plan.ProjectedAffordances)
+                for (int declarationIndex = 0;
+                    declarationIndex < plan.ProjectedAffordances.Count; declarationIndex++)
                 {
+                    WotProjectedAffordance local = plan.ProjectedAffordances[declarationIndex];
                     if (local.Kind != WotAffordanceKind.Action)
                     {
                         continue;
@@ -85,7 +90,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     WotBindingChannelSlot slot = GetOrCreateSlot(form);
-                    builder.OnCall(BuildMethodHandler(builder.Node, slot, condition, local.ConditionAction));
+                    if (condition is not null && local.ConditionAction is not null &&
+                        m_eventPublisher is IWotNativeProjectionEventPublisher)
+                    {
+                        IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
+                        if (channel is IWotCapturedConditionActionChannel capturing)
+                        {
+                            WotCapturedConditionAction captured = await capturing.CaptureConditionActionAsync(
+                                cancellationToken).ConfigureAwait(false);
+                            condition.RegisterAction(local.ConditionAction, captured);
+                        }
+                        else if (local.ConditionAction is "Acknowledge" or "Confirm" or "AddComment" ||
+                            condition.IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNotSupported,
+                                "A Condition action requires a generation-bound captured source channel.");
+                        }
+                    }
+                    builder.OnCallWithResult(BuildMethodHandler(
+                        builder.Node, form, slot, condition, local.ConditionAction));
                     if (condition?.Condition is { } state)
                     {
                         MethodState standard = state.FindChild(
@@ -105,8 +129,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             commentMethod.OnCall = null;
                             commentMethod.OnCallAsync = null;
                         }
-                        m_builder.Node(standard.NodeId).OnCall(
-                            BuildMethodHandler(standard, slot, condition, local.ConditionAction));
+                        m_builder.Node(standard.NodeId).OnCallWithResult(
+                            BuildMethodHandler(standard, form, slot, condition, local.ConditionAction));
                     }
                 }
             }
@@ -158,7 +182,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // selection and security validation. Never retry a different source.
             foreach (WotCompiledForm form in plan.CompiledForms)
             {
-                if (form.IsExecutable && form.Operation == operation &&
+                if (form.IsExecutable &&
+                    form.Operation == operation &&
                     form.AffordanceKind == local.Kind &&
                     form.JsonPointer.StartsWith(local.JsonPointer + "/forms/", StringComparison.Ordinal))
                 {
@@ -191,12 +216,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return nodeId;
         }
 
-        private GenericMethodCalledEventHandler2Async BuildMethodHandler(
+        private MethodCalledWithResultEventHandlerAsync BuildMethodHandler(
             MethodState method,
+            WotCompiledForm form,
             WotBindingChannelSlot slot,
             WotProjectedEventBinding? condition,
             string? conditionAction)
         {
+            form.Payload.ValidateMethodSignature(
+                method.InputArguments is { } inputArguments ? inputArguments.Value : [],
+                method.OutputArguments is { } outputArguments ? outputArguments.Value : [],
+                m_builder.Context.NamespaceUris, m_builder.Context.TypeTable);
             ArrayOf<ArgumentSignature> inputs = CaptureSignature(method.InputArguments);
             ArrayOf<ArgumentSignature> outputs = CaptureSignature(method.OutputArguments);
             bool occurrenceAction = conditionAction is "Acknowledge" or "Confirm" or "AddComment";
@@ -207,12 +237,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 for (int i = 0; i < inputs.Count; i++)
                 {
                     if (inputs[i].Name == Ua.BrowseNames.EventId &&
-                        inputs[i].DataType == Ua.DataTypeIds.ByteString && inputs[i].ValueRank == ValueRanks.Scalar)
+                        inputs[i].DataType == Ua.DataTypeIds.ByteString &&
+                        inputs[i].ValueRank == ValueRanks.Scalar)
                     {
                         eventIdIndex = i;
                     }
                     else if (inputs[i].Name == Ua.BrowseNames.Comment &&
-                        inputs[i].DataType == Ua.DataTypeIds.LocalizedText && inputs[i].ValueRank == ValueRanks.Scalar)
+                        inputs[i].DataType == Ua.DataTypeIds.LocalizedText &&
+                        inputs[i].ValueRank == ValueRanks.Scalar)
                     {
                         commentIndex = i;
                     }
@@ -233,15 +265,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError, "Enable and Disable take no input arguments.");
             }
-            return async (context, _, _, arguments, results, cancellationToken) =>
+            return async (context, _, _, arguments, cancellationToken) =>
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    return new ServiceResult(StatusCodes.BadRequestCancelledByClient);
+                    return new MethodInvocationResult(StatusCodes.BadRequestCancelledByClient);
                 }
                 if (m_generationToken.IsCancellationRequested)
                 {
-                    return new ServiceResult(StatusCodes.BadShutdown);
+                    return new MethodInvocationResult(StatusCodes.BadShutdown);
                 }
                 using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken, m_generationToken);
@@ -249,25 +281,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ServiceResult inputStatus = ValidateArguments(context, arguments, inputs);
                 if (ServiceResult.IsBad(inputStatus))
                 {
-                    return inputStatus;
+                    return new MethodInvocationResult(inputStatus);
                 }
                 ArrayOf<Variant> upstreamArguments = arguments;
+                WotCapturedEvent? capturedOccurrence = null;
+                WotCapturedConditionAction? capturedAction = null;
                 if (occurrenceAction)
                 {
                     if (!arguments[eventIdIndex].TryGetValue(out ByteString eventId))
                     {
-                        return new ServiceResult(StatusCodes.BadTypeMismatch);
+                        return new MethodInvocationResult(StatusCodes.BadTypeMismatch);
                     }
-                    ServiceResult routing = condition!.ResolveEventId(eventId, out ByteString originalEventId);
+                    ByteString originalEventId;
+                    ServiceResult routing;
+                    if (condition!.TryGetAction(conditionAction!, out _))
+                    {
+                        routing = condition.ResolveAction(
+                            eventId, conditionAction!, out capturedOccurrence, out capturedAction);
+                        originalEventId = capturedOccurrence is null ? default : capturedOccurrence.EventId;
+                    }
+                    else if (m_eventPublisher is not IWotNativeProjectionEventPublisher)
+                    {
+                        routing = condition.ResolveEventId(eventId, out originalEventId);
+                    }
+                    else
+                    {
+                        routing = new ServiceResult(StatusCodes.BadNotSupported);
+                        originalEventId = default;
+                    }
                     if (ServiceResult.IsBad(routing))
                     {
-                        return routing;
+                        return new MethodInvocationResult(routing);
                     }
                     upstreamArguments =
                     [
                         new Variant(originalEventId),
                         commentIndex < 0 ? new Variant(LocalizedText.Null) : arguments[commentIndex]
                     ];
+                }
+                else if (conditionAction is not null &&
+                    !condition!.TryGetAction(conditionAction, out capturedAction) &&
+                    m_eventPublisher is IWotNativeProjectionEventPublisher &&
+                    condition.IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+                {
+                    return new MethodInvocationResult(StatusCodes.BadNotSupported);
                 }
                 WotInvokeResult response;
                 var localContext = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
@@ -277,11 +334,31 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 };
                 try
                 {
-                    IWotBindingChannel channel = await slot.GetAsync(token).ConfigureAwait(false);
-                    if (channel is IWotContextualBindingChannel contextual)
+                    IWotBindingChannel? channel = capturedAction is null
+                        ? await slot.GetAsync(token).ConfigureAwait(false) : null;
+                    if (capturedAction is not null && capturedOccurrence is not null)
+                    {
+                        response = await capturedAction.InvokeAsync(
+                            capturedOccurrence,
+                            new WotInvokeRequest(upstreamArguments, localContext,
+                                context is IOperationContext operation
+                                    ? operation.DiagnosticsMask : DiagnosticsMasks.None), token).ConfigureAwait(false);
+                    }
+                    else if (capturedAction is not null)
+                    {
+                        response = await capturedAction.InvokeControlAsync(
+                            new WotInvokeRequest(upstreamArguments, localContext,
+                                context is IOperationContext operation
+                                    ? operation.DiagnosticsMask : DiagnosticsMasks.None), token).ConfigureAwait(false);
+                    }
+                    else if (channel is IWotContextualBindingChannel contextual)
                     {
                         response = await contextual.InvokeAsync(
-                            new WotInvokeRequest(upstreamArguments, localContext), token).ConfigureAwait(false);
+                            new WotInvokeRequest(
+                                upstreamArguments, localContext,
+                                context is IOperationContext operation
+                                    ? operation.DiagnosticsMask : DiagnosticsMasks.None), token)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -293,29 +370,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                 _ = WotBindingValueMapper.Translate(input, localContext, independent);
                             }
                         }
-                        response = await channel.InvokeAsync(upstreamArguments.Span.ToArray(), token)
+                        response = await channel!.InvokeAsync(upstreamArguments.Span.ToArray(), token)
                             .ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
-                    return new ServiceResult(cancellationToken.IsCancellationRequested
+                    return new MethodInvocationResult(cancellationToken.IsCancellationRequested
                         ? StatusCodes.BadRequestCancelledByClient : StatusCodes.BadShutdown);
                 }
                 if (StatusCode.IsBad(response.Status))
                 {
-                    return new ServiceResult(response.Status);
+                    return new MethodInvocationResult(
+                        response.OperationResult, inputArgumentResults: response.InputArgumentResults);
                 }
                 if (response.Outputs.Count != outputs.Count)
                 {
-                    return new ServiceResult(StatusCodes.BadDecodingError);
+                    return new MethodInvocationResult(StatusCodes.BadDecodingError);
                 }
                 StatusCode status = response.Status;
                 foreach (DataValue output in response.Outputs)
                 {
                     if (StatusCode.IsBad(output.StatusCode))
                     {
-                        return new ServiceResult(output.StatusCode);
+                        return new MethodInvocationResult(output.StatusCode);
                     }
                     if (status == StatusCodes.Good && !StatusCode.IsGood(output.StatusCode))
                     {
@@ -324,16 +402,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 IServiceMessageContext sourceContext = response.Context ??
                     new ServiceMessageContext(context.Telemetry, context.EncodeableFactory);
-                ArrayOf<Variant> values = response.Outputs.Select(value => WotBindingValueMapper.Translate(
+                var values = response.Outputs.Select(value => WotBindingValueMapper.Translate(
                     value.WrappedValue, sourceContext, localContext, allowNamespaceGrowth: true)).ToArrayOf();
                 ServiceResult outputStatus = ValidateArguments(context, values, outputs);
                 if (ServiceResult.IsBad(outputStatus))
                 {
-                    return outputStatus;
+                    return new MethodInvocationResult(outputStatus);
                 }
-                results.Clear();
-                results.AddRange(values);
-                return new ServiceResult(status);
+                return new MethodInvocationResult(
+                    status == response.Status ? response.OperationResult : new ServiceResult(status),
+                    values,
+                    response.InputArgumentResults);
             };
         }
 

@@ -32,6 +32,7 @@ covers cross-cutting changes.
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
+- [Naming server session binding providers](#naming-server-session-binding-providers)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
@@ -103,6 +104,196 @@ copilot plugin install opcua-v20-migration@opcua-dotnet
 Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
+
+## Naming server session binding providers
+
+**Source compatibility change for server provider adopters:** the optional
+server lookup capability is named `IServerSessionBindingProvider`, not
+`ISessionBindingProvider`. Update custom server implementations, casts, type
+annotations, and DI registrations to the server-specific name. Its `HasSession`
+and `TryGetSessionContext` members and read-only classification behavior are
+unchanged. Existing `SessionBindingProvider` property names remain unchanged.
+
+The client's `ISessionBindingProvider.CreateBindingAsync` contract retains its
+name and generation-bound dispatch behavior. No compatibility alias can reuse
+that name for the server lookup in the same `Opc.Ua` namespace without requiring
+unrelated capabilities from clients or servers. See
+[server session bindings](Transports.md#committed-session-bindings) and
+[generation-bound session clients](SessionBindings.md).
+
+## WoT Refresh publication providers
+
+**Behavior change:** WoT Refresh rejects unsupported publication owners or
+atomicity modes with `BadNotSupported` before effects. It no longer substitutes
+visible sequential Resource commits for the requested atomicity.
+
+Custom source hosts must provide `IWotInvocationProjectionHost`, report their
+truthful `SupportedAtomicities`, and retain invocation-wide admission while
+using the existing prepared unit owner. Registry providers must implement
+`IWotInvocationRegistryPublicationService` on the actual deciding owner.
+Views require the existing `IWotPreparedViewProjectionHost` participant.
+
+The stock lifecycle and a file registry backed by genuine immutable-content
+leases provide all four modes. The current in-memory registry store and
+immediate-only custom hosts do not provide these guarantees. Configure a
+supported store/provider for publication, or use the independent read-only
+capture API when only acquisition/planning input is needed.
+
+Stale nonzero ExpectedGeneration now fails `BadInvalidState`, rather than
+returning a fabricated rejected summary. Read the actual committed generation
+and re-plan. `LastRefreshPlan` is the generated typed diagnostic Property;
+dry runs leave it unchanged. See
+[prepared publication units](WotPreparedViewPublication.md) and
+[prepared registry storage](WotRegistryPreparedStore.md) for provider and
+platform requirements.
+
+### File-backed dependency graph storage
+
+**Storage compatibility change:** new FileStore commits write manifest schema 6.
+Complete dependency graphs are shared in a root table instead of repeated for
+every Version's committed and attempted observations. Per-Version identity,
+request, time, generation, fingerprint, ordered edges, and exact target pins
+remain unchanged.
+
+Schema 3-5 manifests remain readable and migrate on the next durable commit.
+Older binaries cannot read schema 6. Preserve the previous manifest and all
+referenced immutable blobs before an upgrade if a binary downgrade is required;
+do not change the schema number by hand or remove dependency evidence. See
+[dependency snapshots](WotDependencySnapshots.md) for the stored representation.
+
+## Migrating Robotics and Vision MCP requests
+
+The Robotics and Vision MCP tool names remain stable, but their request schemas
+are now strongly typed. Robotics tools no longer accept JSON encoded inside a
+string, and controller-scoped values can use an exact, unambiguous published
+name instead of copying every NodeId.
+
+For example, the old Pick request nested one JSON document inside another:
+
+```json
+{
+  "controllerId": "ns=3;s=7001_Controllers_BinPickingController",
+  "intentJson": "{\"intentId\":\"pick-red\",\"source\":\"ns=3;s=Bin\",\"tool\":\"ns=3;s=Gripper\",\"objectClass\":\"RedCube\"}"
+}
+```
+
+Pass the typed object directly now:
+
+```json
+{
+  "controller": "BinPickingController",
+  "input": {
+    "intentId": "pick-red",
+    "source": "Bin",
+    "tool": "ParallelGripper",
+    "objectClass": "RedCube"
+  }
+}
+```
+
+The same change applies to every `robotics_submit_*` tool. Motion poses,
+trajectory points, process attributes and program arguments are nested typed
+objects or arrays. Values that become OPC UA Variants use an explicit
+`dataType` plus `value`; they are never inferred through an `object`-typed API.
+
+Mission steps and transitions are arrays rather than stringified arrays. The
+intent `kind` is a closed discriminator. Kind-specific fields now sit directly
+beside it, so agents do not pay for or navigate 20 nested payload wrappers:
+
+```json
+{
+  "controller": "BinPickingController",
+  "missionId": "move-red",
+  "missionUpdateId": 1,
+  "steps": [
+    {
+      "stepId": "pick",
+      "released": true,
+      "intent": {
+        "kind": "Pick",
+        "source": "Bin",
+        "tool": "ParallelGripper",
+        "objectClass": "RedCube"
+      }
+    },
+    {
+      "stepId": "place",
+      "released": true,
+      "intent": {
+        "kind": "Place",
+        "destination": "Fixture",
+        "tool": "ParallelGripper"
+      }
+    }
+  ],
+  "transitions": []
+}
+```
+
+`robotics_list_operations` and `robotics_list_missions` now return bounded
+pages. Their optional `query` selects active or terminal work, filters by
+identifier/state, chooses `Summary` or `Full`, and carries an opaque
+continuation cursor. Use `robotics_wait_mission` with the MissionId and mission
+operation NodeId returned by `robotics_submit_mission`; timeout returns the
+current snapshot with `completed=false`, just like
+`robotics_wait_operation`.
+
+One-shot Vision inference also uses one structured request. Replace the old
+`pipelineNodeId` scalar:
+
+```json
+{
+  "pipelineNodeId": "ns=3;s=Vision/Pipelines/BinPickingPipeline"
+}
+```
+
+with:
+
+```json
+{
+  "request": {
+    "pipeline": "BinPickingPipeline",
+    "expectedKind": "Detection",
+    "detail": "Summary",
+    "maxItems": 20
+  }
+}
+```
+
+The result still includes the ResultId and result NodeId, and now also includes
+authoritative result kind/provenance plus a bounded detection, inspection or
+segmentation summary. The `vision_read_*_result` tools remain available when a
+caller needs the complete result.
+
+Callers that previously chained inference, detection selection, Pick and Place
+can instead use `robotics_vision_pick`. Its one structured request names the
+controller, pipeline, source, tool and optional destination plus detection
+filters. The result carries the selected detection provenance and either the
+intent operation or mission operation needed by the corresponding bounded wait
+tool. Command authority is still requested separately.
+
+Name matching is exact and ordinal after trimming. A missing or ambiguous name
+is an error that lists the matching candidates and NodeIds; the MCP layer never
+chooses the first candidate or requests command authority as a side effect.
+
+## Surviving MonitoredItems after source retirement
+
+**Behavior correction:** removing a source does not remove its Subscription-owned
+MonitoredItem. Valid `ModifyMonitoredItems` requests now return `Good` for detached
+survivors instead of the former `BadNodeIdUnknown` shortcut. `DeleteMonitoredItems`
+and `SetMonitoringMode` retain their normal Core rules. Data notifications still
+report `BadNodeIdUnknown`, and retired sources cannot resume business delivery
+through a modification or monitoring-mode change. Update tests or recovery logic
+that treated the former Modify result as the item's service identity.
+
+Prepared immediate batches establish emission cutoff for every retiring owner at
+publication, independently of subsequent callback/source cleanup. Their preflight
+requires the stock source, monitored-item, Core, and Subscription capabilities.
+Unsupported providers fail before the durable decision. In-flight custom factories
+prevent preparation; a new custom-factory request while the decision is reserved
+returns `BadNotSupported` without invoking that factory. Rejection or cancellation
+restores its admission. See [prepared immediate source cutoff](NodeManagers.md#prepared-immediate-source-cutoff)
+for supported paths and retained-work semantics.
 
 ## Migrating code that used the exposed diagnostics locks
 
@@ -409,6 +600,31 @@ IHistoryContinuationPoint? restored = session.ContinuationPoints.RestoreHistory(
 Implement `IHistoryContinuationPoint` on whatever type you store. The session
 previously disposed only those points that happened to implement `IDisposable`
 and silently leaked the rest; every point is now disposed.
+
+### History continuation ownership during dynamic retirement
+
+Paginated historian providers serving lifecycle-managed NodeManagers must implement the
+optional `IHistorianContinuationDependencies` capability. Return the complete
+`ArrayOf<NodeId>` of additional local dependencies for the token's entire remaining lifetime.
+The framework includes the requested Node and provider source automatically; returning `true`
+with an empty array promises that no other manager is required. Missing/incomplete declarations
+return `BadNotSupported` without a partial page on dynamic sources. Unpaged reads and providers
+outside dynamic retirement are unchanged. The stock `InMemoryHistorianProvider` opts in.
+
+Use the stock session continuation cache for dynamic history pagination. Its
+`ISessionHistoryContinuationPointLifecycle` capability accounts for saved and checked-out
+states and signals final release. An external cache's reporting interface alone cannot supply
+captured routing; such caches are not supported for dynamically retained historian pagination.
+Custom NodeManager history implementations that save opaque `IHistoryContinuationPoint`
+objects must use the stock historian/provider path to participate in dynamic retirement;
+the framework does not inspect or reconstruct their payloads.
+
+The stack now keeps the original source, provider, query/filter, and routing images until every
+history use drains. Resumed reads still recheck Session permissions. Immediate retirement
+invalidates affected points. Failed service responses release undelivered points, and mirrored
+envelopes remain cleanup metadata rather than portable provider cursors.
+See [historian pagination](HistoricalAccess.md) and
+[NodeManager continuation points](NodeManagers.md#continuation-points).
 
 ## Awaiting custom node-manager cleanup
 

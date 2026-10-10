@@ -122,6 +122,14 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Registers a materialized asset interaction and its argument children.
+        /// </summary>
+        internal void AddAssetInteractionNode(BaseInstanceState node)
+        {
+            AddPredefinedNodeSynchronously(node);
+        }
+
+        /// <summary>
         /// Removes an EventType previously registered by
         /// <see cref="AddEventTypeNode"/>, together with the field properties
         /// registered beneath it.
@@ -170,6 +178,50 @@ namespace Opc.Ua.WotCon.Server
             return new NodeId($"Assets/{assetName}/{category}/{childName}", AssetNamespaceIndex);
         }
 
+        internal NodeId AllocateAssetNodeId(string assetName)
+        {
+            return new NodeId($"Assets/{assetName}", AssetNamespaceIndex);
+        }
+
+        internal bool IsAssetParentReference(IReference reference)
+        {
+            return reference.IsInverse &&
+                reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes &&
+                reference.TargetId.ServerIndex == 0 &&
+                m_managementObject is not null &&
+                ExpandedNodeId.ToNodeId(reference.TargetId, SystemContext.NamespaceUris) == m_managementObject.NodeId;
+        }
+
+        /// <summary>
+        /// Builds an unpublished asset and its fixed child hierarchy.
+        /// </summary>
+        internal IWoTAssetState CreateAssetNode(string assetName)
+        {
+            var asset = new IWoTAssetState(null)
+            {
+                NodeId = AllocateAssetNodeId(assetName),
+                SymbolicName = assetName,
+                BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
+                DisplayName = new LocalizedText(assetName),
+                ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
+            asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
+
+            if (asset.WoTFile != null)
+            {
+                asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
+                asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
+                asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
+                AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
+                asset.WoTFile.CloseAndUpdate?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                    MethodIds.WoTAssetFileType_CloseAndUpdate, Server.NamespaceUris);
+            }
+            return asset;
+        }
+
         /// <summary>
         /// Creates an asset object below the management node.
         /// </summary>
@@ -180,27 +232,7 @@ namespace Opc.Ua.WotCon.Server
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                var asset = new IWoTAssetState(m_managementObject)
-                {
-                    NodeId = new NodeId($"Assets/{assetName}", AssetNamespaceIndex),
-                    SymbolicName = assetName,
-                    BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
-                    DisplayName = new LocalizedText(assetName),
-                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
-                };
-                asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
-                asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
-                    ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
-
-                if (asset.WoTFile != null)
-                {
-                    asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
-                    asset.WoTFile.BrowseName = new QualifiedName("WoTFile", AssetNamespaceIndex);
-                    asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
-                    AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
-                }
-
+                IWoTAssetState asset = CreateAssetNode(assetName);
                 m_managementObject!.AddChild(asset);
                 m_managementObject.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
                 asset.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
@@ -280,23 +312,28 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // Reload any persisted assets so they survive restarts.
-            await foreach ((string name, ThingDescription td) in
-                m_registry.EnumeratePersistedAsync(cancellationToken).ConfigureAwait(false))
+            await m_registry.RestorePendingDeletionsAsync(cancellationToken).ConfigureAwait(false);
+            await foreach ((string name, ThingDescription td, ByteString content) in
+                m_registry.EnumeratePersistedDocumentsAsync(cancellationToken).ConfigureAwait(false))
             {
-                (ServiceResult create, NodeId assetId) = await m_registry
-                    .CreateAssetAsync(name, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(create))
+                ServiceResult restored = await m_registry
+                    .RestoreAssetAsync(name, td, content, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(restored))
                 {
-                    m_logger.RestoringAssetFailed(name, create);
-                    continue;
-                }
-                AssetEntry? entry = m_registry.FindByNodeId(assetId);
-                if (entry != null)
-                {
-                    await m_registry.RebuildAsync(entry, td, persistOnSuccess: false, cancellationToken)
-                        .ConfigureAwait(false);
+                    m_logger.RestoringAssetFailed(name, restored);
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            m_registry.CloseSession(sessionId);
+            return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -487,6 +524,17 @@ namespace Opc.Ua.WotCon.Server
                 .AddCreateAssetForEndpoint(SystemContext, c => c.OnCallAsync = OnCreateAssetForEndpointAsync)
                 .AddConnectionTest(SystemContext, c => c.OnCallAsync = OnConnectionTestAsync)
                 .AddSupportedWoTBindings(SystemContext, c => c.Value = new ArrayOf<string>(bindings.ToArray()));
+
+            management.CreateAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAsset, Server.NamespaceUris);
+            management.DeleteAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DeleteAsset, Server.NamespaceUris);
+            management.DiscoverAssets?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DiscoverAssets, Server.NamespaceUris);
+            management.CreateAssetForEndpoint?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAssetForEndpoint, Server.NamespaceUris);
+            management.ConnectionTest?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_ConnectionTest, Server.NamespaceUris);
         }
 
         private void ApplyConfiguration(ISystemContext context, WoTAssetConnectionManagementState management)

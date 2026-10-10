@@ -282,6 +282,10 @@ namespace Opc.Ua.Server.Hosting
             }
 
             m_server.SessionManagerFactory = m_services.GetService<ISessionManagerFactory>();
+            if (m_services.GetService<EventIdentityAdmissionOptions>() is { } eventIdentityOptions)
+            {
+                m_server.EventIdentityAdmissionOptions = eventIdentityOptions;
+            }
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
@@ -317,7 +321,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
             }
-            if (m_services.GetService<ISessionBindingProvider>() is { } sessionBindingProvider)
+            if (m_services.GetService<IServerSessionBindingProvider>() is { } sessionBindingProvider)
             {
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }

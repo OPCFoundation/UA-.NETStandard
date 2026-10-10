@@ -78,13 +78,18 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void FromNodeSetEmitsNativeAffordances()
         {
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+            UANodeSet source = WotTestData.CreateRichNodeSet();
+            byte[] original = WotTestData.Serialize(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
 
             Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingModel));
 
             Assert.That(document.Properties.ContainsKey("Speed"), Is.True);
             JsonElement speed = document.Properties["Speed"];
-            Assert.That(speed.GetProperty("@type").GetString(), Is.EqualTo("uav:variableType"));
+            Assert.That(speed.GetProperty("@type").GetString(), Is.EqualTo("uav:variable"));
+            Assert.That(speed.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:test:model;i=6001"));
+            Assert.That(document.RootElement.GetProperty("uav:id").GetString(),
+                Is.EqualTo("nsu=urn:test:model;i=1001"));
             Assert.That(speed.GetProperty("type").GetString(), Is.EqualTo("number"));
             Assert.That(speed.GetProperty("observable").GetBoolean(), Is.True);
             Assert.That(speed.GetProperty("uav:modellingRule").GetString(), Is.EqualTo("Mandatory"));
@@ -98,6 +103,23 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 document.Events["OverTemperatureEventType"].GetProperty("@type").GetString(),
                 Is.EqualTo("uav:eventType"));
+
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            Assert.That(restored.Items!.Select(node => node.NodeId), Is.Unique);
+            Assert.That(restored.Items!.Single(node => node.NodeId == "ns=1;i=6001"), Is.TypeOf<UAVariable>());
+            UAVariable declaration = restored.Items!.OfType<UAVariable>()
+                .Single(node => node.NodeId == "ns=1;i=6001");
+            Assert.That(declaration.BrowseName, Is.EqualTo("1:Speed"));
+            Assert.That(restored.NamespaceUris![0], Is.EqualTo("urn:test:model"));
+            Assert.That(declaration.ParentNodeId, Is.EqualTo("ns=1;i=1001"));
+            Assert.That(declaration.References!.Single(reference =>
+                reference.ReferenceType is "HasTypeDefinition" or "i=40" && reference.IsForward).Value,
+                Is.EqualTo("i=63"));
+            Assert.That(declaration.References!.Single(reference =>
+                reference.ReferenceType is "HasComponent" or "i=47" && !reference.IsForward).Value,
+                Is.EqualTo("ns=1;i=1001"));
+            Assert.That(WotTestData.Serialize(restored), Is.EqualTo(original));
+            Assert.That(WotTestData.Serialize(source), Is.EqualTo(original));
         }
 
         [Test]

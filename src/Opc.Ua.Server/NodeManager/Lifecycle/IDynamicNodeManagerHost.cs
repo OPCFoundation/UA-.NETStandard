@@ -40,9 +40,9 @@ namespace Opc.Ua.Server
     /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
     /// address space. A NodeManager is first prepared, which builds its address space without
     /// making it reachable. It is then published or swapped in for the NodeManager it replaces,
-    /// and finally committed, which is the point at which Clients observe the change. Every stage
-    /// that fails is undone by the matching rollback, and only a committed NodeManager is
-    /// destroyed.
+    /// and finally committed, which is the point at which Clients observe the change.
+    /// Preparation and staging failures use the matching rollback. A failure after
+    /// client-visible commit may retain the live generation for recovery or removal.
     /// </para>
     /// </summary>
     internal interface IDynamicNodeManagerHost
@@ -126,6 +126,8 @@ namespace Opc.Ua.Server
         /// Destroys the address space of a NodeManager that is no longer reachable. This method
         /// does not remove external references discovered during deletion and does not dispose the
         /// NodeManager. The lifecycle checkpoints this stage before performing either later action.
+        /// The caller must retain exclusive ownership of the detached generation throughout
+        /// deletion; the callback may perform lifecycle operations on its dependencies.
         /// </summary>
         /// <param name="nodeManager">The NodeManager whose address space is torn down.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
@@ -225,6 +227,79 @@ namespace Opc.Ua.Server
         ValueTask FinalizeRetiredGenerationNotificationsAsync(
             IAsyncNodeManager nodeManager,
             CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Optional host support for a single prepared routing publication.
+    /// </summary>
+    internal interface IDynamicNodeManagerBatchHost
+    {
+        /// <summary>
+        /// Gets the current live routing image whose identity is the preparation revision.
+        /// </summary>
+        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+
+        /// <summary>
+        /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
+        /// </summary>
+        IDisposable UseLiveRouting();
+
+        /// <summary>
+        /// Uses a private type image while preparing or discarding a candidate.
+        /// </summary>
+        IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
+
+        /// <summary>
+        /// Releases the current binding admission while a callback waits for and executes lifecycle work.
+        /// Async disposal resumes admission after lifecycle serialization has been released.
+        /// </summary>
+        IAsyncDisposable SuspendBindingAdmission();
+
+        /// <summary>
+        /// Checks whether the admitted operation is already removing this exact monitored item.
+        /// </summary>
+        bool IsRemovingBinding(IMonitoredItem monitoredItem);
+
+        /// <summary>
+        /// Dispatches Session activation and its notifications against the published bindings.
+        /// </summary>
+        ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
+            Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
+        /// A null decision validates and releases the reservations without changing the serving image.
+        /// </summary>
+        ValueTask CommitBatchAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            ArrayOf<IAsyncNodeManager> immediateRetirements,
+            NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+            TypeTable typeTree,
+            TypeTable originalTypes,
+            long typeRevision,
+            EncodeableFactory factory,
+            EncodeableFactory originalFactory,
+            long factoryRevision,
+            ArrayOf<INodeManagerReadImage> readImages,
+            Func<CancellationToken, ValueTask>? decideAsync,
+            Action published,
+            Func<ValueTask> reconcileBindingsAsync,
+            Action<Exception> reportCleanupFailure,
+            CancellationToken cancellationToken);
+    }
+
+    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
+    {
+        internal static BindingAdmissionSuspension Empty { get; } = new(null);
+
+        public ValueTask DisposeAsync()
+        {
+            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
+        }
+
+        private Func<ValueTask>? m_resume = resume;
     }
 
     /// <summary>

@@ -159,7 +159,10 @@ namespace Opc.Ua.Server
             }
 
             // Publish the initial manager and namespace routing snapshot.
-            m_nodeManagers.Initialize(namespaceManagers);
+            var factory = server.Factory as EncodeableFactory;
+            m_nodeManagers.Initialize(namespaceManagers, server.TypeTree.CaptureSnapshot(out _, out _), factory?.Fork());
+            server.TypeTree.SetViewSelector(() => m_nodeManagers.TypeTree);
+            m_factoryViewOwner = factory?.SetViewSelector(() => m_nodeManagers.Factory);
 
             m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
         }
@@ -253,6 +256,12 @@ namespace Opc.Ua.Server
             try
             {
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
+                if (m_factoryViewOwner is not null)
+                {
+                    EncodeableFactory image = m_nodeManagers.Revision.Factory ??
+                        throw new InvalidOperationException("The server factory image is unavailable during disposal.");
+                    m_factoryViewOwner.Release(image);
+                }
                 m_nodeManagers.Clear();
                 m_dynamicExternalReferences.Clear();
                 m_unpublishedRoutingPositions.Clear();
@@ -282,6 +291,7 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Release();
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
+                m_bindingSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -415,6 +425,7 @@ namespace Opc.Ua.Server
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             m_dynamicMutationSemaphore.Release();
 
+            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -458,6 +469,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
+            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
@@ -935,16 +947,10 @@ namespace Opc.Ua.Server
             {
                 await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
             }
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
-                RemoveRetiredGenerationNotifications(nodeManager);
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
-            }
+            // The lifecycle owns this detached generation. Its deletion may remove
+            // dependent NodeManagers, so it must not serialize against their preparation.
+            await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+            RemoveRetiredGenerationNotifications(nodeManager);
         }
 
         async ValueTask IDynamicNodeManagerHost.RemoveDestroyedExternalReferencesAsync(
@@ -1105,6 +1111,7 @@ namespace Opc.Ua.Server
             }
 
             RemoveRetiredGenerationNotifications(nodeManager);
+            m_nodeManagers.ReleaseReferences(nodeManager);
             m_unpublishedRoutingPositions.Remove(nodeManager);
             if (m_dynamicExternalReferences.Remove(nodeManager))
             {
@@ -1210,7 +1217,7 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
                 using var eventContext = new OperationContext(monitoredItem);
-                await nodeManager
+                ServiceResult result = await nodeManager
                     .SubscribeToAllEventsAsync(
                         eventContext,
                         monitoredItem.SubscriptionId,
@@ -1218,6 +1225,10 @@ namespace Opc.Ua.Server
                         true,
                         ct)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
                 lock (m_retiredGenerationNotificationsLock)
                 {
                     if (m_retiredGenerationNotifications.Contains(notifications))
@@ -1310,6 +1321,9 @@ namespace Opc.Ua.Server
                             notifications.DispatchState.Notifications = null;
                         }
                         if (notifications.DispatchState.Enabled &&
+                            notifications.DispatchState.BusinessEmissionsEnabled &&
+                            notifications.DispatchState.EmissionCutoffReservations == 0 &&
+                            notifications.DispatchState.CustomSourceCreations == 0 &&
                             notifications.DispatchState.ActiveDispatches == 0)
                         {
                             m_notificationDispatchStates.Remove(notifications.DispatchState);
@@ -1318,6 +1332,9 @@ namespace Opc.Ua.Server
                 }
                 m_notificationDispatchStates.RemoveAll(dispatchState =>
                     dispatchState.Enabled &&
+                    dispatchState.BusinessEmissionsEnabled &&
+                    dispatchState.EmissionCutoffReservations == 0 &&
+                    dispatchState.CustomSourceCreations == 0 &&
                     dispatchState.ActiveDispatches == 0 &&
                     dispatchState.References(nodeManager));
             }
@@ -1571,6 +1588,9 @@ namespace Opc.Ua.Server
                     dispatchesDrained = dispatchState.DispatchesDrained;
                     dispatchState.DispatchesDrained = null;
                     if (dispatchState.Enabled &&
+                        dispatchState.BusinessEmissionsEnabled &&
+                        dispatchState.EmissionCutoffReservations == 0 &&
+                        dispatchState.CustomSourceCreations == 0 &&
                         !m_retiredGenerationNotifications.Any(notifications =>
                             ReferenceEquals(
                                 notifications.DispatchState,
@@ -2521,6 +2541,13 @@ namespace Opc.Ua.Server
 
             public IEventMonitoredItem[] MonitoredItems { get; }
 
+            public bool IsActive => Volatile.Read(ref m_owner) is not null;
+
+            public SourceEmissionScope? EnterSourceEmission()
+            {
+                return m_owner?.EnterSourceEmission(this);
+            }
+
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_owner, null)?
@@ -2571,6 +2598,12 @@ namespace Opc.Ua.Server
 
             public bool Enabled { get; set; } = true;
 
+            public bool BusinessEmissionsEnabled { get; set; } = true;
+
+            public int EmissionCutoffReservations { get; set; }
+
+            public int CustomSourceCreations { get; set; }
+
             public int ActiveDispatches { get; set; }
 
             public TaskCompletionSource<bool>? DispatchesDrained { get; set; }
@@ -2595,7 +2628,9 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_bindingSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly EncodeableFactory.ViewOwner? m_factoryViewOwner;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);
         private int m_shutdownCompletedNodeManagerCount;

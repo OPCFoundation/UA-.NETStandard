@@ -777,10 +777,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             while (openSettings.TryDequeue(out TransportChannelSettings? opened))
             {
-                opened.ServerCertificate?.Dispose();
-                opened.ClientCertificate?.Dispose();
-                opened.ClientCertificateChain?.Dispose();
+                DisposeOpenedCertificates(opened);
             }
+        }
+
+        private static void DisposeOpenedCertificates(TransportChannelSettings opened)
+        {
+            opened.ServerCertificate?.Dispose();
+            opened.ClientCertificateChain?.Dispose();
+            opened.ClientCertificate?.Dispose();
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;

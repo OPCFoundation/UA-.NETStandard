@@ -41,15 +41,15 @@ namespace Opc.Ua.Server.Historian
     /// A <see cref="HistorianResumeToken"/> is the provider's "where to
     /// resume next" hint. It carries arbitrary provider-specific state
     /// (keyset position, opaque cursor id, byte offset, etc.) and is
-    /// serialised by the framework into the OPC UA HistoryRead continuation
-    /// point. The framework guarantees the token will be passed back
+    /// retained server-side by the framework behind the OPC UA HistoryRead continuation
+    /// identifier. The framework guarantees the token will be passed back
     /// verbatim to the same provider on the next page read or released
     /// when the client abandons the continuation.
     /// </para>
     /// <para>
     /// Providers <strong>must not</strong> hold long-lived resources
     /// (database connections, cursors, transactions) in a resume token;
-    /// the framework persists tokens across requests and the originating
+    /// the framework retains tokens across requests and the originating
     /// task may have completed before the next page is requested.
     /// </para>
     /// </remarks>

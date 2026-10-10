@@ -40,7 +40,7 @@ namespace Opc.Ua.WotCon.Tests
     /// Holds this assembly's half of the WoT specification evidence ledger.
     /// </summary>
     /// <remarks>
-    /// The ledger spans three test assemblies and none of them can see the
+    /// The ledger spans multiple test assemblies and none of them can see the
     /// others, so each embeds the same file and resolves only the mappings that
     /// name it. Most of the WoT Connectivity requirements land here, because
     /// most of what that specification states is about a running registry.
@@ -66,6 +66,18 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     foreach (string name in requirement.Tests)
                     {
+                        IReadOnlyList<string> targets = WotSpecRequirementLedger.ReadTargetFrameworks(assembly, name);
+                        Assert.That(targets, Is.Empty.Or.EquivalentTo(s_modernFrameworks));
+#if !NET8_0_OR_GREATER
+                        if (targets.Count != 0)
+                        {
+                            Assert.That(name, Is.EqualTo(
+                                "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests"));
+                            Assert.That(assembly.GetType(name, throwOnError: false), Is.Null,
+                                "This fixture is intentionally compiled only with modern protocol executors.");
+                            continue;
+                        }
+#endif
                         Assert.That(
                             WotSpecRequirementLedger.DescribeResolution(assembly, name),
                             Is.EqualTo("runs"),
@@ -89,5 +101,7 @@ namespace Opc.Ua.WotCon.Tests
                 requirements.Count(r => r.Assembly == ThisAssembly && r.Tests.Count > 0),
                 Is.GreaterThan(0));
         }
+
+        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
     }
 }

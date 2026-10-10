@@ -44,9 +44,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// The clause constrains a choice among the endpoints a Server already
     /// offers and nothing else. Certificate trust and trust-list policy, the
     /// filtering of endpoints on any other attribute, transport-profile
-    /// negotiation and the user-token policy within an endpoint stay with the
-    /// application's own security configuration, so none of them is decided
-    /// here.
+    /// negotiation and the choice among compatible user-token policies stay
+    /// with the application's own security configuration. An explicit token
+    /// kind filters endpoints that do not advertise that kind.
     /// </remarks>
     public static class OpcUaWotEndpointSelector
     {
@@ -69,6 +69,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 floor.Permits(
                     endpoint.SecurityMode.ToString(),
                     GetSecurityPolicyName(endpoint.SecurityPolicyUri));
+        }
+
+        /// <summary>
+        /// Determines whether an endpoint satisfies the floor and one complete
+        /// alternative, including support for its required user-token kind.
+        /// </summary>
+        public static bool Satisfies(
+            EndpointDescription endpoint,
+            WotSecurityFloor? floor,
+            ArrayOf<WotOpcUaSecurityRequirement> requirements)
+        {
+            return Satisfies(endpoint, floor) &&
+                (requirements.IsEmpty || requirements.Contains(requirement =>
+                    requirement.Satisfies(endpoint) &&
+                    (!requirement.UserIdentityToken.HasValue || endpoint.UserIdentityTokens.Contains(policy =>
+                        policy is not null && policy.TokenType == requirement.UserIdentityToken.Value))));
         }
 
         /// <summary>
@@ -96,6 +112,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public static EndpointDescription? Select(
             ArrayOf<EndpointDescription> endpoints, WotSecurityFloor? floor)
         {
+            return Select(endpoints, floor, []);
+        }
+
+        /// <summary>
+        /// Selects the strongest endpoint that satisfies the floor and one
+        /// complete alternative, including its advertised user-token kind.
+        /// </summary>
+        public static EndpointDescription? Select(
+            ArrayOf<EndpointDescription> endpoints,
+            WotSecurityFloor? floor,
+            ArrayOf<WotOpcUaSecurityRequirement> requirements)
+        {
             EndpointDescription? best = null;
             if (endpoints.IsNull)
             {
@@ -104,7 +132,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
                 EndpointDescription candidate = endpoints[ii];
-                if (candidate is null || !Satisfies(candidate, floor))
+                if (candidate is null || !Satisfies(candidate, floor, requirements))
                 {
                     continue;
                 }
@@ -118,26 +146,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         /// <summary>
         /// Maps a security-policy URI onto the policy name WoT Binding
-        /// Section 5.7 uses, which is the last segment of the URI. A URI this
-        /// Binding does not name keeps its own last segment and therefore
-        /// ranks below every policy it names.
+        /// Section 5.7 uses. Only complete standard policy URIs have a
+        /// named rank; an unknown URI returns an empty name.
         /// </summary>
         /// <param name="securityPolicyUri">The endpoint's policy URI.</param>
         /// <returns>The policy name.</returns>
         public static string GetSecurityPolicyName(string? securityPolicyUri)
         {
-            if (string.IsNullOrEmpty(securityPolicyUri))
-            {
-                return string.Empty;
-            }
-            int separator = securityPolicyUri!.LastIndexOf('#');
-            if (separator < 0)
-            {
-                separator = securityPolicyUri.LastIndexOf('/');
-            }
-            return separator >= 0 && separator + 1 < securityPolicyUri.Length
-                ? securityPolicyUri.Substring(separator + 1)
-                : securityPolicyUri;
+            return WotOpcUaSecurityRequirement.GetSecurityPolicyName(securityPolicyUri);
         }
 
         /// <summary>

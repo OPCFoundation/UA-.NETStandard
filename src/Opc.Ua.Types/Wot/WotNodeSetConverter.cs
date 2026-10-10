@@ -71,18 +71,23 @@ namespace Opc.Ua.Wot
             return diagnostics.Count > 0 ? diagnostics[0].Message : null;
         }
 
-        private static string? GetBaselineModellingRule(UANode node)
+        private static string? GetBaselineModellingRule(UANode node, UANodeSet? nodeSet = null)
         {
             if (node.References is null)
             {
                 return null;
             }
+            INodeSetAliasResolver aliases = nodeSet is null
+                ? WotNodeSetAliases.Instance
+                : NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (Reference reference in node.References)
             {
-                if (string.Equals(reference.ReferenceType, "HasModellingRule", StringComparison.Ordinal) &&
+                if (NormalizeExpandedNodeId(ResolveArchivedAlias(reference.ReferenceType, aliases)) ==
+                        WotVocabulary.HasModellingRule &&
                     reference.IsForward &&
                     reference.Value is not null &&
-                    WotVocabulary.TryGetModellingRuleName(reference.Value, out string rule))
+                    WotVocabulary.TryGetModellingRuleName(
+                        NormalizeExpandedNodeId(ResolveArchivedAlias(reference.Value, aliases)), out string rule))
                 {
                     return rule;
                 }

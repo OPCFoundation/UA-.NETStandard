@@ -39,6 +39,7 @@ using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Tests
@@ -50,7 +51,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task ThingModelMetadataIsVisibleWhenMutationsCompleteWithQueuedReconciliation()
         {
-            await using var harness = new ProjectionHarness();
+            await using ProjectionHarness harness = await ProjectionHarness.StartAsync().ConfigureAwait(false);
             await harness.AttachAsync().ConfigureAwait(false);
             GroupState group = await harness.CreateThingModelGroupAsync().ConfigureAwait(false);
             await harness.WaitUntilReconciliationBlockedAsync().ConfigureAwait(false);
@@ -61,9 +62,7 @@ namespace Opc.Ua.WotCon.Tests
             await harness.UploadAsync(v2, "urn:model-titles-second", "2.0.0").ConfigureAwait(false);
             await harness.SetDefaultVersionAsync(v2, "v2").ConfigureAwait(false);
 
-            WotResource stored = harness.Registry.Current.FindResource(
-                WotRegistryGroups.ThingModels,
-                "model-titles")!;
+            WotResource stored = harness.StoredResource;
             string v1Title = v1.ModelTitle!.Value;
             string v1ModelVersion = v1.ModelVersion!.Value;
             string v2Title = v2.ModelTitle!.Value;
@@ -96,7 +95,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task ThingModelUploadPublishesVersionMetadataBeforeReturning()
         {
-            await using var harness = new ProjectionHarness();
+            await using ProjectionHarness harness = await ProjectionHarness.StartAsync().ConfigureAwait(false);
             await harness.AttachAsync().ConfigureAwait(false);
             GroupState group = await harness.CreateThingModelGroupAsync().ConfigureAwait(false);
             await harness.WaitUntilReconciliationBlockedAsync().ConfigureAwait(false);
@@ -106,9 +105,7 @@ namespace Opc.Ua.WotCon.Tests
             ThingModelFileState v2 = await harness.CreateVersionAsync(group, "v2").ConfigureAwait(false);
             await harness.UploadAsync(v2, "urn:model-titles-second", "2.0.0").ConfigureAwait(false);
 
-            WotResource stored = harness.Registry.Current.FindResource(
-                WotRegistryGroups.ThingModels,
-                "model-titles")!;
+            WotResource stored = harness.StoredResource;
             Assert.Multiple(() =>
             {
                 Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
@@ -127,7 +124,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task SetEnabledPublishesStateBeforeReturning()
         {
-            await using var harness = new ProjectionHarness();
+            await using ProjectionHarness harness = await ProjectionHarness.StartAsync().ConfigureAwait(false);
             await harness.AttachAsync().ConfigureAwait(false);
             GroupState group = await harness.CreateThingModelGroupAsync().ConfigureAwait(false);
             await harness.WaitUntilReconciliationBlockedAsync().ConfigureAwait(false);
@@ -147,8 +144,9 @@ namespace Opc.Ua.WotCon.Tests
 
         private sealed class ProjectionHarness : IAsyncDisposable
         {
-            public ProjectionHarness()
+            private ProjectionHarness(PreparedWotTestRuntime runtime, WotRegistryService registry)
             {
+                m_runtime = runtime;
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var namespaces = new NamespaceTable();
                 namespaces.Append(Namespaces.WotCon);
@@ -164,8 +162,9 @@ namespace Opc.Ua.WotCon.Tests
                 server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(m_monitoredItemQueueFactory);
                 server.SetupGet(value => value.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
 
-                Registry = new WotRegistryService();
-                m_coordinator = new WotMaterializationCoordinator(Registry, Mock.Of<IWotProjectionHost>());
+                Registry = registry;
+                m_coordinator = new WotMaterializationCoordinator(Registry, runtime.Host);
+                m_lifecycleRegistration = Registry.RegisterLifecycleCoordinator(m_coordinator);
                 var options = new WotRegistryServerOptions { AutoRefresh = false };
                 m_manager = new WotRegistryNodeManager(
                     server.Object,
@@ -184,74 +183,121 @@ namespace Opc.Ua.WotCon.Tests
                         CancellationToken.None).ConfigureAwait(false);
                 });
                 Registry.Changed += OnRegistryChanged;
-                m_registryNode = new RegistryState(null);
+                m_registryNode = new WoTRegistryState(null);
                 m_registryNode.Create(
                     m_manager.SystemContext,
                     new NodeId("registry", namespaces.GetIndexOrAppend(Namespaces.WotCon)),
                     new QualifiedName("Registry", namespaces.GetIndexOrAppend(Namespaces.WotCon)),
                     new LocalizedText("Registry"),
                     assignNodeIds: false);
-                m_registryNode.AddCreateGroup(m_manager.SystemContext);
+                m_registryNode.AddCreateDocumentGroup(m_manager.SystemContext);
             }
 
             public WotRegistryService Registry { get; }
 
+            public WotResource StoredResource => Registry.Current.FindResource(m_groupId, m_resourceId) ??
+                throw new InvalidOperationException("The typed Model resource was not committed.");
+
+            public static async Task<ProjectionHarness> StartAsync()
+            {
+                PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+                try
+                {
+                    WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
+                    return new ProjectionHarness(runtime, registry);
+                }
+                catch
+                {
+                    await runtime.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+            }
+
             public async ValueTask AttachAsync()
             {
-                await Registry.InitializeAsync().ConfigureAwait(false);
-                await m_projection.AttachAsync(m_registryNode, CancellationToken.None).ConfigureAwait(false);
+                await Registry.InitializeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await m_projection.AttachAsync(m_registryNode, CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             }
 
             public async ValueTask<GroupState> CreateThingModelGroupAsync()
             {
-                await CallAsync(
-                    m_registryNode.CreateGroup!,
-                    [new Variant(WotRegistryGroups.ThingModels)]).ConfigureAwait(false);
-                var children = new List<BaseInstanceState>();
-                m_registryNode.GetChildren(m_manager.SystemContext, children);
-                return children.Find(child => child is ThingModelGroupState) as GroupState
+                List<Variant> output = await CallWithResultAsync(
+                    m_registryNode.CreateDocumentGroup!,
+                    [new Variant((int)WoTDocumentKindEnum.ThingModel), new Variant("urn:catalogue:model-titles")])
+                    .ConfigureAwait(false);
+                Assert.That(output[0].TryGetValue(out NodeId groupNodeId), Is.True);
+                Assert.That(output[1].TryGetValue(out string groupId), Is.True);
+                m_groupId = groupId;
+                ThingModelGroupState? group = m_manager.FindPredefinedNode<ThingModelGroupState>(groupNodeId);
+                Assert.That(Registry.Current.FindGroup(groupId)?.CatalogUri, Is.EqualTo("urn:catalogue:model-titles"));
+                return group
                     ?? throw new InvalidOperationException("The Thing Model group was not projected.");
             }
 
             public Task<bool> WaitUntilReconciliationBlockedAsync()
             {
-                return m_entered.Task;
+                return m_entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             }
 
             public async ValueTask DrainReconciliationAsync()
             {
                 m_release.TrySetResult(true);
-                await m_queue.WhenIdleAsync().ConfigureAwait(false);
+                await m_queue.WhenIdleAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
 
             public async ValueTask<ThingModelFileState> CreateVersionAsync(GroupState group, string versionId)
             {
-                await CallAsync(
-                    group.CreateResource!,
-                    [new Variant("model-titles"), new Variant(versionId), new Variant(false)]).ConfigureAwait(false);
-                WotResource resource = Registry.Current.FindResource(WotRegistryGroups.ThingModels, "model-titles")!;
-                return (ThingModelFileState)m_projection.EventSourceFor($"{resource.Xid}/versions/{versionId}");
+                if (group is not ThingModelGroupState modelGroup)
+                {
+                    throw new InvalidOperationException("A typed Thing Model group is required.");
+                }
+                List<Variant> output = await CallWithResultAsync(
+                    modelGroup.GetOrCreateThingModelResource!,
+                    [new Variant("urn:model-titles"), new Variant(versionId), new Variant(false)])
+                    .ConfigureAwait(false);
+                Assert.That(output[0].TryGetValue(out NodeId logicalNodeId), Is.True);
+                Assert.That(output[1].TryGetValue(out NodeId versionNodeId), Is.True);
+                Assert.That(output[2].TryGetValue(out string resourceId), Is.True);
+                Assert.That(output[3].TryGetValue(out string assignedVersionId), Is.True);
+                m_resourceId = resourceId;
+                WotResource resource = StoredResource;
+                ThingModelFileState version = m_manager.FindPredefinedNode<ThingModelFileState>(versionNodeId) ??
+                    throw new InvalidOperationException("The returned Thing Model Version was not projected.");
+                Assert.Multiple(() =>
+                {
+                    Assert.That(logicalNodeId.IsNull || versionNodeId.IsNull, Is.False);
+                    Assert.That(logicalNodeId, Is.Not.EqualTo(versionNodeId));
+                    Assert.That(resource.SourceId, Is.EqualTo("urn:model-titles"));
+                    Assert.That(assignedVersionId, Is.EqualTo(versionId));
+                    Assert.That(m_projection.EventSourceForFailure(resource.Xid, assignedVersionId),
+                        Is.SameAs(version));
+                });
+                return version;
             }
 
             public async ValueTask UploadAsync(ThingModelFileState version, string title, string modelVersion)
             {
-                uint handle = 0;
-                ServiceResult opened = version.Open!.OnCall!(
-                    m_manager.SystemContext, version.Open, version.NodeId, 6, ref handle);
-                Assert.That(ServiceResult.IsGood(opened), Is.True, opened.ToString());
+                OpenMethodStateResult opened = await version.Open!.OnCallAsync!(
+                    m_manager.SystemContext, version.Open, version.NodeId, 6, CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True, opened.ServiceResult.ToString());
+                uint handle = opened.FileHandle;
                 ByteString content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
                     "\"@type\":\"tm:ThingModel\",\"id\":\"urn:model-titles\"," +
                     "\"title\":\"" + title + "\",\"version\":{\"model\":\"" + modelVersion + "\"}}"));
-                ServiceResult written = version.Write!.OnCall!(
-                    m_manager.SystemContext, version.Write, version.NodeId, handle, content);
+                ServiceResult written = await version.Write!.CallAsync(
+                    m_manager.SystemContext, version.NodeId, [new Variant(handle), new Variant(content)],
+                    new List<ServiceResult>(), new List<Variant>(), CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(written), Is.True, written.ToString());
                 CloseMethodStateResult closed = await version.Close!.OnCallAsync!(
                     m_manager.SystemContext,
                     version.Close,
                     version.NodeId,
                     handle,
-                    CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True, closed.ServiceResult.ToString());
             }
 
@@ -269,27 +315,41 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Registry.Changed -= OnRegistryChanged;
                 m_release.TrySetResult(true);
-                await m_queue.CompleteAsync().ConfigureAwait(false);
-                m_queue.Dispose();
-                m_projection.Dispose();
-                m_manager.Dispose();
-                m_coordinator.Dispose();
-                Registry.Dispose();
-                m_monitoredItemQueueFactory.Dispose();
+                try
+                {
+                    await m_queue.CompleteAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_queue.Dispose();
+                    m_projection.Dispose();
+                    m_manager.Dispose();
+                    m_lifecycleRegistration.Dispose();
+                    m_coordinator.Dispose();
+                    m_monitoredItemQueueFactory.Dispose();
+                    await m_runtime.DisposeAsync().ConfigureAwait(false);
+                }
             }
 
             private async ValueTask CallAsync(MethodState method, ArrayOf<Variant> input)
             {
+                await CallWithResultAsync(method, input).ConfigureAwait(false);
+            }
+
+            private async ValueTask<List<Variant>> CallWithResultAsync(MethodState method, ArrayOf<Variant> input)
+            {
                 NodeState parent = method.Parent ??
                     throw new InvalidOperationException("A projected method must have a parent.");
+                var output = new List<Variant>();
                 ServiceResult result = await method.OnCallMethod2Async!(
                     m_manager.SystemContext,
                     method,
                     parent.NodeId,
                     input,
-                    [],
-                    CancellationToken.None).ConfigureAwait(false);
+                    output,
+                    CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+                return output;
             }
 
             private void OnRegistryChanged(object? sender, WotRegistryChangedEventArgs change)
@@ -298,15 +358,19 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             private readonly WotRegistryNodeManager m_manager;
+            private readonly PreparedWotTestRuntime m_runtime;
+            private readonly IDisposable m_lifecycleRegistration;
             private readonly WotMaterializationCoordinator m_coordinator;
             private readonly WotRegistryProjection m_projection;
             private readonly WotRegistryReconcileQueue m_queue;
-            private readonly RegistryState m_registryNode;
+            private readonly WoTRegistryState m_registryNode;
             private readonly MonitoredItemQueueFactory m_monitoredItemQueueFactory;
             private readonly TaskCompletionSource<bool> m_entered = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly TaskCompletionSource<bool> m_release = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            private string m_groupId = string.Empty;
+            private string m_resourceId = string.Empty;
         }
     }
 }

@@ -352,8 +352,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task FileStorePersistsLabelsAcrossReload()
         {
+            // Keep digest-based staging paths below the legacy net48 MAX_PATH limit.
             string root = Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
+                Path.GetTempPath(),
                 "wot-labels-store-" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             try

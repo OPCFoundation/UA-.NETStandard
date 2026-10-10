@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
                 await AddListenerAsync(server, fixture.Config).ConfigureAwait(false);
                 Assert.That(server.BindingProviders, Has.Count.GreaterThan(1));
                 Assert.That(server.BindingProviders, Has.All.SameAs(server));
-                ISessionBindingProvider provider = server.BindingProviders[0];
+                IServerSessionBindingProvider provider = server.BindingProviders[0];
                 (RequestHeader header, SecureChannelContext channel) =
                     await server.CreateAndActivateSessionAsync("binding-provider").ConfigureAwait(false);
                 Assert.That(provider.HasSession(channel.SecureChannelId), Is.True);
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ListenerSettingsPreserveInjectedSessionBindingProviderAsync()
         {
-            ISessionBindingProvider provider = Mock.Of<ISessionBindingProvider>();
+            IServerSessionBindingProvider provider = Mock.Of<IServerSessionBindingProvider>();
             var fixture = new ServerFixture<BudgetCaptureServer>(
                 t => new BudgetCaptureServer(t) { SessionBindingProvider = provider });
             BudgetCaptureServer server = await fixture.StartAsync().ConfigureAwait(false);
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests
 
             public List<ChunkReassemblyBudget> ListenerBudgets { get; } = [];
 
-            public List<ISessionBindingProvider> BindingProviders { get; } = [];
+            public List<IServerSessionBindingProvider> BindingProviders { get; } = [];
 
             protected override void ConfigureTransportListenerSettings(
                 TransportListenerSettings settings,

@@ -78,10 +78,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     Ua.BrowseNames.EventId => new Variant(EventId is null ? default : EventId.Value),
                     Ua.BrowseNames.EventType => new Variant(TypeDefinitionId),
                     Ua.BrowseNames.SourceNode => new Variant(SourceNode is null ? NodeId.Null : SourceNode.Value),
+                    Ua.BrowseNames.ReceiveTime => new Variant(ReceiveTime is null ? default : ReceiveTime.Value),
                     _ => Variant.Null
                 };
                 found = relativePath[0].Name is
-                    Ua.BrowseNames.EventId or Ua.BrowseNames.EventType or Ua.BrowseNames.SourceNode;
+                    Ua.BrowseNames.EventId or Ua.BrowseNames.EventType or
+                    Ua.BrowseNames.SourceNode or Ua.BrowseNames.ReceiveTime;
             }
             if (!found)
             {

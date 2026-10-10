@@ -275,7 +275,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState first = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState second = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)first.Parent!;
+            GroupState group = GroupOf(first);
             var originalNodes = new List<NodeState>();
             CollectNodes(group, manager.SystemContext, originalNodes);
             NodeState fastPath = manager.Find(new NodeId(
@@ -321,7 +321,7 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
             string storeKey = resource.NodeId.ToString();
-            var group = (GroupState)resource.Parent!;
+            GroupState group = GroupOf(resource);
             bool fail = true;
             store.Setup(s => s.DeleteAsync(storeKey, It.IsAny<CancellationToken>()))
                 .Returns((string key, CancellationToken ct) => fail
@@ -358,7 +358,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState deleted = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState target = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)target.Parent!;
+            GroupState group = GroupOf(target);
             uint handle = 0;
             if (operation == "close")
             {
@@ -427,7 +427,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState first = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState second = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)first.Parent!;
+            GroupState group = GroupOf(first);
             NodeState firstFastPath = manager.Find(new NodeId(
                 ByteString.From([1, 2, 3, 4]), first.NodeId.NamespaceIndex))!;
             NodeState secondFastPath = manager.Find(new NodeId(
@@ -461,7 +461,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(new InMemoryResourceStore())
                 .ConfigureAwait(false);
             ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
-            var group = (GroupState)resource.Parent!;
+            GroupState group = GroupOf(resource);
             NodeState changedNode = duringCreation ? group : resource.OpenCount!;
             changedNode.OnStateChangedAsync = (_, _, _, _) =>
                 throw new InvalidOperationException("Injected notification failure.");
@@ -592,13 +592,13 @@ namespace Opc.Ua.XRegistry.Tests
                 ByteString.From([5, 6]), CancellationToken.None).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            store.Setup(s => s.WriteAsync(
-                    It.IsAny<string>(), It.IsAny<long>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
-                .Returns(async (string key, long offset, ByteString data, CancellationToken ct) =>
+            store.As<IXRegistryAtomicResourceStore>().Setup(s => s.ReplaceAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString data, CancellationToken ct) =>
                 {
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-                    await contents.WriteAsync(key, offset, data, ct).ConfigureAwait(false);
+                    await contents.ReplaceAsync(key, data, ct).ConfigureAwait(false);
                 });
             Task<CloseMethodStateResult> closing = resource.Close!.OnCallAsync!(
                 manager.SystemContext, resource.Close, resource.NodeId, opened.FileHandle, CancellationToken.None)
@@ -763,6 +763,55 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DirtyCloseKeepsFileExclusiveUntilNotificationCompletes()
+        {
+            using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(
+                new InMemoryResourceStore(), eventsEnabled: true).ConfigureAwait(false);
+            ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                manager.SystemContext, resource.Open, resource.NodeId, 6, CancellationToken.None)
+                .ConfigureAwait(false);
+            await resource.Write!.OnCallAsync!(
+                manager.SystemContext, resource.Write, resource.NodeId, opened.FileHandle,
+                ByteString.From([9, 8]), CancellationToken.None).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reports = 0;
+            RegistryOf(manager).OnReportEventAsync = async (context, node, evt, ct) =>
+            {
+                if (Interlocked.Increment(ref reports) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                }
+            };
+
+            Task<CloseMethodStateResult> closing = resource.Close!.OnCallAsync!(
+                manager.SystemContext, resource.Close, resource.NodeId, opened.FileHandle,
+                CancellationToken.None).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            try
+            {
+                OpenMethodStateResult reader = await resource.Open.OnCallAsync!(
+                    manager.SystemContext, resource.Open, resource.NodeId, 1, CancellationToken.None)
+                    .ConfigureAwait(false);
+                OpenMethodStateResult writer = await resource.Open.OnCallAsync!(
+                    manager.SystemContext, resource.Open, resource.NodeId, 6, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotReadable));
+                    Assert.That(writer.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await closing.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task AwaitingAnEventSinkDoesNotHoldTheMutationGate()
         {
             using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(
@@ -859,6 +908,16 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        private static GroupState GroupOf(ResourceState version)
+        {
+            Assert.That(version.Parent, Is.TypeOf<ResourceVersionsState>());
+            var versions = (ResourceVersionsState)version.Parent!;
+            Assert.That(versions.Parent, Is.TypeOf<ResourceState>());
+            var logical = (ResourceState)versions.Parent!;
+            Assert.That(logical.Parent, Is.TypeOf<GroupState>());
+            return (GroupState)logical.Parent!;
+        }
+
         private static RegistryState RegistryOf(XRegistryRegistrationNodeManager manager)
         {
             return (RegistryState)manager.Find(new NodeId(
@@ -870,6 +929,11 @@ namespace Opc.Ua.XRegistry.Tests
         private static Mock<IXRegistryResourceStore> CreateStore(InMemoryResourceStore contents)
         {
             var store = new Mock<IXRegistryResourceStore>(MockBehavior.Strict);
+            store.As<IXRegistryAtomicResourceStore>()
+                .Setup(s => s.ReplaceAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString document, CancellationToken ct) =>
+                    contents.ReplaceAsync(key, document, ct));
             store.Setup(s => s.ReadAsync(
                     It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns((string key, long offset, int count, CancellationToken ct) =>

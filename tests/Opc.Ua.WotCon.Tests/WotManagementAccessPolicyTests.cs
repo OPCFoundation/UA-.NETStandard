@@ -290,7 +290,7 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
-        public void UploadPathRefusesAnUnauthorisedWriteAndCloseAndUpdate()
+        public async Task UploadPathRefusesAnUnauthorisedWriteAndCloseAndUpdate()
         {
             // WoT Connectivity 1.1-draft3 names the WoTFile Write and
             // CloseAndUpdate operations alongside the management Methods,
@@ -343,12 +343,13 @@ namespace Opc.Ua.WotCon.Tests
             // no valid handle is needed to prove the gate is wired.
             Assert.That(file.CloseAndUpdate, Is.Not.Null);
             CloseAndUpdateIWoTAssetTypeWoTFileMethodState closeAndUpdate = file.CloseAndUpdate!;
-            Assert.That(closeAndUpdate.OnCall, Is.Not.Null);
-            ServiceResult close = closeAndUpdate.OnCall!(
+            Assert.That(closeAndUpdate.OnCallAsync, Is.Not.Null);
+            ServiceResult close = (await closeAndUpdate.OnCallAsync!(
                 denied,
                 closeAndUpdate,
                 file.NodeId,
-                1u);
+                1u,
+                default).ConfigureAwait(false)).ServiceResult;
 
             Assert.That(ServiceResult.IsBad(close), Is.True);
             Assert.That(close.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));

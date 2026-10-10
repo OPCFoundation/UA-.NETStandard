@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -83,6 +84,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WoTPhaseEnum FailurePhase { get; }
 
         /// <summary>
+        /// Gets the local interactions resolved against the produced NodeSet.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; private init; }
+
+        /// <summary>
         /// Gets whether the conversion succeeded.
         /// </summary>
         public bool Succeeded => NodeSet is not null && Errors.IsEmpty;
@@ -113,6 +119,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return new WotConversionOutput(null, [.. errors], failurePhase: phase);
         }
+
+        /// <summary>
+        /// Returns an output carrying the converter-resolved local interactions.
+        /// </summary>
+        public WotConversionOutput WithProjectedAffordances(ArrayOf<WotProjectedAffordance> affordances)
+        {
+            return new WotConversionOutput(NodeSet, Errors, RootNodeId, FailurePhase)
+            {
+                ProjectedAffordances = affordances
+            };
+        }
     }
 
     /// <summary>
@@ -132,6 +149,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Optional per-conversion metadata carried by the captured content dictionary.
+    /// Converter decorators preserve this context by forwarding their content argument unchanged.
+    /// </summary>
+    public interface IWotDocumentConversionContext
+    {
+        /// <summary>
+        /// Borrows complete declaration inputs with this conversion's emission ownership.
+        /// Documents remain owned by the captured input image and must not be disposed by the converter.
+        /// </summary>
+        ArrayOf<WotDataTypeDefinitionSource> GetDataTypeDefinitions(
+            WotNodeSetConverterOptions options,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -161,6 +193,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IEnumerable<IWotSchemaResolver>? schemaProviders = null)
         {
             m_options = options ?? new WotNodeSetConverterOptions();
+            m_options.Validate();
             m_addressSpace = addressSpace;
             m_schemaResolver = new WotExternalSchemaResolver(
                 schemaProviders is null ? [] : [.. schemaProviders]);
@@ -207,10 +240,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken)
         {
+            using var directInputs = contents is IWotDocumentConversionContext
+                ? null : new WotDeclarationInputCache(contents);
             try
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
-                var resolver = new SnapshotThingResolver(snapshot, contents);
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
@@ -223,6 +257,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // the resolver is reused for as long as the snapshot it indexes
                 // is the one being converted. Building it per conversion would
                 // make a refresh cost one registry-wide index per document.
+                ArrayOf<WotDataTypeDefinitionSource> definitions = contents is IWotDocumentConversionContext context
+                    ? context.GetDataTypeDefinitions(m_options, cancellationToken)
+                    : directInputs!.GetDefinitions(
+                        resource, snapshot.AllResources().ToArrayOf(), true, m_options, cancellationToken);
+                var resolver = new SnapshotThingResolver(snapshot, contents, definitions);
                 IWotNodeResolver nodeResolver = GetLocalContext(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
@@ -253,10 +292,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new WotConversionOutput(
                         null, errors.ToImmutable(), failurePhase: phase);
                 }
+                ExpandedNodeId root = WotNodeSetConverter.TrySelectProjectionRoot(result.Value);
+                ArrayOf<WotProjectedAffordance> affordances = WotNodeSetConverter
+                    .ResolveAffordanceNodes(document, result.Value, root)
+                    .ConvertAll(WotProjectedAffordance.FromConverted);
                 return new WotConversionOutput(
                     result.Value,
                     [],
-                    WotNodeSetConverter.TrySelectProjectionRoot(result.Value));
+                    root).WithProjectedAffordances(affordances);
             }
             // One malformed document fails its own conversion and is reported
             // as such. It must never abort the refresh, because that would let

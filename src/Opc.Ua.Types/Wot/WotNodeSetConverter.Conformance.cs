@@ -76,9 +76,6 @@ namespace Opc.Ua.Wot
             }
             bool strict = options.ConformanceMode == WotConformanceMode.Strict;
             bool authoring = options.AuthoringValidation;
-            WotDiagnosticSeverity opaqueSeverity = strict
-                ? WotDiagnosticSeverity.Error
-                : WotDiagnosticSeverity.Warning;
             ValidateRevisionClaim(root, authoring, diagnostics);
             ValidateConformanceClaim(root, options, strict, authoring, diagnostics);
             ValidateEventSelectClauses(document, diagnostics);
@@ -95,7 +92,7 @@ namespace Opc.Ua.Wot
                     ValidateSelectClausePlacement(element, pointer, diagnostics);
                     ValidatePropertyTermPlacement(element, pointer, diagnostics);
                     ValidateSecurityFloorPlacement(element, pointer, diagnostics);
-                    ValidateOpaqueObjects(document, element, pointer, opaqueSeverity, diagnostics);
+                    ValidateOpaqueObjects(document, element, pointer, deprecatedSeverity, diagnostics);
                     ValidateNodeClassAnnotation(element, pointer, diagnostics);
                     ValidateUnitQuantityKind(
                         document, element, pointer, deprecatedSeverity, diagnostics);
@@ -123,6 +120,11 @@ namespace Opc.Ua.Wot
             "uav:dataType"
         ];
 
+        internal static bool IsNodeClassAnnotation(string token)
+        {
+            return Array.IndexOf(s_nodeClassAnnotations, token) >= 0;
+        }
+
         /// <summary>
         /// Reports an <c>@type</c> that carries more than one NodeClass
         /// annotation (WoT Binding Sections 5.2 and 7).
@@ -147,7 +149,7 @@ namespace Opc.Ua.Wot
             string? first = null;
             foreach (string token in EnumerateTypeTokens(types))
             {
-                if (Array.IndexOf(s_nodeClassAnnotations, token) < 0)
+                if (!IsNodeClassAnnotation(token))
                 {
                     continue;
                 }
@@ -679,7 +681,7 @@ namespace Opc.Ua.Wot
             if (keys > WotBindingConformance.OpaqueMaxTopLevelKeys)
             {
                 diagnostics.Add(new WotDiagnostic(
-                    severity,
+                    WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.OpaqueObjectInvalid,
                     $"The {member} object carries {keys} top-level keys; the bound is " +
                     $"{WotBindingConformance.OpaqueMaxTopLevelKeys} (WoT Binding Section 6.6).",
@@ -690,7 +692,7 @@ namespace Opc.Ua.Wot
             if (octets > WotBindingConformance.OpaqueMaxOctets)
             {
                 diagnostics.Add(new WotDiagnostic(
-                    severity,
+                    WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.OpaqueObjectInvalid,
                     $"The {member} object measures {octets} octets in the compact received " +
                     $"form of WoT Binding Annex G.4; the bound is " +
@@ -702,7 +704,7 @@ namespace Opc.Ua.Wot
             if (depth > WotBindingConformance.OpaqueMaxDepth)
             {
                 diagnostics.Add(new WotDiagnostic(
-                    severity,
+                    WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.OpaqueObjectInvalid,
                     $"The {member} object nests {depth} levels deep; the bound is " +
                     $"{WotBindingConformance.OpaqueMaxDepth} (WoT Binding Section 6.6).",
@@ -1088,6 +1090,10 @@ namespace Opc.Ua.Wot
 
         private static int MeasureJsonDepth(JsonElement value, int depth = 1)
         {
+            if (value.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+            {
+                return depth - 1;
+            }
             int deepest = depth;
             if (value.ValueKind == JsonValueKind.Object)
             {

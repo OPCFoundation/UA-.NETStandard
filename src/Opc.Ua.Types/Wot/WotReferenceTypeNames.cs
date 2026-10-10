@@ -134,6 +134,11 @@ namespace Opc.Ua.Wot
                     declared.Symmetric);
                 names.m_entries[declared.NodeId] = entry;
                 names.m_entries[entry.NodeId] = entry;
+                names.m_localIds[entry.NodeId] = declared.NodeId;
+                if (declared.IsAbstract)
+                {
+                    names.m_abstractTypes.Add(entry.NodeId);
+                }
 
                 // A NodeSet states a reference by alias far more often than by
                 // identifier, and an alias is spelled exactly like the
@@ -176,11 +181,147 @@ namespace Opc.Ua.Wot
                         alias.Alias,
                         string.Empty,
                         false);
+                    // The effective graph resolves aliases before looking up relation names.
+                    names.m_entries[alias.Value] = standard;
+                    names.m_entries[standard.NodeId] = standard;
                 }
                 names.m_entries[alias.Alias] = standard;
             }
 
+            names.IndexReferences(nodeSet);
             return names;
+        }
+
+        public ArrayOf<Reference> GetReferences(UANode node)
+        {
+            return node.NodeId is not null && m_references.TryGetValue(node.NodeId, out ArrayOf<Reference> references)
+                ? references
+                : new ArrayOf<Reference>(node.References ?? []);
+        }
+
+        public bool IsAbstract(string referenceType)
+        {
+            return TryGetIdentifier(referenceType, out string identity) &&
+                (NodeSetStandardAliases.IsAbstractReferenceType(identity) || m_abstractTypes.Contains(identity));
+        }
+
+        public bool IsOwnershipReference(string? referenceType)
+        {
+            return TryGetIdentifier(referenceType, out string identity) &&
+                (identity == WotVocabulary.HasProperty || IsHasComponentReference(identity));
+        }
+
+        public bool IsHasComponentReference(string? referenceType)
+        {
+            if (!TryGetIdentifier(referenceType, out string identity) || IsAbstract(identity))
+            {
+                return false;
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var pending = new Queue<string>();
+            pending.Enqueue(identity);
+            while (pending.Count > 0)
+            {
+                string current = pending.Dequeue();
+                if (!seen.Add(current))
+                {
+                    continue;
+                }
+                if (current == WotVocabulary.HasComponent ||
+                    WotVocabulary.TryGetHasComponentSubtype(current, out _))
+                {
+                    return true;
+                }
+                if (!m_localIds.TryGetValue(current, out string? local) ||
+                    !m_references.TryGetValue(local, out ArrayOf<Reference> references))
+                {
+                    continue;
+                }
+                foreach (Reference reference in references)
+                {
+                    if (!reference.IsForward && reference.ReferenceType == WotVocabulary.HasSubtype &&
+                        TryGetIdentifier(reference.Value, out string parent))
+                    {
+                        pending.Enqueue(parent);
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void IndexReferences(UANodeSet nodeSet)
+        {
+            var references = new Dictionary<string, List<Reference>>(StringComparer.Ordinal);
+            var seen = new HashSet<(string Source, string Type, bool IsForward, string Target)>();
+            var aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (node.NodeId is null)
+                {
+                    continue;
+                }
+                foreach (Reference reference in node.References ?? [])
+                {
+                    if (reference.ReferenceType is null || reference.Value is null)
+                    {
+                        continue;
+                    }
+                    string type = aliases.TryResolve(reference.ReferenceType, out string resolvedType)
+                        ? resolvedType
+                        : reference.ReferenceType;
+                    string target = aliases.TryResolve(reference.Value, out string resolvedTarget)
+                        ? resolvedTarget
+                        : reference.Value;
+                    AddReference(node.NodeId, type, reference.IsForward, target, references, seen);
+                }
+            }
+
+            // Authored ordering wins; inferred opposite directions are appended only when absent.
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (node.NodeId is null)
+                {
+                    continue;
+                }
+                foreach (Reference reference in node.References ?? [])
+                {
+                    if (reference.ReferenceType is null || reference.Value is null)
+                    {
+                        continue;
+                    }
+                    string type = aliases.TryResolve(reference.ReferenceType, out string resolvedType)
+                        ? resolvedType
+                        : reference.ReferenceType;
+                    string target = aliases.TryResolve(reference.Value, out string resolvedTarget)
+                        ? resolvedTarget
+                        : reference.Value;
+                    AddReference(target, type, !reference.IsForward, node.NodeId, references, seen);
+                }
+            }
+            foreach (KeyValuePair<string, List<Reference>> entry in references)
+            {
+                m_references[entry.Key] = entry.Value.ToArrayOf();
+            }
+        }
+
+        private static void AddReference(
+            string source,
+            string type,
+            bool isForward,
+            string target,
+            Dictionary<string, List<Reference>> references,
+            HashSet<(string Source, string Type, bool IsForward, string Target)> seen)
+        {
+            if (!seen.Add((source, type, isForward, target)))
+            {
+                return;
+            }
+            if (!references.TryGetValue(source, out List<Reference>? outgoing))
+            {
+                outgoing = [];
+                references.Add(source, outgoing);
+            }
+            outgoing.Add(new Reference { ReferenceType = type, IsForward = isForward, Value = target });
         }
 
         /// <summary>
@@ -314,5 +455,8 @@ namespace Opc.Ua.Wot
         }
 
         private readonly Dictionary<string, Entry> m_entries = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, ArrayOf<Reference>> m_references = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> m_localIds = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_abstractTypes = new(StringComparer.Ordinal);
     }
 }

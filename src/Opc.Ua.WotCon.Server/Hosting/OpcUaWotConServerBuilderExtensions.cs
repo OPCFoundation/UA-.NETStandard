@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
@@ -41,6 +40,7 @@ using Opc.Ua;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -264,26 +264,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     ?? throw new InvalidOperationException(
                         "WotConnectivityServerOptions could not be resolved.");
 
-                var merged = new WotConnectivityServerOptions
-                {
-                    AssetNamespaceUri = configured.AssetNamespaceUri,
-                    ThingDescriptionStorageFolder = configured.ThingDescriptionStorageFolder,
-                    MaxThingDescriptionSize = configured.MaxThingDescriptionSize,
-                    MaxOpenFileHandlesPerAsset = configured.MaxOpenFileHandlesPerAsset,
-                    Discovery = configured.Discovery,
-                    RegistryBridge = configured.RegistryBridge,
-                    RegistryBridgeGroupId = configured.RegistryBridgeGroupId,
-                    License = configured.License,
-                    ManagementAccess = configured.ManagementAccess
-                };
-                foreach (IWotAssetProviderFactory binding in configured.Bindings)
-                {
-                    merged.Bindings.Add(binding);
-                }
-                foreach (KeyValuePair<string, WotConfigurationParameter> kvp in configured.Configuration)
-                {
-                    merged.Configuration[kvp.Key] = kvp.Value;
-                }
+                WotConnectivityServerOptions merged = configured.Clone();
+                merged.DocumentConverter ??= sp.GetService<IWotDocumentConverter>();
 
                 foreach (IWotAssetProviderFactory binding in sp.GetServices<IWotAssetProviderFactory>())
                 {

@@ -1478,25 +1478,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            IServiceMessageContext messageContext = context.AsMessageContext();
-
-            var encoder = new XmlEncoder(messageContext);
-
-            var namespaceUris = new NamespaceTable();
-
-            if (NamespaceUris != null)
-            {
-                for (int ii = 0; ii < NamespaceUris.Length; ii++)
-                {
-                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
-                }
-            }
-
-            StringTable? serverUris = CreateServerUriTable(messageContext);
-
-            encoder.SetMappingTables(namespaceUris, serverUris);
-
-            return encoder;
+            return CreateEncoder(context.AsMessageContext());
         }
 
         /// <summary>
@@ -1514,66 +1496,12 @@ namespace Opc.Ua.Export
         /// </remarks>
         private XmlDecoder CreateDecoder(ISystemContext context, System.Xml.XmlElement source)
         {
-            IServiceMessageContext messageContext = context.AsMessageContext();
-
-            var decoder = new XmlDecoder(WrapAsVariant(source), messageContext)
-            {
-                // pretty-printed NodeSets write empty strings as layout whitespace.
-                TreatWhitespaceOnlyStringsAsEmpty = true
-            };
-
-            var namespaceUris = new NamespaceTable();
-
-            if (NamespaceUris != null)
-            {
-                for (int ii = 0; ii < NamespaceUris.Length; ii++)
-                {
-                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
-                }
-            }
-
-            StringTable? serverUris = CreateServerUriTable(messageContext);
-
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
+            XmlDecoder decoder = CreateDecoder(context.AsMessageContext(), source);
+            // Pretty-printed NodeSets write empty strings as layout whitespace.
+            decoder.TreatWhitespaceOnlyStringsAsEmpty = true;
             return decoder;
         }
 
-        /// <summary>
-        /// Builds the server table the value encoder and decoder map server indexes through.
-        /// </summary>
-        /// <remarks>
-        /// In a NodeSet server index 0 is always the local server and index N refers to
-        /// <c>ServerUris[N - 1]</c> (Part 6 F.2), so the table starts with the local server
-        /// URI of the context. Without a known local server URI the indexes cannot be mapped
-        /// and are left as written. The local server URI is seeded even when the NodeSet
-        /// declares no ServerUris, otherwise local ids would be written as svr=65535.
-        /// </remarks>
-        private StringTable? CreateServerUriTable(IServiceMessageContext messageContext)
-        {
-            string? localServerUri = messageContext.ServerUris?.GetString(0);
-
-            if (string.IsNullOrEmpty(localServerUri))
-            {
-                return null;
-            }
-
-            var serverUris = new StringTable();
-            serverUris.Append(localServerUri!);
-
-            if (ServerUris == null)
-            {
-                return serverUris;
-            }
-
-            for (int ii = 0; ii < ServerUris.Length; ii++)
-            {
-                // keep every position, even for a repeated URI, so indexes stay aligned.
-                serverUris.Append(ServerUris[ii]);
-            }
-
-            return serverUris;
-        }
         /// <summary>
         /// Nests a NodeSet value element inside the <c>Value</c> element the
         /// Variant XML encoding expects, leaving an element that is already a

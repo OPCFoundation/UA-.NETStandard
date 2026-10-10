@@ -46,14 +46,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DisjointDocumentsOfOneModelActivateAsOneSource()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             await AddAsync(registry, "first", Partition("First")).ConfigureAwait(false);
             await AddAsync(registry, "second", Partition("Second")).ConfigureAwait(false);
             var host = new FakeWotProjectionHost();
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, new WotProtocolBinderRegistry([]));
+                registry, runtime.Observe(host.RecordCommitted), new WotProtocolBinderRegistry([]))
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
 
-            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            }).ConfigureAwait(false);
 
             Assert.That(result.Results.Select(item => item.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Success),
                 string.Join("; ", result.Results.Select(item => item.Message)));
@@ -72,7 +79,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true)]
         public async Task ConflictingModelPartitionsNeverReachTheProjectionHost(bool conflictingHeader)
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             await AddAsync(registry, "first", Partition("First")).ConfigureAwait(false);
             UANodeSet second = Partition(conflictingHeader ? "Second" : "First");
             if (conflictingHeader)
@@ -82,9 +90,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await AddAsync(registry, "second", second).ConfigureAwait(false);
             var host = new FakeWotProjectionHost();
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, new WotProtocolBinderRegistry([]));
+                registry, runtime.Observe(host.RecordCommitted), new WotProtocolBinderRegistry([]))
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
 
-            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            }).ConfigureAwait(false);
 
             Assert.That(result.Results.Any(item => item.Outcome == WoTOutcomeEnum.Failed), Is.True);
             Assert.That(host.AddCount, Is.Zero);

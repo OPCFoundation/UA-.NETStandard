@@ -1504,7 +1504,7 @@ namespace Opc.Ua.Client
 
                     session.ConfigureChannelReconnectTimeout(m_channelReconnectTimeout, m_sessionTimeout);
                     WireSessionEvents(session);
-                    m_session = session;
+                    SetBindingSession(session);
                 }
                 finally
                 {
@@ -2116,7 +2116,7 @@ namespace Opc.Ua.Client
             Session? session = m_session;
             if (session != null)
             {
-                m_session = null;
+                SetBindingSession(null);
                 UnwireSessionEvents(session);
 
                 try
@@ -2686,6 +2686,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Starts asynchronous teardown without blocking the caller. Use <see cref="DisposeAsync"/>
+        /// to wait until background work and owned transport resources have been released.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(disposing: true);
@@ -2704,56 +2708,111 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // Run the same teardown as DisposeAsync. Doing only part of it here
-            // left the state machine, the background work queue, the streaming
-            // subscription and the revalidation loop running while the service
-            // lock they use was already disposed.
-            DisposeAsyncCoreAsync().AsTask().GetAwaiter().GetResult();
+            _ = ObserveDisposalAsync(DisposeAsync().AsTask());
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            await DisposeAsyncCoreAsync().ConfigureAwait(false);
+            TaskCompletionSource<bool>? existing = Volatile.Read(ref m_disposalCompletion);
+            if (existing != null)
+            {
+                await existing.Task.ConfigureAwait(false);
+                return;
+            }
+
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            existing = Interlocked.CompareExchange(ref m_disposalCompletion, completion, null);
+            if (existing != null)
+            {
+                await existing.Task.ConfigureAwait(false);
+                return;
+            }
+
+            try
+            {
+                Interlocked.Exchange(ref m_disposed, 1);
+
+                // A notification may initiate disposal while the worker owns the inner session.
+                m_session?.NoteCloseFromBackgroundWork();
+
+                try
+                {
+                    if (Volatile.Read(ref m_abandonServerSession))
+                    {
+                        // Stop all teardown paths from reaching the demoted replica's server session.
+                        m_session?.AbandonServerSession();
+                    }
+
+                    await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+                    UnsubscribeCertificateChanges();
+                    await StopRevalidationLoopAsync().ConfigureAwait(false);
+
+                    // Drain scheduled certificate work before releasing the inner session it uses.
+                    await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+                    await DisposeStreamingAsync().ConfigureAwait(false);
+                    await StateMachine.DisposeAsync().ConfigureAwait(false);
+
+                    Session? session = m_session;
+                    SetBindingSession(null);
+
+                    if (session != null)
+                    {
+                        UnwireSessionEvents(session);
+                        try
+                        {
+                            await session.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.ManagedSessionDisposeCloseFailed(ex);
+                        }
+                    }
+
+                    // Dispose the lock only after every task that could still hold it has stopped.
+                    m_serviceLock.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        if (m_ownedChannelManager != null)
+                        {
+                            await m_ownedChannelManager.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_ownedTransportResources?.Dispose();
+                    }
+                }
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+
+            await completion.Task.ConfigureAwait(false);
             GC.SuppressFinalize(this);
+        }
+
+        private async Task ObserveDisposalAsync(Task disposal)
+        {
+            try
+            {
+                await disposal.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ManagedSessionDisposalFailed(ex);
+            }
         }
 
         internal void OwnTransportResources(ClientChannelManager? manager, IDisposable? resources)
         {
             m_ownedChannelManager = manager;
             m_ownedTransportResources = resources;
-        }
-
-        private async ValueTask DisposeAsyncCoreAsync()
-        {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
-            {
-                return;
-            }
-
-            // Disposed from a Notification handler of the inner session: the
-            // state machine worker disposes the inner session and must not wait
-            // for the drain of the handler that waits for this dispose.
-            m_session?.NoteCloseFromBackgroundWork();
-
-            try
-            {
-                await DisposeSessionResourcesAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                try
-                {
-                    if (m_ownedChannelManager != null)
-                    {
-                        await m_ownedChannelManager.DisposeAsync().ConfigureAwait(false);
-                    }
-                }
-                finally
-                {
-                    m_ownedTransportResources?.Dispose();
-                }
-            }
         }
 
         /// <summary>
@@ -2768,55 +2827,6 @@ namespace Opc.Ua.Client
         {
             Volatile.Write(ref m_abandonServerSession, true);
             await DisposeAsync().ConfigureAwait(false);
-        }
-
-        private async ValueTask DisposeSessionResourcesAsync()
-        {
-            if (Volatile.Read(ref m_abandonServerSession))
-            {
-                // First: from here on neither the identity refresh, the
-                // background work, the state machine close nor the inner
-                // dispose can reach the server session with its token.
-                m_session?.AbandonServerSession();
-            }
-
-            await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
-            UnsubscribeCertificateChanges();
-            await StopRevalidationLoopAsync().ConfigureAwait(false);
-
-            // After unsubscribing (no new work can arrive) and before the inner
-            // session goes away: a certificate reload already scheduled
-            // reconnects through it.
-            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
-
-            // Tear down streaming subscription and model change tracker
-            // before closing the session so any in-flight publish work
-            // completes against a still-valid session.
-            await DisposeStreamingAsync().ConfigureAwait(false);
-
-            await StateMachine.DisposeAsync()
-                .ConfigureAwait(false);
-
-            Session? session = m_session;
-            m_session = null;
-
-            if (session != null)
-            {
-                UnwireSessionEvents(session);
-                try
-                {
-                    await session.DisposeAsync()
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.ManagedSessionDisposeCloseFailed(ex);
-                }
-            }
-
-            // Last: everything that could still be holding the lock (state
-            // machine worker, background work, streaming) is torn down above.
-            m_serviceLock.Dispose();
         }
 
         private sealed class DelayState : IDisposable
@@ -2857,6 +2867,7 @@ namespace Opc.Ua.Client
         private RenewUserIdentityEventHandler? m_renewUserIdentity;
         private volatile Session? m_session;
         private ClientChannelManager? m_ownedChannelManager;
+        private TaskCompletionSource<bool>? m_disposalCompletion;
         private bool m_abandonServerSession;
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
@@ -3049,5 +3060,9 @@ namespace Opc.Ua.Client
                       "connecting with the configured identity until discovery succeeds.")]
         public static partial void ManagedSessionIdentityProviderDeferredUntilDiscovery(
             this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 29, Level = LogLevel.Error,
+            Message = "ManagedSession: Asynchronous teardown initiated by Dispose failed.")]
+        public static partial void ManagedSessionDisposalFailed(this ILogger logger, Exception? exception);
     }
 }

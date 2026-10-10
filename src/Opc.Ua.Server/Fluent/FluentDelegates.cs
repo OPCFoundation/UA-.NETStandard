@@ -110,6 +110,16 @@ namespace Opc.Ua.Server.Fluent
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Invoked when an existing monitored item attaches to or detaches from a
+    /// source during node-manager lifecycle handoff.
+    /// </summary>
+    public delegate ValueTask MonitoredItemAttachmentHandler(
+        ISystemContext context,
+        NodeState source,
+        ISampledDataChangeMonitoredItem monitoredItem,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Invoked after a monitored item's monitoring mode changes.
     /// </summary>
     public delegate ValueTask MonitoringModeChangedHandler(

@@ -292,6 +292,17 @@ namespace Opc.Ua
         public IServiceMessageContext Context { get; }
 
         /// <summary>
+        /// Requires semantic decoding without opaque bodies, undeclared indexes
+        /// or discarded fields when a caller will re-encode the value.
+        /// </summary>
+        internal bool RequireCompleteValue { get; set; }
+
+        /// <summary>
+        /// Allows opaque bodies during validation when their source tables are unchanged.
+        /// </summary>
+        internal bool AllowOpaqueValues { get; set; }
+
+        /// <summary>
         /// Reads a String element that holds only whitespace as an empty string.
         /// </summary>
         /// <remarks>
@@ -867,6 +878,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
+                if (RequireCompleteValue && !AllowOpaqueValues)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "An opaque XmlElement cannot be namespace-rebased.");
+                }
                 XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName, Context.MaxStringLength));
                 EndField(fieldName);
                 return value;
@@ -901,6 +917,7 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
+                ValidateNamespaceMapping(value.NamespaceIndex);
                 if (m_namespaceMappings != null &&
                     m_namespaceMappings.Length > value.NamespaceIndex)
                 {
@@ -939,6 +956,17 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
+                if (string.IsNullOrEmpty(value.NamespaceUri))
+                {
+                    ValidateNamespaceMapping(value.NamespaceIndex);
+                }
+                if (RequireCompleteValue && value.ServerIndex != 0 &&
+                    (m_serverMappings is null || value.ServerIndex >= m_serverMappings.Length ||
+                        m_serverMappings[value.ServerIndex] == ushort.MaxValue))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "An ExpandedNodeId uses an undeclared server index.");
+                }
                 // Part 6 5.2.2.10: an ExpandedNodeId with a NamespaceUri has no
                 // NamespaceIndex to map, and WithNamespaceIndex would drop the uri.
                 if (m_namespaceMappings != null &&
@@ -1020,6 +1048,7 @@ namespace Opc.Ua
                 PopNamespace();
                 EndField(fieldName);
 
+                ValidateNamespaceMapping(namespaceIndex);
                 if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
                 {
                     namespaceIndex = m_namespaceMappings[namespaceIndex];
@@ -1070,7 +1099,8 @@ namespace Opc.Ua
                         {
                             value = ReadVariantValue();
                         }
-                        catch (Exception ex) when (ex is not ServiceResultException and not OutOfMemoryException)
+                        catch (Exception ex) when (
+                            ex is not ServiceResultException and not OutOfMemoryException && !RequireCompleteValue)
                         {
                             // a malformed value fails the decode: returning a
                             // BadDecodingError value left the reader at an
@@ -2518,8 +2548,10 @@ namespace Opc.Ua
                         case "Double":
                             return ReadDouble(typeName);
                         case "String":
-                            // a nil element is a null String Variant (5.3.1.17)
-                            return new Variant(ReadString(typeName)!);
+                            string? text = ReadString(typeName);
+                            return text is null && RequireCompleteValue
+                                ? Variant.CreateDefault(TypeInfo.Scalars.String)
+                                : new Variant(text!);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":
@@ -2642,6 +2674,11 @@ namespace Opc.Ua
             // check for binary encoded body.
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
+                if (RequireCompleteValue && !AllowOpaqueValues)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "An opaque binary ExtensionObject cannot be namespace-rebased.");
+                }
                 PushNamespace(Namespaces.OpcUaXsd);
                 ByteString bytes = ReadByteString("ByteString");
                 PopNamespace();
@@ -2683,6 +2720,13 @@ namespace Opc.Ua
                         GetXmlEncodingIdOrTypeId(encodeable),
                         encodeable);
                 }
+            }
+
+            if (RequireCompleteValue && !AllowOpaqueValues)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    $"No semantic XML codec is registered for ExtensionObject '{typeId}'.");
             }
 
             // an extension object body is structured XML, bounded by the message
@@ -2993,6 +3037,12 @@ namespace Opc.Ua
                                 typeof(T).FullName ?? string.Empty);
                         }
 
+                        if (RequireCompleteValue)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                $"The registered codec did not consume field '{m_reader.LocalName}'.");
+                        }
                         m_reader.Skip();
                         m_reader.MoveToContent();
                     }
@@ -3232,6 +3282,10 @@ namespace Opc.Ua
                 // check for empty or nil element.
                 if (m_reader.HasAttributes)
                 {
+                    if (RequireCompleteValue)
+                    {
+                        ValidateValueAttributes();
+                    }
                     string? nilValue = m_reader.GetAttribute("nil", Namespaces.XmlSchemaInstance);
 
                     if (!string.IsNullOrEmpty(nilValue) &&
@@ -3344,6 +3398,54 @@ namespace Opc.Ua
                         fieldName!,
                         xe.Message);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Maps NodeSet tables with their implicit local server at index zero.
+        /// Rebasing keeps remote identities remote; native import resolves the actual destination server.
+        /// </summary>
+        internal void SetNodeSetMappingTables(
+            NamespaceTable namespaceUris,
+            StringTable serverUris,
+            bool preserveRemoteServerIdentity = false)
+        {
+            SetMappingTables(namespaceUris, null);
+            m_serverMappings = Context.ServerUris?.CreateMapping(
+                serverUris, false, preserveLocalServerIndex: preserveRemoteServerIdentity);
+            if (m_serverMappings is { Length: > 0 })
+            {
+                m_serverMappings[0] = 0;
+            }
+        }
+
+        private void ValidateNamespaceMapping(ushort index)
+        {
+            if (RequireCompleteValue &&
+                (m_namespaceMappings is null || index >= m_namespaceMappings.Length ||
+                    m_namespaceMappings[index] == ushort.MaxValue))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, $"Namespace index {index} is not declared by its source.");
+            }
+        }
+
+        private void ValidateValueAttributes()
+        {
+            if (m_reader.MoveToFirstAttribute())
+            {
+                do
+                {
+                    if (m_reader.NamespaceURI != "http://www.w3.org/2000/xmlns/" &&
+                        !(m_reader.NamespaceURI == Namespaces.XmlSchemaInstance && m_reader.LocalName == "nil"))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            $"The XML value attribute '{m_reader.Name}' is not understood by the codec.");
+                    }
+                }
+                while (m_reader.MoveToNextAttribute());
+                m_reader.MoveToElement();
             }
         }
 

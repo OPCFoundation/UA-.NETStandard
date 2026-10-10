@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,8 +40,53 @@ using Opc.Ua.WotCon.Server.Materialization;
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     [TestFixture]
-    public sealed class WotProjectedMethodRuntimeTests
+    public sealed partial class WotProjectedMethodRuntimeTests
     {
+        [Test]
+        public async Task RejectedProjectedCallPreservesIndexedArgumentErrorsAndResolvedDiagnostics()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            MethodState method = h.AddMethod("Run",
+            [
+                new Argument { Name = "Mode", DataType = Ua.DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Speed", DataType = Ua.DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            ], []);
+            WotCompiledForm form = ActionForm("run");
+            var operation = new ServiceResult(
+                "urn:source:diagnostics", new StatusCode(StatusCodes.BadInvalidArgument.Code, "CallRejected"),
+                new LocalizedText("en", "Cannot execute"), "validation", innerResult: null);
+            var rejected = new ServiceResult(
+                "urn:source:diagnostics", new StatusCode(StatusCodes.BadOutOfRange.Code, "SpeedRejected"),
+                new LocalizedText("de", "Drehzahl zu hoch"), "limit: 100", innerResult: null);
+            var channel = new FakeWotBindingChannel(form)
+            {
+                OnInvoke = (_, _) => new ValueTask<WotInvokeResult>(
+                    new WotInvokeResult(StatusCodes.BadInvalidArgument)
+                        .WithResultDetails(operation, [ServiceResult.Good, rejected]))
+            };
+            h.ChannelFactory.SetChannel(form, channel);
+            await using IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
+            var argumentResults = new List<ServiceResult>();
+            var outputs = new List<Variant>();
+
+            ServiceResult result = await method.CallAsync(
+                h.Builder.Context, h.Root.NodeId, [new Variant(1), new Variant(200)], argumentResults, outputs)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.SymbolicId, Is.EqualTo("CallRejected"));
+            Assert.That(result.LocalizedText, Is.EqualTo(new LocalizedText("en", "Cannot execute")));
+            Assert.That(argumentResults, Has.Count.EqualTo(2));
+            Assert.That(argumentResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(argumentResults[1].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(argumentResults[1].SymbolicId, Is.EqualTo("SpeedRejected"));
+            Assert.That(argumentResults[1].NamespaceUri, Is.EqualTo("urn:source:diagnostics"));
+            Assert.That(argumentResults[1].LocalizedText, Is.EqualTo(new LocalizedText("de", "Drehzahl zu hoch")));
+            Assert.That(argumentResults[1].AdditionalInfo, Is.EqualTo("limit: 100"));
+            Assert.That(outputs, Is.Empty);
+            Assert.That(channel.InvokeCount, Is.EqualTo(1));
+        }
+
         [Test]
         public async Task InvokesOnlyFirstExecutableAlternativeAndPreservesOrderedOutputs()
         {
@@ -91,7 +137,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(outputs, Has.Count.EqualTo(2));
             Assert.That(outputs[0].TryGetValue(out bool accepted) && accepted, Is.True);
             Assert.That(outputs[1].TryGetValue(out int actual) && actual == 18, Is.True);
-            Assert.That(h.ChannelFactory.OpenedForms, Is.EqualTo(new[] { first }));
+            Assert.That(h.ChannelFactory.OpenedForms, Is.EqualTo([first]));
             Assert.That(channel.InvokeCount, Is.EqualTo(1));
             Assert.That(runtime, Is.Not.Null);
             await runtime!.DisposeAsync().ConfigureAwait(false);
@@ -101,7 +147,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public void LocalIdentityIsNotTakenFromTheUpstreamForm()
         {
-            const string document = """
+            const string document = /*lang=json,strict*/ """
                 {
                   "uav:id": "nsu=urn:local;s=Device",
                   "actions": {
@@ -118,7 +164,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 """;
 
-            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+            var request = WotBindingPlanRequest.FromDocument(
                 "resource-one", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
 
             Assert.That(request.ProjectedAffordances.Count, Is.EqualTo(1));
@@ -143,7 +189,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
             h.ChannelFactory.SetChannel(form, channel);
             IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
-            await using var runtimeOwner = runtime.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable runtimeOwner = runtime.ConfigureAwait(false);
             var outputs = new List<Variant>();
 
             ServiceResult result = await method.CallAsync(
@@ -166,7 +212,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 OnInvoke = (_, _) => new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Good))
             });
             IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
-            await using var runtimeOwner = runtime.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable runtimeOwner = runtime.ConfigureAwait(false);
             var outputs = new List<Variant>();
 
             ServiceResult result = await method.CallAsync(
@@ -181,7 +227,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             ushort local = h.Builder.Context.NamespaceUris.GetIndexOrAppend("urn:result");
-            ServiceMessageContext source = ServiceMessageContext.CreateEmpty(
+            var source = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             ushort remote = source.NamespaceUris.GetIndexOrAppend("urn:result");
             Assert.That(local, Is.Not.EqualTo(remote));
@@ -200,7 +246,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ]).WithContext(source))
             });
             IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
-            await using var owner = runtime.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = runtime.ConfigureAwait(false);
             var outputs = new List<Variant>();
 
             ServiceResult result = await method.CallAsync(
@@ -253,7 +299,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IAsyncDisposable? runtime = await new WotProjectionBindingRuntimeFactory(h.ChannelFactory)
                 .CreateAsync(h.Builder, [leftPlan, rightPlan]).ConfigureAwait(false);
             Assert.That(runtime, Is.Not.Null);
-            await using var owner = runtime!.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = runtime!.ConfigureAwait(false);
             var leftOutputs = new List<Variant>();
             var rightOutputs = new List<Variant>();
 
@@ -280,7 +326,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 [new Argument { Name = "Value", DataType = Ua.DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }], []);
             WotCompiledForm form = ActionForm("run");
             IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
-            await using var owner = runtime.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = runtime.ConfigureAwait(false);
             var errors = new List<ServiceResult>();
             var outputs = new List<Variant>();
 
@@ -341,7 +387,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
             h.ChannelFactory.SetOpener(form, () => new ValueTask<IWotBindingChannel>(open.Task));
             IAsyncDisposable runtime = await WireMethodAsync(h, method, form).ConfigureAwait(false);
-            await using var runtimeOwner = runtime.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable runtimeOwner = runtime.ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             Task<ServiceResult> first = method.CallAsync(
                 h.Builder.Context, h.Root.NodeId, [], [], [], cancellation.Token).AsTask();

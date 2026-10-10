@@ -1413,6 +1413,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .WaitAsync(TimeSpan.FromSeconds(60))
                 .ConfigureAwait(false);
             Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(8)));
+            await managedSession.DisposeAsync().AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(8))
+                .ConfigureAwait(false);
             Assert.That(innerSession.Disposed, Is.True);
         }
 

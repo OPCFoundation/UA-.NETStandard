@@ -49,6 +49,11 @@ namespace Opc.Ua.WotCon.Bindings
         public int MaxUriLength { get; set; } = 2048;
 
         /// <summary>
+        /// Gets or sets the maximum number of native steps in an OPC UA browse-path target.
+        /// </summary>
+        public int MaxBrowsePathElements { get; set; } = 64;
+
+        /// <summary>
         /// Gets or sets the maximum accepted MQTT topic length.
         /// </summary>
         public int MaxTopicLength { get; set; } = 65535;
@@ -62,6 +67,22 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets or sets the maximum accepted request / response payload size (bytes).
         /// </summary>
         public int MaxPayloadBytes { get; set; } = 1024 * 1024;
+
+        /// <summary>
+        /// Gets or sets the maximum JSON container depth of an interaction payload.
+        /// The root object or array has depth one; a scalar has depth zero.
+        /// </summary>
+        public int MaxPayloadDepth { get; set; } = 64;
+
+        /// <summary>
+        /// Gets or sets the maximum number of compiled security alternatives.
+        /// </summary>
+        public int MaxSecurityAlternatives { get; set; } = 64;
+
+        /// <summary>
+        /// Gets or sets the maximum nesting depth of referenced security schemes.
+        /// </summary>
+        public int MaxSecurityDepth { get; set; } = 32;
 
         /// <summary>
         /// Gets or sets the maximum Modbus register quantity for a read.

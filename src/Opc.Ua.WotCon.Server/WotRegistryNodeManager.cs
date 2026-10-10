@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -51,6 +52,8 @@ namespace Opc.Ua.WotCon.Server
     /// </summary>
     public sealed class WotRegistryNodeManager :
         AsyncCustomNodeManager,
+        INodeManagerReadinessParticipant,
+        IWotRegistryReadImageProjection,
         ILocalAddressSpaceOwnership
     {
         /// <summary>
@@ -81,6 +84,7 @@ namespace Opc.Ua.WotCon.Server
                 NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.String);
             }
             Coordinator.StrictBindings = options.StrictBindings;
+            Coordinator.DeletePolicy = options.DeletePolicy;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
 
@@ -140,6 +144,14 @@ namespace Opc.Ua.WotCon.Server
                 registry.NodeId == registryNodeId)
             {
                 m_registryNode = registry;
+                string? applicationUri = Server.ServerUris?.GetString(0);
+                Coordinator.RegistryOrigin = !string.IsNullOrEmpty(applicationUri) &&
+                    WotRegistryIdentity.IsAbsoluteUri(applicationUri)
+                    ? new WotRegistryOrigin(
+                        string.Empty, applicationUri,
+                        NodeId.ToExpandedNodeId(registry.NodeId, Server.NamespaceUris))
+                    : null;
+                Coordinator.VersionNodeIdResolver = m_projection.GetVersionNodeId;
                 registry.EventNotifier = EventNotifiers.SubscribeToEvents;
                 EnsureRegistryManagementMethods(context, registry);
                 WireRefreshMethod(registry);
@@ -162,6 +174,12 @@ namespace Opc.Ua.WotCon.Server
             // the RegistryType Method declarations.
             typed.AddCreateGroup(context)
                 .AddGetOrCreateGroup(context);
+            if (registry is WoTRegistryState wot)
+            {
+                wot.AddCreateDocumentGroup(context).AddGetOrCreateDocumentGroup(context);
+                WotRegistryProjection.LinkMethodArguments(wot.CreateDocumentGroup, context);
+                WotRegistryProjection.LinkMethodArguments(wot.GetOrCreateDocumentGroup, context);
+            }
             WotRegistryProjection.LinkMethodArguments(typed.CreateGroup, context);
             WotRegistryProjection.LinkMethodArguments(typed.GetOrCreateGroup, context);
 
@@ -206,16 +224,100 @@ namespace Opc.Ua.WotCon.Server
             await Registry.InitializeAsync(cancellationToken).ConfigureAwait(false);
             Registry.Changed += OnRegistryChanged;
             Coordinator.Event += OnCoordinatorEvent;
+            Coordinator.RefreshStateChanged += OnRefreshStateChanged;
 
-            // Materialize the browseable group/resource projection, then project
-            // whatever is already persisted into the AddressSpace.
+            // Build the stable registry projection during preparation. Dependent runtime
+            // registrations require the later, awaited readiness phase.
             if (m_registryNode is not null)
             {
                 await m_projection.AttachAsync(m_registryNode, cancellationToken)
                     .ConfigureAwait(false);
+                if (Registry is IWotRegistryRecoveryResolver recovery)
+                {
+                    m_recoveryProjectionRegistration = recovery.RegisterRecoveryProjection(this);
+                }
+                if (Registry is WotRegistryService service)
+                {
+                    m_lifecycleCoordinatorRegistration = service.RegisterLifecycleCoordinator(Coordinator);
+                }
+                m_reconcileQueue.Enqueue(() =>
+                {
+                    if (Coordinator.LastRefreshSummary is { } completed)
+                    {
+                        UpdateRefreshState(completed);
+                    }
+                    return Task.CompletedTask;
+                });
             }
-            await SafeRefreshAsync("startup").ConfigureAwait(false);
-            await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask IWotRegistryRecoveryProjection.SynchronizeAsync(
+            WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+        {
+            if (!ReferenceEquals(Registry.Current, snapshot))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The recovered registry image is no longer current.");
+            }
+            return m_projection.ReconcileProjectionAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        INodeManagerReadImage IWotRegistryReadImageProjection.PrepareReadImage(
+            WotRegistrySnapshot previousSnapshot, WotRegistrySnapshot intendedSnapshot)
+        {
+            _ = previousSnapshot ?? throw new ArgumentNullException(nameof(previousSnapshot));
+            _ = intendedSnapshot ?? throw new ArgumentNullException(nameof(intendedSnapshot));
+            return m_projection.PrepareReadImage(previousSnapshot, intendedSnapshot);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (Registry.Current.RefreshGeneration == 0 && !Registry.Current.AllResources().Any())
+                {
+                    await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                bool recovered = await Coordinator.RecoverAsync(cancellationToken).ConfigureAwait(false);
+                WotRefreshResult? result = recovered ? null : await Coordinator.RefreshAsync(
+                    new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
+                await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
+                if (result?.Summary.Failed > 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "One or more persisted WoT registry resources failed to materialize during startup.");
+                }
+            }
+            finally
+            {
+                m_refreshGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Session closure is irreversible; caller cancellation must not strand its file state.
+                await m_projection.DiscardSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -224,6 +326,9 @@ namespace Opc.Ua.WotCon.Server
         {
             Registry.Changed -= OnRegistryChanged;
             Coordinator.Event -= OnCoordinatorEvent;
+            Coordinator.RefreshStateChanged -= OnRefreshStateChanged;
+            m_recoveryProjectionRegistration?.Dispose();
+            m_lifecycleCoordinatorRegistration?.Dispose();
             await m_reconcileQueue.CompleteAsync(cancellationToken).ConfigureAwait(false);
             await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
             m_projection.Dispose();
@@ -235,11 +340,30 @@ namespace Opc.Ua.WotCon.Server
         {
             if (disposing)
             {
+                m_recoveryProjectionRegistration?.Dispose();
+                m_lifecycleCoordinatorRegistration?.Dispose();
                 m_reconcileQueue.Dispose();
                 m_projection.Dispose();
                 m_refreshGate.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        internal ValueTask DispatchProjectionAsync(
+            Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
+        {
+            return m_reconcileQueue.EnqueueAsync(async token =>
+            {
+                try
+                {
+                    await operation(token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.RegistryProjectionReconcileFailed(ex);
+                    throw;
+                }
+            }, cancellationToken);
         }
 
         private void WireRefreshMethod(BaseObjectState registry)
@@ -259,23 +383,147 @@ namespace Opc.Ua.WotCon.Server
                 new Variant((int)WoTRefreshModeEnum.EventDriven));
             SetChildValue(registry, "VocabularyVersion",
                 new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
+            SetChildValue(registry, "DeletePolicy", new Variant((int)Coordinator.DeletePolicy));
+            if (registry is WoTRegistryState typed)
+            {
+                typed.AddLastRefreshTime(context).AddLastRefreshSummary(context);
+                m_projection.BindPublishedRegistryProperties(typed);
+                typed.AddLastRefreshPlan(context);
+                typed.LastRefreshPlan!.AccessLevel = AccessLevels.CurrentRead;
+                typed.LastRefreshPlan.UserAccessLevel = AccessLevels.CurrentRead;
+                typed.LastRefreshPlan.OnSimpleReadValueAsync = (_, _, _) =>
+                {
+                    WoTRefreshPlanDataType? plan = Coordinator.LastRefreshPlan;
+                    return new ValueTask<AttributeSimpleReadResult>(plan is null
+                        ? new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null)
+                        : new AttributeSimpleReadResult(StatusCodes.Good, Variant.FromStructure(plan)));
+                };
+            }
             ApplyBindingCapabilities(registry);
         }
 
         private void ApplyBindingCapabilities(BaseObjectState registry)
         {
             IReadOnlyList<WoTBindingCapabilityDataType> caps = Coordinator.BindingCapabilities;
-            if (caps.Count == 0)
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            var folderName = new QualifiedName(BrowseNames.SupportedBindings, ns);
+            NodeState? existingFolder = registry.FindChild(SystemContext, folderName);
+            if (existingFolder is not null and not FolderState)
             {
-                return;
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "SupportedBindings must be a Folder.");
             }
-            var encoded = new ExtensionObject[caps.Count];
-            for (int i = 0; i < caps.Count; i++)
+            var folder = existingFolder as FolderState ?? new FolderState(registry)
             {
-                encoded[i] = new ExtensionObject(caps[i]);
+                NodeId = new NodeId("WoTRegistry/SupportedBindings", ns),
+                BrowseName = folderName,
+                DisplayName = new LocalizedText(BrowseNames.SupportedBindings),
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType
+            };
+            if (existingFolder is null)
+            {
+                registry.AddChild(folder);
             }
-            SetChildValue(registry, "SelectedBindings",
-                new Variant(new ArrayOf<ExtensionObject>(encoded)));
+            var seen = new Dictionary<(string Uri, string? Version), WoTBindingCapabilityDataType>();
+            foreach (WoTBindingCapabilityDataType capability in caps)
+            {
+                string? uri = capability.BindingUri;
+                if (uri is null || string.IsNullOrWhiteSpace(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "A binding descriptor requires a nonempty BindingUri.");
+                }
+                string? version = capability.ProfileVersion;
+                if (seen.TryGetValue((uri, version), out WoTBindingCapabilityDataType? previous))
+                {
+                    if (previous.IsEqual(capability))
+                    {
+                        continue;
+                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "Conflicting binding descriptor identity.");
+                }
+                seen.Add((uri, version), capability);
+                string key = "WoTRegistry/SupportedBindings/" + Uri.EscapeDataString(uri) +
+                    (version is null ? "/unversioned" : "/version/" + Uri.EscapeDataString(version));
+                var binding = new WoTBindingState(folder);
+                binding.Create(SystemContext, new NodeId(key, ns),
+                    new QualifiedName(version is null ? uri : uri + "@" + version, ns),
+                    new LocalizedText(capability.Title ?? uri), assignNodeIds: true);
+                if (capability.Title is not null)
+                {
+                    binding.AddTitle(SystemContext);
+                    binding.Title!.Value = capability.Title;
+                }
+                if (version is not null)
+                {
+                    binding.AddProfileVersion(SystemContext);
+                    binding.ProfileVersion!.Value = version;
+                }
+                if (capability.DraftMaturity is not null)
+                {
+                    binding.AddDraftMaturity(SystemContext);
+                    binding.DraftMaturity!.Value = capability.DraftMaturity;
+                }
+                binding.AddEnabled(SystemContext);
+                binding.AddContentTypes(SystemContext);
+                binding.AddCapabilities(SystemContext);
+                var properties = new List<BaseInstanceState>();
+                binding.GetChildren(SystemContext, properties);
+                var identities = new Dictionary<NodeId, NodeId>();
+                foreach (BaseInstanceState property in properties)
+                {
+                    string name = property.BrowseName.Name ?? throw new InvalidOperationException(
+                        "A generated binding property has no BrowseName.");
+                    var propertyId = new NodeId(key + "/" + Uri.EscapeDataString(name), ns);
+                    if (!property.NodeId.IsNull)
+                    {
+                        identities[property.NodeId] = propertyId;
+                    }
+                    property.NodeId = propertyId;
+                }
+                binding.UpdateReferenceTargets(SystemContext, identities);
+                binding.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+                binding.BindingUri!.Value = uri;
+                binding.Enabled!.Value = capability.Capabilities.Count > 0;
+                binding.ContentTypes!.Value = capability.ContentTypes;
+                binding.Capabilities!.Value = capability;
+                folder.AddChild(binding);
+            }
+            AddPredefinedNodeSynchronously(folder);
+            var selectedName = new QualifiedName(BrowseNames.SelectedBindings, ns);
+            NodeState? existingSelected = registry.FindChild(SystemContext, selectedName);
+            if (existingSelected is not null and not BaseVariableState)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "SelectedBindings must be a Variable.");
+            }
+            var selected = existingSelected as BaseVariableState ??
+                PropertyState<ArrayOf<WoTBindingCapabilityDataType>>
+                .With<StructureBuilder<WoTBindingCapabilityDataType>>(registry);
+            if (existingSelected is null)
+            {
+                selected.NodeId = new NodeId("WoTRegistry/SelectedBindings", ns);
+                registry.AddChild(selected);
+            }
+            selected.BrowseName = selectedName;
+            selected.DisplayName = new LocalizedText(BrowseNames.SelectedBindings);
+            selected.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+            selected.TypeDefinitionId = Ua.VariableTypeIds.PropertyType;
+            selected.DataType = ExpandedNodeId.ToNodeId(DataTypeIds.WoTBindingCapabilityDataType, Server.NamespaceUris);
+            selected.ValueRank = ValueRanks.OneDimension;
+            selected.Value = Variant.FromStructure(ArrayOf<WoTBindingCapabilityDataType>.Empty);
+            selected.AccessLevel = AccessLevels.CurrentRead;
+            selected.UserAccessLevel = AccessLevels.CurrentRead;
+            selected.OnSimpleReadValueAsync = async (_, _, cancellationToken) =>
+            {
+                ArrayOf<WoTBindingCapabilityDataType> active = await Coordinator
+                    .GetSelectedBindingCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
+                return new AttributeSimpleReadResult(StatusCodes.Good,
+                    new Variant(active.ConvertAll(capability => new ExtensionObject(capability))));
+            };
+            AddPredefinedNodeSynchronously(selected);
         }
 
         private async ValueTask<ServiceResult> OnRefreshAsync(
@@ -309,6 +557,8 @@ namespace Opc.Ua.WotCon.Server
             {
                 WotRefreshResult result = await Coordinator
                     .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
+                await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
 
                 outputArguments.Clear();
                 outputArguments.Add(Variant.FromStructure(result.Summary));
@@ -328,7 +578,31 @@ namespace Opc.Ua.WotCon.Server
             // including projection-only callbacks (which must never re-trigger
             // materialization).
             m_reconcileQueue.Enqueue(e);
-            if (e.ProjectionOnly || !m_options.AutoRefresh)
+            if (e.Validation is { } validated)
+            {
+                WotResource resource = e.Current.FindResourceByXid(validated.ResourceXid) ??
+                    throw new InvalidOperationException("A validation notification has no committed Resource.");
+                WoTValidationOutcomeDataType outcome = resource.FindVersion(validated.VersionId)?.Validation ??
+                    throw new InvalidOperationException("A validation notification has no exact committed outcome.");
+                bool formatFailed = outcome.FormatOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected;
+                if (formatFailed || outcome.CompatibilityOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected)
+                {
+                    var failure = new WotMaterializationEventArgs(WotMaterializationEventKind.ValidationFailure)
+                    {
+                        Xid = resource.Xid,
+                        ResourceId = resource.ResourceId,
+                        VersionId = validated.VersionId,
+                        DocumentKind = resource.Kind,
+                        Generation = e.Current.RefreshGeneration,
+                        Phase = formatFailed ? WoTPhaseEnum.FormatValidation : WoTPhaseEnum.CompatibilityValidation,
+                        Outcome = WoTOutcomeEnum.Failed,
+                        Reason = formatFailed ? outcome.FormatReason ?? string.Empty :
+                            outcome.CompatibilityReason ?? string.Empty
+                    };
+                    m_reconcileQueue.Enqueue(() => ReportCoordinatorEventAsync(failure, outcome, null));
+                }
+            }
+            if (e.ProjectionOnly || e.MaterializationHandled || !m_options.AutoRefresh)
             {
                 return;
             }
@@ -338,14 +612,65 @@ namespace Opc.Ua.WotCon.Server
 
         private void OnCoordinatorEvent(object? sender, WotMaterializationEventArgs e)
         {
-            if (m_registryNode is null)
+            if (m_registryNode is null || e.Kind == WotMaterializationEventKind.Resource)
             {
                 return;
             }
             try
             {
+                WoTValidationOutcomeDataType? validation = CoreUtils.Clone(e.Validation);
+                WoTRefreshSummaryDataType? summary = CoreUtils.Clone(e.Summary);
+                m_reconcileQueue.Enqueue(() => ReportCoordinatorEventAsync(e, validation, summary));
+            }
+            catch (Exception ex)
+            {
+                m_logger.FailedToReportMaterializationEvent(ex);
+            }
+        }
+
+        private void OnRefreshStateChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                WoTRefreshSummaryDataType? summary = Coordinator.LastRefreshSummary;
+                if (summary is not null)
+                {
+                    m_reconcileQueue.Enqueue(() =>
+                    {
+                        UpdateRefreshState(summary);
+                        return Task.CompletedTask;
+                    });
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                m_logger.RegistryProjectionReconcileFailed(failure);
+            }
+        }
+
+        private void UpdateRefreshState(WoTRefreshSummaryDataType summary)
+        {
+            if (m_registryNode is not WoTRegistryState registry)
+            {
+                return;
+            }
+            registry.LastRefreshTime!.Value = summary.EndTime;
+            registry.LastRefreshTime.StatusCode = StatusCodes.Good;
+            registry.LastRefreshSummary!.Value = CoreUtils.Clone(summary) ??
+                throw new InvalidOperationException("A completed refresh summary could not be captured.");
+            registry.LastRefreshSummary.StatusCode = StatusCodes.Good;
+            registry.ClearChangeMasks(SystemContext, includeChildren: true);
+        }
+
+        private Task ReportCoordinatorEventAsync(
+            WotMaterializationEventArgs e,
+            WoTValidationOutcomeDataType? validation,
+            WoTRefreshSummaryDataType? summary)
+        {
+            try
+            {
                 NodeState source = EventSourceFor(e);
-                BaseEventState? evt = BuildEvent(e, source);
+                BaseEventState? evt = BuildEvent(e, source, validation, summary);
                 if (evt is not null)
                 {
                     source.ReportEvent(SystemContext, evt);
@@ -355,21 +680,23 @@ namespace Opc.Ua.WotCon.Server
             {
                 m_logger.FailedToReportMaterializationEvent(ex);
             }
+            return Task.CompletedTask;
         }
 
         private NodeState EventSourceFor(WotMaterializationEventArgs e)
         {
-            // Resource lifecycle failures are sourced at the specific resource
-            // node; the registry object remains the summary source for the
-            // refresh-completed event.
             if (e.Kind == WotMaterializationEventKind.RefreshCompleted)
             {
                 return m_registryNode!;
             }
-            return m_projection.EventSourceFor(e.Xid);
+            return m_projection.EventSourceForFailure(e.Xid, e.VersionId);
         }
 
-        private BaseEventState? BuildEvent(WotMaterializationEventArgs e, NodeState source)
+        private BaseEventState? BuildEvent(
+            WotMaterializationEventArgs e,
+            NodeState source,
+            WoTValidationOutcomeDataType? validation,
+            WoTRefreshSummaryDataType? summary)
         {
             switch (e.Kind)
             {
@@ -379,9 +706,9 @@ namespace Opc.Ua.WotCon.Server
                     InitializeEvent(evt, source, "RefreshCompleted");
                     // Summary/RequestId/NewGeneration come from the coordinator's
                     // refresh summary, which is produced from the registry snapshot.
-                    if (e.Summary is not null)
+                    if (summary is not null)
                     {
-                        SetEventStruct(evt, BrowseNames.Summary, e.Summary);
+                        SetEventStruct(evt, BrowseNames.Summary, summary);
                     }
                     SetEventValue(evt, BrowseNames.RequestId, new Variant(e.RequestId));
                     SetEventValue(evt, BrowseNames.Generation, new Variant(e.Generation));
@@ -392,9 +719,9 @@ namespace Opc.Ua.WotCon.Server
                     var evt = new WoTValidationFailureEventState(source);
                     InitializeEvent(evt, source, "ValidationFailure: " + e.Reason);
                     PopulateResourceEventFields(evt, e);
-                    if (e.Validation is not null)
+                    if (validation is not null)
                     {
-                        SetEventStruct(evt, BrowseNames.ValidationOutcome, e.Validation);
+                        SetEventStruct(evt, BrowseNames.ValidationOutcome, validation);
                     }
                     return evt;
                 }
@@ -418,13 +745,10 @@ namespace Opc.Ua.WotCon.Server
                     SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
+                case WotMaterializationEventKind.Resource:
+                    return null;
                 default:
-                {
-                    var evt = new WoTResourceEventState(source);
-                    InitializeEvent(evt, source, "Resource: " + e.ResourceId);
-                    PopulateResourceEventFields(evt, e);
-                    return evt;
-                }
+                    throw new ArgumentOutOfRangeException(nameof(e), e.Kind, "Unknown materialization event kind.");
             }
         }
 
@@ -488,6 +812,11 @@ namespace Opc.Ua.WotCon.Server
                         change.Current,
                         CancellationToken.None)
                     .ConfigureAwait(false);
+                if (m_registryNode is WoTRegistryState registry)
+                {
+                    registry.RefreshGeneration!.Value = change.Current.RefreshGeneration;
+                    registry.RefreshGeneration.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
             }
             catch (Exception ex)
             {
@@ -501,6 +830,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 await Coordinator.RefreshAsync(new WotRefreshRequest { RequestId = reason })
                     .ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -570,6 +900,8 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotRegistryReconcileQueue m_reconcileQueue;
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
+        private IDisposable? m_recoveryProjectionRegistration;
+        private IDisposable? m_lifecycleCoordinatorRegistration;
     }
 
     internal sealed class WotRegistryReconcileQueue : IDisposable
@@ -582,19 +914,46 @@ namespace Opc.Ua.WotCon.Server
 
         public void Enqueue(WotRegistryChangedEventArgs change)
         {
-            lock (m_lock)
+            Enqueue(() => m_reconcile(change));
+        }
+
+        public void Enqueue(Func<Task> operation)
+        {
+            if (operation is null)
             {
-                if (m_completed)
-                {
-                    return;
-                }
-                m_changes.Enqueue(change);
-                if (!m_running)
-                {
-                    m_running = true;
-                    m_worker = DrainAsync();
-                }
+                throw new ArgumentNullException(nameof(operation));
             }
+            TryEnqueue(new ReconcileOperation(operation));
+        }
+
+        public ValueTask EnqueueAsync(
+            Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
+        {
+            if (operation is null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool accepted = TryEnqueue(new ReconcileOperation(async () =>
+            {
+                try
+                {
+                    await operation(CancellationToken.None).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                    // The caller may already have canceled its wait.
+                    _ = completion.Task.Exception;
+                }
+            }, completion));
+            if (!accepted)
+            {
+                throw new ObjectDisposedException(nameof(WotRegistryReconcileQueue));
+            }
+            return new ValueTask(completion.Task.WaitAsync(cancellationToken));
         }
 
         public async ValueTask WhenIdleAsync(CancellationToken cancellationToken = default)
@@ -611,7 +970,7 @@ namespace Opc.Ua.WotCon.Server
                     }
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                await worker!.ConfigureAwait(false);
+                await worker!.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -629,7 +988,33 @@ namespace Opc.Ua.WotCon.Server
             lock (m_lock)
             {
                 m_completed = true;
+                foreach (ReconcileOperation operation in m_changes)
+                {
+                    if (operation.Completion is { } completion)
+                    {
+                        completion.TrySetException(new ObjectDisposedException(nameof(WotRegistryReconcileQueue)));
+                        _ = completion.Task.Exception;
+                    }
+                }
                 m_changes.Clear();
+            }
+        }
+
+        private bool TryEnqueue(ReconcileOperation operation)
+        {
+            lock (m_lock)
+            {
+                if (m_completed)
+                {
+                    return false;
+                }
+                m_changes.Enqueue(operation);
+                if (!m_running)
+                {
+                    m_running = true;
+                    m_worker = DrainAsync();
+                }
+                return true;
             }
         }
 
@@ -641,7 +1026,7 @@ namespace Opc.Ua.WotCon.Server
                 await Task.Yield();
                 while (true)
                 {
-                    WotRegistryChangedEventArgs change;
+                    ReconcileOperation operation;
                     lock (m_lock)
                     {
                         if (m_changes.Count == 0)
@@ -652,9 +1037,9 @@ namespace Opc.Ua.WotCon.Server
                             drained = true;
                             return;
                         }
-                        change = m_changes.Dequeue();
+                        operation = m_changes.Dequeue();
                     }
-                    await m_reconcile(change).ConfigureAwait(false);
+                    await operation.Execute().ConfigureAwait(false);
                 }
             }
             finally
@@ -673,8 +1058,11 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
+        private readonly record struct ReconcileOperation(
+            Func<Task> Execute, TaskCompletionSource<bool>? Completion = null);
+
         private readonly Func<WotRegistryChangedEventArgs, Task> m_reconcile;
-        private readonly Queue<WotRegistryChangedEventArgs> m_changes = new();
+        private readonly Queue<ReconcileOperation> m_changes = new();
         private readonly Lock m_lock = new();
         private Task? m_worker;
         private bool m_running;

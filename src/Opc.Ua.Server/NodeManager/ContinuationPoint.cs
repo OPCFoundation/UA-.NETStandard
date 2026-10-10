@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The table of all reference types known to the server.
+    /// The parameters, state, and generation ownership of a resumable Browse operation.
     /// </summary>
     /// <remarks>This class is thread safe.</remarks>
     public class ContinuationPoint : IDisposable
@@ -45,6 +46,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports whether the exact manager is the source or a captured dependency of this point.
+        /// Session ownership trackers must use this query rather than compare only <see cref="Manager"/>.
+        /// </summary>
+        public bool RequiresManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            if (MatchesManager(Manager, nodeManager))
+            {
+                return true;
+            }
+            IAsyncNodeManager[]? dependencies = Volatile.Read(ref m_dependencyOwners);
+            return dependencies is not null && Array.Exists(
+                dependencies, owner => MatchesManager(owner, nodeManager));
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -54,13 +74,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Releases the Browse data and session ownership once. Overrides must call the base implementation.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
-                (Data as IDisposable)?.Dispose();
+                OwnerReleaseState? owner = Interlocked.Exchange(ref m_ownerState, s_disposedOwner);
+                if (ReferenceEquals(owner, s_disposedOwner))
+                {
+                    return;
+                }
+                try
+                {
+                    (Data as IDisposable)?.Dispose();
+                }
+                finally
+                {
+                    RoutingSnapshot = null;
+                    owner?.Release?.Invoke();
+                }
+            }
+        }
+
+        internal void SetOwnerRelease(Action releaseOwner)
+        {
+            if (releaseOwner is null)
+            {
+                throw new ArgumentNullException(nameof(releaseOwner));
+            }
+            OwnerReleaseState? previous = Interlocked.CompareExchange(
+                ref m_ownerState, new OwnerReleaseState(releaseOwner), null);
+            if (ReferenceEquals(previous, s_disposedOwner))
+            {
+                throw new ObjectDisposedException(nameof(ContinuationPoint));
+            }
+            if (previous is not null)
+            {
+                throw new InvalidOperationException("The continuation point already has a session owner.");
             }
         }
 
@@ -73,6 +124,18 @@ namespace Opc.Ua.Server
         /// The node manager that created the continuation point.
         /// </summary>
         public IAsyncNodeManager Manager { get; set; } = null!;
+
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; set; }
+
+        internal bool HasCapturedDependencies => Volatile.Read(ref m_dependencyOwners) is not null;
+
+        internal void SetDependencyOwners(ArrayOf<IAsyncNodeManager> owners)
+        {
+            if (Interlocked.CompareExchange(ref m_dependencyOwners, owners.ToArray(), null) is not null)
+            {
+                throw new InvalidOperationException("The Browse dependencies have already been captured.");
+            }
+        }
 
         /// <summary>
         /// The view being browsed.
@@ -132,6 +195,8 @@ namespace Opc.Ua.Server
         /// If this is the case then the object stored here must implement the Idispose
         /// interface. This will ensure the unmanaged resources are freed if the continuation
         /// point expires.
+        /// For pagination, the data must also implement <see cref="IBrowseContinuationDependencies"/>
+        /// and declare every remaining dependency before the point is saved.
         /// </remarks>
         public object? Data { get; set; }
 
@@ -192,6 +257,22 @@ namespace Opc.Ua.Server
                             (int)BrowseResultMask.TypeDefinition)
                     ) != 0;
             }
+        }
+
+        private static bool MatchesManager(IAsyncNodeManager? owner, IAsyncNodeManager candidate)
+        {
+            return ReferenceEquals(owner, candidate) ||
+                (owner?.SyncNodeManager is { } syncManager &&
+                    ReferenceEquals(syncManager, candidate.SyncNodeManager));
+        }
+
+        private static readonly OwnerReleaseState s_disposedOwner = new(null);
+        private OwnerReleaseState? m_ownerState;
+        private IAsyncNodeManager[]? m_dependencyOwners;
+
+        private sealed class OwnerReleaseState(Action? release)
+        {
+            public Action? Release { get; } = release;
         }
     }
 }

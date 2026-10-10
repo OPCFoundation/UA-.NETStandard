@@ -14,10 +14,28 @@ It defines the stable, replaceable protocol-binder contracts used by the materia
 
 Planner/validator binders for HTTP, CoAP, MQTT, Modbus TCP, BACnet, PROFINET, LoRaWAN and OPC UA ship on every supported target framework. HTTP, Modbus TCP, and OPC UA executors are included when targeting net8.0 or later. MQTT remains in the optional `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package because it carries the external MQTT transport dependency.
 
+The HTTP JSON executor supports complete ordered action inputs and outputs,
+single typed Structures, and typed selected/default event payloads through
+bounded polling. Resolved schemas and namespace/type-factory contexts survive
+planning and projected-consumer activation. Custom codecs can opt into
+`IWotInteractionPayloadCodec`; existing scalar codecs and channels keep their
+original interfaces.
+Decoded values must match the compiled native type/rank and resolve their
+namespace indexes in the returned context. Numeric bounds are compared without
+Decimal/Double rounding; finite floating-point overflow and oversized native
+Structure arrays fail explicitly. Shared projected event acquisition outlives
+an individual listener's cancellation and stops when the last listener leaves
+or the runtime is disposed.
+
 ## Target frameworks
 
 The base package targets `net48`, `net8.0`, `net9.0`, and `net10.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net8.0`, `net9.0`, and `net10.0`.
 
 OPC 10101 target mapping is protocol-neutral and authored on property affordances: `uav:mapToNodeId`, `uav:mapToType`, and `uav:mapByFieldPath` are validated centrally before protocol planning.
+
+OPC UA source forms also support portable `uav:browsePath` targets. Context and
+anchors are captured before planning; native translation, NodeClass validation,
+and simultaneous NodeId agreement are enforced before execution. Path-based
+observations revalidate addressing without replacing native notification delivery.
 
 See the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md).

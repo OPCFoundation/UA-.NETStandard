@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -49,6 +50,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotBindingCoordinatorTests
     {
+        [SetUp]
+        public async Task SetUpAsync()
+        {
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
+        }
+
+        [TearDown]
+        public async Task TearDownAsync()
+        {
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+        }
+
         private static byte[] Td(string id, string href, string extraTerms = "")
         {
             string terms = string.IsNullOrEmpty(extraTerms) ? string.Empty : "," + extraTerms;
@@ -64,9 +82,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return Encoding.UTF8.GetBytes(td);
         }
 
-        private static WotRegistryService Registry()
+        private WotRegistryService Registry()
         {
-            return new();
+            return m_registry;
         }
 
         private static Task<WotRegistryMutationResult> Upsert(
@@ -88,7 +106,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new FakeWotProjectionHost();
             var binders = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter())
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter())
             {
                 StrictBindings = true
             };
@@ -108,7 +127,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new FakeWotProjectionHost();
             var binders = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter())
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter())
             {
                 StrictBindings = false
             };
@@ -132,7 +152,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new FakeWotProjectionHost();
             var binders = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter());
             await Upsert(
                 registry, "td-a", Td("urn:td-a", "coap://d/temp", "\"cov:method\":\"GET\"")).ConfigureAwait(false);
 
@@ -153,7 +174,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 [new MemoryWotBinder()],
                 [new MemoryWotBindingExecutor(new MemoryWotStore())]);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter());
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
 
             WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -172,7 +194,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 [new MemoryWotBinder()],
                 [new MemoryWotBindingExecutor(new MemoryWotStore())]);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter());
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
 
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -186,29 +209,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task LifecycleActivatesAfterCommitDeactivatesBeforeRetire()
+        public async Task LifecycleBinderNotificationsObserveCommittedProjectionImages()
         {
             WotRegistryService registry = Registry();
             var timeline = new List<string>();
+            var observations = new List<(bool Active, WotCommittedPublicationState Image)>();
             var host = new RecordingProjectionHost(timeline);
             var binders = new RecordingBinderRegistry(timeline);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted), binders,
+                documentConverter: new FakeWotDocumentConverter());
+            binders.Notification = active => observations.Add((active, coordinator.CommittedPublication));
+            int registrations = m_runtime.Lifecycle.Registrations.Count;
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
 
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations + 1));
             await registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a").ConfigureAwait(false);
-            await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult retired = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            int add = timeline.IndexOf("add");
+            int add = timeline.IndexOf("activation-commit");
             int activate = timeline.IndexOf("activate");
             int deactivate = timeline.IndexOf("deactivate");
-            int remove = timeline.IndexOf("remove");
+            int remove = timeline.IndexOf("retirement-commit");
 
             Assert.That(add, Is.GreaterThanOrEqualTo(0));
             Assert.That(activate, Is.GreaterThan(add), "Activate must follow the projection commit.");
-            Assert.That(deactivate, Is.GreaterThanOrEqualTo(0));
-            Assert.That(remove, Is.GreaterThan(deactivate), "Deactivate must precede retirement.");
+            Assert.That(remove, Is.GreaterThan(activate));
+            Assert.That(deactivate, Is.GreaterThan(remove),
+                "Binder bookkeeping must observe the committed retirement, not precede its decision.");
+            Assert.That(observations, Has.Count.EqualTo(2));
+            Assert.That(observations[0].Active, Is.True);
+            Assert.That(observations[0].Image.RefreshGeneration, Is.EqualTo(1U));
+            Assert.That(observations[0].Image.ActiveBindingPlans.Count, Is.EqualTo(1));
+            Assert.That(observations[0].Image.RegistrySnapshot
+                .FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!.LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(observations[1].Active, Is.False);
+            Assert.That(observations[1].Image.RefreshGeneration, Is.EqualTo(2U));
+            Assert.That(observations[1].Image.ActiveBindingPlans.IsEmpty, Is.True);
+            Assert.That(observations[1].Image.RegistrySnapshot
+                .FindResource(WotRegistryGroups.ThingDescriptions, "td-a"), Is.Null);
+            Assert.That(retired.Summary.Retired, Is.EqualTo(1U));
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations));
         }
 
         [Test]
@@ -219,7 +262,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new PlanRecordingHost(recorder);
             var binders = new PlanRecordingBinderRegistry(recorder);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted, prepare: host.ValidatePreparation), binders,
+                documentConverter: new FakeWotDocumentConverter());
 
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v1")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -257,7 +301,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new PlanRecordingHost(recorder);
             var binders = new PlanRecordingBinderRegistry(recorder);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, binders, documentConverter: new FakeWotDocumentConverter());
+                registry, m_runtime!.Observe(host.RecordCommitted, prepare: host.ValidatePreparation), binders,
+                documentConverter: new FakeWotDocumentConverter());
 
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v1")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -267,14 +312,41 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             // deactivation) and no new plan may be activated (rollback ordering).
             host.FailShadowReload = true;
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v2")).ConfigureAwait(false);
-            await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRegistrySnapshot before = registry.Current;
+            WotCommittedPublicationState published = coordinator.CommittedPublication;
+            var registrations = m_runtime.Lifecycle.Registrations;
+            await Assert.ThatAsync(async () =>
+                await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false),
+                Throws.TypeOf<System.IO.IOException>().With.Message.EqualTo("Injected shadow reload failure."))
+                .ConfigureAwait(false);
 
             Assert.That(binders.DeactivatedPlans, Is.Empty,
                 "A failed shadow switch must not deactivate the still-active old plan.");
             Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(1),
                 "A failed shadow switch must not activate the new plan.");
             Assert.That(binders.ActivatedPlans[0], Is.SameAs(planV1));
+            Assert.That(registry.Current, Is.SameAs(before));
+            Assert.That(coordinator.CommittedPublication, Is.SameAs(published));
+            Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+            Assert.That(recorder.IndexOf("shadow"), Is.EqualTo(-1));
+
+            host.FailShadowReload = false;
+            WotRefreshResult retry = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(retry.Summary.Failed, Is.Zero);
+            Assert.That(retry.NewGeneration, Is.EqualTo(published.RefreshGeneration + 1));
+            Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
+            Assert.That(binders.DeactivatedPlans[0], Is.SameAs(planV1));
+            Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(2));
+            WotBindingPlan activated = binders.ActivatedPlans[1];
+            Assert.That(activated, Is.Not.SameAs(planV1));
+            WotBindingPlan committed = coordinator.CommittedPublication.ActiveBindingPlans.ToList().Single();
+            Assert.That(committed.ResourceXid, Is.EqualTo(activated.ResourceXid));
+            Assert.That(committed.CompiledForms.Single(), Is.SameAs(activated.CompiledForms.Single()));
+            Assert.That(committed.CompiledForms.Single(), Is.Not.SameAs(planV1.CompiledForms.Single()));
         }
+
+        private PreparedWotTestRuntime? m_runtime;
+        private WotRegistryService m_registry = null!;
 
         private sealed class PlanRecorder
         {
@@ -282,7 +354,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public void Record(string action, WotBindingPlan? plan = null)
             {
-                lock (Events)
+                lock (m_lock)
                 {
                     Events.Add((action, plan));
                 }
@@ -290,15 +362,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public int IndexOf(string action, WotBindingPlan? plan = null)
             {
-                lock (Events)
+                lock (m_lock)
                 {
                     return Events.FindIndex(e =>
                         e.Action == action && (plan is null || ReferenceEquals(e.Plan, plan)));
                 }
             }
+
+            private readonly Lock m_lock = new();
         }
 
-        private sealed class PlanRecordingHost : IWotProjectionHost
+        private sealed class PlanRecordingHost
         {
             public PlanRecordingHost(PlanRecorder recorder)
             {
@@ -307,43 +381,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public bool FailShadowReload { get; set; }
 
-            public ValueTask<WotProjectionHandle> AddAsync(
-                WotProjectionDocument document, CancellationToken cancellationToken = default)
+            public void RecordCommitted(ArrayOf<WotProjectionChange> changes)
             {
-                m_recorder.Record("add");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
+                foreach (WotProjectionChange change in changes)
+                {
+                    m_recorder.Record(change.Document is null ? "remove" :
+                        change.Current is null ? "add" :
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                }
             }
 
-            public ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current,
-                WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
+            public void ValidatePreparation(ArrayOf<WotProjectionChange> changes)
             {
-                if (FailShadowReload)
+                if (FailShadowReload && changes.ToList().Any(change =>
+                    change.Document is not null && change.Current is not null))
                 {
                     throw new System.IO.IOException("Injected shadow reload failure.");
                 }
-                m_recorder.Record("shadow");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
-            }
-
-            public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                m_recorder.Record("immediate");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
-            }
-
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
-            {
-                m_recorder.Record("remove");
-                return default;
-            }
-
-            private static WotProjectionHandle Handle(WotProjectionDocument document)
-            {
-                return new(document.ClosureKey, 1, new FakeWotProjectionRegistration(), [], 0);
             }
 
             private readonly PlanRecorder m_recorder;
@@ -399,46 +453,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private readonly PlanRecorder m_recorder;
         }
 
-        private sealed class RecordingProjectionHost : IWotProjectionHost
+        private sealed class RecordingProjectionHost
         {
             public RecordingProjectionHost(List<string> timeline)
             {
                 m_timeline = timeline;
             }
 
-            public ValueTask<WotProjectionHandle> AddAsync(
-                WotProjectionDocument document, CancellationToken cancellationToken = default)
+            public void RecordCommitted(ArrayOf<WotProjectionChange> changes)
             {
-                m_timeline.Add("add");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
-            }
-
-            public ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current,
-                WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                m_timeline.Add("shadow");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
-            }
-
-            public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                m_timeline.Add("immediate");
-                return new ValueTask<WotProjectionHandle>(Handle(document));
-            }
-
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
-            {
-                m_timeline.Add("remove");
-                return default;
-            }
-
-            private static WotProjectionHandle Handle(WotProjectionDocument document)
-            {
-                return new(document.ClosureKey, 1, new FakeWotProjectionRegistration(), [], 0);
+                foreach (WotProjectionChange change in changes)
+                {
+                    m_timeline.Add(change.Document is null ? "retirement-commit" :
+                        change.Current is null ? "activation-commit" :
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                }
             }
 
             private readonly List<string> m_timeline;
@@ -453,6 +482,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public IReadOnlyList<WoTBindingCapabilityDataType> Capabilities { get; }
                 = [];
+
+            public Action<bool>? Notification { get; set; }
 
             public WotBindingPlan Prepare(WotBindingPlanRequest request)
             {
@@ -475,12 +506,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ValueTask ActivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("activate");
+                Notification?.Invoke(true);
                 return default;
             }
 
             public ValueTask DeactivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("deactivate");
+                Notification?.Invoke(false);
                 return default;
             }
 

@@ -91,6 +91,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Format { get; set; } = "WoT-TD/1.1";
 
         /// <summary>
+        /// Gets or sets whether an authored projection role selects the projection Format and
+        /// ContentType before validation. Defaults to <c>false</c>, preserving explicit format admission.
+        /// This does not enable legacy projection syntax or change the requested document kind.
+        /// </summary>
+        public bool DetectProjectionFormat { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional resource display name.
         /// </summary>
         public string? Name { get; set; }
@@ -256,6 +263,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Message { get; }
 
         /// <summary>
+        /// Gets the precise service status when the mutation rejected invalid source authority.
+        /// Good leaves the established outcome-to-status mapping to the caller.
+        /// </summary>
+        public StatusCode StatusCode { get; init; }
+
+        /// <summary>
         /// Gets whether the mutation changed the registry contents.
         /// </summary>
         public bool Changed => Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning;
@@ -274,12 +287,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot previous,
             WotRegistrySnapshot current,
             IReadOnlyList<string> changedResourceXids,
-            bool projectionOnly)
+            bool projectionOnly,
+            bool materializationHandled = false,
+            WotValidationChange? validation = null)
         {
             Previous = previous;
             Current = current;
             ChangedResourceXids = changedResourceXids;
             ProjectionOnly = projectionOnly;
+            MaterializationHandled = materializationHandled;
+            Validation = validation;
         }
 
         /// <summary>
@@ -302,7 +319,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// re-trigger materialization).
         /// </summary>
         public bool ProjectionOnly { get; }
+
+        /// <summary>
+        /// Gets whether the mutation's required runtime changes were included in the same publication.
+        /// Such a change still reconciles registry content but must not trigger another automatic refresh.
+        /// </summary>
+        public bool MaterializationHandled { get; }
+
+        internal WotValidationChange? Validation { get; }
     }
+
+    internal sealed record WotValidationChange(string ResourceXid, string VersionId);
 
     /// <summary>
     /// The projection state recorded back into the registry snapshot by the
@@ -396,6 +423,45 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets or initializes the Version whose validation state this projection records.
         /// </summary>
         public string? VersionId { get; init; }
+
+        /// <summary>
+        /// Gets the committed dependency graph, when this projection actually activated.
+        /// </summary>
+        public WotDependencySnapshot? DependencySnapshot { get; init; }
+
+        /// <summary>
+        /// Gets the completed actual dependency attempt for the exact Version.
+        /// </summary>
+        public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+
+        internal ArrayOf<WotResource> CommittedInputs { get; init; }
+
+        internal WotResourceProjection WithCommittedInputs(ArrayOf<WotResource> inputs)
+        {
+            return new WotResourceProjection(
+                GroupId, ResourceId, LoadState, ActiveVersionId, RefreshGeneration,
+                MaterializedNodeCount, RootNodeId, Validation, Diagnostics, LastRefreshTime)
+            {
+                RetainPreviousActiveVersion = RetainPreviousActiveVersion,
+                VersionId = VersionId,
+                DependencySnapshot = DependencySnapshot,
+                LastDependencyAttempt = LastDependencyAttempt,
+                CommittedInputs = inputs
+            };
+        }
+    }
+
+    /// <summary>
+    /// Optional registry-owner capability for retaining committed and attempted
+    /// exact-Version dependency observations in its immutable snapshots.
+    /// </summary>
+    public interface IWotRegistryDependencySnapshotProvider
+    {
+        /// <summary>
+        /// Gets whether projection results preserve both dependency observations.
+        /// This does not by itself supply an authoritative runtime registry origin.
+        /// </summary>
+        bool SupportsDependencySnapshots { get; }
     }
 
     /// <summary>

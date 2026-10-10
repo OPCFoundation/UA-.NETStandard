@@ -39,7 +39,7 @@ namespace Opc.Ua.XRegistry.Server
     /// process. Suitable for a single-server registry; a high-availability deployment substitutes a
     /// shared store so the documents outlive one process.
     /// </summary>
-    public sealed class InMemoryResourceStore : IXRegistryResourceStore
+    public sealed class InMemoryResourceStore : IXRegistryAtomicResourceStore
     {
         /// <inheritdoc/>
         public ValueTask<ByteString> ReadAsync(
@@ -108,6 +108,23 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     document.Add(span[i]);
                 }
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReplaceAsync(
+            string resourceKey,
+            ByteString document,
+            CancellationToken ct = default)
+        {
+            ValidateKey(resourceKey);
+            ct.ThrowIfCancellationRequested();
+            List<byte> replacement = [.. document.Span];
+            lock (m_lock)
+            {
+                ct.ThrowIfCancellationRequested();
+                m_documents[resourceKey] = replacement;
             }
             return default;
         }

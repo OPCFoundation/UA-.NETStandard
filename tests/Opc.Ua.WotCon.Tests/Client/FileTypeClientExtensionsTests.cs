@@ -180,28 +180,41 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(dest.ToArray(), Is.EqualTo(data));
         }
 
-        [Test]
-        public async Task CopyChunksToStreamStopsOnShortChunkAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DownloadFailureAfterShortReadClosesHandle(bool toStream)
         {
-            // Last chunk shorter than chunkSize → loop must stop early
-            // even if the read delegate would still return more data.
-            byte[] full = new byte[1024];
-            byte[] partial = new byte[500];
-            byte[] extra = new byte[1024]; // should never be requested
-            var source = new Queue<byte[]>([full, partial, extra]);
-
-            using var dest = new MemoryStream();
-            await dest.CopyChunksToStreamAsync(
-                chunkSize: 1024,
-                (_, _) =>
+            var mock = new WotAssetFileTypeSessionMock();
+            int reads = 0;
+            bool closed = false;
+            mock.OnOpen(_ => 91);
+            mock.OnRead((_, _) =>
+            {
+                if (++reads == 1)
                 {
-                    byte[] next = source.Dequeue();
-                    return new ValueTask<ReadOnlyMemory<byte>>(next);
-                },
-                CancellationToken.None).ConfigureAwait(false);
+                    return new byte[32];
+                }
+                throw new ServiceResultException(StatusCodes.BadCommunicationError);
+            });
+            mock.OnClose(_ => closed = true);
+            var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
+            using var destination = new MemoryStream();
 
-            Assert.That(dest.Length, Is.EqualTo(1524));
-            Assert.That(source, Has.Count.EqualTo(1));
+            Assert.That(async () =>
+            {
+                if (toStream)
+                {
+                    await file.DownloadToAsync(destination, chunkSize: 1024).ConfigureAwait(false);
+                }
+                else
+                {
+                    await file.DownloadAllAsync(chunkSize: 1024).ConfigureAwait(false);
+                }
+            }, Throws.InstanceOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode))
+                .EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(reads, Is.EqualTo(2));
+            Assert.That(closed, Is.True);
         }
 
         [Test]
@@ -257,8 +270,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(closed, Is.True);
         }
 
-        [Test]
-        public async Task DownloadToStreamEndToEndReadsUntilShortChunkAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DownloadReadsPastShortChunksToEof(bool toStream)
         {
             var mock = new WotAssetFileTypeSessionMock();
             byte[] payload = new byte[3500];
@@ -277,7 +291,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             mock.OnRead((handle, len) =>
             {
                 Assert.That(handle, Is.EqualTo(88u));
-                int take = Math.Min(len, payload.Length - position);
+                int take = Math.Min(500, Math.Min(len, payload.Length - position));
                 if (take <= 0)
                 {
                     return [];
@@ -295,10 +309,19 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var destination = new MemoryStream();
-            await file.DownloadToAsync(destination, chunkSize: 1024, CancellationToken.None).ConfigureAwait(false);
+            byte[] actual;
+            if (toStream)
+            {
+                await file.DownloadToAsync(destination, chunkSize: 1024, CancellationToken.None).ConfigureAwait(false);
+                actual = destination.ToArray();
+            }
+            else
+            {
+                actual = await file.DownloadAllAsync(chunkSize: 1024, CancellationToken.None).ConfigureAwait(false);
+            }
 
             Assert.That(capturedMode, Is.EqualTo((byte)1));
-            Assert.That(destination.ToArray(), Is.EqualTo(payload));
+            Assert.That(actual, Is.EqualTo(payload));
             Assert.That(closed, Is.True);
         }
 

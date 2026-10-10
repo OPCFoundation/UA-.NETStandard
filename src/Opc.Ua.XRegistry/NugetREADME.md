@@ -9,7 +9,10 @@ This package contains:
 - the `http://opcfoundation.org/UA/xRegistry/` abstract base companion model, **compiled into
   the assembly by the OPC UA model source generator** — the ObjectTypes, their Methods and
   Variables, the generated `NodeState` classes, `*TypeClient` ObjectType proxies, and the
-  xRegistry 0.5.0 `*EventTypeRecord` / `EventFilters` client surface. No NodeSet2 XML is parsed
+  `*EventTypeRecord` / `EventFilters` client surface. The input is the unpublished
+  **0.7.0 draft** dated 2026-09-12, retaining the existing native event identities.
+  New origin and canonical-capability declarations do not themselves advertise
+  runtime support. No NodeSet2 XML is parsed
   at runtime;
 - `XRegistryWellKnown` — the base companion namespace URI and the provisional NodeIds of the
   *instances* a registry materializes at runtime (the registry root, the federation proxy and
@@ -17,7 +20,11 @@ This package contains:
   generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes;
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
-  replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+  replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`;
+- `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
+  Resource binding and optional verification seam, independent of content lookup. The binding
+  pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not
+  establish identity or trust.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

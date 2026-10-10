@@ -31,9 +31,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings.Http;
 using Opc.Ua.WotCon.Bindings.Planners;
@@ -89,7 +93,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"properties\":{\"temp\":{\"type\":\"number\",\"forms\":[{\"href\":\"" +
                 server.BaseUrl +
                 "/prop\"}]}}," +
-                "\"actions\":{\"act\":{\"forms\":[{\"href\":\"" +
+                "\"actions\":{\"act\":{\"output\":{\"type\":\"string\"},\"forms\":[{\"href\":\"" +
                 server.BaseUrl +
                 "/action\"}]}}}";
 
@@ -108,7 +112,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 WotReadResult result = await readChannel.ReadAsync().ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
-                Assert.That(result.Value.WrappedValue.AsBoxedObject(), Is.EqualTo(10L));
+                Assert.That(result.Value.WrappedValue.TryGetValue(out long initialValue), Is.True);
+                Assert.That(initialValue, Is.EqualTo(10L));
             }
 
             IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
@@ -123,7 +128,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await using (reread.ConfigureAwait(false))
             {
                 WotReadResult result = await reread.ReadAsync().ConfigureAwait(false);
-                Assert.That(result.Value.WrappedValue.AsBoxedObject(), Is.EqualTo(42L));
+                Assert.That(result.Value.WrappedValue.TryGetValue(out long rereadValue), Is.True);
+                Assert.That(rereadValue, Is.EqualTo(42L));
             }
 
             IWotBindingChannel actionChannel = await registry.OpenChannelAsync(invoke).ConfigureAwait(false);
@@ -132,8 +138,80 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotInvokeResult result = await actionChannel.InvokeAsync([]).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
                 Assert.That(result.Outputs, Has.Count.EqualTo(1));
-                Assert.That(result.Outputs[0].WrappedValue.AsBoxedObject(), Is.EqualTo("done"));
+                Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out string? actionOutput), Is.True);
+                Assert.That(actionOutput, Is.EqualTo("done"));
             }
+        }
+
+        [Test]
+        public async Task HttpChannelInvokeReturnsEveryNamedOutputInNativeOrder()
+        {
+            int sendCount = 0;
+            HttpMethod? receivedMethod = null;
+            Uri? receivedUri = null;
+            var handler = new Mock<HttpMessageHandler>();
+            handler.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .Returns<HttpRequestMessage, CancellationToken>((request, _) =>
+                {
+                    Interlocked.Increment(ref sendCount);
+                    receivedMethod = request.Method;
+                    receivedUri = request.RequestUri;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(
+                            """{"Minimum":-7,"Maximum":42}""", Encoding.UTF8, "application/json")
+                    });
+                });
+            using var client = new HttpClient(handler.Object);
+            WotProtocolBinderRegistry registry = Registry(new HttpWotBindingOptions
+            {
+                ClientFactory = () => client,
+                CallerClientHandlesRedirectSafety = true
+            });
+            const string td = """
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Read ordered limits",
+                  "actions": {
+                    "getLimits": {
+                      "output": {
+                        "type": "object",
+                        "uav:argumentLayout": "named",
+                        "uav:fieldOrder": ["Maximum", "Minimum"],
+                        "properties": {
+                          "Minimum": { "type": "integer" },
+                          "Maximum": { "type": "integer" }
+                        },
+                        "required": ["Minimum", "Maximum"]
+                      },
+                      "forms": [{
+                        "href": "https://http-payloads.example/limits",
+                        "op": "invokeaction",
+                        "contentType": "application/json"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotCompiledForm invoke = Plan(registry, td).CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.InvokeAction);
+
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(invoke).ConfigureAwait(false);
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Outputs, Has.Count.EqualTo(2));
+            Assert.That(result.Outputs[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out long maximum), Is.True);
+            Assert.That(maximum, Is.EqualTo(42L));
+            Assert.That(result.Outputs[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Outputs[1].WrappedValue.TryGetValue(out long minimum), Is.True);
+            Assert.That(minimum, Is.EqualTo(-7L));
+            Assert.That(sendCount, Is.EqualTo(1), "Returning two outputs must not invoke the action twice.");
+            Assert.That(receivedMethod, Is.EqualTo(HttpMethod.Post));
+            Assert.That(receivedUri, Is.EqualTo(new Uri("https://http-payloads.example/limits")));
         }
 
         [Test]
@@ -163,7 +241,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 IWotSubscription subscription = await channel.ObserveAsync(n =>
                 {
-                    if (n.Value.WrappedValue.AsBoxedObject() is long value)
+                    if (n.Value.WrappedValue.TryGetValue(out long value))
                     {
                         received.Enqueue(value);
                     }

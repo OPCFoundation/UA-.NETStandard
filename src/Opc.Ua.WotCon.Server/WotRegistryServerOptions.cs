@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry.Server;
@@ -77,6 +78,31 @@ namespace Opc.Ua.WotCon.Server
         public bool StrictBindings { get; set; }
 
         /// <summary>
+        /// Gets or sets the policy applied to hosted logical Resource unload and delete operations.
+        /// </summary>
+        public WoTDeletePolicyEnum DeletePolicy { get; set; } = WoTDeletePolicyEnum.Reject;
+
+        /// <summary>
+        /// Gets or sets the algorithm for importing document-set partitions.
+        /// Independent readable-model normalization is opt-in and never
+        /// relaxes native or archive authority.
+        /// </summary>
+        public WotDocumentSetMode DocumentSetMode { get; set; } = WotDocumentSetMode.PartitionReconstruction;
+
+        /// <summary>
+        /// Gets or sets explicitly permitted legacy projection-plan syntax.
+        /// Ordinary TD-only uploads never use this compatibility mode.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the provider of actual projection-host forms.
+        /// A provider registered in DI takes precedence. No provider means
+        /// missing host forms fail resolution rather than borrowing source forms.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets how a superseded projection generation is retired after
         /// a successful version switch.
         /// </summary>
@@ -93,6 +119,12 @@ namespace Opc.Ua.WotCon.Server
         /// Gets the resource bounds enforced by the registry service.
         /// </summary>
         public WotRegistryPersistenceBounds Bounds { get; } = new WotRegistryPersistenceBounds();
+
+        /// <summary>
+        /// Gets or sets explicit source-authority bindings for inherited generic creation Methods.
+        /// Typed provisioning accepts arbitrary exact authorities without configured aliases.
+        /// </summary>
+        public WotRegistryIdentityBindings IdentityBindings { get; set; } = new();
 
         /// <summary>
         /// Gets or sets the management access policy used to secure the registry

@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// Keeps a participant attached to a shared channel and routes its requests through the ready gate.
     /// </summary>
-    internal sealed class ManagedTransportChannelLease : IManagedTransportChannel
+    internal sealed class ManagedTransportChannelLease : IManagedTransportChannel, ITransportChannelBindingProvider
     {
         internal ManagedTransportChannelLease(
             ChannelEntry entry, IReconnectParticipant participant)
@@ -186,6 +186,50 @@ namespace Opc.Ua
         internal void MarkActiveForSwap()
         {
             Interlocked.Exchange(ref m_active, 1);
+        }
+
+        async ValueTask<TransportChannelBinding> ITransportChannelBindingProvider.CreateTransportBindingAsync(
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            ChannelEntry entry = Entry;
+            int swap = SwapCount;
+            long generation = entry.ReconnectGeneration;
+            if (!IsActive || entry.State != ChannelState.Ready)
+            {
+                throw TransportChannelBinding.InvalidBinding();
+            }
+            ITransportChannel underlying = entry.Underlying ??
+                throw TransportChannelBinding.InvalidBinding();
+            if (underlying is not ITransportChannelBindingProvider provider)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The managed channel has no generation-bound transport.");
+            }
+            TransportChannelBinding binding = await provider.CreateTransportBindingAsync(ct).ConfigureAwait(false);
+            bool IsCurrent()
+            {
+                return IsActive &&
+                    ReferenceEquals(Entry, entry) &&
+                    SwapCount == swap &&
+                    entry.ReconnectGeneration == generation &&
+                    entry.State == ChannelState.Ready &&
+                    ReferenceEquals(entry.Underlying, underlying);
+            }
+            try
+            {
+                if (!IsCurrent())
+                {
+                    throw TransportChannelBinding.InvalidBinding();
+                }
+                binding.AddValidation(IsCurrent);
+                return binding;
+            }
+            catch
+            {
+                binding.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>

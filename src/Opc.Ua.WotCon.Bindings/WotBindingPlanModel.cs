@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Immutable;
+using System.IO;
 using System.Text.Json;
 using Opc.Ua.Wot;
 
@@ -164,15 +165,33 @@ namespace Opc.Ua.WotCon.Bindings
         public string Target { get; }
 
         /// <summary>
+        /// Gets the portable OPC UA browse-path target, when the form declares one.
+        /// </summary>
+        public WotBrowsePathTarget? BrowsePathTarget { get; private init; }
+
+        /// <summary>
         /// Gets binding-specific addressing metadata.
         /// </summary>
         public ImmutableDictionary<string, string> Metadata { get; }
+
+        /// <summary>
+        /// Attaches immutable path addressing without replacing a separately declared target NodeId.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotAddressingDescriptor WithBrowsePathTarget(WotBrowsePathTarget target)
+        {
+            return new WotAddressingDescriptor(Target, Metadata)
+            {
+                BrowsePathTarget = target ?? throw new ArgumentNullException(nameof(target))
+            };
+        }
     }
 
     /// <summary>
     /// The immutable event field selection compiled for an event affordance:
-    /// the ordered <c>EventFilter</c> select clauses a MonitoredItem is created
-    /// with, and where they came from (WoT Binding Section 6.1).
+    /// the ordered public <c>EventFilter</c> select clauses and where they came
+    /// from (WoT Binding Section 6.1). Private source capture may append operands
+    /// without adding members to this selection or its notification data.
     /// </summary>
     /// <remarks>
     /// The clauses are the resolved form: each carries the portable
@@ -310,7 +329,7 @@ namespace Opc.Ua.WotCon.Bindings
     /// <summary>
     /// Immutable payload metadata compiled from a form.
     /// </summary>
-    public sealed class WotPayloadDescriptor
+    public sealed partial class WotPayloadDescriptor
     {
         /// <summary>
         /// Initializes a new immutable payload descriptor.
@@ -339,6 +358,97 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets binding-specific payload metadata (for example numeric type / byte order).
         /// </summary>
         public ImmutableDictionary<string, string> Metadata { get; }
+
+        /// <summary>
+        /// Gets the complete action input layout, or null for a transport-only descriptor.
+        /// </summary>
+        public WotMethodArgumentLayout? InputLayout { get; private init; }
+
+        /// <summary>
+        /// Gets the complete action output layout, or null for a transport-only descriptor.
+        /// </summary>
+        public WotMethodArgumentLayout? OutputLayout { get; private init; }
+
+        /// <summary>
+        /// Gets the complete interaction schema and its resolved native type bindings.
+        /// </summary>
+        public WotPayloadSchema? Schema { get; private init; }
+
+        /// <summary>
+        /// Returns a payload descriptor carrying the converter-resolved action layouts.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotPayloadDescriptor WithArgumentLayouts(
+            WotMethodArgumentLayout input,
+            WotMethodArgumentLayout output)
+        {
+            return new WotPayloadDescriptor(ContentType, CodecId, Metadata)
+            {
+                InputLayout = input ?? throw new ArgumentNullException(nameof(input)),
+                OutputLayout = output ?? throw new ArgumentNullException(nameof(output)),
+                Schema = Schema
+            };
+        }
+
+        /// <summary>
+        /// Returns the descriptor with the captured, context-resolved interaction schema.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotPayloadDescriptor WithSchema(WotPayloadSchema schema)
+        {
+            return new WotPayloadDescriptor(ContentType, CodecId, Metadata)
+            {
+                InputLayout = InputLayout,
+                OutputLayout = OutputLayout,
+                Schema = schema ?? throw new ArgumentNullException(nameof(schema))
+            };
+        }
+
+        internal WotPayloadSchema GetActionSchema()
+        {
+            if (Schema is { } captured)
+            {
+                return captured;
+            }
+            using var buffer = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartObject();
+                WriteSchema("input", InputLayout);
+                WriteSchema("output", OutputLayout);
+                writer.WriteEndObject();
+
+                void WriteSchema(string name, WotMethodArgumentLayout? layout)
+                {
+                    if (layout?.Schema.ValueKind == JsonValueKind.Object)
+                    {
+                        writer.WritePropertyName(name);
+                        layout.Schema.WriteTo(writer);
+                    }
+                }
+            }
+            using var document = WotDocument.Parse(buffer.ToArray());
+            return WotNodeSetConverter.CapturePayloadSchema(
+                document, Wot.WotAffordanceKind.Action, document.RootElement);
+        }
+
+        internal static BuiltInType GetStandardEventFieldType(WotResolvedEventSelectClause clause)
+        {
+            if (clause.TypeDefinitionId == WotEventSelectClauses.BaseEventTypeId && clause.PathElements.Count == 1)
+            {
+                return clause.PathElements[0] switch
+                {
+                    "EventId" => BuiltInType.ByteString,
+                    "EventType" or "SourceNode" => BuiltInType.NodeId,
+                    "SourceName" => BuiltInType.String,
+                    "Time" or "ReceiveTime" => BuiltInType.DateTime,
+                    "Message" => BuiltInType.LocalizedText,
+                    "Severity" => BuiltInType.UInt16,
+                    _ => BuiltInType.Null
+                };
+            }
+            return clause.IsConditionIdSelection ? BuiltInType.NodeId : BuiltInType.Null;
+        }
     }
 
     /// <summary>

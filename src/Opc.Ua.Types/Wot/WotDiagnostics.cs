@@ -137,6 +137,11 @@ namespace Opc.Ua.Wot
         /// </summary>
         DataTypeDefinitionInvalid = 3007,
 
+        /// <summary>
+        /// A value or identity cannot be safely translated to the namespace union.
+        /// </summary>
+        NamespaceRebaseUnsupported = 3008,
+
         /// <summary>A referenced target could not be resolved to a NodeId.</summary>
         UnresolvedReference = 4000,
 
@@ -151,6 +156,11 @@ namespace Opc.Ua.Wot
 
         /// <summary>A DataSchema could not be mapped to an OPC UA DataType.</summary>
         UnsupportedSchema = 4004,
+
+        /// <summary>
+        /// The explicitly selected document-set processing algorithm.
+        /// </summary>
+        DocumentSetModeSelected = 4005,
 
         /// <summary>External resolution detected a cycle.</summary>
         ResolverCycle = 5000,

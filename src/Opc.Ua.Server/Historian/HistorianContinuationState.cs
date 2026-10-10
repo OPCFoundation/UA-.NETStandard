@@ -28,20 +28,21 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
-    /// Continuation-point state persisted by the dispatcher between
+    /// Continuation-point state retained by the dispatcher between
     /// HistoryRead pages.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The dispatcher serialises one instance per outstanding paginated
-    /// read into the session's continuation-point dictionary
+    /// The dispatcher retains one instance per outstanding paginated
+    /// read in the session's continuation-point cache
     /// (<see cref="ISessionContinuationPoints.SaveHistory"/>).
     /// On the next page request the dispatcher restores the state
-    /// (which removes it from the session's storage), calls the same
+    /// (which checks it out without releasing its generation owners), calls the same
     /// provider with the saved <see cref="ResumeToken"/>, and either
     /// retires the continuation (final page → <see cref="Dispose"/>) or
     /// re-saves it with the new resume token under a fresh <see cref="Id"/>.
@@ -50,16 +51,28 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// State held here must stay small — it is stored verbatim in the
     /// session for as long as the client keeps the continuation point
-    /// active. The session pool already invokes <see cref="Dispose"/>
-    /// when an entry is evicted (max-cp eviction or session close), so
-    /// future provider implementations that need to release backend
-    /// resources from a saved cursor can do so by extending
-    /// <see cref="ResumeToken"/> with a payload type that hooks into
-    /// disposal — the framework guarantees the call.
+    /// active. The session disposes available entries on eviction or close. Checked-out
+    /// entries remain owned until their request completes, fails, or is cancelled.
+    /// Successor and restoration copies share their exact source and dependency lease until
+    /// the last copy is disposed. Portable native cursors can be durably mirrored, but captured
+    /// generation owners and their provider tokens remain process-local.
     /// </para>
     /// </remarks>
     internal sealed class HistorianContinuationState : IHistoryContinuationPoint
     {
+        /// <summary>
+        /// Creates independent continuation ownership for an initial history page.
+        /// </summary>
+        public HistorianContinuationState()
+        {
+            m_ownership = new SharedOwnership();
+        }
+
+        private HistorianContinuationState(SharedOwnership ownership)
+        {
+            m_ownership = ownership.AddReference();
+        }
+
         /// <summary>
         /// Identifier of the session continuation point.
         /// </summary>
@@ -79,6 +92,16 @@ namespace Opc.Ua.Server.Historian
         /// Node identifier bound to this continuation.
         /// </summary>
         public required NodeId NodeId { get; init; }
+
+        public NodeId OriginNodeId { get; init; }
+
+        public NodeState? SourceNode { get; init; }
+
+        internal ContinuationPoint Ownership => m_ownership.Point;
+
+        internal bool Saved { get; set; }
+
+        internal bool IsInvalidated => Volatile.Read(ref m_ownership.Invalidated) != 0;
 
         /// <summary>
         /// Provider cursor used to request the next page.
@@ -209,13 +232,96 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Dispose()
         {
-            // Reserved hook so the session's continuation-point pool can
-            // release provider resources when an entry is evicted. Today
-            // the InMemoryHistorianProvider holds no resources in a resume
-            // token; provider implementations that do (e.g. database
-            // cursors) should attach disposal logic here in a future
-            // extension.
-            BufferedProcessedOutputs = null;
+            DisposeCore(null);
+        }
+
+        internal void DisposeUnlessOwnedByAnotherSession(ISessionContinuationPoints attemptedOwner)
+        {
+            DisposeCore(attemptedOwner);
+        }
+
+        internal void Invalidate()
+        {
+            Volatile.Write(ref m_ownership.Invalidated, 1);
+        }
+
+        internal void SetOwnerRelease(ISessionContinuationPoints owner, Action releaseOwner)
+        {
+            if (owner is null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (releaseOwner is null)
+            {
+                throw new ArgumentNullException(nameof(releaseOwner));
+            }
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HistorianContinuationState));
+                }
+                if (m_ownerRelease is not null)
+                {
+                    throw new InvalidOperationException("The history continuation already has a session owner.");
+                }
+                m_sessionOwner = owner;
+                m_ownerRelease = releaseOwner;
+            }
+        }
+
+        internal void ValidateSessionOwner(ISessionContinuationPoints owner)
+        {
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HistorianContinuationState));
+                }
+                if (m_sessionOwner is not null && !ReferenceEquals(owner, m_sessionOwner))
+                {
+                    throw new InvalidOperationException("The history continuation already has another session owner.");
+                }
+            }
+        }
+
+        private void DisposeCore(ISessionContinuationPoints? attemptedOwner)
+        {
+            Action? releaseOwner;
+            lock (m_lock)
+            {
+                if (m_disposed ||
+                    (attemptedOwner is not null && m_sessionOwner is not null &&
+                        !ReferenceEquals(attemptedOwner, m_sessionOwner)))
+                {
+                    return;
+                }
+                m_disposed = true;
+                releaseOwner = m_ownerRelease;
+                m_ownerRelease = null;
+                m_sessionOwner = null;
+                Saved = false;
+                BufferedProcessedOutputs = null;
+            }
+            try
+            {
+                m_ownership.Dispose();
+            }
+            finally
+            {
+                releaseOwner?.Invoke();
+            }
+        }
+
+        internal sealed class Use(HistorianContinuationState? state) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (state is { Saved: false })
+                {
+                    state.Dispose();
+                }
+            }
         }
 
         private HistorianContinuationState Clone(
@@ -225,40 +331,41 @@ namespace Opc.Ua.Server.Historian
             NodeId nodeId,
             bool usesLegacyAnnotationNodeId)
         {
-            return new HistorianContinuationState
+            HistorianProcessedReadRequest? processedRequest = ProcessedRequest is null
+                ? null
+                : ProcessedRequest with
+                {
+                    Configuration = CoreUtils.Clone(ProcessedRequest.Configuration) ??
+                        throw new InvalidOperationException("The processed request configuration could not be cloned.")
+                };
+            HistorianEventReadRequest? eventRequest = EventRequest is null
+                ? null
+                : EventRequest with
+                {
+                    Filter = CoreUtils.Clone(EventRequest.Filter) ??
+                        throw new InvalidOperationException("The event request filter could not be cloned.")
+                };
+            return new HistorianContinuationState(m_ownership)
             {
                 Id = id,
                 Provider = Provider,
                 Kind = Kind,
                 NodeId = nodeId,
+                OriginNodeId = OriginNodeId,
+                SourceNode = SourceNode,
                 ResumeToken = resumeToken,
                 RawRequest = RawRequest is null ? null : RawRequest with { },
                 ModifiedRequest = ModifiedRequest is null
                     ? null
                     : ModifiedRequest with { },
-                ProcessedRequest = ProcessedRequest is null
-                    ? null
-                    : ProcessedRequest with
-                    {
-                        Configuration = CoreUtils.Clone(
-                            ProcessedRequest.Configuration) ??
-                            throw new InvalidOperationException(
-                                "The processed request configuration could not be cloned.")
-                    },
+                ProcessedRequest = processedRequest,
                 AtTimeRequest = AtTimeRequest is null
                     ? null
                     : AtTimeRequest with { },
                 AnnotationRequest = AnnotationRequest is null
                     ? null
                     : AnnotationRequest with { },
-                EventRequest = EventRequest is null
-                    ? null
-                    : EventRequest with
-                    {
-                        Filter = CoreUtils.Clone(EventRequest.Filter) ??
-                            throw new InvalidOperationException(
-                                "The event request filter could not be cloned.")
-                    },
+                EventRequest = eventRequest,
                 TimestampsToReturn = TimestampsToReturn,
                 IndexRange = IndexRange,
                 DataEncoding = DataEncoding,
@@ -268,6 +375,45 @@ namespace Opc.Ua.Server.Historian
                 BufferedProcessedOffset = bufferedProcessedOffset
             };
         }
+
+        private sealed class SharedOwnership : IDisposable
+        {
+            public ContinuationPoint Point { get; } = new();
+
+            public int Invalidated;
+
+            public SharedOwnership AddReference()
+            {
+                while (true)
+                {
+                    int count = Volatile.Read(ref m_references);
+                    if (count == 0)
+                    {
+                        throw new ObjectDisposedException(nameof(HistorianContinuationState));
+                    }
+                    if (Interlocked.CompareExchange(ref m_references, count + 1, count) == count)
+                    {
+                        return this;
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Decrement(ref m_references) == 0)
+                {
+                    Point.Dispose();
+                }
+            }
+
+            private int m_references = 1;
+        }
+
+        private readonly SharedOwnership m_ownership;
+        private readonly Lock m_lock = new();
+        private Action? m_ownerRelease;
+        private ISessionContinuationPoints? m_sessionOwner;
+        private bool m_disposed;
     }
 
     /// <summary>

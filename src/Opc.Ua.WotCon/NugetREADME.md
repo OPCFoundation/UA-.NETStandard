@@ -13,6 +13,13 @@ binding OPC UA address-space nodes to W3C WoT Thing Descriptions —
 useful for asset onboarding pipelines, MQTT bridges, and connectivity
 configuration servers.
 
+The generated input is the unpublished **WoT Connectivity 1.1 draft** dated
+2026-09-21, corresponding to specification document **1.1-draft8**, and paired
+with the **xRegistry 0.7.0 draft** dated 2026-09-12. The incorporated
+OPC 10100-1 v1.02 ModelDesign and existing identities remain intact. Generated
+successor declarations do not by themselves establish server capability support;
+clients must discover the applicable runtime contract.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,

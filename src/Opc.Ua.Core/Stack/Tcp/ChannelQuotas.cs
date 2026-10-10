@@ -121,7 +121,7 @@ namespace Opc.Ua.Bindings
         /// Without this optional capability, standalone channels retain legacy response-based
         /// membership hints only. Those hints cannot establish identity or trusted capacity.
         /// </remarks>
-        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the shared fail-fast admission policy for retained incoming messages.

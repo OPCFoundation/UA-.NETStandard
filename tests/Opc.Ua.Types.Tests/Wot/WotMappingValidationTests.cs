@@ -44,6 +44,58 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotMappingValidationTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RuntimeMappingNeedsExplicitIdentifierLeniency(bool lenient)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:mapping;i=1",
+                  "properties": {
+                    "Speed": { "type": "number", "uav:mapToNodeId": "ns=2;i=6000" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document, new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = lenient });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.EqualTo(lenient));
+                Assert.That(result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableIdentity &&
+                    d.Severity == (lenient ? WotDiagnosticSeverity.Warning : WotDiagnosticSeverity.Error)),
+                    Is.True);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void IdentifierLeniencyDoesNotAcceptMalformedNodeIds(bool lenient)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:id": "nsu=urn:test:mapping;i=1",
+                  "properties": {
+                    "Speed": { "type": "number", "uav:mapToNodeId": "nsu=urn:test:device;i=not-a-number" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+                document, new WotNodeSetConverterOptions { AllowNonPortableIdentifiers = lenient });
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotDiagnosticCode.ValidationError && d.Severity == WotDiagnosticSeverity.Error), Is.True);
+        }
+
         [Test]
         public void FromNodeSetEmitsEventTypeAnnotationForEventTypeRoot()
         {

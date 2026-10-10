@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -51,7 +51,7 @@ namespace Opc.Ua.Wot
     /// reports every type binding unresolved.
     /// </remarks>
     public sealed class WotDocumentNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
     {
         /// <summary>
         /// Initializes a resolver over the supplied documents.
@@ -96,9 +96,13 @@ namespace Opc.Ua.Wot
             var accepted = new List<WotResolvedNode>(matches.Count);
             foreach (WotResolvedNode match in matches)
             {
-                if (Accepts(expected, match.NodeClass))
+                WotResolvedNode current = m_byNodeId.TryGetValue(
+                    WotNodeSetConverter.NormalizeExpandedNodeId(match.NodeId), out WotResolvedNode authoritative)
+                    ? authoritative
+                    : match;
+                if (Accepts(expected, current.NodeClass))
                 {
-                    accepted.Add(match);
+                    accepted.Add(WithAncestry(current));
                 }
             }
             return new ValueTask<ArrayOf<WotResolvedNode>>(accepted.ToArrayOf());
@@ -125,10 +129,11 @@ namespace Opc.Ua.Wot
             CancellationToken cancellationToken = default)
         {
             if (nodeId is not null &&
-                m_byNodeId.TryGetValue(nodeId, out WotResolvedNode match) &&
+                m_byNodeId.TryGetValue(
+                    WotNodeSetConverter.NormalizeExpandedNodeId(nodeId), out WotResolvedNode match) &&
                 Accepts(expected, match.NodeClass))
             {
-                return new ValueTask<WotResolvedNode?>(match);
+                return new ValueTask<WotResolvedNode?>(WithAncestry(match));
             }
             return new ValueTask<WotResolvedNode?>((WotResolvedNode?)null);
         }
@@ -181,10 +186,14 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            if (!TrySplitBrowseName(document, browseName, out string namespaceUri, out string local))
+            nodeId = WotNodeSetConverter.NormalizeExpandedNodeId(nodeId);
+            if (!WotPortableIdentity.TryResolveQualifiedName(
+                browseName, document, document.RootElement, out WotBrowsePathElement qualifiedName))
             {
                 return;
             }
+            string local = qualifiedName.Name;
+            string namespaceUri = qualifiedName.NamespaceUri!;
             m_namespaces.Add(namespaceUri);
             AddReferenceTypeName(namespaceUri, local, nodeId, local, true);
 
@@ -203,46 +212,6 @@ namespace Opc.Ua.Wot
             {
                 AddReferenceTypeName(namespaceUri, inverseName, nodeId, inverseName, false);
             }
-        }
-
-        /// <summary>
-        /// Splits a BrowseName into its namespace and local name. The portable
-        /// form is "nsu=&lt;uri&gt;;&lt;name&gt;": the URI itself contains colons, so it
-        /// must be split on the first ';' after the prefix and not on the first
-        /// ':' - doing the latter turned the namespace into "http".
-        /// </summary>
-        private bool TrySplitBrowseName(
-            WotDocument document,
-            string browseName,
-            out string namespaceUri,
-            out string local)
-        {
-            namespaceUri = string.Empty;
-            local = string.Empty;
-
-            if (browseName.StartsWith("nsu=", StringComparison.Ordinal))
-            {
-                int separator = browseName.IndexOf(';', 4);
-                if (separator <= 4 || separator == browseName.Length - 1)
-                {
-                    return false;
-                }
-                // The portable form escapes ';' and '%' in the namespace URI, so
-                // the raw substring would index under a different key than the
-                // unescaped URI every other reader resolves against.
-                namespaceUri = CoreUtils.UnescapeUri(browseName.AsSpan(4, separator - 4));
-                local = browseName[(separator + 1)..];
-                return namespaceUri.Length != 0;
-            }
-
-            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
-            if (colon <= 0)
-            {
-                return false;
-            }
-            namespaceUri = ResolvePrefix(document, browseName[..colon]);
-            local = browseName[(colon + 1)..];
-            return namespaceUri.Length != 0;
         }
 
         private void AddReferenceTypeName(
@@ -289,6 +258,16 @@ namespace Opc.Ua.Wot
                 m_declarations.Resolve(typeNodeId, scope));
         }
 
+        /// <inheritdoc/>
+        public ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
+            string graphId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<ArrayOf<WotDataTypeDefinitionSource>>(
+                m_declarations.ResolveDataTypeDefinitions(graphId));
+        }
+
         private void Index(WotDocument document)
         {
             if (document is null)
@@ -296,13 +275,24 @@ namespace Opc.Ua.Wot
                 return;
             }
             m_declarations.Add(document);
+            IndexReferenceType(document);
+            if (WotNodeSetConverter.TakesRestorePath(document))
+            {
+                IndexNativeProjection(document);
+                return;
+            }
+            WotExpectedNodeClass rootClass = ClassOfTokens(document.TypeTokens);
+            if (rootClass == WotExpectedNodeClass.Any && document.Kind == WotDocumentKind.ThingModel)
+            {
+                rootClass = WotExpectedNodeClass.ObjectType;
+            }
             IndexNode(
                 document.RootElement,
-                ClassOfTokens(document.TypeTokens),
+                rootClass,
                 document);
             foreach (KeyValuePair<string, JsonElement> entry in document.Properties)
             {
-                IndexNode(entry.Value, ClassOfElement(entry.Value), document);
+                IndexNode(entry.Value, WotExpectedNodeClass.Any, document);
             }
             foreach (KeyValuePair<string, JsonElement> entry in document.Actions)
             {
@@ -312,8 +302,37 @@ namespace Opc.Ua.Wot
             {
                 IndexNode(entry.Value, WotExpectedNodeClass.ObjectType, document);
             }
-            IndexReferenceType(document);
+            IndexDataTypeDefinitions(document);
             IndexNativeProjection(document);
+        }
+
+        private void IndexDataTypeDefinitions(WotDocument document)
+        {
+            var nodeSet = new UANodeSet();
+            foreach (JsonElement definition in WotNodeSetConverter.ReadDataTypeDefinitionOccurrences(
+                document.RootElement))
+            {
+                if (WotNodeSetConverter.IsReferenceOnlyDefinition(definition) ||
+                    !WotPortableIdentity.TryResolveQualifiedName(
+                        ReadString(definition, "uav:dataTypeName"), document, definition,
+                        out WotBrowsePathElement name))
+                {
+                    continue;
+                }
+                var diagnostics = new List<WotDiagnostic>();
+                string? identity = WotNodeSetConverter.ResolveDataTypeIdentity(
+                    document, definition, nodeSet, diagnostics);
+                if (identity is null ||
+                    diagnostics.Exists(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error))
+                {
+                    continue;
+                }
+                identity = WotNodeSetConverter.NormalizeExpandedNodeId(
+                    WotNodeSetConverter.ToPortableNodeId(identity, nodeSet.NamespaceUris) ?? identity);
+                var resolved = new WotResolvedNode(identity, WotExpectedNodeClass.DataType);
+                m_byNodeId.TryAdd(identity, resolved);
+                AddBrowseName(name.NamespaceUri!, name.Name, resolved);
+            }
         }
 
         /// <summary>
@@ -330,81 +349,47 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private void IndexNativeProjection(WotDocument document)
         {
-            if (!document.TryGetUav("nodes", out JsonElement projection) ||
-                projection.ValueKind != JsonValueKind.Object ||
-                !projection.TryGetProperty("nodes", out JsonElement nodes) ||
-                nodes.ValueKind != JsonValueKind.Array)
+            if (!document.TryGetEnvelope(out _) &&
+                (!document.TryGetNativeProjection(out JsonElement projection) ||
+                    WotNativeProjection.HasUnsupportedProfile(projection)))
             {
                 return;
             }
-            var namespaceUris = new List<string>();
-            if (projection.TryGetProperty("namespaceUris", out JsonElement uris) &&
-                uris.ValueKind == JsonValueKind.Array)
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
+            if (!result.Success || result.Value is null)
             {
-                foreach (JsonElement uri in uris.EnumerateArray())
-                {
-                    if (uri.ValueKind == JsonValueKind.String)
-                    {
-                        string value = uri.GetString() ?? string.Empty;
-                        namespaceUris.Add(value);
-                        m_namespaces.Add(value);
-                    }
-                }
+                throw new FormatException("The authoritative native type context could not be restored.");
             }
-            foreach (JsonElement node in nodes.EnumerateArray())
+            UANodeSet nodeSet = result.Value;
+            foreach (string namespaceUri in nodeSet.NamespaceUris ?? [])
             {
-                string? nodeId = ReadString(node, "nodeId");
-                if (nodeId is null ||
-                    !TryMakePortable(nodeId, namespaceUris, out string portable))
+                m_namespaces.Add(namespaceUri);
+            }
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (WotNodeSetConverter.ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris) is not { } portable)
                 {
                     continue;
                 }
-                WotExpectedNodeClass nodeClass = ReadString(node, "nodeClass") switch
+                portable = WotNodeSetConverter.NormalizeExpandedNodeId(portable);
+                WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
+                m_byNodeId[portable] = resolved;
+                if (node.BrowseName is { } browseName)
                 {
-                    "ObjectType" => WotExpectedNodeClass.ObjectType,
-                    "VariableType" => WotExpectedNodeClass.VariableType,
-                    _ => WotExpectedNodeClass.Any
-                };
-                m_byNodeId[portable] = new WotResolvedNode(portable, nodeClass);
+                    var name = QualifiedName.Parse(browseName);
+                    if (name.Name is { Length: > 0 } local)
+                    {
+                        if (name.NamespaceIndex == 0)
+                        {
+                            AddBrowseName(WotVocabulary.OpcUaNamespace, local, resolved);
+                        }
+                        else if (name.NamespaceIndex <= (nodeSet.NamespaceUris?.Length ?? 0))
+                        {
+                            AddBrowseName(nodeSet.NamespaceUris![name.NamespaceIndex - 1], local, resolved);
+                        }
+                    }
+                }
             }
-        }
-
-        /// <summary>
-        /// Rewrites a projection-local <c>ns=&lt;index&gt;</c> identifier into
-        /// the portable <c>nsu=</c> form the vocabulary resolves against.
-        /// </summary>
-        private static bool TryMakePortable(
-            string nodeId, List<string> namespaceUris, out string portable)
-        {
-            portable = string.Empty;
-            if (!nodeId.StartsWith("ns=", StringComparison.Ordinal))
-            {
-                // No namespace prefix means namespace zero, which is the OPC UA
-                // namespace and is never a companion type.
-                return false;
-            }
-            int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
-            if (separator < 0 ||
-                !int.TryParse(
-#if NETSTANDARD2_0 || NET48
-                    nodeId.Substring(3, separator - 3),
-#else
-                    nodeId.AsSpan(3, separator - 3),
-#endif
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out int index) ||
-                index < 1 ||
-                index > namespaceUris.Count)
-            {
-                return false;
-            }
-            // OPC 10000-6 5.1.12: the URI of an nsu= identifier is
-            // percent-encoded with ';' reserved, as every other producer of
-            // these keys writes it.
-            portable = "nsu=" + CoreUtils.EscapeUri(namespaceUris[index - 1]) + ";" +
-                nodeId[(separator + 1)..];
-            return true;
         }
 
         private void IndexNode(
@@ -415,9 +400,21 @@ namespace Opc.Ua.Wot
                 return;
             }
             string? nodeId = ReadString(element, "uav:id");
+            if (nodeId is null &&
+                element.Equals(document.RootElement) &&
+                WotNodeSetConverter.TryDescribeProjectedType(document, out _, out _, out string generatedId))
+            {
+                nodeId = generatedId;
+            }
             if (nodeId is not null)
             {
-                m_byNodeId[nodeId] = new WotResolvedNode(nodeId, nodeClass);
+                nodeId = WotNodeSetConverter.NormalizeExpandedNodeId(nodeId);
+            }
+            WotResolvedNode resolved = WotNodeSetConverter.DescribeResolvedNode(
+                element, nodeId ?? string.Empty, nodeClass);
+            if (nodeId is not null)
+            {
+                m_byNodeId[nodeId] = resolved;
                 int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
                 if (nodeId.StartsWith("nsu=", StringComparison.Ordinal) && separator > 4)
                 {
@@ -429,10 +426,18 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            if (!TrySplitBrowseName(document, browseName, out string namespaceUri, out string local))
+            if (!WotPortableIdentity.TryResolveQualifiedName(
+                browseName, document, element, out WotBrowsePathElement qualifiedName))
             {
                 return;
             }
+            string local = qualifiedName.Name;
+            string namespaceUri = qualifiedName.NamespaceUri!;
+            AddBrowseName(namespaceUri, local, resolved);
+        }
+
+        private void AddBrowseName(string namespaceUri, string local, WotResolvedNode resolved)
+        {
             m_namespaces.Add(namespaceUri);
             string key = namespaceUri + "|" + local;
             if (!m_byBrowseName.TryGetValue(key, out List<WotResolvedNode>? matches))
@@ -440,46 +445,48 @@ namespace Opc.Ua.Wot
                 matches = [];
                 m_byBrowseName[key] = matches;
             }
-            matches.Add(new WotResolvedNode(nodeId, nodeClass));
+            if (!matches.Exists(match => match.NodeId == resolved.NodeId && match.NodeClass == resolved.NodeClass))
+            {
+                matches.Add(resolved);
+            }
         }
 
-        private static string ResolvePrefix(WotDocument document, string prefix)
+        private WotResolvedNode WithAncestry(WotResolvedNode node)
         {
-            if (!document.TryGetContext(out JsonElement context))
+            return node with
             {
-                return string.Empty;
-            }
-            if (context.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement member in context.EnumerateArray())
-                {
-                    string found = ReadString(member, prefix) ?? string.Empty;
-                    if (found.Length != 0)
-                    {
-                        return found;
-                    }
-                }
-                return string.Empty;
-            }
-            return ReadString(context, prefix) ?? string.Empty;
-        }
-
-        private static WotExpectedNodeClass ClassOfElement(JsonElement element)
-        {
-            string? token = ReadString(element, "@type");
-            return token switch
-            {
-                "uav:variableType" => WotExpectedNodeClass.VariableType,
-                "uav:objectType" => WotExpectedNodeClass.ObjectType,
-                _ => WotExpectedNodeClass.Any
+                SupertypeNodeIds = GetSupertypes(node.NodeId),
+                DirectSupertypeNodeIds = m_declarations.GetDirectSupertypes(node.NodeId)
             };
+        }
+
+        private ArrayOf<string> GetSupertypes(string nodeId)
+        {
+            var found = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal) { nodeId };
+            var pending = new Queue<string>();
+            pending.Enqueue(nodeId);
+            while (pending.Count > 0)
+            {
+                foreach (string parent in m_declarations.GetDirectSupertypes(pending.Dequeue()))
+                {
+                    if (!WotPortableIdentity.IsPortableNodeId(parent) || !seen.Add(parent))
+                    {
+                        continue;
+                    }
+                    found.Add(parent);
+                    pending.Enqueue(parent);
+                }
+            }
+            return found.ToArrayOf();
         }
 
         private static WotExpectedNodeClass ClassOfTokens(IReadOnlyList<string> tokens)
         {
             for (int i = 0; i < tokens.Count; i++)
             {
-                if (string.Equals(tokens[i], "uav:objectType", StringComparison.Ordinal))
+                if (string.Equals(tokens[i], "uav:objectType", StringComparison.Ordinal) ||
+                    string.Equals(tokens[i], WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal))
                 {
                     return WotExpectedNodeClass.ObjectType;
                 }
@@ -490,6 +497,10 @@ namespace Opc.Ua.Wot
                 if (string.Equals(tokens[i], "uav:referenceType", StringComparison.Ordinal))
                 {
                     return WotExpectedNodeClass.ReferenceType;
+                }
+                if (string.Equals(tokens[i], "uav:dataType", StringComparison.Ordinal))
+                {
+                    return WotExpectedNodeClass.DataType;
                 }
             }
             return WotExpectedNodeClass.Any;

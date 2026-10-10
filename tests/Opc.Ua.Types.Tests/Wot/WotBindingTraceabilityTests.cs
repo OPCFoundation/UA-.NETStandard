@@ -57,10 +57,9 @@ namespace Opc.Ua.Types.Tests.Wot
     /// is a clause held by nothing.
     /// </para>
     /// <para>
-    /// The ledger is temporary. The specification publishes no requirement
-    /// identifiers yet, so the clause numbers are read from a pinned commit and
-    /// the pin is checked against the fixture manifest beside it; when the
-    /// specification lands its published revision, re-pin both.
+    /// This clause-level view complements the statement-level requirement
+    /// inventory. Its specification pin is checked against the fixture
+    /// manifest so neither can drift to a different draft unnoticed.
     /// </para>
     /// </remarks>
     [TestFixture]

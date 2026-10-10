@@ -120,7 +120,7 @@ namespace Opc.Ua.XRegistry.Client
             uint fileHandle = await resource.OpenAsync(kReadMode, ct).ConfigureAwait(false);
             try
             {
-                var document = new System.IO.MemoryStream();
+                using var document = new System.IO.MemoryStream();
                 while (true)
                 {
                     ByteString chunk = await resource.ReadAsync(fileHandle, chunkSize, ct)
@@ -135,10 +135,6 @@ namespace Opc.Ua.XRegistry.Client
 #else
                     document.Write(chunk.Span);
 #endif
-                    if (chunk.Length < chunkSize)
-                    {
-                        break;
-                    }
                 }
                 return ByteString.From(document.ToArray());
             }

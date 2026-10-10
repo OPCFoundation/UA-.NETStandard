@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.XRegistry.Server;
@@ -154,6 +155,38 @@ namespace Opc.Ua.XRegistry.Tests
 
             ByteString document = await store.ReadAsync("a", 0, 16).ConfigureAwait(false);
             Assert.That(document.Span.ToArray(), Is.EqualTo(s_document));
+        }
+
+        [Test]
+        public async Task AtomicReplacementTruncatesWithoutChangingOffsetWriteSemanticsAsync()
+        {
+            var store = (IXRegistryAtomicResourceStore)CreateStore();
+            await store.ReplaceAsync("a", ByteString.From([1, 2, 3, 4])).ConfigureAwait(false);
+            await store.ReplaceAsync("a", ByteString.From([5, 6])).ConfigureAwait(false);
+            ByteString replaced = await store.ReadAsync("a", 0, 8).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From([9])).ConfigureAwait(false);
+            ByteString overwritten = await store.ReadAsync("a", 0, 8).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(replaced, Is.EqualTo(ByteString.From([5, 6])));
+                Assert.That(overwritten, Is.EqualTo(ByteString.From([9, 6])));
+            });
+        }
+
+        [Test]
+        public async Task CancelledAtomicReplacementPreservesThePreviousDocumentAsync()
+        {
+            var store = (IXRegistryAtomicResourceStore)CreateStore();
+            await store.ReplaceAsync("a", ByteString.From([1, 2, 3, 4])).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.That(() => store.ReplaceAsync("a", ByteString.From([9]), cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>());
+            ByteString document = await store.ReadAsync("a", 0, 8).ConfigureAwait(false);
+
+            Assert.That(document, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
         }
 
         [Test]

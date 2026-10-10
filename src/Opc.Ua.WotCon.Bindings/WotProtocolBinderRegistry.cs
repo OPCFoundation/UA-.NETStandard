@@ -45,7 +45,7 @@ namespace Opc.Ua.WotCon.Bindings
     /// can coexist; the executor for a binder is matched by id so a protocol can be
     /// validated without an executor and executed once one is registered.
     /// </summary>
-    public sealed class WotProtocolBinderRegistry : IWotBinderRegistry, IWotBindingChannelFactory
+    public sealed class WotProtocolBinderRegistry : IWotBinderRegistry, IWotContextualBindingChannelFactory
     {
         /// <summary>
         /// Initializes a new binder registry.
@@ -129,6 +129,12 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public IReadOnlyList<IWotProtocolBinder> Binders => m_ordered;
 
+        /// <summary>
+        /// Gets the optional host value context used by direct channel activation.
+        /// A projected consumer can supply its materialized context per activation instead.
+        /// </summary>
+        public IServiceMessageContext? MessageContext { get; init; }
+
         /// <inheritdoc/>
         public WotBindingPlan Prepare(WotBindingPlanRequest request)
         {
@@ -151,8 +157,15 @@ namespace Opc.Ua.WotCon.Bindings
                 ImmutableArray.CreateBuilder<WotBindingDiagnostic>();
             var participating = new Dictionary<string, WoTBindingCapabilityDataType>(StringComparer.Ordinal);
 
-            foreach (WotAffordanceForm form in request.Forms)
+            foreach (WotAffordanceForm authored in request.Forms)
             {
+                if (!authored.TryResolveHref(
+                    context.BaseUri, out WotAffordanceForm form, out WotBindingDiagnostic? addressDiagnostic))
+                {
+                    unsupported.Add(authored);
+                    diagnostics.Add(addressDiagnostic);
+                    continue;
+                }
                 if (form.AffordanceElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
                     !form.AffordanceElement.TryGetProperty("forms", out _) &&
                     (request.IsDeclarationContext ||
@@ -291,6 +304,20 @@ namespace Opc.Ua.WotCon.Bindings
         public ValueTask<IWotBindingChannel> OpenChannelAsync(
             WotCompiledForm form, CancellationToken cancellationToken = default)
         {
+            return OpenChannelCore(form, MessageContext, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IWotBindingChannel> OpenChannelAsync(
+            WotCompiledForm form, IServiceMessageContext context, CancellationToken cancellationToken = default)
+        {
+            return OpenChannelCore(
+                form, context ?? throw new ArgumentNullException(nameof(context)), cancellationToken);
+        }
+
+        private ValueTask<IWotBindingChannel> OpenChannelCore(
+            WotCompiledForm form, IServiceMessageContext? messageContext, CancellationToken cancellationToken)
+        {
             if (form is null)
             {
                 throw new ArgumentNullException(nameof(form));
@@ -308,6 +335,10 @@ namespace Opc.Ua.WotCon.Bindings
             }
 
             var context = new WotExecutorContext(m_credentials, m_codecs, m_bounds, m_endpointPolicy, m_telemetry);
+            if (messageContext is not null)
+            {
+                context = context.WithMessageContext(messageContext);
+            }
             return executor.ActivateAsync(form, context, cancellationToken);
         }
 

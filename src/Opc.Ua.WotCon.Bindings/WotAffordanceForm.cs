@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -64,7 +65,7 @@ namespace Opc.Ua.WotCon.Bindings
     /// form in the originating document. Binders read protocol vocabulary terms
     /// from <see cref="FormElement"/>; the object performs no transport I/O.
     /// </summary>
-    public sealed class WotAffordanceForm
+    public sealed partial class WotAffordanceForm
     {
         /// <summary>
         /// Initializes a new immutable affordance form.
@@ -155,6 +156,12 @@ namespace Opc.Ua.WotCon.Bindings
         /// <c>uav:mapToType</c> or <c>uav:mapByFieldPath</c>.
         /// </summary>
         public WotTargetMappingDescriptor TargetMapping { get; }
+
+        /// <summary>
+        /// Gets the payload facts captured before the source document was detached.
+        /// This is also available for declaration-only Thing Models.
+        /// </summary>
+        public Wot.WotPayloadSchema? PayloadSchema { get; internal init; }
 
         /// <summary>
         /// Gets whether the form declares the supplied case-insensitive <c>op</c>.
@@ -338,6 +345,54 @@ namespace Opc.Ua.WotCon.Bindings
                 }
             }
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Resolves the target before protocol selection while retaining the authored JSON and location.
+        /// </summary>
+        internal bool TryResolveHref(
+            string? baseUri,
+            out WotAffordanceForm resolved,
+            [NotNullWhen(false)] out WotBindingDiagnostic? diagnostic)
+        {
+            resolved = this;
+            diagnostic = null;
+            if (Href is null || string.IsNullOrEmpty(baseUri))
+            {
+                return true;
+            }
+            if (!Uri.TryCreate(baseUri, UriKind.Absolute, out Uri? documentBase) ||
+                !Uri.TryCreate(Href, UriKind.RelativeOrAbsolute, out Uri? href) ||
+                !Uri.TryCreate(documentBase, href, out Uri? target))
+            {
+                diagnostic = WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidHref,
+                    "The form target cannot be resolved against the document base URI.",
+                    Pointer("href"));
+                return false;
+            }
+            if (!string.Equals(Href, target.AbsoluteUri, StringComparison.Ordinal))
+            {
+                resolved = new WotAffordanceForm(
+                    Kind,
+                    AffordanceName,
+                    Operations,
+                    target.AbsoluteUri,
+                    ContentType,
+                    Subprotocol,
+                    SecuritySchemes,
+                    JsonPointer,
+                    FormElement,
+                    AffordanceElement,
+                    TargetMapping)
+                {
+                    PayloadSchema = PayloadSchema,
+                    BrowsePathTarget = BrowsePathTarget,
+                    BrowsePathError = BrowsePathError,
+                    HasBrowsePathCapture = HasBrowsePathCapture
+                };
+            }
+            return true;
         }
     }
 }

@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
     /// subclass overrides effective for internal dispatch.
     /// </para>
     /// </summary>
-    internal sealed class NodeManagerServiceDispatcher
+    internal sealed partial class NodeManagerServiceDispatcher
     {
         private const int MaxRelativePathElements = 4096;
 
@@ -186,6 +186,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             bool diagnosticsExist = false;
             var results = new List<BrowsePathResult>(browsePaths.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
@@ -280,7 +281,8 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo) ||
+                            !diagnosticInfo.InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                         {
                             diagnosticsExist = true;
                             break;
@@ -568,6 +570,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -766,6 +769,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ByteString> continuationPoints,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -775,10 +779,10 @@ namespace Opc.Ua.Server
             var results = new List<BrowseResult>(continuationPoints.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
-            bool completed = false;
+            uint continuationPointsAssigned = 0;
+
             try
             {
-                uint continuationPointsAssigned = 0;
                 for (int ii = 0; ii < continuationPoints.Count; ii++)
                 {
                     if (StatusCode.IsBad(context.OperationStatus))
@@ -786,109 +790,109 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(context.OperationStatus);
                     }
 
-                    // A session-less request (Part 4 §6.3.1) holds no continuation points, so every
-                    // supplied point is unknown and reported as Bad_ContinuationPointInvalid below.
                     ContinuationPoint? cp = context.Session?.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
-                    ContinuationPoint? ownedCp = cp;
+                    var result = new BrowseResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = default
+                    };
+                    results.Add(result);
+                    ServiceResult error = ServiceResult.Good;
                     try
                     {
-                        if (cp != null)
+                        using NodeManagerRoutingTable.ReadScope continuationRouting =
+                            m_nodeManagers.Capture(cp?.RoutingSnapshot);
+                        if (cp is not null)
                         {
-                            ServiceResult validationResult = await ValidatePermissionsAsync(
+                            error = await ValidatePermissionsAsync(
                                 context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
                                 null, true, cancellationToken).ConfigureAwait(false);
-                            if (ServiceResult.IsBad(validationResult))
+                        }
+
+                        if (ServiceResult.IsGood(error) && !releaseContinuationPoints)
+                        {
+                            if (cp is null)
                             {
-                                results.Add(new BrowseResult
+                                error = StatusCodes.BadContinuationPointInvalid;
+                            }
+                            else
+                            {
+                                ContinuationPoint fetching = cp;
+                                cp = null;
+                                try
                                 {
-                                    StatusCode = validationResult.Code,
-                                    ContinuationPoint = default
-                                });
-                                diagnosticInfos.Add(null!);
-                                continue;
+                                    var page = await FetchReferencesAsync(
+                                        context,
+                                        m_owner.MaxContinuationPointsPerBrowse == 0 ||
+                                            continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                        fetching,
+                                        result.References,
+                                        cancellationToken).ConfigureAwait(false);
+                                    error = page.serviceResult;
+                                    cp = page.cp;
+                                    result.References = page.references;
+                                }
+                                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                {
+                                    throw;
+                                }
+                                catch (Exception e)
+                                {
+                                    error = ServiceResult.Create(
+                                        e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
+                                }
+                                if (cp is not null && ServiceResult.IsGood(error))
+                                {
+                                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                                    continuationPointsAssigned++;
+                                    cp = null;
+                                }
                             }
-                        }
-
-                        var result = new BrowseResult
-                        {
-                            StatusCode = StatusCodes.Good,
-                            ContinuationPoint = default
-                        };
-                        results.Add(result);
-                        if (releaseContinuationPoints)
-                        {
-                            continue;
-                        }
-
-                        ServiceResult error = StatusCodes.BadContinuationPointInvalid;
-                        if (cp != null)
-                        {
-                            ContinuationPoint pointToFetch = cp;
-                            ownedCp = null; // FetchReferencesAsync owns it, including on failure.
-                            try
-                            {
-                                ArrayOf<ReferenceDescription> references = result.References;
-                                (error, cp, references) = await FetchReferencesAsync(
-                                    context,
-                                    m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
-                                    pointToFetch,
-                                    references,
-                                    cancellationToken).ConfigureAwait(false);
-                                result.References = references;
-                            }
-                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                            {
-                                throw;
-                            }
-                            catch (Exception e)
-                            {
-                                error = ServiceResult.Create(
-                                    e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
-                            }
-                        }
-
-                        result.StatusCode = error.StatusCode;
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                        {
-                            DiagnosticInfo? diagnosticInfo = null;
-                            if (error.Code != StatusCodes.Good)
-                            {
-                                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
-                                diagnosticsExist = true;
-                            }
-                            diagnosticInfos.Add(diagnosticInfo!);
-                        }
-
-                        if (cp != null && ServiceResult.IsGood(error))
-                        {
-                            result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
-                            continuationPointsAssigned++;
                         }
                     }
                     finally
                     {
-                        ownedCp?.Dispose();
+                        cp?.Dispose();
                     }
-                }
-
-                UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
-                completed = true;
-                return (results, diagnosticInfos);
-            }
-            finally
-            {
-                if (!completed)
-                {
-                    foreach (BrowseResult result in results)
+                    result.StatusCode = error.StatusCode;
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        if (!result.ContinuationPoint.IsEmpty)
+                        DiagnosticInfo? diagnosticInfo = null;
+                        if (error.Code != StatusCodes.Good)
                         {
-                            context.Session?.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                            diagnosticsExist = true;
                         }
+                        diagnosticInfos.Add(diagnosticInfo!);
                     }
                 }
             }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                List<Exception>? cleanupFailures = null;
+                foreach (BrowseResult result in results)
+                {
+                    if (result.ContinuationPoint.IsEmpty)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        context.Session?.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        (cleanupFailures ??= [failure]).Add(cleanupFailure);
+                    }
+                }
+                if (cleanupFailures is not null)
+                {
+                    throw new AggregateException("BrowseNext and continuation cleanup failed.", cleanupFailures);
+                }
+                throw;
+            }
+            UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -946,6 +950,7 @@ namespace Opc.Ua.Server
             using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
                 Manager = nodeManager!,
+                RoutingSnapshot = m_nodeManagers.CapturedRevision,
                 View = view,
                 NodeToBrowse = handle,
                 RequestedNodeId = nodeToBrowse.NodeId,
@@ -995,18 +1000,30 @@ namespace Opc.Ua.Server
             Debug.Assert(cp != null);
 
             ContinuationPoint? currentCp = cp;
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? m_nodeManagers.CapturedRevision;
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture(snapshot);
+            bool saved = false;
             try
             {
-                IAsyncNodeManager nodeManager = cp!.Manager;
+                IAsyncNodeManager nodeManager = cp.Manager;
                 var nodeClassMask = (NodeClass)cp.NodeClassMask;
                 BrowseResultMask resultMask = cp.ResultMask;
                 var referenceList = references.ToList();
                 while (currentCp != null)
                 {
+                    ContinuationPoint previous = currentCp;
                     currentCp = await nodeManager.BrowseAsync(context!, currentCp, referenceList, cancellationToken)
                         .ConfigureAwait(false);
-                    var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
+                    if (!ReferenceEquals(previous, currentCp))
+                    {
+                        previous.Dispose();
+                    }
+                    if (currentCp is not null)
+                    {
+                        currentCp.RoutingSnapshot = snapshot;
+                    }
 
+                    var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
                     for (int ii = 0; ii < referenceList.Count; ii++)
                     {
                         ReferenceDescription reference = referenceList[ii];
@@ -1016,14 +1033,9 @@ namespace Opc.Ua.Server
                             {
                                 continue;
                             }
-
                             bool include = await UpdateReferenceDescriptionAsync(
-                                context!,
-                                (NodeId)reference.NodeId,
-                                nodeClassMask,
-                                resultMask,
-                                reference,
-                                cancellationToken).ConfigureAwait(false);
+                                context!, (NodeId)reference.NodeId, nodeClassMask, resultMask,
+                                reference, cancellationToken).ConfigureAwait(false);
                             if (!include)
                             {
                                 continue;
@@ -1031,33 +1043,47 @@ namespace Opc.Ua.Server
                         }
                         referencesToKeep.Add(reference);
                     }
-
                     referenceList = referencesToKeep;
                     if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
                     {
-                        // A session-less request (Part 4 §6.3.1) has nowhere to keep a
-                        // continuation point, so the overflowing node is reported with
-                        // Bad_NoContinuationPoints (Part 4 §7.38.2).
-                        ISession? session = context!.Session;
-                        if (!assignContinuationPoint || session == null)
+                        ISession? session = context.Session;
+                        if (!assignContinuationPoint || session is null)
                         {
                             TranslateDisplayNames(context, referenceList);
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                         }
+                        if (!currentCp.HasCapturedDependencies)
+                        {
+                            ServiceResult dependencyResult = await CaptureBrowseDependenciesAsync(
+                                currentCp, snapshot, cancellationToken).ConfigureAwait(false);
+                            if (ServiceResult.IsBad(dependencyResult))
+                            {
+                                return (dependencyResult, null, []);
+                            }
+                        }
+                        TranslateDisplayNames(context, referenceList);
                         currentCp.Id = Guid.NewGuid();
                         session.ContinuationPoints.SaveBrowse(currentCp);
-                        ContinuationPoint retainedCp = currentCp;
-                        currentCp = null;
-                        TranslateDisplayNames(context, referenceList);
-                        return (ServiceResult.Good, retainedCp, referenceList);
+                        saved = true;
+                        return (ServiceResult.Good, currentCp, referenceList);
                     }
                 }
-                TranslateDisplayNames(context!, referenceList);
+                TranslateDisplayNames(context, referenceList);
                 return (ServiceResult.Good, null, referenceList);
             }
             finally
             {
-                currentCp?.Dispose();
+                if (!saved)
+                {
+                    try
+                    {
+                        currentCp?.Dispose();
+                    }
+                    finally
+                    {
+                        cp.Dispose();
+                    }
+                }
             }
         }
 
@@ -1080,6 +1106,47 @@ namespace Opc.Ua.Server
                     reference.DisplayName = resourceManager.Translate(preferredLocales, reference.DisplayName);
                 }
             }
+        }
+
+        private async ValueTask<ServiceResult> CaptureBrowseDependenciesAsync(
+            ContinuationPoint point,
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            if (point.Data is not IBrowseContinuationDependencies dependencies ||
+                !dependencies.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds))
+            {
+                return ServiceResult.Create(StatusCodes.BadNotSupported,
+                    "The Browse continuation cannot declare its complete remaining dependencies.");
+            }
+
+            var targets = new HashSet<NodeId>();
+            foreach (ExpandedNodeId targetId in targetIds)
+            {
+                if (!targetId.IsAbsolute && !targetId.IsNull)
+                {
+                    targets.Add((NodeId)targetId);
+                }
+            }
+            if (point.View is not null && !point.View.ViewId.IsNull)
+            {
+                targets.Add(point.View.ViewId);
+            }
+            var owners = new List<IAsyncNodeManager> { point.Manager };
+            foreach (NodeId targetId in targets)
+            {
+                (object? handle, IAsyncNodeManager? manager) = await m_owner.GetManagerHandleAsync(
+                    targetId, cancellationToken).ConfigureAwait(false);
+                if (handle is not null && manager is not null &&
+                    !owners.Exists(owner => ReferenceEquals(owner, manager)))
+                {
+                    owners.Add(manager);
+                }
+            }
+            ArrayOf<IAsyncNodeManager> retainedOwners = [.. owners];
+            point.SetDependencyOwners(retainedOwners);
+            point.RoutingSnapshot = snapshot.ForContinuation(retainedOwners);
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1205,6 +1272,7 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (maxAge < 0)
             {
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
@@ -1340,14 +1408,17 @@ namespace Opc.Ua.Server
         /// Validates history read requests and dispatches reads or continuation releases to the node managers.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
+        private async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            HistoryReadCoreAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             ArrayOf<HistoryReadValueId> nodesToRead,
+            List<HistoryReadResult> results,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             // validate history details parameter.
             if (historyReadDetails.IsNull)
             {
@@ -1361,7 +1432,6 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            var results = new List<HistoryReadResult>(nodesToRead.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // pre-validate items.
@@ -1378,6 +1448,27 @@ namespace Opc.Ua.Server
                 // Limit permission restrictions to Client initiated service call
                 HistoryReadResult? result = null;
                 DiagnosticInfo? diagnosticInfo = null;
+
+                if (!nodesToRead[ii].ContinuationPoint.IsEmpty &&
+                    context.Session?.ContinuationPoints is SessionContinuationPoints holder)
+                {
+                    (result, errors[ii]) = await ReadHistoryContinuationAsync(
+                        context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                        releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    nodesToRead[ii].Processed = true;
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        result.StatusCode = errors[ii].StatusCode;
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii], m_logger);
+                            diagnosticsExist = true;
+                        }
+                    }
+                    results.Add(result);
+                    diagnosticInfos.Add(diagnosticInfo!);
+                    continue;
+                }
 
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateHistoryReadRequestAsync(context, nodesToRead[ii], cancellationToken)
@@ -1411,41 +1502,42 @@ namespace Opc.Ua.Server
                 diagnosticInfos.Add(diagnosticInfo!);
             }
 
-            // keep the points this request continues or creates from being evicted by its own
-            // later operations or by a concurrent request until the response has been produced
-            // (Part 4 §7.9). The scope lives until the method returns; it is begun synchronously
-            // so it is the current HistoryRead of the node manager calls awaited below.
-            SessionContinuationPoints? sessionContinuationPoints = validItems && !releaseContinuationPoints
-                ? context.Session?.ContinuationPoints as SessionContinuationPoints
-                : null;
-            using IDisposable? historyRequest = sessionContinuationPoints?.BeginHistoryRequest(nodesToRead);
-
             // call each node manager.
             if (validItems)
             {
-                try
+                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
-                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    bool[] pending = [];
+                    if (m_owner.RequiresHistoryContinuationOwnership(nodeManager))
                     {
-                        await nodeManager.HistoryReadAsync(
-                            context,
-                            details!,
-                            timestampsToReturn,
-                            releaseContinuationPoints,
-                            nodesToRead,
-                            results,
-                            errors,
-                            cancellationToken).ConfigureAwait(false);
+                        pending = new bool[nodesToRead.Count];
+                        for (int ii = 0; ii < pending.Length; ii++)
+                        {
+                            pending[ii] = !nodesToRead[ii].Processed;
+                        }
                     }
-                }
-                catch
-                {
-                    // the service faults, so the client never receives the continuation
-                    // points saved for its operations and could not release them
-                    // (Part 4 §7.9); free them like Browse does.
-                    ReleaseUnreturnedHistoryContinuationPoints(
-                        context, sessionContinuationPoints, historyRequest, nodesToRead, results);
-                    throw;
+                    await nodeManager.HistoryReadAsync(
+                        context,
+                        details!,
+                        timestampsToReturn,
+                        releaseContinuationPoints,
+                        nodesToRead,
+                        results,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
+                    for (int ii = 0; ii < pending.Length; ii++)
+                    {
+                        if (pending[ii] && nodesToRead[ii].Processed &&
+                            results[ii] is { ContinuationPoint.IsEmpty: false } page &&
+                            (context.Session?.ContinuationPoints is not SessionContinuationPoints points ||
+                                !points.IsCapturedHistoryPoint(page.ContinuationPoint)))
+                        {
+                            context.Session?.ContinuationPoints.RestoreHistory(page.ContinuationPoint)?.Dispose();
+                            results[ii] = new HistoryReadResult { StatusCode = StatusCodes.BadNotSupported };
+                            errors[ii] = ServiceResult.Create(StatusCodes.BadNotSupported,
+                                "Opaque custom HistoryRead points do not support dynamic retirement.");
+                        }
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1551,6 +1643,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1667,6 +1760,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             var detailTypes = new List<Type>();
             var nodesToUpdate = new List<HistoryUpdateDetails>();
             var inputErrors = new List<ServiceResult?>();
@@ -1821,6 +1915,7 @@ namespace Opc.Ua.Server
                 ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1905,29 +2000,27 @@ namespace Opc.Ua.Server
                 }
 
                 // update the diagnostic info and ensure the status code in the result is the same as the error code.
-                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good.Code)
                 {
                     if (results[ii] == null)
                     {
                         results[ii] = new CallMethodResult();
                     }
-
                     results[ii].StatusCode = errors[ii].Code;
-
-                    // add diagnostics if requested.
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            errors[ii],
-                            m_logger)!;
-                        diagnosticsExist = true;
-                    }
+                }
+                if (MethodCallResultBuilder.HasDiagnosticDetails(errors[ii]) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        Server,
+                        context,
+                        errors[ii],
+                        m_logger)!;
+                    diagnosticsExist = true;
                 }
             }
 
-            // clear the diagnostics array if no diagnostics requested or no errors occurred.
+            // Clear the array only when no requested diagnostic information remains.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
@@ -1941,6 +2034,7 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
+            await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 m_owner.GetConditionRefreshDispatches(
@@ -1952,6 +2046,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
+                        using var emission = dispatch.EnterSourceEmission();
                         await dispatch.NodeManager
                             .ConditionRefreshAsync(
                                 context,
@@ -1986,6 +2081,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             await CreateMonitoredItemsCoreAsync(
                 context,
                 subscriptionId,
@@ -2064,25 +2160,10 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                // create items for event filters.
-                await CreateMonitoredItemsForEventsAsync(
-                        context,
-                        subscriptionId,
-                        publishingInterval,
-                        timestampsToReturn,
-                        itemsToCreate,
-                        errors,
-                        filterResults,
-                        monitoredItems,
-                        createDurable,
-                        m_monitoredItemIdFactory,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                // create items for data access.
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                try
                 {
-                    await nodeManager.CreateMonitoredItemsAsync(
+                    // create items for event filters.
+                    await CreateMonitoredItemsForEventsAsync(
                             context,
                             subscriptionId,
                             publishingInterval,
@@ -2095,6 +2176,39 @@ namespace Opc.Ua.Server
                             m_monitoredItemIdFactory,
                             cancellationToken)
                         .ConfigureAwait(false);
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // create items for data access.
+                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    {
+                        await nodeManager.CreateMonitoredItemsAsync(
+                                context,
+                                subscriptionId,
+                                publishingInterval,
+                                timestampsToReturn,
+                                itemsToCreate,
+                                errors,
+                                filterResults,
+                                monitoredItems,
+                                createDurable,
+                                m_monitoredItemIdFactory,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Completed items must still be transferred to the subscription. Only
+                    // requests without an item or a prior failure become cancellation results.
+                    for (int ii = 0; ii < itemsToCreate.Count; ii++)
+                    {
+                        if (monitoredItems[ii] is null && ServiceResult.IsGood(errors[ii]))
+                        {
+                            errors[ii] = StatusCodes.BadRequestCancelledByClient;
+                            itemsToCreate[ii].Processed = true;
+                        }
+                    }
                 }
 
                 // fill results for unknown nodes.
@@ -2232,96 +2346,159 @@ namespace Opc.Ua.Server
                         filter,
                         createDurable);
 
-                    bool allEvents = itemToCreate.ItemToMonitor.NodeId == Objects.Server;
-                    bool accepted = false;
-                    var attemptedOwners = new List<IAsyncNodeManager>();
-                    try
+                    ArrayOf<IAsyncNodeManager> eventManagers = monitoredItem.MonitoringAllEvents
+                        ? [.. m_nodeManagers]
+                        : [nodeManager];
+                    ServiceResult error = await SubscribeCreatedEventMonitoredItemAsync(
+                        context,
+                        subscriptionId,
+                        monitoredItem,
+                        eventManagers,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(error))
                     {
-                        ServiceResult subscriptionResult = ServiceResult.Good;
-                        if (allEvents)
-                        {
-                            foreach (IAsyncNodeManager manager in m_nodeManagers)
-                            {
-                                attemptedOwners.Add(manager);
-                                subscriptionResult = await manager.SubscribeToAllEventsAsync(
-                                    context,
-                                    subscriptionId,
-                                    monitoredItem,
-                                    false,
-                                    cancellationToken).ConfigureAwait(false) ??
-                                    ServiceResult.Good;
-                                if (subscriptionResult.StatusCode == StatusCodes.BadNotSupported)
-                                {
-                                    subscriptionResult = ServiceResult.Good;
-                                    continue;
-                                }
-                                if (ServiceResult.IsBad(subscriptionResult))
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            attemptedOwners.Add(nodeManager);
-                            subscriptionResult = await nodeManager.SubscribeToEventsAsync(
-                                context,
-                                handle,
-                                subscriptionId,
-                                monitoredItem,
-                                false,
-                                cancellationToken).ConfigureAwait(false);
-                        }
+                        errors[ii] = error;
+                        continue;
+                    }
+                    monitoredItems[ii] = monitoredItem;
+                    errors[ii] = StatusCodes.Good;
+                }
+            }
+        }
 
-                        if (ServiceResult.IsBad(subscriptionResult))
-                        {
-                            errors[ii] = subscriptionResult;
-                            continue;
-                        }
-
-                        monitoredItems[ii] = monitoredItem;
-                        errors[ii] = StatusCodes.Good;
-                        accepted = true;
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        private async ValueTask<ServiceResult> SubscribeCreatedEventMonitoredItemAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            ArrayOf<IAsyncNodeManager> eventManagers,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult error = ServiceResult.Good;
+            int lastAttempted = -1;
+            try
+            {
+                for (int ii = 0; ii < eventManagers.Count; ii++)
+                {
+                    lastAttempted = ii;
+                    error = await SetEventSubscriptionAsync(
+                        eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken)
+                        .ConfigureAwait(false) ?? ServiceResult.Good;
+                    if (monitoredItem.MonitoringAllEvents &&
+                        error.StatusCode == StatusCodes.BadNotSupported)
                     {
-                        throw;
+                        error = ServiceResult.Good;
+                        continue;
                     }
-                    catch (Exception error) when (error is not OutOfMemoryException)
+                    if (ServiceResult.IsBad(error))
                     {
-                        m_logger.NodeManagerThrewAnExceptionSubscribingToAll(error, nodeManager.GetType().Name);
-                        errors[ii] = error is ServiceResultException serviceFailure
-                            ? new ServiceResult(serviceFailure)
-                            : ServiceResult.Create(error, StatusCodes.BadUnexpectedError,
-                                "The event source could not complete subscription startup.");
-                    }
-                    finally
-                    {
-                        if (!accepted)
-                        {
-                            try
-                            {
-                                foreach (IAsyncNodeManager owner in attemptedOwners)
-                                {
-                                    await DispatchEventSubscriptionAsync(
-                                        owner,
-                                        () => allEvents
-                                            ? owner.SubscribeToAllEventsAsync(
-                                                context, subscriptionId, monitoredItem, true, CancellationToken.None)
-                                            : owner.SubscribeToEventsAsync(
-                                                context, handle, subscriptionId, monitoredItem, true, CancellationToken.None),
-                                        allEvents,
-                                        CancellationToken.None).ConfigureAwait(false);
-                                }
-                            }
-                            finally
-                            {
-                                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                            }
-                        }
+                        break;
                     }
                 }
             }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                if (lastAttempted >= 0)
+                {
+                    m_logger.NodeManagerThrewAnExceptionSubscribingToAll(
+                        exception, eventManagers[lastAttempted].GetType().Name);
+                }
+                error = exception is ServiceResultException serviceFailure
+                    ? new ServiceResult(serviceFailure)
+                    : ServiceResult.Create(
+                        exception,
+                        exception is OperationCanceledException
+                            ? StatusCodes.BadRequestCancelledByClient
+                            : StatusCodes.BadUnexpectedError,
+                        "Event source startup failed.");
+            }
+            if (!ServiceResult.IsBad(error))
+            {
+                return error;
+            }
+
+            // The subscription has not accepted ownership yet. Include the failing manager,
+            // which may have subscribed some of its root notifiers before reporting failure.
+            using IDisposable? liveBindings = monitoredItem.MonitoringAllEvents
+                ? m_nodeManagers.UseLiveRouting()
+                : null;
+            var compensationManagers = new List<IAsyncNodeManager>();
+            for (int ii = 0; ii <= lastAttempted; ii++)
+            {
+                compensationManagers.Add(eventManagers[ii]);
+            }
+            if (monitoredItem.MonitoringAllEvents)
+            {
+                // A suspended callback can publish new owners that also observe this provisional event item.
+                foreach (IAsyncNodeManager manager in m_nodeManagers)
+                {
+                    bool captured = false;
+                    for (int ii = 0; ii < eventManagers.Count; ii++)
+                    {
+                        captured |= NodeManagerRoutingTable.AreSameManager(manager, eventManagers[ii]);
+                    }
+                    if (!captured)
+                    {
+                        compensationManagers.Add(manager);
+                    }
+                }
+            }
+            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+            var compensationFailures = new List<Exception>();
+            try
+            {
+                for (int ii = compensationManagers.Count - 1; ii >= 0; ii--)
+                {
+                    try
+                    {
+                        ServiceResult result = await SetEventSubscriptionAsync(
+                            compensationManagers[ii], context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        if (ServiceResult.IsBad(result) &&
+                            result.StatusCode != StatusCodes.BadNodeIdUnknown &&
+                            result.StatusCode != StatusCodes.BadMonitoredItemIdInvalid &&
+                            !(monitoredItem.MonitoringAllEvents && result.StatusCode == StatusCodes.BadNotSupported))
+                        {
+                            compensationFailures.Add(new ServiceResultException(result));
+                        }
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(exception);
+                    }
+                }
+            }
+            finally
+            {
+                monitoredItem.Dispose();
+            }
+            if (compensationFailures.Count > 0)
+            {
+                compensationFailures.Insert(0, new ServiceResultException(error));
+                return ServiceResult.Create(
+                    new AggregateException(compensationFailures),
+                    StatusCodes.BadUnexpectedError,
+                    "Event subscription creation and compensation both failed.");
+            }
+            if (error.StatusCode == StatusCodes.BadRequestCancelledByClient)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            return error;
+        }
+
+        private static ValueTask<ServiceResult> SetEventSubscriptionAsync(
+            IAsyncNodeManager nodeManager,
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken)
+        {
+            return monitoredItem.MonitoringAllEvents
+                ? nodeManager.SubscribeToAllEventsAsync(
+                    context, subscriptionId, monitoredItem, unsubscribe, cancellationToken)
+                : nodeManager.SubscribeToEventsAsync(
+                    context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
         }
 
         /// <summary>
@@ -2417,7 +2594,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    if (item.TypeMask == MonitoredItemTypeMask.DataChange)
+                    if ((item.TypeMask & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (item.QueueSize > 1 || item.IsDurable)
                         {
@@ -2573,22 +2750,33 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (monitoredItems[ii] is IDetachableMonitoredItem
-                    {
-                        IsDetached: true
-                    })
-                {
-                    errors[ii] = StatusCodes.BadNodeIdUnknown;
-                    itemsToModify[ii].Processed = true;
-                    continue;
-                }
-
                 // validate request parameters.
                 errors[ii] = MasterNodeManager.ValidateMonitoredItemModifyRequest(itemsToModify[ii])!;
 
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     itemsToModify[ii].Processed = true;
+                    continue;
+                }
+
+                if (monitoredItems[ii] is IDetachableMonitoredItem { IsDetached: true } &&
+                    (monitoredItems[ii].MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
+                {
+                    itemsToModify[ii].Processed = true;
+                    if (monitoredItems[ii] is MonitoredItem detached &&
+                        m_owner.CoreNodeManager is CoreNodeManager core)
+                    {
+                        (ServiceResult? error, MonitoringFilterResult? result) =
+                            await core.ModifyDetachedMonitoredItemAsync(
+                                context, timestampsToReturn, detached, itemsToModify[ii], cancellationToken)
+                                .ConfigureAwait(false);
+                        errors[ii] = error!;
+                        filterResults[ii] = result!;
+                    }
+                    else
+                    {
+                        errors[ii] = StatusCodes.BadNotSupported;
+                    }
                     continue;
                 }
 
@@ -2712,6 +2900,7 @@ namespace Opc.Ua.Server
                 ServiceResult subscriptionResult = ServiceResult.Good;
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
+                    await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
                     IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
@@ -2739,7 +2928,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 // only subscribe to the node manager that owns the node.
-                else
+                else if (monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
                 {
                     subscriptionResult = await DispatchEventSubscriptionAsync(
                         monitoredItem.NodeManager,
@@ -3019,7 +3208,7 @@ namespace Opc.Ua.Server
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
                     isDetached);
-                if (isDetached && monitoredItem is not null)
+                if (isDetached && monitoredItem is not null && ServiceResult.IsGood(errors[ii]))
                 {
                     errors[ii] = ServiceResult.Good;
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
@@ -3096,13 +3285,14 @@ namespace Opc.Ua.Server
                 processedItems[ii] = true;
                 ServiceResult result = ServiceResult.Good;
 
-                // unsubscribe to all node managers.
-                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
+                await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
+                NotificationDispatchLease[]? dispatches = null;
+                try
                 {
-                    NotificationDispatchLease[] dispatches =
-                        m_owner.GetAllEventUnsubscribeDispatches(monitoredItem);
-                    try
+                    // unsubscribe to all node managers.
+                    if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                     {
+                        dispatches = m_owner.GetAllEventUnsubscribeDispatches(monitoredItem);
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
                             ServiceResult unsubscribe = await DispatchEventSubscriptionAsync(
@@ -3129,28 +3319,32 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                    finally
+                    // only unsubscribe to the node manager that owns the node.
+                    else
+                    {
+                        result = await DispatchEventSubscriptionAsync(
+                            owningNodeManager,
+                            () => owningNodeManager.SubscribeToEventsAsync(
+                                context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
+                                cancellationToken),
+                            allEvents: false,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Remove the binding before retiring notification owners can finish their drain.
+                    Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                    retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
+
+                    // success.
+                    errors[ii] = result;
+                }
+                finally
+                {
+                    if (dispatches is not null)
                     {
                         MasterNodeManager.DisposeNotificationDispatches(dispatches);
                     }
                 }
-                // only unsubscribe to the node manager that owns the node.
-                else
-                {
-                    result = await DispatchEventSubscriptionAsync(
-                        owningNodeManager,
-                        () => owningNodeManager.SubscribeToEventsAsync(
-                            context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
-                            cancellationToken),
-                        allEvents: false,
-                        cancellationToken).ConfigureAwait(false);
-                }
-
-                // delete the item.
-                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
-
-                errors[ii] = result;
             }
 
             if (retiredGenerationDrained)
@@ -3199,7 +3393,7 @@ namespace Opc.Ua.Server
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
                     isDetached);
-                if (isDetached && monitoredItem is not null)
+                if (isDetached && monitoredItem is not null && ServiceResult.IsGood(errors[ii]))
                 {
                     MonitoringMode previousMode =
                         monitoredItem.SetMonitoringMode(monitoringMode);

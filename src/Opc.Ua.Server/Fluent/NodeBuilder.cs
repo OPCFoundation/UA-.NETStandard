@@ -164,6 +164,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
+            ThrowIfSlotOccupied(m.OnCallMethodWithResultAsync, "OnCallWithResult");
             ThrowIfSlotOccupied(m.OnCallMethod2, "OnCall");
             m.OnCallMethod2 = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
@@ -173,6 +174,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
         {
             MethodState m = RequireMethod("OnCallAsync");
+            ThrowIfSlotOccupied(m.OnCallMethodWithResultAsync, "OnCallWithResult");
             ThrowIfSlotOccupied(m.OnCallMethod2Async, "OnCallAsync");
             m.OnCallMethod2Async = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;

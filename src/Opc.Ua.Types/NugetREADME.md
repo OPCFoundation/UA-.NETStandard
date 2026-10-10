@@ -25,6 +25,14 @@ conversion surface used by the WoT source generator and WoT Connectivity
 runtime. `WotNodeSetConverter` converts `UANodeSet` models to and from
 Thing Models / Thing Descriptions.
 
+Document sets default to strict `PartitionReconstruction`. Select
+`WotNodeSetConverterOptions.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels`
+to import independently authored readable models with deterministic namespace
+normalization. Native/archive header conflicts remain errors; unsupported opaque
+values are not heuristically rebased. See the
+[independent-model import guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTIndependentModels.md)
+for the shared preconverted merge API and structured-value context seam.
+
 The default output is semantic-first: the converter omits `uav:nodes` when
 the readable vocabulary reconstructs equivalently and adds that complete
 structured projection only for source facts not yet expressible. No

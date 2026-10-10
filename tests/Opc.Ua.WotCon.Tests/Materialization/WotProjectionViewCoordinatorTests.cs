@@ -28,10 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server;
+using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -50,40 +55,85 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WoT")]
     public sealed class WotProjectionViewCoordinatorTests
     {
-        private WotRegistryService m_registry = null!;
-        private FakeWotProjectionHost m_host = null!;
-        private FakeWotDocumentConverter m_converter = null!;
-        private InMemoryWotViewProjectionHost m_viewHost = null!;
-        private WotMaterializationCoordinator m_coordinator = null!;
-
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
-            m_host = new FakeWotProjectionHost();
-            m_converter = new FakeWotDocumentConverter();
-            m_viewHost = new InMemoryWotViewProjectionHost();
-            m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host,
-                documentConverter: m_converter,
-                viewProjectionHost: m_viewHost);
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            bool initialized = false;
+            try
+            {
+                m_registry = await m_runtime.CreateRegistryAsync(
+                    compatibilityMode: WotProjectionCompatibilityMode.DraftProjection11).ConfigureAwait(false);
+                m_host = new FakeWotProjectionHost();
+                m_converter = new ViewSourceConverter();
+                m_viewHost = new LifecycleWotViewProjectionHost(m_runtime.Lifecycle);
+                m_coordinator = new WotMaterializationCoordinator(
+                    m_registry, m_runtime.Observe(m_host.RecordCommitted),
+                    converterOptions: new WotNodeSetConverterOptions
+                    {
+                        ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                    },
+                    documentConverter: m_converter,
+                    viewProjectionHost: m_viewHost)
+                {
+                    ServerNamespaceUris = m_runtime.Namespaces
+                };
+                NodeManagerRegistration registration = await m_runtime.Lifecycle.AddAsync(
+                    new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                    callerContext: null).ConfigureAwait(false);
+                m_registryManager = (WotRegistryNodeManager)registration.NodeManager;
+                initialized = true;
+            }
+            finally
+            {
+                if (!initialized)
+                {
+                    await TearDownAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_registry.Dispose();
+            try
+            {
+                m_coordinator?.Dispose();
+            }
+            finally
+            {
+                m_coordinator = null!;
+                try
+                {
+                    m_viewHost?.Dispose();
+                }
+                finally
+                {
+                    m_viewHost = null!;
+                    try
+                    {
+                        if (m_runtime is not null)
+                        {
+                            await m_runtime.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_runtime = null!;
+                    }
+                }
+            }
         }
 
         [Test]
         public async Task ProjectionDocumentMaterializesAViewAndCreatesNoAffordanceSource()
         {
-            await RegisterTd("src-1", TestMaterialization.Td("urn:src-1"));
+            await RegisterTd("src-1", TestMaterialization.Td("urn:src-1")).ConfigureAwait(false);
             await RegisterTd("view-1",
-                Projection("urn:view:1", "http://example.com/scenario/One", "urn:src-1"));
+                Projection("urn:view:1", "http://example.com/scenario/One", "urn:src-1")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
                 "The projection and its source share one runtime closure.");
@@ -92,70 +142,72 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The projection document must not be projected as an affordance source; " +
                 "only its one real source is materialized as Nodes.");
 
-            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1),
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1),
                 "The projection document must be materialized as a View.");
-            WotViewProjectionRequest request = m_viewHost.Applied.Single();
+            WotViewProjectionHandle view = m_coordinator.CommittedPublication.Views[0];
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-1");
             Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-            Assert.That(projection.RootNodeId, Is.EqualTo(request.ViewNodeId),
+            Assert.That(projection.RootNodeId, Is.EqualTo(view.ViewNodeId),
                 "RootNodeId must be the View Node's NodeId.");
         }
 
         [Test]
         public async Task ProjectionViewRootNodeIdIsDistinctFromTheResourceNode()
         {
-            await RegisterTd("src-2", TestMaterialization.Td("urn:src-2"));
+            await RegisterTd("src-2", TestMaterialization.Td("urn:src-2")).ConfigureAwait(false);
             await RegisterTd("view-2",
-                Projection("urn:view:2", "http://example.com/scenario/Two", "urn:src-2"));
+                Projection("urn:view:2", "http://example.com/scenario/Two", "urn:src-2")).ConfigureAwait(false);
 
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RefreshAsync().ConfigureAwait(false);
 
-            WotViewProjectionRequest request = m_viewHost.Applied.Single();
-            // HasWoTProjection runs from the resource Node to the View Node; the
-            // two endpoints must be distinct and the View id carries the /View
-            // suffix so a client can navigate WoTProjectionOf back.
-            Assert.That(request.ResourceNodeId.IsNull, Is.False);
-            Assert.That(request.ViewNodeId.IsNull, Is.False);
-            Assert.That(request.ViewNodeId, Is.Not.EqualTo(request.ResourceNodeId));
-            Assert.That(request.ViewNodeId.IdentifierAsString,
+            WotCanonicalViewPublication view = ViewFor("view-2");
+            Assert.That(view.ResourceNodeId.IsNull, Is.False);
+            Assert.That(view.ViewNodeId.IsNull, Is.False);
+            Assert.That(view.ViewNodeId, Is.Not.EqualTo(view.ResourceNodeId));
+            NodeId viewId = ExpandedNodeId.ToNodeId(view.ViewNodeId, m_runtime.Namespaces);
+            NodeId resourceId = ExpandedNodeId.ToNodeId(view.ResourceNodeId, m_runtime.Namespaces);
+            Assert.That(viewId.IdentifierAsString,
                 Does.EndWith("/View"));
-            Assert.That(request.ViewNodeId.IdentifierAsString,
-                Does.StartWith(request.ResourceNodeId.IdentifierAsString));
+            Assert.That(viewId.IdentifierAsString,
+                Does.StartWith(resourceId.IdentifierAsString));
         }
 
         /// <summary>
-        /// A refresh applies the replacement View before retiring the handle it
-        /// supersedes, and both carry the same resource Xid. A host that removed
-        /// by Xid alone would delete the View that had just been applied, so the
-        /// default in-memory host must stay consistent across a re-materialization.
+        /// Replacing a source closure retains one committed canonical View
+        /// for its Resource instead of retiring the replacement with the old owner.
         /// </summary>
         [Test]
         public async Task RefreshingAProjectionLeavesExactlyOneAppliedView()
         {
-            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r"));
+            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r")).ConfigureAwait(false);
             await RegisterTd("view-r",
-                Projection("urn:view:r", "http://example.com/scenario/R", "urn:src-r"));
+                Projection("urn:view:r", "http://example.com/scenario/R", "urn:src-r")).ConfigureAwait(false);
 
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
-            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1),
+            await RefreshAsync().ConfigureAwait(false);
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1),
                 "The first refresh must apply the View.");
+            WotViewProjectionHandle initial = m_coordinator.CommittedPublication.Views[0];
 
-            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r", "Changed"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("src-r", TestMaterialization.Td("urn:src-r", "Changed")).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
 
-            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1),
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1),
                 "Re-materializing must leave the replacement View applied, not remove it.");
+            WotViewProjectionHandle replacement = m_coordinator.CommittedPublication.Views[0];
+            Assert.That(replacement.ResourceXid, Is.EqualTo(initial.ResourceXid));
+            Assert.That(replacement.ViewNodeId, Is.EqualTo(initial.ViewNodeId));
+            Assert.That(ViewFor("view-r").Active, Is.True);
         }
 
         [Test]
         public async Task ProjectionMaterializedNodeCountCoversOnlyTheView()
         {
-            await RegisterTd("src-3", TestMaterialization.Td("urn:src-3"));
+            await RegisterTd("src-3", TestMaterialization.Td("urn:src-3")).ConfigureAwait(false);
             await RegisterTd("view-3",
-                Projection("urn:view:3", "http://example.com/scenario/Three", "urn:src-3"));
+                Projection("urn:view:3", "http://example.com/scenario/Three", "urn:src-3")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-3");
@@ -167,27 +219,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task OutOfAddressSpaceSelectionIsOmittedAndReportedButStaysActive()
         {
-            await RegisterTd("src-4", TestMaterialization.Td("urn:src-4"));
+            await RegisterTd("src-4", TestMaterialization.Td("urn:src-4")).ConfigureAwait(false);
             await RegisterTd("view-4",
-                Projection("urn:view:4", "http://example.com/scenario/Four", "urn:src-4"));
+                Projection("urn:view:4", "http://example.com/scenario/Four", "urn:src-4")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
             // The fake source Nodes carry no portable uav:id and a non-string
             // root, so the selected affordance cannot be located in this address
             // space and is omitted; the load nonetheless reaches Active.
-            WotViewProjectionRequest request = m_viewHost.Applied.Single();
-            int omittedCount = request.Plan.Omissions.Count;
-            Assert.That(omittedCount, Is.GreaterThan(0),
-                "An unlocatable selection must be recorded as an omission.");
+            WotCanonicalViewPublication view = ViewFor("view-4");
+            int omittedCount = view.Omissions.Count;
+            Assert.That(omittedCount, Is.EqualTo(1),
+                "The unlocatable selection must be recorded as an omission.");
+            Assert.That(view.Membership.Count, Is.Zero);
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-4");
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning),
                 "A View that selected a member but organized none must not report plain Success.");
             Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active),
                 "Omission is not a failure; the resource still reaches Active.");
-            Assert.That(projection.Message, Does.Contain("organizing 0 Node(s)"));
-            Assert.That(projection.Message, Does.Contain("omitted all"));
+            Assert.That(projection.Message, Does.Contain("Affordance 'value'"));
+            Assert.That(projection.Message, Does.Contain("urn:src-4"));
             Assert.That(projection.Message, Does.Contain("omitted"),
                 "The omission must be reported in the load-result Message.");
         }
@@ -195,48 +248,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task ProjectionViewWithSomeSelectionsOmittedReportsWarning()
         {
-            ConfigureSourceRoot("src-partial-a", "PartialSourceA");
-            await RegisterTd("src-partial-a", Td("urn:src-partial-a", "valueA"));
-            await RegisterTd("src-partial-b", Td("urn:src-partial-b", "valueB"));
+            await RegisterMappedTd("src-partial-a", "urn:src-partial-a", "PartialSourceA", "valueA")
+                .ConfigureAwait(false);
+            await RegisterTd("src-partial-b", Td("urn:src-partial-b", "valueB")).ConfigureAwait(false);
             await RegisterTd("view-partial",
                 Projection(
                     "urn:view:partial",
                     "http://example.com/scenario/Partial",
                     "urn:src-partial-a",
-                    "urn:src-partial-b"));
+                    "urn:src-partial-b")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
-            WotViewProjectionRequest request =
-                m_viewHost.Applied.Single(v => v.ResourceXid.EndsWith("/view-partial",
-                    StringComparison.Ordinal));
-            Assert.That(request.Plan.OrganizedNodeIds, Has.Count.EqualTo(1));
-            Assert.That(request.Plan.Omissions, Has.Count.EqualTo(1));
+            WotCanonicalViewPublication view = ViewFor("view-partial");
+            Assert.That(view.Membership.Count, Is.EqualTo(1));
+            Assert.That(view.Membership[0], Is.EqualTo(new ExpandedNodeId(
+                "PartialSourceA/valueA", $"urn:wot:{WotRegistryGroups.ThingDescriptions}/src-partial-a")));
+            Assert.That(view.Omissions.Count, Is.EqualTo(1));
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-partial");
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
             Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-            Assert.That(projection.Message, Does.Contain("organizing 1 of 2"));
-            Assert.That(projection.Message, Does.Contain("omitted 1"));
+            Assert.That(projection.Message, Does.Contain("Affordance 'valueB'"));
+            Assert.That(projection.Message, Does.Contain("omitted"));
             Assert.That(projection.Message, Does.Contain("urn:src-partial-b"));
         }
 
         [Test]
         public async Task ProjectionViewWithAllSelectionsMaterializedReportsSuccess()
         {
-            ConfigureSourceRoot("src-clean", "CleanSource");
-            await RegisterTd("src-clean", TestMaterialization.Td("urn:src-clean"));
+            await RegisterMappedTd("src-clean", "urn:src-clean", "CleanSource", "value").ConfigureAwait(false);
             await RegisterTd("view-clean",
                 Projection(
                     "urn:view:clean",
                     "http://example.com/scenario/Clean",
-                    "urn:src-clean"));
+                    "urn:src-clean")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
-            WotViewProjectionRequest request = m_viewHost.Applied.Single();
-            Assert.That(request.Plan.OrganizedNodeIds, Has.Count.EqualTo(1));
-            Assert.That(request.Plan.Omissions, Is.Empty);
+            WotCanonicalViewPublication view = ViewFor("view-clean");
+            Assert.That(view.Membership.Count, Is.EqualTo(1));
+            Assert.That(view.Membership[0], Is.EqualTo(new ExpandedNodeId(
+                "CleanSource/value", $"urn:wot:{WotRegistryGroups.ThingDescriptions}/src-clean")));
+            Assert.That(view.Omissions.Count, Is.Zero);
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-clean");
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
@@ -246,21 +300,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task GeneratedFallbackOutsideTheCapturedSourceIsOmitted()
+        {
+            await RegisterMappedTd(
+                "src-fallback", "urn:src-fallback", "FallbackSource", "value", explicitAffordanceId: false)
+                .ConfigureAwait(false);
+            await RegisterTd("view-fallback",
+                Projection("urn:view:fallback", "urn:scenario:fallback", "urn:src-fallback")).ConfigureAwait(false);
+
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
+
+            WotCanonicalViewPublication view = ViewFor("view-fallback");
+            WoTResourceLoadResultDataType row = result.Results.Single(value => value.ResourceId == "view-fallback");
+            Assert.That(view.Active, Is.True);
+            Assert.That(view.Membership.Count, Is.Zero);
+            Assert.That(view.Omissions.Count, Is.EqualTo(1));
+            Assert.That(row.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(row.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(row.RootNodeId, Is.EqualTo(m_coordinator.CommittedPublication.Views[0].ViewNodeId));
+            Assert.That(m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions, "src-fallback")!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+        }
+
+        [Test]
         public async Task CyclicProjectionGraphIsRejectedAtDependencyResolution()
         {
             await RegisterTd("cyc-a",
-                Projection("urn:view:cyc-a", "http://example.com/scenario/A", "urn:view:cyc-b"));
+                Projection("urn:view:cyc-a", "http://example.com/scenario/A", "urn:view:cyc-b")).ConfigureAwait(false);
             await RegisterTd("cyc-b",
-                Projection("urn:view:cyc-b", "http://example.com/scenario/B", "urn:view:cyc-a"));
+                Projection("urn:view:cyc-b", "http://example.com/scenario/B", "urn:view:cyc-a")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
 
-            Assert.That(m_viewHost.Applied, Is.Empty,
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.Zero,
                 "A cyclic projection graph must not materialize any View.");
             Assert.That(m_host.AddCount, Is.Zero);
-            WoTResourceLoadResultDataType[] cyclic = result.Results
-                .Where(r => r.ResourceId is "cyc-a" or "cyc-b")
-                .ToArray();
+            WoTResourceLoadResultDataType[] cyclic = [.. result.Results.Where(r => r.ResourceId is "cyc-a" or "cyc-b")];
             Assert.That(cyclic, Has.Length.EqualTo(2));
             Assert.That(
                 cyclic.All(r => r.Outcome == WoTOutcomeEnum.Failed &&
@@ -272,43 +347,51 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task ProjectionViewIsRemovedWhenTheProjectionResourceIsDeleted()
         {
-            await RegisterTd("src-5", TestMaterialization.Td("urn:src-5"));
+            await RegisterTd("src-5", TestMaterialization.Td("urn:src-5")).ConfigureAwait(false);
             await RegisterTd("view-5",
-                Projection("urn:view:5", "http://example.com/scenario/Five", "urn:src-5"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
-            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1));
+                Projection("urn:view:5", "http://example.com/scenario/Five", "urn:src-5")).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1));
 
-            await m_coordinator.RemoveAllAsync();
+            await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "view-5",
+                Policy = WoTDeletePolicyEnum.Reject
+            }).ConfigureAwait(false);
 
-            Assert.That(m_viewHost.Applied, Is.Empty,
-                "Retiring the closure must remove the materialized View.");
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.Zero,
+                "Deleting the Resource must remove the materialized View.");
+            Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "view-5"), Is.Null);
+            Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "src-5")!.LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Active));
         }
 
         [Test]
         public async Task RetiredNestedProjectionIsNotReactivatedAsADependency()
         {
-            await RegisterTd("src-retire", TestMaterialization.Td("urn:src-retire"));
+            await RegisterTd("src-retire", TestMaterialization.Td("urn:src-retire")).ConfigureAwait(false);
             await RegisterTd(
                 "view-inner",
                 Projection(
                     "urn:view:inner-retire",
                     "http://example.com/scenario/InnerRetire",
-                    "urn:src-retire"));
+                    "urn:src-retire")).ConfigureAwait(false);
             await RegisterTd(
                 "view-outer",
                 Projection(
                     "urn:view:outer-retire",
                     "http://example.com/scenario/OuterRetire",
-                    "urn:view:inner-retire"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
-            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(2));
+                    "urn:view:inner-retire")).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(2));
 
             WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "view-inner",
                 Policy = WoTDeletePolicyEnum.Retire
-            });
+            }).ConfigureAwait(false);
 
             WotResource inner = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -316,40 +399,93 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource outer = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "view-outer")!;
+            WoTResourceLoadResultDataType retired =
+                outcome.Results.Single(result => result.ResourceId == "view-inner");
             Assert.Multiple(() =>
             {
+                Assert.That(outcome.Delete.Retired, Is.True);
                 Assert.That(outcome.Summary.Retired, Is.EqualTo(1));
+                Assert.That(inner.Enabled, Is.False);
                 Assert.That(inner.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
                 Assert.That(inner.ActiveVersionId, Is.Null);
+                Assert.That(inner.RootNodeId.IsNull, Is.True);
+                Assert.That(inner.MaterializedNodeCount, Is.Zero);
                 Assert.That(outer.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-                Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1));
+                Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1));
                 Assert.That(
-                    m_viewHost.Applied.Single().ResourceXid,
+                    m_coordinator.CommittedPublication.Views[0].ResourceXid,
                     Does.EndWith("/view-outer"));
-                Assert.That(
-                    outcome.Results.Any(result => result.ResourceId == "view-inner"),
-                    Is.False);
+                Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(retired.Generation, Is.EqualTo(outcome.Generation));
+                Assert.That(retired.RootNodeId.IsNull, Is.True);
+                Assert.That(retired.MaterializedNodeCount, Is.Zero);
+                Assert.That(ViewFor("view-inner").Active, Is.False);
             });
+
+            WotRefreshResult repeated = await RefreshAsync().ConfigureAwait(false);
+            Assert.That(repeated.NewGeneration, Is.EqualTo(outcome.Generation));
+            Assert.That(repeated.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(m_registry.Current.FindResourceByXid(inner.Xid)!.LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Retired));
+            Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1));
         }
 
-        private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
+        private async Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
         {
-            return m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            using var document = WotDocument.Parse(content);
+            bool projection = WotProjection.IsProjection(document);
+            WotRegistryMutationResult result = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
+                Format = projection ? WotProjection.Format : "WoT-TD/1.1",
+                ContentType = projection ? WotProjection.ContentType : "application/td+json",
                 Content = ByteString.From(content)
-            }).AsTask();
+            }).ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
+            await m_registryManager.DispatchProjectionAsync(_ => default, CancellationToken.None).ConfigureAwait(false);
+            return result;
         }
 
-        private void ConfigureSourceRoot(string resourceId, string rootIdentifier)
+        private async Task RegisterMappedTd(
+            string resourceId, string id, string rootIdentifier, string propertyName, bool explicitAffordanceId = true)
         {
-            NamespaceTable namespaces = m_coordinator.ServerNamespaceUris ?? new NamespaceTable();
             string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/{resourceId}";
-            namespaces.GetIndexOrAppend(modelUri);
-            m_coordinator.ServerNamespaceUris = namespaces;
-            m_converter.SetRootNodeId(resourceId, new ExpandedNodeId(rootIdentifier, modelUri));
+            string affordanceId = explicitAffordanceId
+                ? $"\"uav:id\":\"nsu={modelUri};s={rootIdentifier}/{propertyName}\","
+                : string.Empty;
+            m_converter.UseMappedSource(resourceId);
+            await RegisterTd(resourceId, Encoding.UTF8.GetBytes($$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
+                  "@type":"uav:object","id":"{{id}}","title":"{{rootIdentifier}}",
+                  "uav:id":"nsu={{modelUri}};s={{rootIdentifier}}",
+                  "properties":{
+                    "{{propertyName}}":{
+                      {{affordanceId}}
+                      "type":"number","forms":[{"href":"https://example.test/reading"}]
+                    }
+                  }
+                }
+                """)).ConfigureAwait(false);
+        }
+
+        private ValueTask<WotRefreshResult> RefreshAsync()
+        {
+            return m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            });
+        }
+
+        private WotCanonicalViewPublication ViewFor(string resourceId)
+        {
+            WotResource resource = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions, resourceId)!;
+            return WotCanonicalViewState.Parse(m_registry.Current.CanonicalViewGraphState)
+                .Views.ToList().Single(view => view.ResourceXid == resource.Xid);
         }
 
         private static byte[] Projection(string id, string scenario, params string[] projectHrefs)
@@ -392,5 +528,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Append("\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}}");
             return Encoding.UTF8.GetBytes(builder.ToString());
         }
+
+        private sealed class ViewSourceConverter : IWotDocumentConverter
+        {
+            public void UseMappedSource(string resourceId)
+            {
+                m_mapped.Add(resourceId);
+            }
+
+            public ValueTask<WotConversionOutput> ConvertAsync(
+                WotResource resource,
+                ByteString content,
+                WotRegistrySnapshot snapshot,
+                IReadOnlyDictionary<string, ByteString> contents,
+                CancellationToken cancellationToken)
+            {
+                return (m_mapped.Contains(resource.ResourceId) ? m_real : m_unmapped).ConvertAsync(
+                    resource, content, snapshot, contents, cancellationToken);
+            }
+
+            private readonly HashSet<string> m_mapped = new(StringComparer.Ordinal);
+            private readonly IWotDocumentConverter m_real = new WotNodeSetDocumentConverter();
+            private readonly IWotDocumentConverter m_unmapped = new FakeWotDocumentConverter();
+        }
+
+        private PreparedWotTestRuntime m_runtime = null!;
+        private WotRegistryService m_registry = null!;
+        private WotRegistryNodeManager m_registryManager = null!;
+        private FakeWotProjectionHost m_host = null!;
+        private ViewSourceConverter m_converter = null!;
+        private LifecycleWotViewProjectionHost m_viewHost = null!;
+        private WotMaterializationCoordinator m_coordinator = null!;
     }
 }

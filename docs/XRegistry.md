@@ -44,6 +44,12 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
+The model assembly consumes the reviewed **0.7.0 draft** dated 2026-09-12,
+paired with the WoT Connectivity 1.1 draft. It preserves the existing namespace,
+numeric identities and native event hierarchy, and adds origin and canonical
+capability snapshot declarations. This is a draft model input, not a published
+release or a claim of runtime support for every new declaration.
+
 ## Core concepts
 
 ### Structural identity and content lookup
@@ -91,17 +97,22 @@ has happened.
 ### Registration lifecycle and auto-bootstrap
 
 The registry serves the model's own Methods. A registry root (`RegistryType`) is materialized from
-the compiled model, and groups and resource versions are created beneath it at runtime:
+the compiled model. Each Group organizes stable logical Resources; each logical Resource has a
+typed `ResourceVersionsType` container that organizes its exact Version files (`ResourceType`).
+The logical Resource is also a `ResourceType`, but is not one of its own Versions.
 
 1. **`RegistryType.CreateGroup(GroupId)`** returns the new group's NodeId; `GetOrCreateGroup`
    is the idempotent form and also reports `Created`.
 2. **`GroupType.CreateResource(ResourceId, VersionId, RequestFileOpen)`** creates a resource
    version and returns `(ResourceNodeId, AssignedVersionId, FileHandle)`. An empty `VersionId`
-   lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
-   A non-empty `VersionId` is preserved exactly and must be 1-128 characters: the first
+   lets the server assign the next one. `GetOrCreateResource` additionally reports `Created`;
+   an explicit id returns or creates that exact Version, while an empty id returns the existing
+   Resource's selected default, or creates its first assigned Version if absent. Both return the
+   **exact Version NodeId**, not the logical Resource NodeId.
+   The WoT domain additionally validates a non-empty `VersionId` as 1-128 characters: the first
    character is an ASCII letter, digit, or `_`, and subsequent characters may additionally use
    `-`, `.`, `~`, `:`, or `@`. Lookup is case-sensitive, while sibling Version ids must be unique
-   without regard to case. A Resource may have one contentless pending Version while an upload is
+   without regard to case. In that domain, a Resource may have one contentless pending Version while an upload is
    open. Allocating it never evicts committed content; retention is applied atomically when the
    upload closes, and a close that cannot preserve active/default/desired Versions is rejected.
    An empty Version id reuses that pending Version after an abort or restart; requesting a
@@ -114,18 +125,98 @@ the compiled model, and groups and resource versions are created beneath it at r
    increments that Version's `Epoch`, updates its `ModifiedAt`, and publishes or updates the
    reference-counted Opaque fast-path node. Clean, aborted, rejected, empty, and byte-identical
    closes perform no store rewrite and change no metadata.
-5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
-   optimistic-concurrency check: a caller holding a stale epoch is rejected with
-   `Bad_InvalidState` rather than deleting a newer version. Passing `0` disables the check, which
-   is how a caller deliberately forces the operation without having read the entity first.
+5. **`Delete(ExpectedEpoch)`** on an exact Version uses its `Epoch` and deletes only that Version,
+   even when it is the default or its VersionId equals the ResourceId. Logical Resource Delete
+   uses `MetaEpoch` and removes its Versions; Group Delete uses the Group's `Epoch`.
+   The last Version's removal also removes its generic logical Resource. Domain lifecycle
+   policies may further restrict deletion. A stale nonzero guard returns `Bad_InvalidState`;
+   passing `0` deliberately disables the guard.
 
 Registration commits Resource and Version structural identity before the create Method returns.
 When `RequestFileOpen` is true, a later dirty `Close` is a separate mutation; it updates the Version
 but does not repeat the create operation or its events.
 
+### Resource Meta and default-Version views
+
+| Role | Owned state |
+| --- | --- |
+| Logical Resource Meta | Version membership, default selection, `MetaLabels`, `MetaEpoch`, `MetaCreatedAt`, `MetaModifiedAt` |
+| Exact Version | Document bytes, `Labels`, `Epoch`, `CreatedAt`, `ModifiedAt`, format/content metadata, and domain validation metadata |
+| Logical non-Meta view | Delegates to the selected **default** Version; it does not choose the active or desired Version |
+
+Meta fields on generic exact-Version nodes remain synchronized compatibility views, not independent
+owners. A default-only selection change advances Meta, not either Version's epoch. Version content
+or label changes advance only that Version's owned state; if it is the default, the logical view is
+updated too. Byte-identical accepted writes followed by Close and identical label additions leave
+owned epochs/timestamps unchanged and emit no mutation events.
+
+Each new Version starts at `Epoch = 1` with `CreatedAt` and `ModifiedAt` set to the same captured
+instant, including first-Version creation through an empty GetOrCreate. Resource Meta has its own
+initial timestamp pair; adding a Version preserves the timestamps of existing Versions.
+
+New logical Opens resolve the default under the registrar's existing file gate. The existing handle
+entry pins both the exact Version and the caller's file identity, so a later default change cannot
+redirect its reads, cursor, writes or Close. Logical and direct access share the same Session checks,
+writer reservations and content store. Closing an old pin does not replace the current default view.
+
+For the generic registrar, newly created Versions become the default; GetOrCreate of an existing
+explicit Version does not change the default. WoT preserves its own selection policy and exposes
+`SetDefaultVersion` separately. Generic options do **not** define active/desired selection,
+per-resource retention or metadata reload. Persisting bytes through `IXRegistryResourceStore` alone
+does not restore the generic address-space metadata after restart. Use the existing
+[WoT registry service and persistence](WoTConnectivity.md#112-registry-service-and-persistence)
+for those domain contracts; this registrar does not invent a retention-lease or reload API.
+
+**Browse compatibility:** clients that previously searched for flattened `resource:version` Group
+children must browse the logical Resource, then its typed `Versions` container. Existing numeric
+method/type IDs and argument layouts are unchanged. Structural Xids remain independent of content
+keys, and equal bytes share only the content fast path, never entity nodes.
+
+For example, the generated proxies return exact Versions while preserving an existing default:
+
+```csharp
+GroupTypeClient group = client.GetGroup(groupNodeId);
+(NodeId v7, _, _) = await group.CreateResourceAsync("pump", "v7", false, ct).ConfigureAwait(false);
+(NodeId v8, _, _) = await group.CreateResourceAsync("pump", "v8", false, ct).ConfigureAwait(false);
+(NodeId selected, string versionId, uint handle, bool created) =
+    await group.GetOrCreateResourceAsync("pump", string.Empty, false, ct).ConfigureAwait(false);
+// selected == v8, versionId == "v8", handle == 0, created == false.
+// v7 and v8 are distinct children of pump's Versions container.
+```
+
+### Source-derived identifier allocation
+
+`XRegistryIdentifier` constructs readable tokens from source identities, never from
+document bytes or content digests. URI authority parsing discards query and fragment
+text even when there is no slash after the authority. Readable path labels are
+percent-decoded, but that lossy operation must never change the registry's exact
+authority key.
+
+A domain registry first reuses its durable exact-authority mapping. For a new
+allocation, the helper compares occupied identifiers case-insensitively. It tries
+the readable token, then SHA-256 suffixes of 8, 16, 32 and 64 lowercase hexadecimal
+digits over the original UTF-8 identity. Each suffix reserves its space within
+the 128-character limit. Full-hash collisions use positive decimal ordinals;
+the default declared bound is 1,024, with explicit failure on exhaustion.
+The overload accepting `ArrayOf<string>` also accepts a readable domain prefix
+and a finite ordinal bound. Candidate construction alone is not a transaction:
+the domain service commits mapping, allocation and structure together.
+
+The shared projection engine supports preparing a preserving exact-Version write
+reservation before a domain's durable structural commit. It uses the same file
+provider and session-handle lifecycle as normal reconciliation, which adopts the
+prepared entry after commit. Providers opt in through
+`IXRegistryProjectedPreservingResourceFile`; no second content store is introduced.
+`XRegistryResourceFileReservation.SessionClosedToken` invalidates a reservation
+when its owning Session is discarded. A domain must link this token into the
+existing creation transaction's cancellation token before the store's commit
+point. Complete the reservation only after commit and reconciliation; otherwise
+dispose it. Session cleanup after a completed store commit does not roll back the
+committed generation.
+
 ### File open modes
 
-The handle returned by `CreateResource` / `GetOrCreateResource` is opened with **EraseExisting**
+The generic registrar's handle returned by `CreateResource` / `GetOrCreateResource` uses **EraseExisting**
 semantics — a newly created version starts empty. `GetOrCreateResource` returns a write handle for an
 *existing* version too, so a caller can replace its document in the same call; a caller that only
 wanted to look the version up closes that handle without writing, which releases it and leaves the
@@ -140,13 +231,22 @@ Read = 1, Write = 2, EraseExisting = 4, Append = 8):
 | `Write \| EraseExisting` | Replace the document wholesale. |
 | `Write \| Append` | Start from the stored bytes with the cursor at the end. |
 | `Write` | Start from the stored bytes with the cursor at 0 — writes replace only the range they cover and **do not** truncate the remainder. |
+| `Read \| Write` | Share one cursor over the staged bytes, starting from committed content. |
 
-A mode requesting neither read nor write, both together, or `EraseExisting`/`Append` without `Write`
+A mode requesting neither read nor write, reserved mode bits, or `EraseExisting` without `Write`
 is rejected with `Bad_InvalidArgument`. Each Version permits one writer; a second write open fails
 with `Bad_NotWritable`, and a read open while that writer is active fails with `Bad_NotReadable`.
-A handle is valid only on the resource *and* the session that opened it, and a session's handles are
+Existing readers also exclude a writer, including across logical/direct aliases. A handle is valid
+only on the file object *and* the Session that opened it, and a Session's handles are
 released when it closes. `EraseExisting` stages an empty buffer but does not mutate the committed
 file until a dirty `Close`.
+
+`GetPosition` and `SetPosition` return `Bad_InvalidArgument` for unknown, closed, or foreign-session
+handles (OPC 10000-20, 4.2.6 and 4.2.7), without moving a cursor or consuming the owner's handle.
+Genuine handle-state errors still return `Bad_InvalidState`.
+
+For projected logical files, explicit `Close` also requires exact session ownership: a scoped
+caller cannot consume an unscoped pin, or vice versa.
 
 ### Resource storage
 
@@ -218,6 +318,13 @@ Two rules make a store substitutable:
 The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
 quickest way to validate a new implementation.
 
+Whole-document publication uses the optional `IXRegistryAtomicResourceStore.ReplaceAsync` capability,
+implemented by both stock stores. An offset-only store supports initial uploads, but the registrar
+must first remove any **uncommitted** bytes left by a failed upload and failed compensating cleanup.
+If that cleanup still fails, `Close` fails without writing or publishing the retry. Replacing
+**committed** content requires the atomic capability and otherwise returns `Bad_NotSupported`;
+the registrar never deletes established content to emulate atomic replacement.
+
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
 the shared byte layer without an on-disk migration. See
@@ -247,26 +354,169 @@ allowed.
 ### Federation
 
 `XRegistryFederationNodeManager` publishes a **proxy** for a resource hosted by another registry. The
-proxy is itself a `ResourceType` instance, so a generic xRegistry client drives it through exactly the
-same generated proxy as a locally hosted resource. It carries an `ExternalReference` — an
-`ExpandedNodeId` whose `ServerIndex` names the remote server through the local `ServerArray`, and whose
-`NamespaceUri` and `Identifier` locate the remote resource node — and/or a plain `ResourceUrl`.
-`ResourceId`, `VersionId`, and `Xid` retain the remote structural xRegistry identity. A content
-digest may still be used by the remote NodeId or a local cache, but it never replaces `Xid`.
+proxy is a `ResourceType` Object carrying three different facts:
+
+| Property | Meaning |
+| --- | --- |
+| `OriginRegistry` | Read-only, immutable origin identity from an independently trusted binding. |
+| `ExternalReference` | The remote **logical Resource** Object, never its content-digest Variable or an exact Version. |
+| `ResourceUrl` | An authorized transport locator, not evidence of application or registry identity. |
+
+The proxy retains its own configured `ResourceId`, `VersionId` and historical structural `Xid`;
+the remote logical Xid is pinned separately in `XRegistryFederationTarget`. Equal bytes do not merge
+different remote entities. A non-materialized proxy has no local `Versions` folder: follow its
+verified remote logical Resource to browse Versions and use the generated FileType client.
+
+#### Configuring the trusted binding
+
+`PublishFederationProxy` requires an immutable `FederationTarget`, an authorized `RemoteEndpointUrl`
+and an `IXRegistryFederationProvider`. The provider must verify the origin, logical Resource
+ownership/Xid and FileType/Versions capability before publication. Missing or unsupported verification
+fails with `Bad_NotSupported`; it never falls back to a content link. A disabled proxy needs none of
+these optional settings.
+
+An existing `XRegistryClient`, including `WotRegistryClient`, implements the native provider over its
+already connected Session. Establish that Session using the application's endpoint authorization and
+certificate trust policy, independently of proxy/document metadata. Pin the expected ApplicationUri,
+registry-root NodeId and assigned logical Resource identity from trusted configuration:
+
+```csharp
+const string remoteNamespace = "urn:example:remote-registry:nodes";
+const string applicationUri = "urn:example:remote-registry";
+var binding = new XRegistryFederationTarget(
+    new RegistryOriginDataType
+    {
+        OriginUri = string.Empty,
+        ServerUri = applicationUri,
+        RegistryNodeId = new ExpandedNodeId(XRegistryWellKnown.RegistryObject, remoteNamespace)
+    },
+    applicationUri,
+    new ExpandedNodeId("pump-resource", remoteNamespace),
+    "/groups/pumps/resources/pump-resource");
+
+var remote = new GenericXRegistryClient(remoteSession, remoteNamespace, telemetry);
+var options = new XRegistryServerOptions
+{
+    PublishFederationProxy = true,
+    FederationTarget = binding,
+    FederationProvider = remote,
+    RemoteEndpointUrl = authorizedEndpointUrl
+};
+var federation = new XRegistryFederationNodeManager(server, configuration, options);
+```
+
+Use the actual assigned remote NodeIds and Xid, not identifiers derived from document bytes or an
+endpoint path. Portable NodeIds carry a namespace URI and no session-local namespace/server index.
+The native provider requires a signed or encrypted authenticated channel, verifies the channel's
+actual application/endpoint rather than mutable configured endpoint labels, and checks the
+registry root, Group ownership, logical Resource type/Xid, typed Versions folder and executable
+FileType read Methods. Verification does not open a file or read content.
+
+Both the remote session and referencing session must provide
+[`ISessionBindingProvider`](SessionBindings.md). Stock native/managed sessions
+capture authenticated dispatch, session incarnation and namespace/server maps
+coherently. All verification requests and the returned generated client use that
+binding, not a mutable ISession forwarder. Unsupported custom adapters reject
+with `Bad_NotSupported` before native verification/content actions.
+
+The alternative stable `OriginUri` form is available to explicitly configured custom providers.
+It has empty `ServerUri` and null `RegistryNodeId` inside `OriginRegistry`; the native Session
+provider rejects that form with `Bad_NotSupported` rather than inventing an application/root
+identity. Origin URI comparisons preserve exact spelling, including case and percent escapes.
+
+DI uses the existing `AddXRegistryServer` seam:
+
+```csharp
+services.AddSingleton<IXRegistryFederationProvider>(remote);
+services.AddXRegistryServer(options =>
+{
+    options.PublishFederationProxy = true;
+    options.FederationTarget = binding;
+    options.RemoteEndpointUrl = authorizedEndpointUrl;
+});
+```
+
+Direct construction remains supported. The application owns the provider's Session lifetime.
+The node manager captures its configuration at construction; later mutation of the options or
+of an `OriginRegistry` copy cannot replace the captured authority.
+
+#### Following and relocating a proxy
+
+Use the independently selected remote client and trusted binding to follow metadata obtained from
+the local referencing Session:
+
+```csharp
+ResourceTypeClient logical = await remote.FollowExternalReferenceAsync(
+    localSession, proxyNodeId, binding, ct);
+try
+{
+    ResourceVersionsTypeClient? versions = await logical.GetVersionsAsync(telemetry, ct);
+    ByteString document = await logical.ReadDocumentAsync(ct: ct);
+}
+finally
+{
+    await logical.Session.CloseAsync(CancellationToken.None);
+    logical.Session.Dispose();
+}
+```
+
+Close any explicit file handles before releasing the returned binding.
+In-place session recreation, native/managed channel replacement or map mutation
+invalidates it; it cannot redirect a later Open/Read to another peer. Acquire a
+fresh verified binding after authorized same-origin relocation or table changes.
+
+The client validates the actual scalar declarations as well as their values: `OriginRegistry`
+must declare `RegistryOriginDataType`, `ExternalReference` must declare `ExpandedNodeId`, and
+`ResourceUrl` and the remote Group/Resource `Xid` must declare `String`. Wrong DataTypes or ranks
+fail with `Bad_TypeMismatch`, even if the encoded value would otherwise look valid.
+
+`ExternalReference.ServerIndex` resolves through the referencing Session's `ServerUris`;
+zero means that referencing application. An index-only namespace resolves through that Session's
+`NamespaceUris`. The resulting portable identity is then resolved against the selected remote
+Session's current namespace table. Neither an old Session's indexes nor a source server's indexes
+are reused as remote identity.
+
+A default-Version change leaves the logical target, origin and local Xid unchanged. A new FileType
+handle reads the new default; a handle opened before the switch retains its original exact bytes.
+The independent content fast path may be removed or replaced without changing these identities or
+invalidating the logical handle. `FederatedDocument`, `ContentIdProvider` and the legacy
+`RemoteRegistryNamespaceUri` content-lookup hint do not gate proxy publication. The legacy
+`RemoteServerIndex` hint is ignored; the current ServerArray index is derived from the pinned
+ApplicationUri when the reference is read.
+
+For an authorized endpoint relocation, establish a replacement trusted Session/client and call:
+
+```csharp
+await federation.UpdateEndpointAsync(replacementEndpointUrl, replacementClient, ct);
+```
+
+This verifies the **same** pinned origin, logical target and Xid before changing only `ResourceUrl`.
+Failed or cancelled verification leaves the published binding unchanged, including cancellation
+while waiting for another update or after a provider returns. An origin change requires a new
+binding, not a locator update. Startup verification and locator updates are awaited and serialized;
+no connection manager, automatic URL fetch, resolver or content cache is created.
+
+These are the bounded client/provider and proxy-publication surfaces for the xRegistry federation
+and WoT Connectivity federated-origin contracts. They do not implement automatic federated
+dependency acquisition, durable federation-record storage or projection restore/startup orchestration.
+Hosts retain their trusted configuration and obtain fresh provider verification on reconstruction.
+This support alone is not a claim of Full, XREG-Federation or WOTC-Federation conformance.
 
 ### Labels
 
 `RegistryType`, `GroupType` and each Version `ResourceType` expose a `Labels` Object of type
 `AttributesType`. Version label Methods use that Version's `Epoch`, increment it, update Version
 `ModifiedAt`, and emit `VersionUpdated` when events are enabled. Resource Meta is distinct:
-`MetaEpoch`, `MetaLabels`, `MetaCreatedAt`, and `MetaModifiedAt` are synchronized across the
-Resource's Version files. Meta label Methods use `MetaEpoch`, update only Resource Meta, and emit
+`MetaEpoch`, `MetaLabels`, `MetaCreatedAt`, and `MetaModifiedAt` are owned by the logical Resource
+and mirrored on its generic Version files. The logical `Labels` container forwards mutations to
+the default Version using that Version's epoch. Meta label Methods use `MetaEpoch`, update only Resource Meta, and emit
 `ResourceUpdated`. Adding or removing a Version advances Resource Meta; modifying Version bytes or
-Version labels does not.
+Version labels does not. Repeating an identical label is a no-op; removing a missing label returns
+`Bad_NotFound` without moving owned state or emitting a mutation event.
 
 ### Native xRegistry events
 
-The xRegistry 0.5.0 model includes `XRegistryEventType` and the 19 concrete registry, model,
+The xRegistry 0.7.0 companion model includes `XRegistryEventType` and the 19 concrete registry, model,
 capabilities, group, resource and version event types. The model source generator emits the typed
 `*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
 Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
@@ -292,9 +542,9 @@ the changed entity xid. The generic stack leaves `CorrelationId` absent because 
 do not return a corresponding correlation value.
 
 `SourceNode` identifies the native AddressSpace source rather than the registry URL. A version event
-uses that version's `ResourceType` file. A resource event uses the committed default-version file,
-including the new default after a switch; consequently `ResourceCreated` and the first
-`VersionCreated` share the first/default file. Registry, model, modelsource, and capabilities events
+uses that Version's exact `ResourceType` file. A Resource event uses the stable logical Resource,
+including after default changes; `ResourceCreated` and `VersionCreated` therefore have distinct
+sources. Registry, model, modelsource, and capabilities events
 always use the registry root. A deleted event retains the removed source's former `SourceNode` and
 `SourceName`, but is reported through the nearest surviving notifier so subscriptions continue to
 receive it.
@@ -305,6 +555,13 @@ type-and-subject changes are merged; `Changed` names are ordinally sorted and de
 deleted/created/updated precedence is applied per subject. Initial projection is a silent baseline,
 and failed, stale, idempotent, clean-close and no-op interactions emit nothing. Recursive deletion
 reports version leaves before resources, groups and their surviving parent update.
+
+When creating or deleting a Version selects another default for a surviving Resource,
+`ResourceUpdated.Changed` includes `meta.defaultversionid` and every non-null delegated attribute
+from either the old or new default, as well as the membership and Meta changes. This includes
+Version timestamps, labels, format/content type and the configured document attribute when present.
+Selection alone does not emit `VersionUpdated`. Deleting a non-default Version names only
+membership and Meta changes in the Resource update.
 
 The registration manager registers its registry root with the node manager's root-notifier API.
 Consequently a MonitoredItem on `ObjectIds.Server` receives descendant group, Resource, and Version
@@ -327,6 +584,26 @@ disabled. Event-enabled strategies additionally implement
 immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and lets a domain honor
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
+
+`XRegistryProjectionContext.ProjectionDispatcher` optionally orders current-state
+reconciliation with a domain's notification delivery. The engine uses it for
+native mutation-triggered reconciliation as well as direct
+`ReconcileProjectionAsync` calls. Each dispatched operation uses its captured
+admission-time generation rather than rereading a later snapshot when it runs,
+so an earlier operation cannot apply later removals ahead of queued notifications.
+Supplied immutable transitions retain their
+caller's existing ordering and do not recursively dispatch. Without this
+callback, the engine retains its direct reconciliation behavior. The WoT registry
+uses its existing FIFO so native deletion cannot remove a Version/notifier ahead
+of an already queued failure. This callback does not create a new durable
+transaction or generation owner.
+
+Providers that need an asynchronous owner acquisition can opt into
+`IXRegistryAsyncProjectedResourceFileHandleForwarder`,
+`IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
+The existing file and logical pin tables still own the handles; synchronous providers
+retain their existing paths. The stock [WoT Version lease provider](WotRegistryVersionLeases.md)
+uses these capabilities without adding retention or activation options to the generic registrar.
 
 ## Server-side usage
 

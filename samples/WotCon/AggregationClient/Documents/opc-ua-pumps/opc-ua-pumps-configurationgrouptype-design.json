@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "description": "Static design properties for a pump.",
@@ -25,8 +35,21 @@
   ],
   "properties": {
     "AdditionalFieldbuses": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Additional fieldbuses supported by the product.",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -36,7 +59,7 @@
       "observable": true,
       "readOnly": true,
       "title": "AdditionalFieldbuses",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         128
       ],
@@ -47,6 +70,16 @@
       "uav:valueRank": 1
     },
     "BalancingRateOfFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Rate of flow which is extracted to activate a balance device",
       "links": [
@@ -67,6 +100,16 @@
       "unit": "m³/s"
     },
     "BasePressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pressure obtained in the test dome after conditioning the vacuum pump and the test dome",
       "links": [
@@ -87,6 +130,16 @@
       "unit": "Pa"
     },
     "ClearanceVolume": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Volume remaining unswept at the end of the discharge stroke.",
       "links": [
@@ -107,6 +160,16 @@
       "unit": "m³"
     },
     "ClockwiseRotation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Direction of rotation in which the shaft is seen to be turning in a clockwise direction when viewing the drive end of the shaft. A \"True\" status means that the rotation of pump is clockwise and a \"False\" status means that the rotation of pump is anticlockwise.",
       "links": [
@@ -125,6 +188,16 @@
       "uav:modellingRule": "Optional"
     },
     "Controllable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Indicates whether the product is a controllable pump or a self-controlling pump. A \"True\" status means that the pump is controllable and a \"False\" status means that the pump is not controllable.",
       "links": [
@@ -143,6 +216,16 @@
       "uav:modellingRule": "Optional"
     },
     "Cool_DownTimeForAVaporJetPumpOrADiffusionPump": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The cool-down time is the time required to cool the propellant from the working temperature to a temperature at which the propellant can be exposed to atmospheric air without risk after the heating has been switched off.",
       "links": [
@@ -163,6 +246,16 @@
       "unit": "s"
     },
     "Counter_ClockwiseRotation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Direction of rotation in which the shaft is seen to be turning in an anticlockwise direction, when viewing the drive end of the shaft. A \"True\" status means that the rotation of pump is anticlockwise and a \"False\" status means that the rotation of pump is clockwise.",
       "links": [
@@ -181,6 +274,16 @@
       "uav:modellingRule": "Optional"
     },
     "CriticalSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Speed of rotation at which the frequency of vibration (or its multiples) corresponds to the rotor resonant (lateral or torsional)",
       "links": [
@@ -201,6 +304,16 @@
       "unit": "s⁻¹"
     },
     "DeclarationOfConformity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Publicly accessible attestation of conformity, commonly available on websites.",
       "links": [
@@ -219,6 +332,16 @@
       "uav:modellingRule": "Optional"
     },
     "DeclarationOfConformityAvailable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Whether or not a declaration of conformity exists. A \"True\" status means that the declaration exists and a \"False\" status means that there is no declaration available.",
       "links": [
@@ -237,11 +360,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8305",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -257,11 +391,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8248",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -277,11 +422,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8249",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -297,11 +453,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8252",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -317,11 +484,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8253",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -337,11 +515,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8254",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -357,11 +546,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8255",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -377,11 +577,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8256",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -397,11 +608,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8258",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -417,11 +639,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8257",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -437,11 +670,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8259",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -457,11 +701,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8234",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -477,11 +732,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8279",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -497,11 +763,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8280",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -517,11 +794,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8281",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -537,11 +825,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8282",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -557,11 +856,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8283",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -577,11 +887,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8284",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -597,11 +918,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8285",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -617,11 +949,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8286",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -637,11 +980,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8287",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -657,11 +1011,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8288",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -677,11 +1042,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8235",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -697,11 +1073,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8289",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -717,11 +1104,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8290",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -737,11 +1135,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8291",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -757,11 +1166,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8292",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -777,11 +1197,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8293",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -797,11 +1228,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8294",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -817,11 +1259,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8295",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -837,11 +1290,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_37": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8296",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -857,11 +1321,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_38": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8297",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -877,11 +1352,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_39": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8298",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -897,11 +1383,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8236",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -917,11 +1414,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_40": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8299",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -937,11 +1445,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_41": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8300",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -957,11 +1476,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_42": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8301",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -977,11 +1507,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_43": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8302",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -997,11 +1538,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_44": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8303",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1017,11 +1569,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_45": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8304",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1037,11 +1600,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_46": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8306",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1057,11 +1631,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_47": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8307",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1077,11 +1662,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_48": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8308",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1097,11 +1693,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_49": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8309",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1117,11 +1724,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8237",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1137,11 +1755,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_50": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8310",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1157,11 +1786,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_51": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8311",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1177,11 +1817,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_52": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8407",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1197,11 +1848,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_53": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8408",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1217,11 +1879,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_54": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8409",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1237,11 +1910,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_55": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8410",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1257,11 +1941,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_56": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8411",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1277,11 +1972,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_57": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8412",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1297,11 +2003,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_58": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8413",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1317,11 +2034,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_59": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8414",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1337,11 +2065,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8240",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1357,11 +2096,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_60": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8415",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1377,11 +2127,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_61": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8416",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1397,11 +2158,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_62": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8417",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1417,11 +2189,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_63": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8437",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1437,11 +2220,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_64": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8438",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1457,11 +2251,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_65": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8439",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1477,11 +2282,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_66": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8440",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1497,11 +2313,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_67": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8441",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1517,11 +2344,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_68": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8442",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1537,11 +2375,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_69": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8443",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1557,11 +2406,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8243",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1577,11 +2437,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_70": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8444",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1597,11 +2468,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_71": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8445",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1617,11 +2499,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_72": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8446",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1637,11 +2530,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_73": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8447",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1657,11 +2561,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8244",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1677,11 +2592,22 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8247",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1697,6 +2623,16 @@
       "uav:modellingRule": "Optional"
     },
     "DesignAxialLoad": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Residual axial thrust on the pump rotor on which the thrust-bearing selection is based.",
       "links": [
@@ -1717,6 +2653,16 @@
       "unit": "N"
     },
     "DesignRadialLoad": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Radial load of the pump rotor for which the bearing system is selected.",
       "links": [
@@ -1737,6 +2683,16 @@
       "unit": "N"
     },
     "DirectivesOfEUDeclarationOfConformity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Set of directives on the basis of which conformity was determined.",
       "links": [
@@ -1754,6 +2710,16 @@
       "uav:modellingRule": "Optional"
     },
     "DryCriticalSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Rotor resonant frequency calculated assuming that the rotor is supported only at its bearings and that the bearings are of infinite stiffness",
       "links": [
@@ -1774,11 +2740,22 @@
       "unit": "s⁻¹"
     },
     "EngineeringUnits": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8234",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1800,11 +2777,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8257",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1826,11 +2814,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8259",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1852,11 +2851,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8279",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1878,11 +2888,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8280",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1904,11 +2925,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8281",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1930,11 +2962,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8282",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1956,11 +2999,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8283",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1982,11 +3036,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8284",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2008,11 +3073,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8285",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2034,11 +3110,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8286",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2060,11 +3147,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8235",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2086,11 +3184,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8287",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2112,11 +3221,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8288",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2138,11 +3258,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8289",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2164,11 +3295,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8290",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2190,11 +3332,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8291",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2216,11 +3369,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8292",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2242,11 +3406,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8293",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2268,11 +3443,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8294",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2294,11 +3480,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8295",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2320,11 +3517,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8296",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2346,11 +3554,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8236",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2372,11 +3591,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8297",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2398,11 +3628,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8298",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2424,11 +3665,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8299",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2450,11 +3702,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8300",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2476,11 +3739,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8301",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2502,11 +3776,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8302",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2528,11 +3813,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8306",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2554,11 +3850,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_37": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8307",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2580,11 +3887,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_38": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8308",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2606,11 +3924,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_39": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8309",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2632,11 +3961,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8243",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2658,11 +3998,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_40": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8311",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2684,11 +4035,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_41": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8408",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2710,11 +4072,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_42": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8409",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2736,11 +4109,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_43": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8410",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2762,11 +4146,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_44": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8411",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2788,11 +4183,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_45": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8412",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2814,11 +4220,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_46": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8413",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2840,11 +4257,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_47": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8414",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2866,11 +4294,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_48": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8415",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2892,11 +4331,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_49": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8416",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2918,11 +4368,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8247",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2944,11 +4405,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_50": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8417",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2970,11 +4442,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_51": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8437",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2996,11 +4479,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_52": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8438",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3022,11 +4516,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_53": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8439",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3048,11 +4553,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_54": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8440",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3074,11 +4590,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_55": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8441",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3100,11 +4627,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_56": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8443",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3126,11 +4664,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_57": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8444",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3152,11 +4701,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_58": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8445",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3178,11 +4738,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_59": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8446",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3204,11 +4775,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8252",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3230,11 +4812,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_60": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8447",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3256,11 +4849,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8253",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3282,11 +4886,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8255",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3308,11 +4923,22 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8258",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3334,6 +4960,16 @@
       "uav:modellingRule": "Optional"
     },
     "ExplosionProtection": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Device category for explosion protection according to 2014/34/EU (ATEX).",
       "links": [
@@ -3351,11 +4987,22 @@
       "uav:modellingRule": "Optional"
     },
     "FalseState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8237",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3370,11 +5017,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8240",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3389,11 +5047,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8244",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3408,11 +5077,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8249",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3427,6 +5107,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "GeometricDisplacementVolume": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Displacement volume for one stroke or one cycle.",
       "links": [
@@ -3447,6 +5137,16 @@
       "unit": "m³"
     },
     "GeometricalFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Product of geometrical displacement volume and speed of rotation or stroke frequency",
       "links": [
@@ -3467,6 +5167,16 @@
       "unit": "m³/s"
     },
     "HeadAtPeakPoint": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest total head developed by a pump when this does not occur at a zero rate of flow",
       "links": [
@@ -3487,6 +5197,16 @@
       "unit": "m"
     },
     "LeakageRateOfFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Rate of flow leaking from shaft seals",
       "links": [
@@ -3507,6 +5227,16 @@
       "unit": "m³/s"
     },
     "MaximumAllowableAmbientTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest allowable ambient temperature for which the equipment (or any part to which the term refers) is suitable",
       "links": [
@@ -3527,6 +5257,16 @@
       "unit": "K"
     },
     "MaximumAllowableCasingWorkingPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Greatest outlet pressure at the specified operating temperature at which the pump casing can be used",
       "links": [
@@ -3547,6 +5287,16 @@
       "unit": "Pa"
     },
     "MaximumAllowableContinuousSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest rotational speed for continuous operation recommended by the manufacturer",
       "links": [
@@ -3567,6 +5317,16 @@
       "unit": "s⁻¹"
     },
     "MaximumAllowableHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum permissible head at which the pump can be continuously operated without suffering damage",
       "links": [
@@ -3587,6 +5347,16 @@
       "unit": "m"
     },
     "MaximumAllowableRelativeHumidity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest allowable relative humidity for which the equipment (or any part to which the term refers) is suitable",
       "links": [
@@ -3607,6 +5377,16 @@
       "unit": "%"
     },
     "MaximumAllowableTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest allowable continuous fluid temperature for which the equipment (or any part to which the term refers) is suitable when handling the specified operating fluid at the specified operating pressure",
       "links": [
@@ -3627,6 +5407,16 @@
       "unit": "K"
     },
     "MaximumAllowableThroughput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum pV flow the pump can withstand without damage",
       "links": [
@@ -3647,6 +5437,16 @@
       "unit": "Pa·m³/s"
     },
     "MaximumAllowableWorkingPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pressure for a component on the basis of materials used and on the basis of calculation rules at the specified operating temperature",
       "links": [
@@ -3667,6 +5467,16 @@
       "unit": "Pa"
     },
     "MaximumAxialLoad": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Greatest value of the residual axial thrust on the pump rotor resulting from operating the pump at any condition within its allowable operating range.",
       "links": [
@@ -3687,6 +5497,16 @@
       "unit": "N"
     },
     "MaximumPumpPowerInput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest value of the pump power input at any rate of flow at any allowable operating condition",
       "links": [
@@ -3707,6 +5527,16 @@
       "unit": "W"
     },
     "MaximumRadialLoad": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Greatest radial load of the pump rotor resulting from operating the pump at any condition within its allowable operating range.",
       "links": [
@@ -3727,6 +5557,16 @@
       "unit": "N"
     },
     "MaximumStaticSealingPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Highest pressure, excluding hydrostatic testing, to which the seal can be subjected while the pump is shut down",
       "links": [
@@ -3747,6 +5587,16 @@
       "unit": "Pa"
     },
     "MeanTimebetweenFailures": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Average of the times between failures.",
       "links": [
@@ -3767,6 +5617,16 @@
       "unit": "h"
     },
     "MinimumAllowableAmbientTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest allowable ambient temperature for which the equipment (or any part to which the term refers) is suitable",
       "links": [
@@ -3787,6 +5647,16 @@
       "unit": "K"
     },
     "MinimumAllowableContinuousSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest speed for continuous operation recommended by the manufacturer",
       "links": [
@@ -3807,6 +5677,16 @@
       "unit": "s⁻¹"
     },
     "MinimumAllowableHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Minimum permissible head at which the pump can be operated without suffering damage",
       "links": [
@@ -3827,6 +5707,16 @@
       "unit": "m"
     },
     "MinimumAllowableRelativeHumidity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest allowable relative humidity for which the equipment (or any part to which the term refers) is suitable",
       "links": [
@@ -3847,6 +5737,16 @@
       "unit": "%"
     },
     "MinimumAllowableTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest allowable continuous temperature for which the equipment (or any part to which the term refers) is suitable when handling the specified operating fluid at the specified operating pressure",
       "links": [
@@ -3867,6 +5767,16 @@
       "unit": "K"
     },
     "MinimumAllowableThermalFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest flow at which the pump can operate without its operation being impaired by the temperature rise of the pumped liquid",
       "links": [
@@ -3887,6 +5797,16 @@
       "unit": "m³/s"
     },
     "MinimumContinuousStableFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest flow at which the pump can be operated without it adversely affecting its performance in terms of life expectancy, noise and vibrations",
       "links": [
@@ -3907,6 +5827,16 @@
       "unit": "m³/s"
     },
     "MinimumContinuousThermalFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Lowest flow at which the pump can operate without its operation being impaired by the temperature rise of the pumped liquid",
       "links": [
@@ -3927,6 +5857,16 @@
       "unit": "m³/s"
     },
     "NetPositiveSuctionHeadRequired": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Minimum NPSH at the pump inlet connection required to give the rated or operating performance at the specified conditions",
       "links": [
@@ -3947,6 +5887,16 @@
       "unit": "m"
     },
     "NetPositiveSuctionHeadRequiredForADropOf3Percent": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "NPSH required for a drop of 3 % in the total head of the first stage of the pump as a standard basis for use in performance curves",
       "links": [
@@ -3967,6 +5917,16 @@
       "unit": "m"
     },
     "OfferedControlModes": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Control modes supported by the manufacturer for the product.",
       "links": [
@@ -3984,6 +5944,16 @@
       "uav:modellingRule": "Optional"
     },
     "OfferedFieldbuses": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Fieldbuses supported by the manufacturer for the product.",
       "links": [
@@ -4001,6 +5971,16 @@
       "uav:modellingRule": "Optional"
     },
     "OptimumHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Total head developed by the pump at a rate of flow corresponding to the best efficiency",
       "links": [
@@ -4021,6 +6001,16 @@
       "unit": "m"
     },
     "OptimumPumpPowerInput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pump power input at the rate of flow corresponding to the best efficiency",
       "links": [
@@ -4041,6 +6031,16 @@
       "unit": "W"
     },
     "OptimumRateOfFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Rate of flow at the point of best efficiency",
       "links": [
@@ -4061,6 +6061,16 @@
       "unit": "m³/s"
     },
     "PistonVelocity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Average speed given by the stroke length multiplied with the number of complete pumping cycles of the piston, plunger or piston attached to the diaphragm per minute (stroke per minute or pump crank speed)",
       "links": [
@@ -4081,8 +6091,21 @@
       "unit": "m/s"
     },
     "PossibleFluids": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Fluids that can be pumped by the pump.",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -4092,7 +6115,7 @@
       "observable": true,
       "readOnly": true,
       "title": "PossibleFluids",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -4103,6 +6126,16 @@
       "uav:valueRank": 1
     },
     "Pre_ChargePressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pressure to which the pulsation dampener is charged with dry gas prior to start of operation",
       "links": [
@@ -4123,6 +6156,16 @@
       "unit": "Pa"
     },
     "PumpClass": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pump type according to functional principle and pumped fluid",
       "links": [
@@ -4140,6 +6183,16 @@
       "uav:modellingRule": "Optional"
     },
     "Shut_OffHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Total head developed by the pump in a zero rate of flow",
       "links": [
@@ -4160,6 +6213,16 @@
       "unit": "m"
     },
     "Shut_OffPumpPowerInput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pump power input at zero rate of flow",
       "links": [
@@ -4180,6 +6243,16 @@
       "unit": "W"
     },
     "SlipFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Flow lost internally through clearances",
       "links": [
@@ -4200,6 +6273,16 @@
       "unit": "m³/s"
     },
     "SoundEnergy": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Integral of the sound power, P, over a stated time interval of duration T (starting at t1 and ending at t2).",
       "links": [
@@ -4220,6 +6303,16 @@
       "unit": "J"
     },
     "SoundEnergyLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Ten times the logarithm to the base 10 of the ratio of the sound energy, J, to a reference value, J0, expressed in decibels.",
       "links": [
@@ -4240,6 +6333,16 @@
       "unit": "dB"
     },
     "SoundPower": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Through a surface, product of the sound pressure, p, and the component of the particle velocity, un, at a point on the surface in the direction normal to the surface, integrated over that surface.",
       "links": [
@@ -4260,6 +6363,16 @@
       "unit": "W"
     },
     "SoundPowerLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Ten times the logarithm to the base 10 of the ratio of the sound power of a source, P, to a reference value, P0, expressed in decibels.",
       "links": [
@@ -4280,6 +6393,16 @@
       "unit": "dB"
     },
     "SoundPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Difference between instantaneous pressure and static pressure.",
       "links": [
@@ -4300,6 +6423,16 @@
       "unit": "Pa"
     },
     "SoundPressureLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Ten times the logarithm to the base 10 of the ratio of the square of the sound pressure, p, to the square of a reference value, p0, expressed in decibels.",
       "links": [
@@ -4320,6 +6453,16 @@
       "unit": "dB"
     },
     "SpecificSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Speed that characterizes a pump in terms of its speed, flow rate per impeller eye, i.e. total flow for single-flow impeller, half flow for double-flow impeller, at the best efficiency point and head per stage at maximum impeller diameter",
       "links": [
@@ -4340,6 +6483,16 @@
       "unit": "s⁻¹"
     },
     "StandardGasFlowrate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Volume flow rate at standard reference conditions, i.e. 0 °C and 101 325 Pa",
       "links": [
@@ -4360,6 +6513,16 @@
       "unit": "m³/s"
     },
     "StartingPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The starting pressure is the pressure at which a vacuum pump can be switched on and a pumping effect is achieved without damage occurring.",
       "links": [
@@ -4380,6 +6543,16 @@
       "unit": "Pa"
     },
     "Suction_SpecificSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Speed that characterizes a pump's cavitation performance in terms of its speed, optimum rate of flow per impeller eye at best efficiency point and NPSH3 at best efficiency point for the first stage at maximum impeller diameter",
       "links": [
@@ -4400,6 +6573,16 @@
       "unit": "s⁻¹"
     },
     "SweptVolume": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Volume traversed by a single stroke of piston, plunger or diaphragm.",
       "links": [
@@ -4420,6 +6603,16 @@
       "unit": "m³"
     },
     "TripSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Speed at which the independent emergency overspeed devices operate to shut down a prime mover",
       "links": [
@@ -4440,11 +6633,22 @@
       "unit": "s⁻¹"
     },
     "TrueState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8237",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4459,11 +6663,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8240",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4478,11 +6693,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8244",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4497,11 +6723,22 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8249",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4516,6 +6753,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "TypeNumber": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Pure number calculated at the point of best efficiency",
       "links": [
@@ -4534,6 +6781,16 @@
       "uav:modellingRule": "Optional"
     },
     "VolumeFlowRate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Volume flow rate of the gas removed by the pump from the gas phase within the evacuated chamber.",
       "links": [
@@ -4554,6 +6811,16 @@
       "unit": "m³/s"
     },
     "VolumeFlowRateOfBackingPump": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum volume flow rate for which the conditions are defined in the instruction manual or in a specific standard for the particular vacuum pump",
       "links": [
@@ -4574,6 +6841,16 @@
       "unit": "m³/s"
     },
     "WarmUpTimeForAVaporJetPumpOrADiffusionPump": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "The warm-up time is the time required to heat the blowing agent in the boiling vessel to its working temperature. The initial temperature can either be equal to the ambient temperature or equal to the temperature at which the blowing agent of the vacuum pump can be exposed to atmospheric air without risk.",
@@ -4595,6 +6872,16 @@
       "unit": "s"
     },
     "WaterVaporTolerableLoad": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The mass flow rate for water vapor, in a gas ballast pump, in continuous operation and under normal ambient conditions, if the pumped gas is pure water vapor.",
       "links": [
@@ -4615,6 +6902,16 @@
       "unit": "kg/s"
     },
     "WetCriticalSpeed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Rotor resonant frequency calculated considering the additional support and damping produced by the action of the pumped fluid within rotor",
       "links": [
@@ -4638,1527 +6935,8 @@
   "title": "Design",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Design",
-  "uav:dataTypeDefinitions": [
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",
-      "@type": "uav:EnumDefinition",
-      "description": "describes the possible control modes of the pump",
-      "title": "ControlModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",
-      "uav:dataTypeName": "ns1:ControlModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant pressure control mode",
-          "uav:enumName": "ConstantPressureControl",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant temperature control mode",
-          "uav:enumName": "ConstantTemperatureControl",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Differential pressure control mode",
-          "uav:enumName": "DifferentialPressureControl",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant differential pressure control mode",
-          "uav:enumName": "ConstantDifferentialPressureControl",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Variable differential pressure control mode",
-          "uav:enumName": "VariableDifferentialPressureControl",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow-dependent differential pressure control mode",
-          "uav:enumName": "FlowDependentDifferentialPressureControl",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Return flow temperature control mode",
-          "uav:enumName": "ReturnFlowTemperatureControl",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow temperature control mode",
-          "uav:enumName": "FlowTemperatureControl",
-          "uav:enumValue": 7
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow rate control mode",
-          "uav:enumName": "FlowRateControl",
-          "uav:enumValue": 8
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Speed control mode",
-          "uav:enumName": "SpeedControl",
-          "uav:enumValue": 9
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Automatic control mode",
-          "uav:enumName": "Automatic",
-          "uav:enumValue": 10
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "None / uncontrolled mode",
-          "uav:enumName": "Uncontrolled",
-          "uav:enumValue": 11
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3013",
-      "@type": "uav:EnumDefinition",
-      "description": "describes the share of operation time of different pumps of the pump system in addition operation mode",
-      "title": "DistributionTypeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3013",
-      "uav:dataTypeName": "ns1:DistributionTypeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Manufacturer specific distribution of operation time",
-          "uav:enumName": "ManufacturerSpecific",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Operator specific distribution of operation time",
-          "uav:enumName": "OperatorSpecific",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Equivalent distribution of operation time, concerning time distribution",
-          "uav:enumName": "ConcerningTimeDistribution",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Equivalent distribution of operation time, concerning load distribution",
-          "uav:enumName": "ConcerningLoadDistribution",
-          "uav:enumValue": 3
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3012",
-      "@type": "uav:EnumDefinition",
-      "description": "specifies the exchange mode of the pump",
-      "title": "ExchangeModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3012",
-      "uav:dataTypeName": "ns1:ExchangeModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Manufacturer specific pump exchange mode",
-          "uav:enumName": "ManufacturerSpecific",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Pump exchange disabled",
-          "uav:enumName": "ExchangeDisabled",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Operator specific pump exchange mode",
-          "uav:enumName": "OperatorSpecific",
-          "uav:enumValue": 2
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3005",
-      "@type": "uav:EnumDefinition",
-      "description": "defines possible field buses",
-      "title": "FieldbusEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3005",
-      "uav:dataTypeName": "ns1:FieldbusEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Fieldbus is not specified in this enumeration",
-          "uav:enumName": "Other",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ARCNET",
-          "uav:enumName": "ARCNET",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "AS-Interface",
-          "uav:enumName": "AS-Interface",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "BACnet/IP",
-          "uav:enumName": "BACnet/IP",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "BACnet/MSTP",
-          "uav:enumName": "BACnet/MSTP",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Bluetooth",
-          "uav:enumName": "Bluetooth",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Bluetooth Low Energy",
-          "uav:enumName": "BluetoothLowEnergy",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CAN",
-          "uav:enumName": "CAN",
-          "uav:enumValue": 7
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CANopen",
-          "uav:enumName": "CANopen",
-          "uav:enumValue": 8
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CC-Link",
-          "uav:enumName": "CC-Link",
-          "uav:enumValue": 9
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ControlNet",
-          "uav:enumName": "ControlNet",
-          "uav:enumValue": 10
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DALI",
-          "uav:enumName": "DALI",
-          "uav:enumValue": 11
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DECT ULE",
-          "uav:enumName": "DECTULE",
-          "uav:enumValue": 12
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DeviceNet",
-          "uav:enumName": "DeviceNet",
-          "uav:enumValue": 13
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DMX",
-          "uav:enumName": "DMX",
-          "uav:enumValue": 14
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "KNX",
-          "uav:enumName": "KNX",
-          "uav:enumValue": 15
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "EnOcean",
-          "uav:enumName": "EnOcean",
-          "uav:enumValue": 16
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "EtherCAT",
-          "uav:enumName": "EtherCAT",
-          "uav:enumValue": 17
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ethernet/IP",
-          "uav:enumName": "Ethernet/IP",
-          "uav:enumValue": 18
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ethernet TCP/IP",
-          "uav:enumName": "EthernetTCP/IP",
-          "uav:enumValue": 19
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "IEEE1588",
-          "uav:enumName": "IEEE1588",
-          "uav:enumValue": 20
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "GSM",
-          "uav:enumName": "GSM",
-          "uav:enumValue": 21
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Interbus",
-          "uav:enumName": "Interbus",
-          "uav:enumValue": 22
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "IO-Link",
-          "uav:enumName": "IO-Link",
-          "uav:enumValue": 23
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "HART",
-          "uav:enumName": "HART",
-          "uav:enumValue": 24
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LON",
-          "uav:enumName": "LON",
-          "uav:enumValue": 25
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LoRaWAN",
-          "uav:enumName": "LoRaWAN",
-          "uav:enumValue": 26
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LIN-Bus",
-          "uav:enumName": "LIN-Bus",
-          "uav:enumValue": 27
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LTE",
-          "uav:enumName": "LTE",
-          "uav:enumValue": 28
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LTE-M",
-          "uav:enumName": "LTE-M",
-          "uav:enumValue": 29
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "M-Bus",
-          "uav:enumName": "M-Bus",
-          "uav:enumValue": 30
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Modbus TCP",
-          "uav:enumName": "ModbusTCP",
-          "uav:enumValue": 31
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Modbus RTU",
-          "uav:enumName": "ModbusRTU",
-          "uav:enumValue": 32
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "MP-Bus",
-          "uav:enumName": "MP-Bus",
-          "uav:enumValue": 33
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "NB-IOT",
-          "uav:enumName": "NB-IOT",
-          "uav:enumValue": 34
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "NFC",
-          "uav:enumName": "NFC",
-          "uav:enumValue": 35
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "OPC UA",
-          "uav:enumName": "OPCUA",
-          "uav:enumValue": 36
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "OPC DA",
-          "uav:enumName": "OPCDA",
-          "uav:enumValue": 37
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "PROFIBUS DP",
-          "uav:enumName": "PROFIBUSDP",
-          "uav:enumValue": 38
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "PROFINET RT",
-          "uav:enumName": "PROFINETRT",
-          "uav:enumValue": 39
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Powerlink",
-          "uav:enumName": "Powerlink",
-          "uav:enumValue": 40
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "SERCOS",
-          "uav:enumName": "SERCOS",
-          "uav:enumValue": 41
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "SMI",
-          "uav:enumName": "SMI",
-          "uav:enumValue": 42
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Thread",
-          "uav:enumName": "Thread",
-          "uav:enumValue": 43
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "UMTS",
-          "uav:enumName": "UMTS",
-          "uav:enumValue": 44
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "WIFI",
-          "uav:enumName": "WIFI",
-          "uav:enumValue": 45
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "X2X-Link",
-          "uav:enumName": "X2X-Link",
-          "uav:enumValue": 46
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "VARAN",
-          "uav:enumName": "VARAN",
-          "uav:enumValue": 47
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ZigBee",
-          "uav:enumName": "ZigBee",
-          "uav:enumValue": 48
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Z-Wave",
-          "uav:enumName": "Z-Wave",
-          "uav:enumValue": 49
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3004",
-      "@type": "uav:EnumDefinition",
-      "description": "defines maintenance levels for the pump",
-      "title": "MaintenanceLevelEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3004",
-      "uav:dataTypeName": "ns1:MaintenanceLevelEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Level 1 is characterized by simple actions carried out with minimal training",
-          "uav:enumName": "Level1",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Level 2 is characterized by basic actions which have to be carried out by qualified personnel using detailed procedures ",
-          "uav:enumName": "Level2",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Level 3 is characterized by complex actions carried out by qualified technical personnel using detailed procedures",
-          "uav:enumName": "Level3",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Level 4 is characterized by actions which imply the know-how of a technique or a technology and carried out by specialized technical personnel",
-          "uav:enumName": "Level4",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Level 5 is characterized by actions which imply a knowledge held by the manufacturer or a specialized company with industrial logistic support equipment",
-          "uav:enumName": "Level5",
-          "uav:enumValue": 4
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3011",
-      "@type": "uav:EnumDefinition",
-      "description": "specifies the actual multi pump operation mode",
-      "title": "MultiPumpOperationModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3011",
-      "uav:dataTypeName": "ns1:MultiPumpOperationModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Standalone mode",
-          "uav:enumName": "Standalone",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "pump fulfils the process function of another pump",
-          "uav:enumName": "RedundancyOperation",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "supplementary fulfilling of the process function",
-          "uav:enumName": "AdditionOperation",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Redundancy and addition operation mixed",
-          "uav:enumName": "MixedRedundancy",
-          "uav:enumValue": 3
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3006",
-      "@type": "uav:EnumDefinition",
-      "description": "specifies whether the pump is to be operated in single, parallel or series connection",
-      "title": "OperatingModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3006",
-      "uav:dataTypeName": "ns1:OperatingModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Single operating mode",
-          "uav:enumName": "SingleOperation",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Series operating mode",
-          "uav:enumName": "SeriesOperation",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Parallel operating mode",
-          "uav:enumName": "ParallelOperation",
-          "uav:enumValue": 2
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3007",
-      "@type": "uav:EnumDefinition",
-      "description": "describes the possible operation modes of the pump",
-      "title": "OperationModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3007",
-      "uav:dataTypeName": "ns1:OperationModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "standard control algorithm, not configurable",
-          "uav:enumName": "AutoControl",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "pid algorithm, control parameters configurable in functional element ControlPID",
-          "uav:enumName": "ClosedLoopStandardPID",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "manufacturer specific control algorithm, control parameters configurable",
-          "uav:enumName": "Advanced",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ready for operation ",
-          "uav:enumName": "StandBy",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "open loop operation at minimum characteristic",
-          "uav:enumName": "OpenLoopMin",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "open loop operation at set point value",
-          "uav:enumName": "OpenLoopValue",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "open loop operation at maximum characteristic",
-          "uav:enumName": "OpenLoopMax",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "closed loop operation at minimum characteristic",
-          "uav:enumName": "ClosedLoopMin",
-          "uav:enumValue": 7
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "closed loop operation at maximum characteristic",
-          "uav:enumName": "ClosedLoopMax",
-          "uav:enumValue": 8
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Test operation",
-          "uav:enumName": "Test",
-          "uav:enumValue": 9
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Calibration mode",
-          "uav:enumName": "Calibration",
-          "uav:enumValue": 10
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3014",
-      "@type": "uav:EnumDefinition",
-      "description": "determines whether the port is an inlet and outlet or both",
-      "title": "PortDirectionEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3014",
-      "uav:dataTypeName": "ns1:PortDirectionEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Ports with the direction “In” can only be connected to ports with the direction “Out” or “InOut”.",
-          "uav:enumName": "In",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ports with the direction “Out” can only be connected to ports with the direction “In” or “InOut”.",
-          "uav:enumName": "Out",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ports with the direction “InOut” can be connected to ports with arbitrary directions.",
-          "uav:enumName": "InOut",
-          "uav:enumValue": 2
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3021",
-      "@type": "uav:EnumDefinition",
-      "description": "defines possible pump types",
-      "title": "PumpClassEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3021",
-      "uav:dataTypeName": "ns1:PumpClassEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Rotodynamic pump",
-          "uav:enumName": "RotodynamicPump",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Positive displacement pump",
-          "uav:enumName": "PositiveDisplacementPump",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Process vacuum pump",
-          "uav:enumName": "ProcessVacuumPump",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Turbo vacuum pump",
-          "uav:enumName": "TurboVacuumPump",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Vacuum pump",
-          "uav:enumName": "VacuumPump",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Liquid pump",
-          "uav:enumName": "LiquidPump",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Pump",
-          "uav:enumName": "Pump",
-          "uav:enumValue": 6
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
-      "@type": "uav:EnumDefinition",
-      "description": "describes the pump kick mode of the pump",
-      "title": "PumpKickModeEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
-      "uav:dataTypeName": "ns1:PumpKickModeEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Manufacturer specific pump kick mode",
-          "uav:enumName": "ManufacturerSpecific",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Pump kick mode disabled",
-          "uav:enumName": "Disabled",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Operator specific pump kick mode",
-          "uav:enumName": "OperatorSpecific",
-          "uav:enumValue": 2
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3010",
-      "@type": "uav:EnumDefinition",
-      "description": "identifies the role rsp. task of the pump within the multi pump management",
-      "title": "PumpRoleEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3010",
-      "uav:dataTypeName": "ns1:PumpRoleEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Slave",
-          "uav:enumName": "Slave",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Master",
-          "uav:enumName": "Master",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Slave and auxiliary master",
-          "uav:enumName": "SlaveAndAuxiliaryMaster",
-          "uav:enumValue": 2
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3003",
-      "@type": "uav:EnumDefinition",
-      "description": "describes the state of the pump",
-      "title": "StateOfTheItemEnum",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3003",
-      "uav:dataTypeName": "ns1:StateOfTheItemEnum",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=29"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Item is in up state and non-operating outside required time",
-          "uav:enumName": "IdleState",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Item is in up state and non-operating during required time",
-          "uav:enumName": "StandByState",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Item is in up state and operating as required",
-          "uav:enumName": "OperatingState",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Item is in up state, but lacks required external resources or is disabled due to planned actions other than maintenance",
-          "uav:enumName": "ExternalDisabledState",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Item is unable to perform a required function due to preventive maintenance or a fault",
-          "uav:enumName": "DownState",
-          "uav:enumValue": 4
-        }
-      ],
-      "uav:isOptionSet": false
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3019",
-      "@type": "uav:EnumDefinition",
-      "description": "defines flags for directives on the basis of which conformity was determined",
-      "title": "DeclarationOfConformityOptionSet",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5013",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3019",
-      "uav:dataTypeName": "ns1:DeclarationOfConformityOptionSet",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=12755"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2006/ 42/ EG, concerning machinery and amending Directive 95/16/EG",
-          "uav:enumName": "2006_42_EC",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2009/ 125/ EC, establishing a framework for the setting of ecodesign requirements for energy-related products",
-          "uav:enumName": "2009_125_EC",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2011/ 65/ EU, restriction of the use of certain hazardous substances in electrical and electronic equipment",
-          "uav:enumName": "2011_65_EU",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2014/ 35/ EU, harmonisation of the laws of the Member States on the provision of electrical equipment for use within certain voltage limits on the market",
-          "uav:enumName": "2014_35_EU",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2014/ 34/ EU, harmonisation of the laws of the Member States concerning equipment and protective systems intended for use in potentially explosive atmospheres",
-          "uav:enumName": "2014_34_EU",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2014/ 30/ EU, harmonisation of the laws of the Member States on electromagnetic compatibility",
-          "uav:enumName": "2014_30_EU",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2014/ 68/ EU, harmonisation of Member States' legislation on the provision of pressure equipment on the market",
-          "uav:enumName": "2014_68_EU",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Directives of the EU Declaration of Conformity - 2014/ 29/ EU, harmonisation of the laws of the Member States relating to the making available on the market of simple pressure vessels",
-          "uav:enumName": "2014_29_EU",
-          "uav:enumValue": 7
-        }
-      ],
-      "uav:isOptionSet": true,
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5015",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5014"
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3016",
-      "@type": "uav:EnumDefinition",
-      "description": "defines flags for the category of explosion protection for devices according to EU Directive 2014/34/EU (ATEX)",
-      "title": "ExplosionProtectionOptionSet",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5004",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3016",
-      "uav:dataTypeName": "ns1:ExplosionProtectionOptionSet",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=12755"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
-          "uav:enumName": "M1",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
-          "uav:enumName": "M2",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
-          "uav:enumName": "1G",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
-          "uav:enumName": "2G",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
-          "uav:enumName": "3G",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
-          "uav:enumName": "1D",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
-          "uav:enumName": "2D",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
-          "uav:enumName": "3D",
-          "uav:enumValue": 7
-        }
-      ],
-      "uav:isOptionSet": true,
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5006",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5005"
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3015",
-      "@type": "uav:EnumDefinition",
-      "description": "defines flags for the category of explosion zones for devices",
-      "title": "ExplosionZoneOptionSet",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5001",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3015",
-      "uav:dataTypeName": "ns1:ExplosionZoneOptionSet",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=12755"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is present continuously or for long periods or frequently.",
-          "uav:enumName": "Zone 0",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is likely to occur in normal operation occasionally.",
-          "uav:enumName": "Zone 1",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is not likely to occur in normal operation but, if it does occur, will persist for a short period only.",
-          "uav:enumName": "Zone 2",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is present continuously, for long periods or frequently.",
-          "uav:enumName": "Zone 20",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is likely to occur in normal operation occasionally.",
-          "uav:enumName": "Zone 21",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is not likely to occur in normal operation but, if it does occur, will persist for a short period only.",
-          "uav:enumName": "Zone 22",
-          "uav:enumValue": 5
-        }
-      ],
-      "uav:isOptionSet": true,
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5003",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5002"
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3017",
-      "@type": "uav:EnumDefinition",
-      "description": "defines flags for offerd control modes supported by the manufacturer for the product",
-      "title": "OfferedControlModesOptionSet",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5007",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3017",
-      "uav:dataTypeName": "ns1:OfferedControlModesOptionSet",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=12755"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant pressure control mode",
-          "uav:enumName": "Constant pressure control",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant temperature control mode",
-          "uav:enumName": "Constant temperature control",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Differential pressure control mode",
-          "uav:enumName": "Differential pressure control",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Constant differential pressure control mode",
-          "uav:enumName": "Constant differential pressure control",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Variable differential pressure control mode",
-          "uav:enumName": "Variable differential pressure control",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow-dependent differential pressure control mode",
-          "uav:enumName": "Flow_dependent differential pressure control",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Return flow temperature control mode",
-          "uav:enumName": "Return flow temperature control",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow temperature control mode",
-          "uav:enumName": "Flow temperature control",
-          "uav:enumValue": 7
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Flow rate control mode",
-          "uav:enumName": "Flow rate control",
-          "uav:enumValue": 8
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Automatic control mode",
-          "uav:enumName": "Automatic",
-          "uav:enumValue": 9
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "None / uncontrolled mode",
-          "uav:enumName": "Uncontrolled",
-          "uav:enumValue": 10
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Speed control mode",
-          "uav:enumName": "Speed control",
-          "uav:enumValue": 11
-        }
-      ],
-      "uav:isOptionSet": true,
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5009",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5008"
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3018",
-      "@type": "uav:EnumDefinition",
-      "description": "defines flags for fieldbuses supported by the manufacturer for the product",
-      "title": "OfferedFieldbusesOptionSet",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5010",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3018",
-      "uav:dataTypeName": "ns1:OfferedFieldbusesOptionSet",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=12755"
-      },
-      "uav:enumFields": [
-        {
-          "@type": "uav:EnumField",
-          "description": "Additional fieldbuses listed in the AdditionalFieldbuses variable",
-          "uav:enumName": "Other",
-          "uav:enumValue": 0
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ARCNET",
-          "uav:enumName": "ARCNET",
-          "uav:enumValue": 1
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "AS-Interface",
-          "uav:enumName": "AS_Interface",
-          "uav:enumValue": 2
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "BACnet/IP",
-          "uav:enumName": "BACnet_IP",
-          "uav:enumValue": 3
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "BACnet/MSTP",
-          "uav:enumName": "BACnet_MSTP",
-          "uav:enumValue": 4
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Bluetooth",
-          "uav:enumName": "Bluetooth",
-          "uav:enumValue": 5
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Bluetooth Low Energy",
-          "uav:enumName": "Bluetooth Low Energy",
-          "uav:enumValue": 6
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CAN",
-          "uav:enumName": "CAN",
-          "uav:enumValue": 7
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CANopen",
-          "uav:enumName": "CANopen",
-          "uav:enumValue": 8
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "CC-Link",
-          "uav:enumName": "CC_Link",
-          "uav:enumValue": 9
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ControlNet",
-          "uav:enumName": "ControlNet",
-          "uav:enumValue": 10
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DALI",
-          "uav:enumName": "DALI",
-          "uav:enumValue": 11
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DECT ULE",
-          "uav:enumName": "DECT ULE",
-          "uav:enumValue": 12
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DeviceNet",
-          "uav:enumName": "DeviceNet",
-          "uav:enumValue": 13
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "DMX",
-          "uav:enumName": "DMX",
-          "uav:enumValue": 14
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "KNX",
-          "uav:enumName": "KNX",
-          "uav:enumValue": 15
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "EnOcean",
-          "uav:enumName": "EnOcean",
-          "uav:enumValue": 16
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "EtherCAT",
-          "uav:enumName": "EtherCAT",
-          "uav:enumValue": 17
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ethernet/IP",
-          "uav:enumName": "Ethernet_IP",
-          "uav:enumValue": 18
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Ethernet TCP/IP",
-          "uav:enumName": "Ethernet TCP_IP",
-          "uav:enumValue": 19
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "IEEE1588",
-          "uav:enumName": "IEEE1588",
-          "uav:enumValue": 20
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "GSM",
-          "uav:enumName": "GSM",
-          "uav:enumValue": 21
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Interbus",
-          "uav:enumName": "Interbus",
-          "uav:enumValue": 22
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "IO-Link",
-          "uav:enumName": "IO_Link",
-          "uav:enumValue": 23
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "HART",
-          "uav:enumName": "HART",
-          "uav:enumValue": 24
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LON",
-          "uav:enumName": "LON",
-          "uav:enumValue": 25
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LoRaWAN",
-          "uav:enumName": "LoRaWAN",
-          "uav:enumValue": 26
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LIN-Bus",
-          "uav:enumName": "LIN_Bus",
-          "uav:enumValue": 27
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LTE",
-          "uav:enumName": "LTE",
-          "uav:enumValue": 28
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "LTE-M",
-          "uav:enumName": "LTE_M",
-          "uav:enumValue": 29
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "M-Bus",
-          "uav:enumName": "M_Bus",
-          "uav:enumValue": 30
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Modbus TCP",
-          "uav:enumName": "Modbus TCP",
-          "uav:enumValue": 31
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Modbus RTU",
-          "uav:enumName": "Modbus RTU",
-          "uav:enumValue": 32
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "MP-Bus",
-          "uav:enumName": "MP_Bus",
-          "uav:enumValue": 33
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "NB-IOT",
-          "uav:enumName": "NB_IOT",
-          "uav:enumValue": 34
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "NFC",
-          "uav:enumName": "NFC",
-          "uav:enumValue": 35
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "OPC UA",
-          "uav:enumName": "OPC UA",
-          "uav:enumValue": 36
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "OPC DA",
-          "uav:enumName": "OPC DA",
-          "uav:enumValue": 37
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "PROFIBUS DP",
-          "uav:enumName": "PROFIBUS DP",
-          "uav:enumValue": 38
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "PROFINET RT",
-          "uav:enumName": "PROFINET RT",
-          "uav:enumValue": 39
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Powerlink",
-          "uav:enumName": "Powerlink",
-          "uav:enumValue": 40
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "SERCOS",
-          "uav:enumName": "SERCOS",
-          "uav:enumValue": 41
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "SMI",
-          "uav:enumName": "SMI",
-          "uav:enumValue": 42
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Thread",
-          "uav:enumName": "Thread",
-          "uav:enumValue": 43
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "UMTS",
-          "uav:enumName": "UMTS",
-          "uav:enumValue": 44
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "WIFI",
-          "uav:enumName": "WIFI",
-          "uav:enumValue": 45
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "X2X_Link",
-          "uav:enumName": "X2X_Link",
-          "uav:enumValue": 46
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "VARAN",
-          "uav:enumName": "VARAN",
-          "uav:enumValue": 47
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "ZigBee",
-          "uav:enumName": "ZigBee",
-          "uav:enumValue": 48
-        },
-        {
-          "@type": "uav:EnumField",
-          "description": "Z-Wave",
-          "uav:enumName": "Z_Wave",
-          "uav:enumValue": 49
-        }
-      ],
-      "uav:isOptionSet": true,
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5012",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5011"
-    },
-    {
-      "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3020",
-      "@type": "uav:StructureDefinition",
-      "description": "Physical address of the manufacturer.",
-      "title": "PhysicalAddressDataType",
-      "uav:binaryEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5016",
-      "uav:dataTypeId": "nsu=http://opcfoundation.org/UA/Pumps/;i=3020",
-      "uav:dataTypeName": "ns1:PhysicalAddressDataType",
-      "uav:dataTypeSubtypeOf": {
-        "uav:dataTypeId": "i=22"
-      },
-      "uav:fields": [
-        {
-          "@type": "uav:StructureField",
-          "description": "Street name where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "Street",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        },
-        {
-          "@type": "uav:StructureField",
-          "description": "Street number where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "Number",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        },
-        {
-          "@type": "uav:StructureField",
-          "description": "City where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "City",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        },
-        {
-          "@type": "uav:StructureField",
-          "description": "Postal code where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "PostalCode",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        },
-        {
-          "@type": "uav:StructureField",
-          "description": "State where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "State",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        },
-        {
-          "@type": "uav:StructureField",
-          "description": "Country where the manufacturer is located.",
-          "uav:allowSubtypes": false,
-          "uav:fieldDataTypeId": "i=21",
-          "uav:fieldName": "Country",
-          "uav:isOptional": true,
-          "uav:valueRank": -1
-        }
-      ],
-      "uav:jsonEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5018",
-      "uav:structureType": "StructureWithOptionalFields",
-      "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
-    }
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=1024"
   ],
   "uav:hasComponent": [
     "nsu=http://opcfoundation.org/UA/Pumps/;i=5067",

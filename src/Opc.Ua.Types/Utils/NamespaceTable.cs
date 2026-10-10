@@ -72,7 +72,7 @@ namespace Opc.Ua
         public StringTable(StringTable table)
         {
             m_strings = [];
-            Update(table.m_strings);
+            Update(table.ToArray());
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -99,6 +99,24 @@ namespace Opc.Ua
 #endif
 
         /// <summary>
+        /// Gets the monotonic mutation version of this table.
+        /// </summary>
+        public long Version
+        {
+            get
+            {
+                if (m_privateView?.Value is { } view)
+                {
+                    return view.Version;
+                }
+                lock (m_syncRoot)
+                {
+                    return m_version;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
@@ -110,6 +128,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                view.Update(strings);
+                return;
+            }
             // same bound as Append (see ThrowIfFull), so the (ushort) index casts cannot wrap.
             List<string> updated = [.. strings];
 
@@ -124,6 +147,7 @@ namespace Opc.Ua
             lock (m_syncRoot)
             {
                 m_strings = updated;
+                Interlocked.Increment(ref m_version);
 
 #if DEBUG
                 if (m_shared)
@@ -151,6 +175,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                return view.Append(value);
+            }
 #if DEBUG
             if (m_shared)
             {
@@ -165,6 +193,7 @@ namespace Opc.Ua
             {
                 ThrowIfFull();
                 m_strings.Add(value);
+                Interlocked.Increment(ref m_version);
                 return m_strings.Count - 1;
             }
         }
@@ -191,6 +220,10 @@ namespace Opc.Ua
         /// </summary>
         public string? GetString(uint index)
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetString(index);
+            }
             lock (m_syncRoot)
             {
                 if (index < m_strings.Count)
@@ -207,15 +240,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (m_syncRoot)
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    return -1;
-                }
-
-                return m_strings.IndexOf(value);
-            }
+            return GetIndex(value, 0);
         }
 
         /// <summary>
@@ -229,6 +254,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetIndexOrAppend(value);
+            }
             lock (m_syncRoot)
             {
                 int index = m_strings.IndexOf(value);
@@ -247,6 +276,7 @@ namespace Opc.Ua
 
                     ThrowIfFull();
                     m_strings.Add(value);
+                    Interlocked.Increment(ref m_version);
                     return (ushort)(m_strings.Count - 1);
                 }
 
@@ -259,6 +289,10 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.ToArray();
+            }
             lock (m_syncRoot)
             {
                 return [.. m_strings];
@@ -270,8 +304,28 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> ToArrayOf()
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.ToArrayOf();
+            }
             lock (m_syncRoot)
             {
+                return [.. m_strings];
+            }
+        }
+
+        /// <summary>
+        /// Captures the mapping and its mutation version in one observation.
+        /// </summary>
+        public ArrayOf<string> GetSnapshot(out long version)
+        {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetSnapshot(out version);
+            }
+            lock (m_syncRoot)
+            {
+                version = m_version;
                 return [.. m_strings];
             }
         }
@@ -283,6 +337,10 @@ namespace Opc.Ua
         {
             get
             {
+                if (m_privateView?.Value is { } view)
+                {
+                    return view.Count;
+                }
                 lock (m_syncRoot)
                 {
                     return m_strings.Count;
@@ -294,9 +352,19 @@ namespace Opc.Ua
         /// Creates a mapping between the URIs in a source table and the indexes in the current table.
         /// </summary>
         /// <param name="source">The string table to map.</param>
-        /// <param name="updateTable">if set to <c>true</c> if missing URIs should be added to the current tables.</param>
+        /// <param name="updateTable">
+        /// If set to <c>true</c>, missing URIs should be added to the current tables.
+        /// </param>
         /// <returns>A list of indexes in the current table.</returns>
         public ushort[]? CreateMapping(StringTable source, bool updateTable)
+        {
+            return CreateMapping(source, updateTable, preserveLocalServerIndex: false);
+        }
+
+        /// <summary>
+        /// Maps tables with an optional reserved local server slot at index zero.
+        /// </summary>
+        internal ushort[]? CreateMapping(StringTable source, bool updateTable, bool preserveLocalServerIndex)
         {
             if (source == null)
             {
@@ -304,12 +372,13 @@ namespace Opc.Ua
             }
 
             ushort[] mapping = new ushort[source.Count];
+            int startIndex = preserveLocalServerIndex ? 1 : 0;
 
-            for (int ii = 0; ii < source.Count; ii++)
+            for (int ii = startIndex; ii < source.Count; ii++)
             {
                 string uri = source.GetString((uint)ii)!;
 
-                int index = GetIndex(uri);
+                int index = GetIndex(uri, startIndex);
 
                 if (index < 0)
                 {
@@ -328,11 +397,43 @@ namespace Opc.Ua
             return mapping;
         }
 
+        internal IDisposable UsePrivateCopy()
+        {
+            ArrayOf<string> values = GetSnapshot(out long version);
+            var copy = new StringTable(values.ToArray()!)
+            {
+                m_version = version
+            };
+            AsyncLocal<StringTable?> slot = LazyInitializer.EnsureInitialized(ref m_privateView)!;
+            StringTable? previous = slot.Value;
+            slot.Value = copy;
+            return new PrivateScope(slot, previous);
+        }
+
+        private int GetIndex(string value, int startIndex)
+        {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetIndex(value, startIndex);
+            }
+            lock (m_syncRoot)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    return -1;
+                }
+
+                return m_strings.IndexOf(value, Math.Min(startIndex, m_strings.Count));
+            }
+        }
+
         /// <summary>
         /// Access the string table from sub classes
         /// </summary>
         protected List<string> m_strings;
         private readonly Lock m_syncRoot = new();
+        private long m_version;
+        private AsyncLocal<StringTable?>? m_privateView;
 
 #if DEBUG
         /// <summary>
@@ -341,6 +442,20 @@ namespace Opc.Ua
         protected bool m_shared;
         private static int s_globalInstanceCount;
 #endif
+
+        private sealed class PrivateScope(AsyncLocal<StringTable?> slot, StringTable? previous) : IDisposable
+        {
+            public void Dispose()
+            {
+                AsyncLocal<StringTable?>? current = Interlocked.Exchange(ref m_slot, null);
+                if (current is not null)
+                {
+                    current.Value = previous;
+                }
+            }
+
+            private AsyncLocal<StringTable?>? m_slot = slot;
+        }
     }
 
     /// <summary>
@@ -401,7 +516,7 @@ namespace Opc.Ua
             base.Update(namespaceUris);
 
             // check that first entry is the UA namespace.
-            if (m_strings[0] != Types.Namespaces.OpcUa)
+            if (GetString(0) != Types.Namespaces.OpcUa)
             {
                 throw new ArgumentException(
                     "The first namespace in the table must be the OPC-UA namespace.");

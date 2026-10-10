@@ -41,7 +41,8 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel, IServerRetryAfterHintProvider
+    public class UaSCUaBinaryTransportChannel
+        : ITransportChannel, ISecureChannel, ITransportChannelBindingProvider, IServerRetryAfterHintProvider
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -327,6 +328,75 @@ namespace Opc.Ua.Bindings
             m_settings.ClientCertificate = null;
             m_settings.ClientCertificateChain?.Dispose();
             m_settings.ClientCertificateChain = null;
+        }
+
+        async ValueTask<TransportChannelBinding> ITransportChannelBindingProvider.CreateTransportBindingAsync(
+            CancellationToken ct)
+        {
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                UaSCUaBinaryClientChannel channel = m_channel ?? throw BadNotConnected();
+                if (m_disposed)
+                {
+                    throw BadNotConnected();
+                }
+                return new TransportChannelBinding(
+                    this,
+                    () => !m_disposed && ReferenceEquals(m_channel, channel),
+                    (request, valid, token) => SendBoundRequestAsync(channel, request, valid, token));
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
+        }
+
+        private async ValueTask<IServiceResponse> SendBoundRequestAsync(
+            UaSCUaBinaryClientChannel captured,
+            IServiceRequest request,
+            Func<bool> valid,
+            CancellationToken ct)
+        {
+            ValueTask<IServiceResponse> pending;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                if (m_disposed || !ReferenceEquals(m_channel, captured) || !valid())
+                {
+                    throw TransportChannelBinding.InvalidBinding();
+                }
+                // Submission and validation share the owner's replacement gate.
+                // Completion is awaited outside it so reconnect/disposal can drain.
+                pending = captured.SendRequestAsync(request, OperationTimeout, ct);
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
+            IServiceResponse response;
+            try
+            {
+                response = await pending.ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception) when (ct.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("The bound request was cancelled.", exception, ct);
+            }
+            catch (ServiceResultException exception) when (!ct.IsCancellationRequested && !valid())
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The captured binding was invalidated while its request was in flight.",
+                    exception);
+            }
+            ct.ThrowIfCancellationRequested();
+            if (!valid())
+            {
+                throw TransportChannelBinding.InvalidBinding();
+            }
+            return response;
         }
 
         /// <inheritdoc/>
@@ -681,31 +751,30 @@ namespace Opc.Ua.Bindings
     {
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 0, Level = LogLevel.Information,
             Message = "TransportChannel RECONNECT: Reconnecting to {Url}.")]
-        public static partial void UaSCTransportLog0(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog0(this ILogger logger, Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 1, Level = LogLevel.Information,
             Message = "TransportChannel RECONNECT: Reconnected to {Url}.")]
-        public static partial void UaSCTransportLog1(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog1(this ILogger logger, Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 2, Level = LogLevel.Debug,
             Message = "TransportChannel RECONNECT: Closing old channel to {Url}.")]
-        public static partial void UaSCTransportLog2(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog2(this ILogger logger, Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 3, Level = LogLevel.Debug,
             Message = "Exception while closing old channel during Reconnect.")]
         public static partial void UaSCTransportLog3(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 4, Level = LogLevel.Error,
             Message = "Ignoring error during close of channel.")]
         public static partial void UaSCTransportLog4(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 5, Level = LogLevel.Information,
             Message = "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.")]
         public static partial void UaSCTransportLog5(this ILogger logger, double delay);
     }
-
 }

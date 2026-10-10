@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Assets
 {
@@ -40,15 +41,26 @@ namespace Opc.Ua.WotCon.Server.Assets
         {
             Name = name;
             Asset = asset;
+            UnboundTypeDefinitionId = asset.TypeDefinitionId;
         }
 
         public string Name { get; }
 
         public IWoTAssetState Asset { get; }
 
+        public NodeId UnboundTypeDefinitionId { get; }
+
+        public WotLegacyPreparedGraph? NativeGraph { get; set; }
+
         public WotAssetFileManager? FileManager { get; set; }
 
         public IWotAssetProvider? Provider { get; set; }
+
+        public AssetRegistryMirror? RegistryMirror { get; set; }
+
+        public ServiceResult? DeletionStatus { get; set; }
+
+        public bool RegistryDeleteRequiresRecovery { get; set; }
 
         /// <summary>
         /// Variables created from TD properties keyed by NodeId.
@@ -84,4 +96,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// </summary>
         public Dictionary<uint, OnWotValueChange> SubscriberCallbacks { get; } = [];
     }
+
+    /// <summary>
+    /// The registry and assigned resource identity backing a mirrored asset.
+    /// </summary>
+    internal sealed record AssetRegistryMirror(
+        IWotRegistryService Registry, string GroupId, string ResourceId, long Generation);
 }

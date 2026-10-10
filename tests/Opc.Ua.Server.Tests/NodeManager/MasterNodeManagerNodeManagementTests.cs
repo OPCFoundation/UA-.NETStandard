@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -2285,8 +2286,8 @@ namespace Opc.Ua.Server.Tests
                 Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
                 E2eNamespaceUri);
 #pragma warning restore CA2000
-            using var sut = new MasterNodeManager(
-                m_server.CurrentInstance, m_fixture.Config, null, manager);
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, additionalAsyncManagers: [manager]);
 
             ServerSystemContext ctx = manager.SystemContext;
             ushort ns = manager.NamespaceIndexes[0];
@@ -2431,12 +2432,8 @@ namespace Opc.Ua.Server.Tests
 
         private MasterNodeManager CreateMasterNodeManager(params INodeManager[] additional)
         {
-            var nodeManagers = new List<INodeManager>(additional);
-            return new MasterNodeManager(
-                m_server.CurrentInstance,
-                m_fixture.Config,
-                null,
-                [.. nodeManagers]);
+            return DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, additional.ToArrayOf());
         }
 
         private ushort GetTestNamespaceIndex()

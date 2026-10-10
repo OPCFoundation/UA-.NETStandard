@@ -53,12 +53,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// run in a high-availability or distributed deployment, because the documents then live in a
     /// store every node can reach rather than in the server process.
     /// </remarks>
-    public sealed class WotBlobResourceStore : IXRegistryResourceStore, IDisposable
+    public sealed class WotBlobResourceStore : IWotRegistryContentLeaseProvider, IDisposable
     {
         /// <summary>
         /// Initializes the store over a directory of a file system.
         /// </summary>
-        /// <param name="rootPath">The directory that holds the document files.</param>
+        /// <param name="rootPath">
+        /// The directory that holds the document files. A local path is resolved once during construction.
+        /// </param>
         /// <param name="fileSystem">The file system to use; defaults to the local one.</param>
         /// <exception cref="ArgumentException"><paramref name="rootPath"/> is null or empty.</exception>
         public WotBlobResourceStore(string rootPath, IFileSystem? fileSystem = null)
@@ -68,8 +70,38 @@ namespace Opc.Ua.WotCon.Server.Registry
                 throw new ArgumentException("A root path is required.", nameof(rootPath));
             }
 
-            m_rootPath = rootPath;
             m_fileSystem = fileSystem ?? LocalFileSystem.Instance;
+            m_rootPath = ReferenceEquals(m_fileSystem, LocalFileSystem.Instance)
+                ? Path.GetFullPath(rootPath)
+                : rootPath;
+        }
+
+        /// <inheritdoc/>
+        public bool SupportsImmutableContentLeases =>
+            ReferenceEquals(m_fileSystem, LocalFileSystem.Instance) && WotFileContentLease.IsSupported;
+
+        /// <inheritdoc/>
+        public async ValueTask<IWotRegistryContentLease> AcquireContentLeaseAsync(
+            string resourceKey,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!SupportsImmutableContentLeases)
+            {
+                throw new NotSupportedException("The configured filesystem does not provide immutable leases.");
+            }
+            IWotRegistryContentLease? lease = null;
+            try
+            {
+                lease = WotFileContentLease.Open(PathFor(resourceKey), resourceKey);
+                var result = new ValueTask<IWotRegistryContentLease>(lease);
+                lease = null;
+                return await result.ConfigureAwait(false);
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

@@ -159,47 +159,9 @@ namespace Opc.Ua.Server
             List<ServiceResult> argumentErrors,
             List<Variant> outputArguments)
         {
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
             var systemContext = context as ServerSystemContext;
-            bool argumentsValid = true;
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-            for (int ii = 0; ii < argumentErrors.Count; ii++)
-            {
-                ServiceResult argumentError = argumentErrors[ii];
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        inputArgumentDiagnosticInfos.Add(ServiceResult.IsBad(argumentError)
-                            ? new DiagnosticInfo(
-                                argumentError,
-                                systemContext.OperationContext.DiagnosticsMask,
-                                false,
-                                systemContext.OperationContext.StringTable,
-                                m_logger)
-                            : null!);
-                    }
-                }
-            }
-            if (!argumentsValid)
-            {
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-            result.OutputArguments = outputArguments;
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
     }
 }

@@ -50,8 +50,9 @@ namespace Opc.Ua.XRegistry.Server
     /// <b>Random access.</b> <see cref="WriteAsync"/> takes the absolute offset at which the chunk
     /// starts, so a writer may fill a document out of order or overwrite a region it already wrote.
     /// Writing past the current end grows the document, and any gap created that way reads back as
-    /// zero bytes. Writing at offset 0 does <b>not</b> truncate what follows — call
-    /// <see cref="DeleteAsync"/> first to replace a document wholesale.
+    /// zero bytes. Writing at offset 0 does <b>not</b> truncate what follows. Providers that support
+    /// atomic whole-document replacement implement <see cref="IXRegistryAtomicResourceStore"/>;
+    /// deleting a document before writing its replacement is not atomic.
     /// </para>
     /// <para>
     /// <b>Reads.</b> <see cref="ReadAsync"/> returns at most <c>count</c> bytes starting at
@@ -130,5 +131,28 @@ namespace Opc.Ua.XRegistry.Server
         /// <returns><c>true</c> when a document was removed.</returns>
         /// <exception cref="ArgumentException"><paramref name="resourceKey"/> is null or empty.</exception>
         ValueTask<bool> DeleteAsync(string resourceKey, CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Optional capability for publishing a complete resource document atomically.
+    /// </summary>
+    /// <remarks>
+    /// Readers observe either the complete previous document or the complete replacement.
+    /// A failed or cancelled replacement leaves the previous document unchanged. This capability
+    /// does not change the non-truncating offset semantics of <see cref="IXRegistryResourceStore.WriteAsync"/>.
+    /// </remarks>
+    public interface IXRegistryAtomicResourceStore : IXRegistryResourceStore
+    {
+        /// <summary>
+        /// Stages <paramref name="document"/> and atomically replaces the document stored under
+        /// <paramref name="resourceKey"/>, creating it when absent.
+        /// </summary>
+        /// <param name="resourceKey">The store key of the resource.</param>
+        /// <param name="document">The complete replacement document.</param>
+        /// <param name="ct">Cancels preparation before publication.</param>
+        ValueTask ReplaceAsync(
+            string resourceKey,
+            ByteString document,
+            CancellationToken ct = default);
     }
 }

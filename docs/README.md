@@ -325,6 +325,24 @@ guide describes its current limitations.
 - [WoT Connectivity 1.1 registry](WoTConnectivity.md#11-wot-connectivity-11-registry-and-materialization-preview)
   (draft model; preview package) — registry and materialization. Read WoT
   connectivity first.
+- [Generation-bound session clients](SessionBindings.md) — captured
+  authenticated dispatch and immutable mapping ownership.
+- [Awaited NodeManager readiness](NodeManagerReadiness.md) — post-publication
+  initialization and dependent runtime-manager ownership.
+- [Independent readable WoT models](WoTIndependentModels.md) — explicit
+  multi-model import and deterministic namespace normalization.
+- [Legacy WoT existing-type bindings](WoTLegacyTypeBindings.md) — loaded
+  declarations and literal source preservation.
+- [WoT registry Version leases](WotRegistryVersionLeases.md) — exact
+  Version retention for file handles and pending writes.
+- [Prepared WoT registry storage](WotRegistryPreparedStore.md) — validated
+  generations and authoritative atomic commit outcomes.
+- [WoT dependency snapshots](WotDependencySnapshots.md) — committed and
+  attempted exact-Version graphs, origin pins, and persistence boundaries.
+- [Prepared View publication](WotPreparedViewPublication.md) — graph-wide
+  candidates, captured native ownership, and recovery.
+- [OPC UA browse-path targets](WotBrowsePathTargets.md) — portable source
+  paths, captured anchors, and observation maintenance.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
 

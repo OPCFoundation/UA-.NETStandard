@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests
     // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
     // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
 #pragma warning disable CA1001
-    public class AsyncCustomNodeManagerTests
+    public partial class AsyncCustomNodeManagerTests
 #pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
@@ -10288,16 +10288,15 @@ namespace Opc.Ua.Server.Tests
             return monitoredItem;
         }
 
-        private ITestNodeManager CreateManager()
+        private ITestNodeManager CreateManager(bool asynchronousLegacyCall = false)
         {
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                var cnm2 = new TestableCustomNodeManager2(
-                    m_mockServer.Object,
-                    m_configuration,
-                    m_useSamplingGroups,
-                    m_mockLogger.Object,
-                    m_testNamespaceUri);
+                TestableCustomNodeManager2 cnm2 = asynchronousLegacyCall
+                    ? new AsyncCallTestNodeManager(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri)
+                    : new TestableCustomNodeManager2(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri);
                 var adapter = new AsyncNodeManagerAdapter(cnm2);
                 var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
                 SetupMasterNodeManager(adapterWrapper);

@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task HostedServiceAppliesTheRegisteredSessionBindingProviderAsync()
         {
             RegistryCaptureServer.Reset();
-            ISessionBindingProvider configured = Mock.Of<ISessionBindingProvider>();
+            IServerSessionBindingProvider configured = Mock.Of<IServerSessionBindingProvider>();
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
