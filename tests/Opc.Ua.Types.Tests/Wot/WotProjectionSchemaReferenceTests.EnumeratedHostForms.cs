@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, source, new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.Multiple(() =>
             {

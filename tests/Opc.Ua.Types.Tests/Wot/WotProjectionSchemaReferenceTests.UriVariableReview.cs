@@ -67,14 +67,14 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 plan, source.ToJsonString()).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
                 Is.False);
             JsonElement picked = view.Properties["picked"];
             string relocated = (nested ? picked.GetProperty("properties").GetProperty("payload") : picked)
-                .GetProperty("$ref").GetString();
+                .GetProperty("$ref").GetString().Required();
             Assert.That(relocated, Does.StartWith("#/"));
             Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, relocated[1..], out JsonElement target),
                 Is.True);
@@ -101,14 +101,14 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 UriVariableReviewPlan(host: false), raw).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
             if (equivalent)
             {
                 Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
                     Is.False);
-                JsonElement picked = view.Properties["picked"];
+                JsonElement picked = view.Required().Properties["picked"];
                 Assert.That(picked.EnumerateObject().Count(property => property.NameEquals("uriVariables")),
                     Is.EqualTo(1));
                 JsonElement variables = picked.GetProperty("uriVariables");
@@ -165,7 +165,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 UriVariableReviewPlan(host: true), source.ToJsonString(),
                 new WotNodeSetConverterOptions { MaxNodeCount = limit }).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (!success)
@@ -175,8 +175,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     diagnostic.Code == WotDiagnosticCode.TraversalBudgetExhausted), Is.True);
                 return;
             }
-            JsonElement picked = view.Properties["picked"];
-            string reference = picked.GetProperty("properties").GetProperty("first").GetProperty("$ref").GetString();
+            JsonElement picked = view.Required().Properties["picked"];
+            string reference = picked.GetProperty("properties").GetProperty("first").GetProperty("$ref")
+                .GetString().Required();
             Assert.That(picked.GetProperty("properties").GetProperty("second").GetProperty("$ref").GetString(),
                 Is.EqualTo(reference));
             Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, reference[1..], out JsonElement carried),
@@ -187,7 +188,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Where(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("native", out _))
                     .Select(entry => entry.GetProperty("native").GetString())),
                 Is.EqualTo("urn:root:|urn:affordance:|urn:term:|urn:own-first:|urn:own-last:"));
-            string dependency = carried.GetProperty("$ref").GetString();
+            string dependency = carried.GetProperty("$ref").GetString().Required();
             Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, dependency[1..], out JsonElement shared),
                 Is.True);
             Assert.That(shared.GetProperty("default").GetString(), Is.EqualTo("source-shared"));
@@ -218,11 +219,11 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 plan, source.ToJsonString()).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement picked = view.Properties["picked"];
-            string reference = picked.GetProperty("$ref").GetString();
+            string reference = picked.GetProperty("$ref").GetString().Required();
             Assert.That(reference, Does.StartWith("#/schemaDefinitions/"));
             Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, reference[1..], out JsonElement carried),
                 Is.True);
@@ -256,7 +257,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 UriVariableReviewPlan(host: true), source.ToJsonString()).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -295,12 +296,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 plan, DuplicateLocalUriVariableContainers(source, equivalent)).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
             if (equivalent)
             {
-                JsonElement variables = view.Properties["Value"].GetProperty("uriVariables");
+                JsonElement variables = view.Required().Properties["Value"].GetProperty("uriVariables");
                 Assert.That(variables.EnumerateObject().Count(), Is.EqualTo(1));
                 Assert.That(variables.GetProperty("device").GetProperty("default").GetString(), Is.EqualTo("original"));
                 Assert.That(view.Properties, Has.Count.EqualTo(supporting ? 2 : 1));
@@ -332,13 +333,13 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveUriVariableReviewAsync(
                 UriVariableReviewPlan(host: true),
                 DuplicateLocalUriVariableContainers(source, equivalent)).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
             if (equivalent)
             {
-                JsonElement picked = view.Properties["picked"];
-                string reference = picked.GetProperty("$ref").GetString();
+                JsonElement picked = view.Required().Properties["picked"];
+                string reference = picked.GetProperty("$ref").GetString().Required();
                 Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, reference[1..], out JsonElement carried),
                     Is.True);
                 Assert.That(carried.GetProperty("default").GetString(), Is.EqualTo("original"));
@@ -368,7 +369,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         private static async Task<WotConversionResult<WotDocument>> ResolveUriVariableReviewAsync(
-            JsonObject plan, string source, WotNodeSetConverterOptions options = null)
+            JsonObject plan, string source, WotNodeSetConverterOptions? options = null)
         {
             var documents = new Mock<IWotThingResolver>(MockBehavior.Strict);
             documents.Setup(resolver => resolver.ResolveThingAsync(

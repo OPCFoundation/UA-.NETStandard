@@ -77,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
-        private void AddType(string identity, string browseName, string parent, string members = "")
+        private void AddType(string identity, string browseName, string? parent, string members = "")
         {
             string links = parent is null
                 ? string.Empty

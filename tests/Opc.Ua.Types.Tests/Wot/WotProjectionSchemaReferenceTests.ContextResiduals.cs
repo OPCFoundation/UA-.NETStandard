@@ -59,7 +59,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(!cycle), string.Join("; ", result.Diagnostics));
             if (cycle)
@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             else
             {
-                Assert.That(view.Properties["reading"].GetProperty("@type").EnumerateArray()
+                Assert.That(view.Required().Properties["reading"].GetProperty("@type").EnumerateArray()
                     .Select(item => item.GetString()), Is.EquivalentTo(["uav:variable", "urn:host:Signal"]));
             }
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             AssertContextRejected(result);
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (ordering != "known-last")
             {
@@ -134,7 +134,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            JsonElement definition = view.Properties["reading"].GetProperty("@context").EnumerateArray()
+            JsonElement definition = view.Required().Properties["reading"].GetProperty("@context").EnumerateArray()
                 .Last(item => item.ValueKind == JsonValueKind.Object && item.TryGetProperty(term, out _))
                 .GetProperty(term);
             Assert.That(definition.GetProperty("@id").GetString(), Is.EqualTo("https://host.test/label"));
@@ -159,7 +159,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (language == "absent")
             {
@@ -167,7 +167,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            JsonElement carried = view.Properties["reading"].GetProperty("@context").EnumerateArray()
+            JsonElement carried = view.Required().Properties["reading"].GetProperty("@context").EnumerateArray()
                 .Last(item => item.ValueKind == JsonValueKind.Object && item.TryGetProperty(term, out _))
                 .GetProperty(term);
             Assert.That(carried.GetProperty("@id").GetString(), Is.EqualTo("https://host.test/label"));
@@ -182,7 +182,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonObject source = ContextReviewSource();
             JsonObject owner = host ? plan : source;
             owner["@context"] = new JsonArray("https://www.w3.org/2022/wot/td/v1.1",
-                PropertiesScope(JsonNode.Parse(invalid)));
+                PropertiesScope(JsonNode.Parse(invalid).Required()));
 
             WotConversionResult<WotDocument> result;
             if (host)
@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 result = await ResolveAsync(plan, source).ConfigureAwait(false);
             }
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
             AssertContextRejected(result);
         }
 
@@ -241,7 +241,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (!restored || namespaceKind == "urn-unknown")
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["reading"].GetProperty("uav:semanticId").GetString(),
+            Assert.That(view.Required().Properties["reading"].GetProperty("uav:semanticId").GetString(),
                 Is.EqualTo(namespaceKind == "https" ? "https://host.test/types/Signal" : "urn:host:Signal"));
         }
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (!restored)
             {
@@ -293,13 +293,14 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             if (annotation == "@type")
             {
-                Assert.That(view.Properties["reading"].GetProperty("@type").EnumerateArray()
+                Assert.That(view.Required().Properties["reading"].GetProperty("@type").EnumerateArray()
                     .Any(item => item.GetString() is "Signal" or
                         "https://www.w3.org/2019/wot/json-schema#Signal"), Is.True);
             }
             else
             {
-                Assert.That(view.Properties["reading"].GetProperty("title").GetString(), Is.EqualTo("Host label"));
+                Assert.That(view.Required().Properties["reading"].GetProperty("title").GetString(),
+                    Is.EqualTo("Host label"));
             }
         }
 

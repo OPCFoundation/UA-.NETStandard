@@ -1358,27 +1358,14 @@ namespace Opc.Ua
             ITransportWaitingConnection? reverseConnection,
             CancellationToken ct)
         {
-            Certificate? ownedCertificate = null;
-            CertificateCollection? ownedChain = null;
-            try
-            {
-                // Transport settings own their references independently of the
-                // manager's reusable certificate snapshot.
-                ownedCertificate = clientCertificate?.AddRef();
-                ownedChain = clientCertificateChain?.AddRef();
-            }
-            catch (Exception ex)
-            {
-                ownedChain?.Dispose();
-                ownedCertificate?.Dispose();
-                return new ValueTask<ITransportChannel>(Task.FromException<ITransportChannel>(ex));
-            }
-
+            // The entry already retains these handles until the transport closes.
+            // Share them with settings so non-adopting transports cannot leak
+            // additional references; disposing a handle twice is idempotent.
             return CreateChannelAsync(
                 endpoint,
                 context,
-                ownedCertificate,
-                ownedChain,
+                clientCertificate,
+                clientCertificateChain,
                 reverseConnection,
                 ct);
         }

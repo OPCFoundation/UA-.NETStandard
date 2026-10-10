@@ -135,7 +135,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("Thing")]
         [TestCase("tm:ThingModel")]
         [TestCase(null)]
-        public void MissingResultKindDoesNotImplicitlyEnableDraftCompatibility(string legacyType)
+        public void MissingResultKindDoesNotImplicitlyEnableDraftCompatibility(string? legacyType)
         {
             JsonObject root = Plan("ThingDescription");
             root.Remove("uav:projectionKind");
@@ -157,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("Thing", true, WotDocumentKind.Unknown)]
         [TestCase(null, false, WotDocumentKind.Unknown)]
         public void ExplicitDraftCompatibilityRequiresExactlyOneLegacyKind(
-            string marker, bool contradictory, WotDocumentKind expected)
+            string? marker, bool contradictory, WotDocumentKind expected)
         {
             JsonObject root = Plan("ThingDescription");
             root.Remove("uav:projectionKind");
@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("ThingModel", "tm:ThingModel")]
         [TestCase("Thing", null)]
         [TestCase(null, "Thing")]
-        public void ExplicitCompatibilityDoesNotRelaxAnAuthoredModernKind(string kind, string marker)
+        public void ExplicitCompatibilityDoesNotRelaxAnAuthoredModernKind(string? kind, string? marker)
         {
             JsonObject root = Plan(kind);
             if (marker is not null)
@@ -383,7 +383,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source.VerifyNoOtherCalls();
         }
 
-        private static JsonObject Plan(string kind)
+        private static JsonObject Plan(string? kind)
         {
             return new JsonObject
             {

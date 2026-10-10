@@ -56,7 +56,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string originalSource = source.ToJsonString();
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);
@@ -125,7 +125,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var options = new WotNodeSetConverterOptions { ProjectionFormProvider = provider };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source, options).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, source, new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
@@ -220,7 +220,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 HostPlan(), Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(1));
             AssertHostFormFailure(result);
@@ -247,7 +247,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 HostPlan(), Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(1));
             AssertHostFormFailure(result);
@@ -272,7 +272,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 HostPlan(), Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(result.Success, Is.False);
@@ -301,7 +301,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(1));
             AssertHostFormFailure(result);
@@ -333,7 +333,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 WotConversionResult<WotDocument> result = await resolver.ResolveAsync(
                     document, cancellationToken: cancellation.Token).ConfigureAwait(false);
-                using WotDocument view = result.Value;
+                using WotDocument? view = result.Value;
             }, Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
 
             Assert.That(calls, Is.EqualTo(1));
@@ -362,7 +362,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(result.Success, Is.False);
@@ -389,7 +389,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, Source(), new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.Zero);
             Assert.That(result.Success, Is.EqualTo(!emptyForms), string.Join("; ", result.Diagnostics));
@@ -401,7 +401,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             else
             {
-                Assert.That(view.Properties["reading"].GetProperty("forms")[0].GetProperty("href").GetString(),
+                Assert.That(view.Required().Properties["reading"].GetProperty("forms")[0]
+                    .GetProperty("href").GetString(),
                     Is.EqualTo("https://host.test/runtime/authored"));
             }
         }
@@ -431,7 +432,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 HostPlan(), source, new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(requested, Is.EqualTo(s_hostRequestOrder));
@@ -467,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, source, new WotNodeSetConverterOptions { ProjectionFormProvider = provider })
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(requested, Is.EqualTo(s_hostSupportingPointers));
@@ -510,7 +511,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(HostPlan(), Source(), options)
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(calls, Is.EqualTo(expectedCalls));
             Assert.That(result.Success, Is.False);

@@ -416,7 +416,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(converted.Diagnostics.Any(diagnostic =>
                 diagnostic.Severity == WotDiagnosticSeverity.Error &&
                 diagnostic.Code == WotDiagnosticCode.MethodArgumentSchemaInvalid), Is.True);
-            Assert.That(converted.Value!.Items.OfType<UAVariable>().Any(
+            Assert.That(converted.Value!.Items.Required().OfType<UAVariable>().Any(
                 variable => variable.BrowseName == "InputArguments"), Is.False);
         }
 
@@ -438,7 +438,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(d =>
                 d.Severity == WotDiagnosticSeverity.Error &&
                 d.Code == WotDiagnosticCode.MethodArgumentSchemaInvalid), Is.True);
-            Assert.That(result.Value!.Items.OfType<UAVariable>().Any(v => v.BrowseName == "InputArguments"), Is.False);
+            Assert.That(result.Value!.Items.Required().OfType<UAVariable>().Any(
+                v => v.BrowseName == "InputArguments"), Is.False);
         }
 
         /// <summary>
@@ -646,9 +647,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"type\":\"number\",\"uav:argumentLayout\":\"single\",\"uav:mapToType\":\"i=11\"}}}");
             Assert.That(imported.Success, Is.True);
             UANodeSet source = imported.Value!;
-            UAVariable variable = source.Items.OfType<UAVariable>()
+            UAVariable variable = source.Items.Required().OfType<UAVariable>()
                 .Single(node => node.BrowseName == "InputArguments");
-            System.Xml.XmlElement argument = variable.Value.GetElementsByTagName("Argument", UaXsd)
+            System.Xml.XmlElement argument = variable.Value.Required().GetElementsByTagName("Argument", UaXsd)
                 .OfType<System.Xml.XmlElement>().Single();
             if (change == "type")
             {
@@ -676,7 +677,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string expected = variable.Value.OuterXml;
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(source);
-            using WotDocument document = result.Value;
+            using WotDocument? document = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Diagnostics.Any(item =>
@@ -704,18 +705,18 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
             UANodeSet source = imported.Value!;
             WotConversionResult<WotDocument> unchanged = WotNodeSetConverter.FromNodeSetResult(source);
-            using WotDocument unchangedDocument = unchanged.Value;
+            using WotDocument unchangedDocument = unchanged.Value.Required();
             Assert.That(unchanged.Success, Is.True, string.Join("; ", unchanged.Diagnostics));
-            UAVariable variable = source.Items.OfType<UAVariable>()
+            UAVariable variable = source.Items.Required().OfType<UAVariable>()
                 .Single(node => node.BrowseName == "InputArguments");
-            System.Xml.XmlElement argument = variable.Value.GetElementsByTagName("Argument", UaXsd)
+            System.Xml.XmlElement argument = variable.Value.Required().GetElementsByTagName("Argument", UaXsd)
                 .OfType<System.Xml.XmlElement>().Single();
             Assert.That(Child(Child(argument, "DataType"), "Identifier").InnerText,
                 Is.EqualTo(spelling == "default" ? "i=26" : "i=11"));
             Child(Child(argument, "DataType"), "Identifier").InnerText = "i=10";
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(source);
-            using WotDocument document = result.Value;
+            using WotDocument? document = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Diagnostics.Any(item =>
@@ -771,7 +772,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
             IReadOnlyList<DecodedArgument> originalArguments = ArgumentsOf(imported.Value!, "InputArguments");
             WotConversionResult<WotDocument> exported = WotNodeSetConverter.FromNodeSetResult(imported.Value!);
-            using WotDocument document = exported.Value;
+            using WotDocument document = exported.Value.Required();
 
             Assert.That(exported.Success, Is.True, string.Join("; ", exported.Diagnostics));
             JsonElement input = document.Actions["Run"].GetProperty("input");
@@ -803,7 +804,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(
                 imported.Value!, options: new WotNodeSetConverterOptions { MaxJsonDepth = 32 });
-            using WotDocument document = result.Value;
+            using WotDocument? document = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Diagnostics.Any(item =>

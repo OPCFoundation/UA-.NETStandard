@@ -220,7 +220,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.HasErrors, Is.EqualTo(!conditionAncestor));
             if (conditionAncestor)
             {
-                Assert.That(SupertypeOfEvent(result.Value), Is.EqualTo("ns=1;i=7001"));
+                Assert.That(SupertypeOfEvent(result.Value.Required()), Is.EqualTo("ns=1;i=7001"));
             }
             else
             {

@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, Source()).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (scenario is "Missing" or "Malformed")
             {
@@ -74,7 +74,7 @@ namespace Opc.Ua.Types.Tests.Wot
             else
             {
                 Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-                Assert.That(view.Kind,
+                Assert.That(view.Required().Kind,
                     Is.EqualTo(thingModel ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription));
                 Assert.That(view.RootElement.GetProperty("forms")[0].GetProperty("href").GetString(), Is.EqualTo(href));
                 Assert.That(view.Properties["reading"].GetProperty("forms")[0].GetProperty("href").GetString(),
@@ -108,7 +108,7 @@ namespace Opc.Ua.Types.Tests.Wot
             owner["uriVariables"] = new JsonObject { ["device"] = UriVariable("source-only") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);

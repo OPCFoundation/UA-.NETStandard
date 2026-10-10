@@ -52,7 +52,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocumentSet> exported = WotNodeSetConverter.FromNodeSetDocuments(
                 NativeGraph(), "model");
             Assert.That(exported.Success, Is.True);
-            using WotDocumentSet documents = exported.Value;
+            using WotDocumentSet documents = exported.Value.Required();
             var inputs = new List<WotDocument>();
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
@@ -68,17 +68,18 @@ namespace Opc.Ua.Types.Tests.Wot
                 consumer, null, QueryResolver(QueryId), null, context).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            Assert.That((await context.ResolveByNodeIdAsync(QueryId).ConfigureAwait(false)).Value.NodeClass,
+            Assert.That((await context.ResolveByNodeIdAsync(QueryId).ConfigureAwait(false)).Required().NodeClass,
                 Is.EqualTo(WotExpectedNodeClass.ObjectType));
-            Assert.That(result.Value.Items.OfType<UAObjectType>().Single().References
+            Assert.That(WotTestAssertions.EventTypeOf(result.Value.Required(), "ns=1;i=5001", "1:alarm")
+                .References.Required()
                 .Single(reference => reference.ReferenceType == "HasSubtype").Value, Is.EqualTo("ns=2;i=7001"));
             WotConversionResult<WotEventSelectionCatalog> selected = await new WotEventSelectionResolver(
                 QueryResolver(QueryId)).ResolveAsync(consumer).ConfigureAwait(false);
             if (selection)
             {
-                Assert.That(selected.Value.TryGetSelection(
+                Assert.That(selected.Value.Required().TryGetSelection(
                     "alarm", out ArrayOf<WotResolvedEventSelectClause> clauses), Is.True);
-                Assert.That(clauses.ToArray().Single().TypeDefinitionId, Is.EqualTo(QueryId));
+                Assert.That(clauses.ToArray().Required().Single().TypeDefinitionId, Is.EqualTo(QueryId));
             }
         }
 
@@ -149,9 +150,9 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task NativeContextReportsActualForwardOnlyEventIdDeclarationAsync(string dataType, int rank)
         {
             UANodeSet source = NativeGraph(dataType, rank);
-            UAVariable field = source.Items.OfType<UAVariable>().Single();
+            UAVariable field = source.Items.Required().OfType<UAVariable>().Single();
             Assert.That(field.ParentNodeId, Is.Null);
-            Assert.That(field.References.Any(reference => !reference.IsForward), Is.False);
+            Assert.That(field.References.Required().Any(reference => !reference.IsForward), Is.False);
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
                 source, options: new WotNodeSetConverterOptions
                 {
@@ -159,12 +160,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 });
             var context = new WotDocumentNodeResolver([document]);
 
-            WotTypeDeclarationSet declarations = await context.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? declarations = await context.ResolveDeclarationsAsync(
                 "i=2041", WotDeclarationScope.Effective).ConfigureAwait(false);
 
             Assert.That(declarations, Is.Not.Null);
             Assert.That(declarations.IsComplete, Is.True, declarations.Detail);
-            WotTypeDeclaration actual = declarations.Declarations.ToArray().Single(value => value.NodeId == "i=2042");
+            WotTypeDeclaration actual = declarations.Declarations.ToArray().Required()
+                .Single(value => value.NodeId == "i=2042");
             Assert.That(actual.DeclaringTypeNodeId, Is.EqualTo("i=2041"));
             Assert.That(actual.NamespaceUri, Is.EqualTo(Namespaces.OpcUa));
             Assert.That(actual.BrowseName, Is.EqualTo("EventId"));
@@ -208,11 +210,11 @@ namespace Opc.Ua.Types.Tests.Wot
         public void CounterfeitNativeEventIdOwnerIsRejected()
         {
             UANodeSet source = NativeGraph();
-            source.Items.Single(node => node.NodeId == "i=2041").References = [];
+            source.Items.Required().Single(node => node.NodeId == "i=2041").References = [];
             UANode custom = source.Items.Single(node => node.NodeId == "ns=2;i=7001");
             custom.References =
             [
-                .. custom.References,
+                .. custom.References.Required(),
                 new Reference { ReferenceType = "HasProperty", IsForward = true, Value = "i=2042" }
             ];
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
@@ -239,9 +241,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.EqualTo(accepted), Errors(result));
-            Assert.That(result.Value.Items, Has.Length.EqualTo(6));
-            Assert.That(result.Value.Items.Single(node => node.NodeId == "ns=1;i=5002")
-                .References.Single().Value, Is.EqualTo("ns=2;i=7001"));
+            Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(6));
+            Assert.That(result.Value.Items.Required().Single(node => node.NodeId == "ns=1;i=5002")
+                .References.Required().Single().Value, Is.EqualTo("ns=2;i=7001"));
             if (!accepted)
             {
                 Assert.That(result.Diagnostics.Any(diagnostic =>
@@ -257,7 +259,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void RestoredConditionsRejectSuppliedStandardCycles(bool archive, bool forward)
         {
             UANodeSet source = NativeGraph();
-            UANode condition = source.Items.Single(node => node.NodeId == "i=2782");
+            UANode condition = source.Items.Required().Single(node => node.NodeId == "i=2782");
             condition.References = forward
                 ? []
                 : [new Reference
@@ -269,7 +271,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 UANode custom = source.Items.Single(node => node.NodeId == "ns=2;i=7001");
                 custom.References =
                 [
-                    .. custom.References,
+                    .. custom.References.Required(),
                     new Reference { ReferenceType = "HasSubtype", IsForward = true, Value = "i=2782" }
                 ];
             }
@@ -281,18 +283,18 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict &&
                 diagnostic.Location?.JsonPointer == "/events/alarm/uav:conditionTypeId"), Is.True);
-            Assert.That(result.Value.Items, Has.Length.EqualTo(6));
+            Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(6));
         }
 
         [Test]
         public async Task ForwardNativeSupertypeReferencesPreserveConditionIdentityAsync()
         {
             UANodeSet source = NativeGraph();
-            source.Items.Single(node => node.NodeId == "ns=2;i=7001").References = null;
+            source.Items.Required().Single(node => node.NodeId == "ns=2;i=7001").References = null;
             UANode condition = source.Items.Single(node => node.NodeId == "i=2782");
             condition.References =
             [
-                .. condition.References,
+                .. condition.References.Required(),
                 new Reference { ReferenceType = "HasSubtype", IsForward = true, Value = "ns=2;i=7001" }
             ];
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
@@ -307,7 +309,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 consumer, null, null, null, context).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            Assert.That(result.Value.Items.OfType<UAObjectType>().Single().References
+            Assert.That(WotTestAssertions.EventTypeOf(result.Value.Required(), "ns=1;i=5001", "1:alarm")
+                .References.Required()
                 .Single(reference => reference.ReferenceType == "HasSubtype").Value, Is.EqualTo("ns=2;i=7001"));
         }
 
@@ -315,11 +318,11 @@ namespace Opc.Ua.Types.Tests.Wot
         public void IncompatibleForwardOnlyTypeCarriagesAreRejected()
         {
             UANodeSet source = NativeGraph();
-            source.Items.Single(node => node.NodeId == "ns=2;i=7001").References = [];
+            source.Items.Required().Single(node => node.NodeId == "ns=2;i=7001").References = [];
             UANode condition = source.Items.Single(node => node.NodeId == "i=2782");
             condition.References =
             [
-                .. condition.References,
+                .. condition.References.Required(),
                 new Reference { ReferenceType = "HasSubtype", IsForward = true, Value = "ns=2;i=7001" }
             ];
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
@@ -340,11 +343,11 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task NativeOccurrenceSelectionsRejectNonRootCounterfeitOwnersAsync(bool archive, string query)
         {
             UANodeSet source = NativeGraph();
-            source.Items.Single(node => node.NodeId == "i=2041").References = null;
+            source.Items.Required().Single(node => node.NodeId == "i=2041").References = null;
             UANode custom = source.Items.Single(node => node.NodeId == "ns=2;i=7001");
             custom.References =
             [
-                .. custom.References,
+                .. custom.References.Required(),
                 new Reference { ReferenceType = "HasProperty", IsForward = true, Value = "i=2042" }
             ];
             using WotDocument projected = WotNodeSetConverter.FromNodeSet(
@@ -352,15 +355,16 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
-            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).AsObject();
+            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).Required().AsObject();
             root.Remove(archive ? "uav:nodes" : "uav:nodeSet");
             using WotDocument document = Parse(root);
             var context = new WotDocumentNodeResolver([document]);
-            WotTypeDeclarationSet declarations = await context.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? declarations = await context.ResolveDeclarationsAsync(
                 QueryId, WotDeclarationScope.Effective).ConfigureAwait(false);
             Assert.That(declarations, Is.Not.Null);
             Assert.That(declarations.IsComplete, Is.True, declarations.Detail);
-            WotTypeDeclaration field = declarations.Declarations.ToArray().Single(value => value.NodeId == "i=2042");
+            WotTypeDeclaration field = declarations.Declarations.ToArray().Required()
+                .Single(value => value.NodeId == "i=2042");
             Assert.That(field.DeclaringTypeNodeId, Is.EqualTo(QueryId));
             Assert.That(field.DataType, Is.EqualTo("i=15"));
             Assert.That(field.ValueRank, Is.EqualTo(-1));
@@ -437,12 +441,12 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet source = NativeGraph();
             if (sourceKind == "object")
             {
-                source.Items = [.. source.Items.Select(node => node.NodeId == "i=2782"
+                source.Items = [.. source.Items.Required().Select(node => node.NodeId == "i=2782"
                     ? new UAObject { NodeId = "i=2782", BrowseName = "ConditionType" } : node)];
             }
             else if (sourceKind == "absent")
             {
-                source.Items = [.. source.Items.Where(node => node.NodeId != "i=2782")];
+                source.Items = [.. source.Items.Required().Where(node => node.NodeId != "i=2782")];
             }
             using WotDocument document = ResidualNativeContext(source, archive, "urn:residual:class");
             byte[] original = document.Utf8Json.ToArray();
@@ -454,7 +458,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.EqualTo(sourceKind != "object"), Errors(result));
             WotResolvedNode? nodeResult = await resolver.ResolveByNodeIdAsync("i=2782").ConfigureAwait(false);
-            WotTypeDeclarationSet declarations = await resolver.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
                 "i=2782", WotDeclarationScope.Effective).ConfigureAwait(false);
             if (sourceKind is "none" or "absent")
             {
@@ -484,7 +488,7 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values(false, true)] bool reverse)
         {
             UANodeSet wrongClass = NativeGraph();
-            wrongClass.Items = [.. wrongClass.Items.Select(node => node.NodeId == "i=2782"
+            wrongClass.Items = [.. wrongClass.Items.Required().Select(node => node.NodeId == "i=2782"
                 ? new UAObject { NodeId = "i=2782", BrowseName = "ConditionType" } : node)];
             using WotDocument valid = ResidualNativeContext(NativeGraph(), archive, "urn:residual:valid");
             using WotDocument wrong = ResidualNativeContext(wrongClass, archive, "urn:residual:wrong");
@@ -495,7 +499,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 consumer, null, null, null, resolver).ConfigureAwait(false);
 
             AssertConditionRejected(result);
-            WotTypeDeclarationSet declarations = await resolver.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
                 "i=2782", WotDeclarationScope.Effective).ConfigureAwait(false);
             Assert.That(declarations, Is.Not.Null);
             Assert.That(declarations.IsComplete, Is.False);
@@ -510,7 +514,7 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values("i=2041", QueryId)] string query)
         {
             UANodeSet other = NativeGraph(fact == "dataType" ? "i=12" : "i=15", fact == "rank" ? 1 : -1);
-            other.Items = [other.Items[0], .. other.Items.Skip(1).Reverse()];
+            other.Items = [other.Items.Required()[0], .. other.Items.Skip(1).Reverse()];
             using WotDocument first = ResidualNativeContext(NativeGraph(), archive, "urn:residual:first");
             using WotDocument second = ResidualNativeContext(other, archive, "urn:residual:second");
             byte[] firstBytes = first.Utf8Json.ToArray();
@@ -523,14 +527,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 consumer, null, QueryResolver(query), null, resolver).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.EqualTo(consistent), Errors(result));
-            WotTypeDeclarationSet declarations = await resolver.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
                 "i=2041", WotDeclarationScope.Effective).ConfigureAwait(false);
             Assert.That(declarations, Is.Not.Null);
             Assert.That(declarations.TypeNodeId, Is.EqualTo("i=2041"));
             Assert.That(declarations.IsComplete, Is.EqualTo(consistent));
             if (consistent)
             {
-                WotTypeDeclaration field = declarations.Declarations.ToArray()
+                WotTypeDeclaration field = declarations.Declarations.ToArray().Required()
                     .Single(value => value.NodeId == "i=2042");
                 Assert.That(field.DeclaringTypeNodeId, Is.EqualTo("i=2041"));
                 Assert.That(field.DataType, Is.EqualTo("i=15"));
@@ -554,7 +558,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
-            JsonObject root = JsonNode.Parse(exported.Utf8Json.Span).AsObject();
+            JsonObject root = JsonNode.Parse(exported.Utf8Json.Span).Required().AsObject();
             root.Remove(archive ? "uav:nodes" : "uav:nodeSet");
             root["@id"] = id;
             return Parse(root);
@@ -705,7 +709,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
-            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).AsObject();
+            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).Required().AsObject();
             root.Remove(archive ? "uav:nodes" : "uav:nodeSet");
             root["events"] = new JsonObject
             {

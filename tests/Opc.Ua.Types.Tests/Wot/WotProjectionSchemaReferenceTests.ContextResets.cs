@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (mode is "null-term" or "reset")
             {
@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["reading"].GetProperty("uav:semanticId").GetString(),
+            Assert.That(view.Required().Properties["reading"].GetProperty("uav:semanticId").GetString(),
                 Is.EqualTo(prefix == "ua"
                     ? "http://opcfoundation.org/UA/Role"
                     : "http://opcfoundation.org/UA/WoT-Binding/Role"));

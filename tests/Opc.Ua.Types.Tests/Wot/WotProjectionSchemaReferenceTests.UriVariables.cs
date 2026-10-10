@@ -66,7 +66,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string original = source.ToJsonString();
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement variables = view.Properties["reading"].GetProperty("uriVariables");
@@ -97,7 +97,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 plan["properties"]!["reading"]!["forms"] = Forms("https://host.test/{device}");
             }
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string expected = hostForms ? "host-root" : localDeclaration ? "source-local" : "source-root";
@@ -131,11 +131,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string reference = view.Properties["reading"].GetProperty("uriVariables").GetProperty("device")
-                .GetProperty("$ref").GetString();
+                .GetProperty("$ref").GetString().Required();
             Assert.That(reference, Does.StartWith("#/schemaDefinitions/"));
             Assert.That(WotDocument.TryEvaluatePointer(view.RootElement, reference[1..], out JsonElement definition),
                 Is.True);
@@ -161,7 +161,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -188,7 +188,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["uriVariables"] = new JsonObject { ["device"] = UriVariable("source") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -205,7 +205,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["x-example"] = new JsonObject { ["href"] = "{missing}" };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["reading"].TryGetProperty("uriVariables", out _), Is.False);
@@ -225,12 +225,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 Plan(), source, new WotNodeSetConverterOptions { MaxNodeCount = limit }).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (success)
             {
-                Assert.That(view.Properties["reading"].GetProperty("uriVariables").GetProperty("device")
+                Assert.That(view.Required().Properties["reading"].GetProperty("uriVariables").GetProperty("device")
                     .GetProperty("default").GetString(), Is.EqualTo("source"));
             }
             else
@@ -258,7 +258,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(documents.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -291,7 +291,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["forms"] = Forms("value/{device}");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement schema = view.Properties["reading"].GetProperty("uriVariables").GetProperty("device");
@@ -328,12 +328,12 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 hostForms ? owner : plan.ToJsonString(),
                 hostForms ? source.ToJsonString() : owner).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
             if (equivalent)
             {
-                JsonElement variables = view.Properties["reading"].GetProperty("uriVariables");
+                JsonElement variables = view.Required().Properties["reading"].GetProperty("uriVariables");
                 Assert.That(variables.EnumerateObject().Count(), Is.EqualTo(1));
                 Assert.That(variables.GetProperty("device").GetProperty("default").GetString(), Is.EqualTo("original"));
             }
@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["forms"] = Forms("value{?z,a,z}");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["reading"].GetProperty("uriVariables").EnumerateObject()
@@ -402,7 +402,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(documents.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["reading"].GetProperty("uriVariables").GetProperty("device")

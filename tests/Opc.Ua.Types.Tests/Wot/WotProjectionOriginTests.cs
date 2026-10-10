@@ -181,7 +181,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("https://device.test/device.json", "https://service.test/api/",
             "https://device.test/device.json", "https://service.test/api/value")]
         public async Task SourceRetrievalAndCarriedFormsRetainTheirOriginalBase(
-            string href, string sourceBase, string retrievalUri, string formUri)
+            string href, string? sourceBase, string retrievalUri, string formUri)
         {
             JsonObject projection = Projection(href);
             projection["base"] = "https://origin.test/views/view.json";
@@ -216,7 +216,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(null, "../device.json", "https://origin.test/views/device.json")]
         [TestCase("../../assets/", "device.json", "https://origin.test/assets/device.json")]
         public async Task NestedSourcesResolveAgainstTheirOwningDocumentLocation(
-            string nestedBase, string leafHref, string leafLocation)
+            string? nestedBase, string leafHref, string leafLocation)
         {
             JsonObject root = Projection("./groups/view.json");
             root["base"] = "https://origin.test/views/root.json";
@@ -329,7 +329,7 @@ namespace Opc.Ua.Types.Tests.Wot
             };
         }
 
-        private static JsonObject Source(string sourceBase)
+        private static JsonObject Source(string? sourceBase)
         {
             var source = new JsonObject
             {

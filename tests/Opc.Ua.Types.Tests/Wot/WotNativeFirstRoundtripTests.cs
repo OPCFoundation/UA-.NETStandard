@@ -427,7 +427,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UAVariable[] variables = nodeSet.Items!.OfType<UAVariable>().ToArray();
             Assert.That(variables.Select(variable => variable.NodeId), Is.EquivalentTo(expectedIds));
             Assert.That(variables.Select(variable => variable.BrowseName), Is.All.EqualTo("1:Temp"));
-            Assert.That(nodeSet.Items.OfType<UAObjectType>().Single().References!.Where(reference =>
+            Assert.That(nodeSet.Items.Required().OfType<UAObjectType>().Single().References!.Where(reference =>
                 reference.ReferenceType is "HasComponent" or "i=47" && reference.IsForward)
                 .Select(reference => reference.Value), Is.EquivalentTo(expectedIds));
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
@@ -483,7 +483,7 @@ namespace Opc.Ua.Types.Tests.Wot
             ];
             string[] expectedIds = expected.Select(entry => identityPrefix + entry.Segment).ToArray();
             var resolver = new WotDocumentNodeResolver([authored]);
-            WotTypeDeclarationSet described = await resolver.ResolveDeclarationsAsync(
+            WotTypeDeclarationSet? described = await resolver.ResolveDeclarationsAsync(
                 "nsu=urn:test:allocation;i=1", WotDeclarationScope.Direct).ConfigureAwait(false);
             Assert.That(described, Is.Not.Null);
             WotConversionResult<UANodeSet> result =

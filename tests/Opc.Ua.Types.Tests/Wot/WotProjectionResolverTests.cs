@@ -71,7 +71,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<WotDocument> result = await ResolvePredictiveAsync(
                 declareAnnotationContext: false).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -919,7 +919,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var wanted = (JsonObject)JsonNode.Parse(expected)!;
             var host = (JsonObject)JsonNode.Parse(projection)!;
             wanted["@context"] = host["@context"]!.DeepClone();
-            foreach (KeyValuePair<string, JsonNode> entry in wanted["properties"]!.AsObject())
+            foreach (KeyValuePair<string, JsonNode?> entry in wanted["properties"]!.AsObject())
             {
                 JsonNode property = entry.Value!;
                 string provenance = property["uav:resolvedFrom"]!.GetValue<string>();
@@ -941,7 +941,7 @@ namespace Opc.Ua.Types.Tests.Wot
                       "xsd": "http://www.w3.org/2001/XMLSchema#"
                     }
                     """));
-                JsonNode annotations = host["properties"]?[entry.Key];
+                JsonNode? annotations = host["properties"]?[entry.Key];
                 foreach (string term in new[] { "title", "description" })
                 {
                     if (annotations?[term] is not null)
@@ -957,12 +957,12 @@ namespace Opc.Ua.Types.Tests.Wot
                     }
                 }
                 property["@context"] = context;
-                foreach (JsonNode form in property["forms"]!.AsArray())
+                foreach (JsonNode? form in property["forms"]!.AsArray())
                 {
                     form!["@context"] = formContext.DeepClone();
                 }
             }
-            foreach (KeyValuePair<string, JsonNode> entry in wanted["securityDefinitions"]!.AsObject())
+            foreach (KeyValuePair<string, JsonNode?> entry in wanted["securityDefinitions"]!.AsObject())
             {
                 if (entry.Key.StartsWith("q:p:", StringComparison.Ordinal))
                 {
@@ -991,7 +991,7 @@ namespace Opc.Ua.Types.Tests.Wot
                         ["@base"] = origin
                     }
                 };
-                foreach (JsonNode entry in owner["@context"]!.AsArray())
+                foreach (JsonNode? entry in owner["@context"]!.AsArray())
                 {
                     context.Add(entry?.DeepClone());
                 }

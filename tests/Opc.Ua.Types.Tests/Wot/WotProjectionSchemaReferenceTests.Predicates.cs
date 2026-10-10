@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 : JsonValue.Create(sourcePrefix + ":Sensor");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             if (sameSpelling)
@@ -81,12 +81,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(view.Properties["Value"].GetProperty("uav:dataTypeId").GetString(), Is.EqualTo("i=11"));
                 WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view);
                 Assert.That(native.Success, Is.True, string.Join("; ", native.Diagnostics));
-                UAVariable variable = native.Value.Items.OfType<UAVariable>().Single();
+                UAVariable variable = native.Value.Required().Items.Required().OfType<UAVariable>().Single();
                 Assert.That(variable.DataType, Is.EqualTo("i=11"));
                 Assert.That(variable.ValueRank, Is.EqualTo(-1));
-                QualifiedName name = QualifiedName.Parse(variable.BrowseName);
+                QualifiedName name = QualifiedName.Parse(variable.BrowseName.Required());
                 Assert.That(name.Name, Is.EqualTo("Reading"));
-                Assert.That(native.Value.NamespaceUris[name.NamespaceIndex - 1], Is.EqualTo("urn:source"));
+                Assert.That(native.Value.NamespaceUris.Required()[name.NamespaceIndex - 1], Is.EqualTo("urn:source"));
             }
         }
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 : JsonValue.Create("ontology:Sensor");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.ContainsKey("Value"), Is.EqualTo(matching));
@@ -170,7 +170,7 @@ namespace Opc.Ua.Types.Tests.Wot
             };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.ContainsKey("Value"), Is.EqualTo(readable));
@@ -206,7 +206,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await new WotProjectionResolver(documents.Object)
                 .ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);
@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 : new JsonArray("Mystery", "https://vocabulary.test/Sensor");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (outcome == "unresolved")
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties, Has.Count.EqualTo(1));
+            Assert.That(view.Required().Properties, Has.Count.EqualTo(1));
             JsonElement property = view.Properties["Value"];
             Assert.That(property.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/properties/Value"));
@@ -282,7 +282,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 : JsonValue.Create("https://vocabulary.test/shared/Sensor");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.ContainsKey("Value"), Is.EqualTo(before));
@@ -306,7 +306,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["uav:semanticId"] = "Role";
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.ContainsKey("Value"), Is.EqualTo(!endpoint));
@@ -326,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["@type"] = new JsonArray("uav:variable", "Sensor");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.ContainsKey("Value"), Is.EqualTo(explicitIdentity));

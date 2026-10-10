@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement target = placement == "Root" ? view.RootElement : view.Properties["reading"];
@@ -88,7 +88,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 security = security[0];
             }
             Assert.That(security.ValueKind, Is.EqualTo(JsonValueKind.String));
-            string scheme = security.GetString();
+            string scheme = security.GetString().Required();
             Assert.That(scheme, Does.StartWith(placement == "Source" ? "q:s:" : "q:p:"));
             Assert.That(view.SecurityDefinitions.ContainsKey(scheme), Is.True);
         }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);
@@ -144,7 +144,7 @@ namespace Opc.Ua.Types.Tests.Wot
             form["href"] = "https://forms.test/{adminKey}";
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);

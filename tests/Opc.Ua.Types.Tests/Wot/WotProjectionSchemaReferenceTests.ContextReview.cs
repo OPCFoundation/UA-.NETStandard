@@ -81,7 +81,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"]!["reading"]![annotation] = value;
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement actual = view.Properties["reading"].GetProperty(annotation);
@@ -153,12 +153,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (success)
             {
-                Assert.That(view.Properties["reading"].GetProperty("@type").EnumerateArray()
+                Assert.That(view.Required().Properties["reading"].GetProperty("@type").EnumerateArray()
                     .Select(item => item.GetString()), Is.EquivalentTo(["uav:variable", "urn:host:Signal"]));
             }
             else
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Wot
             owner["securityDefinitions"] = new JsonObject { [name] = new JsonObject { ["scheme"] = "nosec" } };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string encoded = name switch
@@ -248,7 +248,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 result = await ResolveAsync(hostJson, sourceJson).ConfigureAwait(false);
             }
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["@context"] = JsonNode.Parse(json);
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string key = name == "@context" ? "q:p:QGNvbnRleHQ" : "q:p:QGJhc2U";
@@ -355,7 +355,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement property = view.Properties["reading"];
@@ -380,7 +380,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return source;
         }
 
-        private static JsonObject PropertyVocabulary(string vocabulary)
+        private static JsonObject PropertyVocabulary(string? vocabulary)
         {
             return new JsonObject
             {

@@ -70,11 +70,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 document, null, null, null, resolver.Object).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            UAObjectType eventType = result.Value.Items.OfType<UAObjectType>().Single();
-            Assert.That(eventType.References.Single(reference =>
+            UAObjectType eventType = WotTestAssertions.EventTypeOf(
+                result.Value.Required(), "ns=1;i=5001", "1:alarm");
+            Assert.That(eventType.References.Required().Single(reference =>
                 !reference.IsForward && reference.ReferenceType == "HasSubtype").Value,
                 Is.EqualTo("ns=2;i=7001"));
-            UAMethod method = result.Value.Items.OfType<UAMethod>().Single();
+            UAMethod method = result.Value.Items.Required().OfType<UAMethod>().Single();
             Assert.That(method.MethodDeclarationId, Is.EqualTo("i=9111"));
             Assert.That(method.ParentNodeId, Is.EqualTo(eventType.NodeId));
             Assert.That(method.BrowseName, Is.EqualTo("Acknowledge"));
@@ -86,7 +87,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Single(variable => variable.BrowseName == "InputArguments");
             Assert.That(arguments.DataType, Is.EqualTo("i=296"));
             Assert.That(arguments.ValueRank, Is.EqualTo(1));
-            Assert.That(arguments.Value.GetElementsByTagName("Name", Namespaces.OpcUaXsd).Cast<System.Xml.XmlElement>()
+            Assert.That(arguments.Value.Required().GetElementsByTagName("Name", Namespaces.OpcUaXsd)
+                .Cast<System.Xml.XmlElement>()
                 .Select(element => element.InnerText), Is.EqualTo(s_argumentNames));
             Assert.That(arguments.Value.GetElementsByTagName("Identifier", Namespaces.OpcUaXsd)
                 .Cast<System.Xml.XmlElement>().Select(element => element.InnerText), Is.EqualTo(s_argumentIdentities));
@@ -167,8 +169,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(accepted), Errors(result));
             if (accepted)
             {
-                Assert.That(result.Value.Items.OfType<UAObjectType>().Single()
-                    .References.Single(reference => reference.ReferenceType == "HasSubtype").Value,
+                Assert.That(WotTestAssertions.EventTypeOf(result.Value.Required(), "ns=1;i=5001", "1:alarm")
+                    .References.Required().Single(reference => reference.ReferenceType == "HasSubtype").Value,
                     Is.EqualTo("ns=2;i=7001"));
             }
             else
@@ -211,8 +213,8 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task AStandardPinCannotOverrideAResolvedCompanionHintAsync(bool hintResolves)
         {
             using WotDocument original = ConditionDocument(pinned: true);
-            JsonObject json = JsonNode.Parse(original.Utf8Json.Span).AsObject();
-            json["events"]["alarm"]["uav:conditionTypeId"] = "i=2782";
+            JsonObject json = JsonNode.Parse(original.Utf8Json.Span).Required().AsObject();
+            json["events"].Required()["alarm"].Required()["uav:conditionTypeId"] = "i=2782";
             using var document = WotDocument.Parse(WotTestData.Utf8(json.ToJsonString()));
             var resolver = new Mock<IWotNodeResolver>();
             resolver.Setup(value => value.ResolveByBrowseNameAsync(
@@ -259,13 +261,14 @@ namespace Opc.Ua.Types.Tests.Wot
                     diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict &&
                     diagnostic.Location?.JsonPointer == "/events/alarm/uav:conditionTypeId"), Is.True);
             }
-            Assert.That(result.Value.Items, Has.Length.EqualTo(3));
-            UAObjectType eventType = result.Value.Items.OfType<UAObjectType>()
+            Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(3));
+            UAObjectType eventType = result.Value.Items.Required().OfType<UAObjectType>()
                 .Single(type => type.NodeId == "ns=1;i=5002");
-            Assert.That(eventType.References.Single().Value, Is.EqualTo("ns=2;i=7001"));
+            Assert.That(eventType.References.Required().Single().Value, Is.EqualTo("ns=2;i=7001"));
             UAObjectType companion = result.Value.Items.OfType<UAObjectType>()
                 .Single(type => type.NodeId == "ns=2;i=7001");
-            Assert.That(companion.References.Single().Value, Is.EqualTo(conditionAncestor ? "i=2782" : "i=58"));
+            Assert.That(companion.References.Required().Single().Value,
+                Is.EqualTo(conditionAncestor ? "i=2782" : "i=58"));
             Assert.That(result.Value.Items.OfType<UAVariable>(), Is.Empty);
         }
 
@@ -274,7 +277,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void NativeConditionAncestryAcceptsAForwardHasSubtypeDeclaration(bool archive)
         {
             UANodeSet source = NativeCondition(true);
-            source.Items.Single(node => node.NodeId == "ns=2;i=7001").References = [];
+            source.Items.Required().Single(node => node.NodeId == "ns=2;i=7001").References = [];
             source.Items =
             [
                 .. source.Items,
@@ -294,9 +297,10 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            Assert.That(result.Value.Items, Has.Length.EqualTo(4));
-            Assert.That(result.Value.Items.Single(node => node.NodeId == "ns=2;i=7001").References ?? [], Is.Empty);
-            Assert.That(result.Value.Items.Single(node => node.NodeId == "i=2782").References.Single().Value,
+            Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(4));
+            Assert.That(result.Value.Items.Required().Single(node => node.NodeId == "ns=2;i=7001").References ?? [],
+                Is.Empty);
+            Assert.That(result.Value.Items.Single(node => node.NodeId == "i=2782").References.Required().Single().Value,
                 Is.EqualTo("ns=2;i=7001"));
         }
 
@@ -305,7 +309,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void NativeConditionPinsDoNotHideMalformedReadableHints(bool archive)
         {
             JsonObject root = NativeDocument(NativeCondition(true), archive, companionPin: false);
-            root["events"]["alarm"]["uav:conditionType"] = 42;
+            root["events"].Required()["alarm"].Required()["uav:conditionType"] = 42;
             using var document = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -314,7 +318,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict &&
                 diagnostic.Location?.JsonPointer == "/events/alarm/uav:conditionTypeId"), Is.True);
-            Assert.That(result.Value.Items, Has.Length.EqualTo(3));
+            Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(3));
         }
 
         private static JsonObject NativeDocument(UANodeSet source, bool archive, bool companionPin)
@@ -325,7 +329,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
-            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).AsObject();
+            JsonObject root = JsonNode.Parse(projected.Utf8Json.Span).Required().AsObject();
             root.Remove(archive ? "uav:nodes" : "uav:nodeSet");
             root["events"] = new JsonObject
             {

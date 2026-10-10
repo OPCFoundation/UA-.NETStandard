@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(converted.Success, Is.True, string.Join("; ", converted.Diagnostics));
             Assert.That(converted.Diagnostics, Is.Empty);
             Assert.That(converted.Value, Is.Not.Null);
-            Assert.That(converted.Value!.Items.OfType<UADataType>(), Is.Empty);
+            Assert.That(converted.Value!.Items.Required().OfType<UADataType>(), Is.Empty);
             Assert.That(converted.Value.Items.Select(node => node.NodeId), Does.Not.Contain("business-key"));
             for (int iteration = 0; iteration < 2; iteration++)
             {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     : WotNodeSetConverter.ToNodeSetResult(restored, options);
                 Assert.That(converted.Success, Is.True, string.Join("; ", converted.Diagnostics));
                 Assert.That(converted.Diagnostics, Is.Empty);
-                Assert.That(converted.Value!.Items.OfType<UADataType>(), Is.Empty);
+                Assert.That(converted.Value!.Items.Required().OfType<UADataType>(), Is.Empty);
             }
             definitions.Verify(value => value.ResolveDataTypeDefinitionsAsync(
                 It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);

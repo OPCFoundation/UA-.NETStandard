@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 CreateResidueMember(s_dataTypeContextPointer, second));
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(nodeSet);
-            using WotDocument document = result.Value;
+            using WotDocument? document = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Diagnostics.Any(d =>
@@ -1130,10 +1130,10 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet nodeSet = CreateDataTypeContextNodeSet(
                 [.. Enumerable.Range(0, count).Select(_ => CreateResidueMember(s_dataTypeContextPointer, context))]);
-            UADataType original = nodeSet.Items.OfType<UADataType>().Single();
+            UADataType original = nodeSet.Items.Required().OfType<UADataType>().Single();
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(nodeSet);
-            using WotDocument document = result.Value;
+            using WotDocument document = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(result.Diagnostics, Is.Empty);
@@ -1147,11 +1147,11 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<UANodeSet> reconverted = WotNodeSetConverter.ToNodeSetResult(document);
             Assert.That(reconverted.Success, Is.True, string.Join("; ", reconverted.Diagnostics));
-            UADataType actual = reconverted.Value.Items.OfType<UADataType>().Single();
+            UADataType actual = reconverted.Value.Required().Items.Required().OfType<UADataType>().Single();
             Assert.That(actual.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(actual.BrowseName, Is.EqualTo(original.BrowseName));
             Assert.That(reconverted.Value.NamespaceUris, Is.EqualTo(nodeSet.NamespaceUris));
-            Assert.That(actual.Definition.Field.Single().DataType, Is.EqualTo("i=11"));
+            Assert.That(actual.Definition.Required().Field.Required().Single().DataType, Is.EqualTo("i=11"));
         }
 
         private static UANodeSet CreateDataTypeContextNodeSet(params SysXmlElement[] members)
@@ -1184,7 +1184,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 """));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            result.Value.Extensions = [.. result.Value.Extensions ?? [], CreateResidueExtension("1.0", members)];
+            result.Value.Required().Extensions =
+                [.. result.Value.Extensions ?? [], CreateResidueExtension("1.0", members)];
             return result.Value;
         }
 

@@ -177,7 +177,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, Describe(result));
             Assert.That(result.Value!.Aliases!.Single(alias => alias.Alias == "Root_1").Value, Is.EqualTo("i=33"));
-            Assert.That(result.Value.Aliases.Select(alias => alias.Alias).Distinct().Count(),
+            Assert.That(result.Value.Aliases.Required().Select(alias => alias.Alias).Distinct().Count(),
                 Is.EqualTo(result.Value.Aliases.Length));
             Assert.That(result.Value.Aliases.Select(alias => alias.Value),
                 Does.Contain("ns=1;i=1").And.Contain("ns=2;i=1"));

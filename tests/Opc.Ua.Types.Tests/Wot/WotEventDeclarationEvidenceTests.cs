@@ -119,7 +119,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(accepted), Errors(result));
             if (accepted)
             {
-                Assert.That(result.Value.Items.OfType<UAObjectType>().Single().References
+                Assert.That(WotTestAssertions.EventTypeOf(result.Value.Required(), "ns=1;i=5001", "1:alarm")
+                    .References.Required()
                     .Single(reference => !reference.IsForward && reference.ReferenceType == "HasSubtype").Value,
                     Is.EqualTo("i=2955"));
                 nodes.Verify(value => value.ResolveByNodeIdAsync(
@@ -162,7 +163,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 document, null, things.Object, null, context.Resolver).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            Assert.That(result.Value.Items.OfType<UAObjectType>().Single().References
+            Assert.That(WotTestAssertions.EventTypeOf(result.Value.Required(), "ns=1;i=5001", "1:alarm")
+                .References.Required()
                 .Single(reference => !reference.IsForward && reference.ReferenceType == "HasSubtype").Value,
                 Is.EqualTo("i=2955"));
         }
@@ -185,7 +187,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Returns(() =>
                 {
                     cancellation.Cancel();
-                    return new ValueTask<WotTypeDeclarationSet>(new WotTypeDeclarationSet
+                    return new ValueTask<WotTypeDeclarationSet?>(new WotTypeDeclarationSet
                     {
                         TypeNodeId = QueryIdentity,
                         Declarations = [EventIdDeclaration()],
@@ -231,13 +233,14 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            UAVariable[] fields = [.. result.Value.Items.OfType<UAVariable>()];
+            UAVariable[] fields = [.. result.Value.Required().Items.Required().OfType<UAVariable>()];
             Assert.That(fields.Select(field => field.BrowseName),
                 Is.EqualTo(["2:" + name, "3:" + name, "2:Severity"]));
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(s_vendorNamespaces));
             Assert.That(fields.Select(field => field.NodeId).Distinct().Count(), Is.EqualTo(3));
             Assert.That(fields.Select(field => field.DataType), Is.EqualTo(s_vendorDataTypes));
-            string owner = result.Value.Items.OfType<UAObjectType>().Single().NodeId;
+            string owner = WotTestAssertions.EventTypeOf(
+                result.Value.Required(), "ns=1;i=5001", "1:event").NodeId.Required();
             Assert.That(fields.All(field => field.ParentNodeId == owner), Is.True);
         }
 
@@ -266,7 +269,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.EventFieldInvalid &&
                 diagnostic.Location?.JsonPointer == "/events/event/data/properties/Two"), Is.True);
-            Assert.That(result.Value.Items.OfType<UAVariable>().Count(), Is.EqualTo(1));
+            Assert.That(result.Value.Required().Items.Required().OfType<UAVariable>().Count(), Is.EqualTo(1));
         }
 
         [Test]
@@ -302,9 +305,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 document, thingResolver: things.Object).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            UAVariable field = result.Value.Items.OfType<UAVariable>().Single();
+            UAVariable field = result.Value.Required().Items.Required().OfType<UAVariable>().Single();
             Assert.That(field.BrowseName, Is.EqualTo("2:EventId"));
-            Assert.That(result.Value.NamespaceUris[1], Is.EqualTo("urn:test:vendor"));
+            Assert.That(result.Value.NamespaceUris.Required()[1], Is.EqualTo("urn:test:vendor"));
             Assert.That(field.DataType, Is.EqualTo("i=15"));
             Assert.That(field.NodeId, Is.EqualTo(
                 "ns=1;s=/nsu=urn%3Atest%3Apump;Pump/nsu=urn%3Atest%3Apump;event/nsu=urn%3Atest%3Avendor;EventId"));
@@ -317,8 +320,10 @@ namespace Opc.Ua.Types.Tests.Wot
             string member, string value)
         {
             using WotDocument original = SelectionDocument("EventId");
-            JsonObject root = JsonNode.Parse(original.Utf8Json.Span).AsObject();
-            root["events"]["alarm"]["data"]["properties"]["EventId"][member] = JsonNode.Parse(value);
+            JsonObject root = JsonNode.Parse(original.Utf8Json.Span).Required().AsObject();
+            JsonNode field = root["events"].Required()["alarm"].Required()["data"].Required()
+                ["properties"].Required()["EventId"].Required();
+            field[member] = JsonNode.Parse(value);
             using var document = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
             Mock<IWotThingResolver> things = DefinitionResolver(QueryIdentity);
             using var context = new WotEventTypeTestContext(QueryIdentity);
@@ -336,9 +341,10 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ALinkedConditionSchemaUsesItsVerifiedInheritedOccurrenceAsync()
         {
             using WotDocument original = SelectionDocument("EventId");
-            JsonObject root = JsonNode.Parse(original.Utf8Json.Span).AsObject();
-            root["events"]["alarm"].AsObject().Remove("data");
-            root["events"]["alarm"]["tm:ref"] = "urn:test:definition";
+            JsonObject root = JsonNode.Parse(original.Utf8Json.Span).Required().AsObject();
+            JsonObject alarm = root["events"].Required()["alarm"].Required().AsObject();
+            alarm.Remove("data");
+            alarm["tm:ref"] = "urn:test:definition";
             using var document = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
             Mock<IWotThingResolver> things = DefinitionResolver(QueryIdentity, fieldOrder: true);
             using var context = new WotEventTypeTestContext(QueryIdentity);
@@ -347,7 +353,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 document, null, things.Object, null, context.Resolver).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, Errors(result));
-            Assert.That(result.Value.Items.OfType<UAVariable>().Select(field => field.BrowseName),
+            Assert.That(result.Value.Required().Items.Required().OfType<UAVariable>().Select(field => field.BrowseName),
                 Is.EqualTo(s_linkedFields));
         }
 
@@ -356,11 +362,11 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values] bool termScoped)
         {
             using WotDocument original = SelectionDocument("field:EventId");
-            JsonObject json = JsonNode.Parse(original.RootElement.GetRawText()).AsObject();
-            json["@context"]["field"] = termScoped ? "urn:wrong-root" : Namespaces.OpcUa;
+            JsonObject json = JsonNode.Parse(original.RootElement.GetRawText()).Required().AsObject();
+            json["@context"].Required()["field"] = termScoped ? "urn:wrong-root" : Namespaces.OpcUa;
             if (termScoped)
             {
-                json["@context"]["uav:eventSelectClauses"] = new JsonObject
+                json["@context"].Required()["uav:eventSelectClauses"] = new JsonObject
                 {
                     ["@id"] = "http://opcfoundation.org/UA/WoT-Binding/eventSelectClauses",
                     ["@context"] = new JsonObject { ["field"] = Namespaces.OpcUa }
@@ -374,7 +380,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotConversionResult<WotEventSelectionCatalog> result = await resolver.ResolveAsync(document)
                     .ConfigureAwait(false);
                 Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-                Assert.That(result.Value.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                Assert.That(result.Value.Required().TryGetSelection(
+                    "alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
                     Is.True);
                 occurrence = clauses.ToList().Single(clause => clause.Source == WotEventSelectClauseSource.Explicit);
             }
@@ -387,7 +394,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(occurrence.ResolvedBrowsePath, Is.EqualTo("EventId"));
             Assert.That(occurrence.PayloadSchema, Is.Not.Null);
             WotPayloadSchema payload = occurrence.PayloadSchema;
-            Assert.That(payload.TryGetTypeBinding("/properties/EventId", out WotPayloadTypeBinding binding), Is.True);
+            Assert.That(payload.TryGetTypeBinding("/properties/EventId", out WotPayloadTypeBinding? binding), Is.True);
             Assert.That(binding!.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.ByteString, ValueRanks.Scalar)));
             foreach (WotResolvedEventSelectClause copy in new[]
             {
@@ -431,7 +438,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static Mock<IWotThingResolver> DefinitionResolver(string identity, bool fieldOrder = false)
         {
-            JsonObject data = JsonNode.Parse(DataSchema).AsObject();
+            JsonObject data = JsonNode.Parse(DataSchema).Required().AsObject();
             if (fieldOrder)
             {
                 data["uav:fieldOrder"] = new JsonArray("EventId", "Token", "Envelope");

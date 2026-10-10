@@ -89,7 +89,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(source.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = result.Value;
+            using WotDocument? resolved = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(accepted), string.Join("; ", result.Diagnostics));
             if (accepted)

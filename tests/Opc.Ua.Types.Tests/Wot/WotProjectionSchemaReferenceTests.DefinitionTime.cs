@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, annotation,
@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, "@type",
@@ -127,7 +127,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string expected = ordering switch
@@ -152,7 +152,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, "@type", "https://first.test/ns/Signal");
@@ -170,7 +170,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, "@type", "https://second.test/ns/Signal");
@@ -192,7 +192,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement definition = view.Properties["reading"].GetProperty("@context").EnumerateArray()
@@ -218,7 +218,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, "@type",
@@ -241,7 +241,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertDefinitionTimeAnnotation(view, "@type", "https://first.test/ns/Signal");
@@ -260,7 +260,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             AssertContextRejected(result);
         }
@@ -281,7 +281,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement definition = view.Properties["reading"].GetProperty("@context").EnumerateArray()
@@ -312,7 +312,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             if (term != "absolute")
             {
@@ -320,7 +320,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            AssertDefinitionTimeAnnotation(view, "@type", "https://host.test/Signal");
+            AssertDefinitionTimeAnnotation(view.Required(), "@type", "https://host.test/Signal");
         }
 
         [Test]
@@ -340,16 +340,16 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, ContextReviewSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             if (alias)
             {
-                AssertDefinitionTimeAnnotation(view, "@type", "https://other.example/Signal");
+                AssertDefinitionTimeAnnotation(view.Required(), "@type", "https://other.example/Signal");
             }
             else
             {
-                Assert.That(view.Properties["reading"].GetProperty("@type").EnumerateArray()
+                Assert.That(view.Required().Properties["reading"].GetProperty("@type").EnumerateArray()
                     .Any(item => item.GetString() is "Signal" or
                         "https://www.w3.org/2019/wot/json-schema#Signal"), Is.True);
             }

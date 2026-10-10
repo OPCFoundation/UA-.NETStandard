@@ -66,7 +66,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string original = source.ToJsonString();
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties.Keys, Is.EquivalentTo(s_selectedPropertyNames));
@@ -105,7 +105,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string name = collision ? stem + ":1" : "Other";
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 new JsonObject { ["v"] = "urn:host:" });
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement schema = view.RootElement.GetProperty("schemaDefinitions").GetProperty("input");
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Other"]!["forms"] = new JsonArray(LocalNumericSchema());
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -203,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 : new JsonArray(schema, literal);
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -224,12 +224,13 @@ namespace Opc.Ua.Types.Tests.Wot
             var options = new WotNodeSetConverterOptions { MaxNodeCount = budget };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source, options).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (success)
             {
-                Assert.That(view.RootElement.GetProperty("schemaDefinitions").EnumerateObject().Count(), Is.EqualTo(1));
+                Assert.That(view.Required().RootElement.GetProperty("schemaDefinitions").EnumerateObject().Count(),
+                    Is.EqualTo(1));
                 JsonElement references = view.Properties["reading"].GetProperty("oneOf");
                 Assert.That(references[0].GetProperty("$ref").GetString(),
                     Is.EqualTo("#/schemaDefinitions/Other/items"));

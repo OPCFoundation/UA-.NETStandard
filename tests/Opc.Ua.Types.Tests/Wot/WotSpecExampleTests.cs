@@ -389,7 +389,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 for (int index = 0; index < contexts.Count; index++)
                 {
                     if (contexts[index] is JsonValue value &&
-                        value.TryGetValue(out string uri) &&
+                        value.TryGetValue(out string? uri) &&
                         uri == "../opc-ua-wot-binding.context.jsonld")
                     {
                         contexts[index] = ReadPublishedContext();

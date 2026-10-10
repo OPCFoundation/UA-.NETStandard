@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -253,12 +251,19 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
-        [Test]
-        public void IndependentReviewOrdinaryStringDecodingRemainsCompatible()
+        [TestCase(
+            "<uax:String xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:nil=\"true\"/>", null)]
+        [TestCase("<uax:String/>", "")]
+        [TestCase("<uax:String xml:space=\"preserve\"> \t </uax:String>", " \t ")]
+        [TestCase("<uax:String> ns=1;i=42 </uax:String>", " ns=1;i=42 ")]
+        public void IndependentReviewOrdinaryStringDecodingPreservesTypedNullAndExactText(
+            string xml,
+            string? expected)
         {
-            UANodeSet source = CreateValuePartition(ReviewNullableString(nil: true));
+            // Part 6 5.1.11 permits preserving null/empty distinctions; ordinary decoding preserves typed nil.
+            UANodeSet source = CreateValuePartition(xml);
             System.Xml.XmlElement value = source.Items!.OfType<UAVariable>().Single().Value!;
-            Assert.That(ReviewReadString(ReviewStringElements(value, "String").Single()), Is.Null);
+            Assert.That(ReviewReadString(ReviewStringElements(value, "String").Single()), Is.EqualTo(expected));
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             using var decoder = new XmlDecoder(value, context);
 
@@ -266,7 +271,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(decoded.TypeInfo, Is.EqualTo(TypeInfo.Scalars.String));
             Assert.That(decoded.TryGetValue(out string? text), Is.True);
-            Assert.That(text, Is.Empty);
+            Assert.That(text, Is.EqualTo(expected));
         }
 
         [Test]
@@ -494,13 +499,13 @@ namespace Opc.Ua.Types.Tests.Wot
             using var encoder = new XmlEncoder(context);
             encoder.WriteVariantValue(null, new ExtensionObject(structure));
             System.Xml.XmlElement encoded = WotTestData.ParseValue(encoder.CloseAndReturnText()!);
-            System.Xml.XmlElement text = ReviewStringElements(encoded, "String").Single();
+            System.Xml.XmlElement text = ReviewStringElements(encoded, "Text").Single();
             text.InnerText = string.Empty;
             if (nil)
             {
                 text.SetAttribute("nil", "http://www.w3.org/2001/XMLSchema-instance", "true");
             }
-            return (encoded.OuterXml, context, "String");
+            return (encoded.OuterXml, context, "Text");
         }
 
         private static string ReviewNullableString(bool nil)

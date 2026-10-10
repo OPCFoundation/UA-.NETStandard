@@ -77,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Events["projectedAlarm"].GetProperty("tm:ref").GetString(),
                 Is.EqualTo("https://origin.test/models/events/derived.json"));
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            AssertExternalSelection(result.Value);
+            AssertExternalSelection(result.Value.Required());
             Assert.That(requests, Is.EqualTo(s_externalLocationChain));
             Assert.That(view.Events["projectedAlarm"].GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/events/alarm"));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "https://www.w3.org/2022/wot/td/v1.1",
                 new JsonObject { ["evt"] = "urn:host:event:" });
             WotConversionResult<WotDocument> projected = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             var requests = new List<string>();
             var provider = new ExternalThingProvider((reference, _, _) =>
@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ResolveAsync(view).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            AssertExternalSelection(result.Value);
+            AssertExternalSelection(result.Value.Required());
             Assert.That(requests, Has.Count.EqualTo(1));
         }
 
@@ -137,7 +137,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ResolveAsync(view).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            AssertExternalSelection(result.Value);
+            AssertExternalSelection(result.Value.Required());
             Assert.That(calls, Is.EqualTo(1));
         }
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ResolveAsync(view).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            AssertExternalSelection(result.Value);
+            AssertExternalSelection(result.Value.Required());
             Assert.That(calls, Is.Zero);
         }
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 ["schema"] = "https://origin.test/models/schemas/"
             };
             WotConversionResult<WotDocument> projected = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             int calls = 0;
             var provider = new ExternalSchemaProvider((reference, _, _) =>
@@ -301,7 +301,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.ExternalSchemaIncompatible ||
                 diagnostic.Code == WotDiagnosticCode.ExternalSchemaUnresolved), Is.False);
-            Assert.That(result.Value.Items.OfType<UAVariable>().Any(variable => variable.DataType == "i=11"), Is.True);
+            Assert.That(result.Value.Required().Items.Required().OfType<UAVariable>().Any(
+                variable => variable.DataType == "i=11"), Is.True);
             Assert.That(view.Properties["reading"].GetProperty("type").GetString(), Is.EqualTo("number"));
             Assert.That(calls, Is.EqualTo(1));
         }
@@ -314,7 +315,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["type"] = "number";
             source["properties"]!["Value"]!["uav:externalSchema"] = "./schema.json";
             WotConversionResult<WotDocument> projected = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             int calls = 0;
             var provider = new ExternalSchemaProvider((_, _, _) =>
@@ -325,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = configured ? new WotExternalSchemaResolver(provider) : new WotExternalSchemaResolver();
 
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
-                view.Properties["reading"].GetProperty("uav:externalSchema").GetString(),
+                view.Properties["reading"].GetProperty("uav:externalSchema").GetString().Required(),
                 view.Properties["reading"], "i=11", new WotResolutionContext()).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(configured
@@ -343,7 +344,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!["uav:mapToType"] = "i=11";
             source["properties"]!["Value"]!["uav:externalSchema"] = "./schema.json";
             WotConversionResult<WotDocument> projected = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             var provider = new ExternalSchemaProvider((_, _, _) =>
                 ExternalAnswer("""{"type":"string","uav:mapToType":"i=12"}"""));
@@ -355,7 +356,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.ExternalSchemaIncompatible &&
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
-            Assert.That(result.Value.Items.OfType<UAVariable>().Any(variable => variable.DataType == "i=11"), Is.True);
+            Assert.That(result.Value.Required().Items.Required().OfType<UAVariable>().Any(
+                variable => variable.DataType == "i=11"), Is.True);
             Assert.That(view.Properties["reading"].GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=11"));
         }
 
@@ -383,7 +385,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 ["ignored"] = new JsonObject { ["tm:ref"] = "https://do-not-fetch.test/ignored-event.json" }
             };
             WotConversionResult<WotDocument> projected = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             int calls = 0;
             var things = new ExternalThingProvider((_, _, _) =>
@@ -403,7 +405,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 view, null, null, null, null, new WotExternalSchemaResolver(schemas)).ConfigureAwait(false);
 
             Assert.That(selections.Success, Is.True, string.Join("; ", selections.Diagnostics));
-            Assert.That(selections.Value.IsEmpty, Is.True);
+            Assert.That(selections.Value.Required().IsEmpty, Is.True);
             Assert.That(converted.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.ExternalSchemaUnresolved), Is.False);
             Assert.That(view.Properties.ContainsKey("Ignored"), Is.False);
@@ -427,7 +429,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan.ToJsonString(), supplied)
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(sameBytes), string.Join("; ", result.Diagnostics));
             Assert.That(result.Diagnostics.Any(diagnostic =>
@@ -438,7 +440,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             else
             {
-                Assert.That(view.Events["projectedAlarm"].GetProperty("tm:ref").GetString(),
+                Assert.That(view.Required().Events["projectedAlarm"].GetProperty("tm:ref").GetString(),
                     Is.EqualTo("https://origin.test/models/event.json"));
             }
         }
@@ -458,7 +460,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(view, Is.Null);
@@ -476,7 +478,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"]!["Value"]!.AsObject().Remove("forms");
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["reading"].GetProperty("const").GetString(), Is.EqualTo("rpm"));
@@ -504,7 +506,7 @@ namespace Opc.Ua.Types.Tests.Wot
             };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(Plan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["reading"].GetProperty("uav:unitProperty").GetString(),
@@ -527,7 +529,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["uav:projects"]![0]!["type"] = "application/tm+json";
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Kind, Is.EqualTo(WotDocumentKind.ThingModel));
@@ -547,7 +549,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return plan;
         }
 
-        private static JsonObject ExternalEventSource(string reference)
+        private static JsonObject ExternalEventSource(string? reference)
         {
             JsonObject source = Source();
             source.Remove("properties");
@@ -565,7 +567,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result = await ResolveAsync(ExternalEventPlan(), source)
                 .ConfigureAwait(false);
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            return result.Value;
+            return result.Value.Required();
         }
 
         private static void AssertExternalSelection(WotEventSelectionCatalog catalog)

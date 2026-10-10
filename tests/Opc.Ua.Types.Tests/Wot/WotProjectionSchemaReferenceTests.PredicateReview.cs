@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, UnknownBulkTypeSource())
                 .ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (!success)
@@ -74,15 +74,15 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.True);
                 return;
             }
-            Assert.That(view.Properties, Has.Count.EqualTo(1));
+            Assert.That(view.Required().Properties, Has.Count.EqualTo(1));
             Assert.That(view.Properties["Value"].GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/properties/Value"));
             WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view);
             Assert.That(native.Success, Is.True, string.Join("; ", native.Diagnostics));
-            UAVariable value = native.Value.Items.OfType<UAVariable>().Single();
+            UAVariable value = native.Value.Required().Items.Required().OfType<UAVariable>().Single();
             Assert.That(value.DataType, Is.EqualTo("i=11"));
             Assert.That(value.ValueRank, Is.EqualTo(-1));
-            Assert.That(QualifiedName.Parse(value.BrowseName).Name, Is.EqualTo("Reading"));
+            Assert.That(QualifiedName.Parse(value.BrowseName.Required()).Name, Is.EqualTo("Reading"));
         }
 
         [Test]
@@ -114,7 +114,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["properties"] = properties;
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(earlierKnown), string.Join("; ", result.Diagnostics));
             if (!earlierKnown)
@@ -124,7 +124,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.True);
                 return;
             }
-            Assert.That(view.Properties, Has.Count.EqualTo(1));
+            Assert.That(view.Required().Properties, Has.Count.EqualTo(1));
             JsonElement selected = view.Properties["deviceAlpha"];
             Assert.That(selected.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/properties/Alpha"));

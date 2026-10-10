@@ -83,11 +83,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(DataTypePlan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
             Assert.That(result.Success, Is.EqualTo(agrees), string.Join("; ", result.Diagnostics));
             if (agrees)
             {
-                WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view);
+                WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view.Required());
                 Assert.That(native.Success, Is.True, string.Join("; ", native.Diagnostics));
                 AssertStandardBase(native.Value!);
             }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 return;
             }
             WotConversionResult<WotDocument> result = await ResolveAsync(DataTypePlan(), source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument view = result.Value.Required();
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             AssertCustomBase(WotNodeSetConverter.ToNodeSetResult(view), 2);
 
@@ -146,8 +146,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
                 UADataType[] types = [.. result.Value!.Items!.OfType<UADataType>()];
                 Assert.That(types, Has.Length.EqualTo(count));
-                UADataType derived = types.Single(type => type.NodeId.EndsWith("i=3000", StringComparison.Ordinal));
-                UADataType custom = types.Single(type => type.NodeId.EndsWith("i=3001", StringComparison.Ordinal));
+                UADataType derived = types.Single(type => type.NodeId.Required()
+                    .EndsWith("i=3000", StringComparison.Ordinal));
+                UADataType custom = types.Single(type => type.NodeId.Required()
+                    .EndsWith("i=3001", StringComparison.Ordinal));
                 Assert.That(derived.References!.Single(reference => reference.ReferenceType == "HasSubtype").Value,
                     Does.EndWith("i=3001"));
                 Assert.That(custom.BrowseName, Is.EqualTo("Double"));

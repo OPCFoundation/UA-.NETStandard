@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> projected = await ResolveAsync(plan.ToJsonString(), sourceJson)
                 .ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             JsonElement projectedDefinition = view.RootElement.GetProperty("uav:dataTypeDefinitions")[0];
             Assert.That(projectedDefinition.GetProperty("uav:metadata").GetRawText(), Is.EqualTo(literal));
@@ -80,10 +80,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view);
             Assert.That(native.Success, Is.True, string.Join("; ", native.Diagnostics));
-            AssertNativeReadingIdentity(native.Value);
+            AssertNativeReadingIdentity(native.Value.Required());
 
             WotConversionResult<WotDocument> restored = WotNodeSetConverter.FromNodeSetResult(native.Value);
-            using WotDocument document = restored.Value;
+            using WotDocument document = restored.Value.Required();
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
             JsonElement restoredDefinition = document.RootElement.GetProperty("uav:dataTypeDefinitions")[0];
             Assert.That(restoredDefinition.GetProperty("uav:metadata").GetRawText(), Is.EqualTo(literal));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             WotConversionResult<UANodeSet> reconverted = WotNodeSetConverter.ToNodeSetResult(document);
             Assert.That(reconverted.Success, Is.True, string.Join("; ", reconverted.Diagnostics));
-            AssertNativeReadingIdentity(reconverted.Value);
+            AssertNativeReadingIdentity(reconverted.Value.Required());
         }
 
         [TestCase("ns1")]
@@ -123,17 +123,17 @@ namespace Opc.Ua.Types.Tests.Wot
             source["uav:dataTypeDefinitions"] = new JsonArray(definition);
             WotConversionResult<WotDocument> projected = await ResolveAsync(
                 DataTypePlan().ToJsonString(), source.ToJsonString()).ConfigureAwait(false);
-            using WotDocument view = projected.Value;
+            using WotDocument view = projected.Value.Required();
             Assert.That(projected.Success, Is.True, string.Join("; ", projected.Diagnostics));
             WotConversionResult<UANodeSet> native = WotNodeSetConverter.ToNodeSetResult(view);
             Assert.That(native.Success, Is.True, string.Join("; ", native.Diagnostics));
-            AssertNativeReadingIdentity(native.Value);
-            UADataType original = native.Value.Items.OfType<UADataType>().Single();
-            Assert.That(original.DisplayName.Single().Locale, Is.EqualTo("fr"));
+            AssertNativeReadingIdentity(native.Value.Required());
+            UADataType original = native.Value.Items.Required().OfType<UADataType>().Single();
+            Assert.That(original.DisplayName.Required().Single().Locale, Is.EqualTo("fr"));
             Assert.That(original.DisplayName.Single().Value, Is.EqualTo("Lecture"));
 
             WotConversionResult<WotDocument> restored = WotNodeSetConverter.FromNodeSetResult(native.Value);
-            using WotDocument document = restored.Value;
+            using WotDocument document = restored.Value.Required();
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
             JsonElement restoredDefinition = document.RootElement.GetProperty("uav:dataTypeDefinitions")[0];
             Assert.That(document.TryGetContextPrefix(prefix, out string namespaceUri, restoredDefinition), Is.True);
@@ -143,24 +143,25 @@ namespace Opc.Ua.Types.Tests.Wot
                     .GetProperty("uav:metadata").GetRawText()));
             WotConversionResult<UANodeSet> reconverted = WotNodeSetConverter.ToNodeSetResult(document);
             Assert.That(reconverted.Success, Is.True, string.Join("; ", reconverted.Diagnostics));
-            AssertNativeReadingIdentity(reconverted.Value);
-            UADataType actual = reconverted.Value.Items.OfType<UADataType>().Single();
-            Assert.That(actual.DisplayName.Single().Locale, Is.EqualTo("fr"));
+            AssertNativeReadingIdentity(reconverted.Value.Required());
+            UADataType actual = reconverted.Value.Items.Required().OfType<UADataType>().Single();
+            Assert.That(actual.DisplayName.Required().Single().Locale, Is.EqualTo("fr"));
             Assert.That(actual.DisplayName.Single().Value, Is.EqualTo("Lecture"));
         }
 
         private static void AssertNativeReadingIdentity(UANodeSet nodeSet)
         {
-            UADataType definition = nodeSet.Items.OfType<UADataType>().Single();
-            var id = NodeId.Parse(definition.NodeId);
+            UADataType definition = nodeSet.Items.Required().OfType<UADataType>().Single();
+            var id = NodeId.Parse(definition.NodeId.Required());
             Assert.That(id.NamespaceIndex, Is.GreaterThan(0));
             Assert.That(id, Is.EqualTo(new NodeId(3000u, id.NamespaceIndex)));
-            Assert.That(nodeSet.NamespaceUris[id.NamespaceIndex - 1], Is.EqualTo("urn:test:projection-types"));
-            var name = QualifiedName.Parse(definition.BrowseName);
+            Assert.That(nodeSet.NamespaceUris.Required()[id.NamespaceIndex - 1],
+                Is.EqualTo("urn:test:projection-types"));
+            var name = QualifiedName.Parse(definition.BrowseName.Required());
             Assert.That(name.NamespaceIndex, Is.GreaterThan(0));
             Assert.That(name.Name, Is.EqualTo("Reading"));
             Assert.That(nodeSet.NamespaceUris[name.NamespaceIndex - 1], Is.EqualTo("urn:test:projection-types"));
-            Assert.That(definition.Definition.Field.Single().DataType, Is.EqualTo("i=11"));
+            Assert.That(definition.Definition.Required().Field.Required().Single().DataType, Is.EqualTo("i=11"));
         }
     }
 }

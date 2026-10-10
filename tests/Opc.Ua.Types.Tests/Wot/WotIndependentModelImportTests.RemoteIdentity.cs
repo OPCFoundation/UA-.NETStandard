@@ -89,7 +89,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(result.Value!.Items!.OfType<UAVariable>().Single().Value!
                     .SelectSingleNode("descendant-or-self::*[local-name()='Identifier']")!.InnerText,
                     Is.EqualTo("svr=1;ns=2;i=42"));
-                Assert.That(result.Value.Items.Single(node => node.NodeId == "ns=2;i=1").References![0].Value,
+                Assert.That(result.Value.Items.Required().Single(node => node.NodeId == "ns=2;i=1")
+                    .References![0].Value,
                     Is.EqualTo("svr=1;ns=2;i=42"));
                 AssertRemoteIdentityNativeImport(result.Value, context);
                 Assert.That(Serialize(a), Is.EqualTo(originalA));
@@ -154,7 +155,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo(new[] { RemoteIdentityXml(index, relocate) }));
             }
             string rootId = relocate ? "ns=2;i=1" : "ns=1;i=1";
-            Assert.That(result.Value.Items.Single(node => node.NodeId == rootId).References![0].Value,
+            Assert.That(result.Value.Items.Required().Single(node => node.NodeId == rootId).References![0].Value,
                 Is.EqualTo(RemoteIdentityXml(remoteCount, relocate)));
             AssertRemoteIdentityImportValues(result.Value, context, remotes);
             Assert.That(Serialize(a), Is.EqualTo(originalA));
@@ -427,9 +428,9 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 "Default" or "EmptyTable" => [],
                 "Same" => remotes.Count == 1 ? [remotes[0]] : [remotes[1], "urn:unused", remotes[0]],
-                "Different" => ["urn:context:local", .. Enumerable.Reverse(remotes.ToArray())],
-                "EmptySlot" => [string.Empty, .. Enumerable.Reverse(remotes.ToArray())],
-                "ExistingRemote" => [remotes[^1], .. Enumerable.Reverse(remotes.ToArray())],
+                "Different" => ["urn:context:local", .. Enumerable.Reverse(remotes.ToArray().Required())],
+                "EmptySlot" => [string.Empty, .. Enumerable.Reverse(remotes.ToArray().Required())],
+                "ExistingRemote" => [remotes[^1], .. Enumerable.Reverse(remotes.ToArray().Required())],
                 _ => throw new ArgumentOutOfRangeException(nameof(kind))
             });
             return context;
@@ -442,7 +443,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return new SystemContext(NUnitTelemetryContext.Create())
             {
                 NamespaceUris = new NamespaceTable([Namespaces.OpcUa, "urn:review:b", "urn:review:a"]),
-                ServerUris = new StringTable(["urn:import:local", .. Enumerable.Reverse(remotes.ToArray())]),
+                ServerUris = new StringTable(["urn:import:local", .. Enumerable.Reverse(remotes.ToArray().Required())]),
                 EncodeableFactory = context.Factory
             };
         }
@@ -591,7 +592,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 case "Optional":
                 case "Union":
                     Assert.That(value.TryGetValue(out ExtensionObject extension), Is.True);
-                    Assert.That(extension.TryGetValue(out IEncodeable body), Is.True);
+                    Assert.That(extension.TryGetValue(out IEncodeable? body), Is.True);
                     if (body is not Structure structure)
                     {
                         throw new InvalidOperationException("The imported value is not the registered structure.");

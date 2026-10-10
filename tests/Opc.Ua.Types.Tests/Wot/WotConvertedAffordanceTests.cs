@@ -177,16 +177,16 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(captured.Diagnostics, Is.Empty);
             Assert.That(
-                captured.TryGetTypeBinding("/input/properties/Values", out WotPayloadTypeBinding values), Is.True);
+                captured.TryGetTypeBinding("/input/properties/Values", out WotPayloadTypeBinding? values), Is.True);
             Assert.That(values!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
             Assert.That(values.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.UInt16, ValueRanks.OneDimension)));
             Assert.That(values.ResolvedBrowseName, Is.EqualTo("nsu=urn:payload-fields;Values"));
-            Assert.That(captured.TryGetTypeBinding("/input/properties/Values/items", out WotPayloadTypeBinding item),
+            Assert.That(captured.TryGetTypeBinding("/input/properties/Values/items", out WotPayloadTypeBinding? item),
                 Is.True);
             Assert.That(item!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
             Assert.That(item.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
             Assert.That(
-                captured.TryGetTypeBinding("/input/properties/Target", out WotPayloadTypeBinding target), Is.True);
+                captured.TryGetTypeBinding("/input/properties/Target", out WotPayloadTypeBinding? target), Is.True);
             Assert.That(target!.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
             Assert.That(captured.Definition.GetProperty("input").GetProperty("uav:fieldOrder")[0].GetString(),
                 Is.EqualTo("Values"));
@@ -230,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     document, WotAffordanceKind.Action, document.Actions["Exchange"]), Is.SameAs(captured));
             }
 
-            Assert.That(captured.TryGetTypeBinding("/" + member, out WotPayloadTypeBinding payload), Is.True);
+            Assert.That(captured.TryGetTypeBinding("/" + member, out WotPayloadTypeBinding? payload), Is.True);
             Assert.That(payload!.DataTypeId,
                 Is.EqualTo(new ExpandedNodeId("DataTypes/Reading", "urn:payload-capture")));
             Assert.That(payload.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.Scalar)));
@@ -271,7 +271,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             Assert.That(captured.Diagnostics, Is.Empty);
-            Assert.That(captured.TryGetTypeBinding(string.Empty, out WotPayloadTypeBinding binding), Is.True);
+            Assert.That(captured.TryGetTypeBinding(string.Empty, out WotPayloadTypeBinding? binding), Is.True);
             Assert.That(binding!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
             Assert.That(binding.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.UInt16, ValueRanks.Scalar)));
             Assert.That(binding.ResolvedBrowseName, Is.EqualTo("nsu=urn:payload-capture;Reading"));

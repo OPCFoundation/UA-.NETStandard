@@ -72,14 +72,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Location.NodeId == (member == "uav:id" ? "ns=1;i=9999" : "ns=1;i=6001")),
                 Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(result.Value, Is.Not.Null);
-            Assert.That(result.Value!.Items.Select(item => item.NodeId),
-                Is.EquivalentTo(source.Items.Select(item => item.NodeId)));
+            Assert.That(result.Value!.Items.Required().Select(item => item.NodeId),
+                Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
             UAVariable expected = source.Items.OfType<UAVariable>().Single(item => item.NodeId == "ns=1;i=6001");
             UAVariable actual = result.Value.Items.OfType<UAVariable>().Single(item => item.NodeId == expected.NodeId);
             Assert.That(actual.DataType, Is.EqualTo(expected.DataType));
             Assert.That(actual.ValueRank, Is.EqualTo(expected.ValueRank));
             Assert.That(actual.BrowseName, Is.EqualTo(expected.BrowseName));
-            Assert.That(actual.Value.OuterXml, Is.EqualTo(expected.Value.OuterXml));
+            Assert.That(actual.Value.Required().OuterXml, Is.EqualTo(expected.Value.Required().OuterXml));
             Assert.That(document.RootElement.GetProperty("uav:nodes").GetRawText(), Is.EqualTo(native));
         }
 
@@ -102,8 +102,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Code == WotDiagnosticCode.NativeProjectionConflict &&
                 item.Location?.JsonPointer?.StartsWith("/" + member, StringComparison.Ordinal) == true &&
                 !string.IsNullOrEmpty(item.Location.NodeId)), Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.Select(item => item.NodeId),
-                Is.EquivalentTo(source.Items.Select(item => item.NodeId)));
+            Assert.That(result.Value!.Items.Required().Select(item => item.NodeId),
+                Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
         }
 
         [TestCase("input")]
@@ -137,11 +137,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Symmetric = symmetric,
                 References = [new Reference { ReferenceType = "i=45", IsForward = false, Value = "i=32" }]
             };
-            source.Items = [.. source.Items, referenceType];
+            source.Items = [.. source.Items.Required(), referenceType];
             UANode owner = source.Items.Single(node => node.NodeId == "ns=1;i=1001");
             owner.References =
             [
-                .. owner.References,
+                .. owner.References.Required(),
                 new Reference { ReferenceType = referenceType.NodeId, IsForward = false, Value = "ns=1;i=6001" }
             ];
             JsonObject root = NativeDocument(source);
@@ -163,7 +163,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     item.Code == WotDiagnosticCode.NativeProjectionConflict &&
                     item.Location?.JsonPointer == "/links/0"), Is.True);
             }
-            Assert.That(result.Value!.Items.Single(node => node.NodeId == owner.NodeId).References.Any(reference =>
+            Assert.That(result.Value!.Items.Required().Single(node => node.NodeId == owner.NodeId)
+                .References.Required().Any(reference =>
                 reference.ReferenceType == referenceType.NodeId &&
                 !reference.IsForward &&
                 reference.Value == "ns=1;i=6001"), Is.True);
@@ -190,7 +191,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 });
             xml.Load(reader);
             System.Xml.XmlElement expected = xml.DocumentElement!;
-            UAVariable variable = source.Items.OfType<UAVariable>().Single(node => node.NodeId == "ns=1;i=6001");
+            UAVariable variable = source.Items.Required().OfType<UAVariable>()
+                .Single(node => node.NodeId == "ns=1;i=6001");
             if (location == "value")
             {
                 variable.DataType = "i=12";
@@ -211,14 +213,15 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            UAVariable restored = result.Value!.Items.OfType<UAVariable>().Single(node => node.NodeId == variable.NodeId);
-            System.Xml.XmlElement actual = location switch
+            UAVariable restored = result.Value!.Items.Required().OfType<UAVariable>()
+                .Single(node => node.NodeId == variable.NodeId);
+            System.Xml.XmlElement? actual = location switch
             {
                 "value" => restored.Value,
                 "node-extension" => restored.Extensions![0],
                 _ => result.Value.Extensions![0]
             };
-            Assert.That(actual.InnerText, Is.EqualTo(whitespace));
+            Assert.That(actual.Required().InnerText, Is.EqualTo(whitespace));
             Assert.That(actual.OuterXml, Is.EqualTo(expected.OuterXml));
         }
 
@@ -227,7 +230,8 @@ namespace Opc.Ua.Types.Tests.Wot
         public void NativeLocalizedFactsUseTheDocumentFallbackButRejectAnotherLanguage(bool german)
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
-            UAVariable variable = source.Items.OfType<UAVariable>().Single(node => node.NodeId == "ns=1;i=6001");
+            UAVariable variable = source.Items.Required().OfType<UAVariable>()
+                .Single(node => node.NodeId == "ns=1;i=6001");
             variable.Description = [new Export.LocalizedText { Locale = "en", Value = "Speed description" }];
             JsonObject root = NativeDocument(source);
             var context = new JsonObject
@@ -271,7 +275,8 @@ namespace Opc.Ua.Types.Tests.Wot
         public void GeneratedSingletonNonDefaultLocaleRemainsConsistentWithNative(string singular, string plural)
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
-            UAVariable variable = source.Items.OfType<UAVariable>().Single(node => node.NodeId == "ns=1;i=6001");
+            UAVariable variable = source.Items.Required().OfType<UAVariable>()
+                .Single(node => node.NodeId == "ns=1;i=6001");
             Export.LocalizedText[] text = [new Export.LocalizedText { Locale = "de", Value = "Drehzahl" }];
             if (singular == "title")
             {
@@ -289,8 +294,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(root["properties"]!["Speed"]![singular]!.GetValue<string>(), Is.EqualTo("Drehzahl"));
             Assert.That(root["properties"]!["Speed"]![plural]!["de"]!.GetValue<string>(), Is.EqualTo("Drehzahl"));
-            UAVariable restored = result.Value!.Items.OfType<UAVariable>().Single(node => node.NodeId == variable.NodeId);
-            Export.LocalizedText[] restoredText = singular == "title" ? restored.DisplayName : restored.Description;
+            UAVariable restored = result.Value!.Items.Required().OfType<UAVariable>()
+                .Single(node => node.NodeId == variable.NodeId);
+            Export.LocalizedText[]? restoredText = singular == "title" ? restored.DisplayName : restored.Description;
             Assert.That(restoredText, Has.Length.EqualTo(1));
             Assert.That(restoredText[0].Locale, Is.EqualTo("de"));
             Assert.That(restoredText[0].Value, Is.EqualTo("Drehzahl"));
@@ -331,7 +337,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UAVariable>().Single().ValueRank, Is.EqualTo(1001));
+            Assert.That(result.Value!.Items.Required().OfType<UAVariable>().Single().ValueRank, Is.EqualTo(1001));
         }
 
         [Test]
@@ -383,7 +389,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UAVariable>().Single().ValueRank, Is.EqualTo(1001));
+            Assert.That(result.Value!.Items.Required().OfType<UAVariable>().Single().ValueRank, Is.EqualTo(1001));
             Assert.That(result.Value.Items.OfType<UADataType>().Single().NodeId, Is.EqualTo("ns=1;i=3"));
         }
 
@@ -414,7 +420,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.EqualTo(compatible), string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UADataType>().Count(), Is.EqualTo(nativeType ? 1 : 0));
+            Assert.That(result.Value!.Items.Required().OfType<UADataType>().Count(), Is.EqualTo(nativeType ? 1 : 0));
             if (!compatible)
             {
                 Assert.That(result.Diagnostics.Any(item =>
@@ -442,7 +448,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UADataType>().Single().BrowseName, Is.EqualTo("1:T"));
+            Assert.That(result.Value!.Items.Required().OfType<UADataType>().Single().BrowseName, Is.EqualTo("1:T"));
         }
 
         [TestCase("properties")]
@@ -489,7 +495,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.EqualTo(compatible), string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UAVariable>().Single().DataType, Is.EqualTo(dataType));
+            Assert.That(result.Value!.Items.Required().OfType<UAVariable>().Single().DataType, Is.EqualTo(dataType));
             if (!compatible)
             {
                 Assert.That(result.Diagnostics.Any(item =>
@@ -635,7 +641,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string required, bool compatible)
         {
             UANodeSet source = CreateNativeConditionSource(required == "string-comment" ? "i=12" : "i=21");
-            UAMethod method = source.Items.OfType<UAMethod>().Single(node => node.NodeId == "ns=1;i=7001");
+            UAMethod method = source.Items.Required().OfType<UAMethod>().Single(node => node.NodeId == "ns=1;i=7001");
             UAVariable arguments = source.Items.OfType<UAVariable>().Single(node => node.NodeId == "ns=1;i=90002");
             JsonObject root = NativeDocument(source);
             JsonObject action = root["actions"]!["Reset"]!.AsObject();
@@ -655,10 +661,11 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Success, Is.EqualTo(compatible), string.Join("; ", result.Diagnostics));
-            UAMethod restored = result.Value!.Items.OfType<UAMethod>().Single(node => node.NodeId == method.NodeId);
+            UAMethod restored = result.Value!.Items.Required().OfType<UAMethod>()
+                .Single(node => node.NodeId == method.NodeId);
             Assert.That(restored.ParentNodeId, Is.EqualTo(method.ParentNodeId));
-            Assert.That(result.Value.Items.OfType<UAVariable>().Single(node => node.NodeId == arguments.NodeId).Value
-                .OuterXml, Is.EqualTo(arguments.Value.OuterXml));
+            Assert.That(result.Value.Items.OfType<UAVariable>().Single(node => node.NodeId == arguments.NodeId)
+                .Value.Required().OuterXml, Is.EqualTo(arguments.Value.Required().OuterXml));
             if (!compatible)
             {
                 Assert.That(result.Diagnostics.Any(item =>
@@ -676,7 +683,7 @@ namespace Opc.Ua.Types.Tests.Wot
             int budget, bool standard, bool matchingTarget)
         {
             UANodeSet source = CreateNativeConditionSource("i=21");
-            UAMethod method = source.Items.OfType<UAMethod>().Single(node => node.NodeId == "ns=1;i=7001");
+            UAMethod method = source.Items.Required().OfType<UAMethod>().Single(node => node.NodeId == "ns=1;i=7001");
             string name = standard ? "Acknowledge" : "Reset";
             if (standard)
             {
@@ -695,7 +702,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);
 
             Assert.That(result.Success, Is.EqualTo(matchingTarget), string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.OfType<UAMethod>().Single().MethodDeclarationId,
+            Assert.That(result.Value!.Items.Required().OfType<UAMethod>().Single().MethodDeclarationId,
                 Is.EqualTo(method.MethodDeclarationId));
             if (!matchingTarget)
             {
@@ -764,8 +771,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     item.Location.NodeId == "ns=1;i=90001"),
                     Is.True, string.Join("; ", result.Diagnostics));
             }
-            Assert.That(result.Value!.Items.Select(item => item.NodeId),
-                Is.EquivalentTo(source.Items.Select(item => item.NodeId)));
+            Assert.That(result.Value!.Items.Required().Select(item => item.NodeId),
+                Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
         }
 
         [Test]
@@ -793,11 +800,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value!.Items.Select(item => item.NodeId),
-                Is.EquivalentTo(source.Items.Select(item => item.NodeId)));
+            Assert.That(result.Value!.Items.Required().Select(item => item.NodeId),
+                Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
             UAVariable value = result.Value.Items.OfType<UAVariable>().Single(item => item.NodeId == "ns=1;i=6001");
-            Assert.That(value.Value.OuterXml,
-                Is.EqualTo(source.Items.OfType<UAVariable>().Single(item => item.NodeId == value.NodeId).Value.OuterXml));
+            Assert.That(value.Value.Required().OuterXml,
+                Is.EqualTo(source.Items.OfType<UAVariable>().Single(item => item.NodeId == value.NodeId)
+                    .Value.Required().OuterXml));
         }
 
         [Test]
@@ -851,7 +859,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static UANodeSet CreateNativeConditionSource(string commentDataType)
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
-            UANode owner = source.Items.Single(node => node.NodeId == "ns=1;i=1001");
+            UANode owner = source.Items.Required().Single(node => node.NodeId == "ns=1;i=1001");
             UAMethod method = source.Items.OfType<UAMethod>().Single(node => node.NodeId == "ns=1;i=7001");
             var alarm = new UAObjectType
             {
@@ -861,7 +869,7 @@ namespace Opc.Ua.Types.Tests.Wot
             };
             owner.References =
             [
-                .. owner.References,
+                .. owner.References.Required(),
                 new Reference { ReferenceType = "i=41", Value = alarm.NodeId }
             ];
             var arguments = new UAVariable
@@ -895,7 +903,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     </uax:ListOfExtensionObject>
                     """.Replace("i=21", commentDataType, StringComparison.Ordinal))
             };
-            method.References = [.. method.References, new Reference { ReferenceType = "i=46", Value = arguments.NodeId }];
+            method.References =
+                [.. method.References.Required(), new Reference { ReferenceType = "i=46", Value = arguments.NodeId }];
             source.Items = [.. source.Items, alarm, arguments];
             return source;
         }

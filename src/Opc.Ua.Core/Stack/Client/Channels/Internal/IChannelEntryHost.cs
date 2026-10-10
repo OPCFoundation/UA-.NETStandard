@@ -106,7 +106,8 @@ namespace Opc.Ua
         ClientChannelCertificateSnapshot SnapshotClientCertificate(ClientChannelCertificateSnapshot current);
 
         /// <summary>
-        /// Opens a transport with its own certificate references and the entry's message context.
+        /// Opens a transport using certificate references retained by the entry until transport closure.
+        /// The transport and entry share these idempotently disposed handles, not the manager's reusable handles.
         /// </summary>
         new ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
