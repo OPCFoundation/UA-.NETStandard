@@ -8,7 +8,6 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
-- [Vision Perception namespace and Part 2 packages](#vision-perception-namespace-and-part-2-packages)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
@@ -59,38 +58,6 @@ empty selected translation remains absent text rather than selecting fallback
 text; its `Text` property returns `null`. Translation-backed values retain
 their metadata and are not necessarily `IsNull`, even when both exposed fields
 are null.
-
-## Vision Perception namespace and Part 2 packages
-
-Applications adopting the 2.0 Vision package layout from an earlier preview need
-two source/package adjustments:
-
-- Generated types for the provisional model move from `Opc.Ua.Vision` to
-  `Opc.Ua.Vision.Perception`. Add that namespace for types such as
-  `VisionPose3DDataType`, generated node states, identifiers, and proxies.
-  Replace `AddOpcUaVision` with `AddOpcUaVisionPerception`. The wire namespace
-  `http://opcfoundation.org/UA/Vision/` and its NodeIds do not change. Rebuild
-  consumers; a CLR namespace move cannot be represented by a type forwarder.
-- Part 2 models are in `OPCFoundation.NetStandard.Opc.Ua.MachineVision`.
-  Asset builders require `.MachineVision.Server`; asset discovery, snapshots,
-  and relationship extensions require `.MachineVision.Client`. Replace earlier
-  `Opc.Ua.Vision.Machinery` package references and their `.Client`/`.Server`
-  counterparts with these names, and rebuild consumers. The generated
-  AMCM namespace remains `Opc.Ua.Vision.MachineVision.AMCM`. The asset builder and
-  extension namespaces remain `Opc.Ua.Vision.Server` and `Opc.Ua.Vision.Client`.
-
-For standalone hosting, add `.AddVisionMachinery()` after `.AddVision(...)` when
-selecting assets. Direct node-manager setup supplies
-`VisionMachineryStandaloneModelProvider` alongside `VisionModelProvider`.
-Machinery-owned composition uses `AddVisionToMachinery()` from the new server
-package. Add all system instances to that owner; do not create competing owners
-for the same DI/Machinery namespace.
-
-Part 1 and the Perception model remain in the base Vision packages.
-`Opc.Ua.Mcp.Vision` remains one package for all models. Vision packages follow the
-root version rather than a forced preview suffix; `Vision.OpenUsd` remains
-preview-only. Development builds still inherit the root prerelease version.
-See [Machine Vision](Vision.md) for configuration and composition examples.
 
 ## General principles
 

@@ -46,9 +46,7 @@ without any other context.
   `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
   The Vision and MachineVision model/client/server packages and the Vision MCP
-  package follow the root version instead. This does not remove the prerelease
-  suffix from development
-  builds or authorize a release outside the procedures below.
+  package follow the root version instead.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,
   `2.0.1-preview.4+gabc123`). `validate-nuget-package-set.ps1` writes this as
