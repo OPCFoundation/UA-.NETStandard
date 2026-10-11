@@ -99,7 +99,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseResponse? response = null;
                 InitResponseCollections(
@@ -190,7 +190,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 BrowseNextResponse? response = null;
                 InitResponseCollections(
@@ -263,7 +263,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 TranslateBrowsePathsToNodeIdsResponse? response = null;
                 InitResponseCollections(
@@ -324,7 +324,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 RegisterNodesResponse? response = null;
                 var registeredNodeIds = new List<NodeId>();
@@ -369,7 +369,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 UnregisterNodesResponse? response = null;
                 foreach (ArrayOf<NodeId> batchNodesToUnregister in nodesToUnregister
@@ -420,7 +420,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ReadResponse? response = null;
                 InitResponseCollections(
@@ -507,7 +507,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryReadResponse? response = null;
                 InitResponseCollections(
@@ -587,7 +587,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 WriteResponse? response = null;
                 InitResponseCollections(
@@ -658,7 +658,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 HistoryUpdateResponse? response = null;
                 InitResponseCollections(
@@ -721,7 +721,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CallResponse? response = null;
                 InitResponseCollections(
@@ -797,7 +797,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 CreateMonitoredItemsResponse? response = null;
                 InitResponseCollections(
@@ -883,7 +883,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 ModifyMonitoredItemsResponse? response = null;
                 InitResponseCollections(
@@ -960,7 +960,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetMonitoringModeResponse? response = null;
                 InitResponseCollections(
@@ -1042,7 +1042,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 SetTriggeringResponse? response = null;
                 InitResponseCollections(
@@ -1198,7 +1198,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteMonitoredItemsResponse? response = null;
                 InitResponseCollections(
@@ -1262,7 +1262,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddNodesResponse? response = null;
                 InitResponseCollections(
@@ -1322,7 +1322,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 AddReferencesResponse? response = null;
                 InitResponseCollections(
@@ -1385,7 +1385,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteNodesResponse? response = null;
                 InitResponseCollections(
@@ -1448,7 +1448,7 @@ namespace Opc.Ua
                 uint operationLimit,
                 CancellationToken ct)
             {
-                using Activity? activity = m_telemetry.StartActivity();
+                using Activity? activity = CachedActivitySource.StartActivity();
                 requestHeader ??= new RequestHeader();
                 DeleteReferencesResponse? response = null;
                 InitResponseCollections(
@@ -1736,6 +1736,14 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The activity source for service calls, resolved once: the
+        /// GetActivitySource extension walks the stack to find the calling
+        /// assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource => m_activitySource ??= m_telemetry.GetActivitySource();
+
+        private ActivitySource? m_activitySource;
         private readonly ITelemetryContext m_telemetry;
     }
 }
