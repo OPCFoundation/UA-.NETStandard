@@ -64,8 +64,17 @@ namespace Opc.Ua.EndpointRegistry.PubSub
                 NamespaceUris = Server.NamespaceUris,
                 ServerUris = Server.ServerUris
             };
-            Binding = new EndpointRegistryPubSubBinding(registry, pubsub, context, Server.Telemetry, m_options);
-            await Binding.StartAsync(cancellationToken).ConfigureAwait(false);
+            var binding = new EndpointRegistryPubSubBinding(registry, pubsub, context, Server.Telemetry, m_options);
+            try
+            {
+                await binding.StartAsync(cancellationToken).ConfigureAwait(false);
+                Binding = binding;
+            }
+            catch
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <inheritdoc/>

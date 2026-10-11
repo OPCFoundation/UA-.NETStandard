@@ -27,6 +27,8 @@ features. It registers only the integration manager, not another runtime or stor
 For direct integration, construct `EndpointRegistryPubSubBinding` with the two
 existing managers, the server message context and `ITelemetryContext`, then await
 `StartAsync`. Dispose the binding before disposing its managers.
+If startup fails, the partial binding is disposed, its observers are detached,
+and its associations are invalidated; the original startup failure is propagated.
 The application must implement the additive `IPubSubConfigurationLifecycle`
 contract; the standard `PubSubApplication` does. Custom applications without a
 pre-retirement notification cannot safely host this facet and are rejected.

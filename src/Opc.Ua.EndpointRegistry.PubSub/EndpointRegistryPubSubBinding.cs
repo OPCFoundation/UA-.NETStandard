@@ -72,7 +72,10 @@ namespace Opc.Ua.EndpointRegistry.PubSub
             }
         }
 
-        /// <summary>Attaches to real source lifetimes and the shared registry commit path.</summary>
+        /// <summary>
+        /// Attaches to real source lifetimes and the shared registry commit path.
+        /// Failed startup disposes the partial binding and detaches its observers.
+        /// </summary>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
             if (m_stopping)
@@ -84,12 +87,20 @@ namespace Opc.Ua.EndpointRegistry.PubSub
                 throw new InvalidOperationException("The binding is already started.");
             }
             m_started = true;
-            m_host.AddObserver(this);
-            m_pubsub.Application.MetaDataRegistry.MetaDataChanged += OnMetaDataChanged;
-            await m_pubsub.AddViewObserverAsync(this, cancellationToken).ConfigureAwait(false);
-            m_expiryTimer = m_options.TimeProvider.CreateTimer(
-                static state => ((EndpointRegistryPubSubBinding)state!).QueueExpirySweep(), this,
-                TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            try
+            {
+                m_host.AddObserver(this);
+                m_pubsub.Application.MetaDataRegistry.MetaDataChanged += OnMetaDataChanged;
+                await m_pubsub.AddViewObserverAsync(this, cancellationToken).ConfigureAwait(false);
+                m_expiryTimer = m_options.TimeProvider.CreateTimer(
+                    static state => ((EndpointRegistryPubSubBinding)state!).QueueExpirySweep(), this,
+                    TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            }
+            catch
+            {
+                await DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <summary>

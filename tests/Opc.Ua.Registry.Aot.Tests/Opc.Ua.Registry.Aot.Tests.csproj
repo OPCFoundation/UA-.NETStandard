@@ -5,7 +5,6 @@
     <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
     <PublishAot>true</PublishAot>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>

@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.EndpointRegistry</PackageId>
     <RootNamespace>Opc.Ua.EndpointRegistry</RootNamespace>
     <Description>OPC UA Endpoint Registry information model for Endpoints, Message Definitions, media catalogs and native PubSub associations.</Description>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

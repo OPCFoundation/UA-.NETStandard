@@ -5,7 +5,6 @@
     <IsPackable>false</IsPackable>
     <AssemblyName>RegistryServer</AssemblyName>
     <RootNamespace>Opc.Ua.Registry.Samples</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <PublishAot Condition="'$(RegistryPublishAot)' == 'true' and '$(TargetFramework)' == 'net10.0'">true</PublishAot>
   </PropertyGroup>

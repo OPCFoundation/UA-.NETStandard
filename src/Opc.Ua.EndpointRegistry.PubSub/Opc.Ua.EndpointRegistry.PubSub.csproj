@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.EndpointRegistry.PubSub</PackageId>
     <RootNamespace>Opc.Ua.EndpointRegistry.PubSub</RootNamespace>
     <Description>OPC 30455 PubSub Binding facet: native correspondence, lifecycle-safe references and read-only local and authenticated remote surfacing.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

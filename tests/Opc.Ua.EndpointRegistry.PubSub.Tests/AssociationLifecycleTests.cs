@@ -7,7 +7,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Server;
 
@@ -15,6 +17,64 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
 {
     public sealed partial class PubSubBindingServerTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedBindingStartupDetachesObserversAndInvalidatesAssociationsAsync(bool timerFailure)
+        {
+            int schemaCalls = 0;
+            var schemas = new Mock<IPubSubBindingSchemaProvider>();
+            schemas.Setup(provider => provider.FindSchema(
+                It.IsAny<DataSetMetaDataKey>(), It.IsAny<DataSetMetaDataType>()))
+                .Returns((DataSetMetaDataKey key, DataSetMetaDataType metadata) =>
+                {
+                    schemaCalls++;
+                    if (!timerFailure)
+                    {
+                        throw new InvalidOperationException("Injected initial activation failure.");
+                    }
+                    return Server.Schemas.FindSchema(key, metadata);
+                });
+            var clock = new Mock<TimeProvider>();
+            clock.Setup(provider => provider.CreateTimer(It.IsAny<TimerCallback>(), It.IsAny<object>(),
+                It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Throws(new InvalidOperationException("Injected timer creation failure."));
+            string prefix = "startup-feedback-" + Guid.NewGuid().ToString("N");
+            await using var candidate = new EndpointRegistryPubSubBinding(Server.Registry, Server.PubSub,
+                m_session!.MessageContext, m_telemetry!, new EndpointRegistryPubSubBindingOptions
+                {
+                    SurfaceLocalPublishers = false,
+                    LocalIdentifierPrefix = prefix + "-local-",
+                    RemoteIdentifierPrefix = prefix + "-remote-",
+                    Schemas = schemas.Object,
+                    TimeProvider = clock.Object
+                });
+            try
+            {
+                await Binding.RetiringAsync(CancellationToken.None).ConfigureAwait(false);
+                InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await candidate.StartAsync().ConfigureAwait(false))!;
+                Assert.That(error.Message, Is.EqualTo(timerFailure
+                    ? "Injected timer creation failure." : "Injected initial activation failure."));
+                Assert.That(schemaCalls, Is.GreaterThan(0));
+                Assert.That(candidate.Snapshots, Is.Empty);
+                Assert.That(() => Host.AddObserver(candidate), Throws.Nothing,
+                    "Failed startup must not retain the registry observer.");
+                Host.RemoveObserver(candidate);
+                int callsAfterFailure = schemaCalls;
+                await Server.Application.ReplaceConfigurationAsync(Server.Application.GetConfiguration())
+                    .ConfigureAwait(false);
+                Assert.That(schemaCalls, Is.EqualTo(callsAfterFailure),
+                    "A failed binding must not receive subsequent view activations.");
+                Assert.That(async () => await candidate.StartAsync().ConfigureAwait(false),
+                    Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                await Binding.ActivatedAsync(Server.PubSub.ConfigurationView!, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task OrdinaryEndpointEditsInvalidateCorrespondenceAndPublicationDoesNotAdvanceItsEpochAsync()
         {

@@ -12,6 +12,9 @@ document descriptors and model/capabilities records. Its server module supplies 
 state stores, metadata commits, pinned snapshots, metadata files and projection support.
 Endpoint Registry and Schema Registry reuse these modules; Schema Registry does not
 depend on Endpoint Registry.
+Registry packages follow the current central library targets: `net48`, `net8.0`,
+`net9.0` and `net10.0`. Earlier pre-merge validation of additional legacy targets
+does not imply that the current packages ship those assets.
 
 Register `EndpointRegistryNodeManagerFactory` explicitly to host Endpoint/Message catalogs.
 Use `EndpointRegistryServerOptions.Generic` for a generic or Message-only catalog, and

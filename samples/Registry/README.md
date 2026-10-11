@@ -142,6 +142,8 @@ dotnet publish samples\Registry\RegistryServer\RegistryServer.csproj -f net10.0 
 Run the published `RegistryServer.exe` with the ordinary `--schema --self-test` options to prove
 actual SignAndEncrypt TCP calls and bounded native traversal. `RegistryPublishAot` scopes AOT to
 the executable rather than propagating it into managed source generators.
+The net10.0 client publishes self-contained so that native PubSub and test executables
+can reference it. Ordinary managed builds and the net48 client remain unchanged.
 
 ```powershell
 dotnet build src\Opc.Ua.EndpointRegistry.Client\Opc.Ua.EndpointRegistry.Client.csproj -nologo -v:q

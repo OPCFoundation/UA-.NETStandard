@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.EndpointRegistry.Federation.Server</PackageId>
     <RootNamespace>Opc.Ua.EndpointRegistry.Federation.Server</RootNamespace>
     <Description>Opt-in hosted Group references with verified federation observations and authoritative registry identity pins.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

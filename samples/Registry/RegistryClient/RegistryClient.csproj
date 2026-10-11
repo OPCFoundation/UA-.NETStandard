@@ -3,10 +3,10 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <SelfContained Condition="'$(RegistryPublishAot)' == 'true'">true</SelfContained>
+    <PublishSelfContained Condition="'$(TargetFramework)' == 'net10.0'">true</PublishSelfContained>
     <IsPackable>false</IsPackable>
     <AssemblyName>RegistryClient</AssemblyName>
     <RootNamespace>Opc.Ua.Registry.Samples</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>

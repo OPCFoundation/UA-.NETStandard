@@ -28,7 +28,7 @@
   ],
   "validation": {
     "managedFrameworks": ["net10.0", "net48"],
-    "libraryFrameworks": ["net472", "net48", "netstandard2.1", "net8.0", "net9.0", "net10.0"],
+    "libraryFrameworks": ["net48", "net8.0", "net9.0", "net10.0"],
     "independentOracles": ["Python domain-rule corpus", "Python resolution/federation corpus", "Python PubSub correspondence corpus", "Independent Binary/Arrow/Avro vectors"],
     "nativeExecutable": "RegistryServer --schema --self-test: actual encrypted TCP, durable stores, native client calls and bounded String traversal",
     "apiBaseline": "23be306c65301f2a894048bb5811962cba9eb31e",
