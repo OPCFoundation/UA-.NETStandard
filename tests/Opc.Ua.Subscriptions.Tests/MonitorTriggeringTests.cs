@@ -225,10 +225,13 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        [Test]
-        public async Task SimpleTriggerAddLinkAfterCreationAsync()
+        /// <summary>
+        /// A link added after item creation reports both items even when Publish splits their notifications.
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(1u)]
+        public async Task SimpleTriggerAddLinkAfterCreationAsync(uint maxNotificationsPerPublish)
         {
-            // Create both items first, then SetTriggering
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
             NodeId nodeB = ToNodeId(Constants.ScalarStaticInt32);
 
@@ -244,6 +247,11 @@ namespace Opc.Ua.Subscriptions.Tests
             // Items exist but no triggering link yet
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
+            ModifySubscriptionResponse modifyResp = await Session.ModifySubscriptionAsync(
+                null, m_subscriptionId, 100, 100, 10, maxNotificationsPerPublish, 0, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(modifyResp.ResponseHeader.ServiceResult), Is.True);
+
             // Now add the link
             SetTriggeringResponse trigResp =
                 await SetTriggerAsync(idA, [idB]).ConfigureAwait(false);
@@ -255,10 +263,10 @@ namespace Opc.Ua.Subscriptions.Tests
             await WriteValueAsync(nodeB,
                 UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
-            // A fires (CurrentTime), should trigger B
-            PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
-            HashSet<uint> handles = CollectNotifiedHandles(pubResp);
-            Assert.That(handles, Does.Contain(1u));
+            // A and its linked item can arrive in different Publish responses.
+            HashSet<uint> handles = await PublishUntilHandlesObservedAsync([1u, 2u]).ConfigureAwait(false);
+            Assert.That(handles, Does.Contain(1u), "The trigger item must report.");
+            Assert.That(handles, Does.Contain(2u), "The newly linked sampling item must report after its trigger.");
         }
 
         [Test]
