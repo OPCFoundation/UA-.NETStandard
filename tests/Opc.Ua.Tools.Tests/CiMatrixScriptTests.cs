@@ -180,6 +180,54 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Portable image publishing must not make the referenced registry client self-contained,
+        /// while native publishing and ordinary managed builds retain their existing defaults.
+        /// </summary>
+        [TestCase(true, "false", false, false)]
+        [TestCase(true, "false", true, false)]
+        [TestCase(true, "true", false, true)]
+        [TestCase(true, null, false, true)]
+        [TestCase(false, null, false, false)]
+        public async Task RegistryClientContainmentRespectsPublishingModeAsync(
+            bool publishing, string? publishAot, bool dockerBuild, bool expectedSelfContained)
+        {
+            string root = FindRepositoryRoot();
+            using var process = new Process();
+            process.StartInfo.FileName = "dotnet";
+            process.StartInfo.WorkingDirectory = root;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add("msbuild");
+            process.StartInfo.ArgumentList.Add(Path.Combine(root,
+                "samples", "Registry", "RegistryClient", "RegistryClient.csproj"));
+            process.StartInfo.ArgumentList.Add("-nologo");
+            process.StartInfo.ArgumentList.Add("-getProperty:SelfContained");
+            process.StartInfo.ArgumentList.Add("-p:TargetFramework=net10.0");
+            process.StartInfo.ArgumentList.Add($"-p:_IsPublishing={publishing.ToString().ToLowerInvariant()}");
+            process.StartInfo.ArgumentList.Add($"-p:Dockerbuild={dockerBuild.ToString().ToLowerInvariant()}");
+            if (publishAot is not null)
+            {
+                process.StartInfo.ArgumentList.Add("-p:PublishAot=" + publishAot);
+                if (publishAot == "false")
+                {
+                    process.StartInfo.ArgumentList.Add("-p:UseAppHost=false");
+                }
+            }
+
+            Assert.That(process.Start(), Is.True);
+            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            string output = await standardOutput.ConfigureAwait(false);
+            string error = await standardError.ConfigureAwait(false);
+
+            Assert.That(process.ExitCode, Is.Zero, error + output);
+            Assert.That(output.Trim(),
+                Is.EqualTo(expectedSelfContained.ToString().ToLowerInvariant()));
+        }
+
+        /// <summary>
         /// All intentionally shipped registry modules belong in the enforced package inventory.
         /// </summary>
         [Test]
