@@ -340,6 +340,13 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                if (m_receiveBroken)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpInternalError,
+                        "An earlier receive was interrupted inside a chunk; the stream cannot be read further.");
+                }
+
                 // An idle peer is waited for with the small staging buffer only: the
                 // receive buffer (and its share of a process-wide memory budget) is
                 // rented once the chunk header has arrived and been validated. One
@@ -406,13 +413,24 @@ namespace Opc.Ua.Bindings
 
                         if (staged < messageSize)
                         {
-                            await ReadExactAsync(
-                                    socket,
-                                    buffer,
-                                    staged,
-                                    messageSize - staged,
-                                    ct)
-                                .ConfigureAwait(false);
+                            try
+                            {
+                                await ReadExactAsync(
+                                        socket,
+                                        buffer,
+                                        staged,
+                                        messageSize - staged,
+                                        ct)
+                                    .ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                // Part of the chunk was consumed from the stream and
+                                // goes back with the buffer: the next bytes are not a
+                                // chunk header, so the stream cannot be read again.
+                                m_receiveBroken = true;
+                                throw;
+                            }
                         }
                     }
                     finally
@@ -468,7 +486,6 @@ namespace Opc.Ua.Bindings
                     new ArraySegment<byte>(staging, m_stagedCount, staging.Length - m_stagedCount),
                     SocketFlags.None)
                 .ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
 #endif
             if (n <= 0)
             {
@@ -477,6 +494,11 @@ namespace Opc.Ua.Bindings
                     "Remote side closed the connection.");
             }
             m_stagedCount += n;
+#if !NET5_0_OR_GREATER
+            // The receive cannot be cancelled here; the bytes it returned are kept
+            // for the next call before the cancellation is observed.
+            ct.ThrowIfCancellationRequested();
+#endif
         }
 
         private static byte[] AllocateStaging()
@@ -714,6 +736,12 @@ namespace Opc.Ua.Bindings
         private int m_stagedOffset;
         private int m_stagedCount;
         private int m_receiving;
+
+        /// <summary>
+        /// Set when a receive failed after consuming part of a chunk that did not
+        /// fit the staging buffer; the stream position is lost.
+        /// </summary>
+        private bool m_receiveBroken;
         private readonly ILogger m_logger;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(

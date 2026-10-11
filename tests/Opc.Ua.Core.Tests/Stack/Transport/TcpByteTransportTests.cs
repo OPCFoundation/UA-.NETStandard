@@ -576,9 +576,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 100)
                 ];
                 byte[] all = [.. chunks.SelectMany(c => c)];
-                await serverSocket
-                    .SendAsync(new ArraySegment<byte>(all), SocketFlags.None)
-                    .ConfigureAwait(false);
+                await SendAllAsync(serverSocket, all, 0, all.Length).ConfigureAwait(false);
 
                 foreach (byte[] expected in chunks)
                 {
@@ -604,9 +602,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
                 foreach ((int offset, int count) in new[] { (0, 3), (3, 64), (67, 29) })
                 {
-                    await serverSocket
-                        .SendAsync(new ArraySegment<byte>(all, offset, count), SocketFlags.None)
-                        .ConfigureAwait(false);
+                    await SendAllAsync(serverSocket, all, offset, count).ConfigureAwait(false);
                     await Task.Delay(50).ConfigureAwait(false);
                 }
 
@@ -615,6 +611,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+#if NET5_0_OR_GREATER
+        // The pending receive can only be cancelled where Socket.ReceiveAsync takes
+        // a token; on .NET Framework it waits for data or the close of the transport.
         [Test]
         public async Task ReceiveChunkAsyncHonoursCancellationAndKeepsStagedBytesAsync()
         {
@@ -635,10 +634,50 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Throws.InstanceOf<OperationCanceledException>());
 
                 // The next receive continues with the bytes that already arrived.
-                await serverSocket
-                    .SendAsync(new ArraySegment<byte>(chunk, 4, chunk.Length - 4), SocketFlags.None)
-                    .ConfigureAwait(false);
+                await SendAllAsync(serverSocket, chunk, 4, chunk.Length - 4).ConfigureAwait(false);
                 await AssertReceivesAsync(client, chunk).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CancellingTheBodyReadOfALargeChunkFailsLaterReceivesAsync()
+        {
+            const int largeBufferSize = 65536;
+            m_bufferManager = new BufferManager("TcpByteTransportTests", largeBufferSize, m_telemetry);
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync(largeBufferSize).ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // More than the staging buffer arrives, then the rest of the chunk
+                // does not: the bytes consumed so far cannot be put back.
+                byte[] chunk = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 20000);
+                await SendAllAsync(serverSocket, chunk, 0, 12000).ConfigureAwait(false);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+                Assert.That(
+                    async () => await client.ReceiveChunkAsync(cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                await SendAllAsync(serverSocket, chunk, 12000, chunk.Length - 12000).ConfigureAwait(false);
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReceiveChunkAsync(CancellationToken.None)
+                        .ConfigureAwait(false))!;
+                Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
+            }
+        }
+#endif
+
+        private static async Task SendAllAsync(Socket socket, byte[] data, int offset, int count)
+        {
+            while (count > 0)
+            {
+                int sent = await socket
+                    .SendAsync(new ArraySegment<byte>(data, offset, count), SocketFlags.None)
+                    .ConfigureAwait(false);
+                Assert.That(sent, Is.GreaterThan(0));
+                offset += sent;
+                count -= sent;
             }
         }
 

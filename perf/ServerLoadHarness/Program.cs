@@ -311,10 +311,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             var sessions = new ISession[sessionCount];
             var connectTime = Stopwatch.StartNew();
+            // Shared sessions connect one at a time by default: concurrent creation
+            // on one ClientChannelManager fails with BadSecureChannelClosed.
+            int connectParallel = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32;
             await Parallel.ForAsync(
                 0,
                 sessionCount,
-                new ParallelOptions { MaxDegreeOfParallelism = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32 },
+                new ParallelOptions { MaxDegreeOfParallelism = connectParallel },
                 async (i, ct) => sessions[i] = clientKind switch
                 {
                     "managed" => await new ManagedSessionBuilder(client.Config, telemetry)
