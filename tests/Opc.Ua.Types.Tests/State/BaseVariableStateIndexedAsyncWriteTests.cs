@@ -121,9 +121,11 @@ namespace Opc.Ua.Types.Tests.State
 
         private static SystemContext CreateContext()
         {
+            var namespaces = new NamespaceTable();
             return new SystemContext(TelemetryExtensions.InternalOnly__TelemetryHook())
             {
-                NamespaceUris = new NamespaceTable()
+                NamespaceUris = namespaces,
+                TypeTable = new TypeTable(namespaces)
             };
         }
 
@@ -134,8 +136,8 @@ namespace Opc.Ua.Types.Tests.State
                 NodeId = new NodeId("Value", 0),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
-                AccessLevel = AccessLevels.CurrentReadOrWrite,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.TimestampWrite,
                 Value = value,
                 StatusCode = StatusCodes.Good
             };
