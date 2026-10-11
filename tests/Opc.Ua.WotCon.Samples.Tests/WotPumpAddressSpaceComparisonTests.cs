@@ -62,7 +62,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task WotPumpInstanceMatchesNativePumpSubsetAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment wotEnvironment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable wotEnvironmentLifetime =

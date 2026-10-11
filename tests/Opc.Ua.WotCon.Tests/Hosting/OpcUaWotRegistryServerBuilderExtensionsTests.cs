@@ -31,11 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
@@ -135,7 +137,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             using ServiceProvider provider = services.BuildServiceProvider();
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
             await registry.InitializeAsync().ConfigureAwait(false);
-            await runtime.Lifecycle.AddAsync(provider.GetRequiredService<WotRegistryNodeManagerFactory>(), null)
+            NodeManagerRegistration registration = await runtime.Lifecycle
+                .AddAsync(provider.GetRequiredService<WotRegistryNodeManagerFactory>(), null)
                 .ConfigureAwait(false);
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -163,6 +166,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     """))
             }).ConfigureAwait(false);
             Assert.That(registered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(registration.NodeManager, Is.InstanceOf<IWotRegistryRecoveryProjection>());
+            await ((IWotRegistryRecoveryProjection)registration.NodeManager)
+                .SynchronizeAsync(registry.Current, CancellationToken.None).ConfigureAwait(false);
             WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
             coordinator.ServerNamespaceUris = runtime.Namespaces;
 

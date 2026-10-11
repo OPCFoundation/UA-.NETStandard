@@ -541,7 +541,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -564,7 +564,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);

@@ -276,6 +276,8 @@ $PerProjectTimeoutMinutes = 45
 # Full-corpus sample workflows include generation replacement and two native
 # companion comparisons; retain them in a dedicated, bounded job.
 $SampleProjectTimeoutMinutes = 180
+$IntegrationProjectTimeoutMinutes = 90
+$DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -404,7 +406,8 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     $currentMinutes = 0
     foreach ($project in $projects) {
         $minutes = Get-ProjectMinutes $project
-        if ([System.IO.Path]::GetFileNameWithoutExtension($project) -eq 'Opc.Ua.WotCon.Samples.Tests') {
+        $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+        if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedIntegrationProjects -contains $stem) {
             if ($current.Count -gt 0) {
                 $batches += , @($current)
                 $current = @()
@@ -499,6 +502,13 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                 [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Samples.Tests') {
                 $batchTimeout = $SampleProjectTimeoutMinutes
                 $batchHangTimeout = '45m'
+            }
+            elseif ($batch.Count -eq 1 -and
+                $DedicatedIntegrationProjects -contains [System.IO.Path]::GetFileNameWithoutExtension($batch[0])) {
+                $batchTimeout = $IntegrationProjectTimeoutMinutes
+                if ([System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.Types.Tests') {
+                    $batchHangTimeout = '30m'
+                }
             }
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus

@@ -475,11 +475,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 """);
 
             Assert.That(result.Success, Is.False);
-            WotDiagnostic cycle = result.Diagnostics.Single(diagnostic =>
+            WotDiagnostic[] cycles = result.Diagnostics.Where(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
-                diagnostic.Message.Contains("ancestor", StringComparison.Ordinal));
+                diagnostic.Message.Contains("ancestor", StringComparison.Ordinal)).ToArray();
+            Assert.That(cycles, Has.Length.EqualTo(2));
+            WotDiagnostic cycle = cycles.Single(diagnostic =>
+                diagnostic.Location?.NodeId == "nsu=urn:test:pump;i=2301");
             Assert.That(cycle.Location?.NodeId, Is.EqualTo("nsu=urn:test:pump;i=2301"));
             Assert.That(cycle.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/0/uav:dataTypeSubtypeOf"));
+            WotDiagnostic second = cycles.Single(diagnostic =>
+                diagnostic.Location?.NodeId == "nsu=urn:test:pump;i=2302");
+            Assert.That(second.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/1/uav:dataTypeSubtypeOf"));
         }
 
         [TestCase("i=3", 7, false)]

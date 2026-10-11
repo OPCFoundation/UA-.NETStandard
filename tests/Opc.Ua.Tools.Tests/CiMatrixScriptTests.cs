@@ -434,8 +434,35 @@ namespace Opc.Ua.Tools.Tests
                 });
             }
             Assert.That(matrix.Tests.Where(entry =>
-                !entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal)),
+                !entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)),
                 Is.All.Matches<MatrixEntry>(entry => entry.PerProjectTimeout == 45));
+        }
+
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task IntegrationProjectsRetainTheirWholeRunAfterColdCompilationAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] integration = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) ||
+                entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) ||
+                entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)).ToArray();
+            Assert.That(integration, Is.Not.Empty);
+            foreach (MatrixEntry entry in integration)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(entry.Projects, Does.Not.Contain(";"));
+                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(90));
+                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(110));
+                    Assert.That(entry.HangTimeout, Is.EqualTo(
+                        entry.Tier == "mainline" &&
+                        !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal) ? "10m" : "30m"));
+                });
+            }
         }
 
         /// <summary>
@@ -601,7 +628,8 @@ namespace Opc.Ua.Tools.Tests
             string Projects,
             int PerProjectTimeout,
             int TimeoutMinutes,
-            int PackedMinutes);
+            int PackedMinutes,
+            string HangTimeout);
 
         /// <summary>
         /// One expanded solution build matrix entry.
