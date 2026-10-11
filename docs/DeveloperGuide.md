@@ -443,6 +443,9 @@ combined budget. Server and WoT keep the 10-minute inactivity guard; Types uses
 30 minutes for complete instrumented companion-model conversions. Hosted cold builds
 have consumed 20-28 minutes before their healthy integration suites start;
 the larger finite budget prevents truncation without hiding an inactive test.
+The .NET Framework WoT profile reserves 150 combined minutes because its complete
+regeneration and server-integration run exceeded an hour after a 27-minute cold
+build. Its per-test inactivity guard remains unchanged.
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 

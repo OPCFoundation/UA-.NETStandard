@@ -219,6 +219,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
+        [Explicit("Rewrites the complete sample manifest and its generated documents.")]
+        public async Task WriteCompleteAggregationDocumentsAsync()
+        {
+            ArrayOf<SampleDocument> documents = await WotAggregationDocumentGenerator
+                .GenerateAggregationDocumentsAsync(RepositoryRoot).ConfigureAwait(false);
+            await WotAggregationDocumentGenerator.WriteDocumentsAsync(
+                DocumentPath(string.Empty), documents).ConfigureAwait(false);
+        }
+
+        [Test]
         public void CheckedInJsonDocumentsUseIndentedSerialization()
         {
             foreach (string path in SampleJsonDocuments())

@@ -277,6 +277,7 @@ $PerProjectTimeoutMinutes = 45
 # companion comparisons; retain them in a dedicated, bounded job.
 $SampleProjectTimeoutMinutes = 240
 $IntegrationProjectTimeoutMinutes = 90
+$WotFrameworkProjectTimeoutMinutes = 150
 $DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
@@ -506,6 +507,10 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
             elseif ($batch.Count -eq 1 -and
                 $DedicatedIntegrationProjects -contains [System.IO.Path]::GetFileNameWithoutExtension($batch[0])) {
                 $batchTimeout = $IntegrationProjectTimeoutMinutes
+                if ($testProfile.framework -eq 'net48' -and
+                    [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Tests') {
+                    $batchTimeout = $WotFrameworkProjectTimeoutMinutes
+                }
                 if ([System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.Types.Tests') {
                     $batchHangTimeout = '30m'
                 }

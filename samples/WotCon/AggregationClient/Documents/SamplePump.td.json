@@ -697,7 +697,7 @@
   },
   "links": [
     {
-      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1052",
+      "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Type",
       "rel": "ua:HasTypeDefinition"
     },
     {

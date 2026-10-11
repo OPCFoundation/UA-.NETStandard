@@ -457,8 +457,10 @@ namespace Opc.Ua.Tools.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(entry.Projects, Does.Not.Contain(";"));
-                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(90));
-                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(110));
+                    int budget = entry.Framework == "net48" &&
+                        entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) ? 150 : 90;
+                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(budget));
+                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(budget + 20));
                     Assert.That(entry.HangTimeout, Is.EqualTo(
                         entry.Tier == "mainline" &&
                         !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal) ? "10m" : "30m"));
