@@ -52,6 +52,35 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed class NuGetPackageSetValidationTests
     {
+        /// <summary>
+        /// Requires the release inventory to include the intended Vision package boundaries.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryIncludesTheCompleteVisionFamilyAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(id =>
+                    id is "OPCFoundation.NetStandard.Opc.Ua.Vision" or "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Vision.", StringComparison.Ordinal))
+            ];
+            string[] expected =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.Vision",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision"
+            ];
+
+            Assert.That(actual, Is.EquivalentTo(expected));
+        }
+
         [Test]
         public async Task AcceptsAUniformPreviewPackageSetAsync()
         {
