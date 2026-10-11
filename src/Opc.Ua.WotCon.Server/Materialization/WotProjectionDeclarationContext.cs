@@ -129,6 +129,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 nodes.Contains(nodeId);
         }
 
+        public bool ContainsEventType(string resourceXid, ExpandedNodeId nodeId)
+        {
+            return m_roots.TryGetValue(resourceXid, out ExpandedNodeId root) &&
+                m_native.CanGenerateEvent(root, nodeId);
+        }
+
         public ArrayOf<ExpandedNodeId> GetNodes(string resourceXid)
         {
             return m_partitionNodes.TryGetValue(resourceXid, out HashSet<ExpandedNodeId>? nodes)

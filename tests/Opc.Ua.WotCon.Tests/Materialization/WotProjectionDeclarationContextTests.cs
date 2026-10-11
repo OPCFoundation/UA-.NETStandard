@@ -47,6 +47,90 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [NonParallelizable]
     public sealed class WotProjectionDeclarationContextTests
     {
+        [TestCase(true, true, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        public async Task NativeEventViewUsesCapturedTypeEvidenceWithoutTransferringNodeOwnership(
+            bool generatesEvent, bool typePresent, bool eventPresent)
+        {
+            using var registry = new WotRegistryService();
+            await AddAsync(registry, "event-source", WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes("""{"id":"urn:event-source","title":"Source"}""")).ConfigureAwait(false);
+            WotResource source = registry.Current.AllResources()
+                .Single(resource => resource.SourceId == "urn:event-source");
+            const string ns = "urn:split-event";
+            var context = new WotProjectionDeclarationContext(
+                registry.Current, 64, registry.ReadContentAsync);
+            var owner = new UANodeSet
+            {
+                NamespaceUris = [ns],
+                Items =
+                [
+                    new UAObject
+                    {
+                        NodeId = "ns=1;s=Owner", BrowseName = "1:Owner",
+                        References =
+                        [
+                            new Reference { ReferenceType = "HasTypeDefinition", Value = "ns=1;s=SourceType" }
+                        ]
+                    }
+                ]
+            };
+            ByteString content = ByteString.From(
+                Encoding.UTF8.GetBytes("""{"uav:id":"nsu=urn:split-event;s=Owner"}"""));
+            context.AddNodeSet(source.Xid, owner, new ExpandedNodeId("Owner", ns), content);
+            if (typePresent)
+            {
+                var type = new UANodeSet
+                {
+                    NamespaceUris = [ns],
+                    Items =
+                    [
+                        new UAObjectType
+                        {
+                            NodeId = "ns=1;s=SourceType", BrowseName = "1:SourceType",
+                            References = generatesEvent
+                                ? [new Reference { ReferenceType = "GeneratesEvent", Value = "ns=1;s=Alarm" }] : []
+                        }
+                    ]
+                };
+                context.AddNodeSet("type", type, new ExpandedNodeId("SourceType", ns), content);
+            }
+            if (eventPresent)
+            {
+                context.AddNodeSet("event", new UANodeSet
+                {
+                    NamespaceUris = [ns],
+                    Items = [new UAObjectType { NodeId = "ns=1;s=Alarm", BrowseName = "1:Alarm" }]
+                }, new ExpandedNodeId("Alarm", ns), content);
+            }
+            var namespaces = new NamespaceTable();
+            ushort index = namespaces.GetIndexOrAppend(ns);
+            var roots = new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                [source.Xid] = new NodeId("Owner", index)
+            };
+            var nodeIndex = new WotMaterializedNodeIndex(
+                registry.Current, namespaces, roots, (xid, node) =>
+                    context.ContainsNode(xid, NodeId.ToExpandedNodeId(node, namespaces)),
+                (xid, node) => context.ContainsEventType(xid, NodeId.ToExpandedNodeId(node, namespaces)));
+            NodeId located = nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Event, "Alarm",
+                new ExpandedNodeId("Alarm", ns)));
+
+            Assert.That(located, Is.EqualTo(generatesEvent && typePresent && eventPresent
+                ? new NodeId("Alarm", index) : NodeId.Null));
+            Assert.That(context.ContainsNode(source.Xid, new ExpandedNodeId("Alarm", ns)), Is.False,
+                "Referenced event declarations remain owned by their actual native partition.");
+            Assert.That(nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Property, "Alarm",
+                new ExpandedNodeId("Alarm", ns))).IsNull, Is.True);
+            Assert.That(nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Action, "Alarm",
+                new ExpandedNodeId("Alarm", ns))).IsNull, Is.True);
+        }
+
         [Test]
         public async Task CoordinatorCarriesGeneratedLocalIdentitiesIntoBindingPlans()
         {

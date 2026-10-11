@@ -508,12 +508,12 @@ namespace Opc.Ua.Wot
             {
                 return entries;
             }
-            var schemas = new HashSet<JsonElement>();
+            var schemas = new HashSet<JsonElement>(document.ElementComparer);
             foreach (JsonElement schema in WotNodeSetConverter.ReadDataSchemaOccurrences(document))
             {
                 schemas.Add(schema);
             }
-            var units = new HashSet<JsonElement>();
+            var units = new HashSet<JsonElement>(document.ElementComparer);
             foreach (IReadOnlyDictionary<string, JsonElement> map in new[]
                 {
                     document.Properties, document.Actions, document.Events

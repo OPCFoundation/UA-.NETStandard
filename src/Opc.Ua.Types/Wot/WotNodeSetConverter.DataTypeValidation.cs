@@ -106,21 +106,26 @@ namespace Opc.Ua.Wot
             foreach (DataTypeValidationNode start in context.ValidationTypes.Values)
             {
                 var path = new List<DataTypeValidationNode>();
-                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var seen = new Dictionary<string, int>(StringComparer.Ordinal);
                 DataTypeValidationNode? current = start;
                 while (current is not null && !completed.Contains(current.Identity))
                 {
-                    if (!seen.Add(current.Identity))
+                    if (seen.TryGetValue(current.Identity, out int cycleStart))
                     {
-                        ReportDataTypeContractError(current, "uav:dataTypeSubtypeOf",
-                            $"The DataType '{current.Name}' is its own ancestor; the resolved subtype graph " +
-                            "contains a cycle and shall be acyclic.", diagnostics);
+                        for (int index = cycleStart; index < path.Count; index++)
+                        {
+                            DataTypeValidationNode cyclic = path[index];
+                            ReportDataTypeContractError(cyclic, "uav:dataTypeSubtypeOf",
+                                $"The DataType '{cyclic.Name}' is its own ancestor; the resolved subtype graph " +
+                                "contains a cycle and shall be acyclic.", diagnostics);
+                        }
                         foreach (DataTypeValidationNode member in path)
                         {
                             member.Invalid = true;
                         }
                         break;
                     }
+                    seen.Add(current.Identity, path.Count);
                     path.Add(current);
                     current = current.BaseIdentity is { } parent &&
                         context.ValidationTypes.TryGetValue(parent, out DataTypeValidationNode? next)
@@ -188,7 +193,7 @@ namespace Opc.Ua.Wot
 
         private static string NormalizeDataTypeValidationIdentity(string identity, UANodeSet nodeSet)
         {
-            return NormalizeExpandedNodeId(ToPortableNodeId(identity, nodeSet.NamespaceUris) ?? identity);
+            return NormalizeExpandedNodeId(RenderPortableNodeId(identity, GetNamespaceTable(nodeSet)) ?? identity);
         }
 
         private static BuiltInType GetValidationBuiltInType(string identity)

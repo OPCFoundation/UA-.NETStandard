@@ -1572,6 +1572,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 snapshot, namespaces, sourceRoots,
                 (xid, nodeId) => declarationContext.ContainsNode(xid, nodeId.NamespaceIndex == 0
                     ? new ExpandedNodeId(nodeId)
+                    : NodeId.ToExpandedNodeId(nodeId, namespaces)),
+                (xid, nodeId) => declarationContext.ContainsEventType(xid, nodeId.NamespaceIndex == 0
+                    ? new ExpandedNodeId(nodeId)
                     : NodeId.ToExpandedNodeId(nodeId, namespaces)));
             var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
             var builder = new WotProjectionViewBuilder(

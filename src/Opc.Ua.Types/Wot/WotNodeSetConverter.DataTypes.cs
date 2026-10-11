@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -2897,7 +2898,9 @@ namespace Opc.Ua.Wot
 
             public Dictionary<string, string> Identities { get; } = identities;
 
-            public Dictionary<JsonElement, string> SchemaIdentities { get; } = [];
+            public Dictionary<JsonElement, string> SchemaIdentities { get; } = new(
+                new WotJsonElementComparer(owners.Values.Prepend(primaryOwner).Distinct()
+                    .Select(owner => owner.RootElement).ToArrayOf()));
 
             public Dictionary<string, List<(WotDocument Document, JsonElement Schema)>> InferredSchemas { get; } =
                 new(StringComparer.Ordinal);

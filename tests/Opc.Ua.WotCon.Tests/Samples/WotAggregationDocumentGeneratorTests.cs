@@ -1079,6 +1079,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             get
             {
+                string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+                if (!string.IsNullOrEmpty(configuredRoot))
+                {
+                    string root = Path.GetFullPath(configuredRoot);
+                    if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                    {
+                        throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                    }
+                    return root;
+                }
                 DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
                 while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
                 {

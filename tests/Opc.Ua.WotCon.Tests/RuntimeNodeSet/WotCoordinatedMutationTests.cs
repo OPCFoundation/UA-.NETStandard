@@ -68,7 +68,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Guid.NewGuid().ToString("N"));
             try
             {
-                m_store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+                m_storage = new PreparedWotTestStorage(Path.Combine(m_root, "registry"), forceLeasedContent: true);
+                m_store = m_storage.OpenStore();
                 var options = new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
@@ -250,6 +251,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             CaptureCleanup(() => m_coordinator?.Dispose(), failures);
             CaptureCleanup(() => m_registry?.Dispose(), failures);
             CaptureCleanup(() => m_store?.Dispose(), failures);
+            CaptureCleanup(() => m_storage?.Dispose(), failures);
             if (failures.Count == 0 && !string.IsNullOrEmpty(m_root) && Directory.Exists(m_root))
             {
                 CaptureCleanup(() => Directory.Delete(m_root, recursive: true), failures);
@@ -282,6 +284,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
         private string m_root = null!;
         private string m_modelUri = null!;
+        private PreparedWotTestStorage m_storage = null!;
         private FileWotRegistryStore m_store = null!;
         private WotRegistryService m_registry = null!;
         private ServerFixture<ReferenceServer> m_fixture = null!;

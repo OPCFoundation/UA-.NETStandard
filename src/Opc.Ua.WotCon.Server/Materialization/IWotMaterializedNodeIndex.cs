@@ -192,7 +192,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotRegistrySnapshot snapshot,
             NamespaceTable serverNamespaceUris,
             IReadOnlyDictionary<string, NodeId> sourceRootsByXid,
-            Func<string, NodeId, bool>? containsSourceNode)
+            Func<string, NodeId, bool>? containsSourceNode,
+            Func<string, NodeId, bool>? containsEventType = null)
         {
             m_snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             m_serverNamespaceUris = serverNamespaceUris ??
@@ -200,6 +201,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_sourceRootsByXid = sourceRootsByXid ??
                 throw new ArgumentNullException(nameof(sourceRootsByXid));
             m_containsSourceNode = containsSourceNode;
+            m_containsEventType = containsEventType;
         }
 
         /// <inheritdoc/>
@@ -219,7 +221,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 NodeId byId = ExpandedNodeId.ToNodeId(affordance.AuthoredId, m_serverNamespaceUris);
                 if (!byId.IsNull && (m_containsSourceNode is not null
-                    ? m_containsSourceNode(source.Xid, byId)
+                    ? m_containsSourceNode(source.Xid, byId) ||
+                        (affordance.Kind == WotAffordanceKind.Event &&
+                            m_containsEventType?.Invoke(source.Xid, byId) == true)
                     : IsUnderSourceRoot(byId, sourceRoot)))
                 {
                     return byId;
@@ -279,5 +283,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly NamespaceTable m_serverNamespaceUris;
         private readonly IReadOnlyDictionary<string, NodeId> m_sourceRootsByXid;
         private readonly Func<string, NodeId, bool>? m_containsSourceNode;
+        private readonly Func<string, NodeId, bool>? m_containsEventType;
     }
 }

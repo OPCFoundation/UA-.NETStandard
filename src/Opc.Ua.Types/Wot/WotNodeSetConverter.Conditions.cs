@@ -1803,7 +1803,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             Dictionary<JsonElement, WotTypeBinding>? bindings)
         {
-            bindings ??= [];
+            bindings ??= new(document.ElementComparer);
             foreach (JsonElement eventAffordance in document.Events.Values)
             {
                 if (!bindings.ContainsKey(eventAffordance))

@@ -755,7 +755,7 @@ namespace Opc.Ua.Wot
             var factDiagnostics = new List<WotDiagnostic>();
             DataTypeDefinitionContext authoredTypes = CreateDataTypeDefinitionContext(
                 authoredDocument, identities, [], [], factDiagnostics);
-            var argumentSchemas = new HashSet<JsonElement>();
+            var argumentSchemas = new HashSet<JsonElement>(authoredDocument.ElementComparer);
             bool factsMatch = true;
             for (int index = 0; index < authored.Value.ArgumentCount; index++)
             {

@@ -202,6 +202,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return new StructureDefinition
                 {
                     BaseDataType = Ua.DataTypeIds.Structure,
+                    DefaultEncodingId = ExpandedNodeId.ToNodeId(
+                        new ExpandedNodeId(9103u, "urn:wot-observe"), namespaceUris),
                     StructureType = StructureType.Structure,
                     Fields =
                     [

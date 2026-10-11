@@ -75,12 +75,19 @@ namespace Opc.Ua.Wot
         {
             m_utf8Json = utf8Json;
             m_document = document;
+            ElementComparer = new WotJsonElementComparer([document.RootElement]);
+            m_payloadSchemas = new(new PayloadSchemaKeyComparer(ElementComparer));
         }
 
         /// <summary>
         /// Gets the parsed document root.
         /// </summary>
         public JsonElement RootElement => m_document.RootElement;
+
+        /// <summary>
+        /// Gets identity hashing for elements of this live document.
+        /// </summary>
+        internal IEqualityComparer<JsonElement> ElementComparer { get; }
 
         /// <summary>
         /// Gets the original UTF-8 document bytes.
@@ -485,7 +492,7 @@ namespace Opc.Ua.Wot
 
         private Dictionary<JsonElement, ContextScope?> CreateContextScopes()
         {
-            var scopes = new Dictionary<JsonElement, ContextScope?>();
+            var scopes = new Dictionary<JsonElement, ContextScope?>(ElementComparer);
             AddContextScopes(RootElement, null, scopes);
             return scopes;
         }
@@ -1330,7 +1337,7 @@ namespace Opc.Ua.Wot
 
         private MemberPathAllocation CreateMemberPathAllocation(string modelUri)
         {
-            var elements = new Dictionary<JsonElement, WotBrowsePathElement>();
+            var elements = new Dictionary<JsonElement, WotBrowsePathElement>(ElementComparer);
             var namesByNamespace = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             AddMap(Properties);
             AddMap(Actions);
@@ -1418,7 +1425,7 @@ namespace Opc.Ua.Wot
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
         private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
-            m_payloadSchemas = [];
+            m_payloadSchemas;
         private IReadOnlyList<string>? m_typeTokens;
         private IReadOnlyDictionary<string, JsonElement>? m_properties;
         private IReadOnlyDictionary<string, JsonElement>? m_actions;
@@ -1429,6 +1436,22 @@ namespace Opc.Ua.Wot
         private IReadOnlyList<JsonElement>? m_forms;
         private Dictionary<JsonElement, ContextScope?>? m_contextScopes;
         private MemberPathAllocation? m_memberPathAllocation;
+
+        private sealed class PayloadSchemaKeyComparer(IEqualityComparer<JsonElement> elements)
+            : IEqualityComparer<(WotAffordanceKind Kind, JsonElement Affordance)>
+        {
+            public bool Equals(
+                (WotAffordanceKind Kind, JsonElement Affordance) x,
+                (WotAffordanceKind Kind, JsonElement Affordance) y)
+            {
+                return x.Kind == y.Kind && elements.Equals(x.Affordance, y.Affordance);
+            }
+
+            public int GetHashCode((WotAffordanceKind Kind, JsonElement Affordance) key)
+            {
+                return HashCode.Combine((int)key.Kind, elements.GetHashCode(key.Affordance));
+            }
+        }
 
         private sealed class MemberPathAllocation(
             string modelUri,

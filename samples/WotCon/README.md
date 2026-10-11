@@ -9,6 +9,31 @@ The aggregation server contains no Pump-specific generated code and does not ref
 
 The documents ship with the client because the client is what uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
 
+The sample publisher declares typed TD and TM catalogues under
+`urn:opcfoundation.org:UA:WotAggregation:ThingDescriptions` and
+`urn:opcfoundation.org:UA:WotAggregation:ThingModels`. A document's exact `id`
+is its source identity when present. For native fragments without `id`, the
+publisher assigns `urn:opcfoundation.org:UA:WotAggregation:document:` followed by
+the URI-escaped manifest resource name and adds that `id` to the uploaded document.
+The checked-in native fragment and its `uav:nodes` payload remain unchanged.
+This is the sample's explicit publication
+identity policy; the generic server does not infer authority from resource names.
+The client uses the returned server-assigned identifiers for bulk upload, not
+the manifest names. Manifest-relative document links and `tm:ref` selections are
+translated to the declared source identities, preserving fragments. Source labels,
+protocol forms, native payloads, defaults and vendor metadata are not rewritten.
+The complete linked set is refreshed with `PerRegistry` atomicity. The server
+uses file-backed registry storage so preparation and publication share a durable
+decision.
+Stock file-content leases provide mandatory exclusion on Windows only. On other
+platforms, programmatic hosts must supply `AggregationServerOptions.ResourceStore`
+with genuine immutable-content leases for `PerRegistry` publication; the sample
+fails explicitly rather than pretending advisory file sharing is equivalent.
+Cross-platform tests inject the existing leased fixture provider while retaining
+the real file-backed manifest. Its in-memory content is not process-crash durable.
+The sample converter admits at most 1,024 linked documents per conversion,
+covering the checked-in 533-document set without removing the existing byte limits.
+
 ## Topology
 
 There are three long-running server processes:
@@ -49,6 +74,14 @@ route. Alternative forms are not an instruction to invoke multiple sources.
 The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
 
 Run the commands below from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
+
+The aggregation server uses `SignAndEncrypt` with `Basic256Sha256` for its
+upstream source sessions. Transparent alarm occurrence routing requires an
+authenticated server identity; an unencrypted source channel cannot provide it.
+The sample uses a finite twenty-minute session and Refresh service budget with
+thirty-second keep-alive intervals. This allows full-set conversion and garbage
+collection to make progress without treating a short scheduling delay as a lost
+source. Binding currentness and authenticated occurrence checks remain enforced.
 
 ## Run the sample
 
@@ -138,14 +171,15 @@ dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -
   --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
   --documentsDirectory ./samples/WotCon/AggregationClient/Documents `
   --exerciseControls true `
-  --timeoutSeconds 480
+  --timeoutSeconds 1200
 ```
 
 The client reports the actual manifest resource count, refresh outcomes, both
 recursively browsed pump hierarchies, and their typed values. The
 `WOT_AGGREGATION_CONTROLS_OK` marker appears only after all four pump/source
 workflows finish. `-ClientTimeoutSeconds` bounds the script's client process;
-`--timeoutSeconds` bounds a manually launched client.
+its default is twenty minutes for the complete document set. `--timeoutSeconds`
+bounds a manually launched client; specify `1200` for the same budget.
 
 ## Command-line and programmatic options
 
@@ -188,7 +222,9 @@ workflows finish. `-ClientTimeoutSeconds` bounds the script's client process;
 | `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
 `AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName`
-(`AggregationServer`), `pkiRoot`, and `maximumDocumentBytes` (`33554432`).
+(`AggregationServer`), `pkiRoot`, `storageFolder` (the `registry` directory beside
+the application), and `maximumDocumentBytes` (`33554432`). The demo script gives
+registry storage its own directory under the isolated run root.
 
 `AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
 `applicationName` (`AggregationClient`), `pkiRoot`, `documentsDirectory`,

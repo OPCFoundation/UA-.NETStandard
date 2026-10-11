@@ -38,9 +38,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Server.Hosting;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server;
+using Opc.Ua.WotCon.Server.Materialization;
 
 namespace AggregationServer
 {
@@ -92,6 +95,8 @@ namespace AggregationServer
                 ApplicationName =
                     builder.Configuration["applicationName"] ?? "AggregationServer",
                 PkiRoot = builder.Configuration["pkiRoot"],
+                StorageFolder = builder.Configuration["storageFolder"] ??
+                    Path.Combine(AppContext.BaseDirectory, "registry"),
                 MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration)
             };
             Configure(builder, options);
@@ -126,9 +131,25 @@ namespace AggregationServer
                 server.IncludeUnsecurePolicyNone = true;
                 server.EndpointUrls.Add(endpoint);
             });
+            builder.Services.AddSingleton(serviceProvider => new WotNodeSetConverterOptions
+            {
+                MaxJsonDocumentSize = options.MaximumDocumentBytes,
+                MaxResolverDocumentBytes = options.MaximumDocumentBytes,
+                MaxResolverDocuments = 1024,
+                ValueEncodingContext = serviceProvider.GetService<IServiceMessageContext>()
+            });
+            builder.Services.AddSingleton(serviceProvider =>
+                new LinkedNativeDocumentConverter(serviceProvider.GetRequiredService<WotNodeSetConverterOptions>(),
+                    serviceProvider.GetRequiredService<ITelemetryContext>()));
+            builder.Services.AddSingleton<IWotDocumentConverter>(serviceProvider =>
+                serviceProvider.GetRequiredService<LinkedNativeDocumentConverter>());
+            builder.Services.AddSingleton<IServerStartupTask>(serviceProvider =>
+                serviceProvider.GetRequiredService<LinkedNativeDocumentConverter>());
             opcUa.AddWotRegistryServer(registry =>
             {
                 registry.AutoRefresh = false;
+                registry.StorageFolder = options.StorageFolder;
+                registry.ResourceStore = options.ResourceStore;
                 registry.Bounds.MaxDocumentBytes = options.MaximumDocumentBytes;
                 registry.ManagementAccess = new WotManagementAccessPolicy
                 {
@@ -152,7 +173,7 @@ namespace AggregationServer
                 client.Session = new ManagedSessionOptions
                 {
                     SessionName = $"{options.ApplicationName}.Upstream",
-                    SessionTimeout = TimeSpan.FromSeconds(60)
+                    SessionTimeout = TimeSpan.FromMinutes(20)
                 };
             }).AddManagedClientPool();
 
@@ -177,15 +198,24 @@ namespace AggregationServer
                         var endpointDescription = new EndpointDescription
                         {
                             EndpointUrl = url,
-                            SecurityMode = MessageSecurityMode.None,
-                            SecurityPolicyUri = SecurityPolicies.None
+                            SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
                         };
                         var configuredEndpoint = new ConfiguredEndpoint(
                             null,
                             endpointDescription,
-                            null);
-                        return await pool.GetOrConnectAsync(url, configuredEndpoint, ct)
+                            null)
+                        {
+                            UpdateBeforeConnect = true
+                        };
+                        ManagedSession session = await pool.GetOrConnectAsync(url, configuredEndpoint, ct)
                             .ConfigureAwait(false);
+                        int keepAliveInterval = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
+                        if (session.KeepAliveInterval != keepAliveInterval)
+                        {
+                            session.KeepAliveInterval = keepAliveInterval;
+                        }
+                        return session;
                     }
                 });
             });
@@ -224,6 +254,10 @@ namespace AggregationServer
                 throw new ArgumentException(
                     "MaximumDocumentBytes must be positive.",
                     nameof(options));
+            }
+            if (string.IsNullOrWhiteSpace(options.StorageFolder))
+            {
+                throw new ArgumentException("StorageFolder is required.", nameof(options));
             }
             if (options.EndpointUrl is null &&
                 (string.IsNullOrWhiteSpace(options.Host) || options.Port is < 1 or > 65535))

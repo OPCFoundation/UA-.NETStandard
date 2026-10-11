@@ -2529,6 +2529,11 @@ namespace Opc.Ua.Wot
         /// </summary>
         internal static string? ToPortableNodeId(string? rawNodeId, string[]? namespaceUris)
         {
+            return RenderPortableNodeId(rawNodeId, namespaceUris);
+        }
+
+        private static string? RenderPortableNodeId(string? rawNodeId, IReadOnlyList<string>? namespaceUris)
+        {
             if (string.IsNullOrEmpty(rawNodeId))
             {
                 return rawNodeId;
@@ -2554,7 +2559,7 @@ namespace Opc.Ua.Wot
             ushort index = parsed.NamespaceIndex;
             if (index != 0)
             {
-                if (namespaceUris is null || index - 1 >= namespaceUris.Length)
+                if (namespaceUris is null || index - 1 >= namespaceUris.Count)
                 {
                     return rawNodeId;
                 }

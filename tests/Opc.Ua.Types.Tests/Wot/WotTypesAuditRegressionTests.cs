@@ -119,8 +119,6 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task SourceSchemeCannotReplaceTheProjectionsOwnSchemeAsync()
         {
-            // "plant" + "_" + "sc" is the name of the projection's own floor;
-            // the source's nosec scheme used to overwrite it silently.
             string projection = Projection(
                 "\"plant_sc\":{\"scheme\":\"uav:channelsec\"," +
                 "\"uav:securityMode\":\"SignAndEncrypt\"," +
@@ -135,17 +133,24 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Success, Is.False);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
                 Assert.That(
                     result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
-                    Is.True);
+                    Is.False);
+                Assert.That(result.Value!.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("uav:channelsec"));
+                Assert.That(result.Value.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                    .GetProperty("uav:securityMode").GetString(), Is.EqualTo("SignAndEncrypt"));
+                Assert.That(result.Value.SecurityDefinitions["q:s:cGxhbnQ:c2M"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
+                Assert.That(result.Value.Properties["p1"].GetProperty("forms")[0]
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:cGxhbnQ:c2M"));
             });
         }
 
         [Test]
-        public async Task TwoSourceSchemesWithOneQualifiedNameAreRefusedAsync()
+        public async Task SourceSchemesWithCollidingLegacyNamesRetainSeparateOwnersAsync()
         {
-            // "line" + "2_sc" and "line_2" + "sc" both qualify to "line_2_sc".
             string projection = Projection(
                 "\"nosec_sc\":{\"scheme\":\"nosec\"}",
                 "nosec_sc",
@@ -165,15 +170,23 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Success, Is.False);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
                 Assert.That(
                     result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
-                    Is.True);
+                    Is.False);
+                Assert.That(result.Value!.Properties["p1"].GetProperty("forms")[0]
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:bGluZQ:Ml9zYw"));
+                Assert.That(result.Value.Properties["p2"].GetProperty("forms")[0]
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:bGluZV8y:c2M"));
+                Assert.That(result.Value.SecurityDefinitions["q:s:bGluZQ:Ml9zYw"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
+                Assert.That(result.Value.SecurityDefinitions["q:s:bGluZV8y:c2M"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("uav:channelsec"));
             });
         }
 
         [Test]
-        public async Task AnIdenticalProjectionSchemeIsSharedAsync()
+        public async Task IdenticalProjectionAndSourceSchemesRetainSeparateOwnershipAsync()
         {
             const string definition = "{\"scheme\":\"nosec\"}";
             string projection = Projection(
@@ -186,11 +199,21 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result =
                 await ResolveAsync(resolver, projection).ConfigureAwait(false);
 
-            Assert.That(result.Success, Is.True);
-            Assert.That(
-                result.Value!.RootElement.GetProperty("properties").GetProperty("p1")
-                    .GetProperty("forms")[0].GetProperty("security")[0].GetString(),
-                Is.EqualTo("plant_sc"));
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Value!.Properties["p1"].GetProperty("forms")[0]
+                        .GetProperty("security")[0].GetString(),
+                    Is.EqualTo("q:s:cGxhbnQ:c2M"));
+                Assert.That(result.Value.RootElement.GetProperty("security").GetString(),
+                    Is.EqualTo("q:p:cGxhbnRfc2M"));
+                Assert.That(result.Value.SecurityDefinitions, Has.Count.EqualTo(2));
+                Assert.That(result.Value.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
+                Assert.That(result.Value.SecurityDefinitions["q:s:cGxhbnQ:c2M"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
+            });
         }
 
         [Test]
@@ -210,7 +233,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<WotDocument> result =
                 await ResolveAsync(resolver, projection).ConfigureAwait(false);
 
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
             Assert.That(
                 result.Value!.RootElement.GetProperty("properties").GetProperty("p1")
                     .GetProperty("const").GetArrayLength(),
@@ -280,8 +303,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"Pumps\"," +
-                "\"uav:nodes\":{\"namespaceUris\":[\"urn:acme;pumps\"]," +
-                "\"nodes\":[{\"nodeId\":\"ns=1;i=1001\",\"nodeClass\":\"ObjectType\"}]}" +
+                "\"uav:nodes\":{\"@type\":\"uav:NodeModel\",\"profileVersion\":\"1.0\"," +
+                "\"namespaceUris\":[\"urn:acme;pumps\"]," +
+                "\"nodes\":[{\"nodeId\":\"ns=1;i=1001\",\"nodeClass\":\"ObjectType\"," +
+                "\"browseName\":\"1:Type\"}]}" +
                 "}";
 
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
@@ -395,6 +420,10 @@ namespace Opc.Ua.Types.Tests.Wot
                     MaxAffordanceCount = n + 10,
                     MaxNodeCount = 10 * n
                 };
+                TestContext.Out.WriteLine(
+                    $"{document.Properties.Count} affordances use " +
+                    $"{document.Properties.Values.Select(value => value.GetHashCode()).Distinct().Count()} " +
+                    "default element hash buckets.");
 
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 result = WotNodeSetConverter.ToNodeSetResult(document, options);
@@ -591,7 +620,8 @@ namespace Opc.Ua.Types.Tests.Wot
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"tm\":\"https://www.w3.org/2019/wot/tm#\"}]," +
-                "\"@type\":[\"Thing\",\"uav:projection\"],\"id\":\"urn:view\",\"title\":\"View\"," +
+                "\"@type\":\"uav:projection\",\"uav:projectionKind\":\"ThingDescription\"," +
+                "\"id\":\"urn:view\",\"title\":\"View\"," +
                 "\"uav:scenario\":\"http://example.com/scenario/View\"," +
                 "\"securityDefinitions\":{" + securityDefinitions + "}," +
                 "\"security\":\"" + security + "\"," +

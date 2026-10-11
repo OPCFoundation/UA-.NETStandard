@@ -349,8 +349,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase(true)]
         public async Task DefinitionIdentityIndexSurvivesReloadAndLegacyIndexMigration(bool legacyIndex)
         {
+            using var storage = new PreparedWotTestStorage(m_root, forceLeasedContent: true);
             long generation;
-            using (var store = new FileWotRegistryStore(m_root))
+            using (var store = storage.OpenStore())
             using (var registry = new WotRegistryService(store))
             {
                 await registry.InitializeAsync().ConfigureAwait(false);
@@ -431,7 +432,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(changed, Is.EqualTo(2));
                 File.WriteAllText(path, manifest.ToJsonString());
             }
-            using var reopenedStore = new FileWotRegistryStore(m_root);
+            using var reopenedStore = storage.OpenStore();
             using var reopened = new WotRegistryService(reopenedStore);
             await reopened.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = reopened.Current;

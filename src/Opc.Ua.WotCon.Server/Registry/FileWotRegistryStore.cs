@@ -1418,7 +1418,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             return new DependencyGraphDto
             {
-                Edges = snapshot.Edges.ToList().Select(edge => new DependencyEdgeDto
+                Edges = snapshot.Graph.Edges.ToList().Select(edge => new DependencyEdgeDto
                 {
                     SourceXid = edge.SourceXid,
                     TargetHref = edge.TargetHref,
@@ -1426,7 +1426,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     RefType = edge.RefType,
                     Resolved = edge.Resolved
                 }).ToArray(),
-                Targets = snapshot.Targets.ToList().Select(target => new DependencyTargetDto
+                Targets = snapshot.Graph.Targets.ToList().Select(target => new DependencyTargetDto
                 {
                     EdgeIndex = target.EdgeIndex,
                     OriginRegistry = target.OriginRegistry is null ? null : new RegistryOriginDto
@@ -1460,11 +1460,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             try
             {
-                (ArrayOf<WotDependency> edges, ArrayOf<WotDependencyTargetPin> targets) = dependencyGraphs.Read(dto);
+                WotDependencySnapshot.ValidatedGraph graph = dependencyGraphs.Read(dto);
                 return new WotDependencySnapshot(
                     versionId, dto.Generation, dto.RequestId, ParseDate(dto.ResolvedAt), dto.IsCommitted,
                     dto.EffectiveInputDigest.Length == 0 ? ByteString.Empty : FromHexDigest(dto.EffectiveInputDigest),
-                    edges, targets);
+                    graph);
             }
             catch (Exception exception) when (exception is ArgumentException or FormatException)
             {

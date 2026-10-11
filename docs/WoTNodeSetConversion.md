@@ -547,6 +547,15 @@ still takes the asynchronous path. An affordance that states no selection needs
 no resolution: it takes the implicit `BaseEventType` default and converts
 synchronously as before.
 
+Conversion caches preserve JSON element occurrence identity: equal-valued
+siblings, cloned elements, and elements of different documents are not
+interchangeable. Internal lookups hash positions within live document buffers
+without changing equality or allocating copies of the JSON. Namespace indexes
+accumulate during affordance synthesis and publish at the stage boundary;
+payload type capture still resolves against the complete in-progress table.
+These details keep large affordance and namespace collections from triggering
+quadratic lookup or array-copy work without reducing conversion limits.
+
 ## DataType definitions (Section 6.11)
 
 WoT Binding §6.11 gives Structures, Unions, Enumerations, OptionSets and

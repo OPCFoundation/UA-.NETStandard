@@ -54,7 +54,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             CancellationToken cancellationToken = default)
         {
             Dictionary<string, JsonObject> roots = ParseRoots(documents);
-            Dictionary<string, BindingNode> bindingNodes = ReadBindingNodes(documents);
+            Dictionary<string, BindingNode> bindingNodes =
+                roots.Values.Any(root => root.ContainsKey("uav:nodes") || root.ContainsKey("uav:nodeSet"))
+                    ? await ReadBindingNodesAsync(documents, cancellationToken).ConfigureAwait(false)
+                    : new Dictionary<string, BindingNode>(StringComparer.Ordinal);
             foreach (string pumpName in s_pumpNames)
             {
                 for (int bindingIndex = 0; bindingIndex < PropertyBindings.Count; bindingIndex++)
@@ -339,39 +342,74 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
-        private static Dictionary<string, BindingNode> ReadBindingNodes(ArrayOf<SampleDocument> documents)
+        private static async Task<Dictionary<string, BindingNode>> ReadBindingNodesAsync(
+            ArrayOf<SampleDocument> documents,
+            CancellationToken cancellationToken)
         {
             var nodes = new Dictionary<string, BindingNode>(StringComparer.Ordinal);
-            foreach (SampleDocument document in documents)
+            var thingResolver = new SampleThingResolver(documents);
+            var parsedDocuments = new List<WotDocument>();
+            var nativePartitions = new Dictionary<int, UANodeSet>();
+            try
             {
-                using var parsed = WotDocument.Parse(document.Json.Memory, CreateLargeDocumentOptions());
-                // A fully readable type partition can still own an EventType used by a native instance.
-                if (parsed.Kind != WotDocumentKind.ThingModel &&
-                    !parsed.RootElement.TryGetProperty("uav:nodes", out _) &&
-                    !parsed.RootElement.TryGetProperty("uav:nodeSet", out _))
+                for (int documentIndex = 0; documentIndex < documents.Count; documentIndex++)
                 {
-                    continue;
-                }
-                UANodeSet partition = ReadOwnedPartition(parsed, document.ResourceId);
-                var namespaceUris = new NamespaceTable();
-                foreach (string uri in partition.NamespaceUris ?? [])
-                {
-                    namespaceUris.Append(uri);
-                }
-                foreach (UANode node in partition.Items ?? [])
-                {
-                    string localId = node.NodeId ??
-                        throw new InvalidOperationException("A converted NodeId is missing.");
-                    string id = NodeId.ToExpandedNodeId(
-                        NodeId.Parse(localId),
-                        namespaceUris).ToString();
-                    if (!nodes.TryAdd(id, new BindingNode(document.ResourceId, node)))
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WotDocument parsed = WotDocument.Parse(documents[documentIndex].Json.Memory,
+                        CreateLargeDocumentOptions());
+                    parsedDocuments.Add(parsed);
+                    if (parsed.RootElement.TryGetProperty("uav:nodes", out _) ||
+                        parsed.RootElement.TryGetProperty("uav:nodeSet", out _))
                     {
-                        throw new InvalidOperationException($"Multiple converted partitions own '{id}'.");
+                        nativePartitions.Add(documentIndex, ReadOwnedPartition(
+                            parsed, documents[documentIndex].ResourceId));
                     }
                 }
+                var nodeResolver = new WotDocumentNodeResolver(parsedDocuments);
+                for (int documentIndex = 0; documentIndex < documents.Count; documentIndex++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    SampleDocument document = documents[documentIndex];
+                    WotDocument parsed = parsedDocuments[documentIndex];
+                    bool native = parsed.RootElement.TryGetProperty("uav:nodes", out _);
+                    bool archived = parsed.RootElement.TryGetProperty("uav:nodeSet", out _);
+                    // A fully readable type partition can still own an EventType used by a native instance.
+                    if (parsed.Kind != WotDocumentKind.ThingModel && !native && !archived)
+                    {
+                        continue;
+                    }
+                    UANodeSet partition = nativePartitions.TryGetValue(documentIndex, out UANodeSet? nativePartition)
+                        ? nativePartition
+                        : RequireValue(await WotNodeSetConverter.ToNodeSetResultAsync(
+                            parsed, CreateLargeDocumentOptions(), thingResolver, null, nodeResolver, cancellationToken)
+                            .ConfigureAwait(false), document.ResourceId);
+                    var namespaceUris = new NamespaceTable();
+                    foreach (string uri in partition.NamespaceUris ?? [])
+                    {
+                        namespaceUris.Append(uri);
+                    }
+                    foreach (UANode node in partition.Items ?? [])
+                    {
+                        string localId = node.NodeId ??
+                            throw new InvalidOperationException("A converted NodeId is missing.");
+                        string id = NodeId.ToExpandedNodeId(
+                            NodeId.Parse(localId),
+                            namespaceUris).ToString();
+                        if (!nodes.TryAdd(id, new BindingNode(document.ResourceId, node)))
+                        {
+                            throw new InvalidOperationException($"Multiple converted partitions own '{id}'.");
+                        }
+                    }
+                }
+                return nodes;
             }
-            return nodes;
+            finally
+            {
+                foreach (WotDocument document in parsedDocuments)
+                {
+                    document.Dispose();
+                }
+            }
         }
 
         /// <summary>

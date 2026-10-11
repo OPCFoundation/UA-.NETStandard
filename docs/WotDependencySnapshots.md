@@ -282,6 +282,16 @@ exact target pins, or registry origins. Schema 3–5 manifests with inline graph
 remain readable; the next durable commit writes schema 6. Older binaries cannot
 read schema 6, so retain the previous manifest and its blobs before downgrading.
 Missing, out-of-range, or contradictory graph references fail loading explicitly.
+Reload also shares one validated, privately owned in-memory graph per persisted
+graph entry. Observation headers remain independent. Public edge/target arrays,
+fingerprints, and generated Property values are caller-owned copies, so modifying
+an export cannot change another observation or its exact content pins.
+
+View event selection can use captured `HasTypeDefinition`, `HasSubtype`, and
+`GeneratesEvent` relationships to reach an EventType held by a sibling native
+partition. This proves that the source can generate that exact event; it does
+not transfer node ownership. Property and Method selection still requires the
+source partition's actual captured membership.
 
 The stock binding runtime skips data-only plans that need no fluent callback or
 default namespace. Custom factories still receive every generation's configuration

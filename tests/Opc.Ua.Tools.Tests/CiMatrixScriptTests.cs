@@ -415,6 +415,29 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(undersized, Is.Empty);
         }
 
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task FullCorpusSamplesHaveAnIsolatedBoundedBudgetAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] samples = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal)).ToArray();
+
+            Assert.That(samples, Is.Not.Empty);
+            foreach (MatrixEntry sample in samples)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sample.Projects, Does.Not.Contain(";"));
+                    Assert.That(sample.PerProjectTimeout, Is.EqualTo(180));
+                    Assert.That(sample.TimeoutMinutes, Is.EqualTo(200));
+                });
+            }
+            Assert.That(matrix.Tests.Where(entry =>
+                !entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal)),
+                Is.All.Matches<MatrixEntry>(entry => entry.PerProjectTimeout == 45));
+        }
+
         /// <summary>
         /// The per-project ceiling the matrix budgets once must also be spent
         /// once. Handing it separately to the build and to the test would let a
@@ -535,6 +558,15 @@ namespace Opc.Ua.Tools.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                if (!File.Exists(Path.Combine(configuredRoot, ".github", "scripts", "get-ci-matrix.ps1")))
+                {
+                    throw new DirectoryNotFoundException("The configured root has no CI matrix script.");
+                }
+                return configuredRoot;
+            }
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {

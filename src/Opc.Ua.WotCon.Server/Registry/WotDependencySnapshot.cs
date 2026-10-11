@@ -118,7 +118,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             VersionXid = versionXid;
             DocumentUri = documentUri;
             VersionNodeId = versionNodeId;
-            ContentDigest = ByteString.From(contentDigest.Span.ToArray());
+            m_contentDigest = ByteString.From(contentDigest.Span.ToArray());
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the original bytes' complete SHA-256 digest.
         /// </summary>
-        public ByteString ContentDigest { get; }
+        public ByteString ContentDigest => ByteString.From(m_contentDigest.Span.ToArray());
 
         internal WoTResolvedDependencyTargetDataType ToDataType()
         {
@@ -168,6 +168,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             return result;
         }
+
+        private readonly ByteString m_contentDigest;
     }
 
     /// <summary>
@@ -188,6 +190,19 @@ namespace Opc.Ua.WotCon.Server.Registry
             ByteString effectiveInputDigest,
             ArrayOf<WotDependency> edges,
             ArrayOf<WotDependencyTargetPin> targets)
+            : this(sourceVersionId, generation, requestId, resolvedAt, isCommitted, effectiveInputDigest,
+                new ValidatedGraph(edges, targets))
+        {
+        }
+
+        internal WotDependencySnapshot(
+            string sourceVersionId,
+            uint generation,
+            string requestId,
+            DateTime resolvedAt,
+            bool isCommitted,
+            ByteString effectiveInputDigest,
+            ValidatedGraph graph)
         {
             _ = sourceVersionId ?? throw new ArgumentNullException(nameof(sourceVersionId));
             _ = requestId ?? throw new ArgumentNullException(nameof(requestId));
@@ -196,27 +211,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ArgumentException("A committed dependency snapshot requires a complete input fingerprint.");
             }
-            var indices = new HashSet<uint>();
-            foreach (WotDependencyTargetPin target in targets)
-            {
-                if (target.EdgeIndex >= edges.Count || !edges[(int)target.EdgeIndex].Resolved ||
-                    !indices.Add(target.EdgeIndex))
-                {
-                    throw new ArgumentException("A target must identify exactly one resolved dependency edge.");
-                }
-            }
-            if (edges.ToList().Count(edge => edge.Resolved) != targets.Count)
-            {
-                throw new ArgumentException("Every resolved dependency edge must have exactly one target pin.");
-            }
             SourceVersionId = sourceVersionId;
             Generation = generation;
             RequestId = requestId;
             ResolvedAt = resolvedAt;
             IsCommitted = isCommitted;
-            EffectiveInputDigest = ByteString.From(effectiveInputDigest.Span.ToArray());
-            Edges = edges.Span.ToArray().ToArrayOf();
-            Targets = targets.Span.ToArray().ToArrayOf();
+            m_effectiveInputDigest = ByteString.From(effectiveInputDigest.Span.ToArray());
+            Graph = graph ?? throw new ArgumentNullException(nameof(graph));
         }
 
         /// <summary>
@@ -247,17 +248,19 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the complete fingerprint, or empty for incomplete preparation.
         /// </summary>
-        public ByteString EffectiveInputDigest { get; }
+        public ByteString EffectiveInputDigest => ByteString.From(m_effectiveInputDigest.Span.ToArray());
 
         /// <summary>
-        /// Gets the original semantic edges.
+        /// Gets a caller-owned array of the original immutable semantic edges.
         /// </summary>
-        public ArrayOf<WotDependency> Edges { get; }
+        public ArrayOf<WotDependency> Edges => Graph.Edges.Span.ToArray().ToArrayOf();
 
         /// <summary>
-        /// Gets the exact origin/content target pins.
+        /// Gets caller-owned copies of the exact origin/content target pins.
         /// </summary>
-        public ArrayOf<WotDependencyTargetPin> Targets { get; }
+        public ArrayOf<WotDependencyTargetPin> Targets => Graph.Targets.Span.ToArray().ToArrayOf();
+
+        internal ValidatedGraph Graph { get; }
 
         /// <summary>
         /// Creates an independent value for the generated registry Property contract.
@@ -265,7 +268,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public WoTDependencySnapshotDataType ToDataType()
         {
-            ArrayOf<WoTDependencyDataType> edges = Edges.ConvertAll(edge => new WoTDependencyDataType
+            ArrayOf<WoTDependencyDataType> edges = Graph.Edges.ConvertAll(edge => new WoTDependencyDataType
             {
                 SourceXid = edge.SourceXid,
                 TargetXid = string.Empty,
@@ -273,7 +276,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 RefType = edge.RefType,
                 Resolved = edge.Resolved
             });
-            foreach (WotDependencyTargetPin target in Targets)
+            foreach (WotDependencyTargetPin target in Graph.Targets)
             {
                 edges[(int)target.EdgeIndex].TargetXid = target.VersionXid;
             }
@@ -286,8 +289,36 @@ namespace Opc.Ua.WotCon.Server.Registry
                 IsCommitted = IsCommitted,
                 EffectiveInputDigest = EffectiveInputDigest,
                 Edges = edges,
-                Targets = Targets.ConvertAll(target => target.ToDataType())
+                Targets = Graph.Targets.ConvertAll(target => target.ToDataType())
             };
+        }
+
+        private readonly ByteString m_effectiveInputDigest;
+
+        internal sealed class ValidatedGraph
+        {
+            internal ValidatedGraph(ArrayOf<WotDependency> edges, ArrayOf<WotDependencyTargetPin> targets)
+            {
+                Edges = edges.Span.ToArray().ToArrayOf();
+                Targets = targets.Span.ToArray().ToArrayOf();
+                var indices = new HashSet<uint>();
+                foreach (WotDependencyTargetPin target in Targets)
+                {
+                    if (target.EdgeIndex >= Edges.Count || !Edges[(int)target.EdgeIndex].Resolved ||
+                        !indices.Add(target.EdgeIndex))
+                    {
+                        throw new ArgumentException("A target must identify exactly one resolved dependency edge.");
+                    }
+                }
+                if (Edges.ToList().Count(edge => edge.Resolved) != Targets.Count)
+                {
+                    throw new ArgumentException("Every resolved dependency edge must have exactly one target pin.");
+                }
+            }
+
+            internal ArrayOf<WotDependency> Edges { get; }
+
+            internal ArrayOf<WotDependencyTargetPin> Targets { get; }
         }
     }
 }

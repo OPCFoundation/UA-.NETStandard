@@ -240,9 +240,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         if (owner.CommittedVersion?.DependencySnapshot is { } observation)
                         {
                             bool matched = false;
-                            foreach (WotDependencyTargetPin target in observation.Targets)
+                            foreach (WotDependencyTargetPin target in observation.Graph.Targets)
                             {
-                                if (observation.Edges[(int)target.EdgeIndex].TargetXid != input.Xid)
+                                if (observation.Graph.Edges[(int)target.EdgeIndex].TargetXid != input.Xid)
                                 {
                                     continue;
                                 }

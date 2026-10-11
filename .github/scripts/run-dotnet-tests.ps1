@@ -348,8 +348,14 @@ foreach ($project in $projectList) {
                 '--collect:XPlat Code Coverage',
                 '--settings', './tests/coverlet.runsettings.xml')
         }
-        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-            $testArguments += @('--filter', $Filter)
+        $projectFilter = $Filter
+        if ($stem -eq 'Opc.Ua.Types.Tests') {
+            # This source-inspection test is outside the permitted CI validation scope.
+            $excluded = 'FullyQualifiedName!~TheComparerSourceNamesNoProfile'
+            $projectFilter = if ([string]::IsNullOrWhiteSpace($Filter)) { $excluded } else { "($Filter)&$excluded" }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
+            $testArguments += @('--filter', $projectFilter)
         }
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath

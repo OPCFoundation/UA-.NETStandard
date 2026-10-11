@@ -76,7 +76,7 @@ namespace AggregationClient
                     client.Session = new ManagedSessionOptions
                     {
                         SessionName = "AggregationClient",
-                        SessionTimeout = TimeSpan.FromSeconds(60)
+                        SessionTimeout = TimeSpan.FromMinutes(20)
                     };
                 })
                 .AddDiscoveryAndConnect(discovery =>
@@ -106,6 +106,8 @@ namespace AggregationClient
                 ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
                 await using (session.ConfigureAwait(false))
                 {
+                    session.OperationTimeout = (int)TimeSpan.FromMinutes(20).TotalMilliseconds;
+                    session.KeepAliveInterval = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
                     session.MessageContext.NamespaceUris.Update(
                         session.NamespaceUris.ToArray());
                     Func<ManagedSession, CancellationToken, Task<WotRegistryClient>> createClient =
@@ -116,9 +118,12 @@ namespace AggregationClient
                     ArrayOf<WotRegistryDocument> documents = await LoadDocumentsAsync(
                         options,
                         cancellationToken).ConfigureAwait(false);
+                    documents = await AllocateDocumentIdentitiesAsync(client, documents, cancellationToken)
+                        .ConfigureAwait(false);
                     WotRegistryBulkLoadResult loadResult = await client.LoadDocumentsAsync(
                         documents,
                         refresh: true,
+                        refreshOptions: new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry },
                         requestId: Guid.NewGuid().ToString("N"),
                         ct: cancellationToken).ConfigureAwait(false);
                     EnsureRefreshSucceeded(loadResult, options.ExerciseControls);
@@ -169,6 +174,152 @@ namespace AggregationClient
             return substituted ? output.ToArray() : Encoding.UTF8.GetBytes(content);
         }
 
+        internal static byte[] EnsureDocumentIdentity(byte[] content, string resourceName)
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(content);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, $"Document '{resourceName}' must be a JSON object.");
+                }
+                if (document.RootElement.TryGetProperty("id", out _))
+                {
+                    return content;
+                }
+                using var output = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(output))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("id", "urn:opcfoundation.org:UA:WotAggregation:document:" +
+                        Uri.EscapeDataString(resourceName));
+                    foreach (JsonProperty property in document.RootElement.EnumerateObject())
+                    {
+                        property.WriteTo(writer);
+                    }
+                    writer.WriteEndObject();
+                }
+                return output.ToArray();
+            }
+            catch (JsonException exception)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, $"Document '{resourceName}' is not valid JSON.", exception);
+            }
+        }
+
+        internal static byte[] RewriteDocumentReferences(
+            byte[] content, IReadOnlyDictionary<string, string> identities)
+        {
+            using JsonDocument document = JsonDocument.Parse(content);
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                WriteValue(document.RootElement, link: false);
+
+                void WriteValue(JsonElement value, bool link)
+                {
+                    if (value.ValueKind == JsonValueKind.Array)
+                    {
+                        writer.WriteStartArray();
+                        foreach (JsonElement item in value.EnumerateArray())
+                        {
+                            WriteValue(item, link);
+                        }
+                        writer.WriteEndArray();
+                    }
+                    else if (value.ValueKind == JsonValueKind.Object)
+                    {
+                        writer.WriteStartObject();
+                        foreach (JsonProperty property in value.EnumerateObject())
+                        {
+                            writer.WritePropertyName(property.Name);
+                            if ((property.Name == "tm:ref" || link && property.Name == "href") &&
+                                property.Value.ValueKind == JsonValueKind.String)
+                            {
+                                string reference = property.Value.GetString()!;
+                                int fragment = reference.IndexOf('#', StringComparison.Ordinal);
+                                string alias = fragment < 0 ? reference : reference[..fragment];
+                                writer.WriteStringValue(identities.TryGetValue(alias, out string? identity)
+                                    ? identity + (fragment < 0 ? string.Empty : reference[fragment..])
+                                    : reference);
+                            }
+                            else if (property.Name is "links" or "uav:projects")
+                            {
+                                WriteValue(property.Value, link: true);
+                            }
+                            else if (property.Name is "properties" or "actions" or "events" or "schemaDefinitions" &&
+                                property.Value.ValueKind == JsonValueKind.Object)
+                            {
+                                writer.WriteStartObject();
+                                foreach (JsonProperty member in property.Value.EnumerateObject())
+                                {
+                                    writer.WritePropertyName(member.Name);
+                                    WriteValue(member.Value, link: false);
+                                }
+                                writer.WriteEndObject();
+                            }
+                            else if (property.Name is "input" or "output" or "data" or "items" or
+                                "additionalProperties" or "oneOf" or "anyOf" or "allOf" or "not" or
+                                "uav:eventSelectClauses")
+                            {
+                                WriteValue(property.Value, link: false);
+                            }
+                            else
+                            {
+                                property.Value.WriteTo(writer);
+                            }
+                        }
+                        writer.WriteEndObject();
+                    }
+                    else
+                    {
+                        value.WriteTo(writer);
+                    }
+                }
+            }
+            return output.ToArray();
+        }
+
+        private static async ValueTask<ArrayOf<WotRegistryDocument>> AllocateDocumentIdentitiesAsync(
+            WotRegistryClient client,
+            ArrayOf<WotRegistryDocument> documents,
+            CancellationToken cancellationToken)
+        {
+            var groups = new Dictionary<WoTDocumentKindEnum, WotRegistryGroupClient>();
+            var allocated = new WotRegistryDocument[documents.Count];
+            for (int i = 0; i < documents.Count; i++)
+            {
+                WotRegistryDocument document = documents[i];
+                using JsonDocument content = JsonDocument.Parse(document.Content.Memory);
+                string sourceId = content.RootElement.GetProperty("id").GetString() ??
+                    throw new InvalidDataException($"Document '{document.ResourceId}' has a null identity.");
+                string groupAlias = document.Kind == WoTDocumentKindEnum.ThingModel
+                    ? WotRegistryClient.ThingModelsGroupId : WotRegistryClient.ThingDescriptionsGroupId;
+                if (!string.Equals(document.GroupId, groupAlias, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Document '{document.ResourceId}' has an unsupported sample catalogue '{document.GroupId}'.");
+                }
+                if (!groups.TryGetValue(document.Kind, out WotRegistryGroupClient? group))
+                {
+                    string catalogue = document.Kind == WoTDocumentKindEnum.ThingModel
+                        ? "urn:opcfoundation.org:UA:WotAggregation:ThingModels"
+                        : "urn:opcfoundation.org:UA:WotAggregation:ThingDescriptions";
+                    (group, _) = await client.GetOrCreateDocumentGroupAsync(
+                        document.Kind, catalogue, cancellationToken).ConfigureAwait(false);
+                    groups.Add(document.Kind, group);
+                }
+                (WotRegistryResourceAllocation resource, _, _) = await group.GetOrCreateDocumentResourceAsync(
+                    sourceId, document.VersionId, ct: cancellationToken).ConfigureAwait(false);
+                allocated[i] = new WotRegistryDocument(
+                    document.Kind, group.GroupId, resource.LogicalResource.ResourceId,
+                    document.Content, document.VersionId);
+            }
+            return allocated.ToArrayOf();
+        }
+
         private static async ValueTask<ArrayOf<WotRegistryDocument>> LoadDocumentsAsync(
             AggregationClientOptions options,
             CancellationToken cancellationToken)
@@ -208,13 +359,27 @@ namespace AggregationClient
                     Path.Combine(options.DocumentsDirectory, entry.Path),
                     cancellationToken).ConfigureAwait(false);
                 WoTDocumentKindEnum kind = ParseKind(entry.DocumentKind);
-                byte[] json = SubstituteEndpoints(content, options);
+                byte[] json = EnsureDocumentIdentity(SubstituteEndpoints(content, options), entry.ResourceId);
 
                 documents[i] = new WotRegistryDocument(
                     kind,
                     entry.GroupId,
                     entry.ResourceId,
                     ByteString.From(json));
+            }
+            var identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (WotRegistryDocument document in documents)
+            {
+                using JsonDocument content = JsonDocument.Parse(document.Content.Memory);
+                identities.Add(document.ResourceId, content.RootElement.GetProperty("id").GetString()!);
+            }
+            for (int i = 0; i < documents.Length; i++)
+            {
+                WotRegistryDocument document = documents[i];
+                documents[i] = new WotRegistryDocument(
+                    document.Kind, document.GroupId, document.ResourceId,
+                    ByteString.From(RewriteDocumentReferences(document.Content.ToArray(), identities)),
+                    document.VersionId);
             }
             return new ArrayOf<WotRegistryDocument>(documents);
         }

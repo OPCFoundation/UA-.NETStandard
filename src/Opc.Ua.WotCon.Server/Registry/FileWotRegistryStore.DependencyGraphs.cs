@@ -66,14 +66,22 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             private static bool SameGraph(WotDependencySnapshot left, WotDependencySnapshot right)
             {
-                if (left.Edges.Count != right.Edges.Count || left.Targets.Count != right.Targets.Count)
+                if (ReferenceEquals(left.Graph, right.Graph))
+                {
+                    return true;
+                }
+                ArrayOf<WotDependency> leftEdges = left.Graph.Edges;
+                ArrayOf<WotDependency> rightEdges = right.Graph.Edges;
+                ArrayOf<WotDependencyTargetPin> leftTargets = left.Graph.Targets;
+                ArrayOf<WotDependencyTargetPin> rightTargets = right.Graph.Targets;
+                if (leftEdges.Count != rightEdges.Count || leftTargets.Count != rightTargets.Count)
                 {
                     return false;
                 }
-                for (int index = 0; index < left.Edges.Count; index++)
+                for (int index = 0; index < leftEdges.Count; index++)
                 {
-                    WotDependency a = left.Edges[index];
-                    WotDependency b = right.Edges[index];
+                    WotDependency a = leftEdges[index];
+                    WotDependency b = rightEdges[index];
                     if (!ReferenceEquals(a, b) &&
                         (a.SourceXid != b.SourceXid || a.TargetHref != b.TargetHref ||
                          a.TargetXid != b.TargetXid || a.RefType != b.RefType || a.Resolved != b.Resolved))
@@ -81,10 +89,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                         return false;
                     }
                 }
-                for (int index = 0; index < left.Targets.Count; index++)
+                for (int index = 0; index < leftTargets.Count; index++)
                 {
-                    WotDependencyTargetPin a = left.Targets[index];
-                    WotDependencyTargetPin b = right.Targets[index];
+                    WotDependencyTargetPin a = leftTargets[index];
+                    WotDependencyTargetPin b = rightTargets[index];
                     if (!ReferenceEquals(a, b) &&
                         (a.EdgeIndex != b.EdgeIndex || a.VersionXid != b.VersionXid ||
                          a.DocumentUri != b.DocumentUri || a.VersionNodeId != b.VersionNodeId ||
@@ -110,7 +118,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private sealed class DependencyGraphReader(DependencyGraphDto[]? graphs)
         {
-            public (ArrayOf<WotDependency> Edges, ArrayOf<WotDependencyTargetPin> Targets) Read(
+            public WotDependencySnapshot.ValidatedGraph Read(
                 DependencySnapshotDto observation)
             {
                 if (observation.GraphIndex is not { } index)
@@ -132,7 +140,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return graph;
             }
 
-            private static (ArrayOf<WotDependency>, ArrayOf<WotDependencyTargetPin>) Parse(
+            private static WotDependencySnapshot.ValidatedGraph Parse(
                 DependencyEdgeDto[]? edges, DependencyTargetDto[]? targets)
             {
                 if (edges is null || targets is null)
@@ -143,7 +151,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     throw new InvalidDataException("A dependency graph contains a null edge or target.");
                 }
-                return (edges.Select(edge => new WotDependency(
+                return new WotDependencySnapshot.ValidatedGraph(edges.Select(edge => new WotDependency(
                     edge.SourceXid ?? throw new InvalidDataException("Missing dependency source."),
                     edge.TargetHref ?? throw new InvalidDataException("Missing dependency target."),
                     edge.TargetXid,
@@ -151,8 +159,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     edge.Resolved)).ToArrayOf(), targets.Select(FromDto).ToArrayOf());
             }
 
-            private readonly Dictionary<int,
-                (ArrayOf<WotDependency> Edges, ArrayOf<WotDependencyTargetPin> Targets)> m_cache = [];
+            private readonly Dictionary<int, WotDependencySnapshot.ValidatedGraph> m_cache = [];
         }
     }
 }

@@ -329,7 +329,7 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     thingCatalog,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
-                affordanceBindings = [];
+                affordanceBindings = new(document.ElementComparer);
                 foreach (KeyValuePair<string, JsonElement> property in document.Properties)
                 {
                     affordanceBindings[property.Value] = await ResolveTypeBindingAsync(
@@ -627,7 +627,7 @@ namespace Opc.Ua.Wot
             IWotNodeResolver resolver,
             CancellationToken cancellationToken)
         {
-            var targets = new Dictionary<JsonElement, WotResolvedNode?>();
+            var targets = new Dictionary<JsonElement, WotResolvedNode?>(document.ElementComparer);
             var resolved = new Dictionary<string, WotResolvedNode?>(StringComparer.Ordinal);
             foreach (JsonElement link in document.Links)
             {
@@ -1862,6 +1862,7 @@ namespace Opc.Ua.Wot
             // against it and populate it rather than stand beside it. The pass
             // runs before the links are synthesized so the References it
             // rewrites are the ones the affordance passes created.
+            CompleteNamespaceTable(nodeSet);
             MergeInstanceDeclarations(
                 document, nodeSet, items, rootReferences, rootNodeId,
                 declarations, diagnostics);
@@ -4214,7 +4215,6 @@ namespace Opc.Ua.Wot
             {
                 return rawBrowseName;
             }
-            CompleteNamespaceTable(nodeSet);
             return namespaceIndex.ToString(CultureInfo.InvariantCulture) +
                 ":" +
                 qualifiedName.Name;
@@ -4284,7 +4284,6 @@ namespace Opc.Ua.Wot
                 {
                     return portableNodeId;
                 }
-                CompleteNamespaceTable(nodeSet);
                 return "ns=" +
                     namespaceIndex.ToString(
                         CultureInfo.InvariantCulture) +
@@ -4368,7 +4367,6 @@ namespace Opc.Ua.Wot
             {
                 throw new FormatException(diagnostics[0].Message);
             }
-            CompleteNamespaceTable(nodeSet);
             return namespaceIndex;
         }
 
