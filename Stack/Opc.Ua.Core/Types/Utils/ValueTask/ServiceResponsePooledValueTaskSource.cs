@@ -37,19 +37,28 @@ namespace Opc.Ua
     /// <summary>
     /// A pooled value task source for IServiceResponse.
     /// </summary>
+    /// <remarks>
+    /// The pool is shared by every server in the process, so a completion that arrives
+    /// after the source was returned to the pool would answer whichever request rented it
+    /// next. Each rental therefore carries a lease and only the first completion with the
+    /// current lease is accepted.
+    /// </remarks>
     internal sealed class ServiceResponsePooledValueTaskSource : IValueTaskSource<IServiceResponse>, IValueTaskSource
     {
-        private static readonly ObjectPool<ServiceResponsePooledValueTaskSource> s_pool =
-            new(() => new ServiceResponsePooledValueTaskSource(), 1024);
+        private static readonly ObjectPool<ServiceResponsePooledValueTaskSource> s_pool = CreatePool(1024);
 
+        private readonly ObjectPool<ServiceResponsePooledValueTaskSource> m_pool;
         private readonly ManualResetValueTaskSource<IServiceResponse> m_source;
         private int m_resultRetrieved;
+        private int m_lease;
+        private int m_pendingLease;
 
         /// <summary>
         /// Private constructor to enforce pooling.
         /// </summary>
-        private ServiceResponsePooledValueTaskSource()
+        private ServiceResponsePooledValueTaskSource(ObjectPool<ServiceResponsePooledValueTaskSource> pool)
         {
+            m_pool = pool;
             m_source = new ManualResetValueTaskSource<IServiceResponse>();
         }
 
@@ -58,9 +67,36 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceResponsePooledValueTaskSource Create()
         {
-            ServiceResponsePooledValueTaskSource source = s_pool.Get();
+            return Create(s_pool);
+        }
+
+        /// <summary>
+        /// Creates or gets an instance from the specified pool.
+        /// </summary>
+        internal static ServiceResponsePooledValueTaskSource Create(
+            ObjectPool<ServiceResponsePooledValueTaskSource> pool)
+        {
+            ServiceResponsePooledValueTaskSource source = pool.Get();
+            int lease = source.m_lease + 1;
+            if (lease == 0)
+            {
+                lease = 1;
+            }
+            source.m_lease = lease;
             source.m_resultRetrieved = 0;
+            Volatile.Write(ref source.m_pendingLease, lease);
             return source;
+        }
+
+        /// <summary>
+        /// Creates an empty pool for sources.
+        /// </summary>
+        internal static ObjectPool<ServiceResponsePooledValueTaskSource> CreatePool(int maxSize)
+        {
+            ObjectPool<ServiceResponsePooledValueTaskSource> pool = null;
+            pool = new ObjectPool<ServiceResponsePooledValueTaskSource>(
+                () => new ServiceResponsePooledValueTaskSource(pool), maxSize);
+            return pool;
         }
 
         /// <summary>
@@ -71,9 +107,15 @@ namespace Opc.Ua
             if (Interlocked.CompareExchange(ref m_resultRetrieved, 1, 0) == 0)
             {
                 m_source.Reset();
-                s_pool.Return(this);
+                m_pool.Return(this);
             }
         }
+
+        /// <summary>
+        /// The lease of the current rental, captured by the owner when the
+        /// source is created and passed back to <see cref="TrySetResult"/>.
+        /// </summary>
+        public int Lease => m_lease;
 
         /// <summary>
         /// The value task to await.
@@ -89,19 +131,20 @@ namespace Opc.Ua
         public short Version => m_source.Version;
 
         /// <summary>
-        /// Set the result of the task.
+        /// Completes the rental identified by <paramref name="lease"/>.
         /// </summary>
-        public void SetResult(IServiceResponse result)
+        /// <returns>
+        /// <c>false</c> if that rental was already completed or the source was
+        /// recycled to another owner; the result is then discarded.
+        /// </returns>
+        public bool TrySetResult(int lease, IServiceResponse result)
         {
+            if (Interlocked.CompareExchange(ref m_pendingLease, 0, lease) != lease)
+            {
+                return false;
+            }
             m_source.SetResult(result);
-        }
-
-        /// <summary>
-        /// Set an exception for the task.
-        /// </summary>
-        public void SetException(Exception error)
-        {
-            m_source.SetException(error);
+            return true;
         }
 
         /// <inheritdoc/>

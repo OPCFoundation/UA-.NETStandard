@@ -1106,6 +1106,7 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
+                m_lease = m_vts.Lease;
                 m_cancellationToken = cancellationToken;
             }
 
@@ -1127,7 +1128,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, e));
                 }
 
                 return m_vts.Task;
@@ -1170,7 +1171,7 @@ namespace Opc.Ua
                     {
                         ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
                         IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
-                        m_vts.SetResult(response);
+                        m_vts.TrySetResult(m_lease,response);
                     }
                 }
                 catch (Exception e)
@@ -1179,7 +1180,7 @@ namespace Opc.Ua
                     {
                         e = new ServiceResultException(StatusCodes.BadTimeout);
                     }
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, e));
                 }
             }
 
@@ -1188,11 +1189,11 @@ namespace Opc.Ua
             {
                 if (ServiceResult.IsBad(error))
                 {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, new ServiceResultException(error)));
                 }
                 else
                 {
-                    m_vts.SetResult(response);
+                    m_vts.TrySetResult(m_lease,response);
                 }
             }
 
@@ -1232,6 +1233,12 @@ namespace Opc.Ua
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
+
+            /// <summary>
+            /// The rental of <see cref="m_vts"/> owned by this request. Completions
+            /// are accepted once and never reach a later owner of the pooled source.
+            /// </summary>
+            private readonly int m_lease;
             private readonly CancellationToken m_cancellationToken;
         }
 

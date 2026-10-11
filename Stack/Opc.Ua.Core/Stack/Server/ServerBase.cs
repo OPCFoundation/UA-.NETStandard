@@ -1629,7 +1629,7 @@ namespace Opc.Ua
                 m_activeThreadCount = 0;
                 m_totalThreadCount = 0;
                 m_queuedRequestsCount = 0;
-                m_stopped = false;
+                m_stopped = 0;
 
                 ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
 
@@ -1668,7 +1668,12 @@ namespace Opc.Ua
             {
                 if (disposing)
                 {
-                    m_stopped = true;
+                    // Full fence: either a concurrent ScheduleIncomingRequest sees the stop
+                    // flag after its enqueue, or the drain below sees its request.
+                    if (Interlocked.Exchange(ref m_stopped, 1) != 0)
+                    {
+                        return;
+                    }
                     m_cts.Cancel();
 
                     if (m_totalThreadCount > 0)
@@ -1677,14 +1682,36 @@ namespace Opc.Ua
                     }
                     Utils.SilentDispose(m_queueSignal);
 
-                    foreach (IEndpointIncomingRequest request in m_queue.ToList())
-                    {
-                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    }
-#if NETSTANDARD2_1_OR_GREATER
-                    m_queue.Clear();
-#endif
+                    DrainQueue();
                     Utils.SilentDispose(m_cts);
+                }
+            }
+
+            /// <summary>
+            /// Completes every queued request with BadServerHalted. Requests are removed
+            /// before completion so a request taken by a worker is never completed here.
+            /// </summary>
+            private void DrainQueue()
+            {
+                while (m_queue.TryDequeue(out IEndpointIncomingRequest request))
+                {
+                    Interlocked.Decrement(ref m_queuedRequestsCount);
+                    CompleteRequest(request, StatusCodes.BadServerHalted);
+                }
+            }
+
+            /// <summary>
+            /// Reports a terminal queue outcome without letting a completion callback escape.
+            /// </summary>
+            private void CompleteRequest(IEndpointIncomingRequest request, StatusCode statusCode)
+            {
+                try
+                {
+                    request.OperationCompleted(null, statusCode);
+                }
+                catch (Exception ex)
+                {
+                    m_server.m_logger.LogError(ex, "Failed to complete incoming request.");
                 }
             }
 
@@ -1695,7 +1722,7 @@ namespace Opc.Ua
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
                 // check if server is stopped
-                if (m_stopped)
+                if (Volatile.Read(ref m_stopped) != 0)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     return;
@@ -1721,7 +1748,23 @@ namespace Opc.Ua
                 // Enqueue requests
                 m_queue.Enqueue(request);
                 Interlocked.Increment(ref m_queuedRequestsCount);
-                m_queueSignal.Release();
+
+                // The queue may have been stopped after the check above. The request is
+                // already queued, so it must not be completed by the caller: it is
+                // drained here or by Dispose, whichever dequeues it.
+                if (Volatile.Read(ref m_stopped) != 0)
+                {
+                    DrainQueue();
+                    return;
+                }
+                try
+                {
+                    m_queueSignal.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    DrainQueue();
+                }
             }
 
             /// <summary>
@@ -1746,6 +1789,12 @@ namespace Opc.Ua
                         //process request from queue
                         if (m_queue.TryDequeue(out IEndpointIncomingRequest request))
                         {
+                            if (Volatile.Read(ref m_stopped) != 0)
+                            {
+                                Interlocked.Decrement(ref m_queuedRequestsCount);
+                                CompleteRequest(request, StatusCodes.BadServerHalted);
+                                continue;
+                            }
                             try
                             {
                                 Interlocked.Decrement(ref m_queuedRequestsCount);
@@ -1756,7 +1805,7 @@ namespace Opc.Ua
                             catch (Exception ex)
                             {
                                 m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
-                                request.OperationCompleted(null, StatusCodes.BadInternalError);
+                                CompleteRequest(request, StatusCodes.BadInternalError);
                             }
                             finally
                             {
@@ -1768,6 +1817,10 @@ namespace Opc.Ua
                 catch (OperationCanceledException)
                 {
                     // Graceful shutdown
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Graceful shutdown: the queue signal was disposed while waiting
                 }
                 finally
                 {
@@ -1786,7 +1839,7 @@ namespace Opc.Ua
             private int m_activeThreadCount;
             private int m_totalThreadCount;
             private int m_queuedRequestsCount;
-            private bool m_stopped;
+            private int m_stopped;
         }
 
         /// <summary>
