@@ -55,7 +55,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsAUniformPreviewPackageSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0-preview.1.gabc123def0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.1.gabc123def0");
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsAStableCoreWithNumberedPreviewFamilyReleaseSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
@@ -84,10 +84,9 @@ namespace Opc.Ua.Tools.Tests
             {
                 Assert.That(result.ExitCode, Is.Zero, result.Output);
                 Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("stable"));
-                string[] actualVersions = result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
+                string[] actualVersions = [.. result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
                     .Select(e => e.GetString()!)
-                    .OrderBy(v => v, StringComparer.Ordinal)
-                    .ToArray();
+                    .OrderBy(v => v, StringComparer.Ordinal)];
                 string[] expectedVersions = ["2.0.0", PreviewFamilyVersion];
                 Assert.That(actualVersions, Is.EqualTo(expectedVersions.OrderBy(v => v, StringComparer.Ordinal)));
             });
@@ -96,7 +95,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsADebugOnlyStableReleaseSetAnchoredOnCoreDebugAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", PreviewFamilyVersion);
 
@@ -108,7 +107,7 @@ namespace Opc.Ua.Tools.Tests
                     result.ExitCode,
                     Is.Zero,
                     "A Debug-configuration-only package set must anchor on Core.Debug, not fail looking for plain Core.\n" +
-                        result.Output);
+                    result.Output);
                 Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(2));
             });
         }
@@ -116,7 +115,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsASelectedFamilyPackageThatIsAccidentallyStableAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0");
 
@@ -133,7 +132,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnUnaffectedPackageThatDoesNotMatchTheRootVersionAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Server", "1.9.9");
 
@@ -149,7 +148,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAMissingCoreAnchorPackageAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
@@ -168,7 +167,7 @@ namespace Opc.Ua.Tools.Tests
             // Debug matrix legs into one directory before validating and
             // promoting them, so Core and Core.Debug legitimately coexist
             // there - this must not be rejected as long as they agree.
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
 
@@ -186,7 +185,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsCoreAndCoreDebugDisagreeingOnVersionAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.1");
 
@@ -202,7 +201,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsDuplicatePackageIdentitiesAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0", fileNameSuffix: "-dup");
 
@@ -218,7 +217,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnUnexpectedExpectedVersionMismatchAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.1").ConfigureAwait(false);
@@ -233,7 +232,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RequireDebugRejectsAReleaseOnlySetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
@@ -249,7 +248,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RequireDebugAcceptsACombinedReleaseAndDebugSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
@@ -268,7 +267,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnOrphanedSymbolPackageAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             // A .snupkg whose corresponding .nupkg never exists.
             fixture.AddOrphanedSymbolPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
@@ -435,6 +434,190 @@ namespace Opc.Ua.Tools.Tests
             }
 
             throw new InvalidOperationException("Could not find the repository root.");
+        }
+
+        [Test]
+        public async Task AcceptsPromotedVisionAtStableRootAsync()
+        {
+            (string Id, string Version)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Client", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", PreviewFamilyVersion),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug", PreviewFamilyVersion)
+            ];
+            using var fixture = PackageSetFixture.Create();
+            foreach ((string id, string version) in packages)
+            {
+                fixture.AddPackage(id, version);
+            }
+
+            ValidationResult result = await fixture.ValidateAsync(
+                expectedVersion: "2.0.0", requireDebug: true).ConfigureAwait(false);
+
+            AssertStableVisionManifest(result, packages, expectedPackageCount: 17, expectedDebugCount: 8);
+        }
+
+        [Test]
+        public async Task AcceptsRetainedVisionOpenUsdDescendantsAsync()
+        {
+            (string Id, string Version)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child", PreviewFamilyVersion),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug", PreviewFamilyVersion)
+            ];
+            using var fixture = PackageSetFixture.Create();
+            foreach ((string id, string version) in packages)
+            {
+                fixture.AddPackage(id, version);
+            }
+
+            ValidationResult result = await fixture.ValidateAsync(
+                expectedVersion: "2.0.0", requireDebug: true).ConfigureAwait(false);
+
+            AssertStableVisionManifest(result, packages, expectedPackageCount: 3, expectedDebugCount: 1);
+        }
+
+        [Test]
+        public async Task AcceptsPromotedVisionWithDebugCoreAnchorAsync()
+        {
+            (string Id, string Version)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug", PreviewFamilyVersion)
+            ];
+            using var fixture = PackageSetFixture.Create();
+            foreach ((string id, string version) in packages)
+            {
+                fixture.AddPackage(id, version);
+            }
+
+            // RequireDebug requires a mixed Release/Debug set, whereas this
+            // scenario deliberately proves the supported Debug-only anchor.
+            ValidationResult result = await fixture.ValidateAsync(
+                expectedVersion: "2.0.0").ConfigureAwait(false);
+
+            AssertStableVisionManifest(result, packages, expectedPackageCount: 9, expectedDebugCount: 9);
+        }
+
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Client")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Server")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug")]
+        public async Task RejectsForcedPreviewForPromotedVisionAtStableRootAsync(string packageId)
+        {
+            using var fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
+            fixture.AddPackage(packageId, PreviewFamilyVersion);
+
+            ValidationResult result = await fixture.ValidateAsync(
+                expectedVersion: "2.0.0").ConfigureAwait(false);
+
+            AssertVisionPolicyRejection(result, packageId, PreviewFamilyVersion, "2.0.0");
+        }
+
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug")]
+        public async Task RejectsStableVisionOpenUsdAtStableRootAsync(string packageId)
+        {
+            using var fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
+            fixture.AddPackage(packageId, "2.0.0");
+
+            ValidationResult result = await fixture.ValidateAsync(
+                expectedVersion: "2.0.0").ConfigureAwait(false);
+
+            AssertVisionPolicyRejection(result, packageId, "2.0.0", PreviewFamilyVersion);
+        }
+
+        private static void AssertStableVisionManifest(
+            ValidationResult result,
+            (string Id, string Version)[] expectedPackages,
+            int expectedPackageCount,
+            int expectedDebugCount)
+        {
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            Assert.That(result.Manifest.HasValue, Is.True, "Successful validation must write the manifest.");
+            JsonElement manifest = result.Manifest!.Value;
+            (string? Id, string? Version, string? Type, string? File)[] archives =
+                [.. manifest.GetProperty("archives").EnumerateArray().Select(archive => (
+                    archive.GetProperty("id").GetString(),
+                    archive.GetProperty("version").GetString(),
+                    archive.GetProperty("type").GetString(),
+                    archive.GetProperty("file").GetString()))];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(manifest.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(2));
+                Assert.That(manifest.GetProperty("basePackageVersion").GetString(), Is.EqualTo("2.0.0"));
+                Assert.That(manifest.GetProperty("channel").GetString(), Is.EqualTo("stable"));
+                Assert.That(manifest.GetProperty("packageCount").GetInt32(), Is.EqualTo(expectedPackageCount));
+                Assert.That(manifest.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(expectedDebugCount));
+                Assert.That(manifest.GetProperty("symbolPackageCount").GetInt32(), Is.Zero);
+                Assert.That(
+                    manifest.GetProperty("packageVersions").EnumerateArray().Select(version => version.GetString()),
+                    Is.EquivalentTo(["2.0.0", PreviewFamilyVersion]));
+                Assert.That(archives, Has.Length.EqualTo(expectedPackageCount));
+                Assert.That(archives, Is.Unique);
+                Assert.That(
+                    archives,
+                    Is.EquivalentTo(expectedPackages.Select(package => (
+                        package.Id,
+                        package.Version,
+                        "package",
+                        $"{package.Id}.{package.Version}.nupkg"))));
+            });
+        }
+
+        private static void AssertVisionPolicyRejection(
+            ValidationResult result,
+            string packageId,
+            string actualVersion,
+            string expectedVersion)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);
+                Assert.That(
+                    result.Output,
+                    Does.Contain(
+                        "The package set contains versions that do not match the preview policy: " +
+                        $"{packageId}={actualVersion} (expected {expectedVersion})."));
+                Assert.That(result.Manifest, Is.Null, "A rejected package set must not produce a manifest.");
+            });
         }
     }
 }

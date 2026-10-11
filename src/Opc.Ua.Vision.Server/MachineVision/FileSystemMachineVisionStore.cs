@@ -133,11 +133,17 @@ namespace Opc.Ua.Vision.Server
                     return [];
                 }
                 var paths = new HashSet<string>(StringComparer.Ordinal);
+                var pendingFiles = new List<string>();
                 await foreach (FileSystemEntry entry in m_provider.EnumerateAsync(folder, cancellationToken)
                     .WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
                     if (!entry.IsDirectory)
                     {
+                        if (IsPendingFile(entry.Path))
+                        {
+                            pendingFiles.Add(entry.Path);
+                            continue;
+                        }
                         if (entry.Path.EndsWith(".bin", StringComparison.Ordinal))
                         {
                             paths.Add(entry.Path);
@@ -147,6 +153,10 @@ namespace Opc.Ua.Vision.Server
                             paths.Add(entry.Path[..^".previous".Length]);
                         }
                     }
+                }
+                foreach (string pending in pendingFiles)
+                {
+                    await m_provider.DeleteAsync(pending, cancellationToken).ConfigureAwait(false);
                 }
                 var documents = new List<MachineVisionDocument>();
                 foreach (string path in paths)
@@ -181,7 +191,7 @@ namespace Opc.Ua.Vision.Server
             try
             {
                 string path = PathOf(document.Kind, document.Id);
-                string pending = path + ".pending-" + Guid.NewGuid().ToString("N");
+                string pending = path + ".pending";
                 string backup = path + ".previous";
                 await m_provider.CreateDirectoryAsync(FolderOf(document.Kind), cancellationToken).ConfigureAwait(false);
                 await RecoverAsync(path, cancellationToken).ConfigureAwait(false);
@@ -286,6 +296,26 @@ namespace Opc.Ua.Vision.Server
 
         private async ValueTask RecoverAsync(string path, CancellationToken ct)
         {
+            string folder = path[..path.LastIndexOf('/')];
+            if (await m_provider.GetEntryAsync(folder, ct).ConfigureAwait(false) != null)
+            {
+                var stale = new List<string>();
+                await foreach (FileSystemEntry entry in m_provider.EnumerateAsync(folder, ct)
+                    .WithCancellation(ct).ConfigureAwait(false))
+                {
+                    if (!entry.IsDirectory &&
+                        IsPendingFile(entry.Path) &&
+                        (entry.Path == path + ".pending" ||
+                            entry.Path.StartsWith(path + ".pending-", StringComparison.Ordinal)))
+                    {
+                        stale.Add(entry.Path);
+                    }
+                }
+                foreach (string pending in stale)
+                {
+                    await m_provider.DeleteAsync(pending, ct).ConfigureAwait(false);
+                }
+            }
             string backup = path + ".previous";
             if (await m_provider.GetEntryAsync(backup, ct).ConfigureAwait(false) == null)
             {
@@ -299,6 +329,18 @@ namespace Opc.Ua.Vision.Server
             {
                 await m_provider.DeleteAsync(backup, ct).ConfigureAwait(false);
             }
+        }
+
+        private static bool IsPendingFile(string path)
+        {
+            int marker = path.LastIndexOf(".bin.pending", StringComparison.Ordinal);
+            if (marker < 0)
+            {
+                return false;
+            }
+            string suffix = path[(marker + ".bin.pending".Length)..];
+            return suffix.Length == 0 ||
+                (suffix.Length == 33 && suffix[0] == '-' && Guid.TryParseExact(suffix[1..], "N", out _));
         }
 
         private async ValueTask CleanupAsync(string path)

@@ -55,7 +55,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             HashSet<string> vision = GetToolNames(new McpToolProfileSet(McpToolProfile.Vision));
             HashSet<string> robotics = GetToolNames(new McpToolProfileSet(McpToolProfile.Robotics));
             HashSet<string> composed = GetToolNames(new McpToolProfileSet(
-                new[] { McpToolProfile.Vision, McpToolProfile.Robotics }));
+                [McpToolProfile.Vision, McpToolProfile.Robotics]));
 
             Assert.That(composed.IsSupersetOf(vision), Is.True,
                 "The composed catalogue must expose every Vision tool.");
@@ -71,13 +71,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void ComposingVisionAndRoboticsIsDecisivelySmallerThanFull()
         {
             HashSet<string> composed = GetToolNames(new McpToolProfileSet(
-                new[] { McpToolProfile.Vision, McpToolProfile.Robotics }));
+                [McpToolProfile.Vision, McpToolProfile.Robotics]));
             HashSet<string> full = GetToolNames(new McpToolProfileSet(McpToolProfile.Full));
 
             Assert.That(composed, Has.Count.LessThan(full.Count),
                 "Composing bounded profiles must produce a smaller catalogue than Full.");
-            // 37 (vision) + 42 (robotics) - 4 (shared ConnectionTools) = 75.
-            Assert.That(composed, Has.Count.EqualTo(75));
+            // 43 (vision) + 42 (robotics) - 4 (shared ConnectionTools) = 81.
+            Assert.That(composed, Has.Count.EqualTo(81));
         }
 
         /// <summary>
@@ -96,10 +96,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             var services = new ServiceCollection();
             services.AddMcpServer().WithOpcUaCoreTools(new McpToolProfileSet(
-                new[] { McpToolProfile.Vision, McpToolProfile.Robotics }));
+                [McpToolProfile.Vision, McpToolProfile.Robotics]));
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            List<McpServerTool> tools = provider.GetServices<McpServerTool>().ToList();
+            List<McpServerTool> tools = [.. provider.GetServices<McpServerTool>()];
 
             Assert.That(
                 tools.Count(t => string.Equals(t.ProtocolTool.Name, "Connect", StringComparison.Ordinal)),
@@ -127,7 +127,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void ComposedSetPathRegistersConnectionToolsOnceAcrossPackages()
         {
             var toolProfiles = new McpToolProfileSet(
-                new[] { McpToolProfile.Vision, McpToolProfile.Robotics });
+                [McpToolProfile.Vision, McpToolProfile.Robotics]);
             var services = new ServiceCollection();
 
             services.AddMcpServer()
@@ -136,12 +136,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .WithOpcUaRoboticsTools(toolProfiles);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            List<McpServerTool> tools = provider.GetServices<McpServerTool>().ToList();
+            List<McpServerTool> tools = [.. provider.GetServices<McpServerTool>()];
 
             int connectCount = tools.Count(t =>
                 string.Equals(t.ProtocolTool.Name, "Connect", StringComparison.Ordinal));
             Assert.That(connectCount, Is.EqualTo(1),
                 "Composed set-overloads must not race on the ConnectionTools registration.");
+            Assert.That(tools.Select(tool => tool.ProtocolTool.Name), Is.Unique);
+            Assert.That(tools.Count(tool => tool.ProtocolTool.Name.StartsWith(
+                "vision_machine_", StringComparison.Ordinal)), Is.EqualTo(17));
         }
 
         [Test]
@@ -174,7 +177,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             HashSet<string> viaFull = GetToolNames(new McpToolProfileSet(McpToolProfile.Full));
             HashSet<string> viaFullPlus = GetToolNames(new McpToolProfileSet(
-                new[] { McpToolProfile.Full, McpToolProfile.Vision, McpToolProfile.Robotics }));
+                [McpToolProfile.Full, McpToolProfile.Vision, McpToolProfile.Robotics]));
 
             Assert.That(viaFullPlus, Is.EquivalentTo(viaFull));
         }

@@ -191,14 +191,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
 
                 await process.StandardInput.WriteLineAsync(
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","method":"notifications/initialized"}
                     """).ConfigureAwait(false);
                 await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
 
                 using JsonDocument listTools = await SendRequestAsync(
                     process,
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
                     """,
                     2,
@@ -302,7 +304,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
 
                 await process.StandardInput.WriteLineAsync(
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","method":"notifications/initialized"}
                     """).ConfigureAwait(false);
                 await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
@@ -389,7 +392,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
 
                 await process.StandardInput.WriteLineAsync(
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","method":"notifications/initialized"}
                     """).ConfigureAwait(false);
                 await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
@@ -448,14 +452,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
 
                 await process.StandardInput.WriteLineAsync(
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","method":"notifications/initialized"}
                     """).ConfigureAwait(false);
                 await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
 
                 using JsonDocument listTools = await SendRequestAsync(
                     process,
-                    """
+                    /*lang=json,strict*/
+                                         """
                     {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
                     """,
                     2,
@@ -471,10 +477,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 }
 
                 var unique = new System.Collections.Generic.HashSet<string>(names, StringComparer.Ordinal);
-                Assert.That(names, Has.Count.EqualTo(75),
-                    "Vision + Robotics must publish 75 tools (37 + 42 - 4 shared connection tools).");
+                Assert.That(names, Has.Count.EqualTo(81),
+                    "Vision + Robotics must publish 81 tools (43 + 42 - 4 shared connection tools).");
                 Assert.That(unique, Has.Count.EqualTo(names.Count),
                     "The wire-level catalogue must not contain duplicate tool names.");
+                Assert.That(names, Does.Contain("vision_machine_capabilities"));
+                Assert.That(names, Does.Contain("vision_machine_relationships"));
+                Assert.That(names, Does.Contain("vision_machine_observe"));
+                Assert.That(names, Does.Contain("vision_machine_upload_recipe"));
+                Assert.That(names, Does.Contain("vision_machine_upload_configuration"));
+                Assert.That(names, Does.Contain("vision_machine_download_result"));
                 Assert.That(
                     names.FindAll(n => string.Equals(n, "Connect", StringComparison.Ordinal)),
                     Has.Count.EqualTo(1),
@@ -611,14 +623,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             while (true)
             {
-                string? response = await process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
-                if (response == null)
-                {
+                string? response = await process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false) ??
                     throw new InvalidOperationException(
                         $"MCP server exited before responding to request {requestId}.");
-                }
 
-                JsonDocument document = JsonDocument.Parse(response);
+                var document = JsonDocument.Parse(response);
                 if (document.RootElement.TryGetProperty("id", out JsonElement id) &&
                     id.TryGetInt32(out int responseId) &&
                     responseId == requestId)

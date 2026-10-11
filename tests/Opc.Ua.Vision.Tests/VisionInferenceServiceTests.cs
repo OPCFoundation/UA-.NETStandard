@@ -32,9 +32,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -149,7 +148,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await service.RunOneShotAsync(
                     pipeline,
                     "Pipeline1",
@@ -332,7 +331,7 @@ namespace Opc.Ua.Vision.Tests
                 .Returns((NodeId _, NodeId type, CancellationToken _) =>
                     new ValueTask<bool>(
                         type == new NodeId(
-                            ObjectTypes.VisionResultType,
+                            Perception.ObjectTypes.VisionResultType,
                             harness.VisionNamespaceIndex)));
 
             VisionInferenceService service = harness.Client.Inference();
@@ -349,7 +348,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(autoResult.Resolved, Is.True);
             Assert.That(autoResult.ResultKind, Is.EqualTo(VisionResultKind.Unknown));
 
-            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await service.RunOneShotAsync(
                     pipeline,
                     "Pipeline1",
@@ -364,7 +363,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task DetermineResultKindReturnsDetection()
         {
             var harness = new VisionSessionHarness();
-            SetupResultTypeDefinition(harness, ObjectTypes.DetectionResultType);
+            SetupResultTypeDefinition(harness, Perception.ObjectTypes.DetectionResultType);
 
             VisionInferenceService service = harness.Client.Inference();
             VisionResultKind kind = await service.DetermineResultKindAsync(
@@ -400,7 +399,7 @@ namespace Opc.Ua.Vision.Tests
                     DisplayName = new LocalizedText("VendorDetectionResultType"),
                     NodeClass = NodeClass.ObjectType,
                     TypeDefinition = ExpandedNodeId.Null,
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasTypeDefinition,
+                    ReferenceTypeId = ReferenceTypeIds.HasTypeDefinition,
                     IsForward = true
                 }]);
 
@@ -435,27 +434,27 @@ namespace Opc.Ua.Vision.Tests
                 new ReferenceDescription
                 {
                     NodeId = new ExpandedNodeId(
-                        new NodeId(ObjectTypes.DetectionResultType,
+                        new NodeId(Perception.ObjectTypes.DetectionResultType,
                             harness.VisionNamespaceIndex)),
                     BrowseName = new QualifiedName("DetectionResultType",
                         harness.VisionNamespaceIndex),
                     DisplayName = new LocalizedText("DetectionResultType"),
                     NodeClass = NodeClass.ObjectType,
                     TypeDefinition = ExpandedNodeId.Null,
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasTypeDefinition,
+                    ReferenceTypeId = ReferenceTypeIds.HasTypeDefinition,
                     IsForward = true
                 },
                 new ReferenceDescription
                 {
                     NodeId = new ExpandedNodeId(
-                        new NodeId(ObjectTypes.InspectionResultType,
+                        new NodeId(Perception.ObjectTypes.InspectionResultType,
                             harness.VisionNamespaceIndex)),
                     BrowseName = new QualifiedName("InspectionResultType",
                         harness.VisionNamespaceIndex),
                     DisplayName = new LocalizedText("InspectionResultType"),
                     NodeClass = NodeClass.ObjectType,
                     TypeDefinition = ExpandedNodeId.Null,
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasTypeDefinition,
+                    ReferenceTypeId = ReferenceTypeIds.HasTypeDefinition,
                     IsForward = true
                 }
             ]);
@@ -722,7 +721,7 @@ namespace Opc.Ua.Vision.Tests
             harness.ConfigureVisionFolders();
             harness.AddPipeline("Alpha");
 
-            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Client.ResolvePipelineAsync("Beta")
                     .ConfigureAwait(false));
 
@@ -738,11 +737,11 @@ namespace Opc.Ua.Vision.Tests
             ReferenceDescription entry = harness.Ref(
                 harness.PipelineNodeId,
                 "PipelineBrowseName",
-                ObjectTypes.InferencePipelineType);
+                Perception.ObjectTypes.InferencePipelineType);
             entry.DisplayName = new LocalizedText("Pipeline Display Name");
             harness.AddBrowse(harness.PipelinesFolderId, [entry]);
 
-            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Client.ResolvePipelineAsync("missing").ConfigureAwait(false));
 
             Assert.Multiple(() =>
@@ -762,12 +761,12 @@ namespace Opc.Ua.Vision.Tests
             harness.AddBrowse(harness.PipelinesFolderId,
             [
                 harness.Ref(harness.PipelineNodeId, "Dup",
-                    ObjectTypes.InferencePipelineType),
+                    Perception.ObjectTypes.InferencePipelineType),
                 harness.Ref(secondPipelineId, "Dup",
-                    ObjectTypes.InferencePipelineType)
+                    Perception.ObjectTypes.InferencePipelineType)
             ]);
 
-            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Client.ResolvePipelineAsync("Dup")
                     .ConfigureAwait(false));
 
@@ -780,29 +779,29 @@ namespace Opc.Ua.Vision.Tests
             harness.AddPipeline();
             harness.ConfigureCall(StatusCodes.Good, new Variant("result-42"));
 
-            harness.AddChild(harness.PipelineNodeId, BrowseNames.Results,
+            harness.AddChild(harness.PipelineNodeId, Perception.BrowseNames.Results,
                 harness.ResultsFolderId);
             harness.AddBrowse(harness.ResultsFolderId,
                 [harness.Ref(harness.InferenceResultNodeId, "result-42",
-                    ObjectTypes.DetectionResultType)]);
+                    Perception.ObjectTypes.DetectionResultType)]);
 
-            SetupResultTypeDefinition(harness, ObjectTypes.DetectionResultType);
+            SetupResultTypeDefinition(harness, Perception.ObjectTypes.DetectionResultType);
         }
 
         private static void SetupDetectionResultChildren(
             VisionSessionHarness harness)
         {
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.ResultId,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.ResultId,
                 new(5000u, 3), "result-42");
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.CreationTime,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.CreationTime,
                 new(5001u, 3), new DateTimeUtc(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.Sensor,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.Sensor,
                 new(5004u, 3), harness.SensorNodeId);
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.Pipeline,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.Pipeline,
                 new(5005u, 3), new NodeId(3002u, 3));
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.FrameId,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.FrameId,
                 new(5002u, 3), "world");
-            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.ModelVersionUsed,
+            harness.AddValueChild(harness.InferenceResultNodeId, Perception.BrowseNames.ModelVersionUsed,
                 new(5003u, 3), "v1.0");
         }
 
@@ -819,7 +818,7 @@ namespace Opc.Ua.Vision.Tests
                     DisplayName = new LocalizedText("DetectionResultType"),
                     NodeClass = NodeClass.ObjectType,
                     TypeDefinition = ExpandedNodeId.Null,
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasTypeDefinition,
+                    ReferenceTypeId = ReferenceTypeIds.HasTypeDefinition,
                     IsForward = true
                 }]);
         }

@@ -1,7 +1,7 @@
 # Machine Vision server
 
 Hosts released OPC 40100-1 control/management and OPC 40100-2 assets in the existing
-Machinery manager. A deterministic engine also implements the draft Vision inference
+Machinery manager. A deterministic engine also implements the Perception inference
 provider, so both command paths publish the same acquisition under both result models.
 The sample requires no camera, GPU, or image-processing SDK.
 
@@ -31,5 +31,5 @@ and a draft inspection pipeline. The asset/control pair and camera representatio
 are linked using RepresentsSameEntityAs. Recipe content is opaque deterministic
 sample input; preparation and job starts remain explicit.
 
-See [Machine Vision](../../../docs/MachineVision.md) for providers, storage,
+See [Machine Vision](../../../docs/Vision.md) for providers, storage,
 optional features, protocol semantics, and the implementation map.

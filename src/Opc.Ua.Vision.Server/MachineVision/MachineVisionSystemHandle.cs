@@ -36,14 +36,13 @@ using Opc.Ua.Server;
 using Opc.Ua.Vision.MachineVision;
 using Automatic = Opc.Ua.Vision.MachineVision.VisionAutomaticModeStateMachineTypeIds;
 using Control = Opc.Ua.Vision.MachineVision.VisionStateMachineTypeIds;
-using Mv = Opc.Ua.Vision.MachineVision;
 
 namespace Opc.Ua.Vision.Server
 {
-    public static partial class VisionMachineVisionBuilderExtensions
+    public static class VisionMachineVisionBuilderExtensions
     {
         /// <summary>
-        /// Creates and binds a released Part 1 system in the existing Vision address space.
+        /// Creates and binds a released Part 1 system in the Vision address space.
         /// The returned handle owns execution and file resources until disposed by the manager.
         /// </summary>
         public static ValueTask<MachineVisionSystemHandle> AddMachineVisionSystemAsync(
@@ -157,7 +156,7 @@ namespace Opc.Ua.Vision.Server
             }
             MachineVisionSystemOptions configuration = (options ?? new MachineVisionSystemOptions()).CopyValidated();
             VisionSystemState state = context.Context.CreateInstanceOfVisionSystemType(context.Root, name);
-            state.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             state.EventNotifier = EventNotifiers.SubscribeToEvents;
             var runtime = new MachineVisionSystemHandle(
                 context, state, provider, configuration, store ?? new InMemoryMachineVisionStore(),
@@ -338,9 +337,9 @@ namespace Opc.Ua.Vision.Server
                 .CreateOrReplaceNumber(m_context.Context, null);
             FiniteTransitionVariableState transition = state.CreateOrReplaceLastTransition(m_context.Context, null);
             transition.Create(m_context.Context, NodeId.Null,
-                new QualifiedName(global::Opc.Ua.BrowseNames.LastTransition),
-                new LocalizedText(global::Opc.Ua.BrowseNames.LastTransition), true);
-            transition.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                new QualifiedName(BrowseNames.LastTransition),
+                new LocalizedText(BrowseNames.LastTransition), true);
+            transition.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             transition.CreateOrReplaceNumber(m_context.Context, null);
             transition.CreateOrReplaceTransitionTime(m_context.Context, null);
             MachineVisionNodes.Rebase(m_context.Context, transition);
@@ -466,7 +465,7 @@ namespace Opc.Ua.Vision.Server
                     .ConfigureAwait(false);
                 for (int ii = 0; ii < recipes.Count; ii++)
                 {
-                    RecipeRecord recipe = RecipeRecord.From(recipes[ii]);
+                    var recipe = RecipeRecord.From(recipes[ii]);
                     if (recipe.Prepared)
                     {
                         await m_store.WriteAsync(recipes[ii] with

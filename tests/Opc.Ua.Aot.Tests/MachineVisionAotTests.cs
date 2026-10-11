@@ -55,6 +55,10 @@ namespace Opc.Ua.Aot.Tests
             {
                 message.NamespaceUris.GetIndexOrAppend(uri);
             }
+            foreach (string uri in new VisionMachineryStandaloneModelProvider().NamespaceUris)
+            {
+                message.NamespaceUris.GetIndexOrAppend(uri);
+            }
             message.Factory.Builder.AddOpcUaVisionMachineVision().AddOpcUaVisionMachineVisionAMCM().Commit();
             var context = new SystemContext(telemetry)
             {
@@ -113,7 +117,8 @@ namespace Opc.Ua.Aot.Tests
 
             var services = new ServiceCollection();
             services.AddOpcUa().AddServer(options => options.ApplicationName = "MachineVisionAotServer")
-                .AddVision(options => options.MachineVisionParts = MachineVisionParts.All);
+                .AddVision(options => options.MachineVisionParts = MachineVisionParts.All)
+                .AddVisionMachinery();
             services.AddOpcUa().AddClient(options => options.ApplicationName = "MachineVisionAotClient")
                 .AddVisionClient();
             using ServiceProvider provider = services.BuildServiceProvider();

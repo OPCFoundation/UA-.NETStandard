@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -70,10 +69,13 @@ namespace Opc.Ua.Vision.Tests
             };
             Server = await m_fixture.StartAsync().ConfigureAwait(false);
 
+            IVisionModelProvider[] providers = (parts & MachineVisionParts.Assets) != 0
+                ? [new VisionModelProvider(parts), new VisionMachineryStandaloneModelProvider()]
+                : [new VisionModelProvider(parts)];
             Manager = new VisionNodeManager(
                 Server.CurrentInstance,
                 m_fixture.Config,
-                new IVisionModelProvider[] { new VisionModelProvider(parts) },
+                providers,
                 new VisionServerOptions { MachineVisionParts = parts });
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await Manager.CreateAddressSpaceAsync(externalReferences)

@@ -35,10 +35,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI.Server;
-using Opc.Ua.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
 
 namespace Vision.VisualInspectionCell
 {
@@ -75,7 +73,7 @@ namespace Vision.VisualInspectionCell
                     FrameId = FixtureFrameId,
                     Position = s_zeroPosition.ToArrayOf(),
                     Orientation = s_identityOrientation.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 }));
             AddSensor(context);
             AddPipeline(context);
@@ -105,7 +103,7 @@ namespace Vision.VisualInspectionCell
                     Cy = 300.0,
                     Skew = 0.0,
                     DistortionModel = VisionDistortionModelEnum.None,
-                    DistortionCoefficients = ArrayOf<double>.Empty,
+                    DistortionCoefficients = [],
                     Width = VisualInspectionMediaProvider.Width,
                     Height = VisualInspectionMediaProvider.Height
                 })
@@ -180,8 +178,8 @@ namespace Vision.VisualInspectionCell
                 new QualifiedName(OperatorDialogBrowseName, context.InstanceNamespaceIndex),
                 new LocalizedText("Operator disposition dialog"),
                 true);
-            dialog.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
-            dialog.TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.DialogConditionType;
+            dialog.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            dialog.TypeDefinitionId = Opc.Ua.ObjectTypeIds.DialogConditionType;
             dialog.NodeId = new NodeId(OperatorDialogBrowseName, context.InstanceNamespaceIndex);
             context.Context.AssignInstanceChildNodeIds(dialog, dialog.NodeId);
             dialog.CreateOrReplacePrompt(context.Context, null).Value =

@@ -240,7 +240,7 @@ namespace Opc.Ua.Vision.Server
         /// <exception cref="ArgumentException"></exception>
         internal static void ValidateKey(MachineVisionDocumentKind kind, string id)
         {
-            if (kind < MachineVisionDocumentKind.Recipe || kind > MachineVisionDocumentKind.Runtime)
+            if (kind is < MachineVisionDocumentKind.Recipe or > MachineVisionDocumentKind.Runtime)
             {
                 throw new ArgumentOutOfRangeException(nameof(kind));
             }

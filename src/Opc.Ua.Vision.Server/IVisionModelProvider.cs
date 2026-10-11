@@ -29,11 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.Di;
-using Opc.Ua.IA;
-using Opc.Ua.Machinery;
 using Opc.Ua.Vision.MachineVision;
-using Opc.Ua.Vision.MachineVision.AMCM;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -106,17 +103,10 @@ namespace Opc.Ua.Vision.Server
         {
             get
             {
-                var namespaces = new List<string> { global::Opc.Ua.Vision.Namespaces.Vision };
+                var namespaces = new List<string> { Perception.Namespaces.Vision };
                 if ((Parts & MachineVisionParts.Control) != 0)
                 {
                     namespaces.Add(MachineVisionModels.ControlNamespaceUri);
-                }
-                if ((Parts & MachineVisionParts.Assets) != 0)
-                {
-                    namespaces.Add(global::Opc.Ua.Di.Namespaces.OpcUaDi);
-                    namespaces.Add(global::Opc.Ua.IA.Namespaces.IA);
-                    namespaces.Add(global::Opc.Ua.Machinery.Namespaces.Machinery);
-                    namespaces.Add(MachineVisionModels.AssetNamespaceUri);
                 }
                 return namespaces.ToArrayOf();
             }
@@ -133,17 +123,10 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            nodes.AddOpcUaVision(context);
+            nodes.AddOpcUaVisionPerception(context);
             if ((Parts & MachineVisionParts.Control) != 0)
             {
                 nodes.AddOpcUaVisionMachineVision(context);
-            }
-            if ((Parts & MachineVisionParts.Assets) != 0)
-            {
-                nodes.AddOpcUaDi(context);
-                nodes.AddOpcUaIA(context);
-                nodes.AddOpcUaMachinery(context);
-                nodes.AddOpcUaVisionMachineVisionAMCM(context);
             }
         }
     }

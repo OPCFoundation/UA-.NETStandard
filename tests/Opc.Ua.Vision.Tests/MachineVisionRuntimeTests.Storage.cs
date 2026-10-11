@@ -277,8 +277,8 @@ namespace Opc.Ua.Vision.Tests
                 [Variant.From(second), Variant.From(1)]).ConfigureAwait(false);
             a[0].TryGetValue(out ByteString aBytes);
             b[0].TryGetValue(out ByteString bBytes);
-            Assert.That(aBytes.Span.ToArray(), Is.EqualTo(new byte[] { 10 }));
-            Assert.That(bBytes.Span.ToArray(), Is.EqualTo(new byte[] { 10 }));
+            Assert.That(aBytes.Span.ToArray(), Is.EqualTo("\n"u8.ToArray()));
+            Assert.That(bBytes.Span.ToArray(), Is.EqualTo("\n"u8.ToArray()));
             Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await binding.CloseAsync(other, first).ConfigureAwait(false));
             Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -287,9 +287,9 @@ namespace Opc.Ua.Vision.Tests
             await binding.CloseAsync(other, second).ConfigureAwait(false);
             uint writer = await binding.OpenAsync(owner, 6).ConfigureAwait(false);
             await InvokeAsync(ownerContext, file, file.Write!,
-                [Variant.From(writer), Variant.From(ByteString.From(new byte[] { 42 }))]).ConfigureAwait(false);
+                [Variant.From(writer), Variant.From(ByteString.From("*"u8.ToArray()))]).ConfigureAwait(false);
             await binding.CloseAsync(owner, writer).ConfigureAwait(false);
-            Assert.That(committed.Span.ToArray(), Is.EqualTo(new byte[] { 42 }));
+            Assert.That(committed.Span.ToArray(), Is.EqualTo("*"u8.ToArray()));
             Assert.That(file.OpenCount!.Value, Is.Zero);
             Assert.That(file.Size!.Value, Is.EqualTo(1));
         }
@@ -384,6 +384,10 @@ namespace Opc.Ua.Vision.Tests
                         ByteString.From(new byte[] { 3, 2, 1 }))).ConfigureAwait(false);
                 }
                 string stored = Directory.GetFiles(directory, "*.bin", SearchOption.AllDirectories)[0];
+                string pending = stored + ".pending";
+                string oldPending = stored + ".pending-" + Guid.NewGuid().ToString("N");
+                File.WriteAllBytes(pending, [0x42]);
+                File.WriteAllBytes(oldPending, [0x43]);
                 File.Move(stored, stored + ".previous");
                 await using var second = new FileSystemMachineVisionStore(
                     provider, fixture.Manager.SystemContext.AsMessageContext());
@@ -396,8 +400,16 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(recovered.Content.Span.ToArray(), Is.EqualTo(new byte[] { 3, 2, 1 }));
                 Assert.That(File.Exists(stored), Is.True);
                 Assert.That(File.Exists(stored + ".previous"), Is.False);
+                Assert.That(File.Exists(pending), Is.False, "An interrupted pending write must not accumulate.");
+                Assert.That(File.Exists(oldPending), Is.False, "Recover files created by the earlier unique-name format.");
                 Assert.That((await second.ListAsync(MachineVisionDocumentKind.Result).ConfigureAwait(false)).Count,
                     Is.EqualTo(1));
+                string interruptedFirstWrite = Path.Combine(Path.GetDirectoryName(stored)!,
+                    new string('0', 64) + ".bin.pending");
+                File.WriteAllBytes(interruptedFirstWrite, [0x44]);
+                Assert.That((await second.ListAsync(MachineVisionDocumentKind.Result).ConfigureAwait(false)).Count,
+                    Is.EqualTo(1), "An uncommitted first write is not a document.");
+                Assert.That(File.Exists(interruptedFirstWrite), Is.False);
                 Assert.That(await second.DeleteAsync(MachineVisionDocumentKind.Result, "../logical-id")
                     .ConfigureAwait(false), Is.True);
                 Assert.That(await second.ReadAsync(MachineVisionDocumentKind.Result, "../logical-id")

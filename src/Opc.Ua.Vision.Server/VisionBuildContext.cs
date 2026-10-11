@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Server
@@ -48,29 +49,18 @@ namespace Opc.Ua.Vision.Server
             CancellationToken cancellationToken,
             IServiceProvider? services = null)
         {
-            if (manager == null)
-            {
-                throw new ArgumentNullException(nameof(manager));
-            }
-            if (root == null)
-            {
-                throw new ArgumentNullException(nameof(root));
-            }
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
             }
-            if (registry == null)
-            {
-                throw new ArgumentNullException(nameof(registry));
-            }
+
             if (dispatcher == null)
             {
                 throw new ArgumentNullException(nameof(dispatcher));
             }
             options.Validate();
-            Manager = manager;
-            Root = root;
+            Manager = manager ?? throw new ArgumentNullException(nameof(manager));
+            Root = root ?? throw new ArgumentNullException(nameof(root));
             Context = manager.SystemContext;
             CancellationToken = cancellationToken;
             m_services = services;
@@ -83,17 +73,17 @@ namespace Opc.Ua.Vision.Server
                     options.InstanceNamespaceUri);
             }
             InstanceNamespaceIndex = (ushort)instanceIndex;
-            int visionIndex = Context.NamespaceUris.GetIndex(global::Opc.Ua.Vision.Namespaces.Vision);
+            int visionIndex = Context.NamespaceUris.GetIndex(Perception.Namespaces.Vision);
             if (visionIndex < 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The Vision namespace '{0}' is not registered.",
-                    global::Opc.Ua.Vision.Namespaces.Vision);
+                    Perception.Namespaces.Vision);
             }
             VisionNamespaceIndex = (ushort)visionIndex;
-            Registry = registry;
-            if (manager is Opc.Ua.Di.Server.DiNodeManager diManager)
+            Registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            if (manager is Di.Server.DiNodeManager diManager)
             {
                 diManager.RegisterConformanceContributor(registry);
             }

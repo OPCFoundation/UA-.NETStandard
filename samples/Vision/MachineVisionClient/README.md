@@ -20,5 +20,5 @@ The complete workflow has a 60-second cancellation bound.
 it does not switch off transport encryption. For production, omit it and provision
 application trust through certificate stores.
 
-See [Machine Vision](../../../docs/MachineVision.md#typed-clients) for direct and DI
+See [Machine Vision](../../../docs/Vision.md#typed-clients) for direct and DI
 client construction, the generated sub-clients, streaming, and file lifetimes.

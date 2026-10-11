@@ -39,6 +39,7 @@ using Opc.Ua.Machinery;
 using Opc.Ua.Tests;
 using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.MachineVision.AMCM;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -57,7 +58,7 @@ namespace Opc.Ua.Vision.Tests
         [TestCase("Opc.Ua.MachineVision.AMCM.NodeSet2.xml", MachineVisionModels.AssetNodeSetSha256)]
         public void PublishedNodeSetIsUnmodified(string file, string expectedHash)
         {
-            using SHA256 hash = SHA256.Create();
+            using var hash = SHA256.Create();
             using FileStream stream = File.OpenRead(
                 Path.Combine(TestContext.CurrentContext.TestDirectory, "Model", file));
             Assert.That(
@@ -73,10 +74,9 @@ namespace Opc.Ua.Vision.Tests
         {
             XDocument model = ReadModel("Opc.Ua.MachineVision.AMCM.NodeSet2.xml");
             Assert.That(model.Descendants(s_ns + "UAMethod"), Is.Empty);
-            string?[] dependencies = model.Descendants(s_ns + "RequiredModel")
-                .Select(element => (string?)element.Attribute("ModelUri"))
-                .ToArray();
-            Assert.That(dependencies, Does.Contain(global::Opc.Ua.Machinery.Namespaces.Machinery));
+            string?[] dependencies =
+                [.. model.Descendants(s_ns + "RequiredModel").Select(element => (string?)element.Attribute("ModelUri"))];
+            Assert.That(dependencies, Does.Contain(Machinery.Namespaces.Machinery));
             Assert.That(dependencies, Does.Not.Contain(MachineVisionModels.ControlNamespaceUri));
             XElement placeholder = model.Root!.Elements().Single(
                 element => (string?)element.Attribute("NodeId") == "ns=1;i=5004");
@@ -93,7 +93,7 @@ namespace Opc.Ua.Vision.Tests
         public void GeneratedModelsLoadTogetherAndCreateTypedInstances()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            var messageContext = ServiceMessageContext.Create(telemetry);
             var context = new SystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
@@ -103,11 +103,15 @@ namespace Opc.Ua.Vision.Tests
             {
                 context.NamespaceUris.GetIndexOrAppend(uri);
             }
+            foreach (string uri in new VisionMachineryStandaloneModelProvider().NamespaceUris)
+            {
+                context.NamespaceUris.GetIndexOrAppend(uri);
+            }
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
             nodes.AddOpcUaIA(context);
             nodes.AddOpcUaMachinery(context);
-            nodes.AddOpcUaVision(context);
+            nodes.AddOpcUaVisionPerception(context);
             nodes.AddOpcUaVisionMachineVision(context);
             nodes.AddOpcUaVisionMachineVisionAMCM(context);
 

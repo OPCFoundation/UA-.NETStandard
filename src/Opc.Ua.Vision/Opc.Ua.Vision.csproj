@@ -5,7 +5,7 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Vision</PackageId>
     <RootNamespace>Opc.Ua.Vision</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Description>Server/client-independent OPC UA Vision contracts and source-generated models: OPC 40100-1 Machine Vision control and management, OPC 40100-2 asset management and condition monitoring, and the draft Vision perception model.</Description>
+    <Description>OPC 40100-1 Machine Vision control and management contracts and the Perception model in independent generated namespaces. Part 2 asset models are supplied by Opc.Ua.Vision.Machinery.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -21,8 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -30,19 +28,16 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
-  <!-- The draft and the two released models have independent wire namespaces.
-       AMCM consumes the existing DI/Machinery producers, not copied models. -->
+  <!-- Perception and Part 1 have independent wire and CLR namespaces. -->
   <ItemGroup>
     <None Remove="Model\Opc.Ua.Vision.NodeSet2.xml" />
     <None Remove="Model\Opc.Ua.MachineVision.NodeSet2.xml" />
     <None Remove="Model\Opc.Ua.MachineVision.NodeIds.csv" />
-    <None Remove="Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml" />
-    <None Remove="Model\Opc.Ua.MachineVision.AMCM.NodeIds.csv" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Vision.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Vision/</ModelSourceGeneratorModelUri>
-      <ModelSourceGeneratorPrefix>Opc.Ua.Vision</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Vision.Perception</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.MachineVision.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/MachineVision</ModelSourceGeneratorModelUri>
@@ -51,13 +46,6 @@
       <ModelSourceGeneratorIdentifierFile>Opc.Ua.MachineVision.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
     </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.MachineVision.NodeIds.csv" />
-    <AdditionalFiles Include="Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml">
-      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/MachineVision/AMCM/</ModelSourceGeneratorModelUri>
-      <ModelSourceGeneratorName>MachineVisionAmcm</ModelSourceGeneratorName>
-      <ModelSourceGeneratorPrefix>Opc.Ua.Vision.MachineVision.AMCM</ModelSourceGeneratorPrefix>
-      <ModelSourceGeneratorIdentifierFile>Opc.Ua.MachineVision.AMCM.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
-    </AdditionalFiles>
-    <AdditionalFiles Include="Model\Opc.Ua.MachineVision.AMCM.NodeIds.csv" />
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>

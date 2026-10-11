@@ -40,7 +40,9 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.StateMachines;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.Server;
@@ -53,7 +55,7 @@ namespace Opc.Ua.Vision.Tests
         public void MachineryCompositionRequiresExistingProviderRegistration()
         {
             var services = new ServiceCollection();
-            var builder = services.AddOpcUa()
+            IOpcUaServerBuilder builder = services.AddOpcUa()
                 .AddServer(options => options.ApplicationName = "MachineVisionRegistration");
             Assert.Throws<InvalidOperationException>(() => builder.AddVisionToMachinery());
             builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
@@ -64,11 +66,11 @@ namespace Opc.Ua.Vision.Tests
         public void StandaloneAssetsRejectASecondMachineryOwner()
         {
             var services = new ServiceCollection();
-            var builder = services.AddOpcUa()
+            IOpcUaServerBuilder builder = services.AddOpcUa()
                 .AddServer(options => options.ApplicationName = "MachineVisionRegistration")
                 .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
             Assert.Throws<InvalidOperationException>(() => builder.AddVision(
-                options => options.MachineVisionParts = MachineVisionParts.Assets));
+                options => options.MachineVisionParts = MachineVisionParts.Assets).AddVisionMachinery());
         }
 
         [Test]
@@ -140,7 +142,7 @@ namespace Opc.Ua.Vision.Tests
                 await using (session.ConfigureAwait(false))
                 {
                     DataValue conformance = await session.ReadValueAsync(
-                        global::Opc.Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits, ct)
+                        VariableIds.Server_ServerCapabilities_ConformanceUnits, ct)
                         .ConfigureAwait(false);
                     Assert.That(conformance.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> units), Is.True);
                     Assert.That(units.ToArray(), Does.Contain(new QualifiedName("VSA Basic",
@@ -170,20 +172,21 @@ namespace Opc.Ua.Vision.Tests
                     MachineVisionSystemClient systemClient = client.System(runtime.State.NodeId);
                     VisionStateMachineTypeClient control = await systemClient.ControlAsync(ct).ConfigureAwait(false);
                     Assert.That(await control.SelectModeAutomaticAsync(ct).ConfigureAwait(false), Is.Zero);
-                    using var content = new MemoryStream(new byte[] { 1, 2, 3 });
+                    using var content = new MemoryStream([1, 2, 3]);
                     RecipeIdInternalDataType recipe = await systemClient.UploadRecipeAsync(
                         new RecipeIdExternalDataType { Id = "wire-recipe" },
                         new ProductIdDataType { Id = "wire-product" }, content, ct).ConfigureAwait(false);
                     RecipeManagementTypeClient recipes = await systemClient.RecipesAsync(ct).ConfigureAwait(false);
-                    var prepared = await recipes.PrepareRecipeAsync(new RecipeIdExternalDataType(), recipe, ct)
+                    (RecipeIdInternalDataType? internalIdOut, bool isCompleted, int error) =
+                        await recipes.PrepareRecipeAsync(new RecipeIdExternalDataType(), recipe, ct)
                         .ConfigureAwait(false);
-                    Assert.That(prepared.error, Is.Zero);
-                    Assert.That(prepared.isCompleted, Is.True);
+                    Assert.That(error, Is.Zero);
+                    Assert.That(isCompleted, Is.True);
                     VisionAutomaticModeStateMachineTypeClient automatic = await systemClient.AutomaticAsync(ct)
                         .ConfigureAwait(false);
                     FiniteStateSnapshot ready = await automatic.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
                     Assert.That(ready.CurrentState.Text, Is.EqualTo("Ready"));
-                    using var configurationContent = new MemoryStream(new byte[] { 9, 8, 7 });
+                    using var configurationContent = new MemoryStream([9, 8, 7]);
                     ConfigurationIdDataType configuration = await systemClient.UploadConfigurationAsync(
                         new ConfigurationIdDataType { Id = "wire-configuration" }, configurationContent, ct)
                         .ConfigureAwait(false);
@@ -191,7 +194,8 @@ namespace Opc.Ua.Vision.Tests
                         .ConfigureAwait(false);
                     Assert.That(await configurations.ActivateConfigurationAsync(configuration, ct)
                         .ConfigureAwait(false), Is.Zero);
-                    var configured = await configurations.GetConfigurationByIdAsync(configuration, 0, ct)
+                    (uint configurationHandle, ConfigurationDataType configuration, int error) configured =
+                        await configurations.GetConfigurationByIdAsync(configuration, 0, ct)
                         .ConfigureAwait(false);
                     Assert.That(configured.error, Is.Zero);
                     Assert.That(configured.configuration.ExternalId.Id, Is.EqualTo("wire-configuration"));
@@ -214,7 +218,13 @@ namespace Opc.Ua.Vision.Tests
                         new ResultIdDataType { Id = "wire-download" }, download, ct).ConfigureAwait(false);
                     Assert.That(download.ToArray(), Is.EqualTo(new byte[] { 5, 4, 3, 2, 1 }));
                     ResultManagementTypeClient results = await systemClient.ResultsAsync(ct).ConfigureAwait(false);
-                    var components = await results.GetResultComponentsByIdAsync(
+                    (bool hasTransferableDataOnFile, uint resultHandle, bool isPartial, bool isSimulated,
+                        int resultState, MeasIdDataType measId, PartIdDataType partId,
+                        RecipeIdExternalDataType externalRecipeId, RecipeIdInternalDataType internalRecipeId,
+                        ProductIdDataType productId, ConfigurationIdDataType externalConfigurationId,
+                        ConfigurationIdDataType internalConfigurationId, JobIdDataType jobId, DateTimeUtc creationTime,
+                        ProcessingTimesDataType processingTimes, ArrayOf<Variant> resultContent,
+                        int error) components = await results.GetResultComponentsByIdAsync(
                         new ResultIdDataType { Id = "wire-download" }, 0, ct).ConfigureAwait(false);
                     Assert.That(components.error, Is.Zero);
                     Assert.That(components.resultState, Is.EqualTo(77));
@@ -230,6 +240,47 @@ namespace Opc.Ua.Vision.Tests
                     MachineVisionAssetSnapshot snapshot = await client.ReadAssetAsync(asset.State.NodeId,
                         cancellationToken: ct).ConfigureAwait(false);
                     Assert.That(snapshot.Values.Count, Is.GreaterThan(0));
+                    MachineVisionCapabilities capabilities = await client.ReadCapabilitiesAsync(
+                        runtime.State.NodeId, ct).ConfigureAwait(false);
+                    Assert.That(capabilities.SupportsControl, Is.True);
+                    Assert.That(capabilities.SupportsAssets, Is.True);
+                    Assert.That(capabilities.Interfaces.ToArray(), Has.Some.Matches<MachineVisionInterfaceCapability>(
+                        member => member.Path == "RecipeManagement/RecipeTransfer" && !member.NodeId.IsNull));
+                    MachineVisionStatusSnapshot status = await client.ReadStatusAsync(runtime.State.NodeId, ct)
+                        .ConfigureAwait(false);
+                    Assert.That(status.Values.Count, Is.EqualTo(5));
+                    Assert.That(status.Values[3].Value.WrappedValue.TryGetValue(out bool safetyTriggered), Is.True);
+                    Assert.That(safetyTriggered, Is.True);
+                    MachineVisionRelationshipPage relations = await client.ReadRelationshipsAsync(
+                        asset.State.NodeId, MachineVisionRelationship.SameEntity, cancellationToken: ct)
+                        .ConfigureAwait(false);
+                    Assert.That(relations.IsComplete, Is.True);
+                    Assert.That(relations.References.Count, Is.EqualTo(1));
+                    Assert.That(ExpandedNodeId.ToNodeId(relations.References[0].NodeId, session.NamespaceUris),
+                        Is.EqualTo(runtime.State.NodeId));
+
+                    await runtime.ReportErrorAsync("wire-observation", new LocalizedText("Camera unavailable"),
+                        true, persistent: true, cancellationToken: ct).ConfigureAwait(false);
+                    Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? subscriptions), Is.True);
+                    int existingSubscriptions = subscriptions!.Count;
+                    MachineVisionObservation observation = await client.ObserveAsync(
+                        ObjectIds.Server,
+                        new MachineVisionObservationOptions
+                        {
+                            Mode = MachineVisionObservationMode.Conditions,
+                            RefreshConditions = true,
+                            MaximumNotifications = 1
+                        }, ct).ConfigureAwait(false);
+                    Assert.That(observation.Events.Count, Is.EqualTo(1));
+                    MachineVisionObservedEvent conditionEvent = observation.Events[0];
+                    Assert.That(conditionEvent.ConditionId.IsNull, Is.False);
+                    Assert.That(conditionEvent.EventId.Length, Is.GreaterThan(0));
+                    Assert.That(conditionEvent.Decoded, Is.InstanceOf<VisionPersistentErrorConditionTypeRecord>());
+                    Assert.That(subscriptions.Count, Is.EqualTo(existingSubscriptions));
+                    var condition = new AcknowledgeableConditionTypeClient(
+                        session, conditionEvent.ConditionId, visionClient.Telemetry);
+                    await condition.AcknowledgeAsync(conditionEvent.EventId, new LocalizedText("Observed"), ct)
+                        .ConfigureAwait(false);
                     await session.DefaultStreaming.DisposeAsync().ConfigureAwait(false);
                     await session.CloseAsync(ct).ConfigureAwait(false);
                 }

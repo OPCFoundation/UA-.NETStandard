@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
-using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Vision.MachineVision;
 
 namespace Opc.Ua.Vision.Client
@@ -140,20 +139,21 @@ namespace Opc.Ua.Vision.Client
                 throw new ArgumentNullException(nameof(content));
             }
             RecipeManagementTypeClient recipes = await RecipesAsync(ct).ConfigureAwait(false);
-            var added = await recipes.AddRecipeAsync(externalId, productId, ct).ConfigureAwait(false);
-            ThrowIfDomainError(added.error, "AddRecipe");
-            if (added.transferRequired)
+            (RecipeIdInternalDataType internalId, NodeId _, NodeId _, bool transferRequired, int error) =
+                await recipes.AddRecipeAsync(externalId, productId, ct).ConfigureAwait(false);
+            ThrowIfDomainError(error, "AddRecipe");
+            if (transferRequired)
             {
                 RecipeTransferTypeClient transfer = await recipes
                     .GetRecipeTransferAsync(m_operations.Telemetry, ct).ConfigureAwait(false)
                     ?? throw Missing("RecipeTransfer");
                 await UploadAsync(
                     transfer.ObjectId,
-                    Variant.FromStructure(new RecipeTransferOptions { InternalId = added.internalId }),
+                    Variant.FromStructure(new RecipeTransferOptions { InternalId = internalId }),
                     content,
                     ct).ConfigureAwait(false);
             }
-            return added.internalId;
+            return internalId;
         }
 
         /// <summary>
@@ -171,20 +171,21 @@ namespace Opc.Ua.Vision.Client
                 throw new ArgumentNullException(nameof(content));
             }
             ConfigurationManagementTypeClient configurations = await ConfigurationsAsync(ct).ConfigureAwait(false);
-            var added = await configurations.AddConfigurationAsync(externalId, ct).ConfigureAwait(false);
-            ThrowIfDomainError(added.error, "AddConfiguration");
-            if (added.transferRequired)
+            (ConfigurationIdDataType internalId, NodeId _, bool transferRequired, int error) =
+                await configurations.AddConfigurationAsync(externalId, ct).ConfigureAwait(false);
+            ThrowIfDomainError(error, "AddConfiguration");
+            if (transferRequired)
             {
                 ConfigurationTransferTypeClient transfer = await configurations
                     .GetConfigurationTransferAsync(m_operations.Telemetry, ct).ConfigureAwait(false)
                     ?? throw Missing("ConfigurationTransfer");
                 await UploadAsync(
                     transfer.ObjectId,
-                    Variant.FromStructure(new ConfigurationTransferOptions { InternalId = added.internalId }),
+                    Variant.FromStructure(new ConfigurationTransferOptions { InternalId = internalId }),
                     content,
                     ct).ConfigureAwait(false);
             }
-            return added.internalId;
+            return internalId;
         }
 
         /// <summary>
@@ -201,8 +202,9 @@ namespace Opc.Ua.Vision.Client
                 throw new ArgumentNullException(nameof(destination));
             }
             ResultManagementTypeClient results = await ResultsAsync(ct).ConfigureAwait(false);
-            var found = await results.GetResultByIdAsync(resultId, -1, ct).ConfigureAwait(false);
-            ThrowIfDomainError(found.error, "GetResultById");
+            (uint resultHandle, ResultDataType _, int error) =
+                await results.GetResultByIdAsync(resultId, -1, ct).ConfigureAwait(false);
+            ThrowIfDomainError(error, "GetResultById");
             try
             {
                 ResultTransferTypeClient transfer = await results
@@ -221,7 +223,7 @@ namespace Opc.Ua.Vision.Client
                 try
                 {
                     ThrowIfDomainError(
-                        await results.ReleaseResultHandleAsync(found.resultHandle, CancellationToken.None)
+                        await results.ReleaseResultHandleAsync(resultHandle, CancellationToken.None)
                             .ConfigureAwait(false), "ReleaseResultHandle");
                 }
                 catch (Exception releaseError)
@@ -232,7 +234,7 @@ namespace Opc.Ua.Vision.Client
                 throw;
             }
             ThrowIfDomainError(
-                await results.ReleaseResultHandleAsync(found.resultHandle, CancellationToken.None)
+                await results.ReleaseResultHandleAsync(resultHandle, CancellationToken.None)
                     .ConfigureAwait(false),
                 "ReleaseResultHandle");
         }
@@ -271,28 +273,7 @@ namespace Opc.Ua.Vision.Client
         {
             var stateMachine = new FileTransferStateMachineTypeClient(
                 m_operations.Session, completion, m_operations.Telemetry);
-            while (true)
-            {
-                FiniteStateSnapshot state = await stateMachine.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
-                if (StatusCode.IsBad(state.Status))
-                {
-                    throw new ServiceResultException(state.Status);
-                }
-                if (state.CurrentStateId.IsNull)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadNoData,
-                        "The transfer completion state is unavailable.");
-                }
-                if (state.CurrentStateId == global::Opc.Ua.ObjectIds.FileTransferStateMachineType_Idle)
-                {
-                    return;
-                }
-                if (state.CurrentStateId == global::Opc.Ua.ObjectIds.FileTransferStateMachineType_Error)
-                {
-                    throw new IOException("The server failed to apply the uploaded vision document.");
-                }
-                await Task.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-            }
+            await stateMachine.WaitForCompletionAsync(ct: ct).ConfigureAwait(false);
         }
 
         private static ServiceResultException Missing(string member)

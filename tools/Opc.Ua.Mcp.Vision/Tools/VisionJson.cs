@@ -31,8 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
-using Opc.Ua.Mcp.Serialization;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -51,7 +50,7 @@ namespace Opc.Ua.Mcp.Tools
                     "Detections JSON must be a non-empty array.", nameof(detectionsJson));
             }
 
-            using JsonDocument document = JsonDocument.Parse(detectionsJson);
+            using var document = JsonDocument.Parse(detectionsJson);
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new ArgumentException(
@@ -80,7 +79,7 @@ namespace Opc.Ua.Mcp.Tools
                     "Characteristics JSON must be a non-empty array.", nameof(characteristicsJson));
             }
 
-            using JsonDocument document = JsonDocument.Parse(characteristicsJson);
+            using var document = JsonDocument.Parse(characteristicsJson);
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new ArgumentException(
@@ -108,7 +107,7 @@ namespace Opc.Ua.Mcp.Tools
                 throw new ArgumentException("Pose JSON must be a non-empty object.", parameterName);
             }
 
-            using JsonDocument document = JsonDocument.Parse(poseJson);
+            using var document = JsonDocument.Parse(poseJson);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 throw new ArgumentException("Pose JSON must be an object.", parameterName);
@@ -125,7 +124,7 @@ namespace Opc.Ua.Mcp.Tools
                     "Image reference JSON must be a non-empty object.", parameterName);
             }
 
-            using JsonDocument document = JsonDocument.Parse(imageJson);
+            using var document = JsonDocument.Parse(imageJson);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 throw new ArgumentException(
@@ -227,7 +226,7 @@ namespace Opc.Ua.Mcp.Tools
             ArrayOf<double> position = ReadDoubleArray(element, "position", 3, $"{parameterName}.position");
             ArrayOf<double> orientation = ReadDoubleArray(
                 element, "orientation", 4, $"{parameterName}.orientation");
-            ArrayOf<double> covariance = ArrayOf<double>.Empty;
+            ArrayOf<double> covariance = [];
             if (element.TryGetProperty("covariance", out JsonElement covarianceElement) &&
                 covarianceElement.ValueKind == JsonValueKind.Array)
             {

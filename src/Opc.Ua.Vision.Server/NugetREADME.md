@@ -1,15 +1,14 @@
 # Opc.Ua.Vision.Server
 
-Server hosting for released **OPC 40100-1/-2** and the preserved **draft**
-*OPC UA — Vision* companion model.
+Server hosting for **OPC 40100-1** and the **Perception model**.
 
 Released support is opt-in through `VisionServerOptions.MachineVisionParts`.
 `MachineVisionSystemHandle` binds control, steps, conditions, recipes/configurations,
 results, and file transfer to an injectable `IMachineVisionOperationsProvider`
-and bounded or persistent `IMachineVisionStore`. `MachineVisionAssetBuilder`
-provides the Part 2 inventory and health model. `AddVisionToMachinery` composes
-into an existing Machinery owner rather than registering a second DI manager.
-See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md).
+and bounded or persistent `IMachineVisionStore`.
+`Opc.Ua.Vision.Machinery.Server` supplies `MachineVisionAssetBuilder` for Part 2
+inventory/health and `AddVisionToMachinery` for single-owner composition.
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md).
 
 The package materialises the well-known `Vision` object under the Server
 object (i=2253), exposes fluent APIs to describe sensors, coordinate frames,
@@ -21,7 +20,7 @@ particular camera, scene or model.
 
 - `AddVision()` — registers the stock `VisionNodeManager` and factory in the
   Generic Host pipeline. Its default wire model requires only UA core;
-  selecting released assets also loads the existing DI/Machinery models.
+  Part 2 hosts additionally call `AddVisionMachinery()` from the Machinery server package.
 - `ConfigureVision(...)` / `ConfigureVisionFor<TNodeManager>(...)` — fluent
   configurator that runs on server start.
 - `VisionNodeManager` / `VisionNodeManagerFactory` — standalone node
@@ -126,6 +125,13 @@ bin-picking sample.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it
 > are **provisional**. The model is a working-group draft.
+
+## Versioning
+
+This package follows the repository root version without a forced-preview override.
+Development builds still use the root prerelease version. The optional
+`Opc.Ua.Vision.OpenUsd` renderer remains preview-only. Released-model hosting
+is opt-in. The Perception specification is a draft.
 
 ## License
 

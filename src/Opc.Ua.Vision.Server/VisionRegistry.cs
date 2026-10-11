@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -283,9 +283,9 @@ namespace Opc.Ua.Vision.Server
         private readonly Lock m_resourceGate = new();
         private readonly List<IAsyncDisposable> m_machineVisionResources = [];
         private readonly List<IConformanceContributor> m_machineVisionContributors = [];
-        private readonly Dictionary<NodeId, SensorRegistration> m_sensorsByNodeId = new();
+        private readonly Dictionary<NodeId, SensorRegistration> m_sensorsByNodeId = [];
         private readonly Dictionary<string, PipelineRegistration> m_pipelinesByBrowseName = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, PipelineRegistration> m_pipelinesByNodeId = new();
+        private readonly Dictionary<NodeId, PipelineRegistration> m_pipelinesByNodeId = [];
         private readonly Dictionary<string, FrameRegistration> m_framesByBrowseName = new(StringComparer.Ordinal);
         private readonly Dictionary<string, FrameRegistration> m_framesByFrameId = new(StringComparer.Ordinal);
         private readonly List<DeferredExtrinsic> m_deferredExtrinsicResolutions = [];

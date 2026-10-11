@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
+using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Mcp.Serialization;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.MachineVision;
@@ -53,7 +54,9 @@ namespace Opc.Ua.Mcp.Tools
             "Read/Write/Close/GetPosition/SetPosition/Open use a FileType node. " +
             "kind is Recipe, Configuration, or Result; id is the internal document ID for Generate*. " +
             "Generated handles are already open. Commit publishes a write; " +
-            "Close without Commit aborts a temporary upload. Chunks are capped at 1 MiB.")]
+            "Close without Commit aborts a temporary upload. Chunks are capped at 1 MiB. " +
+            "ReadCompletion/WaitForCompletion use the returned completion-state-machine NodeId; " +
+            "WaitForCompletion waits at most 60 seconds and fails on Error, timeout, or unavailable state.")]
         public static async Task<JsonElement> FileAsync(
             VisionClientAccessor accessor,
             string nodeId,
@@ -74,6 +77,15 @@ namespace Opc.Ua.Mcp.Tools
             }
             VisionClient client = accessor.CreateClient(sessionName);
             NodeId target = OpcUaJsonHelper.ParseNodeId(nodeId);
+            if (operation is "ReadCompletion" or "WaitForCompletion")
+            {
+                var completion = new FileTransferStateMachineTypeClient(client.Session, target, client.Telemetry);
+                FiniteStateSnapshot snapshot = operation == "ReadCompletion"
+                    ? await completion.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false)
+                    : await completion.WaitForCompletionAsync(
+                        TimeSpan.FromSeconds(60), accessor.TimeProvider, ct).ConfigureAwait(false);
+                return Element(State(snapshot));
+            }
             if (operation is "GenerateRead" or "GenerateWrite" or "Commit")
             {
                 var transfer = new TemporaryFileTransferTypeClient(client.Session, target, client.Telemetry);
@@ -100,12 +112,14 @@ namespace Opc.Ua.Mcp.Tools
                 };
                 if (operation == "GenerateRead")
                 {
-                    var generated = await transfer.GenerateFileForReadAsync(options, ct).ConfigureAwait(false);
-                    return Response(client, ("FileNodeId", Variant.From(generated.fileNodeId)),
-                        ("Handle", Variant.From(generated.fileHandle)),
-                        ("CompletionStateMachine", Variant.From(generated.completionStateMachine)));
+                    (NodeId fileNodeId, uint fileHandle, NodeId completionStateMachine) =
+                        await transfer.GenerateFileForReadAsync(options, ct).ConfigureAwait(false);
+                    return Response(client, ("FileNodeId", Variant.From(fileNodeId)),
+                        ("Handle", Variant.From(fileHandle)),
+                        ("CompletionStateMachine", Variant.From(completionStateMachine)));
                 }
-                var created = await transfer.GenerateFileForWriteAsync(options, ct).ConfigureAwait(false);
+                (NodeId fileNodeId, uint fileHandle) created =
+                    await transfer.GenerateFileForWriteAsync(options, ct).ConfigureAwait(false);
                 return Response(client, ("FileNodeId", Variant.From(created.fileNodeId)),
                     ("Handle", Variant.From(created.fileHandle)));
             }
@@ -166,7 +180,7 @@ namespace Opc.Ua.Mcp.Tools
                 client.Session, OpcUaJsonHelper.ParseNodeId(recipeNodeId), client.Telemetry);
             if (operation == "Prepare")
             {
-                var prepared = await recipe.PrepareAsync(ct).ConfigureAwait(false);
+                (bool isCompleted, int error) prepared = await recipe.PrepareAsync(ct).ConfigureAwait(false);
                 return Response(client, ("IsCompleted", Variant.From(prepared.isCompleted)),
                     ("Error", Variant.From(prepared.error)));
             }
@@ -207,7 +221,7 @@ namespace Opc.Ua.Mcp.Tools
             VisionClient client = accessor.CreateClient(sessionName);
             var condition = new AcknowledgeableConditionTypeClient(
                 client.Session, OpcUaJsonHelper.ParseNodeId(conditionNodeId), client.Telemetry);
-            ByteString eventId = ByteString.From(Convert.FromBase64String(eventIdBase64));
+            var eventId = ByteString.From(Convert.FromBase64String(eventIdBase64));
             if (operation == "Acknowledge")
             {
                 await condition.AcknowledgeAsync(eventId, new LocalizedText(comment), ct).ConfigureAwait(false);

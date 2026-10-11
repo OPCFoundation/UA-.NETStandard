@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server.Hosting;
 
 namespace Opc.Ua.Vision.Server
@@ -98,6 +99,12 @@ namespace Opc.Ua.Vision.Server
             NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
                 GetInstanceNamespaceIndex(SystemContext));
             RegisterEncodeables(SystemContext);
+            if ((m_options.MachineVisionParts & MachineVisionParts.Assets) != 0 &&
+                SystemContext.NamespaceUris.GetIndex(MachineVisionModels.AssetNamespaceUri) < 0)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "Part 2 requires the Opc.Ua.Vision.Machinery.Server package and AddVisionMachinery().");
+            }
         }
 
         /// <summary>
@@ -204,8 +211,8 @@ namespace Opc.Ua.Vision.Server
                 if (child.ReferenceTypeId.IsNull)
                 {
                     child.ReferenceTypeId = child is PropertyState
-                        ? global::Opc.Ua.ReferenceTypeIds.HasProperty
-                        : global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                        ? ReferenceTypeIds.HasProperty
+                        : ReferenceTypeIds.HasComponent;
                 }
                 if (child.TypeDefinitionId.IsNull)
                 {
@@ -354,20 +361,15 @@ namespace Opc.Ua.Vision.Server
 
         private void RegisterEncodeables(ServerSystemContext context)
         {
-            var probe = new global::Opc.Ua.Vision.VisionPose3DDataType();
+            var probe = new VisionPose3DDataType();
             if (!context.EncodeableFactory.TryGetEncodeableType(probe.BinaryEncodingId, out _))
             {
-                context.EncodeableFactory.Builder.AddOpcUaVision().Commit();
+                context.EncodeableFactory.Builder.AddOpcUaVisionPerception().Commit();
             }
             if ((m_options.MachineVisionParts & MachineVisionParts.Control) != 0)
             {
                 MachineVision.OpcUaVisionMachineVisionExtensions
                     .AddOpcUaVisionMachineVision(context.EncodeableFactory.Builder).Commit();
-            }
-            if ((m_options.MachineVisionParts & MachineVisionParts.Assets) != 0)
-            {
-                MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
-                    .AddOpcUaVisionMachineVisionAMCM(context.EncodeableFactory.Builder).Commit();
             }
         }
 
@@ -375,8 +377,8 @@ namespace Opc.Ua.Vision.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken)
         {
-            NodeId rootId = ExpandedNodeId.ToNodeId(
-                global::Opc.Ua.Vision.ObjectIds.Vision,
+            var rootId = ExpandedNodeId.ToNodeId(
+                Perception.ObjectIds.Vision,
                 SystemContext.NamespaceUris);
             if (FindPredefinedNode<VisionRootState>(rootId) is VisionRootState existing)
             {
@@ -385,12 +387,12 @@ namespace Opc.Ua.Vision.Server
             }
             VisionRootState root = CreateRoot();
             await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
-            if (!externalReferences.TryGetValue(global::Opc.Ua.ObjectIds.Server, out IList<IReference>? references))
+            if (!externalReferences.TryGetValue(ObjectIds.Server, out IList<IReference>? references))
             {
-                externalReferences[global::Opc.Ua.ObjectIds.Server] = references = [];
+                externalReferences[ObjectIds.Server] = references = [];
             }
             references.Add(new NodeStateReference(
-                global::Opc.Ua.ReferenceTypeIds.HasComponent,
+                ReferenceTypeIds.HasComponent,
                 false,
                 root.NodeId));
             return root;
@@ -411,9 +413,9 @@ namespace Opc.Ua.Vision.Server
             VisionRootState root = SystemContext.CreateInstanceOfVisionRootType(
                 Server.ServerObject,
                 browseName);
-            root.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            root.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             root.CreateOrReplaceSensors(SystemContext, null);
-            root.AddReference(global::Opc.Ua.ReferenceTypeIds.HasComponent, true, global::Opc.Ua.ObjectIds.Server);
+            root.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.Server);
             return root;
         }
 
@@ -424,7 +426,7 @@ namespace Opc.Ua.Vision.Server
 
         private static ushort GetVisionNamespaceIndex(ServerSystemContext context)
         {
-            return (ushort)context.NamespaceUris.GetIndex(global::Opc.Ua.Vision.Namespaces.Vision);
+            return (ushort)context.NamespaceUris.GetIndex(Perception.Namespaces.Vision);
         }
 
         private ArrayOf<string> ComputeServerProfileArrayEntries()

@@ -1,27 +1,26 @@
 # Opc.Ua.Vision
 
-Server/client-independent models for released **OPC 40100-1** control/management,
-**OPC 40100-2** asset management/condition monitoring, and the preserved
-**draft** *OPC UA — Vision* perception specification.
+Server/client-independent models for **OPC 40100-1** control/management and the
+**Perception model** for capture, inference, media, results, and coordinate frames.
+Part 2 asset management/condition monitoring is in `Opc.Ua.Vision.Machinery`.
 
-The provisional Vision NodeSet is **source-generated** here directly over the base OPC UA
+The Perception NodeSet is **source-generated** in `Opc.Ua.Vision.Perception` over the base OPC UA
 namespace (no DI, Machinery or Robotics dependency), exposing generated
 ObjectTypes, ReferenceTypes, enums, typed node states and client proxies, plus
-the `AddOpcUaVision` model loader. The generated `ObjectTypeIds`,
+the `AddOpcUaVisionPerception` model loader. The generated `ObjectTypeIds`,
 `ReferenceTypeIds` and `DataTypeIds` classes are the source of truth for the
 model.
 
-The released models have separate CLR namespaces
-`Opc.Ua.Vision.MachineVision` and `Opc.Ua.Vision.MachineVision.AMCM`, loaders
-`AddOpcUaVisionMachineVision` and `AddOpcUaVisionMachineVisionAMCM`, and unchanged
-official wire identities. Part 1 requires UA core; Part 2 reuses the existing
-DI/Machinery model producers without depending on Part 1. The package contains
-all three models; loading the released models is opt-in.
+Part 1 types use `Opc.Ua.Vision.MachineVision` and `AddOpcUaVisionMachineVision`.
+Part 2 types use `Opc.Ua.Vision.MachineVision.AMCM` and
+`AddOpcUaVisionMachineVisionAMCM` from the Machinery package. Both models retain
+their official wire identities. Part 1 requires UA core; Part 2 requires
+DI/Machinery without a model dependency on Part 1.
 
-See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md)
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md)
 for exact provenance, generated API namespaces, hosting, and the implementation map.
 
-The model covers the vision domain end-to-end: a `VisionRootType` topology
+The Perception model covers a `VisionRootType` topology
 grouping vision sensors (`VisionSensorType`, `ImageSensorType`,
 `Depth3DSensorType`) together with their `OpticsType` and `IlluminationType`
 components; `CoordinateFrameType`, `VisionCalibrationType`,
@@ -37,7 +36,7 @@ carry the semantic relationships between these components.
 
 ## Numerical conventions
 
-The provisional perception DataTypes follow §5.12 of their specification:
+The Perception DataTypes follow §5.12 of their specification:
 
 - Positions are metres.
 - Orientations are unit quaternions ordered `(x, y, z, w)`.
@@ -52,6 +51,7 @@ The provisional perception DataTypes follow §5.12 of their specification:
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | Hosting a Vision server: `AddVision`, `ConfigureVision`, provider abstractions, fluent topology builders, facet derivation |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | `VisionClient` discovery, sensors, media, inference, results, `VisionFrameGraph` pose composition, `VisionFeedbackClient` |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery` | Part 2 asset models, with corresponding `.Client` and `.Server` modules |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | Rendering a simulated sensor's camera view offscreen from an OpenUSD stage |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools for perception agents, including `vision_get_frame` returning an MCP `ImageContentBlock` |
 
@@ -60,6 +60,12 @@ for the full end-to-end story, code examples and the bin-picking sample.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it are
 > **provisional**. The model is a working-group draft.
+
+## Versioning
+
+This package follows the repository root version without a forced-preview override.
+Development builds still use the root prerelease version. The separate
+`Opc.Ua.Vision.OpenUsd` renderer is preview-only. The Perception specification is a draft.
 
 ## License
 

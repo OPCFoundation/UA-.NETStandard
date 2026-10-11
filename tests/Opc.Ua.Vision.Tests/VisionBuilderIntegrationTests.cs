@@ -32,9 +32,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -54,7 +53,7 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
-            var mediaProvider = new Mock<IVisionMediaProvider>().Object;
+            IVisionMediaProvider mediaProvider = new Mock<IVisionMediaProvider>().Object;
             VisionPose3DDataType extrinsic = CreatePose();
             VisionIntrinsicsDataType intrinsics = CreateIntrinsics();
 
@@ -223,8 +222,8 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
-            var inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
-            var feedbackSink = new Mock<IVisionFeedbackSink>().Object;
+            IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionFeedbackSink feedbackSink = new Mock<IVisionFeedbackSink>().Object;
 
             context.Nodes.AddImageSensor("Cam1", s => s
                 .WithSensorId("SN-CAM")
@@ -251,7 +250,7 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
-            var inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
 
             context.Nodes.AddPipeline("Off", p => p
                 .WithPipelineId("off-server")
@@ -574,7 +573,7 @@ namespace Opc.Ua.Vision.Tests
                 FrameId = "world",
                 Position = new[] { 0.0, 0.0, 0.0 },
                 Orientation = new[] { 0.0, 0.0, 0.0, 1.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 

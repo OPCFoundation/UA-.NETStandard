@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
 using Opc.Ua.Vision.MachineVision;
 using Automatic = Opc.Ua.Vision.MachineVision.VisionAutomaticModeStateMachineTypeIds;
 using Control = Opc.Ua.Vision.MachineVision.VisionStateMachineTypeIds;
@@ -124,7 +123,7 @@ namespace Opc.Ua.Vision.Server
                 .ConfigureAwait(false);
             foreach (MachineVisionDocument document in stored)
             {
-                RecipeRecord candidate = RecipeRecord.From(document);
+                var candidate = RecipeRecord.From(document);
                 if (!document.Content.IsNull && SameContent(external, candidate.ExternalId))
                 {
                     identical = document;
@@ -207,7 +206,7 @@ namespace Opc.Ua.Vision.Server
                 .ConfigureAwait(false);
             for (int ii = 0; ii < stored.Count; ii++)
             {
-                RecipeRecord recipe = RecipeRecord.From(stored[ii]);
+                var recipe = RecipeRecord.From(stored[ii]);
                 if (recipe.HasProduct(productId))
                 {
                     MachineVisionOperationResult outcome = await PrepareRecipeAsync(
@@ -271,7 +270,7 @@ namespace Opc.Ua.Vision.Server
             var matches = new List<RecipeIdInternalDataType>();
             foreach (MachineVisionDocument document in stored)
             {
-                RecipeRecord recipe = RecipeRecord.From(document);
+                var recipe = RecipeRecord.From(document);
                 if (MatchesIdentity(external, recipe.ExternalId) &&
                     (string.IsNullOrEmpty(product.Id) || recipe.HasProduct(product.Id)) &&
                     (prepared == 2 || recipe.Prepared == (prepared == 1)))
@@ -542,7 +541,7 @@ namespace Opc.Ua.Vision.Server
                 .ConfigureAwait(false);
             foreach (MachineVisionDocument document in documents)
             {
-                RecipeRecord recipe = RecipeRecord.From(document);
+                var recipe = RecipeRecord.From(document);
                 if (Matches(id, recipe.ExternalId.Id) && MatchesIdentity(external, recipe.ExternalId))
                 {
                     return document;
@@ -562,7 +561,7 @@ namespace Opc.Ua.Vision.Server
                 .ConfigureAwait(false);
             foreach (MachineVisionDocument document in documents)
             {
-                RecipeRecord recipe = RecipeRecord.From(document);
+                var recipe = RecipeRecord.From(document);
                 if (recipe.Prepared &&
                     MatchesIdentity(external, recipe.ExternalId) &&
                     (string.IsNullOrEmpty(product.Id) || recipe.HasProduct(product.Id)))

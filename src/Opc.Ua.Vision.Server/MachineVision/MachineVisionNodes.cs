@@ -63,16 +63,17 @@ namespace Opc.Ua.Vision.Server
         /// </summary>
         /// <typeparam name="T">The expected generated child state type.</typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        public static T Require<T>(AsyncCustomNodeManager manager, NodeState parent, string name)
+        public static T Require<T>(AsyncCustomNodeManager manager, NodeState parent, string name,
+            Func<ISystemContext, NodeState, string, BaseInstanceState?>? createAddIn = null)
             where T : BaseInstanceState
         {
-            var namespaces = new[]
+            string[] namespaces = new[]
             {
                 MachineVisionModels.ControlNamespaceUri,
                 MachineVisionModels.AssetNamespaceUri,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
-                global::Opc.Ua.Machinery.Namespaces.Machinery,
-                global::Opc.Ua.Namespaces.OpcUa
+                Di.Namespaces.OpcUaDi,
+                Machinery.Namespaces.Machinery,
+                Namespaces.OpcUa
             };
             ServerSystemContext context = manager.SystemContext;
             foreach (string uri in namespaces)
@@ -102,29 +103,11 @@ namespace Opc.Ua.Vision.Server
                 Rebase(context, child);
                 return child;
             }
-            NodeId infoType = ExpandedNodeId.ToNodeId(
-                global::Opc.Ua.Vision.MachineVision.AMCM.ObjectTypeIds.IVisionInfoType,
-                context.NamespaceUris);
-            if (!infoType.IsNull &&
-                parent.ReferenceExists(
-                    global::Opc.Ua.ReferenceTypeIds.HasInterface, false, infoType))
+            if (createAddIn?.Invoke(context, parent, name) is T addIn)
             {
-                BaseInstanceState? addIn = name switch
-                {
-                    "Maintenance" => global::Opc.Ua.Vision.MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
-                        .CreateInstanceOfVisionMaintenanceInfoType(context, parent, new QualifiedName(
-                            name, context.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi))),
-                    "Health" => global::Opc.Ua.Vision.MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
-                        .CreateInstanceOfVisionHealthInfoType(context, parent, new QualifiedName(
-                            name, context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.AssetNamespaceUri))),
-                    _ => null
-                };
-                if (addIn is T typed)
-                {
-                    typed.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasAddIn;
-                    parent.AddChild(typed);
-                    return typed;
-                }
+                addIn.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
+                parent.AddChild(addIn);
+                return addIn;
             }
             throw ServiceResultException.Create(
                 StatusCodes.BadBrowseNameInvalid, "'{0}' declares no child named '{1}'.", parent.BrowseName, name);

@@ -40,7 +40,7 @@ using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision;
 using Opc.Ua.Vision.MachineVision;
-using Opc.Ua.Vision.MachineVision.AMCM;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -49,7 +49,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// Composes the Vision package family into a Machinery manager without a second
     /// owner for DI, Machinery, or their shared address-space roots.
     /// </summary>
-    public static class OpcUaServerMachineVisionBuilderExtensions
+    public static class OpcUaServerVisionCompositionExtensions
     {
         /// <summary>
         /// Registers the released Vision models with an existing AddMachinery registration.
@@ -58,7 +58,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException"></exception>
-        public static IOpcUaServerBuilder AddVisionToMachinery(
+        internal static IOpcUaServerBuilder AddVisionComposition(
             this IOpcUaServerBuilder builder,
             Action<VisionServerOptions>? configure = null)
         {
@@ -136,8 +136,8 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 m_options = options;
                 m_services = services;
-                NodeId rootId = ExpandedNodeId.ToNodeId(
-                    global::Opc.Ua.Vision.ObjectIds.Vision, manager.SystemContext.NamespaceUris);
+                var rootId = ExpandedNodeId.ToNodeId(
+                    Opc.Ua.Vision.Perception.ObjectIds.Vision, manager.SystemContext.NamespaceUris);
                 m_root = manager.FindPredefinedNode<VisionRootState>(rootId) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
@@ -208,33 +208,12 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            nodes.AddOpcUaVision(context);
-            context.EncodeableFactory.Builder.AddOpcUaVision().Commit();
+            nodes.AddOpcUaVisionPerception(context);
+            context.EncodeableFactory.Builder.AddOpcUaVisionPerception().Commit();
             if ((m_options.MachineVisionParts & MachineVisionParts.Control) != 0)
             {
                 nodes.AddOpcUaVisionMachineVision(context);
                 context.EncodeableFactory.Builder.AddOpcUaVisionMachineVision().Commit();
-            }
-            if ((m_options.MachineVisionParts & MachineVisionParts.Assets) != 0)
-            {
-                bool machineryLoaded = false;
-                foreach (NodeState node in nodes)
-                {
-                    if (node.NodeId == ExpandedNodeId.ToNodeId(
-                        global::Opc.Ua.Machinery.ObjectIds.Machines, context.NamespaceUris))
-                    {
-                        machineryLoaded = true;
-                        break;
-                    }
-                }
-                if (!machineryLoaded)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "Machine Vision assets require MachineryParts.BuildingBlocks in the owning manager.");
-                }
-                nodes.AddOpcUaVisionMachineVisionAMCM(context);
-                context.EncodeableFactory.Builder.AddOpcUaVisionMachineVisionAMCM().Commit();
             }
         }
 

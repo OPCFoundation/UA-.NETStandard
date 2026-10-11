@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -55,7 +56,7 @@ namespace Opc.Ua.Vision.Client
 
         public bool TryGetVisionNamespaceIndex(out ushort namespaceIndex)
         {
-            int index = Session.NamespaceUris.GetIndex(Namespaces.Vision);
+            int index = Session.NamespaceUris.GetIndex(Perception.Namespaces.Vision);
             if (index < 0)
             {
                 namespaceIndex = 0;
@@ -97,9 +98,9 @@ namespace Opc.Ua.Vision.Client
                     ct: cancellationToken).ConfigureAwait(false);
             if (errors.Count > 0 && ServiceResult.IsBad(errors[0]))
             {
-                return ArrayOf<ReferenceDescription>.Empty;
+                return [];
             }
-            return results.Count > 0 ? results[0] : ArrayOf<ReferenceDescription>.Empty;
+            return results.Count > 0 ? results[0] : [];
         }
 
         public ValueTask<ArrayOf<ReferenceDescription>> BrowseHierarchicalObjectsAsync(
@@ -107,7 +108,7 @@ namespace Opc.Ua.Vision.Client
         {
             return BrowseAsync(
                 nodeId,
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 BrowseDirection.Forward,
                 (uint)NodeClass.Object,
                 cancellationToken);
@@ -118,7 +119,7 @@ namespace Opc.Ua.Vision.Client
         {
             if (typeDefinition.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
             ArrayOf<ReferenceDescription> references = await BrowseHierarchicalObjectsAsync(
                 root, cancellationToken).ConfigureAwait(false);
@@ -126,9 +127,9 @@ namespace Opc.Ua.Vision.Client
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     reference.TypeDefinition, Session.NamespaceUris);
-                NodeId child = ExpandedNodeId.ToNodeId(
+                var child = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 if (typeDef.IsNull || child.IsNull)
                 {
@@ -151,7 +152,7 @@ namespace Opc.Ua.Vision.Client
             var children = new List<NodeId>(references.Count);
             for (int ii = 0; ii < references.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     references[ii].NodeId, Session.NamespaceUris);
                 if (!nodeId.IsNull)
                 {
@@ -260,9 +261,9 @@ namespace Opc.Ua.Vision.Client
             }
             if (reads.Count == 0)
             {
-                return ArrayOf<DataValue>.Empty;
+                return [];
             }
-            ArrayOf<ReadValueId> nodesToRead = reads.ToArrayOf();
+            var nodesToRead = reads.ToArrayOf();
             ReadResponse response = await Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both, nodesToRead, cancellationToken)
                 .ConfigureAwait(false);
@@ -337,17 +338,17 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodeId.IsNull)
             {
-                return ArrayOf<T>.Empty;
+                return [];
             }
             DataValue value = await ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
             if (StatusCode.IsBad(value.StatusCode))
             {
-                return ArrayOf<T>.Empty;
+                return [];
             }
             return value.WrappedValue.TryGetValue(
                     out ArrayOf<T> array, Session.MessageContext)
                 ? array
-                : ArrayOf<T>.Empty;
+                : [];
         }
 
         public static string? ReadString(DataValue value)
@@ -395,7 +396,7 @@ namespace Opc.Ua.Vision.Client
                     [
                         new RelativePathElement
                         {
-                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                             IsInverse = false,
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName(browseName, namespaceIndex)
@@ -419,17 +420,12 @@ namespace Opc.Ua.Vision.Client
             var probe = new VisionPose3DDataType();
             if (!factory.TryGetEncodeableType(probe.BinaryEncodingId, out _))
             {
-                factory.Builder.AddOpcUaVision().Commit();
+                factory.Builder.AddOpcUaVisionPerception().Commit();
             }
             if (!factory.ContainsEncodeableType(MachineVision.DataTypeIds.ResultDataType))
             {
                 MachineVision.OpcUaVisionMachineVisionExtensions
                     .AddOpcUaVisionMachineVision(factory.Builder).Commit();
-            }
-            if (!factory.ContainsEncodeableType(MachineVision.AMCM.DataTypeIds.SEMI_E10SystemStateInfoDataType))
-            {
-                MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
-                    .AddOpcUaVisionMachineVisionAMCM(factory.Builder).Commit();
             }
         }
     }

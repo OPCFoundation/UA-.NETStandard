@@ -124,7 +124,7 @@ namespace Opc.Ua.Vision.Tests
         {
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync(MachineVisionParts.All).ConfigureAwait(false);
-            var builder = fixture.CreateBuildContext().AddMachineVisionAsset("InspectionAsset");
+            MachineVisionAssetBuilder builder = fixture.CreateBuildContext().AddMachineVisionAsset("InspectionAsset");
             builder.WithIdentification(Identification("System", "urn:vision:system"));
 #if NET5_0_OR_GREATER
             foreach (MachineVisionItemKind kind in Enum.GetValues<MachineVisionItemKind>())
@@ -336,7 +336,7 @@ namespace Opc.Ua.Vision.Tests
             };
             ServiceResult result = await system.ControlState.Reset!.CallAsync(
                 SessionContext(fixture, new NodeId(1u)), system.ControlState.NodeId, [],
-                new List<ServiceResult>(), new List<Variant>()).ConfigureAwait(false);
+                [], []).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
             Assert.That(warnings, Has.Count.EqualTo(1));
             Assert.That(warnings[0], Does.Contain("Reset"));
@@ -491,7 +491,7 @@ namespace Opc.Ua.Vision.Tests
                 Variant.From(0u),
                 Variant.From(1000)
             ]).ConfigureAwait(false);
-            Assert.That(output[3].TryGetStructure<ResultDataType>(out ArrayOf<ResultDataType> found), Is.True);
+            Assert.That(output[3].TryGetStructure(out ArrayOf<ResultDataType> found), Is.True);
             Assert.That(found.Count, Is.EqualTo(1));
             Assert.That(found[0].ResultId.Id, Is.EqualTo("two"));
         }
@@ -522,7 +522,7 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(camera.ReferenceTypeId, Is.EqualTo(originalReference));
                 Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(camera.NodeId), Is.SameAs(camera));
                 Assert.That(asset.State.ImageSensors!.ReferenceExists(
-                    global::Opc.Ua.ReferenceTypeIds.Organizes, false, camera.NodeId), Is.True);
+                    ReferenceTypeIds.Organizes, false, camera.NodeId), Is.True);
             });
         }
 
@@ -576,8 +576,10 @@ namespace Opc.Ua.Vision.Tests
                 MachineVisionModels.ControlNamespaceUri, fixture.Manager.SystemContext.NamespaceUris)));
             Assert.That(system.ControlState.PreoperationalStepModel!.CurrentState!.Value.Text, Is.EqualTo("Wait"));
             provider.Verify(instance => instance.ExecuteStepAsync(
-                It.Is<MachineVisionStepRequest>(request => request.ParentState == 1 && request.StepIndex == 0 &&
-                    request.Cause == 42 && request.CauseDescription == "hardware trigger"),
+                It.Is<MachineVisionStepRequest>(request => request.ParentState == 1 &&
+                    request.StepIndex == 0 &&
+                    request.Cause == 42 &&
+                    request.CauseDescription == "hardware trigger"),
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -709,17 +711,16 @@ namespace Opc.Ua.Vision.Tests
             builder.Nodes.WithHealth(health =>
             {
                 health.Set("Temperature", Variant.From(25.0)).Child("Temperature")
-                    .Set("EURange", Variant.FromStructure(new global::Opc.Ua.Range { Low = -20, High = 80 }));
+                    .Set("EURange", Variant.FromStructure(new Range { Low = -20, High = 80 }));
                 health.Child("State").Set("SubStates",
-                    Variant.FromStructure<Opc.Ua.Vision.MachineVision.AMCM.SEMI_E10SystemStateDataType>(
+                    Variant.FromStructure<MachineVision.AMCM.SEMI_E10SystemStateDataType>(
                         [new() { Id = 2, Priority = 10 }]));
             });
             MachineVisionAssetHandle asset = await builder.BuildAsync().ConfigureAwait(false);
             Assert.That(asset.State.Health!.Temperature!.EURange!.Value.Low, Is.EqualTo(-20));
             Assert.That(asset.State.Health.Temperature.EURange.Value.High, Is.EqualTo(80));
-            Assert.That(asset.State.Health.State!.SubStates!.WrappedValue.TryGetStructure<
-                Opc.Ua.Vision.MachineVision.AMCM.SEMI_E10SystemStateDataType>(
-                    out ArrayOf<Opc.Ua.Vision.MachineVision.AMCM.SEMI_E10SystemStateDataType> states), Is.True);
+            Assert.That(asset.State.Health.State!.SubStates!.WrappedValue.TryGetStructure(
+                    out ArrayOf<MachineVision.AMCM.SEMI_E10SystemStateDataType> states), Is.True);
             Assert.That(states.Count, Is.EqualTo(1));
             Assert.That(states[0].Id, Is.EqualTo(2));
         }
@@ -780,8 +781,8 @@ namespace Opc.Ua.Vision.Tests
             ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UpdateAsync(nodes => nodes.WithHealth(health =>
                 {
-                    health.Set("Temperature", Variant.From(26.0));
-                    health.Set("Temperature", Variant.From("invalid"));
+                    health.Set("Temperature", Variant.From(26.0))
+                        .Set("Temperature", Variant.From("invalid"));
                 })).ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             if (existingHealth)

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
@@ -45,8 +44,8 @@ using Opc.Ua.Vision.MachineVision;
 namespace Opc.Ua.Mcp.Tools
 {
     /// <summary>
-    /// Released OPC 40100 control, management, asset, and file tools in the existing Vision catalog.
-    /// Existing draft Vision tools keep their names and semantics.
+    /// Released OPC 40100 control, management, asset, and file tools in the Vision catalog.
+    /// Perception tools have independent names and contracts.
     /// </summary>
     [McpServerToolType]
     public sealed partial class VisionMachineTools
@@ -56,7 +55,7 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "vision_machine_list")]
         [Description("Discovers released OPC 40100-1 systems, or OPC 40100-2 assets when assets=true. " +
-            "Works without the provisional Vision namespace. Does not change device state.")]
+            "Works without the Perception namespace. Does not change device state.")]
         public static async Task<JsonElement> ListAsync(
             VisionClientAccessor accessor,
             bool assets = false,
@@ -71,7 +70,7 @@ namespace Opc.Ua.Mcp.Tools
                 ? client.EnumerateAssetsAsync(root, cancellationToken: ct)
                 : client.EnumerateSystemsAsync(root, cancellationToken: ct)).ConfigureAwait(false))
             {
-                entries.Add(new JsonObject
+                AddNode(entries, new JsonObject
                 {
                     ["nodeId"] = entry.NodeId.ToString(),
                     ["browseName"] = entry.BrowseName.ToString(),
@@ -85,12 +84,26 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Reads the two released control state machines.
         /// </summary>
-        [McpServerTool(Name = "vision_machine_read_state")]
-        [Description("Reads the top-level and automatic-mode states of an OPC 40100-1 system. " +
-            "Preserves inactive/error status; never changes mode or starts an acquisition.")]
-        public static async Task<JsonElement> ReadStateAsync(
+        public static Task<JsonElement> ReadStateAsync(
             VisionClientAccessor accessor,
             string systemNodeId,
+            string? sessionName = null,
+            CancellationToken ct = default)
+        {
+            return ReadStateWithDetailsAsync(accessor, systemNodeId, false, sessionName, ct);
+        }
+
+        /// <summary>
+        /// Reads the existing state response with optional diagnostics, safety, configuration, and step details.
+        /// </summary>
+        [McpServerTool(Name = "vision_machine_read_state")]
+        [Description("Reads control and automatic-mode states without changing device state. " +
+            "includeDetails adds optional diagnostics, SystemState, active configuration, safety, and step states " +
+            "with their actual quality/status. The default response is unchanged.")]
+        public static async Task<JsonElement> ReadStateWithDetailsAsync(
+            VisionClientAccessor accessor,
+            string systemNodeId,
+            bool includeDetails = false,
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -100,11 +113,18 @@ namespace Opc.Ua.Mcp.Tools
             VisionAutomaticModeStateMachineTypeClient automatic = await system.AutomaticAsync(ct).ConfigureAwait(false);
             FiniteStateSnapshot top = await control.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
             FiniteStateSnapshot mode = await automatic.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
-            return Element(new JsonObject
+            var response = new JsonObject
             {
                 ["control"] = State(top),
                 ["automatic"] = State(mode)
-            });
+            };
+            if (includeDetails)
+            {
+                MachineVisionStatusSnapshot details = await accessor.CreateMachineVisionClient(sessionName)
+                    .ReadStatusAsync(OpcUaJsonHelper.ParseNodeId(systemNodeId), ct).ConfigureAwait(false);
+                response["details"] = StatusDetails(client, details);
+            }
+            return Element(response);
         }
 
         /// <summary>
@@ -127,7 +147,8 @@ namespace Opc.Ua.Mcp.Tools
             string? partId = null,
             int cause = 0,
             string causeDescription = "",
-            [Description("Optional UA JSON object containing a Parameters Variant array, as written by JsonEncoder.")]
+            [Description("Optional UA JSON object containing a Parameters Variant array and optionally an " +
+                "ExternalRecipeId (Id, Version, Hash, HashAlgorithm, Description), as written by JsonEncoder.")]
             string? parametersJson = null,
             string? sessionName = null,
             CancellationToken ct = default)
@@ -153,16 +174,25 @@ namespace Opc.Ua.Mcp.Tools
                 VisionAutomaticModeStateMachineTypeClient mode = await system.AutomaticAsync(ct).ConfigureAwait(false);
                 var measurement = new MeasIdDataType { Id = measurementId ?? string.Empty };
                 var part = new PartIdDataType { Id = partId ?? string.Empty };
-                var recipe = new RecipeIdExternalDataType { Id = recipeId ?? string.Empty };
                 var product = new ProductIdDataType { Id = productId ?? string.Empty };
                 using JsonDecoder? parameters = parametersJson == null
                     ? null : new JsonDecoder(parametersJson, client.Session.MessageContext);
+                RecipeIdExternalDataType recipe =
+                    parameters?.ReadEncodeable<RecipeIdExternalDataType>("ExternalRecipeId") ?? new();
+                if (!string.IsNullOrEmpty(recipeId))
+                {
+                    if (!string.IsNullOrEmpty(recipe.Id) && recipe.Id != recipeId)
+                    {
+                        throw new ArgumentException("recipeId and ExternalRecipeId disagree.", nameof(recipeId));
+                    }
+                    recipe.Id = recipeId;
+                }
                 ArrayOf<Variant> values = default;
                 if (parameters is { } decoder)
                 {
                     values = decoder.ReadVariantArray("Parameters");
                 }
-                var result = command == "StartSingleJob"
+                (JobIdDataType jobId, int error) result = command == "StartSingleJob"
                     ? await mode.StartSingleJobAsync(measurement, part, recipe, product, values, ct)
                         .ConfigureAwait(false)
                     : await mode.StartContinuousAsync(measurement, part, recipe, product, values, ct)
@@ -230,11 +260,11 @@ namespace Opc.Ua.Mcp.Tools
                 var path = new JsonArray();
                 foreach (QualifiedName element in value.BrowsePath)
                 {
-                    path.Add(element.ToString());
+                    AddNode(path, JsonValue.Create(element.ToString()));
                 }
                 using var encoder = new JsonEncoder(client.Session.MessageContext);
                 encoder.WriteDataValue("DataValue", value.Value);
-                values.Add(new JsonObject
+                AddNode(values, new JsonObject
                 {
                     ["nodeId"] = value.NodeId.ToString(),
                     ["path"] = path,
@@ -289,34 +319,40 @@ namespace Opc.Ua.Mcp.Tools
             switch (operation)
             {
                 case "List":
-                    var list = await recipes.GetRecipeListFilteredAsync(
-                        external, product, (TriStateBooleanDataType)preparedState, maximumResults, startIndex, -1, ct)
+                    (bool isComplete, uint resultCount, uint recipeHandle,
+                        ArrayOf<RecipeIdInternalDataType> recipeList, int error) = await recipes
+                        .GetRecipeListFilteredAsync(external, product, (TriStateBooleanDataType)preparedState,
+                            maximumResults, startIndex, -1, ct)
                         .ConfigureAwait(false);
-                    return Response(client, ("IsComplete", Variant.From(list.isComplete)),
-                        ("ResultCount", Variant.From(list.resultCount)), ("Handle", Variant.From(list.recipeHandle)),
-                        ("Recipes", Variant.FromStructure(list.recipeList)), ("Error", Variant.From(list.error)));
+                    return Response(client, ("IsComplete", Variant.From(isComplete)),
+                        ("ResultCount", Variant.From(resultCount)), ("Handle", Variant.From(recipeHandle)),
+                        ("Recipes", Variant.FromStructure(recipeList)), ("Error", Variant.From(error)));
                 case "Add":
-                    var added = await recipes.AddRecipeAsync(external, product, ct).ConfigureAwait(false);
+                    (RecipeIdInternalDataType internalId, NodeId recipe, NodeId product,
+                        bool transferRequired, int error) added =
+                        await recipes.AddRecipeAsync(external, product, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(added.internalId)),
                         ("RecipeNodeId", Variant.From(added.recipe)), ("ProductNodeId", Variant.From(added.product)),
                         ("TransferRequired", Variant.From(added.transferRequired)),
                         ("Error", Variant.From(added.error)));
                 case "Prepare":
-                    var prepared = await recipes.PrepareRecipeAsync(external, internalIdentifier, ct)
-                        .ConfigureAwait(false);
+                    (RecipeIdInternalDataType internalIdOut, bool isCompleted, int error) prepared =
+                        await recipes.PrepareRecipeAsync(external, internalIdentifier, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(prepared.internalIdOut)),
                         ("IsCompleted", Variant.From(prepared.isCompleted)), ("Error", Variant.From(prepared.error)));
                 case "Unprepare":
-                    var unprepared = await recipes.UnprepareRecipeAsync(external, internalIdentifier, ct)
-                        .ConfigureAwait(false);
+                    (RecipeIdInternalDataType internalIdOut, int error) unprepared =
+                        await recipes.UnprepareRecipeAsync(external, internalIdentifier, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(unprepared.internalIdOut)),
                         ("Error", Variant.From(unprepared.error)));
                 case "PrepareProduct":
-                    var prepareProduct = await recipes.PrepareProductAsync(product, ct).ConfigureAwait(false);
+                    (RecipeIdInternalDataType internalId, int error) prepareProduct =
+                        await recipes.PrepareProductAsync(product, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(prepareProduct.internalId)),
                         ("Error", Variant.From(prepareProduct.error)));
                 case "UnprepareProduct":
-                    var unprepareProduct = await recipes.UnprepareProductAsync(product, ct).ConfigureAwait(false);
+                    (RecipeIdInternalDataType internalId, int error) unprepareProduct =
+                        await recipes.UnprepareProductAsync(product, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(unprepareProduct.internalId)),
                         ("Error", Variant.From(unprepareProduct.error)));
                 case "Remove":
@@ -366,21 +402,24 @@ namespace Opc.Ua.Mcp.Tools
             switch (operation)
             {
                 case "List":
-                    var list = await configurations.GetConfigurationListAsync(maximumResults, startIndex, -1, ct)
+                    (bool isComplete, uint resultCount, uint configurationHandle,
+                        ArrayOf<ConfigurationDataType> configurationList, int error)
+                        = await configurations.GetConfigurationListAsync(maximumResults, startIndex, -1, ct)
                         .ConfigureAwait(false);
-                    return Response(client, ("IsComplete", Variant.From(list.isComplete)),
-                        ("ResultCount", Variant.From(list.resultCount)),
-                        ("Handle", Variant.From(list.configurationHandle)),
-                        ("Configurations", Variant.FromStructure(list.configurationList)),
-                        ("Error", Variant.From(list.error)));
+                    return Response(client, ("IsComplete", Variant.From(isComplete)),
+                        ("ResultCount", Variant.From(resultCount)),
+                        ("Handle", Variant.From(configurationHandle)),
+                        ("Configurations", Variant.FromStructure(configurationList)),
+                        ("Error", Variant.From(error)));
                 case "Get":
-                    var found = await configurations.GetConfigurationByIdAsync(identifier, -1, ct)
-                        .ConfigureAwait(false);
+                    (uint configurationHandle, ConfigurationDataType configuration, int error) found =
+                        await configurations.GetConfigurationByIdAsync(identifier, -1, ct).ConfigureAwait(false);
                     return Response(client, ("Handle", Variant.From(found.configurationHandle)),
                         ("Configuration", Variant.FromStructure(found.configuration)),
                         ("Error", Variant.From(found.error)));
                 case "Add":
-                    var added = await configurations.AddConfigurationAsync(identifier, ct).ConfigureAwait(false);
+                    (ConfigurationIdDataType internalId, NodeId configuration, bool transferRequired, int error) added =
+                        await configurations.AddConfigurationAsync(identifier, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(added.internalId)),
                         ("ConfigurationNodeId", Variant.From(added.configuration)),
                         ("TransferRequired", Variant.From(added.transferRequired)),
@@ -436,15 +475,22 @@ namespace Opc.Ua.Mcp.Tools
             }
             if (operation == "Get")
             {
-                var found = await results.GetResultByIdAsync(new ResultIdDataType { Id = resultId }, -1, ct)
-                    .ConfigureAwait(false);
-                return Response(client, ("Handle", Variant.From(found.resultHandle)),
-                    ("Result", Variant.FromStructure(found.result)), ("Error", Variant.From(found.error)));
+                (uint resultHandle, ResultDataType result, int error) =
+                    await results.GetResultByIdAsync(new ResultIdDataType { Id = resultId }, -1, ct)
+                        .ConfigureAwait(false);
+                return Response(client, ("Handle", Variant.From(resultHandle)),
+                    ("Result", Variant.FromStructure(result)), ("Error", Variant.From(error)));
             }
             if (operation == "Components")
             {
-                var found = await results.GetResultComponentsByIdAsync(new ResultIdDataType { Id = resultId }, -1, ct)
-                    .ConfigureAwait(false);
+                (bool hasTransferableDataOnFile, uint resultHandle, bool isPartial, bool isSimulated,
+                    int resultState, MeasIdDataType measId, PartIdDataType partId,
+                    RecipeIdExternalDataType externalRecipeId, RecipeIdInternalDataType internalRecipeId,
+                    ProductIdDataType productId, ConfigurationIdDataType externalConfigurationId,
+                    ConfigurationIdDataType internalConfigurationId, JobIdDataType jobId, DateTimeUtc creationTime,
+                    ProcessingTimesDataType processingTimes, ArrayOf<Variant> resultContent, int error) found =
+                    await results.GetResultComponentsByIdAsync(new ResultIdDataType { Id = resultId }, -1, ct)
+                        .ConfigureAwait(false);
                 return Response(client, ("Handle", Variant.From(found.resultHandle)),
                     ("HasTransferableDataOnFile", Variant.From(found.hasTransferableDataOnFile)),
                     ("IsPartial", Variant.From(found.isPartial)), ("IsSimulated", Variant.From(found.isSimulated)),
@@ -475,17 +521,21 @@ namespace Opc.Ua.Mcp.Tools
                 }
                 job.Id = jobId;
             }
-            var list = await results.GetResultListFilteredAsync(resultState,
-                filters?.ReadEncodeable<MeasIdDataType>("MeasId") ?? new MeasIdDataType(),
-                filters?.ReadEncodeable<PartIdDataType>("PartId") ?? new PartIdDataType(),
-                filters?.ReadEncodeable<RecipeIdExternalDataType>("ExternalRecipeId") ?? new RecipeIdExternalDataType(),
-                filters?.ReadEncodeable<RecipeIdInternalDataType>("InternalRecipeId") ?? new RecipeIdInternalDataType(),
-                filters?.ReadEncodeable<ConfigurationIdDataType>("ExternalConfigurationId") ??
-                new ConfigurationIdDataType(),
-                filters?.ReadEncodeable<ConfigurationIdDataType>("InternalConfigurationId") ??
-                new ConfigurationIdDataType(),
-                filters?.ReadEncodeable<ProductIdDataType>("ProductId") ?? new ProductIdDataType(),
-                job, maximumResults, startIndex, -1, ct).ConfigureAwait(false);
+            (bool isComplete, uint resultCount, uint resultHandle, ArrayOf<ResultDataType> resultList, int error) list =
+                await results.GetResultListFilteredAsync(resultState,
+                    filters?.ReadEncodeable<MeasIdDataType>("MeasId") ?? new MeasIdDataType(),
+                    filters?.ReadEncodeable<PartIdDataType>("PartId") ?? new PartIdDataType(),
+                    filters?.ReadEncodeable<RecipeIdExternalDataType>("ExternalRecipeId") ??
+                    new RecipeIdExternalDataType(),
+                    filters?.ReadEncodeable<RecipeIdInternalDataType>("InternalRecipeId") ??
+                    new RecipeIdInternalDataType(),
+                    filters?.ReadEncodeable<ConfigurationIdDataType>("ExternalConfigurationId") ??
+                    new ConfigurationIdDataType(),
+                    filters?.ReadEncodeable<ConfigurationIdDataType>("InternalConfigurationId") ??
+                    new ConfigurationIdDataType(),
+                    filters?.ReadEncodeable<ProductIdDataType>("ProductId") ?? new ProductIdDataType(),
+                    job, maximumResults, startIndex, -1, ct)
+                .ConfigureAwait(false);
             return Response(client, ("IsComplete", Variant.From(list.isComplete)),
                 ("ResultCount", Variant.From(list.resultCount)), ("Handle", Variant.From(list.resultHandle)),
                 ("Results", Variant.FromStructure(list.resultList)), ("Error", Variant.From(list.error)));
@@ -529,6 +579,11 @@ namespace Opc.Ua.Mcp.Tools
             return ParseResponse(value.ToJsonString());
         }
 
+        private static void AddNode(JsonArray array, JsonNode? value)
+        {
+            array.Add(value);
+        }
+
         private static JsonElement ParseResponse(string json)
         {
             if (Encoding.UTF8.GetByteCount(json) > 2 * 1024 * 1024)
@@ -537,7 +592,7 @@ namespace Opc.Ua.Mcp.Tools
                     StatusCodes.BadEncodingLimitsExceeded,
                     "The MCP response is too large; use a smaller page, a narrower asset root, or file chunks.");
             }
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             return document.RootElement.Clone();
         }
 
@@ -564,7 +619,11 @@ namespace Opc.Ua.Mcp.Tools
             where T : BinaryIdBaseDataType, new()
         {
             using JsonDecoder? decoder = json == null ? null : new JsonDecoder(json, client.Session.MessageContext);
-            T identifier = decoder?.ReadEncodeable<T>(null) ?? new T();
+            var identifier = new T();
+            if (decoder != null)
+            {
+                identifier.Decode(decoder);
+            }
             if (!string.IsNullOrEmpty(id))
             {
                 if (!string.IsNullOrEmpty(identifier.Id) && identifier.Id != id)
@@ -597,7 +656,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentOutOfRangeException(nameof(json), "A structured MCP input cannot exceed 1 MiB.");
             }
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 throw new ArgumentException("A UA JSON object is required.", nameof(json));

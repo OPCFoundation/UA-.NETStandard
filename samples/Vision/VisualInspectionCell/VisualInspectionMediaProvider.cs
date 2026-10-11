@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
@@ -113,7 +113,7 @@ namespace Vision.VisualInspectionCell
                     ByteString.Empty));
             }
             string path = Path.Combine(m_analysis.FixtureDirectory, fixture);
-            ByteString png = ByteString.From(File.ReadAllBytes(path));
+            var png = ByteString.From(File.ReadAllBytes(path));
             byte[] digest = SHA256.HashData(png.Span);
             DateTimeUtc timestamp = request.Timestamp.IsNull
                 ? DateTimeUtc.From(DateTime.UnixEpoch)

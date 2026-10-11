@@ -33,7 +33,7 @@ namespace Opc.Ua.Vision
 {
     /// <summary>
     /// Independently selectable released Machine Vision models.
-    /// The existing draft Vision model is not part of this selection.
+    /// The existing Perception model is not part of this selection.
     /// </summary>
     [Flags]
     public enum MachineVisionParts

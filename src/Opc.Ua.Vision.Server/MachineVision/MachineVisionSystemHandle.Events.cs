@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
 using Opc.Ua.Vision.MachineVision;
 using Control = Opc.Ua.Vision.MachineVision.VisionStateMachineTypeIds;
 
@@ -352,7 +351,7 @@ namespace Opc.Ua.Vision.Server
                 condition.CreateOrReplaceConfirmedState(m_context.Context, null)
                     .CreateOrReplaceId(m_context.Context, null).Value = false;
             }
-            condition.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasCondition;
+            condition.ReferenceTypeId = ReferenceTypeIds.HasCondition;
             MachineVisionNodes.Rebase(m_context.Context, condition);
             State.AddChild(condition);
             await m_context.Manager.AddPredefinedNodeAsync(condition, ct).ConfigureAwait(false);

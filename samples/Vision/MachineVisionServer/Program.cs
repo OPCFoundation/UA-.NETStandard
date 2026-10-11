@@ -41,6 +41,7 @@ using Opc.Ua;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.Builders;
 using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -60,9 +61,10 @@ builder.Services.AddOpcUa()
     {
         options.ApplicationName = "MachineVisionServer";
         options.ApplicationUri = "urn:localhost:OPCFoundation:MachineVisionServer";
-        options.PkiRoot = builder.Configuration["pki"] ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "OPCFoundation", "MachineVisionServer", "pki");
+        options.PkiRoot = builder.Configuration["pki"] ??
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "OPCFoundation", "MachineVisionServer", "pki");
         options.AutoAcceptUntrustedCertificates = insecure;
         options.EndpointUrls.Add(endpoint);
     })
@@ -107,10 +109,10 @@ builder.Services.AddOpcUa()
         {
             Manufacturer = new LocalizedText("OPC Foundation"),
             SerialNumber = "SYNTHETIC-001"
-        });
-        cameraAsset.WithHealth(health => health.Set("Temperature", Variant.From(22.5)));
-        cameraAsset.State.AddReference(global::Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs, false, camera.NodeId);
-        camera.AddReference(global::Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs, true, cameraAsset.State.NodeId);
+        })
+            .WithHealth(health => health.Set("Temperature", Variant.From(22.5)));
+        cameraAsset.State.AddReference(Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs, false, camera.NodeId);
+        camera.AddReference(Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs, true, cameraAsset.State.NodeId);
         await asset.BuildAsync(ct).ConfigureAwait(false);
     });
 

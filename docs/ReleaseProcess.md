@@ -36,15 +36,18 @@ without any other context.
   `version.json` for the commit being built (see
   [Versioning](DeveloperGuide.md#versioning)). Every package in the solution
   shares the same root version except the **preview-only families**.
-- **Preview-only families** - the XRegistry, WoT Connectivity, Vision,
+- **Preview-only families** - the XRegistry, WoT Connectivity,
   Robotics, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Robotics/Vision MCP extensions, and the OpenUSD connector
+  families, the Vision.OpenUsd renderer, the Robotics MCP extension, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in
   `version.targets` (build-time) and `Test-PreviewPackageId` in
   `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
+  The Vision model, client, server, and Vision MCP packages follow the root
+  version instead. This does not remove the prerelease suffix from development
+  builds or authorize a release outside the procedures below.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,
   `2.0.1-preview.4+gabc123`). `validate-nuget-package-set.ps1` writes this as

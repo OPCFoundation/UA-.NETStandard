@@ -31,7 +31,9 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Vision;
+using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.MachineVision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -41,12 +43,37 @@ namespace Opc.Ua.Aot.Tests
     public sealed class MachineVisionMcpAotTests
     {
         [Test]
+        public async Task ObservationAndWorkflowBoundsAreNativeAotSafeAsync()
+        {
+            var options = new MachineVisionObservationOptions
+            {
+                Window = TimeSpan.FromSeconds(60),
+                MaximumNotifications = 100,
+                Mode = MachineVisionObservationMode.Conditions,
+                RefreshConditions = true
+            };
+            options.Validate();
+            await Assert.That(options.MaximumNotifications).IsEqualTo(100);
+            await Assert.That(() => VisionMachineTools.ObserveAsync(null!, "i=1", durationSeconds: 61))
+                .Throws<ArgumentOutOfRangeException>();
+            await Assert.That(() => VisionMachineTools.RelationshipsAsync(null!, "i=1", startIndex: 10001))
+                .Throws<ArgumentOutOfRangeException>();
+            await Assert.That(() => VisionMachineTools.DownloadResultAsync(null!, "i=1", "result", maximumBytes: 0))
+                .Throws<ArgumentOutOfRangeException>();
+            await Assert.That(typeof(MachineVisionAssetClientExtensions).Assembly.GetName().Name)
+                .IsEqualTo("Opc.Ua.Vision.Machinery.Client");
+            await Assert.That(typeof(VisionPose3DDataType).Namespace)
+                .IsEqualTo("Opc.Ua.Vision.Perception");
+            await Assert.That(JsonSerializer.IsReflectionEnabledByDefault).IsFalse();
+        }
+
+        [Test]
         public async Task ReleasedResultSerializationAndToolBoundsWorkWithoutReflectionAsync()
         {
             await Assert.That(JsonSerializer.IsReflectionEnabledByDefault).IsFalse();
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 logging => logging.SetMinimumLevel(LogLevel.Warning));
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.ControlNamespaceUri);
             context.Factory.Builder.AddOpcUaVisionMachineVision().Commit();
             using var encoder = new JsonEncoder(context);

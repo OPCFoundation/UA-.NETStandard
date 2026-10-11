@@ -624,7 +624,7 @@ Companions composed into the same manager can call
 a subclass solely to append units. The registration is idempotent by contributor
 instance, preserves the DI units, and reevaluates the contributor on each publication.
 Contributors must not refer back to their owning manager. The
-[Machine Vision integration](MachineVision.md) uses this path for Machinery-hosted
+[Machine Vision integration](Vision.md) uses this path for Machinery-hosted
 released models; it does not invent profile URIs.
 
 The conformance units follow what is built:

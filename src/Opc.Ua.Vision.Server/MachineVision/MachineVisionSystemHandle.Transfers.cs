@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Vision.MachineVision;
 
@@ -134,7 +133,7 @@ namespace Opc.Ua.Vision.Server
                 FileState file = m_context.Context.CreateInstanceOfFileType(transfer,
                     new QualifiedName("Transfer:" + Guid.NewGuid().ToString("N"), m_context.InstanceNamespaceIndex));
                 file.DisplayName = new LocalizedText("Temporary vision file");
-                file.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                file.ReferenceTypeId = ReferenceTypeIds.HasComponent;
                 IFileTypeBinding binding = FileBinder.Bind(
                     file, m_context.Context, document.Content,
                     writing ? (content, token) => CommitDocumentAsync(kind, id, content, file.NodeId, token) : null,
@@ -183,7 +182,7 @@ namespace Opc.Ua.Vision.Server
         {
             foreach (string name in s_fileOperations)
             {
-                MethodState method = (MethodState)slot.Binding.File.FindChild(
+                var method = (MethodState)slot.Binding.File.FindChild(
                     m_context.Context, new QualifiedName(name))!;
                 var original = method.OnCallMethod2Async!;
                 ObserveMethodFailures(method, async (context, called, objectId, args, output, ct) =>
@@ -325,10 +324,10 @@ namespace Opc.Ua.Vision.Server
                     }
                     throw InvalidState("The document provider refused the content with domain error " + valid.Error);
                 }
-                ByteString hash = ByteString.From(ComputeContentHash("SHA256", content));
+                var hash = ByteString.From(ComputeContentHash("SHA256", content));
                 if (kind == MachineVisionDocumentKind.Recipe)
                 {
-                    RecipeRecord recipe = RecipeRecord.From(document);
+                    var recipe = RecipeRecord.From(document);
                     recipe.InternalId.Hash = hash;
                     recipe.InternalId.HashAlgorithm = "SHA256";
                     recipe.InternalId.EncodingMask |= (uint)(BinaryIdBaseDataTypeFields.Hash |

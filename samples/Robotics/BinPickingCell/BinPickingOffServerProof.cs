@@ -28,13 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.BinPickingCell
@@ -121,7 +120,7 @@ namespace Vision.BinPickingCell
             m_logger.ProofBanner("valid submission");
             (VisionDetectionDataType redCube, VisionPose3DDataType poseInCamera) = BuildRedCubeDetection();
             (VisionDetectionDataType greenCylinder, _) = BuildGreenCylinderDetection();
-            var detections = new[] { redCube, greenCylinder }.ToArrayOf();
+            ArrayOf<VisionDetectionDataType> detections = new[] { redCube, greenCylinder }.ToArrayOf();
             var frameReference = new VisionImageReferenceDataType
             {
                 Uri = "opcua-agent://binpicking-cell/vlm/frames/proof-happy",
@@ -205,7 +204,7 @@ namespace Vision.BinPickingCell
                 new VisionSubmitDetectionsRequest(
                     m_provider.PipelineNodeId,
                     VisionFeedbackPurposeEnum.Reconciliation,
-                    ArrayOf<VisionDetectionDataType>.Empty,
+                    [],
                     new VisionImageReferenceDataType(),
                     ByteString.Empty),
                 cancellationToken).ConfigureAwait(false);
@@ -240,7 +239,7 @@ namespace Vision.BinPickingCell
                         originalResultId,
                         VisionFeedbackPurposeEnum.GroundTruthLabel,
                         new[] { corrected }.ToArrayOf(),
-                        ArrayOf<VisionCharacteristicDataType>.Empty,
+                        [],
                         LocalizedText.From("Original miscalled the class; corrected to BlueSphere."),
                         ByteString.Empty),
                     cancellationToken)
@@ -261,7 +260,7 @@ namespace Vision.BinPickingCell
                         "det-agent-never-existed",
                         VisionFeedbackPurposeEnum.GroundTruthLabel,
                         new[] { BuildBlueSphereDetection() }.ToArrayOf(),
-                        ArrayOf<VisionCharacteristicDataType>.Empty,
+                        [],
                         LocalizedText.From("Correction referencing a fabricated id."),
                         ByteString.Empty),
                     cancellationToken)
@@ -294,11 +293,8 @@ namespace Vision.BinPickingCell
 
         private (VisionDetectionDataType Detection, VisionPose3DDataType PoseInCamera) BuildRedCubeDetection()
         {
-            BinPickingPart? part = BinPickingPartsCatalog.TryGet(RedCubeClass);
-            if (part == null)
-            {
+            BinPickingPart? part = BinPickingPartsCatalog.TryGet(RedCubeClass) ??
                 throw new InvalidOperationException("RedCube missing from catalog.");
-            }
             (double xc, double yc, double zc) = WorldToCamera(
                 part.InitialWorldPosition[0],
                 part.InitialWorldPosition[1],
@@ -308,7 +304,7 @@ namespace Vision.BinPickingCell
                 FrameId = m_provider.CameraFrameId,
                 Position = new[] { xc, yc, zc }.ToArrayOf(),
                 Orientation = s_identityOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             var detection = new VisionDetectionDataType
             {
@@ -334,11 +330,8 @@ namespace Vision.BinPickingCell
 
         private (VisionDetectionDataType Detection, VisionPose3DDataType PoseInCamera) BuildGreenCylinderDetection()
         {
-            BinPickingPart? part = BinPickingPartsCatalog.TryGet("GreenCylinder");
-            if (part == null)
-            {
+            BinPickingPart? part = BinPickingPartsCatalog.TryGet("GreenCylinder") ??
                 throw new InvalidOperationException("GreenCylinder missing from catalog.");
-            }
             (double xc, double yc, double zc) = WorldToCamera(
                 part.InitialWorldPosition[0],
                 part.InitialWorldPosition[1],
@@ -348,7 +341,7 @@ namespace Vision.BinPickingCell
                 FrameId = m_provider.CameraFrameId,
                 Position = new[] { xc, yc, zc }.ToArrayOf(),
                 Orientation = s_identityOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             var detection = new VisionDetectionDataType
             {
@@ -463,7 +456,7 @@ namespace Vision.BinPickingCell
                     FrameId = m_provider.CameraFrameId,
                     Position = s_zeroNormPosition.ToArrayOf(),
                     Orientation = s_zeroNormQuat.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 },
                 TrackId = RedCubeClass
             };
@@ -523,7 +516,7 @@ namespace Vision.BinPickingCell
 
         private void LogComposedPose(string classLabel, VisionPose3DDataType poseInCamera)
         {
-            System.ReadOnlySpan<double> pos = poseInCamera.Position.Span;
+            ReadOnlySpan<double> pos = poseInCamera.Position.Span;
             if (pos.Length < 3)
             {
                 return;
@@ -547,8 +540,8 @@ namespace Vision.BinPickingCell
         private (double X, double Y, double Z) WorldToCamera(double x, double y, double z)
         {
             VisionPose3DDataType cameraInWorld = m_provider.CameraInWorldPose;
-            System.ReadOnlySpan<double> pos = cameraInWorld.Position.Span;
-            System.ReadOnlySpan<double> ori = cameraInWorld.Orientation.Span;
+            ReadOnlySpan<double> pos = cameraInWorld.Position.Span;
+            ReadOnlySpan<double> ori = cameraInWorld.Orientation.Span;
             if (pos.Length < 3 || ori.Length < 4)
             {
                 return (0.0, 0.0, 0.0);
@@ -572,8 +565,8 @@ namespace Vision.BinPickingCell
         private (double X, double Y, double Z) QuaternionComposeToWorld(double cx, double cy, double cz)
         {
             VisionPose3DDataType cameraInWorld = m_provider.CameraInWorldPose;
-            System.ReadOnlySpan<double> pos = cameraInWorld.Position.Span;
-            System.ReadOnlySpan<double> ori = cameraInWorld.Orientation.Span;
+            ReadOnlySpan<double> pos = cameraInWorld.Position.Span;
+            ReadOnlySpan<double> ori = cameraInWorld.Orientation.Span;
             if (pos.Length < 3 || ori.Length < 4)
             {
                 return (0.0, 0.0, 0.0);

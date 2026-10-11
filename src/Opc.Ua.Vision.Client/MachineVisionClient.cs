@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Mv = Opc.Ua.Vision.MachineVision;
-using Amcm = Opc.Ua.Vision.MachineVision.AMCM;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -42,7 +41,7 @@ namespace Opc.Ua.Vision.Client
     {
         /// <summary>
         /// Opens the released OPC 40100 discovery and client interface on the same session.
-        /// It does not require the provisional Vision namespace.
+        /// It does not require the Perception namespace.
         /// </summary>
         public MachineVisionClient MachineVision()
         {
@@ -52,7 +51,7 @@ namespace Opc.Ua.Vision.Client
 
     /// <summary>
     /// Discovers the independent released Machine Vision models, including vendor subtypes
-    /// and systems organized through Machinery rather than the draft Vision root.
+    /// and systems organized through Machinery rather than the Perception root.
     /// </summary>
     public sealed partial class MachineVisionClient
     {
@@ -60,8 +59,17 @@ namespace Opc.Ua.Vision.Client
         /// Opens the released-model interface on an existing session.
         /// </summary>
         public MachineVisionClient(ISession session, ITelemetryContext telemetry)
+            : this(session, telemetry, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Opens the released-model interface with an injectable observation clock.
+        /// </summary>
+        public MachineVisionClient(ISession session, ITelemetryContext telemetry, TimeProvider timeProvider)
         {
             m_operations = new VisionClientOperations(session, telemetry);
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
         /// <summary>
@@ -98,41 +106,11 @@ namespace Opc.Ua.Vision.Client
         }
 
         /// <summary>
-        /// Discovers Part 2 system assets below a supplied root, or the Objects folder.
-        /// </summary>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public IAsyncEnumerable<VisionNodeEntry> EnumerateAssetsAsync(
-            NodeId root = default,
-            int maximumNodes = 10000,
-            CancellationToken cancellationToken = default)
-        {
-            if (maximumNodes <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(maximumNodes));
-            }
-            return EnumerateAsync(
-                Amcm.ObjectTypeIds.VisionSystemAssetType, root, maximumNodes, cancellationToken);
-        }
-
-        /// <summary>
         /// Opens the complete Part 1 interface for the supplied system instance.
         /// </summary>
         public MachineVisionSystemClient System(NodeId system)
         {
             return new MachineVisionSystemClient(Session, system, m_operations.Telemetry);
-        }
-
-        /// <summary>
-        /// Opens the generated Part 2 proxy for the supplied system asset.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        public Amcm.VisionSystemAssetTypeClient Asset(NodeId asset)
-        {
-            if (asset.IsNull)
-            {
-                throw new ArgumentNullException(nameof(asset));
-            }
-            return new Amcm.VisionSystemAssetTypeClient(Session, asset, m_operations.Telemetry);
         }
 
         /// <summary>
@@ -143,12 +121,12 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             ArrayOf<ReferenceDescription> references = await BrowseAsync(
-                node, global::Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs,
+                node, ReferenceTypeIds.RepresentsSameEntityAs,
                 BrowseDirection.Both, 0, cancellationToken).ConfigureAwait(false);
             var result = new HashSet<NodeId>();
             foreach (ReferenceDescription reference in references)
             {
-                NodeId target = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var target = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (!target.IsNull)
                 {
                     result.Add(target);
@@ -157,13 +135,13 @@ namespace Opc.Ua.Vision.Client
             return new List<NodeId>(result).ToArrayOf();
         }
 
-        private async IAsyncEnumerable<VisionNodeEntry> EnumerateAsync(
+        internal async IAsyncEnumerable<VisionNodeEntry> EnumerateAsync(
             ExpandedNodeId type,
             NodeId root,
             int maximumNodes,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            NodeId typeId = ExpandedNodeId.ToNodeId(type, Session.NamespaceUris);
+            var typeId = ExpandedNodeId.ToNodeId(type, Session.NamespaceUris);
             if (typeId.IsNull)
             {
                 yield break;
@@ -172,7 +150,7 @@ namespace Opc.Ua.Vision.Client
             var discovered = new HashSet<NodeId>();
             var scheduled = new HashSet<NodeId>();
             var pending = new Queue<NodeId>();
-            NodeId start = root.IsNull ? global::Opc.Ua.ObjectIds.ObjectsFolder : root;
+            NodeId start = root.IsNull ? ObjectIds.ObjectsFolder : root;
             pending.Enqueue(start);
             scheduled.Add(start);
             while (pending.Count != 0)
@@ -190,17 +168,17 @@ namespace Opc.Ua.Vision.Client
                         "Machine Vision discovery exceeded its node limit; supply a narrower root.");
                 }
                 ArrayOf<ReferenceDescription> references = await BrowseAsync(
-                    current, global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    current, ReferenceTypeIds.HierarchicalReferences,
                     BrowseDirection.Forward, (uint)NodeClass.Object, cancellationToken).ConfigureAwait(false);
                 for (int ii = 0; ii < references.Count; ii++)
                 {
                     ReferenceDescription reference = references[ii];
-                    NodeId node = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                    var node = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                     if (node.IsNull || !scheduled.Add(node))
                     {
                         continue;
                     }
-                    NodeId actualType = ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris);
+                    var actualType = ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris);
                     if (!actualType.IsNull &&
                         await Session.NodeCache.IsTypeOfAsync(actualType, typeId, cancellationToken)
                             .ConfigureAwait(false) &&
@@ -214,7 +192,7 @@ namespace Opc.Ua.Vision.Client
             }
         }
 
-        private async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
+        internal async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
             NodeId node,
             NodeId referenceType,
             BrowseDirection direction,
@@ -242,5 +220,12 @@ namespace Opc.Ua.Vision.Client
         }
 
         private readonly VisionClientOperations m_operations;
+
+        private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Shares the connected-session helpers with the optional Machinery client module.
+        /// </summary>
+        internal VisionClientOperations Operations => m_operations;
     }
 }

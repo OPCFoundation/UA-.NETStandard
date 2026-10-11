@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Vision.Machinery</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Vision.Machinery</PackageId>
+    <RootNamespace>Opc.Ua.Vision.Machinery</RootNamespace>
+    <Description>Source-generated OPC 40100-2 Machine Vision asset management and condition monitoring models, independent of the Part 1 control and Perception models.</Description>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.MachineVision.AMCM.NodeIds.csv" />
+    <AdditionalFiles Include="Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/MachineVision/AMCM/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>MachineVisionAmcm</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Vision.MachineVision.AMCM</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.MachineVision.AMCM.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.MachineVision.AMCM.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

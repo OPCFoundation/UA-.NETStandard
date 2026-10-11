@@ -54,7 +54,7 @@ namespace Opc.Ua.Vision.Tests
             ExpandedNodeId type = assets
                 ? MachineVision.AMCM.ObjectTypeIds.VisionSystemAssetType
                 : MachineVision.ObjectTypeIds.VisionSystemType;
-            harness.AddBrowse(global::Opc.Ua.ObjectIds.ObjectsFolder,
+            harness.AddBrowse(ObjectIds.ObjectsFolder,
             [
                 new ReferenceDescription
                 {
@@ -64,7 +64,7 @@ namespace Opc.Ua.Vision.Tests
                     NodeClass = NodeClass.Object,
                     TypeDefinition = type,
                     IsForward = true,
-                    ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes
+                    ReferenceTypeId = ReferenceTypeIds.Organizes
                 }
             ]);
             MachineVisionClient client = harness.Client.MachineVision();

@@ -65,7 +65,7 @@ namespace Opc.Ua.Vision.Server
                 throw new ArgumentException("A declared browse name is required.", nameof(browseName));
             }
             return new MachineVisionNodeBuilder(
-                m_manager, MachineVisionNodes.Require<BaseInstanceState>(m_manager, State, browseName), m_clock);
+                m_manager, VisionMachineryNodes.Require<BaseInstanceState>(m_manager, State, browseName), m_clock);
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace Opc.Ua.Vision.Server
         /// </summary>
         public MachineVisionNodeBuilder Set(string browseName, Variant value)
         {
-            BaseVariableState variable = MachineVisionNodes.Require<BaseVariableState>(m_manager, State, browseName);
+            BaseVariableState variable = VisionMachineryNodes.Require<BaseVariableState>(m_manager, State, browseName);
             MachineVisionNodes.Set(m_manager.SystemContext, variable, value, m_clock.GetUtcNow().UtcDateTime);
             return this;
         }

@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -141,6 +143,35 @@ namespace Opc.Ua.Types.Tests.State
             ServiceResult result = method.Call(m_callContext, new NodeId(123u), [], [], []);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
             Assert.That(reported, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidationObserverFailureDoesNotReplaceTheOriginalResultAsync(bool asynchronous)
+        {
+            var method = new MethodState(null) { Executable = false };
+            method.OnCallValidationFailedAsync = (_, _, _, _, _, _) => asynchronous
+                ? new ValueTask(Task.FromException(new InvalidOperationException("report failed")))
+                : throw new InvalidOperationException("report failed");
+            ServiceResult result = await method.CallAsync(m_callContext, new NodeId(123u), [], [], [])
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
+        }
+
+        [Test]
+        public async Task ValidationObserverCannotReplaceRequestedCallerCancellationAsync()
+        {
+            var method = new MethodState(null) { Executable = false };
+            using var cancellation = new CancellationTokenSource();
+            method.OnCallValidationFailedAsync = async (_, _, _, _, _, ct) =>
+            {
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+            };
+            OperationCanceledException? failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+                await method.CallAsync(m_callContext, new NodeId(123u), [], [], [], cancellation.Token)
+                    .ConfigureAwait(false));
+            Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
         }
 
         [Test]

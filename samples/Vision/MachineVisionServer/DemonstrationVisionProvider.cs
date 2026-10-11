@@ -35,8 +35,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.MachineVision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 using ControlIds = Opc.Ua.Vision.MachineVision.VisionAutomaticModeStateMachineTypeIds;
 
@@ -225,7 +225,7 @@ namespace MachineVisionSample
             FolderState results = pipeline.Results!;
             InspectionResultState result = context.Context.CreateInstanceOfInspectionResultType(
                 results, new QualifiedName(id, context.InstanceNamespaceIndex));
-            result.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            result.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
             result.ResultId!.Value = id;
             result.CreationTime!.Value = timestamp;
             result.CreateOrReplacePipeline(context.Context, null).Value = pipeline.NodeId;
@@ -259,8 +259,10 @@ namespace MachineVisionSample
                     return error;
                 }
             }
-            if (ServiceResult.IsGood(status) && output.Count != 0 &&
-                output[output.Count - 1].TryGetValue(out int domainError) && domainError != 0)
+            if (ServiceResult.IsGood(status) &&
+                output.Count != 0 &&
+                output[^1].TryGetValue(out int domainError) &&
+                domainError != 0)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState, "Domain error {0}.", domainError);
             }

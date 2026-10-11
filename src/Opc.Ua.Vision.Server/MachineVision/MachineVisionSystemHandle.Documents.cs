@@ -83,7 +83,7 @@ namespace Opc.Ua.Vision.Server
                 ResultDataTypeFields.IsSimulated);
             if (job.Recipe != null)
             {
-                RecipeRecord recipe = RecipeRecord.From(job.Recipe);
+                var recipe = RecipeRecord.From(job.Recipe);
                 result.InternalRecipeId = recipe.InternalId;
                 result.ExternalRecipeId = recipe.ExternalId;
                 result.EncodingMask |= (uint)ResultDataTypeFields.ExternalRecipeId;
@@ -172,13 +172,13 @@ namespace Opc.Ua.Vision.Server
                         {
                             node = CreateMetadataVariable(folder, name, Mv.DataTypeIds.ConfigurationDataType);
                         }
-                        node.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+                        node.ReferenceTypeId = ReferenceTypeIds.Organizes;
                         folder.AddChild(node);
                         m_documentNodes.Add(key, node);
                     }
                     if (node is RecipeState recipeNode)
                     {
-                        RecipeRecord recipe = RecipeRecord.From(document);
+                        var recipe = RecipeRecord.From(document);
                         recipeNode.InternalId!.Value = recipe.InternalId;
                         recipeNode.CreateOrReplaceExternalId(m_context.Context, null).Value = recipe.ExternalId;
                         recipeNode.IsPrepared!.Value = recipe.Prepared;
@@ -234,7 +234,7 @@ namespace Opc.Ua.Vision.Server
                         node = CreateMetadataVariable(folder,
                             new QualifiedName(pair.Key, m_context.InstanceNamespaceIndex),
                             Mv.DataTypeIds.ProductDataType);
-                        node.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+                        node.ReferenceTypeId = ReferenceTypeIds.Organizes;
                         folder.AddChild(node);
                         m_productNodes.Add(pair.Key, node);
                     }

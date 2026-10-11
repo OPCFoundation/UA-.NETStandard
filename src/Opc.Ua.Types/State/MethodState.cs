@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -1122,7 +1123,20 @@ namespace Opc.Ua
             MethodCallValidationFailedEventHandler? handler = OnCallValidationFailedAsync;
             if (!sync && handler != null)
             {
-                await handler(context, this, objectId, inputArguments, error, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await handler(context, this, objectId, inputArguments, error, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception observerError)
+                {
+                    context.Telemetry.CreateLogger<MethodState>()
+                        .ValidationObserverFailed(NodeId, error.StatusCode, observerError);
+                }
             }
             return error;
         }
@@ -1131,6 +1145,20 @@ namespace Opc.Ua
         private bool m_userExecutable;
         private PropertyState<ArrayOf<Argument>>? m_inputArguments;
         private PropertyState<ArrayOf<Argument>>? m_outputArguments;
+    }
+
+    /// <summary>
+    /// Diagnostics for failures in optional method-validation observers.
+    /// </summary>
+    internal static partial class MethodStateLog
+    {
+        /// <summary>
+        /// Records an observer failure while the caller receives the original validation status.
+        /// </summary>
+        [LoggerMessage(EventId = TypesEventIds.MethodState, Level = LogLevel.Warning,
+            Message = "Validation observer failed for method {MethodId}; preserving {ValidationStatus}.")]
+        public static partial void ValidationObserverFailed(
+            this ILogger logger, NodeId methodId, StatusCode validationStatus, Exception exception);
     }
 
     /// <summary>

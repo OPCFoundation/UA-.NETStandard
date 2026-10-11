@@ -75,7 +75,7 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer.Debug", true),
@@ -86,7 +86,7 @@ namespace Opc.Ua.Tools.Tests
                 // the stable version and the release validator would reject
                 // the whole set.
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Debug", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Core", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", false),
@@ -105,7 +105,7 @@ namespace Opc.Ua.Tools.Tests
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
-                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false)
             ];
 
             JsonElement result = await RunPolicyScriptAsync(
@@ -190,7 +190,7 @@ namespace Opc.Ua.Tools.Tests
                 ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
                 ("2.0.0-gamma.1", "2.0.0-preview.gamma.1"),
                 ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295"),
-                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5"),
+                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5")
             ];
 
             string fixtureDirectory = Path.Combine(
@@ -254,7 +254,7 @@ namespace Opc.Ua.Tools.Tests
                 string error = await standardError.ConfigureAwait(false);
                 Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
 
-                Dictionary<string, string> actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
+                var actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
                     .Select(line => line.Split('=', 2))
                     .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
 
@@ -574,16 +574,15 @@ namespace Opc.Ua.Tools.Tests
             [
                 "Opc.Ua.XRegistry",
                 "Opc.Ua.WotCon",
-                "Opc.Ua.Vision",
+                "Opc.Ua.Vision.OpenUsd",
                 "Opc.Ua.Robotics",
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
                 "Opc.Ua.AI",
                 "Opc.Ua.Mcp.Robotics",
-                "Opc.Ua.Mcp.Vision",
                 "Opc.Ua.OpenUsd.Connector",
-                "Opc.Ua.OpenUsd.Connector.Viewer",
+                "Opc.Ua.OpenUsd.Connector.Viewer"
             ];
 
             // Match the complete quoted literal version.targets compares
@@ -605,7 +604,7 @@ namespace Opc.Ua.Tools.Tests
             string[] probeIds =
             [
                 .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}"),
-                .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}.Debug"),
+                .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}.Debug")
             ];
 
             JsonElement result = await RunPolicyScriptAsync(
@@ -649,7 +648,7 @@ namespace Opc.Ua.Tools.Tests
                     // Unrelated bases must be ignored entirely.
                     "2.0.1-preview.400",
                     "2.0.10-preview.400",
-                    "1.5.378",
+                    "1.5.378"
                 ]).ConfigureAwait(false);
 
             Assert.That(result.GetArrayLength(), Is.Zero, result.ToString());
@@ -672,7 +671,7 @@ namespace Opc.Ua.Tools.Tests
                     "2.0.0-preview.6-rc",
                     // The development series has outgrown the committed
                     // number - the case this guard exists for.
-                    "2.0.0-preview.10.gabc123def0",
+                    "2.0.0-preview.10.gabc123def0"
                 ]).ConfigureAwait(false);
 
             string[] blocking = [.. result.EnumerateArray().Select(e => e.GetString()!)];
@@ -680,7 +679,7 @@ namespace Opc.Ua.Tools.Tests
             [
                 "2.0.0-preview.6.gabc123def0",
                 "2.0.0-preview.6-rc",
-                "2.0.0-preview.10.gabc123def0",
+                "2.0.0-preview.10.gabc123def0"
             ];
             Assert.That(blocking, Is.EquivalentTo(expected));
         }
@@ -704,7 +703,7 @@ namespace Opc.Ua.Tools.Tests
                     "2.0.0-preview.6",
                     // Build metadata is ignored for precedence by both
                     // SemVer 2 and NuGet, so this is the same identity.
-                    "2.0.0-preview.6+abc1234",
+                    "2.0.0-preview.6+abc1234"
                 ]).ConfigureAwait(false);
 
             Assert.That(result.GetArrayLength(), Is.Zero, result.ToString());
@@ -1001,7 +1000,7 @@ namespace Opc.Ua.Tools.Tests
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
                     ["Opc.Ua.nuspec"] = "<package />",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
             string signedB = CreateTestPackage(
                 "published.nupkg",
@@ -1011,7 +1010,7 @@ namespace Opc.Ua.Tools.Tests
                     // is canonicalized, so ordering must not matter either.
                     ["Opc.Ua.nuspec"] = "<package />",
                     [".signature.p7s"] = "author-signature-plus-repository-countersignature",
-                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
+                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes"
                 });
 
             JsonElement result = await RunContentDigestsAsync(signedA, signedB).ConfigureAwait(false);
@@ -1031,14 +1030,14 @@ namespace Opc.Ua.Tools.Tests
                 new Dictionary<string, string>
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
             string foreign = CreateTestPackage(
                 "theirs.nupkg",
                 new Dictionary<string, string>
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "someone-elses-assembly-bytes",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
 
             JsonElement result = await RunContentDigestsAsync(candidate, foreign).ConfigureAwait(false);
@@ -1065,7 +1064,7 @@ namespace Opc.Ua.Tools.Tests
 
             using FileStream stream = File.OpenRead(
                 Path.Combine(FindRepositoryRoot(), "version.json"));
-            using JsonDocument document = JsonDocument.Parse(stream);
+            using var document = JsonDocument.Parse(stream);
 
             string[] refSpecs =
             [
@@ -1077,7 +1076,7 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(
                 refSpecs,
-                Is.EqualTo(new[] { expression }),
+                Is.EqualTo([expression]),
                 "version.json's publicReleaseRefSpec must be exactly the expression " +
                 "Test-CanonicalReleaseBranchRef applies.");
         }
@@ -1164,7 +1163,7 @@ namespace Opc.Ua.Tools.Tests
                     "release.yml must inline exactly one canonical release-branch expression.");
                 Assert.That(
                     workflowMatches,
-                    Is.EqualTo(new[] { expression }),
+                    Is.EqualTo([expression]),
                     "The inlined bootstrap check in release.yml and " +
                     "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
             });
@@ -1187,7 +1186,7 @@ namespace Opc.Ua.Tools.Tests
                 ("refs/heads/RELEASE/2.0", false),
                 ("refs/heads/release/02.0", false),
                 ("refs/heads/release/2.00", false),
-                ("refs/heads/release/00.0", false),
+                ("refs/heads/release/00.0", false)
             ];
             Assert.Multiple(() =>
             {
@@ -1289,16 +1288,16 @@ namespace Opc.Ua.Tools.Tests
         public void NbgvCliUsesTheCentralPackageVersion()
         {
             string root = FindRepositoryRoot();
-            XDocument packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
             string? version = packages
                 .Descendants("PackageVersion")
                 .SingleOrDefault(element =>
                     string.Equals(
                         (string?)element.Attribute("Include"),
                         "Nerdbank.GitVersioning",
-                        StringComparison.Ordinal))
-                ?.Attribute("Version")
-                ?.Value;
+                        StringComparison.Ordinal))?
+                .Attribute("Version")?
+                .Value;
             string script = File.ReadAllText(Path.Combine(root, ".azurepipelines", "set-version.ps1"));
 
             Assert.Multiple(() =>
@@ -1322,7 +1321,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public void OpenUsdPackageFamilyUsesOneVerifiedPrerelease()
         {
-            XDocument packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
             string[] versions =
             [
                 .. packages
@@ -1471,6 +1470,467 @@ namespace Opc.Ua.Tools.Tests
             }
 
             throw new InvalidOperationException("Could not find the repository root.");
+        }
+
+        [Test]
+        public async Task PromotedVisionIdsPreserveRootVersionsAsync()
+        {
+            (string Root, string Expected)[] versions =
+            [
+                ("2.0.0", "2.0.0"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1", "2.0.0-rc.1"),
+                ("2.0.0+gabc123def0", "2.0.0+gabc123def0"),
+                ("2.0.1-preview.3+build5", "2.0.1-preview.3+build5"),
+                ("2.0.0-ge78c648295", "2.0.0-ge78c648295")
+            ];
+            PackageVersionCase[] cases = [.. PromotedVisionPackageIds.SelectMany(
+                id => versions.Select(version => new PackageVersionCase(
+                    id, version.Root, false, version.Expected)))];
+
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionPolicyMatrixMatchesActualMsBuildAndPowerShellAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            // Alternate retained families and controls, including repeated IDs
+            // with different roots, to expose reused MSBuild evaluations.
+            PackageVersionCase[] cases =
+            [
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.0", false, "2.0.0"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.0", true, $"2.0.0-preview.{buildNumber}"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0", false, "2.0.0"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", "2.0.0", true,
+                    $"2.0.0-preview.{buildNumber}"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra.Debug", "2.0.0", false, "2.0.0"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.0-rc.1+build5", true,
+                    "2.0.0-preview.rc.1+build5"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0-rc.1+build5", false,
+                    "2.0.0-rc.1+build5"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug", "2.0.0-gabc123def0+build5", true,
+                    "2.0.0-preview.0.gabc123def0+build5"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.Server", "2.0.0-gabc123def0+build5", false,
+                    "2.0.0-gabc123def0+build5"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.1-preview.3+build5", false,
+                    "2.0.1-preview.3+build5"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.1-preview.3+build5", true,
+                    "2.0.1-preview.3+build5")
+            ];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionOpenUsdVariantsRemainPreviewAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            string[] ids =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug"
+            ];
+            (string Root, string Expected)[] versions =
+            [
+                ("2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
+                ("2.0.0+gabc123def0", $"2.0.0-preview.{buildNumber}+gabc123def0"),
+                ("2.0.1-preview.3+build5", "2.0.1-preview.3+build5"),
+                ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295")
+            ];
+            PackageVersionCase[] cases = [.. ids.SelectMany(
+                id => versions.Select(version => new PackageVersionCase(
+                    id, version.Root, true, version.Expected)))];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionPolicyPreservesOtherFamiliesAndPrefixBoundariesAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            (string Id, bool Preview)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Visionary", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Visionary.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Visionary", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Visionary.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.RoboticsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.RoboticsExtra.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Child.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Core", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub", false)
+            ];
+            (string Root, string Unchanged, string Preview)[] versions =
+            [
+                ("2.0.0", "2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-rc.1+gabc123def0", "2.0.0-rc.1+gabc123def0", "2.0.0-preview.rc.1+gabc123def0")
+            ];
+            PackageVersionCase[] cases = [.. packages.SelectMany(
+                package => versions.Select(version => new PackageVersionCase(
+                    package.Id,
+                    version.Root,
+                    package.Preview,
+                    package.Preview ? version.Preview : version.Unchanged)))];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task PreviewOrderingSkipsPromotedVisionIdsAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            string previewVersion = $"2.0.0-preview.{buildNumber}";
+            (string Id, string Version, string Type)[] archives =
+            [
+                .. PromotedVisionPackageIds.Select(id => (id, "2.0.0", "package")),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0", "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra", "2.0.0", "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "symbols"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.SymbolsOnly", previewVersion, "symbols"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics", previewVersion, "symbols")
+            ];
+            string[] expectedRequests =
+            [
+                "offline:nuget/opcfoundation.netstandard.opc.ua.vision.openusd/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd/versions?per_page=100&page=1",
+                "offline:nuget/opcfoundation.netstandard.opc.ua.vision.openusd.debug/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug/versions?per_page=100&page=1",
+                "offline:nuget/opcfoundation.netstandard.opc.ua.xregistry/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.XRegistry/versions?per_page=100&page=1"
+            ];
+
+            JsonElement result = await RunVisionPreviewOrderingAsync(
+                archives, expectedRequests).ConfigureAwait(false);
+            string[] requests =
+                [.. result.GetProperty("requests").EnumerateArray().Select(request => request.GetString()!)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("completed").GetBoolean(), Is.True,
+                    result.GetProperty("error").GetString());
+                Assert.That(result.GetProperty("error").GetString(), Is.Empty);
+                Assert.That(requests, Has.Length.EqualTo(6));
+                Assert.That(requests, Is.Unique);
+                Assert.That(requests, Is.EquivalentTo(expectedRequests));
+                Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task PreviewOrderingFailsClosedWhenNoPreviewFamilyRemainsAsync()
+        {
+            (string Id, string Version, string Type)[] archives =
+                [.. PromotedVisionPackageIds.Select(id => (id, "2.0.0", "package"))];
+
+            JsonElement result = await RunVisionPreviewOrderingAsync(
+                archives, []).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("completed").GetBoolean(), Is.False);
+                Assert.That(
+                    result.GetProperty("error").GetString(),
+                    Is.EqualTo(
+                        "The stable package set for '2.0.0' contains no preview-family packages at all. " +
+                        "Either version.targets no longer pins them or the package set is incomplete; " +
+                        "see docs/ReleaseProcess.md."));
+                Assert.That(result.GetProperty("requests").GetArrayLength(), Is.Zero);
+                Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+            });
+        }
+
+        private static string[] PromotedVisionPackageIds =>
+        [
+            "OPCFoundation.NetStandard.Opc.Ua.Vision",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug"
+        ];
+
+        private readonly record struct PackageVersionCase(
+            string Id,
+            string Root,
+            bool Preview,
+            string Expected);
+
+        private static async Task AssertVisionVersionPolicyMatrixAsync(
+            PackageVersionCase[] cases,
+            string buildNumber)
+        {
+            string fixtureDirectory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "package-version-policy-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(fixtureDirectory);
+            string projectPath = Path.Combine(fixtureDirectory, "versions.proj");
+            string resultPath = Path.Combine(fixtureDirectory, "versions.txt");
+            string versionTargetsPath = Path.Combine(FindRepositoryRoot(), "version.targets");
+            string items = string.Concat(cases.Select(
+                c => $"<Case Include=\"{c.Id}|{c.Root}\" Id=\"{c.Id}\" Root=\"{c.Root}\" />"));
+
+            try
+            {
+                // Both inputs are global properties of each self-invocation.
+                // A plain project avoids SDK/NBGV/Directory.Build imports.
+                await File.WriteAllTextAsync(
+                    projectPath,
+                    $$"""
+                    <Project DefaultTargets="Run">
+                      <PropertyGroup>
+                        <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
+                        <PackageId>$(InputPackageId)</PackageId>
+                        <IsPackable>true</IsPackable>
+                        <NBGV_PublicRelease>True</NBGV_PublicRelease>
+                        <PreviewPackageBuildNumber>{{buildNumber}}</PreviewPackageBuildNumber>
+                        <Version>$(InputVersion)</Version>
+                        <PackageVersion>$(InputVersion)</PackageVersion>
+                        <NuGetPackageVersion>$(InputVersion)</NuGetPackageVersion>
+                        <NBGV_NuGetPackageVersion>$(InputVersion)</NBGV_NuGetPackageVersion>
+                      </PropertyGroup>
+                      <ItemGroup>{{items}}</ItemGroup>
+                      <Import Project="{{versionTargetsPath}}" />
+                      <Target Name="Map" DependsOnTargets="ApplyPreviewPackageVersion" Returns="@(Mapped)">
+                        <ItemGroup>
+                          <Mapped Include="$(PackageId)|$(InputVersion)"
+                                  Preview="$(_IsPreviewPackage)"
+                                  Version="$(Version)"
+                                  PackageVersion="$(PackageVersion)"
+                                  NuGetPackageVersion="$(NuGetPackageVersion)"
+                                  NBGV_NuGetPackageVersion="$(NBGV_NuGetPackageVersion)" />
+                        </ItemGroup>
+                      </Target>
+                      <Target Name="Run">
+                        <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Map"
+                                 Properties="InputPackageId=%(Case.Id);InputVersion=%(Case.Root)">
+                          <Output TaskParameter="TargetOutputs" ItemName="Result" />
+                        </MSBuild>
+                        <WriteLinesToFile File="{{resultPath}}"
+                          Lines="@(Result->'%(Identity)|%(Preview)|%(Version)|%(PackageVersion)|%(NuGetPackageVersion)|%(NBGV_NuGetPackageVersion)')"
+                          Overwrite="true" />
+                      </Target>
+                    </Project>
+                    """).ConfigureAwait(false);
+
+                using var process = new Process();
+                process.StartInfo.FileName = "dotnet";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.ArgumentList.Add("msbuild");
+                process.StartInfo.ArgumentList.Add(projectPath);
+                process.StartInfo.ArgumentList.Add("-nologo");
+                process.StartInfo.ArgumentList.Add("-nodeReuse:false");
+
+                Assert.That(process.Start(), Is.True);
+                Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                Task<string> standardError = process.StandardError.ReadToEndAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                string output = await standardOutput.ConfigureAwait(false);
+                string error = await standardError.ConfigureAwait(false);
+                Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
+
+                string[][] rows = [.. (await File.ReadAllLinesAsync(resultPath)
+                    .ConfigureAwait(false)).Select(line => line.Split('|'))];
+                Assert.That(rows, Has.Length.EqualTo(cases.Length));
+                Assert.That(rows.Select(row => row.Length), Is.All.EqualTo(7));
+                string[] expectedKeys = [.. cases.Select(c => $"{c.Id}|{c.Root}")];
+                string[] actualKeys = [.. rows.Select(row => $"{row[0]}|{row[1]}")];
+                Assert.That(actualKeys, Is.Unique);
+                Assert.That(actualKeys, Is.EquivalentTo(expectedKeys));
+                Dictionary<string, string[]> actual = rows.ToDictionary(
+                    row => $"{row[0]}|{row[1]}", StringComparer.Ordinal);
+
+                string policyInputs = string.Join(
+                    ",", cases.Select(c => $"@{{ id = '{c.Id}'; root = '{c.Root}' }}"));
+                JsonElement policy = await RunPolicyScriptAsync(
+                    $$"""
+                    . '{{PolicyScriptPath}}'
+                    $cases = @({{policyInputs}})
+                    $results = foreach ($case in $cases) {
+                        [pscustomobject]@{
+                            id = $case.id
+                            root = $case.root
+                            isPreview = (Test-PreviewPackageId -PackageId $case.id)
+                            version = (Get-ExpectedPackageVersion -PackageId $case.id -BaseVersion $case.root)
+                        }
+                    }
+                    $results | ConvertTo-Json -Depth 3 -AsArray
+                    """).ConfigureAwait(false);
+                Assert.That(policy.GetArrayLength(), Is.EqualTo(cases.Length));
+                string[] policyKeys = [.. policy.EnumerateArray().Select(
+                    row => $"{row.GetProperty("id").GetString()}|{row.GetProperty("root").GetString()}")];
+                Assert.That(policyKeys, Is.Unique);
+                Assert.That(policyKeys, Is.EquivalentTo(expectedKeys));
+                var policyRows = policy.EnumerateArray().ToDictionary(
+                    row => $"{row.GetProperty("id").GetString()}|{row.GetProperty("root").GetString()}",
+                    StringComparer.Ordinal);
+
+                Assert.Multiple(() =>
+                {
+                    foreach (PackageVersionCase c in cases)
+                    {
+                        string key = $"{c.Id}|{c.Root}";
+                        string[] mapped = actual[key];
+                        JsonElement classified = policyRows[key];
+                        Assert.That(mapped[2], Is.EqualTo(c.Preview ? "true" : string.Empty),
+                            $"{key}: MSBuild classification");
+                        Assert.That(mapped[3], Is.EqualTo(c.Expected), $"{key}: Version");
+                        Assert.That(mapped[4], Is.EqualTo(c.Expected), $"{key}: PackageVersion");
+                        Assert.That(mapped[5], Is.EqualTo(c.Expected), $"{key}: NuGetPackageVersion");
+                        Assert.That(mapped[6], Is.EqualTo(c.Expected), $"{key}: NBGV_NuGetPackageVersion");
+                        Assert.That(classified.GetProperty("isPreview").GetBoolean(), Is.EqualTo(c.Preview),
+                            $"{key}: PowerShell classification");
+                        Assert.That(classified.GetProperty("version").GetString(), Is.EqualTo(c.Expected),
+                            $"{key}: Get-ExpectedPackageVersion");
+                    }
+                });
+            }
+            finally
+            {
+                Directory.Delete(fixtureDirectory, recursive: true);
+            }
+        }
+
+        private static Task<JsonElement> RunVisionPreviewOrderingAsync(
+            (string Id, string Version, string Type)[] archives,
+            string[] allowedRequests)
+        {
+            string manifest = JsonSerializer.Serialize(new
+            {
+                schemaVersion = 2,
+                channel = "stable",
+                basePackageVersion = "2.0.0",
+                archives = archives.Select(archive => new
+                {
+                    id = archive.Id,
+                    version = archive.Version,
+                    type = archive.Type
+                })
+            });
+            return RunPolicyScriptAsync(
+                $$"""
+                $ErrorActionPreference = 'Stop'
+                $manifestPath = [System.IO.Path]::ChangeExtension($PSCommandPath, '.manifest.json')
+                # The invoked script has its own script scope. These globals
+                # belong only to this fixture's fresh, short-lived pwsh process.
+                $global:orderingRequests = [System.Collections.Generic.List[string]]::new()
+                $global:unexpectedOrderingRequests = [System.Collections.Generic.List[string]]::new()
+                $global:allowedOrderingRequests = @({{string.Join(",", allowedRequests.Select(uri => $"'{uri}'"))}})
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $global:orderingRequests.Add($Uri)
+                    if ($Uri -cnotin $global:allowedOrderingRequests) {
+                        $global:unexpectedOrderingRequests.Add($Uri)
+                        throw "Unexpected offline feed request: $Uri"
+                    }
+                    if (-not $SkipHttpErrorCheck) {
+                        throw 'The ordering gate must request the HTTP status.'
+                    }
+                    if ($Uri.StartsWith('offline:nuget/', [System.StringComparison]::Ordinal)) {
+                        return [pscustomobject]@{
+                            StatusCode = 200
+                            Content = '{"versions":["2.0.0-preview"]}'
+                        }
+                    }
+                    return [pscustomobject]@{
+                        StatusCode = 200
+                        Content = '[{"name":"2.0.0-preview"}]'
+                    }
+                }
+                function Start-Sleep {
+                    param([int]$Seconds)
+                    throw 'An offline ordering fixture must not retry or sleep.'
+                }
+                try {
+                    [System.IO.File]::WriteAllText($manifestPath, '{{manifest}}')
+                    $completed = $false
+                    $errorMessage = ''
+                    try {
+                        & '{{OrderingScriptPath}}' -ManifestPath $manifestPath -GitHubToken offline `
+                            -GitHubPackagesOwner OfflineOwner -NuGetOrgIndexUrl 'offline:nuget' `
+                            -GitHubApiUrl 'offline:github' -InformationAction Ignore
+                        $completed = $true
+                    }
+                    catch {
+                        $errorMessage = $_.Exception.Message
+                    }
+                    [pscustomobject]@{
+                        completed = $completed
+                        error = $errorMessage
+                        requests = $global:orderingRequests.ToArray()
+                        unexpectedRequests = $global:unexpectedOrderingRequests.ToArray()
+                    } | ConvertTo-Json -Depth 4
+                }
+                finally {
+                    [System.IO.File]::Delete($manifestPath)
+                }
+                """);
         }
     }
 }

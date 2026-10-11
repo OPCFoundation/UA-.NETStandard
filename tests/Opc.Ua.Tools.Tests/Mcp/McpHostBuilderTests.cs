@@ -113,7 +113,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public async Task ConfigureServicesUsesProvidedOpcUaMcpOptionsAsync()
         {
             var services = new ServiceCollection();
-            var expected = new Opc.Ua.Mcp.OpcUaMcpOptions
+            var expected = new OpcUaMcpOptions
             {
                 ToolProfile = McpToolProfile.Core
             };
@@ -122,7 +122,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(
-                provider.GetRequiredService<Opc.Ua.Mcp.OpcUaMcpOptions>(),
+                provider.GetRequiredService<OpcUaMcpOptions>(),
                 Is.SameAs(expected));
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Environment.SetEnvironmentVariable(kExportRootVariable, "export-root");
             Environment.SetEnvironmentVariable(kPcapRootVariable, "pcap-root");
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options =
+            OpcUaMcpOptions options =
                 McpHostBuilder.CreateOpcUaMcpOptions();
 
             Assert.That(options.NodeSetExportRoot, Is.EqualTo("export-root"));
@@ -158,7 +158,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 "core");
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Environment.SetEnvironmentVariable(kProfileVariable, "pubsub");
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 "vision,robotics");
 
@@ -273,7 +273,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -295,11 +295,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
             IMcpServerBuilder builder = services.AddMcpServer();
             McpHostBuilder.ConfigureMcpTools(
                 builder,
-                new McpToolProfileSet(new[] { McpToolProfile.Vision, McpToolProfile.Robotics }),
+                new McpToolProfileSet([McpToolProfile.Vision, McpToolProfile.Robotics]),
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> composed = provider
+            var composed = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -325,7 +325,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> tools = provider
+            var tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -346,7 +346,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> composed = provider
+            var composed = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -360,8 +360,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("pubsub", 18)]
         [TestCase("diagnostics", 10)]
         [TestCase("robotics", 42)]
-        [TestCase("vision", 37)]
-        [TestCase("full", 149)]
+        [TestCase("vision", 43)]
+        [TestCase("full", 155)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);
@@ -370,7 +370,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpHostBuilder.ConfigureMcpTools(builder, toolProfiles, diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> tools = provider
+            var tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);

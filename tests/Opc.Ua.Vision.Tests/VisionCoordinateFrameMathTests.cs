@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -203,7 +203,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType pose = MakePose(
                 "camera",
-                new[] { 0.3, -0.2, 0.5 },
+                [0.3, -0.2, 0.5],
                 UnitQuaternion(Math.PI / 5.0, Math.PI / 7.0, Math.PI / 3.0));
 
             VisionPose3DDataType inverse = VisionCoordinateFrameMath.Invert(pose);
@@ -216,12 +216,12 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ComposeThrowsArgumentExceptionWhenPositionLengthIsWrong()
         {
-            VisionPose3DDataType broken = new VisionPose3DDataType
+            var broken = new VisionPose3DDataType
             {
                 FrameId = "broken",
                 Position = new double[] { 1.0, 2.0 },
                 Orientation = new double[] { 0.0, 0.0, 0.0, 1.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity("root");
 
@@ -233,12 +233,12 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ComposeThrowsArgumentExceptionWhenOrientationLengthIsWrong()
         {
-            VisionPose3DDataType broken = new VisionPose3DDataType
+            var broken = new VisionPose3DDataType
             {
                 FrameId = "broken",
                 Position = new double[] { 0.0, 0.0, 0.0 },
                 Orientation = new double[] { 0.0, 0.0, 1.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity("root");
 
@@ -250,12 +250,12 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ComposeRefusesAZeroNormQuaternionRatherThanSubstitutingIdentity()
         {
-            VisionPose3DDataType zeroRotation = new VisionPose3DDataType
+            var zeroRotation = new VisionPose3DDataType
             {
                 FrameId = "sensor",
                 Position = new double[] { 0.1, 0.2, 0.3 },
                 Orientation = new double[] { 0.0, 0.0, 0.0, 0.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
             VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity("root");
 
@@ -263,7 +263,7 @@ namespace Opc.Ua.Vision.Tests
             // and points the wrong way. For a grasp that is worse than a refusal.
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
                 () => VisionCoordinateFrameMath.Compose(zeroRotation, identity))!;
-            Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -326,7 +326,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void TransformFromToDetectsCycleAndThrowsBadInvalidArgument()
         {
-            var identity = VisionCoordinateFrameMath.Identity(string.Empty);
+            VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity(string.Empty);
             var frames = new Dictionary<string, VisionCoordinateFrameMath.CoordinateFrameSnapshot>(StringComparer.Ordinal)
             {
                 ["a"] = new("a", VisionFrameRoleEnum.Base, "b", identity),
@@ -342,7 +342,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void TransformFromToWithUnknownFrameThrowsBadNodeIdUnknown()
         {
-            var identity = VisionCoordinateFrameMath.Identity(string.Empty);
+            VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity(string.Empty);
             var frames = new Dictionary<string, VisionCoordinateFrameMath.CoordinateFrameSnapshot>(StringComparer.Ordinal)
             {
                 ["base"] = new("base", VisionFrameRoleEnum.Base, string.Empty, identity)
@@ -357,7 +357,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void TransformFromToWithMissingParentPointerReportsBadNodeIdUnknown()
         {
-            var identity = VisionCoordinateFrameMath.Identity(string.Empty);
+            VisionPose3DDataType identity = VisionCoordinateFrameMath.Identity(string.Empty);
             var frames = new Dictionary<string, VisionCoordinateFrameMath.CoordinateFrameSnapshot>(StringComparer.Ordinal)
             {
                 ["camera"] = new("camera", VisionFrameRoleEnum.Camera, "missing-parent", identity),
@@ -398,12 +398,12 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void InvertThrowsArgumentExceptionOnBadPoseShape()
         {
-            VisionPose3DDataType broken = new VisionPose3DDataType
+            var broken = new VisionPose3DDataType
             {
                 FrameId = "broken",
                 Position = new double[] { 0.0, 0.0 },
                 Orientation = new double[] { 0.0, 0.0, 0.0, 1.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
 
             Assert.That(() => VisionCoordinateFrameMath.Invert(broken),
@@ -427,7 +427,7 @@ namespace Opc.Ua.Vision.Tests
                 FrameId = frameId,
                 Position = position,
                 Orientation = quaternion,
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -444,13 +444,13 @@ namespace Opc.Ua.Vision.Tests
             double sy = Math.Sin(pitchY / 2.0);
             double cz = Math.Cos(yawZ / 2.0);
             double sz = Math.Sin(yawZ / 2.0);
-            return new double[]
-            {
+            return
+            [
                 (sx * cy * cz) - (cx * sy * sz),
                 (cx * sy * cz) + (sx * cy * sz),
                 (cx * cy * sz) - (sx * sy * cz),
                 (cx * cy * cz) + (sx * sy * sz)
-            };
+            ];
         }
 
         private static void AssertPositionEqual(VisionPose3DDataType pose, double x, double y, double z)

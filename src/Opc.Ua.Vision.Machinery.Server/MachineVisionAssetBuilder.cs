@@ -39,9 +39,9 @@ using Amcm = Opc.Ua.Vision.MachineVision.AMCM;
 namespace Opc.Ua.Vision.Server
 {
     /// <summary>
-    /// Additive released-model builders on the existing Vision configuration interface.
+    /// Part 2 asset builders on the shared Vision configuration interface.
     /// </summary>
-    public static partial class VisionMachineVisionBuilderExtensions
+    public static class VisionMachineryBuilderExtensions
     {
         /// <summary>
         /// Starts a Part 2 system asset. No nodes are published until BuildAsync succeeds.
@@ -87,7 +87,7 @@ namespace Opc.Ua.Vision.Server
                     StatusCodes.BadBrowseNameDuplicated, "The asset name already exists.");
             }
             State = context.Context.CreateInstanceOfVisionSystemAssetType(context.Root, name);
-            State.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            State.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             Nodes = new MachineVisionNodeBuilder(context.Manager, State, m_clock);
         }
 
@@ -133,7 +133,7 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentException("An image aspect must receive or transmit images.");
             }
-            FolderState folder = MachineVisionNodes.Require<FolderState>(
+            FolderState folder = VisionMachineryNodes.Require<FolderState>(
                 m_context.Manager, State, "ImageHandlingAspects");
             QualifiedName browseName = ItemName(name);
             if (folder.FindChild(m_context.Context, browseName) != null)
@@ -147,7 +147,7 @@ namespace Opc.Ua.Vision.Server
                 (true, false) => m_context.Context.CreateInstanceOfVisionAspectImageReceiverType(folder, browseName),
                 _ => m_context.Context.CreateInstanceOfVisionAspectImageTransmitterType(folder, browseName)
             };
-            aspect.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            aspect.ReferenceTypeId = ReferenceTypeIds.Organizes;
             folder.AddChild(aspect);
             return new MachineVisionNodeBuilder(m_context.Manager, aspect, m_clock);
         }
@@ -210,7 +210,7 @@ namespace Opc.Ua.Vision.Server
         /// </summary>
         public MachineVisionAssetBuilder RepresentsSameSystem(NodeState controlSystem)
         {
-            Link(State, controlSystem, global::Opc.Ua.ReferenceTypeIds.RepresentsSameEntityAs);
+            Link(State, controlSystem, ReferenceTypeIds.RepresentsSameEntityAs);
             return this;
         }
 
@@ -245,15 +245,15 @@ namespace Opc.Ua.Vision.Server
             }
             if (m_includeComponents)
             {
-                BaseObjectState components = MachineVisionNodes.Require<BaseObjectState>(
+                BaseObjectState components = VisionMachineryNodes.Require<BaseObjectState>(
                     m_context.Manager, State, "Components");
                 foreach (BaseObjectState item in m_items)
                 {
-                    m_links.Add((components, item, global::Opc.Ua.ReferenceTypeIds.Organizes));
+                    m_links.Add((components, item, ReferenceTypeIds.Organizes));
                 }
             }
-            NodeId machinesId = ExpandedNodeId.ToNodeId(
-                global::Opc.Ua.Machinery.ObjectIds.Machines, m_context.Context.NamespaceUris);
+            var machinesId = ExpandedNodeId.ToNodeId(
+                Machinery.ObjectIds.Machines, m_context.Context.NamespaceUris);
             NodeState machines = m_context.Manager.FindPredefinedNode<NodeState>(machinesId)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, "The Machinery Machines folder is not loaded.");
@@ -267,8 +267,8 @@ namespace Opc.Ua.Vision.Server
                     await item.ClearChangeMasksAsync(m_context.Context, true, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
-                ApplyReference(machines, global::Opc.Ua.ReferenceTypeIds.Organizes, false, State.NodeId);
-                ApplyReference(State, global::Opc.Ua.ReferenceTypeIds.Organizes, true, machines.NodeId);
+                ApplyReference(machines, ReferenceTypeIds.Organizes, false, State.NodeId);
+                ApplyReference(State, ReferenceTypeIds.Organizes, true, machines.NodeId);
                 foreach ((NodeState source, NodeState target, NodeId type) in m_links)
                 {
                     ApplyReference(source, type, false, target.NodeId);
@@ -309,29 +309,29 @@ namespace Opc.Ua.Vision.Server
             if (borrowed)
             {
                 m_borrowed.Add((folder, item));
-                m_links.Add((folder, item, global::Opc.Ua.ReferenceTypeIds.Organizes));
+                m_links.Add((folder, item, ReferenceTypeIds.Organizes));
             }
             else
             {
-                item.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+                item.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 folder.AddChild(item);
             }
-            NodeId infoType = ExpandedNodeId.ToNodeId(
+            var infoType = ExpandedNodeId.ToNodeId(
                 Amcm.ObjectTypeIds.IVisionInfoType, m_context.Context.NamespaceUris);
-            if (!item.ReferenceExists(global::Opc.Ua.ReferenceTypeIds.HasInterface, false, infoType))
+            if (!item.ReferenceExists(ReferenceTypeIds.HasInterface, false, infoType))
             {
-                item.AddReference(global::Opc.Ua.ReferenceTypeIds.HasInterface, false, infoType);
+                item.AddReference(ReferenceTypeIds.HasInterface, false, infoType);
             }
             if (item.FindChild(m_context.Context, new QualifiedName(
                 "Identification",
-                m_context.Context.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi))) ==
+                m_context.Context.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi))) ==
                 null)
             {
                 VisionComponentIdentificationState identification =
                     m_context.Context.CreateInstanceOfVisionComponentIdentificationType(
                         item, new QualifiedName("Identification",
-                            m_context.Context.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi)));
-                identification.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasAddIn;
+                            m_context.Context.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi)));
+                identification.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
                 item.AddChild(identification);
             }
             m_items.Add(item);
@@ -340,8 +340,8 @@ namespace Opc.Ua.Vision.Server
 
         private VisionItemFolderState GetFolder(MachineVisionItemKind kind)
         {
-            string name = MachineVisionConformance.CategoryName(kind);
-            return MachineVisionNodes.Require<VisionItemFolderState>(m_context.Manager, State, name);
+            string name = MachineVisionAssetConformance.CategoryName(kind);
+            return VisionMachineryNodes.Require<VisionItemFolderState>(m_context.Manager, State, name);
         }
 
         private QualifiedName ItemName(string name)
@@ -413,7 +413,7 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentException("The target must be an initialized node.", nameof(target));
             }
-            NodeId type = ExpandedNodeId.ToNodeId(referenceType, m_context.Context.NamespaceUris);
+            var type = ExpandedNodeId.ToNodeId(referenceType, m_context.Context.NamespaceUris);
             m_links.Add((source, target, type));
         }
 
@@ -423,11 +423,11 @@ namespace Opc.Ua.Vision.Server
         /// <exception cref="ServiceResultException"></exception>
         internal static void ValidateIdentity(IVisionBuildContext context, NodeState node, bool machine)
         {
-            BaseInstanceState nameplate = MachineVisionNodes.Require<BaseInstanceState>(
+            BaseInstanceState nameplate = VisionMachineryNodes.Require<BaseInstanceState>(
                 context.Manager, node, "Identification");
-            BaseVariableState manufacturer = MachineVisionNodes.Require<BaseVariableState>(
+            BaseVariableState manufacturer = VisionMachineryNodes.Require<BaseVariableState>(
                 context.Manager, nameplate, "Manufacturer");
-            BaseVariableState serial = MachineVisionNodes.Require<BaseVariableState>(
+            BaseVariableState serial = VisionMachineryNodes.Require<BaseVariableState>(
                 context.Manager, nameplate, "SerialNumber");
             if (!manufacturer.WrappedValue.TryGetValue(out LocalizedText value) ||
                 value.IsNullOrEmpty ||
@@ -439,7 +439,7 @@ namespace Opc.Ua.Vision.Server
             }
             if (machine)
             {
-                BaseVariableState product = MachineVisionNodes.Require<BaseVariableState>(
+                BaseVariableState product = VisionMachineryNodes.Require<BaseVariableState>(
                     context.Manager, nameplate, "ProductInstanceUri");
                 if (!product.WrappedValue.TryGetValue(out string uri) ||
                     !Uri.TryCreate(uri, UriKind.Absolute, out _))
@@ -502,7 +502,7 @@ namespace Opc.Ua.Vision.Server
         /// Optional maintenance, health, categories, and path units require actual instances or references.
         /// </summary>
         public ArrayOf<QualifiedName> ConformanceUnits => Volatile.Read(ref m_disposed) != 0
-            ? [] : MachineVisionConformance.Asset(m_context, State);
+            ? [] : MachineVisionAssetConformance.Asset(m_context, State);
 
         /// <summary>
         /// No unverified OPC Foundation profile URI is advertised.
@@ -546,7 +546,7 @@ namespace Opc.Ua.Vision.Server
                     {
                         lifetime.Token.ThrowIfCancellationRequested();
                         (NodeState parent, BaseInstanceState proposed) = additions[ii];
-                        BaseInstanceState child = MachineVisionNodes.Require<BaseInstanceState>(
+                        BaseInstanceState child = VisionMachineryNodes.Require<BaseInstanceState>(
                             m_context.Manager, parent, proposed.BrowseName.Name!);
                         created.Add(child);
                         PlanUpdate(child, proposed, values, additions, true, visited);
@@ -651,7 +651,7 @@ namespace Opc.Ua.Vision.Server
             if (proposed is VisionItemFolderState folder && children.Count == 0)
             {
                 var links = new List<IReference>();
-                folder.GetReferences(m_context.Context, links, global::Opc.Ua.ReferenceTypeIds.Organizes, false);
+                folder.GetReferences(m_context.Context, links, ReferenceTypeIds.Organizes, false);
                 if (links.Count == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadConfigurationError,

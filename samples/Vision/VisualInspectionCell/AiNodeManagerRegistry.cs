@@ -37,7 +37,7 @@ using Opc.Ua;
 using Opc.Ua.AI.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
@@ -84,14 +84,8 @@ namespace Vision.VisualInspectionCell
             {
                 return;
             }
-            if (pipeline.Deployment != null)
-            {
-                pipeline.Deployment.Value = ai.PrimaryDeploymentId;
-            }
-            if (pipeline.LearningJob != null)
-            {
-                pipeline.LearningJob.Value = ai.LearningJobId;
-            }
+            pipeline.Deployment?.Value = ai.PrimaryDeploymentId;
+            pipeline.LearningJob?.Value = ai.LearningJobId;
             pipeline.ClearChangeMasks(vision!.SystemContext, true);
             if (m_logger.IsEnabled(LogLevel.Information))
             {
@@ -129,10 +123,7 @@ namespace Vision.VisualInspectionCell
             deployment.GetChildren(ai.SystemContext, children);
             MethodState? method = children.OfType<MethodState>().FirstOrDefault(
                 child => string.Equals(child.BrowseName.Name, browseName, StringComparison.Ordinal));
-            if (method != null)
-            {
-                method.MethodDeclarationId = new NodeId(methodDeclarationId, deploymentId.NamespaceIndex);
-            }
+            method?.MethodDeclarationId = new NodeId(methodDeclarationId, deploymentId.NamespaceIndex);
         }
 
         private static InferencePipelineState? FindPipeline(VisionNodeManager? vision)

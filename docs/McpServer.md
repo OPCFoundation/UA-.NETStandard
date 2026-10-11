@@ -93,7 +93,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
 | `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
-| `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | Perception-driven agents and Machine Vision control/management workflows — see [Vision](Vision.md) and [Machine Vision](MachineVision.md#mcp) |
+| `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | Perception-driven agents and Machine Vision control/management workflows — see [Vision](Vision.md) and [Machine Vision](Vision.md#mcp) |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -102,7 +102,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 - The `McpServer:ToolProfile` configuration value
 - The `OPCUA_MCP_TOOL_PROFILE` environment variable
 
-**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 75-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
+**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 81-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
 
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
 
@@ -198,9 +198,9 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 After installation, the `opcua-mcp` command is available globally.
 
 The tool includes every [tool profile](#tool-profiles), including `robotics`,
-`vision`, and the composed `vision,robotics` profile. Only the libraries for
-embedding the Robotics and Vision tools in your own server are preview
-packages; see [Packages](#packages).
+`vision`, and the composed `vision,robotics` profile. The Robotics embedding
+library remains preview-only. The Vision embedding library follows the normal
+root release version; see [Packages](#packages).
 
 ### Option 3: Run from source
 
@@ -584,12 +584,14 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay | Core + `Opc.Ua.Core.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, typed control/missions, paged monitoring, Vision-guided Pick | Core + `Opc.Ua.Robotics.Client` + `Opc.Ua.Vision.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, monitoring, seeing (`vision_get_frame` returns an MCP `ImageContentBlock`), inference, off-server feedback, §5.12 pose composition | Core + `Opc.Ua.Vision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, monitoring, seeing, inference, feedback and poses; released Machine Vision capabilities, topology, bounded events/conditions, control and complete file workflows | Core + `Opc.Ua.Vision.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
-`net10.0`. `Mcp.Robotics` and `Mcp.Vision` are preview packages; the other
-libraries and the `opcua-mcp` tool, which includes all of them, are stable.
+`net10.0`. `Mcp.Robotics` remains preview-only. `Mcp.Vision`, the other
+libraries, and the `opcua-mcp` tool follow the normal root version and can ship
+without a prerelease suffix on an approved stable release. Development builds
+retain the root preview version.
 
 ### Embedding the tools in your own MCP server
 
