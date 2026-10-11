@@ -46,8 +46,8 @@ namespace Opc.Ua.Aot.Tests
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            context.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.RobotIntent.Namespaces.RobotIntent);
+            var context = ServiceMessageContext.Create(telemetry);
+            context.NamespaceUris.GetIndexOrAppend(RobotIntent.Namespaces.RobotIntent);
             context.Factory.Builder.AddOpcUaRobotIntent().Commit();
 
             var nodes = new NodeStateCollection();
@@ -145,13 +145,13 @@ namespace Opc.Ua.Aot.Tests
                 },
                 "child");
             var frameTree = new FrameTree();
-            bool rootAdded = frameTree.TryAdd("root", string.Empty, root, FrameRoleEnum.Base, out string rootError);
-            bool childAdded = frameTree.TryAdd("child", "root", child, FrameRoleEnum.Tool, out string childError);
+            bool rootAdded = frameTree.TryAdd("root", string.Empty, root, FrameRoleEnum.Base, out string? rootError);
+            bool childAdded = frameTree.TryAdd("child", "root", child, FrameRoleEnum.Tool, out string? childError);
             bool transformed = frameTree.TryExpress(
                 Pose("child", 0.0, 0.0, 0.0),
                 "root",
                 out Pose3DDataType resolved,
-                out string transformError);
+                out string? transformError);
 
             JointMoveIntentDataType builtJoint = RobotIntentBuilder.JointMove(6)
                 .ToJoints(ArrayOf.Create([0.1, 0.0, 0.0, 0.0, 0.0, 0.0]))

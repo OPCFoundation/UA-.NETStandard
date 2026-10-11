@@ -60,7 +60,7 @@ namespace Opc.Ua.Vision.Tests
             return Manager.CreateVisionBuildContext();
         }
 
-        public async Task StartAsync()
+        public async Task StartAsync(MachineVisionParts parts = MachineVisionParts.None)
         {
             m_fixture = new ServerFixture<StandardServer>(
                 telemetry => new StandardServer(telemetry))
@@ -72,7 +72,9 @@ namespace Opc.Ua.Vision.Tests
 
             Manager = new VisionNodeManager(
                 Server.CurrentInstance,
-                m_fixture.Config);
+                m_fixture.Config,
+                new IVisionModelProvider[] { new VisionModelProvider(parts) },
+                new VisionServerOptions { MachineVisionParts = parts });
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await Manager.CreateAddressSpaceAsync(externalReferences)
                 .ConfigureAwait(false);

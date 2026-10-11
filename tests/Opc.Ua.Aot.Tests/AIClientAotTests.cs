@@ -340,20 +340,22 @@ namespace Opc.Ua.Aot.Tests
 
             AIInvokeResult result = await harness.Client.Deployment(s_deploymentId).InvokeAsync(
                 ByteString.From([0x10, 0x20]),
-                instanceFallback ? null : "application/json",
+                instanceFallback ? null! : "application/json",
                 parameters,
                 12.5,
-                instanceFallback ? null : "urn:ai-aot:request",
+                instanceFallback ? null! : "urn:ai-aot:request",
                 cancellation.Token).ConfigureAwait(false);
 
             await Assert.That(result.ResponsePayload).IsEqualTo(ByteString.From([0x7B, 0x7D]));
             await Assert.That(result.ResponseContentType).IsEqualTo("application/json");
             await Assert.That(result.ModelUsed).IsEqualTo(s_modelId);
-            await Assert.That(result.Usage.UnitKind).IsEqualTo("tokens");
-            await Assert.That(result.Usage.InputUnits).IsEqualTo(11UL);
-            await Assert.That(result.Usage.OutputUnits).IsEqualTo(7UL);
+            Ai.UsageDataType usage = result.Usage ??
+                throw new InvalidOperationException("The invocation did not return its scripted usage.");
+            await Assert.That(usage.UnitKind).IsEqualTo("tokens");
+            await Assert.That(usage.InputUnits).IsEqualTo(11UL);
+            await Assert.That(usage.OutputUnits).IsEqualTo(7UL);
             // Metered total is intentionally not InputUnits + OutputUnits.
-            await Assert.That(result.Usage.TotalUnits).IsEqualTo(15UL);
+            await Assert.That(usage.TotalUnits).IsEqualTo(15UL);
             await Assert.That(result.FinishReason).IsEqualTo(Ai.FinishReasonEnum.Filtered);
             await AssertSafetyAsync(result.SafetyAssessment).ConfigureAwait(false);
             await Assert.That(result.RetryAfter).IsEqualTo(0.75);
@@ -390,7 +392,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 await harness.Client.Deployment(s_deploymentId).InvokeAsync(
                     ByteString.Empty, "application/json", [], 1).ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+            }).Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadUserAccessDenied);
             await Assert.That(harness.Channel.Calls.Count).IsEqualTo(1);
@@ -410,7 +413,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 await harness.Client.Deployment(s_deploymentId).InvokeAsync(
                     ByteString.Empty, "application/json", [], 1).ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+            }).Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadMethodInvalid);
             await Assert.That(harness.Channel.Calls.Count).IsEqualTo(1);
@@ -430,9 +434,9 @@ namespace Opc.Ua.Aot.Tests
             harness.Channel.ReadServiceStatus = StatusCodes.BadSessionClosed;
 
             ServiceResultException exception = await Assert.That(async () =>
-            {
-                await harness.Client.Model(s_modelId).ReadAsync().ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+                await harness.Client.Model(s_modelId).ReadAsync().ConfigureAwait(false))
+                .Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadSessionClosed);
             await Assert.That(harness.Channel.Reads.Count).IsEqualTo(1);
@@ -450,9 +454,9 @@ namespace Opc.Ua.Aot.Tests
             await cancellation.CancelAsync().ConfigureAwait(false);
 
             OperationCanceledException exception = await Assert.That(async () =>
-            {
-                await harness.Client.DiscoverModelsAsync(cancellation.Token).ConfigureAwait(false);
-            }).Throws<OperationCanceledException>();
+                await harness.Client.DiscoverModelsAsync(cancellation.Token).ConfigureAwait(false))
+                .Throws<OperationCanceledException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.CancellationToken).IsEqualTo(cancellation.Token);
             await Assert.That(harness.Channel.Browses.Count).IsEqualTo(0);
@@ -472,7 +476,8 @@ namespace Opc.Ua.Aot.Tests
                 await harness.Client.Deployment(s_deploymentId).InvokeAsync(
                     ByteString.From([0x42]), "application/json", [], 5,
                     cancellationToken: cancellation.Token).ConfigureAwait(false);
-            }).Throws<OperationCanceledException>();
+            }).Throws<OperationCanceledException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.CancellationToken).IsEqualTo(cancellation.Token);
             await Assert.That(cancellation.IsCancellationRequested).IsTrue();
@@ -491,13 +496,17 @@ namespace Opc.Ua.Aot.Tests
             using var harness = new AIClientHarness();
 
             ArgumentNullException sessionError = await Assert.That(
-                () => new AIClient(null, harness.Client.Telemetry)).Throws<ArgumentNullException>();
+                () => new AIClient(null!, harness.Client.Telemetry)).Throws<ArgumentNullException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentNullException telemetryError = await Assert.That(
-                () => new AIClient(harness.Session, null)).Throws<ArgumentNullException>();
+                () => new AIClient(harness.Session, null!)).Throws<ArgumentNullException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentException modelError = await Assert.That(
-                () => harness.Client.Model(NodeId.Null)).Throws<ArgumentException>();
+                () => harness.Client.Model(NodeId.Null)).Throws<ArgumentException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentException deploymentError = await Assert.That(
-                () => harness.Client.Deployment(NodeId.Null)).Throws<ArgumentException>();
+                () => harness.Client.Deployment(NodeId.Null)).Throws<ArgumentException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(sessionError.ParamName).IsEqualTo("session");
             await Assert.That(telemetryError.ParamName).IsEqualTo("telemetry");
@@ -706,7 +715,7 @@ namespace Opc.Ua.Aot.Tests
 
             public CancellationToken LastCancellationToken { get; private set; }
 
-            public CancellationTokenSource CancelOnCall { get; set; }
+            public CancellationTokenSource? CancelOnCall { get; set; }
 
             public void AddChild(NodeId parent, string browseName, NodeId child, NodeId referenceType = default)
             {
@@ -770,7 +779,7 @@ namespace Opc.Ua.Aot.Tests
             }
 
             public ValueTask ReconnectAsync(
-                ITransportWaitingConnection connection = null,
+                ITransportWaitingConnection? connection = null,
                 CancellationToken ct = default)
             {
                 throw new NotSupportedException("AI AOT tests never connect to a network.");
@@ -819,7 +828,7 @@ namespace Opc.Ua.Aot.Tests
                 {
                     m_browses.Add(browse);
                     results.Add(m_references.TryGetValue(
-                        (browse.NodeId, browse.ReferenceTypeId), out BrowseResult result)
+                        (browse.NodeId, browse.ReferenceTypeId), out BrowseResult? result)
                         ? result
                         : new BrowseResult { StatusCode = StatusCodes.Good, References = [] });
                 }
@@ -866,6 +875,7 @@ namespace Opc.Ua.Aot.Tests
 
             private readonly Dictionary<(NodeId Parent, QualifiedName Name, NodeId ReferenceType), NodeId>
                 m_children = [];
+
             private readonly Dictionary<(NodeId Parent, NodeId ReferenceType), BrowseResult> m_references = [];
             private readonly List<BrowsePath> m_paths = [];
             private readonly List<BrowseDescription> m_browses = [];

@@ -1,6 +1,15 @@
 # Opc.Ua.Vision.Server
 
-Server hosting for the **draft** *OPC UA — Vision* companion model.
+Server hosting for released **OPC 40100-1/-2** and the preserved **draft**
+*OPC UA — Vision* companion model.
+
+Released support is opt-in through `VisionServerOptions.MachineVisionParts`.
+`MachineVisionSystemHandle` binds control, steps, conditions, recipes/configurations,
+results, and file transfer to an injectable `IMachineVisionOperationsProvider`
+and bounded or persistent `IMachineVisionStore`. `MachineVisionAssetBuilder`
+provides the Part 2 inventory and health model. `AddVisionToMachinery` composes
+into an existing Machinery owner rather than registering a second DI manager.
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md).
 
 The package materialises the well-known `Vision` object under the Server
 object (i=2253), exposes fluent APIs to describe sensors, coordinate frames,
@@ -11,8 +20,8 @@ particular camera, scene or model.
 ## What it gives you
 
 - `AddVision()` — registers the stock `VisionNodeManager` and factory in the
-  Generic Host pipeline. Requires no DI, Machinery or Robotics dependency:
-  the Vision NodeSet only requires the base UA namespace.
+  Generic Host pipeline. Its default wire model requires only UA core;
+  selecting released assets also loads the existing DI/Machinery models.
 - `ConfigureVision(...)` / `ConfigureVisionFor<TNodeManager>(...)` — fluent
   configurator that runs on server start.
 - `VisionNodeManager` / `VisionNodeManagerFactory` — standalone node

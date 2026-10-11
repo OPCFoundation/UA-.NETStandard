@@ -78,7 +78,8 @@ namespace Opc.Ua.Mcp
                         .WithTools<VisionSeeingTools>()
                         .WithTools<VisionInferenceTools>()
                         .WithTools<VisionFeedbackTools>()
-                        .WithTools<VisionGeometryTools>();
+                        .WithTools<VisionGeometryTools>()
+                        .WithTools<VisionMachineTools>();
 
                     if (toolProfile == McpToolProfile.Vision)
                     {
@@ -147,7 +148,8 @@ namespace Opc.Ua.Mcp
                 .WithTools<VisionSeeingTools>()
                 .WithTools<VisionInferenceTools>()
                 .WithTools<VisionFeedbackTools>()
-                .WithTools<VisionGeometryTools>();
+                .WithTools<VisionGeometryTools>()
+                .WithTools<VisionMachineTools>();
         }
     }
 }

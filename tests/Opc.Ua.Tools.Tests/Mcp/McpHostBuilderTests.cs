@@ -360,8 +360,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("pubsub", 18)]
         [TestCase("diagnostics", 10)]
         [TestCase("robotics", 42)]
-        [TestCase("vision", 26)]
-        [TestCase("full", 138)]
+        [TestCase("vision", 37)]
+        [TestCase("full", 149)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);

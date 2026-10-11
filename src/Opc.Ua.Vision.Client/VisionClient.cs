@@ -48,7 +48,7 @@ namespace Opc.Ua.Vision.Client
     /// <c>AcmeCameraType</c>, or one of the concrete result subtypes) is discovered
     /// as an instance of the closest declared Vision base type.
     /// </remarks>
-    public sealed class VisionClient
+    public sealed partial class VisionClient
     {
         /// <summary>
         /// Creates a Vision client over a connected session.

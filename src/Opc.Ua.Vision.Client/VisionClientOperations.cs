@@ -421,6 +421,16 @@ namespace Opc.Ua.Vision.Client
             {
                 factory.Builder.AddOpcUaVision().Commit();
             }
+            if (!factory.ContainsEncodeableType(MachineVision.DataTypeIds.ResultDataType))
+            {
+                MachineVision.OpcUaVisionMachineVisionExtensions
+                    .AddOpcUaVisionMachineVision(factory.Builder).Commit();
+            }
+            if (!factory.ContainsEncodeableType(MachineVision.AMCM.DataTypeIds.SEMI_E10SystemStateInfoDataType))
+            {
+                MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
+                    .AddOpcUaVisionMachineVisionAMCM(factory.Builder).Commit();
+            }
         }
     }
 }

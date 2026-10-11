@@ -87,6 +87,9 @@ Minimal Client together.
   `ModelManagementServer` publishes the draft AI Model Management catalogue
   and routes inference; `ModelManagementClient` discovers deployments and
   exercises the Methods.
+- [Machine Vision server](../samples/Vision/MachineVisionServer/README.md) and
+  [client](../samples/Vision/MachineVisionClient/README.md) — released OPC 40100-1/-2
+  in Machinery, with recipe/file workflows and a shared draft/native inspection engine.
 - [Minimal ISA-95 Server](../samples/Isa95/MinimalIsa95Server/README.md) —
   hosts the OPC-10030 ISA-95 Common Model with OPC-10031-4 Job Control V1 and
   V2, using the typed common-model builder and in-memory Job Control provider.

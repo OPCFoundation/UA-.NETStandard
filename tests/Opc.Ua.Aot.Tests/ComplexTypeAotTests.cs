@@ -95,7 +95,7 @@ namespace Opc.Ua.Aot.Tests
                 {
                     var expandedId = NodeId.ToExpandedNodeId(
                         nodeId, fixture.Session.NamespaceUris);
-                    Type systemType = fixture.Session.Factory.GetSystemType(expandedId);
+                    Type? systemType = fixture.Session.Factory.GetSystemType(expandedId);
                     if (systemType != null)
                     {
                         testDataTypesFound++;
@@ -219,7 +219,7 @@ namespace Opc.Ua.Aot.Tests
                         varNodeId, CancellationToken.None).ConfigureAwait(false);
                     if (StatusCode.IsGood(dv.StatusCode) &&
                         dv.WrappedValue.TryGetValue(out ExtensionObject eo) &&
-                        eo.TryGetValue(out IEncodeable _))
+                        eo.TryGetValue(out IEncodeable? _))
                     {
                         structureVariableId = varNodeId;
                         break;
@@ -248,7 +248,7 @@ namespace Opc.Ua.Aot.Tests
                 .Because("TestData structure variable should decode as ExtensionObject");
 
             bool hasEncodeable = extensionObject
-                .TryGetValue(out IEncodeable encodeable);
+                .TryGetValue(out IEncodeable? encodeable);
             await Assert.That(hasEncodeable).IsTrue()
                 .Because(
                     "ExtensionObject should contain a decoded IEncodeable, " +

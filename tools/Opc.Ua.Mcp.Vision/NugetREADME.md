@@ -36,7 +36,7 @@ unambiguous BrowseName/DisplayName:
 }
 ```
 
-## Tools (22)
+## Tools (33)
 
 - **Discovery (4)** — `vision_list_sensors`, `vision_list_pipelines`,
   `vision_list_frames`, `vision_list_calibrations`.
@@ -53,6 +53,13 @@ unambiguous BrowseName/DisplayName:
   `vision_submit_image_reference`.
 - **Geometry (3)** — `vision_read_frame`, `vision_compose_pose`,
   `vision_compose_transform`.
+- **Released Machine Vision (11)** — `vision_machine_list`,
+  `vision_machine_read_state`, `vision_machine_command`, `vision_machine_read_asset`,
+  `vision_machine_recipes`, `vision_machine_configurations`, `vision_machine_results`,
+  `vision_machine_report_safety`, `vision_machine_file`, `vision_machine_recipe_object`,
+  `vision_machine_condition`. See the
+  [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md#mcp)
+  for OPC 40100-1/-2 behavior and payload bounds.
 
 Server refusals are returned honestly with the exact `StatusCode` and message;
 the MCP layer does not retry and never acquires command authority as a side

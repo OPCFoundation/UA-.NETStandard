@@ -93,6 +93,10 @@ namespace Opc.Ua.Vision.Server
             }
             VisionNamespaceIndex = (ushort)visionIndex;
             Registry = registry;
+            if (manager is Opc.Ua.Di.Server.DiNodeManager diManager)
+            {
+                diManager.RegisterConformanceContributor(registry);
+            }
             Nodes = new VisionNodeBuilder(this, registry, dispatcher);
         }
 
@@ -120,6 +124,15 @@ namespace Opc.Ua.Vision.Server
                     "Application services are unavailable for a directly created Vision build context.");
             }
             return m_services.GetRequiredService<T>();
+        }
+
+        /// <summary>
+        /// Resolves an optional shared runtime service when hosted through dependency injection.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        internal T? GetService<T>() where T : class
+        {
+            return m_services?.GetService<T>();
         }
 
         internal void EnqueueForRegistration(NodeState node)

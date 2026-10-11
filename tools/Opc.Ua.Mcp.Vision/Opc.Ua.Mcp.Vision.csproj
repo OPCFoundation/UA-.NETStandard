@@ -8,7 +8,7 @@
     <AssemblyName>$(AssemblyPrefix).Mcp.Vision</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Mcp.Vision</PackageId>
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
-    <Description>OPC UA MCP tools for Vision: let a language model see through an OPC UA Vision server and act on what it sees. Discovery, image-content capture, inference, off-server perception feedback, and frame-graph composition. Embed in any MCP server host.</Description>
+    <Description>OPC UA MCP tools for released OPC 40100-1/-2 Machine Vision control, management, file transfer, assets and health, alongside the existing draft Vision discovery, image capture, inference, feedback, and frame-graph tools. Embed the bounded Vision catalog in any MCP server host.</Description>
     <Company>OPC Foundation</Company>
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
     <PackageTags>OPCFoundation OPC UA MCP ModelContextProtocol Vision AI LLM VLM</PackageTags>

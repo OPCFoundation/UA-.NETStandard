@@ -56,14 +56,20 @@ namespace Opc.Ua.Vision.Tests
         private StatusCode m_callStatus = StatusCodes.Good;
         private ArrayOf<Variant> m_callOutput = ArrayOf<Variant>.Empty;
 
-        public VisionSessionHarness()
+        public VisionSessionHarness(bool includeDraftNamespace = true)
         {
             Telemetry = new Mock<ITelemetryContext>().Object;
             NamespaceUris.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
-            NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            if (includeDraftNamespace)
+            {
+                NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            }
             MessageContext = ServiceMessageContext.Create(Telemetry);
             MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
-            MessageContext.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            if (includeDraftNamespace)
+            {
+                MessageContext.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            }
             Session.SetupGet(s => s.NamespaceUris).Returns(NamespaceUris);
             Session.SetupGet(s => s.MessageContext).Returns(MessageContext);
             Session.SetupGet(s => s.Factory).Returns(MessageContext.Factory);

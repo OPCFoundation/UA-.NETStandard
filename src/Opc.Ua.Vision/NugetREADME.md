@@ -1,14 +1,25 @@
 # Opc.Ua.Vision
 
-Server/client-independent foundation for the **draft** *OPC UA — Vision*
-companion specification.
+Server/client-independent models for released **OPC 40100-1** control/management,
+**OPC 40100-2** asset management/condition monitoring, and the preserved
+**draft** *OPC UA — Vision* perception specification.
 
-The Vision NodeSet is **source-generated** here directly over the base OPC UA
+The provisional Vision NodeSet is **source-generated** here directly over the base OPC UA
 namespace (no DI, Machinery or Robotics dependency), exposing generated
 ObjectTypes, ReferenceTypes, enums, typed node states and client proxies, plus
 the `AddOpcUaVision` model loader. The generated `ObjectTypeIds`,
 `ReferenceTypeIds` and `DataTypeIds` classes are the source of truth for the
 model.
+
+The released models have separate CLR namespaces
+`Opc.Ua.Vision.MachineVision` and `Opc.Ua.Vision.MachineVision.AMCM`, loaders
+`AddOpcUaVisionMachineVision` and `AddOpcUaVisionMachineVisionAMCM`, and unchanged
+official wire identities. Part 1 requires UA core; Part 2 reuses the existing
+DI/Machinery model producers without depending on Part 1. The package contains
+all three models; loading the released models is opt-in.
+
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md)
+for exact provenance, generated API namespaces, hosting, and the implementation map.
 
 The model covers the vision domain end-to-end: a `VisionRootType` topology
 grouping vision sensors (`VisionSensorType`, `ImageSensorType`,
@@ -26,7 +37,7 @@ carry the semantic relationships between these components.
 
 ## Numerical conventions
 
-Every DataType in this package respects §5.12 of the specification:
+The provisional perception DataTypes follow §5.12 of their specification:
 
 - Positions are metres.
 - Orientations are unit quaternions ordered `(x, y, z, w)`.

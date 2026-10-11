@@ -48,10 +48,16 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class GdsTestFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public GlobalDiscoverySampleServer Server { get; private set; }
-        public GlobalDiscoveryServerClient GdsClient { get; private set; }
-        public ITelemetryContext Telemetry { get; private set; }
-        public string EndpointUrl { get; private set; }
+        public GlobalDiscoverySampleServer Server => m_server
+            ?? throw new InvalidOperationException("The GDS server has not been initialized.");
+
+        public GlobalDiscoveryServerClient GdsClient => m_gdsClient
+            ?? throw new InvalidOperationException("The GDS client has not been initialized.");
+
+        public ITelemetryContext Telemetry => m_telemetry
+            ?? throw new InvalidOperationException("The GDS telemetry has not been initialized.");
+
+        public string EndpointUrl { get; private set; } = null!;
         public int BasePort { get; private set; }
 
         /// <summary>
@@ -98,11 +104,11 @@ namespace Opc.Ua.Aot.Tests
                     }
                     finally
                     {
-                        if (Telemetry is IDisposable telemetry)
+                        if (m_telemetry is IDisposable telemetry)
                         {
                             telemetry.Dispose();
                         }
-                        Telemetry = null;
+                        m_telemetry = null;
                         GC.SuppressFinalize(this);
                     }
                 }
@@ -112,9 +118,12 @@ namespace Opc.Ua.Aot.Tests
         /// <summary>
         /// Starts an in-process GDS and connects its administrative client using programmatically built configurations.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The GDS fixture could not be initialized.
+        /// </exception>
         private async Task InitializeCoreAsync()
         {
-            Telemetry = DefaultTelemetry.Create(builder =>
+            m_telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
 
             m_gdsRoot = Path.Combine(Path.GetTempPath(), "OPC", "AotGDS");
@@ -218,7 +227,7 @@ namespace Opc.Ua.Aot.Tests
             }
 
             // Create the GDS client with admin credentials
-            GdsClient = new GlobalDiscoveryServerClient(
+            m_gdsClient = new GlobalDiscoveryServerClient(
                 m_clientConfiguration);
 
             // Prefer a secured endpoint for the administrative identity.
@@ -235,7 +244,7 @@ namespace Opc.Ua.Aot.Tests
             await discoveryClient.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
@@ -286,10 +295,10 @@ namespace Opc.Ua.Aot.Tests
         {
             try
             {
-                if (GdsClient != null)
+                if (m_gdsClient != null)
                 {
-                    GlobalDiscoveryServerClient client = GdsClient;
-                    GdsClient = null;
+                    GlobalDiscoveryServerClient client = m_gdsClient;
+                    m_gdsClient = null;
                     await using (client.ConfigureAwait(false))
                     {
                         await client.DisconnectAsync().ConfigureAwait(false);
@@ -298,7 +307,7 @@ namespace Opc.Ua.Aot.Tests
             }
             finally
             {
-                ApplicationInstance application = m_clientApplication;
+                ApplicationInstance? application = m_clientApplication;
                 m_clientApplication = null;
                 m_clientConfiguration = null;
                 if (application != null)
@@ -315,7 +324,7 @@ namespace Opc.Ua.Aot.Tests
         {
             try
             {
-                ApplicationInstance application = m_serverApplication;
+                ApplicationInstance? application = m_serverApplication;
                 m_serverApplication = null;
                 if (application != null)
                 {
@@ -327,7 +336,8 @@ namespace Opc.Ua.Aot.Tests
             }
             finally
             {
-                Server = null;
+                m_server?.Dispose();
+                m_server = null;
                 m_certificateGroup?.Dispose();
                 m_certificateGroup = null;
             }
@@ -451,7 +461,7 @@ namespace Opc.Ua.Aot.Tests
                 [Role.AuthenticatedUser]);
 
             m_certificateGroup = new CertificateGroup(Telemetry);
-            Server = new GlobalDiscoverySampleServer(
+            m_server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
                 m_certificateGroup,
@@ -470,7 +480,7 @@ namespace Opc.Ua.Aot.Tests
         /// <summary>
         /// Deletes an existing fixture storage directory when a path was initialized.
         /// </summary>
-        private static void CleanDirectory(string path)
+        private static void CleanDirectory(string? path)
         {
             if (path != null && Directory.Exists(path))
             {
@@ -478,15 +488,18 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
-        private ApplicationInstance m_serverApplication;
+        private GlobalDiscoverySampleServer? m_server;
+        private GlobalDiscoveryServerClient? m_gdsClient;
+        private ITelemetryContext? m_telemetry;
+        private ApplicationInstance? m_serverApplication;
 
         /// <summary>
         /// Owns the client configuration and certificate services for the connected GDS client.
         /// </summary>
-        private ApplicationInstance m_clientApplication;
-        private ApplicationConfiguration m_clientConfiguration;
-        private string m_gdsRoot;
-        private string m_pkiRoot;
-        private CertificateGroup m_certificateGroup;
+        private ApplicationInstance? m_clientApplication;
+        private ApplicationConfiguration? m_clientConfiguration;
+        private string m_gdsRoot = null!;
+        private string? m_pkiRoot;
+        private CertificateGroup? m_certificateGroup;
     }
 }

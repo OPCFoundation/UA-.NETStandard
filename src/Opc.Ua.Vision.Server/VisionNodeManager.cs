@@ -83,9 +83,9 @@ namespace Opc.Ua.Vision.Server
                 server.Telemetry.CreateLogger<VisionNodeManager>(),
                 GetNamespaceUris(providers, options))
         {
-            m_providers = NormalizeProviders(providers);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_options.Validate();
+            m_providers = NormalizeProviders(providers, m_options.MachineVisionParts);
             m_runner = runner;
             m_services = services;
             m_registry = new VisionRegistry();
@@ -110,7 +110,7 @@ namespace Opc.Ua.Vision.Server
                 "The Vision address space is not available yet.");
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ConformanceUnits => ArrayOf<QualifiedName>.Empty;
+        public ArrayOf<QualifiedName> ConformanceUnits => m_registry.ConformanceUnits;
 
         /// <inheritdoc/>
         public ArrayOf<string> ServerProfiles => ComputeServerProfileArrayEntries();
@@ -230,9 +230,16 @@ namespace Opc.Ua.Vision.Server
         /// <summary>
         /// Asynchronously disposes the node manager.
         /// </summary>
-        public override ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
         {
-            return base.DisposeAsync();
+            try
+            {
+                await m_registry.DisposeMachineVisionResourcesAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -270,16 +277,19 @@ namespace Opc.Ua.Vision.Server
         }
 
         internal static ArrayOf<IVisionModelProvider> NormalizeProviders(
-            ArrayOf<IVisionModelProvider> providers)
+            ArrayOf<IVisionModelProvider> providers,
+            MachineVisionParts parts = MachineVisionParts.None)
         {
             if (providers.IsNull || providers.Count == 0)
             {
-                return new IVisionModelProvider[] { new VisionModelProvider() };
+                return new IVisionModelProvider[] { new VisionModelProvider(parts) };
             }
             var sorted = new List<IVisionModelProvider>();
             for (int ii = 0; ii < providers.Count; ii++)
             {
-                sorted.Add(providers[ii]);
+                sorted.Add(providers[ii] is VisionModelProvider
+                    ? new VisionModelProvider(parts)
+                    : providers[ii]);
             }
             sorted.Sort(static (left, right) => left.Order.CompareTo(right.Order));
             return sorted.ToArray().ToArrayOf();
@@ -292,7 +302,7 @@ namespace Opc.Ua.Vision.Server
             options ??= new VisionServerOptions();
             options.Validate();
             var uris = new List<string>();
-            ArrayOf<IVisionModelProvider> normalized = NormalizeProviders(providers);
+            ArrayOf<IVisionModelProvider> normalized = NormalizeProviders(providers, options.MachineVisionParts);
             for (int ii = 0; ii < normalized.Count; ii++)
             {
                 ArrayOf<string> providerUris = normalized[ii].NamespaceUris;
@@ -342,12 +352,22 @@ namespace Opc.Ua.Vision.Server
             profileArray.ClearChangeMasks(SystemContext, false);
         }
 
-        private static void RegisterEncodeables(ServerSystemContext context)
+        private void RegisterEncodeables(ServerSystemContext context)
         {
             var probe = new global::Opc.Ua.Vision.VisionPose3DDataType();
             if (!context.EncodeableFactory.TryGetEncodeableType(probe.BinaryEncodingId, out _))
             {
                 context.EncodeableFactory.Builder.AddOpcUaVision().Commit();
+            }
+            if ((m_options.MachineVisionParts & MachineVisionParts.Control) != 0)
+            {
+                MachineVision.OpcUaVisionMachineVisionExtensions
+                    .AddOpcUaVisionMachineVision(context.EncodeableFactory.Builder).Commit();
+            }
+            if ((m_options.MachineVisionParts & MachineVisionParts.Assets) != 0)
+            {
+                MachineVision.AMCM.OpcUaVisionMachineVisionAMCMExtensions
+                    .AddOpcUaVisionMachineVisionAMCM(context.EncodeableFactory.Builder).Commit();
             }
         }
 
@@ -402,7 +422,7 @@ namespace Opc.Ua.Vision.Server
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }
 
-        private ushort GetVisionNamespaceIndex(ServerSystemContext context)
+        private static ushort GetVisionNamespaceIndex(ServerSystemContext context)
         {
             return (ushort)context.NamespaceUris.GetIndex(global::Opc.Ua.Vision.Namespaces.Vision);
         }

@@ -93,7 +93,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
 | `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
-| `vision` | Connection plus the Vision discovery, monitoring, seeing, inference, feedback and geometry tools | Perception-driven agents that need to see through a Vision server, compose poses across the §5.12 frame graph, run or submit inference, and (when composed with `robotics`) act on what they see — see the [Vision developer guide](Vision.md) |
+| `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | Perception-driven agents and Machine Vision control/management workflows — see [Vision](Vision.md) and [Machine Vision](MachineVision.md#mcp) |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -102,7 +102,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 - The `McpServer:ToolProfile` configuration value
 - The `OPCUA_MCP_TOOL_PROFILE` environment variable
 
-**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 64-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
+**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 75-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
 
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
 

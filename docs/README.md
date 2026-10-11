@@ -184,6 +184,9 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [Machine Vision](MachineVision.md) (OPC 40100-1 and OPC 40100-2; preview package) —
+  released control, recipes, configurations, results, assets, and condition monitoring,
+  integrated into the existing Vision family and Machinery hosting.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.

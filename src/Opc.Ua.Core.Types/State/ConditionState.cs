@@ -96,6 +96,16 @@ namespace Opc.Ua
         public bool AutoReportStateChanges { get; set; }
 
         /// <summary>
+        /// Gets or sets an additional retention rule for an enabled condition.
+        /// Standard acknowledgement, confirmation, and branch retention rules still apply.
+        /// </summary>
+        /// <remarks>
+        /// The provider receives the condition being evaluated, including when copied to a branch.
+        /// It must be non-blocking and must not modify the condition.
+        /// </remarks>
+        public Func<ConditionState, bool>? RetainStateProvider { get; set; }
+
+        /// <summary>
         /// Called when one or more sub-states change state.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -199,6 +209,7 @@ namespace Opc.Ua
                 branchedAlarm.Initialize(context, this);
                 branchedAlarm.BranchId!.Value = branchId; // ConditionState.Initialize creates BranchId
                 branchedAlarm.AutoReportStateChanges = AutoReportStateChanges;
+                branchedAlarm.RetainStateProvider = RetainStateProvider;
                 // SupportsFilteredRetain is not an instance child, so Initialize does not
                 // carry it over with the rest of the condition. Copy it here, otherwise
                 // filtered retain would be silently off for every branch.
@@ -405,6 +416,7 @@ namespace Opc.Ua
 
             if (EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
+                retainState = RetainStateProvider?.Invoke(this) ?? false;
                 Dictionary<string, ConditionState> branches = GetBranches();
 
                 foreach (ConditionState branch in branches.Values)

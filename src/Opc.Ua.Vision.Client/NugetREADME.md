@@ -1,7 +1,13 @@
 # Opc.Ua.Vision.Client
 
-Client-side helpers for the **OPC UA — Vision** companion model (working-group
-draft).
+Client-side helpers for released **OPC 40100-1/-2** and the preserved **OPC UA —
+Vision** working-group draft.
+
+`vision.MachineVision()` provides independent released-model discovery, typed
+control/management proxies, bounded asset snapshots, and recipe/configuration upload
+and result-download workflows. It does not require the draft namespace. Existing
+draft discovery keeps its meaning.
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/MachineVision.md#typed-clients).
 
 Built on **Opc.Ua.Vision** and **Opc.Ua.Client**, this package exposes a
 high-level surface over the source-generated proxies so a client can drive a

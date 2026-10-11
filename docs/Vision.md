@@ -7,6 +7,11 @@ companion specification, plus the OpenUSD offscreen capture adapter and the
 Model Context Protocol tool package that lets a language-model agent see through
 a Vision server and act on what it sees.
 
+The same package family also contains the released **OPC 40100-1 and OPC 40100-2**
+models. Their independent namespaces, opt-in hosting, provider contracts, and typed
+workflows are documented in [Machine Vision](MachineVision.md). This guide's
+perception APIs and VIS-* facets still refer to the provisional model.
+
 ## Contents
 
 - [Packages](#packages)
@@ -53,8 +58,9 @@ a Vision server and act on what it sees.
 > every ObjectType, DataType and BrowseName can still change when the
 > specification is published.
 
-Vision layers on top of the base OPC UA namespace only — it does not require
-Devices, Machinery or Robotics. It composes cleanly with Robotics, as shown in the
+The provisional Vision wire model requires only the base OPC UA namespace.
+The managed package also references DI/Machinery for the opt-in released asset model.
+The provisional model composes cleanly with Robotics, as shown in the
 [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) and
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 samples (`Vision` + `Robot Intent` in one server, `vision_*` +
@@ -64,11 +70,11 @@ samples (`Vision` + `Robot Intent` in one server, `vision_*` +
 
 | Package | What it gives you | Depends on |
 |---|---|---|
-| `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Vision model — ObjectTypes, ReferenceTypes, DataTypes, enums, node states, typed client proxies, `AddOpcUaVision` model loader | `Opc.Ua.Core` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | `VisionNodeManager`, `IVisionBuildContext`, fluent topology builders, `IVisionMediaProvider` / `IVisionInferenceProvider` / `IVisionFeedbackSink`, facet derivation, `AddVision` / `ConfigureVision` hosting extensions | `Opc.Ua.Vision`, `Opc.Ua.Server` |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated draft Vision and released Machine Vision models, node states, typed proxies, and distinct model loaders | `Opc.Ua.Core`, `Opc.Ua.Di`, `Opc.Ua.Machinery` |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | `VisionNodeManager`, `IVisionBuildContext`, draft/released providers and builders, facet derivation, standalone or Machinery-composed hosting | `Opc.Ua.Vision`, `Opc.Ua.Server`, `Opc.Ua.Machinery.Server` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | `VisionClient` discovery, `VisionSensorClient`, `VisionPipelineClient`, `VisionResultReader`, `VisionMediaClient`, `VisionFrameGraph`, `VisionFeedbackClient`, `session.Vision(...)` extension, `AddVisionClient()` DI | `Opc.Ua.Vision`, `Opc.Ua.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Types`, native OpenUSD renderer payload (optional per-RID) |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 22 MCP tools split across discovery, monitoring, seeing, inference, feedback and geometry, plus the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 33 MCP tools: draft perception plus released control/asset workflows, with the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client` |
 
 ```mermaid
 graph TD
@@ -300,7 +306,9 @@ hosting surface:
 | `AddVisionFeedbackSink(string pipelineBrowseName, IVisionFeedbackSink sink)` | Registers a feedback sink instance |
 | `ConfigureVision(Func<IVisionBuildContext, CancellationToken, ValueTask>)` | Async configurator, run on server start against the standalone `VisionNodeManager` |
 | `ConfigureVision(Action<IVisionBuildContext>)` | Sync configurator overload |
-| `ConfigureVisionFor<TNodeManager>(...)` | Configurator targeting a specific Vision node-manager type. Currently only `VisionNodeManager` is supported |
+| `ConfigureVisionFor<TNodeManager>(...)` | Configurator targeting `VisionNodeManager` or the stock `MachineryNodeManager` |
+| `AddVisionToMachinery(...)` | Loads Vision into an existing Machinery owner; selects both released parts by default |
+| `ConfigureVisionOnMachinery<TNodeManager>(...)` | Configures an application-owned DI/Machinery manager that loads the Vision models |
 
 The Robotics guide's `ConfigureFor<...>` pattern also applies here — any
 of these hosting extensions can be called from a class-based configurator
@@ -314,6 +322,7 @@ lambda in `Program.cs`.
 | `InstanceNamespaceUri` | The application-owned namespace URI used for the instances the configurator materialises. Must be distinct from the OPC UA base namespace and from `http://opcfoundation.org/UA/Vision/`. Defaults to `urn:opcfoundation:UA:Vision:Instances`. |
 | `SpecificationVersion` | The value the Server reports on `Vision.SpecificationVersion`. Defaults to `"0.1.0"`. |
 | `AdditionalFacets` | The facets the Server declares beyond those the facet calculator derives structurally — the escape hatch for facets whose requirements are behavioural (an interop facet that the host meets by contract). |
+| `MachineVisionParts` | Opt-in `Control`, `Assets`, or `All` for the released OPC 40100 models. Defaults to `None`; existing draft hosts remain unchanged. |
 
 ## Build context
 
@@ -598,7 +607,7 @@ server does not currently claim that facet.
 | `VIS-Simulation` | Supported | A sensor has `RealityKind = Simulated` or `Hybrid`. |
 | `VIS-Learning` | Partial | Learning jobs are modelled by reference; the host owns the job and any `SamplesCollected` accounting. |
 | `VIS-Interop-Scene` | Supported | A sensor carries a `HasScenePrim` reference. |
-| `VIS-Interop-40100` | Partial | The host must attest cross-model behaviour through `AdditionalFacets`. |
+| `VIS-Interop-40100` | Opt-in, application-specific | The released models are implemented separately; a host explicitly binds shared behavior and attests its draft interop facet through `AdditionalFacets`. See [Machine Vision](MachineVision.md). |
 | `VIS-Interop-RobotIntent` | Partial | The host must attest cross-model behaviour through `AdditionalFacets`. |
 
 The Server publishes the composed set on
@@ -831,8 +840,8 @@ inspection and segmentation results.
 
 ## MCP tools
 
-The `Opc.Ua.Mcp.Vision` package contributes 22 tools split across six
-categories, and the bounded `vision` profile in `docs/McpServer.md`
+The `Opc.Ua.Mcp.Vision` package contributes 22 draft tools in the six categories
+below plus 11 [released-model tools](MachineVision.md#mcp), and the bounded `vision` profile in `docs/McpServer.md`
 carries them plus the four `ConnectionTools` — every Vision tool
 resolves a named OPC UA session, and only the connection tools can open
 one.
@@ -862,8 +871,8 @@ sensor, requested/published pipeline, model and frame provenance. Use
 
 Profiles compose. A host that wires the `Vision` and `Robotics` profile
 sets together — the [BinPickingClient sample](../samples/Robotics/BinPickingClient)
-does this — exposes 64 tools in total, measured as
-`22 Vision + 4 Connection + 42 Robotics − 4 shared Connection = 64`.
+does this — exposes 75 tools in total, measured as
+`33 Vision + 4 Connection + 42 Robotics − 4 shared Connection = 75`.
 The `WithOpcUaVisionTools(McpToolProfileSet)` overload never registers
 `ConnectionTools` directly; the corresponding
 `WithOpcUaCoreTools(McpToolProfileSet)` overload owns and deduplicates
@@ -891,7 +900,7 @@ rather than substituting the Location centre.
 
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,
-`--mcp` exposes the composed 64-tool MCP catalogue for a language-model
+`--mcp` exposes the composed 75-tool MCP catalogue for a language-model
 agent, and `--view` opens the in-process OpenUSD viewport so a human
 sees the same scene the agent sees.
 
@@ -952,10 +961,10 @@ responsibility for learning counters.
   Vision, USB3 Vision, GenICam or vendor-native driver in the box; a
   host implementing `IVisionMediaProvider` for a real camera is the
   supported extension point.
-- **`ConfigureVisionFor<TNodeManager>` only accepts `VisionNodeManager`.**
-  Custom Vision node-manager types are not yet supported; vendor
-  extension follows the same class-based-configurator pattern the
-  Robotics guide describes.
+- **Custom composition requires an existing owner.** `ConfigureVisionFor<TNodeManager>`
+  supports the stock Vision and Machinery managers. Application-owned DI managers
+  use `ConfigureVisionOnMachinery<TNodeManager>` and Machinery's existing model/lifetime
+  integration instead of registering a second DI-owning node manager.
 - **Learning jobs are modelled but not driven, and `SamplesCollected` is
   not counted here.** `InferencePipelineType` carries a `LearningJob`
   optional child and the facet calculator publishes `VIS-Learning` when

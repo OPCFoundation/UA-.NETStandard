@@ -63,6 +63,12 @@ namespace Opc.Ua.Vision.Server
         public string SpecificationVersion { get; set; } = DefaultSpecificationVersion;
 
         /// <summary>
+        /// Gets or sets the released OPC 40100 models to serve in addition to the draft Vision model.
+        /// Existing applications retain their address space unless they explicitly enable a part.
+        /// </summary>
+        public MachineVisionParts MachineVisionParts { get; set; }
+
+        /// <summary>
         /// Gets or sets the additional facets the Server declares beyond those
         /// the facet calculator derives from the address space. This is the
         /// escape hatch for facets whose requirements cannot be inspected
@@ -80,8 +86,14 @@ namespace Opc.Ua.Vision.Server
         /// <exception cref="ServiceResultException">
         /// The instance namespace is one of the standard model namespaces.
         /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void Validate()
         {
+            if ((MachineVisionParts & ~MachineVisionParts.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MachineVisionParts), "The released model selection contains unknown parts.");
+            }
             if (string.IsNullOrWhiteSpace(InstanceNamespaceUri))
             {
                 throw new ArgumentException(
@@ -102,7 +114,11 @@ namespace Opc.Ua.Vision.Server
                     nameof(SpecificationVersion));
             }
             if (InstanceNamespaceUri == global::Opc.Ua.Namespaces.OpcUa ||
-                InstanceNamespaceUri == global::Opc.Ua.Vision.Namespaces.Vision)
+                InstanceNamespaceUri == global::Opc.Ua.Vision.Namespaces.Vision ||
+                InstanceNamespaceUri == MachineVisionModels.ControlNamespaceUri ||
+                InstanceNamespaceUri == MachineVisionModels.AssetNamespaceUri ||
+                InstanceNamespaceUri == global::Opc.Ua.Di.Namespaces.OpcUaDi ||
+                InstanceNamespaceUri == global::Opc.Ua.Machinery.Namespaces.Machinery)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,

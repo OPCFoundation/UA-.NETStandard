@@ -69,6 +69,103 @@ namespace Opc.Ua.Types.Tests.State
 
         private SystemContext m_callContext;
 
+        [TestCase("missing")]
+        [TestCase("extra")]
+        [TestCase("type")]
+        [TestCase("executable")]
+        [TestCase("user")]
+        public async Task ValidationFailureIsAwaitedWithoutInvokingMethodAsync(string failure)
+        {
+            StatusCode expectedStatus = failure switch
+            {
+                "missing" => StatusCodes.BadArgumentsMissing,
+                "extra" => StatusCodes.BadTooManyArguments,
+                "type" => StatusCodes.BadInvalidArgument,
+                "executable" => StatusCodes.BadNotExecutable,
+                _ => StatusCodes.BadUserAccessDenied
+            };
+            var method = new MethodState(null);
+            method.CreateOrReplaceInputArguments(m_callContext, null).Value =
+            [
+                new Argument { Name = "Number", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            ];
+            ArrayOf<Variant> arguments = failure switch
+            {
+                "missing" => [],
+                "extra" => [Variant.From(1), Variant.From(2)],
+                "type" => [Variant.From("not an Int32")],
+                _ => [Variant.From(1)]
+            };
+            method.Executable = failure != "executable";
+            method.UserExecutable = failure != "user";
+            int invoked = 0;
+            int reported = 0;
+            var parentId = new NodeId(123u);
+            method.OnCallMethod2Async = (_, _, _, _, _, _) =>
+            {
+                invoked++;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+            method.OnCallValidationFailedAsync = async (context, called, objectId, inputs, error, _) =>
+            {
+                await Task.Yield();
+                Assert.That(context, Is.SameAs(m_callContext));
+                Assert.That(called, Is.SameAs(method));
+                Assert.That(objectId, Is.EqualTo(parentId));
+                Assert.That(inputs, Is.EqualTo(arguments));
+                Assert.That(error.StatusCode, Is.EqualTo(expectedStatus));
+                reported++;
+            };
+            var errors = new List<ServiceResult>();
+            ServiceResult result = await method.CallAsync(m_callContext, parentId, arguments, errors, [])
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(failure == "type" ? StatusCodes.Good : expectedStatus));
+            if (failure == "type")
+            {
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            }
+            Assert.That(reported, Is.EqualTo(1));
+            Assert.That(invoked, Is.Zero);
+        }
+
+        [Test]
+        public void SynchronousValidationDoesNotInvokeAsyncObserver()
+        {
+            var method = new MethodState(null) { Executable = false };
+            int reported = 0;
+            method.OnCallValidationFailedAsync = (_, _, _, _, _, _) =>
+            {
+                reported++;
+                return default;
+            };
+            ServiceResult result = method.Call(m_callContext, new NodeId(123u), [], [], []);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
+            Assert.That(reported, Is.Zero);
+        }
+
+        [Test]
+        public async Task SuccessfulCallDoesNotInvokeValidationObserverAsync()
+        {
+            var method = new MethodState(null);
+            int reported = 0;
+            int invoked = 0;
+            method.OnCallValidationFailedAsync = (_, _, _, _, _, _) =>
+            {
+                reported++;
+                return default;
+            };
+            method.OnCallMethod2Async = (_, _, _, _, _, _) =>
+            {
+                invoked++;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+            ServiceResult result = await method.CallAsync(m_callContext, new NodeId(123u), [], [], [])
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(reported, Is.Zero);
+            Assert.That(invoked, Is.EqualTo(1));
+        }
+
         [Test]
         public void ConstructorSetsDefaultValues()
         {

@@ -1,5 +1,9 @@
 # OPC UA for Machinery (OPC 40001)
 
+Released [Machine Vision (OPC 40100-1/-2)](MachineVision.md) composes into this
+manager through `AddVisionToMachinery()` and `ConfigureVisionFor<MachineryNodeManager>()`.
+This reuses the existing DI/Machinery owner; do not register a second asset-owning Vision manager.
+
 The `Opc.Ua.Machinery*` packages implement the OPC 40001 specification series —
 the building blocks every machine shares, plus the four specialised parts that
 production equipment adds depending on its use case.

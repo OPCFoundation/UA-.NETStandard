@@ -57,6 +57,12 @@ attributes on referenced assemblies and uses them to:
 
 ## Attribute shape
 
+`Opc.Ua.Vision` is a multi-model producer: its provisional Vision model and the two
+released [Machine Vision](MachineVision.md) models have separate prefixes/loaders.
+Only the AMCM wire model consumes DI and Machinery. Recursive optional instance
+declarations, such as AMCM SEMI E10 `SubStates`, keep their type information without
+recursively materializing an unbounded default instance tree.
+
 The attribute constructor accepts six arguments (the trailing four are
 optional):
 
