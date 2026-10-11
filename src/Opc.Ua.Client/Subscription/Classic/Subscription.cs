@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task CreateAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(false);
 
             // The subscription is not created, so a server id an item still
@@ -1083,7 +1083,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public async Task DeleteAsync(bool silent, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (!silent)
             {
                 VerifySessionAndSubscriptionState(true);
@@ -1171,7 +1171,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task ModifyAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             // modify the subscription.
@@ -1207,7 +1207,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             // modify the subscription.
@@ -1245,7 +1245,7 @@ namespace Opc.Ua.Client
             uint sequenceNumber,
             CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             RepublishResponse response = await Session
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task ApplyChangesAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             await DeleteItemsAsync(ct).ConfigureAwait(false);
             await ModifyItemsAsync(ct).ConfigureAwait(false);
             await CreateItemsAsync(ct).ConfigureAwait(false);
@@ -1271,7 +1271,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             // collect list of browse paths.
@@ -1321,7 +1321,7 @@ namespace Opc.Ua.Client
                 return itemsToCreate;
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             try
             {
                 // create monitored items.
@@ -1395,7 +1395,7 @@ namespace Opc.Ua.Client
                 return itemsToModify;
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             // modify the subscription.
             ModifyMonitoredItemsResponse response = await Session
                 .ModifyMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
@@ -1449,7 +1449,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ArrayOf<uint> monitoredItemIds = itemsToDelete.ConvertAll(
                 monitoredItem => monitoredItem.Status.Id);
 
@@ -1584,7 +1584,7 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItem> monitoredItems,
             CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             if (monitoredItems.Count == 0)
@@ -1648,7 +1648,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(triggeringItem));
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             if (!triggeringItem.Status.Created)
@@ -1741,7 +1741,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<bool> ConditionRefreshAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             ArrayOf<CallMethodRequest> methodsToCall =
@@ -1777,7 +1777,7 @@ namespace Opc.Ua.Client
             uint monitoredItemId,
             CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
             ArrayOf<CallMethodRequest> methodsToCall =
@@ -1846,7 +1846,7 @@ namespace Opc.Ua.Client
             bool deleteOnDefinitiveFailure,
             CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (Created)
             {
                 // handle the case when the client has the subscription template and reconnects
@@ -2469,7 +2469,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<bool> ResendDataAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
             try
             {
@@ -2495,7 +2495,7 @@ namespace Opc.Ua.Client
             ArrayOf<uint>
             )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
             return (StatusCode.IsGood(status), serverHandles, clientHandles);
@@ -2548,7 +2548,7 @@ namespace Opc.Ua.Client
             uint lifetimeInHours,
             CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             uint revisedLifetimeInHours = lifetimeInHours;
             VerifySession();
 
@@ -3927,6 +3927,28 @@ namespace Opc.Ua.Client
         private uint m_lastSequenceNumberProcessed;
         private bool m_resyncLastSequenceNumberProcessed;
         private LinkedList<IncomingMessage>? m_incomingMessages;
+
+        /// <summary>
+        /// The activity source for service calls, resolved once per telemetry
+        /// context: the GetActivitySource extension walks the stack to find the
+        /// calling assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource
+        {
+            get
+            {
+                ITelemetryContext? telemetry = m_telemetry;
+                Tuple<ITelemetryContext?, ActivitySource>? cached = m_activitySource;
+                if (cached == null || !ReferenceEquals(cached.Item1, telemetry))
+                {
+                    cached = Tuple.Create(telemetry, telemetry.GetActivitySource());
+                    m_activitySource = cached;
+                }
+                return cached.Item2;
+            }
+        }
+
+        private Tuple<ITelemetryContext?, ActivitySource>? m_activitySource;
         private ITelemetryContext? m_telemetry;
         private ILogger m_logger;
         private ILogger m_eventLogger;

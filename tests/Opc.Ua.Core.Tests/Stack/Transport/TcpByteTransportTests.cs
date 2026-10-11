@@ -220,6 +220,104 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// A single-chunk message goes through the memory send path; it must send
+        /// exactly the segment, honouring its offset.
+        /// </summary>
+        [Test]
+        public async Task SendChunkAsyncWithOneBufferSendsTheSegmentAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                byte[] chunk = BuildValidChunk(TcpMessageType.Hello, 64);
+                byte[] backing = new byte[chunk.Length + 20];
+                Buffer.BlockCopy(chunk, 0, backing, 7, chunk.Length);
+                var buffers = new BufferCollection { new ArraySegment<byte>(backing, 7, chunk.Length) };
+
+                await client.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false);
+
+                byte[] received = await ReceiveExactlyAsync(serverSocket, chunk.Length).ConfigureAwait(false);
+                Assert.That(received, Is.EqualTo(chunk));
+            }
+        }
+
+        /// <summary>
+        /// A message of several chunks goes through the vectored send and arrives
+        /// in order.
+        /// </summary>
+        [Test]
+        public async Task SendChunkAsyncWithSeveralBuffersSendsThemInOrderAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                byte[] first = BuildValidChunk(TcpMessageType.Hello, 40);
+                byte[] second = BuildValidChunk(TcpMessageType.Acknowledge, 56);
+                byte[] third = BuildValidChunk(TcpMessageType.Error, 24);
+                var buffers = new BufferCollection
+                {
+                    new ArraySegment<byte>(first),
+                    new ArraySegment<byte>(second),
+                    new ArraySegment<byte>(third)
+                };
+
+                await client.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false);
+
+                byte[] received = await ReceiveExactlyAsync(
+                    serverSocket,
+                    first.Length + second.Length + third.Length).ConfigureAwait(false);
+                byte[] expected = new byte[received.Length];
+                Buffer.BlockCopy(first, 0, expected, 0, first.Length);
+                Buffer.BlockCopy(second, 0, expected, first.Length, second.Length);
+                Buffer.BlockCopy(third, 0, expected, first.Length + second.Length, third.Length);
+                Assert.That(received, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// A cancellable caller token still ends a send that waits for its turn.
+        /// </summary>
+        [Test]
+        public async Task SendChunkAsyncWaitingForTheSendLockHonoursTheCallerTokenAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                    .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(client)!;
+                sendLock.Wait();
+                try
+                {
+                    using var cts = new CancellationTokenSource();
+                    var buffers = new BufferCollection
+                    {
+                        new ArraySegment<byte>(BuildValidChunk(TcpMessageType.Hello, 32))
+                    };
+                    Task send = client.SendChunkAsync(buffers, cts.Token).AsTask();
+                    Assert.That(send.IsCompleted, Is.False);
+
+                    cts.Cancel();
+
+                    Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false));
+                }
+                finally
+                {
+                    sendLock.Release();
+                }
+            }
+        }
+
         [Test]
         public async Task ClosingTransportCompletesAQueuedSendWaiterAsync()
         {
@@ -620,6 +718,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .ConfigureAwait(false);
             Socket serverSocket = await acceptTask.ConfigureAwait(false);
             return (transport, serverSocket, listener);
+        }
+
+        private static async Task<byte[]> ReceiveExactlyAsync(Socket socket, int count)
+        {
+            byte[] received = new byte[count];
+            int total = 0;
+            while (total < count)
+            {
+                int n = await socket
+                    .ReceiveAsync(new ArraySegment<byte>(received, total, count - total), SocketFlags.None)
+                    .ConfigureAwait(false);
+                Assert.That(n, Is.GreaterThan(0));
+                total += n;
+            }
+            return received;
         }
 
         private static ArraySegment<byte>[] CopySegments(IList<ArraySegment<byte>> buffers)

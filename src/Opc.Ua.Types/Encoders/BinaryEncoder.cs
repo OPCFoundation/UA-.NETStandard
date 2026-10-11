@@ -2541,7 +2541,7 @@ namespace Opc.Ua
                     encoding = NodeIdEncodingBits.ByteString;
                     break;
                 default:
-                    uint id = Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture);
+                    uint id = nodeId.NumericIdentifier;
 
                     if (id <= byte.MaxValue && namespaceIndex == 0)
                     {
@@ -2559,7 +2559,7 @@ namespace Opc.Ua
                     break;
             }
 
-            return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
+            return (byte)encoding;
         }
 
         /// <summary>

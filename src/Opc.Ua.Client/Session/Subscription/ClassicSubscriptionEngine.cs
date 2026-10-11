@@ -341,8 +341,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Activity? activity = m_context.Telemetry
-                    .StartActivity();
+                Activity? activity = CachedActivitySource.StartActivity();
                 Task<PublishResponse> task = m_context.PublishAsync(
                     requestHeader,
                     acknowledgementsToSend,
@@ -1198,6 +1197,26 @@ namespace Opc.Ua.Client
         private const int kDefaultPublishRequestCount = 1;
         private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
+
+        /// <summary>
+        /// The activity source for publish requests, resolved once per telemetry
+        /// context: the GetActivitySource extension walks the stack to find the
+        /// calling assembly, which is too expensive to repeat for every request.
+        /// </summary>
+        private ActivitySource CachedActivitySource
+        {
+            get
+            {
+                ITelemetryContext telemetry = m_context.Telemetry;
+                Tuple<ITelemetryContext, ActivitySource>? cached = m_activitySource;
+                if (cached == null || !ReferenceEquals(cached.Item1, telemetry))
+                {
+                    cached = Tuple.Create(telemetry, telemetry.GetActivitySource());
+                    m_activitySource = cached;
+                }
+                return cached.Item2;
+            }
+        }
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
@@ -1205,6 +1224,7 @@ namespace Opc.Ua.Client
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
+        private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
         private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
