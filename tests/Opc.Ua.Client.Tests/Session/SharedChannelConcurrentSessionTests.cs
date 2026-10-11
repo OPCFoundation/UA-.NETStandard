@@ -32,6 +32,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Client.Tests
@@ -69,7 +70,68 @@ namespace Opc.Ua.Client.Tests
         /// transport was installed, failed, and released its lease. The release
         /// dropped the reference count to zero and tore the entry down under the
         /// creator's open, so every session waiting on it failed with
-        /// BadSecureChannelClosed.
+        /// BadSecureChannelClosed. The creator's transport is held until the
+        /// second session has attached to the opening entry.
+        /// </summary>
+        [Test]
+        public async Task SessionAttachedWhileChannelOpensWaitsForTransportAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            Endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
+            using var bindings = new GatedChannelBindings(
+                (ITransportChannelBindings)ClientChannelManager.DefaultChannelBindings);
+            await using var manager = new ClientChannelManager(ClientFixture.Config, Telemetry, bindings);
+
+            Task<Client.Session> creating = Task.Run(() => CreateSessionAsync(manager, endpoint, "Creator", timeout.Token));
+            Task<Client.Session>? attaching = null;
+            try
+            {
+                Assert.That(bindings.CreateStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                attaching = Task.Run(() => CreateSessionAsync(manager, endpoint, "Attached", timeout.Token));
+
+                // The creator holds no lease while it opens, so a reference
+                // count of one is the attached session. From its attach to the
+                // certificate read the attached session does no I/O; the grace
+                // period only lets that synchronous step run before the open is
+                // released.
+                while (!attaching.IsCompleted &&
+                    manager.GetChannelDiagnostics() is not [{ Refcount: 1 }])
+                {
+                    await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+                }
+                await Task.WhenAny(attaching, Task.Delay(500, timeout.Token)).ConfigureAwait(false);
+                Assert.That(attaching.IsCompleted, Is.False,
+                    "The attached session must wait for the opening channel.");
+
+                bindings.Release();
+                Client.Session[] sessions = await Task.WhenAll(creating, attaching).ConfigureAwait(false);
+
+                Assert.That(manager.GetChannelDiagnostics(), Has.Count.EqualTo(1));
+                Assert.That(manager.GetChannelDiagnostics()[0].Refcount, Is.EqualTo(2));
+                foreach (Client.Session session in sessions)
+                {
+                    DataValue value = await session
+                        .ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+            }
+            finally
+            {
+                bindings.Release();
+                await CloseCreatedAsync(creating, timeout.Token).ConfigureAwait(false);
+                if (attaching != null)
+                {
+                    await CloseCreatedAsync(attaching, timeout.Token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Many sessions created at once through one manager share one channel.
         /// </summary>
         [Test]
         public async Task ConcurrentlyCreatedSessionsShareOneChannelAsync()
@@ -86,13 +148,7 @@ namespace Opc.Ua.Client.Tests
             Task<Client.Session>[] creates = [.. Enumerable.Range(0, sessionCount).Select(i => Task.Run(() =>
             {
                 start.Wait(timeout.Token);
-                return Client.Session.CreateAsync(
-                    manager,
-                    ClientFixture.Config,
-                    endpoint,
-                    updateBeforeConnect: false,
-                    sessionName: "Concurrent" + i,
-                    ct: timeout.Token);
+                return CreateSessionAsync(manager, endpoint, "Concurrent" + i, timeout.Token);
             }))];
             start.Set();
             try
@@ -113,13 +169,78 @@ namespace Opc.Ua.Client.Tests
             {
                 foreach (Task<Client.Session> create in creates)
                 {
-                    if (create.Status == TaskStatus.RanToCompletion)
-                    {
-                        await create.Result.CloseAsync(timeout.Token).ConfigureAwait(false);
-                        create.Result.Dispose();
-                    }
+                    await CloseCreatedAsync(create, timeout.Token).ConfigureAwait(false);
                 }
             }
+        }
+
+        private Task<Client.Session> CreateSessionAsync(
+            ClientChannelManager manager,
+            ConfiguredEndpoint endpoint,
+            string sessionName,
+            CancellationToken ct)
+        {
+            return Client.Session.CreateAsync(
+                manager,
+                ClientFixture.Config,
+                endpoint,
+                updateBeforeConnect: false,
+                sessionName: sessionName,
+                ct: ct);
+        }
+
+        private static async Task CloseCreatedAsync(Task<Client.Session> create, CancellationToken ct)
+        {
+            try
+            {
+                await create.ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            await create.Result.CloseAsync(ct).ConfigureAwait(false);
+            create.Result.Dispose();
+        }
+
+        /// <summary>
+        /// Holds the first transport the manager creates until released, so a
+        /// test can attach further sessions while the shared channel opens.
+        /// </summary>
+        private sealed class GatedChannelBindings : ITransportChannelBindings, IDisposable
+        {
+            public GatedChannelBindings(ITransportChannelBindings inner)
+            {
+                m_inner = inner;
+            }
+
+            public ManualResetEventSlim CreateStarted { get; } = new(false);
+
+            public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
+            {
+                if (Interlocked.Exchange(ref m_created, 1) == 0)
+                {
+                    CreateStarted.Set();
+                    m_release.Wait(TimeSpan.FromSeconds(60));
+                }
+                return m_inner.Create(uriScheme, telemetry);
+            }
+
+            public void Release()
+            {
+                m_release.Set();
+            }
+
+            public void Dispose()
+            {
+                m_release.Set();
+                m_release.Dispose();
+                CreateStarted.Dispose();
+            }
+
+            private readonly ITransportChannelBindings m_inner;
+            private readonly ManualResetEventSlim m_release = new(false);
+            private int m_created;
         }
     }
 }
