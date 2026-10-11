@@ -522,7 +522,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     host.Services.GetRequiredService<
                         Func<CancellationToken, Task<ManagedSession>>>();
                 ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
-                session.OperationTimeout = (int)TimeSpan.FromMinutes(20).TotalMilliseconds;
+                session.OperationTimeout = (int)TimeSpan.FromMinutes(30).TotalMilliseconds;
                 session.KeepAliveInterval = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
                 session.MessageContext.NamespaceUris.Update(session.NamespaceUris.ToArray());
                 Func<ManagedSession, CancellationToken, Task<WotRegistryClient>> createClient =

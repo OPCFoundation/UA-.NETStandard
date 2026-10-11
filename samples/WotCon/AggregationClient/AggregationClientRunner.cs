@@ -76,7 +76,7 @@ namespace AggregationClient
                     client.Session = new ManagedSessionOptions
                     {
                         SessionName = "AggregationClient",
-                        SessionTimeout = TimeSpan.FromMinutes(20)
+                        SessionTimeout = TimeSpan.FromMinutes(30)
                     };
                 })
                 .AddDiscoveryAndConnect(discovery =>
@@ -106,7 +106,7 @@ namespace AggregationClient
                 ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
                 await using (session.ConfigureAwait(false))
                 {
-                    session.OperationTimeout = (int)TimeSpan.FromMinutes(20).TotalMilliseconds;
+                    session.OperationTimeout = (int)TimeSpan.FromMinutes(30).TotalMilliseconds;
                     session.KeepAliveInterval = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
                     session.MessageContext.NamespaceUris.Update(
                         session.NamespaceUris.ToArray());

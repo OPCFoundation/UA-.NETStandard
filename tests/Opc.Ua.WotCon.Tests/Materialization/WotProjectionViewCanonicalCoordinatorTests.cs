@@ -30,8 +30,10 @@
 
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -55,7 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 registry, runtime.Host,
                 documentConverter: new FakeWotDocumentConverter(),
                 viewProjectionHost: viewHost);
-            await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+            NodeManagerRegistration registration = await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator), callerContext: null)
                 .ConfigureAwait(false);
             NamespaceTable namespaces = runtime.Namespaces;
@@ -77,6 +79,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
+            await ((IWotRegistryRecoveryProjection)registration.NodeManager)
+                .SynchronizeAsync(registry.Current, CancellationToken.None).ConfigureAwait(false);
 
             WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 

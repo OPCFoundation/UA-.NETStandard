@@ -173,7 +173,7 @@ namespace AggregationServer
                 client.Session = new ManagedSessionOptions
                 {
                     SessionName = $"{options.ApplicationName}.Upstream",
-                    SessionTimeout = TimeSpan.FromMinutes(20)
+                    SessionTimeout = TimeSpan.FromMinutes(30)
                 };
             }).AddManagedClientPool();
 

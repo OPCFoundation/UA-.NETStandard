@@ -78,7 +78,7 @@ Run the commands below from the repository root with the .NET 10 SDK. The sample
 The aggregation server uses `SignAndEncrypt` with `Basic256Sha256` for its
 upstream source sessions. Transparent alarm occurrence routing requires an
 authenticated server identity; an unencrypted source channel cannot provide it.
-The sample uses a finite twenty-minute session and Refresh service budget with
+The sample uses a finite thirty-minute session and Refresh service budget with
 thirty-second keep-alive intervals. This allows full-set conversion and garbage
 collection to make progress without treating a short scheduling delay as a lost
 source. Binding currentness and authenticated occurrence checks remain enforced.

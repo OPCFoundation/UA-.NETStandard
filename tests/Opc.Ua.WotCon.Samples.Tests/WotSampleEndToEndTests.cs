@@ -99,14 +99,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(connection.Session.OperationTimeout,
-                Is.EqualTo((int)TimeSpan.FromMinutes(20).TotalMilliseconds));
+                Is.EqualTo((int)TimeSpan.FromMinutes(30).TotalMilliseconds));
             Assert.That(connection.Session.KeepAliveInterval,
                 Is.EqualTo((int)TimeSpan.FromSeconds(30).TotalMilliseconds));
             Assert.That(connection.Session.SessionTimeout,
-                Is.GreaterThanOrEqualTo(TimeSpan.FromMinutes(20).TotalMilliseconds));
+                Is.GreaterThanOrEqualTo(TimeSpan.FromMinutes(30).TotalMilliseconds));
             OpcUaClientOptions upstreamOptions = environment.AggregationHost.Services
                 .GetRequiredService<OpcUaClientOptions>();
-            Assert.That(upstreamOptions.Session.SessionTimeout, Is.EqualTo(TimeSpan.FromMinutes(20)));
+            Assert.That(upstreamOptions.Session.SessionTimeout, Is.EqualTo(TimeSpan.FromMinutes(30)));
         }
 
         [Test]
@@ -279,7 +279,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 retiredGenerationPublish = PublishDataChangeAsync(
                     subscriptionSession,
                     acknowledgements,
-                    TimeSpan.FromMinutes(20),
+                    TimeSpan.FromMinutes(45),
                     retiredPublishLifetime.Token);
 #pragma warning restore CA2025
 

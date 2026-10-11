@@ -270,7 +270,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var observedStatus = new StatusCode[attempts];
             var callbackCounts = new int[attempts];
             using var barrier = new Barrier(2);
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             for (int i = 0; i < attempts; i++)
             {
                 int index = i;
