@@ -734,7 +734,7 @@
           },
           {
             "referenceType": "HasTypeDefinition",
-            "target": "ns=2;i=1052"
+            "target": "ns=1;s=Pump1.Type"
           },
           {
             "isForward": false,
@@ -774,20 +774,12 @@
             "target": "ns=1;s=Pump1.SourceBReset"
           },
           {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump1.CavitationAlarm"
-          },
-          {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump1.CavitationAcknowledge"
           },
           {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump1.CavitationConfirm"
-          },
-          {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump1.MotorOverheatAlarm"
           },
           {
             "referenceType": "HasComponent",
@@ -798,7 +790,7 @@
             "target": "ns=1;s=Pump1.MotorOverheatConfirm"
           }
         ],
-        "typeDefinition": "ns=2;i=1052"
+        "typeDefinition": "ns=1;s=Pump1.Type"
       },
       {
         "browseName": "4:Identification",
@@ -2149,6 +2141,37 @@
         ]
       },
       {
+        "browseName": "1:Pump_1Type",
+        "description": [
+          {
+            "value": "Sample-owned PumpType subtype declaring the alarms Pump1 raises."
+          }
+        ],
+        "displayName": [
+          {
+            "value": "Pump_1Type"
+          }
+        ],
+        "nodeClass": "ObjectType",
+        "nodeId": "ns=1;s=Pump1.Type",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasSubtype",
+            "target": "ns=2;i=1052"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump1.CavitationAlarm"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump1.MotorOverheatAlarm"
+          }
+        ],
+        "superType": "ns=2;i=1052"
+      },
+      {
         "browseName": "1:Pump_2",
         "description": [
           {
@@ -2182,7 +2205,7 @@
           },
           {
             "referenceType": "HasTypeDefinition",
-            "target": "ns=2;i=1052"
+            "target": "ns=1;s=Pump2.Type"
           },
           {
             "isForward": false,
@@ -2222,20 +2245,12 @@
             "target": "ns=1;s=Pump2.SourceBReset"
           },
           {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump2.CavitationAlarm"
-          },
-          {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump2.CavitationAcknowledge"
           },
           {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump2.CavitationConfirm"
-          },
-          {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump2.MotorOverheatAlarm"
           },
           {
             "referenceType": "HasComponent",
@@ -2246,7 +2261,7 @@
             "target": "ns=1;s=Pump2.MotorOverheatConfirm"
           }
         ],
-        "typeDefinition": "ns=2;i=1052"
+        "typeDefinition": "ns=1;s=Pump2.Type"
       },
       {
         "browseName": "4:Identification",
@@ -3595,6 +3610,37 @@
             "target": "ns=1;s=Pump2.MotorOverheatConfirm.InputArguments"
           }
         ]
+      },
+      {
+        "browseName": "1:Pump_2Type",
+        "description": [
+          {
+            "value": "Sample-owned PumpType subtype declaring the alarms Pump2 raises."
+          }
+        ],
+        "displayName": [
+          {
+            "value": "Pump_2Type"
+          }
+        ],
+        "nodeClass": "ObjectType",
+        "nodeId": "ns=1;s=Pump2.Type",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasSubtype",
+            "target": "ns=2;i=1052"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump2.CavitationAlarm"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "ns=1;s=Pump2.MotorOverheatAlarm"
+          }
+        ],
+        "superType": "ns=2;i=1052"
       }
     ],
     "profileVersion": "1.0"

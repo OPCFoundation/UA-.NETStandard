@@ -69,12 +69,12 @@ namespace Opc.Ua.Client.TestFramework
             };
 
             await ServerFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
             // Enable all user token types so security tests can authenticate
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies =
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies =
                 new UserTokenPolicy[] {
                     new(UserTokenType.Anonymous),
                     new(UserTokenType.UserName),
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.TestFramework
             // Seed default identity-mapping rules so role-based conformance
             // tests can authenticate as admin via the sysadmin/demo credentials.
             // The rules are in-memory and do not persist across restart.
-            Server.IRoleManager roleManager = ReferenceServer.CurrentInstance?.RoleManager;
+            Server.IRoleManager roleManager = (ReferenceServer.CurrentInstance?.RoleManager)!;
             if (roleManager != null)
             {
                 roleManager.AddIdentity(
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.TestFramework
             // Create client fixture and connect session
             ClientFixture = new ClientFixture(telemetry: Telemetry);
             await ClientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ClientFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
                 ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
             // Slow CI runners need more SessionTimeout (server-side session
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     m_logger.LogWarning(
                         "Session disconnected between tests; re-opening.");
-                    Session.Dispose();
+                    Session!.Dispose();
                     Session = await ClientFixture
                         .ConnectAsync(ServerUrl, SecurityPolicies.None)
                         .ConfigureAwait(false);
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.TestFramework
                     "TestFixture.OneTimeTearDown: a prior fixture teardown timed out; " +
                     "skipping this teardown so the test host does not exceed the " +
                     "--blame-hang-timeout. References will be released for finalization.");
-                Session = null;
+                Session = null!;
                 if (ServerFixture != null)
                 {
                     try
@@ -270,8 +270,8 @@ namespace Opc.Ua.Client.TestFramework
                     }
                 }
 
-                ServerFixture = null;
-                ClientFixture = null;
+                ServerFixture = null!;
+                ClientFixture = null!;
                 return;
             }
 
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client.TestFramework
                 // blocking code path.  The abandoned task will finalize the session, or
                 // the OS will reclaim the socket when the test process exits.
 
-                Session = null;
+                Session = null!;
 
                 if (s_skipRemainingTeardowns)
                 {
@@ -349,8 +349,8 @@ namespace Opc.Ua.Client.TestFramework
                         }
                     }
 
-                    ServerFixture = null;
-                    ClientFixture = null;
+                    ServerFixture = null!;
+                    ClientFixture = null!;
                     return;
                 }
             }
@@ -389,11 +389,11 @@ namespace Opc.Ua.Client.TestFramework
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
         public const int TransportQuotaMaxStringLength = 1 * 1024 * 1024;
 
-        public ServerFixture<ReferenceServer> ServerFixture { get; private set; }
-        public ClientFixture ClientFixture { get; private set; }
-        public ISession Session { get; protected set; }
-        public Uri ServerUrl { get; private set; }
-        public ReferenceServer ReferenceServer { get; private set; }
+        public ServerFixture<ReferenceServer> ServerFixture { get; private set; } = null!;
+        public ClientFixture ClientFixture { get; private set; } = null!;
+        public ISession Session { get; protected set; } = null!;
+        public Uri ServerUrl { get; private set; } = null!;
+        public ReferenceServer ReferenceServer { get; private set; } = null!;
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
@@ -401,7 +401,7 @@ namespace Opc.Ua.Client.TestFramework
         /// mutate response fields produced by the in-process reference
         /// server. Reset between tests via <see cref="ResetServerLockoutState"/>.
         /// </summary>
-        public MockResponseController MockController { get; private set; }
+        public MockResponseController MockController { get; private set; } = null!;
 
         /// <summary>
         /// Set by the first <see cref="OneTimeTearDown"/> that exceeds a watchdog
@@ -412,7 +412,7 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         private static volatile bool s_skipRemainingTeardowns;
 
-        private string m_pkiRoot;
+        private string m_pkiRoot = null!;
 
         protected TestFixture()
         {
@@ -513,7 +513,7 @@ namespace Opc.Ua.Client.TestFramework
                 default, CancellationToken.None).ConfigureAwait(false);
             await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-            string policy = null;
+            string? policy = null;
             foreach (MessageSecurityMode mode in new[]
             {
                 MessageSecurityMode.SignAndEncrypt,
@@ -527,7 +527,7 @@ namespace Opc.Ua.Client.TestFramework
                     {
                         continue;
                     }
-                    if (ep.UserIdentityTokens == default)
+                    if (ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -535,7 +535,7 @@ namespace Opc.Ua.Client.TestFramework
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            policy = ep.SecurityPolicyUri;
+                            policy = ep.SecurityPolicyUri!;
                             break;
                         }
                     }
@@ -551,7 +551,7 @@ namespace Opc.Ua.Client.TestFramework
             }
             if (policy == null)
             {
-                return null;
+                return null!;
             }
             return await ClientFixture.ConnectAsync(
                 ServerUrl, policy,
@@ -573,8 +573,8 @@ namespace Opc.Ua.Client.TestFramework
         /// to <see cref="SecurityPolicies.None"/>.</param>
         /// <param name="userIdentity">Optional user identity.</param>
         protected async Task<ISession> OpenAuxSessionAsync(
-            string securityProfile = null,
-            IUserIdentity userIdentity = null)
+            string? securityProfile = null,
+            IUserIdentity? userIdentity = null)
         {
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(
                 ServerUrl,

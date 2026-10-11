@@ -49,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         public void BufferManagerWithNullImplementationThrowsArgumentNullException()
         {
             Assert.That(
-                () => new BufferManager(null),
+                () => new BufferManager(null!),
                 Throws.ArgumentNullException
                     .With.Property(nameof(ArgumentNullException.ParamName))
                     .EqualTo("bufferManager"));
@@ -145,7 +145,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             BufferManagerImplementationKind implementationKind,
             bool useCustomPool)
         {
-            ArrayPool<byte> arrayPool = useCustomPool ? new ExactArrayPool() : null;
+            ArrayPool<byte> arrayPool = (useCustomPool ? new ExactArrayPool() : null)!;
 
             IBufferManager manager = BufferManager.CreateImplementation(
                 nameof(BufferManagerImplementationSelectorCreatesRequestedKind),
@@ -318,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
             public int SynchronousRentSize { get; private set; }
 
-            public string SynchronousRentOwner { get; private set; }
+            public string SynchronousRentOwner { get; private set; } = null!;
 
             public int CancellableRentCount => CancellableRentSizes.Count;
 
@@ -337,13 +337,13 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             public List<CancellationToken> CancellableRentTokens { get; } =
                 [];
 
-            public byte[] TransferBufferArgument { get; private set; }
+            public byte[] TransferBufferArgument { get; private set; } = null!;
 
-            public string TransferOwnerArgument { get; private set; }
+            public string TransferOwnerArgument { get; private set; } = null!;
 
-            public byte[] LockBufferArgument { get; private set; }
+            public byte[] LockBufferArgument { get; private set; } = null!;
 
-            public byte[] UnlockBufferArgument { get; private set; }
+            public byte[] UnlockBufferArgument { get; private set; } = null!;
 
             public List<byte[]> ReturnedBuffers { get; } = [];
 
@@ -377,9 +377,9 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 return RentedBuffer;
             }
 
-            public void TransferBuffer(byte[] buffer, string owner)
+            public void TransferBuffer(byte[]? buffer, string owner)
             {
-                TransferBufferArgument = buffer;
+                TransferBufferArgument = buffer!;
                 TransferOwnerArgument = owner;
             }
 
@@ -393,9 +393,9 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 UnlockBufferArgument = buffer;
             }
 
-            public void ReturnBuffer(byte[] buffer, string owner)
+            public void ReturnBuffer(byte[]? buffer, string owner)
             {
-                ReturnedBuffers.Add(buffer);
+                ReturnedBuffers.Add(buffer!);
                 ReturnOwners.Add(owner);
             }
         }

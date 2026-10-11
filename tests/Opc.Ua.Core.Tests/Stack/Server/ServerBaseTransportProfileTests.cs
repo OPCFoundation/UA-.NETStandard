@@ -272,7 +272,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             foreach (EndpointDescription endpoint in endpoints)
             {
-                profileUris.Add(endpoint.TransportProfileUri);
+                profileUris.Add(endpoint.TransportProfileUri!);
             }
 
             return profileUris;

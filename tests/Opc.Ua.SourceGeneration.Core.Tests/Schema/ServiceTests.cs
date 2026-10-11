@@ -139,7 +139,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetHashCode_NullName_HandlesCorrectly()
         {
             // Arrange
-            var service = new Service { Category = ServiceCategory.Session, Name = null };
+            var service = new Service { Category = ServiceCategory.Session, Name = null! };
 
             // Act & Assert
             Assert.DoesNotThrow(() => service.GetHashCode());
@@ -210,8 +210,8 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetHashCode_BothNullNames_ReturnSameHashCode()
         {
             // Arrange
-            var service1 = new Service { Category = ServiceCategory.Discovery, Name = null };
-            var service2 = new Service { Category = ServiceCategory.Discovery, Name = null };
+            var service1 = new Service { Category = ServiceCategory.Discovery, Name = null! };
+            var service2 = new Service { Category = ServiceCategory.Discovery, Name = null! };
 
             // Act
             int hashCode1 = service1.GetHashCode();
@@ -248,7 +248,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetHashCode_NullVsEmptyName_ProducesDifferentHashCode()
         {
             // Arrange
-            var serviceWithNull = new Service { Category = ServiceCategory.Session, Name = null };
+            var serviceWithNull = new Service { Category = ServiceCategory.Session, Name = null! };
             var serviceWithEmpty = new Service { Category = ServiceCategory.Session, Name = string.Empty };
 
             // Act
@@ -343,7 +343,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = service.Equals((object)null);
+            bool result = service.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -435,8 +435,8 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_BothNullNames_ReturnsTrue()
         {
             // Arrange
-            var service1 = new Service { Category = ServiceCategory.Session, Name = null };
-            var service2 = new Service { Category = ServiceCategory.Session, Name = null };
+            var service1 = new Service { Category = ServiceCategory.Session, Name = null! };
+            var service2 = new Service { Category = ServiceCategory.Session, Name = null! };
 
             // Act
             bool result = service1.Equals((object)service2);
@@ -454,7 +454,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_OneNullName_ReturnsFalse()
         {
             // Arrange
-            var service1 = new Service { Category = ServiceCategory.Session, Name = null };
+            var service1 = new Service { Category = ServiceCategory.Session, Name = null! };
             var service2 = new Service { Category = ServiceCategory.Session, Name = "TestService" };
 
             // Act
@@ -551,7 +551,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = service.Equals(null);
+            bool result = service.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -582,8 +582,8 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_BothNamesNull_ReturnsTrue()
         {
             // Arrange
-            var service1 = new Service { Category = ServiceCategory.Session, Name = null };
-            var service2 = new Service { Category = ServiceCategory.Session, Name = null };
+            var service1 = new Service { Category = ServiceCategory.Session, Name = null! };
+            var service2 = new Service { Category = ServiceCategory.Session, Name = null! };
 
             // Act
             bool result = service1.Equals(service2);
@@ -599,7 +599,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_OneNameNull_ReturnsFalse()
         {
             // Arrange
-            var service1 = new Service { Category = ServiceCategory.Session, Name = null };
+            var service1 = new Service { Category = ServiceCategory.Session, Name = null! };
             var service2 = new Service { Category = ServiceCategory.Session, Name = "TestService" };
 
             // Act
@@ -719,15 +719,15 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 Category = ServiceCategory.Session,
                 Name = "TestService",
-                Request = null,
-                Response = null
+                Request = null!,
+                Response = null!
             };
             var service2 = new Service
             {
                 Category = ServiceCategory.Session,
                 Name = "TestService",
-                Request = null,
-                Response = null
+                Request = null!,
+                Response = null!
             };
 
             // Act

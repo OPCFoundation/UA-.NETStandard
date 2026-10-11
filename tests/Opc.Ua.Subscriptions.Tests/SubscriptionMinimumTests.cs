@@ -1961,7 +1961,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         private uint ServerMaxNotificationsPerPublish
-            => (uint)ServerFixture.Config.ServerConfiguration.MaxNotificationsPerPublish;
+            => (uint)ServerFixture.Config.ServerConfiguration!.MaxNotificationsPerPublish;
 
         /// <summary>
         /// Creates a subscription with the requested MaxNotificationsPerPublish, optionally
@@ -2043,7 +2043,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 foreach (ExtensionObject entry in diagnostics)
                 {
                     if (entry.TryGetValue(
-                            out SubscriptionDiagnosticsDataType diagnostic,
+                            out SubscriptionDiagnosticsDataType? diagnostic,
                             admin.MessageContext) &&
                         diagnostic.SubscriptionId == resp.SubscriptionId)
                     {
@@ -2157,7 +2157,7 @@ namespace Opc.Ua.Subscriptions.Tests
             foreach (ExtensionObject ext in pub.NotificationMessage.NotificationData)
             {
                 var dcn = ExtensionObject.ToEncodeable(ext) as DataChangeNotification;
-                if (dcn != null && dcn.MonitoredItems != default && dcn.MonitoredItems.Count > 0)
+                if (dcn != null && dcn.MonitoredItems != default! && dcn.MonitoredItems.Count > 0)
                 {
                     return true;
                 }
@@ -2169,7 +2169,7 @@ namespace Opc.Ua.Subscriptions.Tests
         /// Creates N subscriptions with monitored items and returns (subId, nodeId) pairs.
         /// </summary>
         private async Task<List<(uint SubId, NodeId NodeId)>> CreateSubsWithItemsAsync(
-            int count, byte[] priorities = null, bool enabled = true)
+            int count, byte[]? priorities = null, bool enabled = true)
         {
             var result = new List<(uint, NodeId)>();
             NodeId int32Node = ToNodeId(Constants.ScalarStaticInt32);

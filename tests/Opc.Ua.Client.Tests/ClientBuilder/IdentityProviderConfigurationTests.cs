@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task AnonymousOnlyBuildsAnonymousProvider()
         {
-            IConfiguration configuration = BuildConfiguration(new Dictionary<string, string>
+            IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
             {
                 ["OpcUa:Client:Identity:EnableAnonymous"] = "true"
             });
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public void MissingIssuedTokenAuthorityThrowsDuringProviderConstruction()
         {
-            IConfiguration configuration = BuildConfiguration(new Dictionary<string, string>
+            IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
             {
                 ["OpcUa:Client:Identity:EnableAnonymous"] = "false",
                 ["OpcUa:Client:Identity:IssuedToken:AuthorityUri"] = "https://missing.example",
@@ -150,9 +150,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(ex.Message, Does.Contain("IAccessTokenProvider"));
         }
 
-        private static Dictionary<string, string> CreateFullIdentityConfiguration(bool order)
+        private static Dictionary<string, string?> CreateFullIdentityConfiguration(bool order)
         {
-            var data = new Dictionary<string, string>
+            var data = new Dictionary<string, string?>
             {
                 ["OpcUa:Client:Identity:EnableAnonymous"] = "false",
                 ["OpcUa:Client:Identity:UserName:UserName"] = "operator",
@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             return data;
         }
 
-        private static IConfiguration BuildConfiguration(Dictionary<string, string> data)
+        private static IConfiguration BuildConfiguration(Dictionary<string, string?> data)
         {
             var source = new MemoryConfigurationSource
             {
@@ -231,14 +231,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             public ISecret TryGet(SecretIdentifier id)
             {
-                return null;
+                return null!;
             }
 
-            public ValueTask<ISecret> GetAsync(
+            public ValueTask<ISecret?> GetAsync(
                 SecretIdentifier id,
                 CancellationToken ct = default)
             {
-                return new ValueTask<ISecret>((ISecret)null);
+                return new ValueTask<ISecret?>((ISecret?)null);
             }
         }
 
@@ -246,16 +246,16 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             public Certificate TryGetPrivateKeyCertificate(string thumbprint)
             {
-                return null;
+                return null!;
             }
 
-            public ValueTask<Certificate> GetPrivateKeyCertificateAsync(
+            public ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
                 CertificateIdentifier identifier,
-                ICertificatePasswordProvider passwordProvider = null,
-                string applicationUri = null,
+                ICertificatePasswordProvider? passwordProvider = null,
+                string? applicationUri = null,
                 CancellationToken ct = default)
             {
-                return new ValueTask<Certificate>((Certificate)null);
+                return new ValueTask<Certificate?>((Certificate?)null);
             }
         }
 

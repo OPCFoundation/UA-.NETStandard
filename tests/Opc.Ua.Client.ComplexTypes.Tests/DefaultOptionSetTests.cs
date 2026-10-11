@@ -192,8 +192,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 ExtensionObject eo = decoder.ReadExtensionObject("os");
                 Assert.That(eo.IsNull, Is.False);
-                Assert.That(eo.TryGetValue(out IEncodeable body), Is.True);
-                decoded = body as OptionSetEncoder;
+                Assert.That(eo.TryGetValue(out IEncodeable? body), Is.True);
+                decoded = (body as OptionSetEncoder)!;
                 Assert.That(decoded, Is.Not.Null, "Decoded body is not an OptionSet.");
             }
 
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             using var decodeStream = new MemoryStream(buffer);
             using var decoder = new BinaryDecoder(decodeStream, context);
             ExtensionObject decodedEo = decoder.ReadExtensionObject("os");
-            Assert.That(decodedEo.TryGetValue(out IEncodeable decodedBody), Is.True);
+            Assert.That(decodedEo.TryGetValue(out IEncodeable? decodedBody), Is.True);
             var decoded = decodedBody as OptionSetEncoder;
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded[0], Is.True);

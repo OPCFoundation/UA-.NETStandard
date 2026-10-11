@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AI</PackageId>
     <RootNamespace>Opc.Ua.AI</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Server/client-independent OPC UA AI Model Management and Inference (draft) companion contracts and source-generated model, exposing model identifiers, typed states and proxies for model catalogues, datasets, deployments, inference endpoints and learning jobs over the OPC UA xRegistry base.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

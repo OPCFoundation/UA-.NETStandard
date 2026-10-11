@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void NodeManagerRegistrationAllowsNullNamespaceUris()
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
-            nodeManager.Setup(manager => manager.NamespaceUris).Returns((IEnumerable<string>)null);
+            nodeManager.Setup(manager => manager.NamespaceUris).Returns((IEnumerable<string>)null!);
 
             var registration = new NodeManagerRegistration(
                 Guid.NewGuid(),
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task NullNamespaceNodeManagerCanReloadAndRemoveAsync()
         {
             Mock<IAsyncNodeManager> originalManager =
-                CreateLifecycleNodeManager(namespaceUri: null);
+                CreateLifecycleNodeManager(namespaceUri: null!);
             originalManager
                 .As<INodeManagerReloadParticipant>()
                 .Setup(participant => participant.PrepareReloadAsync(
@@ -239,7 +239,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
 
             Mock<IAsyncNodeManager> replacementManager =
-                CreateLifecycleNodeManager(namespaceUri: null);
+                CreateLifecycleNodeManager(namespaceUri: null!);
             var replacementFactory = new Mock<IAsyncNodeManagerFactory>();
             replacementFactory
                 .Setup(factory => factory.CreateAsync(
@@ -710,7 +710,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestLifetime.None);
             RuntimeNodeSetOptions options = CreateGenerationOptions(generation: 1);
             options.AllowLifecycleFromRequestCallback = true;
-            NodeManagerRegistration registration = null;
+            NodeManagerRegistration? registration = null;
 
             try
             {
@@ -2077,7 +2077,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 secureChannelContext: null,
                 RequestType.Call,
                 RequestLifetime.None);
-            NodeManagerRegistration probeRegistration = null;
+            NodeManagerRegistration? probeRegistration = null;
             IDisposable requestScope =
                 server.RequestManager.EnterRequestScope(callbackContext);
             try
@@ -2134,7 +2134,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ShadowRetiredManagerKeepsLifecycleNotificationsUntilDrainedAsync()
         {
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2155,9 +2155,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await CreateSubscriptionAndEventMonitoredItemAsync(
                     services,
                     ObjectIds.Server).ConfigureAwait(false);
-            Assert.That(originalManager.AllEventsSubscribeCount, Is.EqualTo(1));
+            Assert.That(originalManager!.AllEventsSubscribeCount, Is.EqualTo(1));
 
-            TrackingLifecycleNodeManager replacementManager = null;
+            TrackingLifecycleNodeManager? replacementManager = null;
             NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
                 .ShadowReloadAsync(
                     original,
@@ -2176,11 +2176,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.True);
 
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             int activationCount = originalManager.SessionActivatedCount;
             await master
                 .SessionActivatedAsync(
-                    new OperationContext(session, DiagnosticsMasks.None),
+                    new OperationContext(session!, DiagnosticsMasks.None),
                     session.Id,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -2242,7 +2242,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool unsubscribeFails)
         {
             StatusCode unsubscribeStatus = unsubscribeFails ? StatusCodes.BadCommunicationError : StatusCodes.Good;
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2267,7 +2267,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
                 .ShadowReloadAsync(original, CreateNodeManagementFactory(kGeneration2Value, includeEuRange: false))
                 .ConfigureAwait(false);
-            retiredManager.AllEventsUnsubscribeResult = new ServiceResult(unsubscribeStatus);
+            retiredManager!.AllEventsUnsubscribeResult = new ServiceResult(unsubscribeStatus);
 
             RequestHeader header = m_requestHeader;
             header.Timestamp = DateTimeUtc.Now;
@@ -2312,7 +2312,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task FailedRetiredDrainRestoresNotificationsForLateMonitoredItemAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2333,7 +2333,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await CreateSubscriptionAndEventMonitoredItemAsync(
                     services,
                     ObjectIds.Server).ConfigureAwait(false);
-            Assert.That(retiredManager.AllEventsSubscribeCount, Is.EqualTo(1));
+            Assert.That(retiredManager!.AllEventsSubscribeCount, Is.EqualTo(1));
 
             NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
                 .ShadowReloadAsync(
@@ -2369,11 +2369,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     dataMonitoredItemId).ConfigureAwait(false);
 
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 await WaitForRetiredNotificationsSuspendedAsync(
                     master,
                     retiredManager,
-                    session).ConfigureAwait(false);
+                    session!).ConfigureAwait(false);
 
                 AddSyntheticMonitoredItem(
                     (Subscription)dataSubscription,
@@ -2432,7 +2432,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             const string TargetNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DrainReloadWinner";
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration retiree = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2475,8 +2475,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 secureChannelContext: null,
                 RequestType.Call,
                 RequestLifetime.None);
-            Task removeTask = null;
-            NodeManagerRegistration winner = null;
+            Task? removeTask = null;
+            NodeManagerRegistration? winner = null;
             IDisposable requestScope =
                 server.RequestManager.EnterRequestScope(callbackContext);
             try
@@ -2491,11 +2491,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .RemoveAsync(target, null)
                         .AsTask());
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 await WaitForRetiredNotificationsSuspendedAsync(
                     master,
-                    retiredManager,
-                    session).ConfigureAwait(false);
+                    retiredManager!,
+                    session!).ConfigureAwait(false);
 
                 RuntimeNodeSetOptions replacementOptions = CreateOptions(
                     TargetNamespaceUri,
@@ -2535,7 +2535,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(winnerValue.WrappedValue.GetInt32(), Is.EqualTo(402));
 
             await AssertRetiredGenerationDisposedAsync(
-                retiredManager,
+                retiredManager!,
                 retireeValueId).ConfigureAwait(false);
             await m_server.NodeManagerLifecycle.RemoveAsync(winner, null).ConfigureAwait(false);
             await m_server.NodeManagerLifecycle
@@ -2554,7 +2554,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             const string TargetNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DrainRemoveWinner";
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration retiree = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2605,7 +2605,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 secureChannelContext: null,
                 RequestType.Call,
                 RequestLifetime.None);
-            Task<NodeManagerRegistration> reloadTask = null;
+            Task<NodeManagerRegistration>? reloadTask = null;
             IDisposable requestScope =
                 server.RequestManager.EnterRequestScope(callbackContext);
             try
@@ -2620,11 +2620,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .ReloadAsync(target, replacementFactory.Object, null)
                         .AsTask());
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 await WaitForRetiredNotificationsSuspendedAsync(
                     master,
-                    retiredManager,
-                    session).ConfigureAwait(false);
+                    retiredManager!,
+                    session!).ConfigureAwait(false);
 
                 using var timeout = new CancellationTokenSource(
                     TimeSpan.FromSeconds(10));
@@ -2651,7 +2651,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.Null);
 
             await AssertRetiredGenerationDisposedAsync(
-                retiredManager,
+                retiredManager!,
                 retireeValueId).ConfigureAwait(false);
             await m_server.NodeManagerLifecycle
                 .RemoveAsync(retireeReplacement, null)
@@ -2670,7 +2670,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             const string ProbeNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:SnapshotProbe";
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2705,14 +2705,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await CreateSubscriptionAndEventMonitoredItemAsync(
                     services,
                     ObjectIds.Server).ConfigureAwait(false);
-            Assert.That(retiredManager.AllEventsSubscribeCount, Is.EqualTo(1));
+            Assert.That(retiredManager!.AllEventsSubscribeCount, Is.EqualTo(1));
 
             var callbackContext = new OperationContext(
                 new RequestHeader(),
                 secureChannelContext: null,
                 RequestType.Call,
                 RequestLifetime.None);
-            Task<NodeManagerRegistration> probeTask = null;
+            Task<NodeManagerRegistration>? probeTask = null;
             IDisposable requestScope =
                 server.RequestManager.EnterRequestScope(callbackContext);
             try
@@ -2730,11 +2730,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .AddRuntimeNodeSetAsync(probeOptions, null)
                         .AsTask());
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 await WaitForRetiredNotificationsSuspendedAsync(
                     master,
                     retiredManager,
-                    session).ConfigureAwait(false);
+                    session!).ConfigureAwait(false);
 
                 await DeleteMonitoredItemAsync(
                     services,
@@ -2780,7 +2780,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task InFlightAllEventsDeleteIsNotRetainedOrUnsubscribedTwiceAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2807,7 +2807,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var allowUnsubscribe =
                 new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-            retiredManager.AllEventsCallback = async (
+            retiredManager!.AllEventsCallback = async (
                 monitoredItem,
                 unsubscribe,
                 cancellationToken) =>
@@ -2894,7 +2894,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task RetiredAllEventsSnapshotReceivesModifyAndConditionRefreshUntilCleanupAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -2928,7 +2928,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services,
                     ObjectIds.Server).ConfigureAwait(false);
 
-            Assert.That(retiredManager.AllEventsSubscribeCount, Is.EqualTo(1));
+            Assert.That(retiredManager!.AllEventsSubscribeCount, Is.EqualTo(1));
             await ModifyEventMonitoredItemAsync(
                 services,
                 existingSubscriptionId,
@@ -2953,10 +2953,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IEventMonitoredItem postItem = eventItems.Single(
                 monitoredItem => monitoredItem.Id == postMonitoredItemId);
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             await master
                 .ConditionRefreshAsync(
-                    new OperationContext(session, DiagnosticsMasks.None),
+                    new OperationContext(session!, DiagnosticsMasks.None),
                     [existingItem, postItem],
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -3010,8 +3010,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RefreshBlocking";
             const string ReloadedNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RefreshReloaded";
-            TrackingLifecycleNodeManager blockingManager = null;
-            TrackingLifecycleNodeManager reloadedManager = null;
+            TrackingLifecycleNodeManager? blockingManager = null;
+            TrackingLifecycleNodeManager? reloadedManager = null;
             NodeManagerRegistration blockingRegistration =
                 await m_server.NodeManagerLifecycle
                     .AddAsync(CreateTrackingNodeManagementFactory(
@@ -3031,13 +3031,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDispatch = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            blockingManager.ConditionRefreshCallback = async (_, ct) =>
+            blockingManager!.ConditionRefreshCallback = async (_, ct) =>
             {
                 dispatchEntered.TrySetResult(true);
                 await releaseDispatch.Task.WaitAsync(ct).ConfigureAwait(false);
             };
             bool callbackAfterDispose = false;
-            reloadedManager.ConditionRefreshCallback = (_, _) =>
+            reloadedManager!.ConditionRefreshCallback = (_, _) =>
             {
                 callbackAfterDispose = reloadedManager.DisposeCount > 0;
                 return default;
@@ -3046,10 +3046,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             Task refreshTask = master
                 .ConditionRefreshAsync(
-                    new OperationContext(session, DiagnosticsMasks.None),
+                    new OperationContext(session!, DiagnosticsMasks.None),
                     [],
                     CancellationToken.None)
                 .AsTask();
@@ -3098,7 +3098,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConditionRefreshWorkerLeaseDelaysRetiredGenerationCleanupAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -3123,20 +3123,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseRefresh = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            retiredManager.ConditionRefreshCallback = async (_, ct) =>
+            retiredManager!.ConditionRefreshCallback = async (_, ct) =>
             {
                 refreshEntered.TrySetResult(true);
                 await releaseRefresh.Task.WaitAsync(ct).ConfigureAwait(false);
             };
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             server.SubscriptionManager.ConditionRefresh(
-                new OperationContext(session, DiagnosticsMasks.None),
+                new OperationContext(session!, DiagnosticsMasks.None),
                 eventSubscriptionId);
             await refreshEntered.Task
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
-            NodeManagerRegistration reloaded = null;
+            NodeManagerRegistration? reloaded = null;
             try
             {
                 reloaded = await m_server.NodeManagerLifecycle
@@ -3189,7 +3189,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RefreshLifecycleProbe";
             const string TriggerNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RefreshCleanupTrigger";
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -3240,7 +3240,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     probeFactoryEntered.TrySetResult(true);
                     return new ValueTask<IAsyncNodeManager>(probeManager.Object);
                 });
-            retiredManager.ConditionRefreshCallback = async (_, ct) =>
+            retiredManager!.ConditionRefreshCallback = async (_, ct) =>
             {
                 dispatchEntered.TrySetResult(true);
                 await startLifecycle.Task.WaitAsync(ct).ConfigureAwait(false);
@@ -3260,9 +3260,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
 
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             server.SubscriptionManager.ConditionRefresh(
-                new OperationContext(session, DiagnosticsMasks.None),
+                new OperationContext(session!, DiagnosticsMasks.None),
                 eventSubscriptionId);
             await dispatchEntered.Task
                 .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3312,7 +3312,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConditionRefreshWorkerIdleShutdownCompletesAsync()
         {
-            m_requestHeader = null;
+            m_requestHeader = null!;
             await m_server.ShutdownInternalsAsync()
                 .AsTask()
                 .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3330,7 +3330,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
-                TrackingLifecycleNodeManager retiredManager = null;
+                TrackingLifecycleNodeManager? retiredManager = null;
                 NodeManagerRegistration original = await lifecycle
                     .AddAsync(CreateTrackingNodeManagementFactory(
                         kGeneration1Value,
@@ -3360,15 +3360,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 var refreshEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                retiredManager.ConditionRefreshCallback = async (_, ct) =>
+                retiredManager!.ConditionRefreshCallback = async (_, ct) =>
                 {
                     refreshEntered.TrySetResult(true);
                     await releaseRefresh.Task.WaitAsync(ct).ConfigureAwait(false);
                 };
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 server.SubscriptionManager.ConditionRefresh(
-                    new OperationContext(session, DiagnosticsMasks.None),
+                    new OperationContext(session!, DiagnosticsMasks.None),
                     eventSubscriptionId);
                 await refreshEntered.Task
                     .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3421,8 +3421,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
-                TrackingLifecycleNodeManager retiredManager = null;
-                TrackingLifecycleNodeManager replacementManager = null;
+                TrackingLifecycleNodeManager? retiredManager = null;
+                TrackingLifecycleNodeManager? replacementManager = null;
                 NodeManagerRegistration original = await lifecycle
                     .AddAsync(CreateTrackingNodeManagementFactory(
                         kGeneration1Value,
@@ -3452,15 +3452,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 var refreshEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                retiredManager.ConditionRefreshCallback = async (_, ct) =>
+                retiredManager!.ConditionRefreshCallback = async (_, ct) =>
                 {
                     refreshEntered.TrySetResult(true);
                     await releaseRefresh.Task.WaitAsync(ct).ConfigureAwait(false);
                 };
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 server.SubscriptionManager.ConditionRefresh(
-                    new OperationContext(session, DiagnosticsMasks.None),
+                    new OperationContext(session!, DiagnosticsMasks.None),
                     eventSubscriptionId);
                 await refreshEntered.Task
                     .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3498,7 +3498,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 Assert.That(lifecycle.Registrations, Is.Empty);
                 Assert.That(retiredManager.DisposeCount, Is.EqualTo(1));
-                Assert.That(replacementManager.DisposeCount, Is.EqualTo(1));
+                Assert.That(replacementManager!.DisposeCount, Is.EqualTo(1));
 
                 await DeleteSubscriptionAsync(services, dataSubscriptionId)
                     .ConfigureAwait(false);
@@ -3518,7 +3518,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task RetiredNotificationFinalizationWaitsForInFlightDispatchAsync(
             RetainedNotificationDispatchKind dispatchKind)
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -3552,25 +3552,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var releaseDispatch = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             Task dispatchTask;
             switch (dispatchKind)
             {
                 case RetainedNotificationDispatchKind.Session:
-                    retiredManager.SessionActivatedCallback = async ct =>
+                    retiredManager!.SessionActivatedCallback = async ct =>
                     {
                         dispatchEntered.TrySetResult(true);
                         await releaseDispatch.Task.WaitAsync(ct).ConfigureAwait(false);
                     };
                     dispatchTask = master
                         .SessionActivatedAsync(
-                            new OperationContext(session, DiagnosticsMasks.None),
+                            new OperationContext(session!, DiagnosticsMasks.None),
                             session.Id,
                             CancellationToken.None)
                         .AsTask();
                     break;
                 case RetainedNotificationDispatchKind.Modify:
-                    retiredManager.AllEventsCallback = async (
+                    retiredManager!.AllEventsCallback = async (
                         monitoredItem,
                         unsubscribe,
                         ct) =>
@@ -3588,7 +3588,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         eventMonitoredItemId);
                     break;
                 case RetainedNotificationDispatchKind.EventDelete:
-                    retiredManager.AllEventsCallback = async (
+                    retiredManager!.AllEventsCallback = async (
                         monitoredItem,
                         unsubscribe,
                         ct) =>
@@ -3656,7 +3656,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task RetiredOwnedEventConditionRefreshExcludesReplacementItemAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -3671,7 +3671,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await CreateSubscriptionAndEventMonitoredItemAsync(
                     services,
                     rootNodeId).ConfigureAwait(false);
-            TrackingLifecycleNodeManager replacementManager = null;
+            TrackingLifecycleNodeManager? replacementManager = null;
             NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
                 .ShadowReloadAsync(
                     original,
@@ -3695,15 +3695,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(replacementItem.NodeManager, Is.SameAs(replacementManager));
 
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             server.SubscriptionManager.ConditionRefresh(
-                new OperationContext(session, DiagnosticsMasks.None),
+                new OperationContext(session!, DiagnosticsMasks.None),
                 subscriptionId);
-            await WaitForConditionRefreshCountAsync(retiredManager, 1)
+            await WaitForConditionRefreshCountAsync(retiredManager!, 1)
                 .ConfigureAwait(false);
 
             Assert.That(
-                retiredManager.LastConditionRefreshMonitoredItemIds,
+                retiredManager!.LastConditionRefreshMonitoredItemIds,
                 Is.EqualTo([retiredMonitoredItemId]),
                 "The retired generation must receive its owned item, but not the " +
                 "replacement generation's post-retirement item.");
@@ -3756,7 +3756,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_server.NodeManagerLifecycle,
                 manager.Object).ConfigureAwait(false);
 
-            m_requestHeader = null;
+            m_requestHeader = null!;
             Task disposeTask = RunWithoutExecutionContext(() =>
             {
                 m_server.Dispose();
@@ -3843,7 +3843,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 original.Id,
                 replacementManager.Object).ConfigureAwait(false);
 
-            m_requestHeader = null;
+            m_requestHeader = null!;
             Task disposeTask = RunWithoutExecutionContext(() =>
             {
                 m_server.Dispose();
@@ -3912,7 +3912,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.Object,
                 visible: false).ConfigureAwait(false);
 
-            m_requestHeader = null;
+            m_requestHeader = null!;
             Task disposeTask = RunWithoutExecutionContext(() =>
             {
                 m_server.Dispose();
@@ -3942,7 +3942,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConditionRefreshWorkerCompletesBeforeServerDeletesAddressSpacesAsync()
         {
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -3958,15 +3958,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseRefresh = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            manager.ConditionRefreshCallback = async (_, ct) =>
+            manager!.ConditionRefreshCallback = async (_, ct) =>
             {
                 refreshEntered.TrySetResult(true);
                 await releaseRefresh.Task.WaitAsync(ct).ConfigureAwait(false);
             };
             ISession session = server.SessionManager
-                .GetSession(m_requestHeader.AuthenticationToken);
+                .GetSession(m_requestHeader.AuthenticationToken)!;
             server.SubscriptionManager.ConditionRefresh(
-                new OperationContext(session, DiagnosticsMasks.None),
+                new OperationContext(session!, DiagnosticsMasks.None),
                 subscriptionId);
             await refreshEntered.Task
                 .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3987,7 +3987,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 releaseRefresh.TrySetResult(true);
             }
 
-            m_requestHeader = null;
+            m_requestHeader = null!;
             await shutdownTask
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
@@ -4000,9 +4000,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task MasterNodeManagerShutdownAggregatesAndCheckpointsPerManagerAsync()
         {
-            TrackingLifecycleNodeManager firstManager = null;
-            TrackingLifecycleNodeManager successfulManager = null;
-            TrackingLifecycleNodeManager lastManager = null;
+            TrackingLifecycleNodeManager? firstManager = null;
+            TrackingLifecycleNodeManager? successfulManager = null;
+            TrackingLifecycleNodeManager? lastManager = null;
             await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     811,
@@ -4022,15 +4022,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownCheckpoint3"), null)
                 .ConfigureAwait(false);
 
-            firstManager.DeleteAddressSpaceFailuresRemaining = 1;
-            lastManager.DeleteAddressSpaceFailuresRemaining = 1;
+            firstManager!.DeleteAddressSpaceFailuresRemaining = 1;
+            lastManager!.DeleteAddressSpaceFailuresRemaining = 1;
             IServerInternal server = m_server.CurrentInstance;
             AggregateException failure = Assert.ThrowsAsync<AggregateException>(
                 async () => await server.NodeManager.ShutdownAsync().ConfigureAwait(false));
 
             Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(firstManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(successfulManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(successfulManager!.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(lastManager.DeleteAddressSpaceCount, Is.EqualTo(1));
 
             await server.NodeManager.ShutdownAsync()
@@ -4045,7 +4045,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "A manager that completed cleanup must not be called again.");
             Assert.That(lastManager.DeleteAddressSpaceCount, Is.EqualTo(2));
 
-            m_requestHeader = null;
+            m_requestHeader = null!;
             await m_server.ShutdownInternalsAsync()
                 .AsTask()
                 .WaitAsync(TimeSpan.FromSeconds(10))
@@ -4078,7 +4078,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(nodeManager.Object);
             var lifecycle = new NodeManagerLifecycle(m_server);
-            IDisposable requestScope = null;
+            IDisposable? requestScope = null;
             try
             {
                 NodeManagerRegistration registration = await lifecycle
@@ -4113,7 +4113,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 lifecycle.Dispose();
                 requestScope.Dispose();
-                requestScope = null;
+                requestScope = null!;
 
                 Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await removeTask.ConfigureAwait(false));
@@ -4179,7 +4179,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(replacementManager.Object);
             var lifecycle = new NodeManagerLifecycle(m_server);
-            IDisposable requestScope = null;
+            IDisposable? requestScope = null;
             try
             {
                 NodeManagerRegistration original = await lifecycle
@@ -4210,7 +4210,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "BeginShutdown must join a Reload that was active when Dispose ran.");
 
                 requestScope.Dispose();
-                requestScope = null;
+                requestScope = null!;
                 NodeManagerReloadCommittedException exception =
                     Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                         async () => await reloadTask.ConfigureAwait(false));
@@ -4247,9 +4247,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task BeginShutdownWaitsForBackgroundRetiredDrainAsync()
         {
-            TrackingLifecycleNodeManager retiredManager = null;
+            TrackingLifecycleNodeManager? retiredManager = null;
             var lifecycle = new NodeManagerLifecycle(m_server);
-            IDisposable requestScope = null;
+            IDisposable? requestScope = null;
             try
             {
                 NodeManagerRegistration original = await lifecycle
@@ -4286,11 +4286,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     subscriptionId,
                     monitoredItemId).ConfigureAwait(false);
                 ISession session = server.SessionManager
-                    .GetSession(m_requestHeader.AuthenticationToken);
+                    .GetSession(m_requestHeader.AuthenticationToken)!;
                 await WaitForRetiredNotificationsSuspendedAsync(
                     master,
-                    retiredManager,
-                    session).ConfigureAwait(false);
+                    retiredManager!,
+                    session!).ConfigureAwait(false);
 
                 Task shutdownTask = lifecycle.BeginShutdownAsync(server).AsTask();
                 Assert.That(
@@ -4307,12 +4307,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "BeginShutdown must wait for the claimed background drain.");
 
                 requestScope.Dispose();
-                requestScope = null;
+                requestScope = null!;
                 await shutdownTask
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
                 await AssertRetiredGenerationDisposedAsync(
-                    retiredManager,
+                    retiredManager!,
                     valueNodeId).ConfigureAwait(false);
 
                 await DeleteSubscriptionAsync(services, subscriptionId)
@@ -4893,7 +4893,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         : new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
 
-            TrackingLifecycleNodeManager removedManager = null;
+            TrackingLifecycleNodeManager? removedManager = null;
             NodeManagerRegistration removedRegistration =
                 await m_server.NodeManagerLifecycle
                     .AddAsync(CreateTrackingNodeManagementFactory(
@@ -4908,7 +4908,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .RemoveAsync(removedRegistration, null)
                     .ConfigureAwait(false),
                 Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage));
-            Assert.That(removedManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(removedManager!.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(removedManager.DisposeCount, Is.Zero);
             Assert.That(deleteReferenceCalls, Is.EqualTo(2));
             Assert.That(
@@ -4943,14 +4943,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             const string NamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RemoveDisposeRetry";
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddAsync(CreateTrackingNodeManagementFactory(
                     807,
                     created => manager = created,
                     NamespaceUri), null)
                 .ConfigureAwait(false);
-            manager.DisposeFailuresRemaining = 1;
+            manager!.DisposeFailuresRemaining = 1;
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             RequestHeader requestHeader = m_requestHeader;
@@ -5023,12 +5023,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ReferenceEquals(candidate, manager)),
                     Is.False);
 
-                EventFieldList removeEvent;
+                EventFieldList? removeEvent;
                 (removeEvent, acknowledgements) = await PublishForModelChangeEventAsync(
                     services,
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
-                AssertModelChangeEvent(removeEvent, "A live NodeManager was removed.");
+                AssertModelChangeEvent(removeEvent!, "A live NodeManager was removed.");
             }
             finally
             {
@@ -6354,12 +6354,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
                     .ConfigureAwait(false);
 
-                EventFieldList addEvent;
+                EventFieldList? addEvent;
                 (addEvent, acknowledgements) = await PublishForModelChangeEventAsync(
                     services,
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
-                AssertModelChangeEvent(addEvent, "A live NodeManager was added.");
+                AssertModelChangeEvent(addEvent!, "A live NodeManager was added.");
 
                 Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCountBeforeAdd + 1));
                 uint urisVersionAfterAdd = await ReadUrisVersionAsync().ConfigureAwait(false);
@@ -6373,12 +6373,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ReloadRuntimeNodeSetAsync(registration, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
-                EventFieldList reloadEvent;
+                EventFieldList? reloadEvent;
                 (reloadEvent, acknowledgements) = await PublishForModelChangeEventAsync(
                     services,
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
-                AssertModelChangeEvent(reloadEvent, "A live NodeManager was reloaded.");
+                AssertModelChangeEvent(reloadEvent!, "A live NodeManager was reloaded.");
 
                 Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCountBeforeReload));
                 uint urisVersionAfterReload = await ReadUrisVersionAsync().ConfigureAwait(false);
@@ -6390,12 +6390,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
 
-                EventFieldList removeEvent;
+                EventFieldList? removeEvent;
                 (removeEvent, acknowledgements) = await PublishForModelChangeEventAsync(
                     services,
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
-                AssertModelChangeEvent(removeEvent, "A live NodeManager was removed.");
+                AssertModelChangeEvent(removeEvent!, "A live NodeManager was removed.");
 
                 Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCountBeforeRemove));
                 uint urisVersionAfterRemove = await ReadUrisVersionAsync().ConfigureAwait(false);
@@ -6489,7 +6489,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     response.NotificationMessage.NotificationData)
                 {
                     if (notificationData.TryGetValue(
-                        out DataChangeNotification dataChangeNotification) &&
+                        out DataChangeNotification? dataChangeNotification) &&
                         dataChangeNotification.MonitoredItems.Count > 0)
                     {
                         return (dataChangeNotification.MonitoredItems[0], acknowledgements);
@@ -6702,13 +6702,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private async Task FinishShutdownTestAsync()
         {
-            m_requestHeader = null;
+            m_requestHeader = null!;
             if (m_fixture is not null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
-                m_fixture = null;
+                m_fixture = null!;
             }
-            m_server = null;
+            m_server = null!;
         }
 
         private static Task RunWithoutExecutionContext(Func<Task> action)
@@ -6734,7 +6734,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static Task<T> RunLifecycleCallbackRequestAsync<T>(
             IServerInternal server,
             Func<Task<T>> operation,
-            TaskCompletionSource<bool> requestEntered = null)
+            TaskCompletionSource<bool>? requestEntered = null)
         {
             return RunWithoutExecutionContext(async () =>
             {
@@ -6842,18 +6842,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             FieldInfo field = typeof(Subscription).GetField(
                 "m_monitoredItems",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            return (Dictionary<uint, LinkedListNode<IMonitoredItem>>)field.GetValue(subscription);
+            return (Dictionary<uint, LinkedListNode<IMonitoredItem>>)field.GetValue(subscription)!;
         }
 
         private static Lock GetSubscriptionLock(Subscription subscription)
         {
             FieldInfo field = typeof(Subscription).GetField(
                 "m_lock",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            return (Lock)field.GetValue(subscription);
+            return (Lock)field.GetValue(subscription)!;
         }
 
         private static async Task WaitForConditionRefreshCountAsync(
@@ -7107,7 +7107,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        if (notificationData.TryGetValue(out DataChangeNotification? dcn))
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {
@@ -7169,7 +7169,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        if (notificationData.TryGetValue(out DataChangeNotification? dcn))
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {
@@ -7258,14 +7258,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// delivery never happens, and the bounded attempt count guards against an
         /// unbounded loop - neither is used to assert timing.
         /// </summary>
-        private async Task<(EventFieldList EventFields, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
+        private async Task<(EventFieldList? EventFields, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
             PublishForModelChangeEventAsync(
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements)
         {
             const int MaxPublishAttempts = 20;
-            EventFieldList eventFields = null;
+            EventFieldList? eventFields = null;
 
             for (int attempt = 0; attempt < MaxPublishAttempts; attempt++)
             {
@@ -7291,7 +7291,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     var deliveredEvents = new List<EventFieldList>();
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out EventNotificationList eventNotification) &&
+                        if (notificationData.TryGetValue(out EventNotificationList? eventNotification) &&
                             eventNotification.Events.Count > 0)
                         {
                             eventNotification.Events.ForEach(deliveredEvents.Add);
@@ -7587,7 +7587,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 nodeManager
                     .Setup(manager => manager.NamespaceUris)
-                    .Returns((IEnumerable<string>)null);
+                    .Returns((IEnumerable<string>)null!);
             }
             else
             {
@@ -7941,12 +7941,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 bool,
                 CancellationToken,
                 ValueTask> AllEventsCallback
-            { get; set; }
+            { get; set; } = null!;
 
             /// <summary>
             /// Gets or sets a callback executed before forwarding session activation.
             /// </summary>
-            public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; }
+            public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; } = null!;
 
             /// <summary>
             /// Gets or sets a callback observing or delaying the condition-refresh item batch.
@@ -7955,12 +7955,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IList<IEventMonitoredItem>,
                 CancellationToken,
                 ValueTask> ConditionRefreshCallback
-            { get; set; }
+            { get; set; } = null!;
 
             /// <summary>
             /// Gets or sets a callback executed before the underlying read batch.
             /// </summary>
-            public Func<CancellationToken, ValueTask> ReadCallback { get; set; }
+            public Func<CancellationToken, ValueTask> ReadCallback { get; set; } = null!;
 
             /// <summary>
             /// Counts reads and runs the configured observation callback before normal node-manager dispatch.

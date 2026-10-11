@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "1,1"
             };
 
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            ServiceResult validateResult = WriteValue.Validate(writeValue)!;
             Assert.That(
                 ServiceResult.IsGood(validateResult),
                 Is.True,
@@ -182,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "0:4"
             };
 
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            ServiceResult validateResult = WriteValue.Validate(writeValue)!;
             Assert.That(
                 ServiceResult.IsGood(validateResult),
                 Is.True,

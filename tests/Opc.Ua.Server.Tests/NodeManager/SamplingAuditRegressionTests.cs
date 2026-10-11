@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         MonitoredItemId = item.Id,
                         RequestedParameters = new MonitoringParameters { SamplingInterval = requested, QueueSize = 1 }
-                    });
+                    })!;
 
                 Assert.Multiple(() =>
                 {
@@ -282,12 +282,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 var monitoredItems = new Mock<IMonitoredItemManager>();
                 using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
-                ExecutionContext capturedContext = null;
+                ExecutionContext? capturedContext = null;
                 if (asynchronous)
                 {
                     manager.PendingCall = _ =>
                     {
-                        capturedContext = ExecutionContext.Capture();
+                        capturedContext = ExecutionContext.Capture()!;
                         return default;
                     };
                     await manager.CallAsync(context, [], [], []).ConfigureAwait(false);
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
                     {
-                        capturedContext = ExecutionContext.Capture();
+                        capturedContext = ExecutionContext.Capture()!;
                         return ServiceResult.Good;
                     };
                     DataValue[] values = [default];
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     workerFinishedDuringCleanup = workerFinished.Wait(TimeSpan.FromSeconds(5)));
                 DataValue[] values = [default];
                 ServiceResult[] errors = [ServiceResult.Good];
-                IReadOnlyList<IMonitoredItem> snapshot = null;
+                IReadOnlyList<IMonitoredItem>? snapshot = null;
                 var operation = Task.Run(async () =>
                 {
                     try
@@ -562,7 +562,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Task operation = manager.CallAsync(context, [], [], [], cancellation.Token).AsTask();
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Task disposal = manager.DisposeAsync().AsTask();
-                Exception operationFailure = null;
+                Exception? operationFailure = null;
                 try
                 {
                     Assert.That(disposal.IsCompleted, Is.False);
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 var monitoredItems = new Mock<IMonitoredItemManager>();
                 using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
-                Task disposal = null;
+                Task? disposal = null;
                 manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
                 {
                     manager.Dispose();
@@ -716,7 +716,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         monitoredItems.Verify(value => value.Dispose(), Times.Never);
                     }
-                    ObjectDisposedException failure = null;
+                    ObjectDisposedException? failure = null;
                     try
                     {
                         await InvokeOperationAsync(manager, context, operationName)
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         [], [], [], false, new MonitoredItemIdFactory());
                     break;
                 case "RestoreMonitoredItems":
-                    manager.RestoreMonitoredItems([], [], null);
+                    manager.RestoreMonitoredItems([], [], null!);
                     break;
                 case "ModifyMonitoredItems":
                     manager.ModifyMonitoredItems(context, TimestampsToReturn.Both, [], [], [], []);
@@ -793,10 +793,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager.SetMonitoringMode(context, MonitoringMode.Disabled, [], [], []);
                     break;
                 case "SubscribeToEvents":
-                    manager.SubscribeToEvents(context, new NodeHandle(), 1, null, false);
+                    manager.SubscribeToEvents(context, new NodeHandle(), 1, null!, false);
                     break;
                 case "SubscribeToAllEvents":
-                    manager.SubscribeToAllEvents(context, 1, null, false);
+                    manager.SubscribeToAllEvents(context, 1, null!, false);
                     break;
                 case "ConditionRefresh":
                     manager.ConditionRefresh(context, []);
@@ -808,16 +808,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await lifecycle.GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "CanAttach":
-                    await lifecycle.CanAttachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.CanAttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Attach":
-                    await lifecycle.AttachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.AttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Detach":
-                    await lifecycle.DetachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.DetachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Recover":
-                    await lifecycle.RecoverMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.RecoverMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Find":
                     Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.Null);
@@ -842,8 +842,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager.TranslateBrowsePath(context, new NodeHandle(), new RelativePathElement(), [], []);
                     break;
                 case "Browse":
-                    ContinuationPoint continuationPoint = null;
-                    manager.Browse(context, ref continuationPoint, []);
+                    ContinuationPoint? continuationPoint = null;
+                    manager.Browse(context, ref continuationPoint!, []);
                     break;
                 case "DeleteNode":
                     manager.DeleteNode(manager.SystemContext, manager.RetainedNode.NodeId);
@@ -873,7 +873,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager.ValidateRolePermissions(context, manager.RetainedNode.NodeId, PermissionType.None);
                     break;
                 case "ValidateEventRolePermissions":
-                    manager.ValidateEventRolePermissions(null, null);
+                    manager.ValidateEventRolePermissions(null!, null!);
                     break;
                 case "ValidateEventReceivePermissions":
                     manager.ValidateEventReceivePermissions(context, default, default);
@@ -912,7 +912,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var session = new Mock<ISession>();
             session.SetupGet(value => value.Id).Returns(new NodeId(1));
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
         private sealed class TestNodeManager : CustomNodeManager2, ICallAsyncNodeManager
@@ -935,9 +935,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 PredefinedNodes[RetainedNode.NodeId] = RetainedNode;
             }
 
-            public Func<CancellationToken, ValueTask> PendingCall { get; set; }
+            public Func<CancellationToken, ValueTask> PendingCall { get; set; } = null!;
 
-            public Action Disposing { get; set; }
+            public Action Disposing { get; set; } = null!;
 
             public bool CallBaseDispose { get; set; } = true;
 

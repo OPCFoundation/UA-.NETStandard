@@ -30,8 +30,6 @@
 // CA2007: tests run without a SynchronizationContext.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;

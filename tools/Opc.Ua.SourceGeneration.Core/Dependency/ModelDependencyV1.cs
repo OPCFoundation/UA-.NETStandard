@@ -34,8 +34,6 @@ using System.IO.Compression;
 using System.Text;
 using System.Xml;
 
-#nullable enable
-
 namespace Opc.Ua.SourceGeneration.Dependency
 {
     /// <summary>

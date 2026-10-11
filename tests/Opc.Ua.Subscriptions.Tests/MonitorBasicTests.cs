@@ -371,7 +371,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 null, m_subscriptionId, TimestampsToReturn.Both,
                 items.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
-            uint[] itemIds = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
+            uint[] itemIds = [.. createResp.Results.ToArray()!.Select(r => r.MonitoredItemId)];
 
             await Session.DeleteMonitoredItemsAsync(
                 null, m_subscriptionId, itemIds.ToArrayOf(),
@@ -405,7 +405,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 null, m_subscriptionId, TimestampsToReturn.Both,
                 items.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
-            uint[] allIds = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
+            uint[] allIds = [.. createResp.Results.ToArray()!.Select(r => r.MonitoredItemId)];
 
             uint[] toDelete = [allIds[0], allIds[1]];
             await Session.DeleteMonitoredItemsAsync(
@@ -725,7 +725,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(resp.Results.Count, Is.EqualTo(attributeIds.Length));
-            int goodCount = resp.Results.ToArray()
+            int goodCount = resp.Results.ToArray()!
                 .Count(r => StatusCode.IsGood(r.StatusCode));
             Assert.That(goodCount, Is.GreaterThan(0),
                 "At least some attribute monitors should succeed");
@@ -846,7 +846,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(createResp.Results.Count, Is.EqualTo(count));
-            int goodCount = createResp.Results.ToArray()
+            int goodCount = createResp.Results.ToArray()!
                 .Count(r => StatusCode.IsGood(r.StatusCode));
             Assert.That(goodCount, Is.GreaterThan(0),
                 "At least some array node monitors should succeed");

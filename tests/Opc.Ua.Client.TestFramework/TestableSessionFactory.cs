@@ -49,8 +49,8 @@ namespace Opc.Ua.Client.TestFramework
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.TestFramework
                 channel,
                 configuration,
                 endpoint,
-                clientCertificate,
+                clientCertificate!,
                 availableEndpoints,
                 discoveryProfileUris,
                 SubscriptionEngineFactory);

@@ -83,8 +83,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                using Stream stream = assembly.GetManifestResourceStream(name);
-                using var reader = new StreamReader(stream);
+                using Stream stream = assembly.GetManifestResourceStream(name)!;
+                using var reader = new StreamReader(stream!);
                 return new EmbeddedText(resourceName, reader.ReadToEnd());
             }
             throw new FileNotFoundException("Resource not found");
@@ -128,7 +128,7 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public override bool TryGetValue(string key, out string value)
         {
-            return Options.TryGetValue(key, out value);
+            return Options.TryGetValue(key, out value!);
         }
     }
 
@@ -152,16 +152,16 @@ namespace Opc.Ua.SourceGeneration
                 .Select(f => f(tree))
                 .Where(o => o != null)
                 .Select(o => new AnalyzerOptions(o))
-                .FirstOrDefault();
+                .FirstOrDefault()!;
         }
 
         /// <inheritdoc/>
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
         {
-            return TextOptions
-                .TryGetValue(textFile.Path, out Dictionary<string, string> result) ?
+            return (TextOptions
+                .TryGetValue(textFile.Path, out Dictionary<string, string>? result) ?
                     new AnalyzerOptions(result) :
-                    null;
+                    null)!;
         }
 
         public Dictionary<string, Dictionary<string, string>> TextOptions { get; } = [];
@@ -196,9 +196,9 @@ namespace Opc.Ua.SourceGeneration
         {
             get
             {
-                string[] trustedAssembliesPaths = ((string)AppContext
-                    .GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
-                    .Split(Path.PathSeparator);
+                string[] trustedAssembliesPaths = (((string)AppContext
+                    .GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)?
+                    .Split(Path.PathSeparator))!;
                 if (trustedAssembliesPaths != null)
                 {
                     return trustedAssembliesPaths
@@ -212,12 +212,12 @@ namespace Opc.Ua.SourceGeneration
         {
             get
             {
-                string assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
-                string binPath = Path.GetDirectoryName(typeof(CompilerUtils).Assembly.Location);
+                string assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+                string binPath = Path.GetDirectoryName(typeof(CompilerUtils).Assembly.Location)!;
                 MetadataReference[] defaultReferences =
                 [
-                    MetadataReference.CreateFromFile(Path.Combine(binPath, "Opc.Ua.Types.dll")),
-                    MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.dll")),
+                    MetadataReference.CreateFromFile(Path.Combine(binPath!, "Opc.Ua.Types.dll")),
+                    MetadataReference.CreateFromFile(Path.Combine(assemblyPath!, "System.dll")),
                     MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Core.dll")),
                     MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Runtime.dll")),
                     MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Linq.dll")),
@@ -251,7 +251,7 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         public static CSharpCompilation CreateCompilation(
             this OptimizationLevel optimizationLevel,
-            string assemblyName = null)
+            string? assemblyName = null)
         {
             assemblyName ??= Path.GetRandomFileName();
             CSharpCompilationOptions compileOptions = new CSharpCompilationOptions(
@@ -371,7 +371,7 @@ namespace Opc.Ua.SourceGeneration
                     output.WriteLine();
                     output.WriteLine(diag.ToString());
                 }
-                TextLineCollection lines = diag.Location.SourceTree?.GetText().Lines;
+                TextLineCollection? lines = diag.Location.SourceTree?.GetText().Lines;
                 if (lines == null)
                 {
                     continue;
@@ -410,10 +410,10 @@ namespace Opc.Ua.SourceGeneration
                     {
                         DiagnosticAnalyzer[] analyzers = [.. netAnalyzer.GetTypes()
                             .Where(t => t.GetCustomAttribute<DiagnosticAnalyzerAttribute>() is not null)
-                            .Select(t => (DiagnosticAnalyzer)Activator.CreateInstance(t))];
+                            .Select(t => (DiagnosticAnalyzer)Activator.CreateInstance(t)!)!];
                         compilationWithAnalyzers = compilation.WithAnalyzers(
                             ImmutableArray.Create(analyzers),
-                            new CompilationWithAnalyzersOptions(null, null, true, true, true));
+                            new CompilationWithAnalyzersOptions(null!, null, true, true, true));
                         return (CSharpCompilation)compilationWithAnalyzers.Compilation;
                     }
                 }
@@ -422,7 +422,7 @@ namespace Opc.Ua.SourceGeneration
                     // ignore errors loading analyzers
                 }
             }
-            compilationWithAnalyzers = null;
+            compilationWithAnalyzers = null!;
             return compilation;
 
             static Assembly LoadFromNugetCache(string path, string dll)
@@ -442,7 +442,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return Assembly.LoadFrom(file);
                 }
-                return null;
+                return null!;
             }
         }
 

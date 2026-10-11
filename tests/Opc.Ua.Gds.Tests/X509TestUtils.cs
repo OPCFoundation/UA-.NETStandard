@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Tests
         {
             using var newCert = Certificate.FromRawData(certificate);
             Assert.That(newCert, Is.Not.Null);
-            Certificate newPrivateKeyCert = null;
+            Certificate? newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
             {
                 newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(
@@ -200,7 +200,7 @@ namespace Opc.Ua.Gds.Tests
 
             // test basic constraints
             X509BasicConstraintsExtension constraints = signedCert
-                .FindExtension<X509BasicConstraintsExtension>();
+                .FindExtension<X509BasicConstraintsExtension>()!;
             Assert.That(constraints, Is.Not.Null);
             TestContext.Out.WriteLine($"Constraints: {constraints.Format(true)}");
             Assert.That(constraints.Critical, Is.True);
@@ -208,7 +208,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(constraints.HasPathLengthConstraint, Is.False);
 
             // key usage
-            X509KeyUsageExtension keyUsage = signedCert.FindExtension<X509KeyUsageExtension>();
+            X509KeyUsageExtension keyUsage = signedCert.FindExtension<X509KeyUsageExtension>()!;
             Assert.That(keyUsage, Is.Not.Null);
             TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.That(keyUsage.Critical, Is.True);
@@ -244,7 +244,7 @@ namespace Opc.Ua.Gds.Tests
 
                 // enhanced key usage
                 X509EnhancedKeyUsageExtension enhancedKeyUsage =
-                    signedCert.FindExtension<X509EnhancedKeyUsageExtension>();
+                    signedCert.FindExtension<X509EnhancedKeyUsageExtension>()!;
                 Assert.That(enhancedKeyUsage, Is.Not.Null);
                 TestContext.Out.WriteLine($"Enhanced Key Usage: {enhancedKeyUsage.Format(true)}");
                 Assert.That(enhancedKeyUsage.Critical, Is.True);
@@ -253,7 +253,7 @@ namespace Opc.Ua.Gds.Tests
             // test for authority key
 
             X509AuthorityKeyIdentifierExtension authority =
-                signedCert.FindExtension<X509AuthorityKeyIdentifierExtension>();
+                signedCert.FindExtension<X509AuthorityKeyIdentifierExtension>()!;
             Assert.That(authority, Is.Not.Null);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.That(authority.SerialNumber, Is.Not.Null);
@@ -264,15 +264,15 @@ namespace Opc.Ua.Gds.Tests
 
             // verify authority key in signed cert
             X509SubjectKeyIdentifierExtension subjectKeyId =
-                issuerCert.FindExtension<X509SubjectKeyIdentifierExtension>();
-            TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId.SubjectKeyIdentifier}");
+                issuerCert.FindExtension<X509SubjectKeyIdentifierExtension>()!;
+            TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId!.SubjectKeyIdentifier}");
             Assert.That(authority.KeyIdentifier, Is.EqualTo(subjectKeyId.SubjectKeyIdentifier));
             Assert.That(authority.SerialNumber, Is.EqualTo(issuerCert.SerialNumber));
 
             X509SubjectAltNameExtension subjectAlternateName = signedCert
-                .FindExtension<X509SubjectAltNameExtension>();
+                .FindExtension<X509SubjectAltNameExtension>()!;
             Assert.That(subjectAlternateName, Is.Not.Null);
-            TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName.Oid.FriendlyName}");
+            TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName.Oid!.FriendlyName}");
             Assert.That(subjectAlternateName.Critical, Is.False);
             ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
             foreach (string domainName in testApp.DomainNames)
@@ -281,7 +281,7 @@ namespace Opc.Ua.Gds.Tests
             }
             Assert.That(subjectAlternateName.Uris, Has.Count.EqualTo(1));
             IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(signedCert);
-            string applicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
+            string applicationUri = (applicationUris.Count > 0 ? applicationUris[0] : null)!;
             Assert.That(testApp.ApplicationRecord.ApplicationUri, Is.EqualTo(applicationUri));
         }
     }

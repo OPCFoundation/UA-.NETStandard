@@ -53,12 +53,12 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            UaFileSystemInfo info = await client.GetInfoAsync(string.Empty)
-                .ConfigureAwait(false);
+            UaFileSystemInfo info = (await client.GetInfoAsync(string.Empty)
+                .ConfigureAwait(false))!;
             Assert.That(info, Is.SameAs(client.Root));
 
-            UaFileSystemInfo infoRoot = await client.GetInfoAsync("/")
-                .ConfigureAwait(false);
+            UaFileSystemInfo infoRoot = (await client.GetInfoAsync("/")
+                .ConfigureAwait(false))!;
             Assert.That(infoRoot, Is.SameAs(client.Root));
         }
 
@@ -136,8 +136,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            UaFileSystemInfo info = await client.GetInfoAsync("/missing/path")
-                .ConfigureAwait(false);
+            UaFileSystemInfo info = (await client.GetInfoAsync("/missing/path")
+                .ConfigureAwait(false))!;
             Assert.That(info, Is.Null);
         }
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             NodeId file = harness.RegisterFile(dir, new QualifiedName("12:30.log"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            UaFileSystemInfo entry = null;
+            UaFileSystemInfo? entry = null;
             await foreach (UaFileSystemInfo child in client.EnumerateAsync("/3:Logs")
                 .ConfigureAwait(false))
             {
@@ -280,8 +280,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
             // Fresh client so the path cache does not mask the resolution.
             var fresh = new FileSystemClient(harness.Session, harness.Root);
-            UaFileSystemInfo resolved = await fresh.GetInfoAsync(entry.FullPath)
-                .ConfigureAwait(false);
+            UaFileSystemInfo resolved = (await fresh.GetInfoAsync(entry.FullPath)
+                .ConfigureAwait(false))!;
             Assert.That(resolved, Is.Not.Null);
             Assert.That(resolved.NodeId, Is.EqualTo(file));
             Assert.That(resolved.BrowseName, Is.EqualTo(new QualifiedName("12:30.log")));

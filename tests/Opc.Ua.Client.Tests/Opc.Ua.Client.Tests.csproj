@@ -6,7 +6,6 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <!-- ClientSamples.cs (linked from samples/Reference/ConsoleReferenceClient) uses
          nullable annotations; enable annotation parsing so the linked file compiles. -->
-    <Nullable>annotations</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -32,6 +31,7 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
+    <Compile Include="..\..\perf\ServerLoadHarness\SubscriptionSetup.cs" Link="Links\SubscriptionSetup.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="test-browser-options.xml">

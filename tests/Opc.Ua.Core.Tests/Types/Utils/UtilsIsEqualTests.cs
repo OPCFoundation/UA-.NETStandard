@@ -193,14 +193,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(m_bufferA, m_bufferB),
                 Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
             Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
-            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
             Assert.That(Utils.IsEqual(null, null), Is.True);
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, m_bufferB),
                 Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
             Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
-            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB),
@@ -209,8 +209,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(null, (IEnumerable)m_bufferB),
                 Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
             Assert.That(
-                Utils.IsEqual(m_bufferA, (IEnumerable)null),
-                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+                Utils.IsEqual(m_bufferA, (IEnumerable)null!),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, (Array)m_bufferB),
@@ -219,8 +219,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(null, (Array)m_bufferB),
                 Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
             Assert.That(
-                Utils.IsEqual(m_bufferA, (Array)null),
-                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+                Utils.IsEqual(m_bufferA, (Array)null!),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
         }
 
         [OneTimeSetUp]

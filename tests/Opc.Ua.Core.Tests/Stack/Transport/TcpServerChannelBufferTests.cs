@@ -502,8 +502,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 channel.ExpectClientCertificateForTest(expectedCertificate);
             }
-            Exception auditedError = null;
-            channel.SetReportOpenSecureChannelAuditCallback((_, _, _, error) => auditedError = error);
+            Exception? auditedError = null;
+            channel.SetReportOpenSecureChannelAuditCallback((_, _, _, error) => auditedError = error!);
 
             await channel.FeedReceivedChunkAsync(channel.CreateOpenChunkForTest(sequenceNumber: 0))
                 .ConfigureAwait(false);
@@ -567,8 +567,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool(poisonOnReturn: true);
             using TestServerChannel channel = CreateOpenChannel(pool);
-            WriteRequest received = null;
-            channel.SetRequestReceivedCallback((_, _, request) => received = request as WriteRequest);
+            WriteRequest? received = null;
+            channel.SetRequestReceivedCallback((_, _, request) => received = (request as WriteRequest)!);
             var request = new WriteRequest
             {
                 NodesToWrite =
@@ -1917,11 +1917,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
             int? maxStringLength = null,
-            FakeTimeProvider clock = null,
+            FakeTimeProvider? clock = null,
             int? channelLifetime = null,
-            ChunkReassemblyBudget budget = null,
-            ISessionBindingProvider bindingProvider = null,
-            IServerResourceIsolationProvider isolation = null)
+            ChunkReassemblyBudget? budget = null,
+            ISessionBindingProvider? bindingProvider = null,
+            IServerResourceIsolationProvider? isolation = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -2223,7 +2223,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 uint sequenceNumber,
                 uint requestId,
                 int bodySize = 8,
-                byte[] body = null)
+                byte[]? body = null)
             {
                 if (body != null)
                 {
@@ -2372,9 +2372,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_captureSentChunks = captureSentChunks;
             }
 
-            public EndPoint LocalEndpoint => null;
+            public EndPoint LocalEndpoint => null!;
 
-            public EndPoint RemoteEndpoint => null;
+            public EndPoint RemoteEndpoint => null!;
 
             public TransportChannelFeatures Features => default;
 
@@ -2399,7 +2399,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         if (m_sentChunks.Count == 0)
                         {
-                            return null;
+                            return null!;
                         }
                         return m_sentChunks[^1];
                     }
@@ -2528,7 +2528,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingIsolation : IServerResourceIsolationProvider
         {
             public bool UseFairScheduling { get; set; } = true;
-            public event Action<ResourceIsolationStage> CapacityAvailable
+            public event Action<ResourceIsolationStage>? CapacityAvailable
             {
                 add { }
                 remove { }
@@ -2539,9 +2539,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public int AcquireCalls { get; private set; }
             public ResourceIsolationStage ExpectedStage { get; set; } = ResourceIsolationStage.ReassemblyBytes;
             public bool Refuse { get; set; }
-            public Action OnClassify { get; set; }
+            public Action OnClassify { get; set; } = null!;
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 throw new NotSupportedException();
             }
@@ -2573,7 +2573,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 failure = default;
                 if (Refuse)
                 {
-                    lease = null;
+                    lease = null!;
                     return false;
                 }
                 OutstandingBytes += amount;
@@ -2602,13 +2602,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             public bool UseFairScheduling => inner.UseFairScheduling;
 
-            public event Action<ResourceIsolationStage> CapacityAvailable
+            public event Action<ResourceIsolationStage>? CapacityAvailable
             {
                 add => inner.CapacityAvailable += value;
                 remove => inner.CapacityAvailable -= value;
             }
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 return inner.ClassifyConnection(remoteEndpoint);
             }

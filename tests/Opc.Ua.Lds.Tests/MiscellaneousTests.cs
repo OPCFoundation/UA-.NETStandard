@@ -391,7 +391,7 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
             Assert.That(response.Results[0].WrappedValue.TryGetValue(out ArrayOf<string> nsArr), Is.True);
-            string[] nsStrings = nsArr.ToArray();
+            string[] nsStrings = nsArr.ToArray()!;
             Assert.That(nsStrings, Has.Length.GreaterThanOrEqualTo(2),
                 "NamespaceArray should have at least 2 entries.");
         }
@@ -414,7 +414,7 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
             Assert.That(response.Results[0].WrappedValue.TryGetValue(out ArrayOf<string> srvArr), Is.True);
-            string[] serverStrings = srvArr.ToArray();
+            string[] serverStrings = srvArr.ToArray()!;
             Assert.That(serverStrings, Is.Not.Empty,
                 "ServerArray should have at least 1 entry.");
         }
@@ -518,7 +518,7 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
             Assert.That(response.Results[0].WrappedValue.TryGetValue(out ArrayOf<string> locArr), Is.True);
-            string[] localeStrings = locArr.ToArray();
+            string[] localeStrings = locArr.ToArray()!;
             Assert.That(localeStrings, Is.Not.Empty,
                 "LocaleIdArray should have at least 1 entry.");
         }

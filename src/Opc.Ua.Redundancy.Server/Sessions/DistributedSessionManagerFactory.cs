@@ -47,17 +47,25 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="keyValueStore">The shared key/value backend.</param>
         /// <param name="protector">
-        /// Optional record protector applied to every mirrored session entry
-        /// (authenticated encryption); defaults to a no-op pass-through.
+        /// The record protector applied to every mirrored session entry (authenticated
+        /// encryption). It may be omitted only for an <see cref="InMemorySharedKeyValueStore"/>;
+        /// to knowingly store session secrets in an external store unprotected, pass
+        /// <see cref="NullRecordProtector.Instance"/> explicitly.
         /// </param>
         /// <param name="options">The distributed session options.</param>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="protector"/> is <c>null</c> and <paramref name="keyValueStore"/>
+        /// is not an in-memory store.
+        /// </exception>
         public DistributedSessionManagerFactory(
             ISharedKeyValueStore keyValueStore,
             IRecordProtector? protector = null,
             DistributedSessionOptions? options = null)
         {
             m_keyValueStore = keyValueStore ?? throw new ArgumentNullException(nameof(keyValueStore));
-            m_protector = protector;
+            // Fail at configuration time, like the dependency injection registration,
+            // rather than when the first session is mirrored in cleartext.
+            m_protector = protector ?? SharedKeyValueSessionStore.DefaultProtectorFor(keyValueStore);
             m_options = options ?? new DistributedSessionOptions();
         }
 
@@ -75,7 +83,7 @@ namespace Opc.Ua.Redundancy.Server
 
             var sessionStore = new SharedKeyValueSessionStore(
                 m_keyValueStore, server.MessageContext, m_protector);
-            var nonceRegistry = new SharedSingleUseNonceRegistry(m_keyValueStore);
+            var nonceRegistry = new SharedSingleUseNonceRegistry(m_keyValueStore, timeProvider: timeProvider);
 
             return new DistributedSessionManager(
                 server,
@@ -88,7 +96,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private readonly ISharedKeyValueStore m_keyValueStore;
-        private readonly IRecordProtector? m_protector;
+        private readonly IRecordProtector m_protector;
         private readonly DistributedSessionOptions m_options;
     }
 }

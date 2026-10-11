@@ -13,7 +13,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AI.Inference</PackageId>
     <RootNamespace>Opc.Ua.AI.Inference</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Inference backends for the OPC UA AI Model Management and Inference (draft) companion specification: the IInferenceBackend contract one abstraction covers a hosted service and an on-device runtime with, a Microsoft.Extensions.AI IChatClient backend, an OpenAI-compatible REST backend, and credential resolvers that keep secret material out of the address space.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

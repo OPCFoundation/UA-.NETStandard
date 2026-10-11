@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 
         private static string ToString(Array input, int index)
         {
-            object element = input.GetValue(index % input.Length);
+            object element = input.GetValue(index % input.Length)!;
 
             if (element is ByteString oid)
             {
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 return Escape(sid);
             }
 
-            return element != null ? element.ToString() : string.Empty;
+            return (element != null ? element.ToString() : string.Empty)!;
         }
 
         private static T Get<T>(IList<T> input, int index)
@@ -404,7 +404,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                jsonObj.ToJsonString(), true);
+                jsonObj!.ToJsonString(), true);
 
             var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -519,7 +519,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                jsonObj.ToJsonString(), true);
+                jsonObj!.ToJsonString(), true);
 
             var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 """;
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
-            string expected = jsonObj.ToJsonString();
+            string expected = jsonObj!.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = ServiceMessageContext.Create(telemetry);
@@ -733,7 +733,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             """;
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
-            string expected = jsonObj.ToJsonString();
+            string expected = jsonObj!.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = ServiceMessageContext.Create(telemetry);
@@ -801,7 +801,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
-            Assert.That(eo.TryGetValue(out Range range), Is.True);
+            Assert.That(eo.TryGetValue(out Range? range), Is.True);
             Assert.That(range, Is.Not.Null);
             Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
@@ -815,7 +815,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 eo.TypeId.ToString(),
                 Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType? record), Is.True);
             Assert.That(record, Is.Not.Null);
             Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
             Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
@@ -852,7 +852,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 """;
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
-            string expected = jsonObj.ToJsonString();
+            string expected = jsonObj!.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = ServiceMessageContext.Create(telemetry);
@@ -921,7 +921,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
-            Assert.That(eo.TryGetValue(out Range range), Is.True);
+            Assert.That(eo.TryGetValue(out Range? range), Is.True);
             Assert.That(range, Is.Not.Null);
             Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
@@ -935,7 +935,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 eo.TypeId.ToString(),
                 Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType? record), Is.True);
             Assert.That(record, Is.Not.Null);
             Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
             Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
@@ -973,7 +973,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 """;
 
             var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
-            string expected = jsonObj.ToJsonString();
+            string expected = jsonObj!.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = ServiceMessageContext.Create(telemetry);

@@ -39,7 +39,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The actual value of the type.
         /// </summary>
-        public T Value { get; set; }
+        public T Value { get; set; } = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EncodeableTestData{T}"/> class.

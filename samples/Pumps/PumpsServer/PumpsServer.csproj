@@ -6,7 +6,6 @@
     <PackageId>PumpsServer</PackageId>
     <RootNamespace>PumpsSample</RootNamespace>
     <Description>Self-contained .NET console OPC UA server publishing two OPC 40223 pumps with the Opc.Ua.Pumps.Server builders: nameplate, configuration, live measurements with engineering units, signals, supervision, maintenance, multi-pump roles, ports and documentation links, driven by a simulation that publishes every change to subscribed clients.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>

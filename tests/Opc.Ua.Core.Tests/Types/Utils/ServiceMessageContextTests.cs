@@ -46,7 +46,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
         public void ConstructorWithNullFactoryCreatesNewFactory()
         {
             // Arrange & Act
-            var context = new ServiceMessageContext(null, (IEncodeableFactory)null);
+            var context = new ServiceMessageContext(null!, (IEncodeableFactory)null!);
 
             // Assert
             Assert.That(context.Factory, Is.Not.Null);
@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             IEncodeableFactory customFactory = EncodeableFactory.Create();
 
             // Act
-            var context = new ServiceMessageContext(null, customFactory);
+            var context = new ServiceMessageContext(null!, customFactory);
 
             // Assert
             Assert.That(context.Factory, Is.SameAs(customFactory));
@@ -78,8 +78,8 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
             IEncodeableFactory factory1 = EncodeableFactory.Create();
             IEncodeableFactory factory2 = EncodeableFactory.Create();
 
-            var context1 = new ServiceMessageContext(null, factory1);
-            var context2 = new ServiceMessageContext(null, factory2);
+            var context1 = new ServiceMessageContext(null!, factory1);
+            var context2 = new ServiceMessageContext(null!, factory2);
 
             // Assert - the contexts should reference different factory instances
             Assert.That(context1.Factory, Is.SameAs(factory1));

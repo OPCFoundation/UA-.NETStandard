@@ -321,7 +321,7 @@ namespace Opc.Ua.InformationModel.Tests
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r =>
                 {
-                    if (r.Results != null && r.Results.Count > 0)
+                    if (r.Results.Count > 0)
                     {
                         r.Results[0].StatusCode = injected;
                     }
@@ -432,7 +432,7 @@ namespace Opc.Ua.InformationModel.Tests
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r =>
                 {
-                    if (r.Results != null && r.Results.Count > 0)
+                    if (r.Results.Count > 0)
                     {
                         r.Results[0].ContinuationPoint = continuationPoint;
                     }
@@ -490,7 +490,7 @@ namespace Opc.Ua.InformationModel.Tests
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r =>
                 {
-                    if (r.Results == null || r.Results.Count == 0)
+                    if (r.Results.Count == 0)
                     {
                         return;
                     }
@@ -549,7 +549,7 @@ namespace Opc.Ua.InformationModel.Tests
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r =>
                 {
-                    if (r.Results == null || r.Results.Count == 0)
+                    if (r.Results.Count == 0)
                     {
                         return;
                     }
@@ -605,7 +605,7 @@ namespace Opc.Ua.InformationModel.Tests
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseResponse>(
                 r =>
                 {
-                    if (r.Results == null || r.Results.Count == 0)
+                    if (r.Results.Count == 0)
                     {
                         return;
                     }

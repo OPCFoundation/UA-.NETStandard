@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
             {
                 Certificate? resolved = await CertificateIdentifierResolver.ResolveAsync(
                     existingCertIdentifier,
-                    registry: null,
+                    registry: m_configuration.CertificateManager,
                     needPrivateKey: false,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -275,7 +275,8 @@ namespace Opc.Ua.Server
         {
             bool removedCertificate = false;
             using (ICertificateStore? appStore = CertificateIdentifierResolver
-                .OpenStore(existingCertIdentifier, Server.Telemetry))
+                .OpenStore(existingCertIdentifier, Server.Telemetry,
+                    m_configuration.CertificateManager as ICertificateStoreResolver))
             {
                 if (appStore == null)
                 {
@@ -334,9 +335,9 @@ namespace Opc.Ua.Server
             List<string>? newlyAddedIssuerThumbprints = null;
             if (addIssuerChain is { Count: > 0 })
             {
-                using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
                 try
                 {
+                    using ICertificateStore issuerStore = OpenGroupStore(certificateGroup.IssuerStore);
                     foreach (Certificate issuer in addIssuerChain)
                     {
                         bool alreadyPresent;
@@ -444,7 +445,8 @@ namespace Opc.Ua.Server
             try
             {
                 using ICertificateStore? appStore = CertificateIdentifierResolver
-                    .OpenStore(existingCertIdentifier, Server.Telemetry);
+                    .OpenStore(existingCertIdentifier, Server.Telemetry,
+                        m_configuration.CertificateManager as ICertificateStoreResolver);
                 if (appStore != null)
                 {
                     await appStore.DeleteAsync(
@@ -506,7 +508,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
+            using ICertificateStore issuerStore = OpenGroupStore(certificateGroup.IssuerStore);
             // Indexed rather than foreach: ArrayOf<T>'s enumerator is a
             // ReadOnlySpan<T>.Enumerator (a ref struct), which cannot be
             // held across the await below.

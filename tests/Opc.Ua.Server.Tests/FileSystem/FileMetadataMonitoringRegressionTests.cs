@@ -85,9 +85,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                             DiscardOldest = true
                         }
                     };
-                    var errors = new List<ServiceResult> { null };
-                    var filterErrors = new List<MonitoringFilterResult> { null };
-                    var items = new List<IMonitoredItem> { null };
+                    var errors = new List<ServiceResult> { null! };
+                    var filterErrors = new List<MonitoringFilterResult> { null! };
+                    var items = new List<IMonitoredItem> { null! };
                     using var createContext = new OperationContext(
                         new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
                     await manager.CreateMonitoredItemsAsync(

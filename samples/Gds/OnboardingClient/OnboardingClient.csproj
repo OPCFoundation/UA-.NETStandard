@@ -6,7 +6,6 @@
     <AssemblyName>OnboardingClient</AssemblyName>
     <RootNamespace>OnboardingClientDemo</RootNamespace>
     <Description>OPC 10000-21 onboarding client sample.</Description>
-    <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>

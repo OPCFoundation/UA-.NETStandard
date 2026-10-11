@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             if (eventQueue)
             {
                 Assert.That(await factory.RestoreEventQueueAsync(12).ConfigureAwait(false), Is.Null);
-                IEventMonitoredItemQueue restored = await factory.RestoreEventQueueAsync(11).ConfigureAwait(false);
+                IEventMonitoredItemQueue restored = (await factory.RestoreEventQueueAsync(11).ConfigureAwait(false))!;
                 Assert.That(restored, Is.Not.Null);
                 Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(5));
@@ -92,8 +92,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             else
             {
                 Assert.That(await factory.RestoreDataChangeQueueAsync(12).ConfigureAwait(false), Is.Null);
-                IDataChangeMonitoredItemQueue restored = await factory.RestoreDataChangeQueueAsync(11)
-                    .ConfigureAwait(false);
+                IDataChangeMonitoredItemQueue restored = (await factory.RestoreDataChangeQueueAsync(11)
+                    .ConfigureAwait(false))!;
                 Assert.That(restored, Is.Not.Null);
                 Assert.That(restored.Dequeue(out DataValue value, out _), Is.True);
                 Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(12)));
@@ -122,9 +122,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await restoreFactory
                 .RestoreDataChangeQueueAsync(42)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.QueueSize, Is.EqualTo(5));
@@ -154,9 +154,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await restoreFactory
                 .RestoreDataChangeQueueAsync(7)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.Dequeue(out _, out ServiceResult restoredError), Is.True);
@@ -183,9 +183,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, telemetry: telemetry);
-            IEventMonitoredItemQueue restored = await restoreFactory
+            IEventMonitoredItemQueue restored = (await restoreFactory
                 .RestoreEventQueueAsync(11)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.QueueSize, Is.EqualTo(5));
@@ -217,9 +217,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await restoreFactory
                 .RestoreDataChangeQueueAsync(3)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.ItemsInQueue, Is.EqualTo(2));
@@ -243,9 +243,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 kv,
                 context,
                 telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await restoreFactory
                 .RestoreDataChangeQueueAsync(33)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.Dequeue(out DataValue restoredValue, out _), Is.True);
@@ -329,9 +329,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = new SharedKeyValueSubscriptionStore(
                 kv, context, queueFactory: restoreFactory);
 
-            IDataChangeMonitoredItemQueue restored = await store
+            IDataChangeMonitoredItemQueue restored = (await store
                 .RestoreDataChangeMonitoredItemQueueAsync(21)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.ItemsInQueue, Is.EqualTo(1));

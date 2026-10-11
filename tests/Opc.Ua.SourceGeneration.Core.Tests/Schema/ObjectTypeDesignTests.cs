@@ -55,7 +55,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = objectTypeDesign.Equals(null);
+            bool result = objectTypeDesign.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -387,7 +387,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = objectTypeDesign.Equals((object)null);
+            bool result = objectTypeDesign.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert

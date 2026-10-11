@@ -735,7 +735,7 @@ namespace Opc.Ua.Subscriptions.Tests
             uint attributeId = Attributes.Value,
             bool discardOldest = true,
             ExtensionObject filter = default,
-            string indexRange = null,
+            string? indexRange = null,
             TimestampsToReturn timestamps = TimestampsToReturn.Both)
         {
             return new MonitoredItemCreateRequest
@@ -846,7 +846,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 double samplingInterval = 50,
                 MonitoringMode mode = MonitoringMode.Reporting,
                 uint queueSize = 10,
-                string indexRange = null,
+                string? indexRange = null,
                 TimestampsToReturn timestamps = TimestampsToReturn.Both)
         {
             CreateMonitoredItemsResponse resp = await CreateSingleItemAsync(
@@ -871,7 +871,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         private async Task<bool> TryWriteArrayAsync(
-            NodeId nodeId, int[] values, string indexRange = null)
+            NodeId nodeId, int[] values, string? indexRange = null)
         {
             var wv = new WriteValue
             {
@@ -908,13 +908,13 @@ namespace Opc.Ua.Subscriptions.Tests
             Variant variant = readResp.Results[0].WrappedValue;
             if (variant.TryGetValue(out ArrayOf<int> arr))
             {
-                return arr.ToArray();
+                return arr.ToArray()!;
             }
             // FUTURE-AsBoxedObject-cleanup: legacy compatibility for callers
             // that still surface int[] / IConvertableToArray / Array outside
             // the typed Variant accessors. Once those paths migrate this can
             // drop.
-            object val = variant.AsBoxedObject();
+            object val = variant.AsBoxedObject()!;
             if (val is int[] intArrLegacy)
             {
                 return intArrLegacy;
@@ -927,7 +927,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     return intArr;
                 }
 
-                return [.. converted.Cast<object>().Select(Convert.ToInt32)];
+                return [.. converted!.Cast<object>().Select(Convert.ToInt32)];
             }
             if (val is Array a)
             {

@@ -164,8 +164,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         private static async Task<IAsyncNodeManager> CreateManagerAsync(
-            Action<INodeManagerBuilder> configure = null,
-            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable>> configureAsync = null)
+            Action<INodeManagerBuilder>? configure = null,
+            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync = null)
         {
             StreamRuntimeNodeSetSource source = MakeStreamSource(kUriA);
             var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task SyncOnlyConfigureStillRunsAndSealsAsync()
         {
             bool configureRan = false;
-            INodeManagerBuilder capturedBuilder = null;
+            INodeManagerBuilder? capturedBuilder = null;
 
             IAsyncNodeManager manager = await CreateManagerAsync(
                 configure: builder =>
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task AsyncOnlyConfigureRunsBeforeSealAsync()
         {
             bool configureAsyncRan = false;
-            INodeManagerBuilder capturedBuilder = null;
+            INodeManagerBuilder? capturedBuilder = null;
 
             IAsyncNodeManager manager = await CreateManagerAsync(
                 configureAsync: async (builder, ct) =>
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     capturedBuilder = builder;
                     AssertBuilderNotSealed(builder);
                     configureAsyncRan = true;
-                    return null;
+                    return null!;
                 }).ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task BothConfigureCallbacksRunInOrderWithSingleSealAsync()
         {
             var order = new List<string>();
-            INodeManagerBuilder capturedBuilder = null;
+            INodeManagerBuilder? capturedBuilder = null;
 
             IAsyncNodeManager manager = await CreateManagerAsync(
                 configure: builder =>
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     Assert.That(builder, Is.SameAs(capturedBuilder));
                     // Still unsealed: the sync callback must not have sealed it.
                     AssertBuilderNotSealed(builder);
-                    return null;
+                    return null!;
                 }).ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
@@ -295,7 +295,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             await using TrackingAsyncDisposable owner = new();
 
             IAsyncNodeManager manager = await CreateManagerAsync(
-                configureAsync: (_, _) => new ValueTask<IAsyncDisposable>(owner))
+                configureAsync: (_, _) => new ValueTask<IAsyncDisposable?>(owner))
                 .ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
@@ -324,11 +324,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .Node("ConfigureAsyncRoot")
                     .OnNodeAdded((_, _) => throw new InvalidOperationException(
                         "Simulated node-added failure.")),
-                configureAsync: (_, _) => new ValueTask<IAsyncDisposable>(owner))
+                configureAsync: (_, _) => new ValueTask<IAsyncDisposable?>(owner))
                 .ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
-            InvalidOperationException exception = null;
+            InvalidOperationException? exception = null;
             try
             {
                 await manager.CreateAddressSpaceAsync(
@@ -360,10 +360,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             await using TrackingAsyncDisposable ownerNew = new();
 
             IAsyncNodeManager oldGeneration = await CreateManagerAsync(
-                configureAsync: (_, _) => new ValueTask<IAsyncDisposable>(ownerOld))
+                configureAsync: (_, _) => new ValueTask<IAsyncDisposable?>(ownerOld))
                 .ConfigureAwait(false);
             IAsyncNodeManager newGeneration = await CreateManagerAsync(
-                configureAsync: (_, _) => new ValueTask<IAsyncDisposable>(ownerNew))
+                configureAsync: (_, _) => new ValueTask<IAsyncDisposable?>(ownerNew))
                 .ConfigureAwait(false);
 
             var externalReferencesOld = new Dictionary<NodeId, IList<IReference>>();

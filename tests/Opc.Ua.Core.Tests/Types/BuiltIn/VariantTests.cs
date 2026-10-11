@@ -162,14 +162,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case BuiltInType.DiagnosticInfo:
                     return DataGenerator.GetRandomDiagnosticInfo();
                 case BuiltInType.Null:
-                    return null;
+                    return null!;
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Variant:
                     return DataGenerator.GetRandomScalar(expectedType);
                 default:
-                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject()!;
             }
         }
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case BuiltInType.Null:
                 case BuiltInType.DataValue:
                 case BuiltInType.DiagnosticInfo:
-                    return null;
+                    return null!;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {expectedType}");

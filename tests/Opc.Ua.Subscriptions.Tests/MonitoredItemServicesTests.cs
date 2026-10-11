@@ -168,10 +168,10 @@ namespace Opc.Ua.Subscriptions.Tests
         public async Task CreateMonitoredItemOnScalarDataType(string fieldName, Type expectedType)
         {
             _ = expectedType;
-            FieldInfo field = typeof(Constants).GetField(fieldName);
+            FieldInfo field = typeof(Constants).GetField(fieldName)!;
             Assert.That(field, Is.Not.Null, $"Constants.{fieldName} not found");
 
-            var expandedNodeId = (ExpandedNodeId)field.GetValue(null);
+            var expandedNodeId = (ExpandedNodeId)field.GetValue(null)!;
             NodeId nodeId = ToNodeId(expandedNodeId);
 
             CreateMonitoredItemsResponse response = await CreateSingleItemAsync(
@@ -304,7 +304,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
             Assert.That(response.Results.Count, Is.EqualTo(100));
 
-            int goodCount = response.Results.ToArray().Count(r => StatusCode.IsGood(r.StatusCode));
+            int goodCount = response.Results.ToArray()!.Count(r => StatusCode.IsGood(r.StatusCode));
             Assert.That(goodCount, Is.EqualTo(100));
         }
 
@@ -690,7 +690,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 items.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            uint[] ids = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
+            uint[] ids = [.. createResp.Results.ToArray()!.Select(r => r.MonitoredItemId)];
 
             DeleteMonitoredItemsResponse deleteResp = await Session.DeleteMonitoredItemsAsync(
                 null,

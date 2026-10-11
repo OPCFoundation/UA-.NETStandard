@@ -150,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             var registry = new ServerIdentityRegistry();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => registry.RegisterAugmenter(null))!;
+                () => registry.RegisterAugmenter(null!))!;
 
             Assert.That(ex.ParamName, Is.EqualTo("augmenter"));
         }
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             public UserTokenType TokenType => UserTokenType.Anonymous;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => null!;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,
@@ -258,7 +258,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             public int CallCount { get; private set; }
 
-            public IUserIdentity InputIdentity { get; private set; }
+            public IUserIdentity InputIdentity { get; private set; } = null!;
 
             public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,

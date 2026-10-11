@@ -51,7 +51,7 @@ namespace Opc.Ua.Fuzzing
 
         public static int Main(string[] args)
         {
-            string applicationName = typeof(Program).Assembly.GetName().Name;
+            string applicationName = typeof(Program).Assembly.GetName().Name!;
 
             Console.WriteLine($"OPC UA {applicationName}");
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.Fuzzing
                 }
 
                 var telemetry = new Logging();
-                telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
+                telemetry.Configure(applicationName!, string.Empty, true, LogLevel.Trace);
 
                 if (testcases)
                 {
@@ -125,10 +125,10 @@ namespace Opc.Ua.Fuzzing
                 else
                 {
                     Playback.Run(
-                        parseResult.GetValue(inputOption),
+                        parseResult.GetValue(inputOption)!,
                         stacktrace,
                         telemetry,
-                        parseResult.GetValue(targetOption));
+                        parseResult.GetValue(targetOption)!);
                 }
                 return 0;
             });

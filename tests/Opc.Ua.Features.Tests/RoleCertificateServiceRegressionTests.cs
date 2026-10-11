@@ -60,7 +60,7 @@ namespace Opc.Ua.Features.Tests
             provider.Setup(value => value.GetPrivateKeyCertificateAsync(
                     It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(),
                     It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .Returns(() => new ValueTask<Certificate>(userCertificate.AddRef()));
+                .Returns(() => new ValueTask<Certificate?>(userCertificate.AddRef()));
             UserIdentity identity = await UserIdentity.CreateAsync(
                 new CertificateIdentifier { RawData = userCertificate.RawData },
                 Mock.Of<ICertificatePasswordProvider>(), provider.Object).ConfigureAwait(false);

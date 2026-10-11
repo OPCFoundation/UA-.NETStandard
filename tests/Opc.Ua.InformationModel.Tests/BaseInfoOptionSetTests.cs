@@ -279,7 +279,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             if (!StatusCode.IsGood(response.Results[0].StatusCode))
             {
-                return null;
+                return null!;
             }
 
             foreach (ReferenceDescription rd in response.Results[0].References)
@@ -292,7 +292,7 @@ namespace Opc.Ua.InformationModel.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
     }
 }

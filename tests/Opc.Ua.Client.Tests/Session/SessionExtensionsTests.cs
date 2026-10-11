@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
                     (_, _, _, ids, _) =>
                     {
-                        ranges.Add(ids[0].IndexRange);
+                        ranges.Add(ids[0].IndexRange!);
                         byte[] chunk = ranges.Count == 1 ? [1, 2, 3, 4] : [5];
                         return new ValueTask<ReadResponse>(new ReadResponse
                         {

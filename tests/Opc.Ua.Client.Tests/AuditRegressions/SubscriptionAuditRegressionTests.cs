@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Subscriptions
                     sut.TryAdd(
                         "Fresh",
                         OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
-                        out IMonitoredItem fresh),
+                        out IMonitoredItem? fresh),
                     Is.True);
                 Assert.That(fresh, Is.Not.Null);
                 Assert.That(
@@ -142,13 +142,13 @@ namespace Opc.Ua.Client.Subscriptions
                     Is.True);
 
                 Assert.That(
-                    sut.TryGetMonitoredItemByClientHandle(42, out IMonitoredItem item),
+                    sut.TryGetMonitoredItemByClientHandle(42, out IMonitoredItem? item),
                     Is.True);
-                var loaded = (MonitoredItems.MonitoredItem)item;
+                var loaded = (MonitoredItems.MonitoredItem)item!;
                 Assert.Multiple(() =>
                 {
                     Assert.That(
-                        ServiceResult.IsGood(loaded.Error),
+                        ServiceResult.IsGood(loaded!.Error),
                         Is.True,
                         "a loaded item must not report BadOperationAbandoned");
                     Assert.That(
@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Subscriptions
                     sut.TryAdd(
                         "Trigger",
                         OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
-                        out IMonitoredItem trigger),
+                        out IMonitoredItem? trigger),
                     Is.True);
 
                 // Drain the create change the add queued so only the triggering
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.TryGetMonitoredItemChanges(out _, out _);
 
                 sut.EnqueueTriggeringOperation(
-                    new MonitoredItemManager.TriggeringOperation(trigger, [], []));
+                    new MonitoredItemManager.TriggeringOperation(trigger!, [], []));
 
                 Assert.That(
                     sut.HasPendingChanges,
@@ -203,13 +203,13 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.TryAdd(
                     "Trigger",
                     OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
-                    out IMonitoredItem trigger),
+                    out IMonitoredItem? trigger),
                 Is.True);
 
             var completion = new TaskCompletionSource<SetTriggeringResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             sut.EnqueueTriggeringOperation(
-                new MonitoredItemManager.TriggeringOperation(trigger, [], [], completion));
+                new MonitoredItemManager.TriggeringOperation(trigger!, [], [], completion));
 
             await sut.DisposeAsync();
 
@@ -238,12 +238,12 @@ namespace Opc.Ua.Client.Subscriptions
                     AutoSetQueueSize = true,
                     SamplingInterval = TimeSpan.FromMilliseconds(100)
                 });
-                Assert.That(sut.TryAdd("Auto", options, out IMonitoredItem item), Is.True);
+                Assert.That(sut.TryAdd("Auto", options, out IMonitoredItem? item), Is.True);
 
-                var monitoredItem = (TestItem)item;
+                var monitoredItem = (TestItem)item!;
                 TimeSpan publishingInterval = TimeSpan.FromMilliseconds(1000);
 
-                monitoredItem.RaiseSubscriptionStateChange(
+                monitoredItem!.RaiseSubscriptionStateChange(
                     SubscriptionState.Created, publishingInterval);
 
                 for (int i = 0; i < 5; i++)

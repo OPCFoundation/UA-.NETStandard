@@ -103,7 +103,7 @@ namespace Opc.Ua.Server
             ArrayOf<CallMethodRequest> methodsToCall,
             IList<ServiceResult> errors)
         {
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
                 CallMethodRequest request = methodsToCall[ii];

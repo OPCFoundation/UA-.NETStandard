@@ -130,7 +130,7 @@ namespace Opc.Ua.Sessions.Tests
             // BadIdentityTokenInvalid (no matching policy). The
             // ManagedSession-over-WebApi tests below need this.
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -187,10 +187,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription none = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
+                    ep.SecurityMode == MessageSecurityMode.None)!;
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured HTTPS endpoint - REST requires SM None.");
         }
@@ -205,9 +205,9 @@ namespace Opc.Ua.Sessions.Tests
             // endpoint without hard-coding the URL.
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription openApi = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
-                    Profiles.IsHttpsOpenApi(ep.TransportProfileUri));
+                    Profiles.IsHttpsOpenApi(ep.TransportProfileUri))!;
             Assert.That(openApi, Is.Not.Null,
                 "Reference server must advertise the HTTPS OpenAPI sub-profile (profile/2338) " +
                 "as a discovery-only twin alongside the SM=None HTTPS-binary endpoint.");
@@ -417,8 +417,8 @@ namespace Opc.Ua.Sessions.Tests
                     ApplicationType = ApplicationType.Client,
                     ProductUri = "urn:opcfoundation.org:UA:RESTClient"
                 },
-                ServerUri = m_server.GetEndpoints().ToArray()[0].Server.ApplicationUri,
-                EndpointUrl = m_server.GetEndpoints().ToArray()[0].EndpointUrl,
+                ServerUri = m_server.GetEndpoints().ToArray()![0].Server.ApplicationUri,
+                EndpointUrl = m_server.GetEndpoints().ToArray()![0].EndpointUrl,
                 SessionName = "HttpsWebApiIntegration-" + encoding,
                 ClientNonce = ByteString.From(new byte[32]),
                 ClientCertificate = default,

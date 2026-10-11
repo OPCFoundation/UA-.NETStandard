@@ -103,12 +103,12 @@ namespace Opc.Ua.Fuzzing
                                 kMaxLimitWalkValues,
                                 m_operation));
                     }
-                    (object value, string path) = m_pending.Pop();
+                    (object? value, string path) = m_pending.Pop();
                     Visit(value, path);
                 }
             }
 
-            private void Visit(object value, string path)
+            private void Visit(object? value, string path)
             {
                 switch (value)
                 {
@@ -127,15 +127,15 @@ namespace Opc.Ua.Fuzzing
                         CheckNodeId(nodeId, path);
                         return;
                     case ExpandedNodeId expandedNodeId:
-                        CheckString(expandedNodeId.NamespaceUri, path + ".NamespaceUri");
+                        CheckString(expandedNodeId.NamespaceUri!, path + ".NamespaceUri");
                         CheckNodeId(expandedNodeId.InnerNodeId, path);
                         return;
                     case QualifiedName qualifiedName:
-                        CheckString(qualifiedName.Name, path + ".Name");
+                        CheckString(qualifiedName.Name!, path + ".Name");
                         return;
                     case LocalizedText localizedText:
-                        CheckString(localizedText.Locale, path + ".Locale");
-                        CheckString(localizedText.Text, path + ".Text");
+                        CheckString(localizedText.Locale!, path + ".Locale");
+                        CheckString(localizedText.Text!, path + ".Text");
                         return;
                     case Variant variant:
                         VisitVariant(variant, path);
@@ -146,7 +146,7 @@ namespace Opc.Ua.Fuzzing
                     case ExtensionObject extensionObject:
                         m_pending.Push((extensionObject.TypeId, path + ".TypeId"));
                         // Without a context only an already decoded body is returned.
-                        if (extensionObject.TryGetValue(out IEncodeable body))
+                        if (extensionObject.TryGetValue(out IEncodeable? body))
                         {
                             m_pending.Push((body, path + ".Body"));
                         }
@@ -182,9 +182,9 @@ namespace Opc.Ua.Fuzzing
                     // same product - including an empty matrix whose non-zero dimensions still
                     // multiply out above the limit - before walking the materialized elements.
                     CheckMatrixShape(value, type, path);
-                    object elements = type.GetMethod(nameof(MatrixOf<int>.ToArrayOf), Type.EmptyTypes)
-                        .Invoke(value, null);
-                    VisitEnumerable(GetArrayOfElements(elements, elements.GetType()), path);
+                    object elements = type.GetMethod(nameof(MatrixOf<int>.ToArrayOf), Type.EmptyTypes)!
+                        .Invoke(value, null)!;
+                    VisitEnumerable(GetArrayOfElements(elements!, elements!.GetType()), path);
                     return;
                 }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Fuzzing
                     object propertyValue;
                     try
                     {
-                        propertyValue = property.GetValue(value);
+                        propertyValue = property.GetValue(value)!;
                     }
                     catch (TargetInvocationException ex) when (ex.InnerException != null)
                     {
@@ -220,7 +220,7 @@ namespace Opc.Ua.Fuzzing
 
             private void VisitVariant(Variant variant, string path)
             {
-                object raw = variant.AsBoxedObject(Variant.BoxingBehavior.None);
+                object raw = variant.AsBoxedObject(Variant.BoxingBehavior.None)!;
                 if (raw != null && IsGeneric(raw.GetType(), typeof(MatrixOf<>)))
                 {
                     // The form every legacy consumer (DataValue.Value, the address space)
@@ -232,8 +232,8 @@ namespace Opc.Ua.Fuzzing
 
             private static IEnumerable GetArrayOfElements(object value, Type type)
             {
-                return (IEnumerable)type.GetMethod(nameof(ArrayOf<int>.ToArray), Type.EmptyTypes)
-                    .Invoke(value, null) ?? Array.Empty<object>();
+                return (IEnumerable)type.GetMethod(nameof(ArrayOf<int>.ToArray), Type.EmptyTypes)!
+                    .Invoke(value, null)! ?? Array.Empty<object>();
             }
 
             private void VisitEnumerable(IEnumerable enumerable, string path)
@@ -267,7 +267,7 @@ namespace Opc.Ua.Fuzzing
 
                 var dimensions = (int[])type
                     .GetProperty(nameof(MatrixOf<int>.Dimensions))!
-                    .GetValue(matrix);
+                    .GetValue(matrix)!;
                 if (dimensions == null)
                 {
                     return;
@@ -375,7 +375,7 @@ namespace Opc.Ua.Fuzzing
                 });
             }
 
-            private readonly Stack<(object Value, string Path)> m_pending = new();
+            private readonly Stack<(object? Value, string Path)> m_pending = new();
             private readonly HashSet<object> m_seen = new(ReferenceComparer.Instance);
             private readonly int m_maxStringLength;
             private readonly int m_maxByteStringLength;
@@ -403,7 +403,7 @@ namespace Opc.Ua.Fuzzing
         {
             public static ReferenceComparer Instance { get; } = new();
 
-            public new bool Equals(object x, object y)
+            public new bool Equals(object? x, object? y)
             {
                 return ReferenceEquals(x, y);
             }

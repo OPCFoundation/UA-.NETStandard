@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.Alarms
 
         private AlarmConditionState CreateAlarm(uint id)
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(id), QualifiedName.From("a" + id), default, true);
             alarm.SetEnableState(m_context, true);
             var sup = new TwoStateVariableState(alarm);
@@ -85,9 +85,9 @@ namespace Opc.Ua.Server.Tests.Alarms
             sourceVal = true;
             engine.Evaluate(m_context);
 
-            Assert.That(a1.SuppressedState.Id.Value, Is.True);
-            Assert.That(a2.SuppressedState.Id.Value, Is.True);
-            Assert.That(a1.SuppressedOrShelved.Value, Is.True);
+            Assert.That(a1.SuppressedState!.Id!.Value, Is.True);
+            Assert.That(a2.SuppressedState!.Id!.Value, Is.True);
+            Assert.That(a1.SuppressedOrShelved!.Value, Is.True);
         }
 
         [Test]
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.RegisterSuppressionGroup(group, () => sourceVal, [a1]);
 
             engine.Evaluate(m_context);
-            Assert.That(a1.SuppressedState.Id.Value, Is.True);
+            Assert.That(a1.SuppressedState!.Id!.Value, Is.True);
 
             sourceVal = false;
             engine.Evaluate(m_context);
@@ -121,8 +121,8 @@ namespace Opc.Ua.Server.Tests.Alarms
 
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: true);
 
-            Assert.That(other1.SuppressedState.Id.Value, Is.True);
-            Assert.That(other2.SuppressedState.Id.Value, Is.True);
+            Assert.That(other1.SuppressedState!.Id!.Value, Is.True);
+            Assert.That(other2.SuppressedState!.Id!.Value, Is.True);
 
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: false);
             Assert.That(other1.SuppressedState.Id.Value, Is.False);
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.RegisterSuppressionGroup(g1, () => g1Active, [a1]);
             engine.RegisterSuppressionGroup(g2, () => g2Active, [a1]);
             engine.Evaluate(m_context);
-            Assert.That(a1.SuppressedState.Id.Value, Is.True);
+            Assert.That(a1.SuppressedState!.Id!.Value, Is.True);
 
             g1Active = false;
             engine.Evaluate(m_context);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: true);
             engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: false);
 
-            Assert.That(other.SuppressedState.Id.Value, Is.True);
+            Assert.That(other.SuppressedState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -265,8 +265,8 @@ namespace Opc.Ua.Server.Tests.Alarms
 
             arm = true;
             Assert.That(() => engine.Evaluate(m_context), Throws.Nothing);
-            Assert.That(goodMember.SuppressedState.Id.Value, Is.True);
-            Assert.That(badMember.SuppressedState.Id.Value, Is.False);
+            Assert.That(goodMember.SuppressedState!.Id!.Value, Is.True);
+            Assert.That(badMember.SuppressedState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         {
             using var engine = new AlarmSuppressionEngine();
             AlarmGroupState group = CreateGroup(600);
-            var member = new CountingAlarm(m_telemetry, null);
+            var member = new CountingAlarm(m_telemetry, null!);
             member.Create(m_context, new NodeId(601U), QualifiedName.From("a601"), default, true);
             member.SetEnableState(m_context, true);
             var sup = new TwoStateVariableState(member);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             AlarmGroupState g2 = CreateGroup(611);
             AlarmGroupState firstGroup = CreateGroup(612);
             AlarmConditionState first = CreateAlarm(613);
-            var member = new CountingAlarm(m_telemetry, null);
+            var member = new CountingAlarm(m_telemetry, null!);
             member.Create(m_context, new NodeId(614U), QualifiedName.From("a614"), default, true);
             member.SetEnableState(m_context, true);
             var sup = new TwoStateVariableState(member);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             engine.RegisterSuppressionGroup(g2, () => g2Active, [member]);
             engine.RegisterFirstInGroupAlarm(first, firstGroup, [member]);
             engine.Evaluate(m_context);
-            Assert.That(member.SuppressedState.Id.Value, Is.True);
+            Assert.That(member.SuppressedState.Id!.Value, Is.True);
             Assert.That(member.SuppressedWriteCount, Is.EqualTo(1));
 
             // The OR of the suppressors stays true for all of these, so
@@ -388,7 +388,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             // must not mutate the other member's suppressed state.
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: true);
 
-            Assert.That(other.SuppressedState.Id.Value, Is.False);
+            Assert.That(other.SuppressedState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -405,8 +405,8 @@ namespace Opc.Ua.Server.Tests.Alarms
 
             engine.OnFirstInGroupActiveChanged(m_context, first, group, firstActive: true);
 
-            Assert.That(first.SuppressedState.Id.Value, Is.False);
-            Assert.That(other.SuppressedState.Id.Value, Is.True);
+            Assert.That(first.SuppressedState!.Id!.Value, Is.False);
+            Assert.That(other.SuppressedState!.Id!.Value, Is.True);
         }
 
         private sealed class CountingAlarm : AlarmConditionState
@@ -450,7 +450,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         {
             var groupState = new AlarmGroupState(null);
             groupState.Create(m_context, new NodeId(1000U), QualifiedName.From("g1000"), default, true);
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1001U), QualifiedName.From("a1001"), default, true);
 
             var group = new AlarmGroup(groupState);
@@ -466,7 +466,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         {
             var groupState = new AlarmGroupState(null);
             groupState.Create(m_context, new NodeId(2000U), QualifiedName.From("g2000"), default, true);
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(2001U), QualifiedName.From("a2001"), default, true);
 
             var group = new AlarmGroup(groupState);
@@ -520,7 +520,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             // points to a namespace URI that is NOT registered in the
             // system context — ExpandedNodeId.ToNodeId returns NodeId.Null
             // in that case, exercising the GetMemberIds null-skip branch.
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(3201U), QualifiedName.From("a3201"), default, true);
             groupState.AddReference(ReferenceTypeIds.AlarmGroupMember, false, alarm.NodeId);
             var unresolvable = new ExpandedNodeId(

@@ -266,10 +266,10 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationCertificates = [certificateIdentifier]
             };
 
-            using Certificate result = await securityConfiguration.FindApplicationCertificateAsync(
+            using Certificate result = (await securityConfiguration.FindApplicationCertificateAsync(
                 SecurityPolicies.Basic256Sha256,
                 privateKey: false,
-                telemetry: telemetry).ConfigureAwait(false);
+                telemetry: telemetry).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Thumbprint, Is.EqualTo(certificate.Thumbprint));

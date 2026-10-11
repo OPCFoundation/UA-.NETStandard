@@ -494,7 +494,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 document.Load(reader);
             }
-            return document.DocumentElement;
+            return document.DocumentElement!;
         }
 
         /// <summary>
@@ -550,7 +550,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return new ValueTask<WotResolverResult>(
-                    m_documents.TryGetValue(reference, out string json)
+                    m_documents.TryGetValue(reference, out string? json)
                         ? WotResolverResult.FromBytes(Utf8(json))
                         : WotResolverResult.NotFound);
             }

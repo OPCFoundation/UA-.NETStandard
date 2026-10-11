@@ -445,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 {
                     return candidate;
                 }
-                directory = directory.Parent;
+                directory = directory.Parent!;
             }
             return string.Empty;
         }

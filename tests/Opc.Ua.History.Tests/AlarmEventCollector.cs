@@ -215,7 +215,7 @@ namespace Opc.Ua.History.Tests
 
         public bool HasEvents(NodeId conditionId)
         {
-            return m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList> queue) && !queue.IsEmpty;
+            return m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList>? queue) && !queue.IsEmpty;
         }
 
         public async ValueTask DisposeAsync()
@@ -439,7 +439,7 @@ namespace Opc.Ua.History.Tests
         {
             foreach (ExtensionObject notification in notificationMessage.NotificationData)
             {
-                if (!notification.TryGetValue(out EventNotificationList eventNotificationList))
+                if (!notification.TryGetValue(out EventNotificationList? eventNotificationList))
                 {
                     continue;
                 }
@@ -464,8 +464,8 @@ namespace Opc.Ua.History.Tests
             Func<EventFieldList, bool> predicate,
             out EventFieldList eventFields)
         {
-            eventFields = null;
-            if (!m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList> queue))
+            eventFields = null!;
+            if (!m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList>? queue))
             {
                 return false;
             }
@@ -537,7 +537,7 @@ namespace Opc.Ua.History.Tests
         private readonly EventFilter m_eventFilter;
         private readonly ConcurrentDictionary<NodeId, ConcurrentQueue<EventFieldList>> m_eventLog = [];
         private readonly CancellationTokenSource m_shutdown;
-        private Task m_publishLoop;
+        private Task m_publishLoop = null!;
         private uint m_subscriptionId;
         private bool m_disposed;
     }

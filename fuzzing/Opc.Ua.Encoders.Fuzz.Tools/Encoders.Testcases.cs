@@ -60,7 +60,7 @@ namespace Opc.Ua.Fuzzing
                 using (var encoder = new BinaryEncoder(FuzzableCode.MessageContext))
                 {
                     messageEncoder(encoder);
-                    message = encoder.CloseAndReturnBuffer();
+                    message = encoder.CloseAndReturnBuffer()!;
                 }
 
                 // Test the fuzz targets with the message.
@@ -70,7 +70,7 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.LibfuzzBinaryDecoderSegmented(message);
                 FuzzableCode.LibfuzzBinaryEncoderSegmented(message);
                 FuzzableCode.LibfuzzBinaryEncoderIndempotentSegmented(message);
-                using (var stream = new MemoryStream(message))
+                using (var stream = new MemoryStream(message!))
                 {
                     FuzzableCode.AflfuzzBinaryDecoder(stream);
                 }
@@ -80,10 +80,10 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+                    IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
                     foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                     {
-                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                     }
                 }
 
@@ -114,10 +114,10 @@ namespace Opc.Ua.Fuzzing
                 string json = Encoding.UTF8.GetString(message);
                 FuzzableCode.AflfuzzJsonDecoder(json);
                 FuzzableCode.AflfuzzJsonEncoder(json);
-                IEncodeable decoded = FuzzableCode.FuzzJsonDecoderCore(json, true);
+                IEncodeable decoded = FuzzableCode.FuzzJsonDecoderCore(json, true)!;
                 foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                 {
-                    FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                    FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                 }
 
                 string fileName = Path.Combine(
@@ -139,11 +139,11 @@ namespace Opc.Ua.Fuzzing
                         FuzzableCode.MessageContext.NamespaceUris,
                         FuzzableCode.MessageContext.ServerUris);
                     messageEncoder(encoder);
-                    xml = encoder.CloseAndReturnText();
+                    xml = encoder.CloseAndReturnText()!;
                 }
 
                 // Test the fuzz targets with the message.
-                byte[] message = Encoding.UTF8.GetBytes(xml);
+                byte[] message = Encoding.UTF8.GetBytes(xml!);
                 using (var stream = new MemoryStream(message))
                 {
                     FuzzableCode.AflfuzzXmlDecoder(stream);
@@ -154,10 +154,10 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true);
+                    IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true)!;
                     foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                     {
-                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                     }
                 }
                 FuzzableCode.LibfuzzXmlDecoder(message);

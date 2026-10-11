@@ -121,10 +121,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             };
 
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            m_serverFixture.Config.TransportQuotas!.MaxMessageSize = 4 * 1024 * 1024;
             m_serverFixture.Config.TransportQuotas.MaxByteStringLength =
                 m_serverFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
-            m_serverFixture.Config.ServerConfiguration.AuditingEnabled = true;
+            m_serverFixture.Config.ServerConfiguration!.AuditingEnabled = true;
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies =
                 new UserTokenPolicy[] {
                     new(UserTokenType.Anonymous),
@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
             m_clientFixture = new ClientFixture(telemetry: NUnitTelemetryContext.Create());
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas!.MaxMessageSize = 4 * 1024 * 1024;
             m_clientFixture.Config.TransportQuotas.MaxByteStringLength =
                 m_clientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
 
@@ -186,7 +186,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             AuthorizationServiceClient client = await CreateClientAsync().ConfigureAwait(false);
             (string accessToken, _, string refreshToken) = await StartAndFinishAsync(client).ConfigureAwait(false);
 
-            (string refreshedAccessToken, _, string newRefreshToken, _) = await client
+            (string refreshedAccessToken, _, string? newRefreshToken, _) = await client
                 .RefreshTokenAsync(Audience, refreshToken)
                 .ConfigureAwait(false);
 
@@ -194,10 +194,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(newRefreshToken, Is.Not.Null.And.Not.Empty);
             Assert.That(newRefreshToken, Is.Not.EqualTo(refreshToken));
 
-            ECDsa verifier = m_signingCertificate.GetECDsaPublicKey();
+            ECDsa verifier = m_signingCertificate.GetECDsaPublicKey()!;
             using var resolver = new StaticIssuerKeyResolver(
                 Issuer,
-                [new IssuerVerificationKey(m_signingCertificate.Thumbprint, verifier, "ES256")]);
+                [new IssuerVerificationKey(m_signingCertificate.Thumbprint, verifier!, "ES256")]);
             AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
                 .AuthenticateAsync(CreateContext(refreshedAccessToken))
                 .ConfigureAwait(false);
@@ -225,7 +225,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(userTokenPolicies.IsNull, Is.False,
                 "GetServiceDescription must return a non-null UserTokenPolicies array.");
             Assert.That(userTokenPolicies.Count,
-                Is.EqualTo(m_serverFixture.Config.ServerConfiguration.UserTokenPolicies.Count),
+                Is.EqualTo(m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies.Count),
                 "GetServiceDescription must advertise the server's configured user token policies.");
         }
 
@@ -277,10 +277,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 ObjectTypeIds.AuthorizationServiceType,
                 m_session.NamespaceUris);
 #pragma warning restore IDE0007 // Use implicit type
-            ReferenceDescription service = children.FirstOrDefault(reference =>
+            ReferenceDescription service = (children.FirstOrDefault(reference =>
                     reference.NodeClass == NodeClass.Object &&
                     ExpandedNodeId.ToNodeId(reference.TypeDefinition, m_session.NamespaceUris) == serviceTypeId) ??
-                children.FirstOrDefault(reference => reference.NodeClass == NodeClass.Object);
+                children.FirstOrDefault(reference => reference.NodeClass == NodeClass.Object))!;
             if (service != null)
             {
                 return new AuthorizationServiceClient(
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
             (string accessToken,
                 DateTime accessTokenExpiryTime,
-                string refreshToken,
+                string? refreshToken,
                 _) = await client
                 .FinishRequestTokenAsync(
                     requestId,
@@ -317,7 +317,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
 
             Assert.That(refreshToken, Is.Not.Null.And.Not.Empty);
-            return (accessToken, accessTokenExpiryTime, refreshToken);
+            return (accessToken, accessTokenExpiryTime, refreshToken!);
         }
 
         private async Task<ReferenceDescription[]> BrowseChildrenAsync(NodeId nodeId)
@@ -345,13 +345,13 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
         private static string FlattenVariant(Variant variant)
         {
-            object value = variant.AsBoxedObject(Variant.BoxingBehavior.None);
+            object value = variant.AsBoxedObject(Variant.BoxingBehavior.None)!;
             switch (value)
             {
                 case null:
                     return string.Empty;
                 case ArrayOf<Variant> values:
-                    return string.Join(" ", values.ToArray().Select(FlattenVariant));
+                    return string.Join(" ", values.ToArray()!.Select(FlattenVariant));
                 case Variant[] values:
                     return string.Join(" ", values.Select(FlattenVariant));
                 case LocalizedText text:
@@ -361,7 +361,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             }
         }
 
-        private static CapturingAuditEventServer ReportRefreshAuditEvent(Exception exception = null)
+        private static CapturingAuditEventServer ReportRefreshAuditEvent(Exception? exception = null)
         {
             var auditServer = new CapturingAuditEventServer();
             ILogger logger = NUnitTelemetryContext.Create().CreateLogger<RefreshTokenTests>();
@@ -379,7 +379,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         {
             string inputArguments = auditEvent.InputArguments?.Value == null
                 ? string.Empty
-                : string.Join(" ", auditEvent.InputArguments.Value.ToArray().Select(FlattenVariant));
+                : string.Join(" ", auditEvent.InputArguments.Value.ToArray()!.Select(FlattenVariant));
             string message = auditEvent.Message?.Value.Text ?? string.Empty;
             return inputArguments + " " + message;
         }
@@ -451,8 +451,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     server.MessageContext.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
-                string databaseStorePath = Utils.ReplaceSpecialFolderNames(m_gdsConfiguration.DatabaseStorePath);
-                string databaseDir = Path.GetDirectoryName(databaseStorePath);
+                string databaseStorePath = Utils.ReplaceSpecialFolderNames(m_gdsConfiguration.DatabaseStorePath)!;
+                string databaseDir = Path.GetDirectoryName(databaseStorePath)!;
                 if (!string.IsNullOrEmpty(databaseDir))
                 {
                     Directory.CreateDirectory(databaseDir);
@@ -460,7 +460,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
                 LinqApplicationsDatabase database = string.IsNullOrEmpty(databaseDir)
                     ? new LinqApplicationsDatabase()
-                    : JsonApplicationsDatabase.Load(databaseStorePath);
+                    : JsonApplicationsDatabase.Load(databaseStorePath!);
 
 #pragma warning disable CA2000 // ownership of ApplicationsNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
                 var applications = new ApplicationsNodeManager(

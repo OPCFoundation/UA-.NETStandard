@@ -172,7 +172,7 @@ namespace Opc.Ua.Lds.Tests
                 .GetEndpointsAsync(default, ct)
                 .ConfigureAwait(false);
 
-            EndpointDescription matching = null;
+            EndpointDescription? matching = null;
             foreach (EndpointDescription e in endpoints)
             {
                 if (string.Equals(e.SecurityPolicyUri, securityPolicy, StringComparison.Ordinal) &&
@@ -193,14 +193,14 @@ namespace Opc.Ua.Lds.Tests
 
             using CertificateEntry? instanceEntry = ClientFixture.Config.CertificateManager?
                 .AcquireApplicationCertificateBySecurityPolicy(matching.SecurityPolicyUri ?? SecurityPolicies.None);
-            Certificate instanceCertificate = instanceEntry?.Certificate?.AddRef();
+            Certificate instanceCertificate = (instanceEntry?.Certificate?.AddRef())!;
 
             return await RegistrationClient
                 .CreateAsync(
                     ClientFixture.Config,
                     matching,
                     endpointConfiguration,
-                    instanceCertificate,
+                    instanceCertificate!,
                     ct: ct)
                 .ConfigureAwait(false);
         }

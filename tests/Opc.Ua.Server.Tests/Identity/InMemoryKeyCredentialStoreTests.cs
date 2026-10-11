@@ -50,8 +50,8 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var store = new InMemoryKeyCredentialStore();
 
-            Server.KeyCredential result = await store.GetAsync("unknown", CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential result = (await store.GetAsync("unknown", CancellationToken.None)
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
         }
@@ -69,8 +69,8 @@ namespace Opc.Ua.Server.Tests.Identity
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential stored = (await store.GetAsync(CredentialId, CancellationToken.None)
+                .ConfigureAwait(false))!;
 
             Assert.That(stored, Is.Not.Null);
             Assert.That(stored.Secret, Is.EqualTo(s_secret));
@@ -97,10 +97,10 @@ namespace Opc.Ua.Server.Tests.Identity
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential stored = (await store.GetAsync(CredentialId, CancellationToken.None)
+                .ConfigureAwait(false))!;
 
-            Assert.That(stored.Secret, Is.EqualTo(replacement));
+            Assert.That(stored!.Secret, Is.EqualTo(replacement));
             Assert.That(stored.Expiration, Is.EqualTo(newExpiration));
         }
 
@@ -116,8 +116,8 @@ namespace Opc.Ua.Server.Tests.Identity
 
             await store.DeleteAsync(CredentialId, CancellationToken.None).ConfigureAwait(false);
 
-            Server.KeyCredential after = await store.GetAsync(CredentialId, CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential after = (await store.GetAsync(CredentialId, CancellationToken.None)
+                .ConfigureAwait(false))!;
             Assert.That(after, Is.Null);
 
             IReadOnlyList<string> list = await store.ListAsync(CancellationToken.None).ConfigureAwait(false);
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var store = new InMemoryKeyCredentialStore();
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await store.UpdateAsync(CredentialId, null, CancellationToken.None).ConfigureAwait(false));
+                async () => await store.UpdateAsync(CredentialId, null!, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("credential"));
         }
 

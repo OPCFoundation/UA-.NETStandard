@@ -391,7 +391,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             time.Advance(s_leaseDuration - s_renewInterval);
             Task<bool> stale = election.TryAcquireOrRenewAsync().AsTask();
-            Task<bool> takeover = null;
+            Task<bool>? takeover = null;
             try
             {
                 await entered[0].Task.WaitAsync(s_timeout).ConfigureAwait(false);

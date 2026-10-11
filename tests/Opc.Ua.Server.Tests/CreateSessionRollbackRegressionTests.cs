@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             {
                 CreatedSessionId = session.Id;
                 m_lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
-                return base.CreateSessionProcessAdditionalParameters(session, additionalHeader);
+                return base.CreateSessionProcessAdditionalParameters(session, additionalHeader)!;
             }
 
             private readonly RequestLifetime m_lifetime;

@@ -5,7 +5,6 @@
     <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
     <PublishAot>true</PublishAot>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
     <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
          warnings from third-party packages that are not trim/AOT-analysis-clean.
          These are referenced-assembly rollups only; our own assemblies are still

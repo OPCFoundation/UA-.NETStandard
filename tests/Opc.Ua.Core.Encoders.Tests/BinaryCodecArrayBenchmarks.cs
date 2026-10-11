@@ -114,9 +114,9 @@ namespace Opc.Ua.Core.Encoders.Tests
             };
         }
 
-        protected ServiceMessageContext m_context;
-        protected MemoryStream m_stream;
-        protected byte[] m_encoded;
+        protected ServiceMessageContext m_context = null!;
+        protected MemoryStream m_stream = null!;
+        protected byte[] m_encoded = null!;
         protected int m_sink;
     }
 
@@ -162,8 +162,8 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             using var encoder = new BinaryEncoder(m_context);
             WriteArray(encoder);
-            m_encoded = encoder.CloseAndReturnBuffer();
-            m_stream = new MemoryStream(m_encoded.Length * 2);
+            m_encoded = encoder.CloseAndReturnBuffer()!;
+            m_stream = new MemoryStream(m_encoded!.Length * 2);
         }
 
         [GlobalCleanup]
@@ -256,14 +256,14 @@ namespace Opc.Ua.Core.Encoders.Tests
             };
         }
 
-        private string[] m_strings;
-        private int[] m_int32s;
-        private double[] m_doubles;
-        private NodeId[] m_nodeIds;
-        private Variant[] m_variants;
-        private DataValue[] m_dataValues;
-        private ExtensionObject[] m_extensionObjects;
-        private ReadValueId[] m_readValueIds;
+        private string[] m_strings = null!;
+        private int[] m_int32s = null!;
+        private double[] m_doubles = null!;
+        private NodeId[] m_nodeIds = null!;
+        private Variant[] m_variants = null!;
+        private DataValue[] m_dataValues = null!;
+        private ExtensionObject[] m_extensionObjects = null!;
+        private ReadValueId[] m_readValueIds = null!;
     }
 
     /// <summary>
@@ -290,8 +290,8 @@ namespace Opc.Ua.Core.Encoders.Tests
             }
             using var encoder = new BinaryEncoder(m_context);
             WriteVariants(encoder);
-            m_encoded = encoder.CloseAndReturnBuffer();
-            m_stream = new MemoryStream(m_encoded.Length * 2);
+            m_encoded = encoder.CloseAndReturnBuffer()!;
+            m_stream = new MemoryStream(m_encoded!.Length * 2);
         }
 
         [GlobalCleanup]
@@ -486,6 +486,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             };
         }
 
-        private IEncodeable m_message;
+        private IEncodeable m_message = null!;
     }
 }

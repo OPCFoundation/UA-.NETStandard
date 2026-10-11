@@ -94,9 +94,9 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
-            UAObjectType root = result.Value?.Items?.OfType<UAObjectType>().FirstOrDefault();
+            UAObjectType root = (result.Value?.Items?.OfType<UAObjectType>().FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
-            string browseName = root!.BrowseName;
+            string browseName = root!.BrowseName!;
             Assert.That(browseName, Is.Not.Null);
             Assert.That(
                 browseName!.IndexOf(' ', StringComparison.Ordinal) < 0,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
-            UAObjectType root = result.Value?.Items?.OfType<UAObjectType>().FirstOrDefault();
+            UAObjectType root = (result.Value?.Items?.OfType<UAObjectType>().FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             Assert.That(root!.BrowseName, Is.Not.Null);
         }
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAObjectType root = result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault();
+            UAObjectType root = (result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             var forwardRefs = root!.References?
                 .Where(r => r.IsForward && r.ReferenceType == "HasComponent")
@@ -161,7 +161,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAObjectType root = result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault();
+            UAObjectType root = (result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             var backwardRefs = root!.References?
                 .Where(r => !r.IsForward && r.ReferenceType == "HasComponent")
@@ -268,7 +268,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAObjectType root = result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault();
+            UAObjectType root = (result.Value!.Items?.OfType<UAObjectType>().FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             Assert.That(root!.BrowseName, Is.EqualTo("1:AlertType"));
         }

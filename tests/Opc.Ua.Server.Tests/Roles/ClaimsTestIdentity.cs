@@ -41,19 +41,19 @@ namespace Opc.Ua.Server.Tests
         public ClaimsTestIdentity(
             UserTokenType tokenType = UserTokenType.IssuedToken,
             string displayName = "claims-user",
-            IEnumerable<string> groups = null,
-            IEnumerable<string> roles = null,
-            string issuer = null,
-            string subject = null,
-            IEnumerable<NodeId> grantedRoleIds = null)
+            IEnumerable<string>? groups = null,
+            IEnumerable<string>? roles = null,
+            string? issuer = null,
+            string? subject = null,
+            IEnumerable<NodeId>? grantedRoleIds = null)
         {
             TokenType = tokenType;
             DisplayName = displayName;
             Groups = groups?.ToArray() ?? [];
             Roles = roles?.ToArray() ?? [];
-            Issuer = issuer;
+            Issuer = issuer!;
             Subject = subject ?? displayName;
-            Claims = BuildClaims(Groups, Roles, Issuer, Subject);
+            Claims = BuildClaims(Groups, Roles, Issuer!, Subject);
             GrantedRoleIds = grantedRoleIds == null
                 ? []
                 : ArrayOf.Wrapped(grantedRoleIds.ToArray());
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests
 
         public IUserIdentityTokenHandler TokenHandler => s_tokenHandler;
 
-        public IReadOnlyDictionary<string, object> Claims { get; }
+        public IReadOnlyDictionary<string, object?> Claims { get; }
 
         public IReadOnlyList<string> Groups { get; }
 
@@ -83,13 +83,13 @@ namespace Opc.Ua.Server.Tests
 
         public string Subject { get; }
 
-        private static Dictionary<string, object> BuildClaims(
+        private static Dictionary<string, object?> BuildClaims(
             IReadOnlyList<string> groups,
             IReadOnlyList<string> roles,
             string issuer,
             string subject)
         {
-            var claims = new Dictionary<string, object>();
+            var claims = new Dictionary<string, object?>();
             if (groups.Count > 0)
             {
                 claims["groups"] = groups;

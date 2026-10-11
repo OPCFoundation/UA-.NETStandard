@@ -132,12 +132,12 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             IConfigurationNodeManager configuration =
                 m_server.CurrentInstance.ConfigurationNodeManager;
 
-            NamespaceMetadataState primary = await configuration
+            NamespaceMetadataState primary = (await configuration
                 .GetNamespaceMetadataStateAsync(CoverageTestCatalogue.NamespaceUri)
-                .ConfigureAwait(false);
-            NamespaceMetadataState secondary = await configuration
+                .ConfigureAwait(false))!;
+            NamespaceMetadataState secondary = (await configuration
                 .GetNamespaceMetadataStateAsync(CoverageTestCatalogue.SecondaryNamespaceUri)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -145,8 +145,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
                     "A NamespaceMetadata Object should describe the primary model namespace.");
                 Assert.That(secondary, Is.Not.Null,
                     "A NamespaceMetadata Object should describe the secondary model namespace.");
-                Assert.That(primary.NamespaceUri?.Value, Is.EqualTo(CoverageTestCatalogue.NamespaceUri));
-                Assert.That(secondary.NamespaceUri?.Value,
+                Assert.That(primary!.NamespaceUri?.Value, Is.EqualTo(CoverageTestCatalogue.NamespaceUri));
+                Assert.That(secondary!.NamespaceUri?.Value,
                     Is.EqualTo(CoverageTestCatalogue.SecondaryNamespaceUri));
             });
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
         public async Task NodePresentWithBrowseNameAndClassAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
-            NodeState node = await FindNodeAsync(expected.Id).ConfigureAwait(false);
+            NodeState node = (await FindNodeAsync(expected.Id).ConfigureAwait(false))!;
 
             Assert.That(node, Is.Not.Null,
                 $"Node ns={m_ns};i={expected.Id} ({expected.BrowseName}) should be present.");
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
         public async Task NodeMaterialisesAsExpectedStateFamilyAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
-            NodeState node = await FindNodeAsync(expected.Id).ConfigureAwait(false);
+            NodeState node = (await FindNodeAsync(expected.Id).ConfigureAwait(false))!;
             Assert.That(node, Is.Not.Null);
             Assert.That(node, Is.AssignableTo(ExpectedStateFamily(expected.NodeClass)),
                 $"Node {expected.BrowseName} should materialise as {ExpectedStateFamily(expected.NodeClass).Name}.");
@@ -229,7 +229,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.References))]
         public async Task ReferenceExistsAsync(CoverageTestCatalogue.ExpectedReference expected)
         {
-            NodeState source = await FindNodeAsync(expected.Source).ConfigureAwait(false);
+            NodeState source = (await FindNodeAsync(expected.Source).ConfigureAwait(false))!;
             Assert.That(source, Is.Not.Null,
                 $"Reference source ns={m_ns};i={expected.Source} should exist.");
 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(400)]
         public async Task RootAttributesRoundTripAsync()
         {
-            NodeState root = await FindNodeAsync(5400).ConfigureAwait(false);
+            NodeState root = (await FindNodeAsync(5400).ConfigureAwait(false))!;
             Assert.That(root, Is.Not.Null);
             Assert.Multiple(() =>
             {
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(410)]
         public async Task BooleanValueAttributesRoundTripAsync()
         {
-            var v = (BaseVariableState)await FindNodeAsync(5420).ConfigureAwait(false);
+            var v = (BaseVariableState)(await FindNodeAsync(5420).ConfigureAwait(false))!;
             Assert.That(v, Is.Not.Null);
             Assert.Multiple(() =>
             {
@@ -295,16 +295,16 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(420)]
         public async Task ReferenceTypeAttributesRoundTripAsync()
         {
-            var hierarchical = (ReferenceTypeState)await FindNodeAsync(5001).ConfigureAwait(false);
-            var symmetric = (ReferenceTypeState)await FindNodeAsync(5002).ConfigureAwait(false);
-            var abstractRef = (ReferenceTypeState)await FindNodeAsync(5003).ConfigureAwait(false);
+            var hierarchical = (ReferenceTypeState)(await FindNodeAsync(5001).ConfigureAwait(false))!;
+            var symmetric = (ReferenceTypeState)(await FindNodeAsync(5002).ConfigureAwait(false))!;
+            var abstractRef = (ReferenceTypeState)(await FindNodeAsync(5003).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(hierarchical.Symmetric, Is.False);
+                Assert.That(hierarchical!.Symmetric, Is.False);
                 Assert.That(hierarchical.InverseName.Text, Is.EqualTo("IsCoverageChildOf"));
-                Assert.That(symmetric.Symmetric, Is.True);
-                Assert.That(abstractRef.IsAbstract, Is.True);
+                Assert.That(symmetric!.Symmetric, Is.True);
+                Assert.That(abstractRef!.IsAbstract, Is.True);
             });
         }
 
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(430)]
         public async Task ViewAttributesRoundTripAsync()
         {
-            var view = (ViewState)await FindNodeAsync(5460).ConfigureAwait(false);
+            var view = (ViewState)(await FindNodeAsync(5460).ConfigureAwait(false))!;
             Assert.That(view, Is.Not.Null);
             Assert.That(view.ContainsNoLoops, Is.True);
         }
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(440)]
         public async Task EventSourceEventNotifierRoundTripAsync()
         {
-            var obj = (BaseObjectState)await FindNodeAsync(5410).ConfigureAwait(false);
+            var obj = (BaseObjectState)(await FindNodeAsync(5410).ConfigureAwait(false))!;
             Assert.That(obj, Is.Not.Null);
             Assert.That(obj.EventNotifier, Is.EqualTo((byte)1));
         }
@@ -339,7 +339,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(450)]
         public async Task LockedMethodNotExecutableAsync()
         {
-            var method = (MethodState)await FindNodeAsync(5451).ConfigureAwait(false);
+            var method = (MethodState)(await FindNodeAsync(5451).ConfigureAwait(false))!;
             Assert.That(method, Is.Not.Null);
             Assert.Multiple(() =>
             {
@@ -355,21 +355,21 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(460)]
         public async Task DataTypeDefinitionsRoundTripAsync()
         {
-            var enumeration = (DataTypeState)await FindNodeAsync(5100).ConfigureAwait(false);
-            var structure = (DataTypeState)await FindNodeAsync(5130).ConfigureAwait(false);
-            var union = (DataTypeState)await FindNodeAsync(5150).ConfigureAwait(false);
-            var optionSet = (DataTypeState)await FindNodeAsync(5110).ConfigureAwait(false);
-            var abstractType = (DataTypeState)await FindNodeAsync(5120).ConfigureAwait(false);
+            var enumeration = (DataTypeState)(await FindNodeAsync(5100).ConfigureAwait(false))!;
+            var structure = (DataTypeState)(await FindNodeAsync(5130).ConfigureAwait(false))!;
+            var union = (DataTypeState)(await FindNodeAsync(5150).ConfigureAwait(false))!;
+            var optionSet = (DataTypeState)(await FindNodeAsync(5110).ConfigureAwait(false))!;
+            var abstractType = (DataTypeState)(await FindNodeAsync(5120).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(enumeration.DataTypeDefinition.TryGetValue<EnumDefinition>(out _), Is.True);
-                Assert.That(structure.DataTypeDefinition.TryGetValue<StructureDefinition>(out _), Is.True);
-                Assert.That(optionSet.DataTypeDefinition.TryGetValue<EnumDefinition>(out _), Is.True);
-                Assert.That(abstractType.IsAbstract, Is.True);
+                Assert.That(enumeration!.DataTypeDefinition.TryGetValue<EnumDefinition>(out _), Is.True);
+                Assert.That(structure!.DataTypeDefinition.TryGetValue<StructureDefinition>(out _), Is.True);
+                Assert.That(optionSet!.DataTypeDefinition.TryGetValue<EnumDefinition>(out _), Is.True);
+                Assert.That(abstractType!.IsAbstract, Is.True);
 
-                Assert.That(union.DataTypeDefinition.TryGetValue<StructureDefinition>(out StructureDefinition unionDef), Is.True);
-                Assert.That(unionDef.StructureType, Is.EqualTo(StructureType.Union));
+                Assert.That(union!.DataTypeDefinition.TryGetValue<StructureDefinition>(out StructureDefinition? unionDef), Is.True);
+                Assert.That(unionDef!.StructureType, Is.EqualTo(StructureType.Union));
             });
         }
 
@@ -380,21 +380,21 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(470)]
         public async Task ValueShapesRoundTripAsync()
         {
-            var scalar = (BaseVariableState)await FindNodeAsync(5421).ConfigureAwait(false);
-            var array = (BaseVariableState)await FindNodeAsync(5422).ConfigureAwait(false);
-            var matrix = (BaseVariableState)await FindNodeAsync(5423).ConfigureAwait(false);
+            var scalar = (BaseVariableState)(await FindNodeAsync(5421).ConfigureAwait(false))!;
+            var array = (BaseVariableState)(await FindNodeAsync(5422).ConfigureAwait(false))!;
+            var matrix = (BaseVariableState)(await FindNodeAsync(5423).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(scalar.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(scalar!.ValueRank, Is.EqualTo(ValueRanks.Scalar));
                 Assert.That(scalar.WrappedValue.TryGetValue(out int scalarValue), Is.True);
                 Assert.That(scalarValue, Is.EqualTo(-12345));
 
-                Assert.That(array.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(array!.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
                 Assert.That(array.WrappedValue.TryGetValue(out ArrayOf<string> arrayValue), Is.True);
                 Assert.That(arrayValue.Count, Is.EqualTo(2));
 
-                Assert.That(matrix.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
+                Assert.That(matrix!.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
                 Assert.That(matrix.WrappedValue.IsNull, Is.False);
                 Assert.That(matrix.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(2));
             });
@@ -408,20 +408,20 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(480)]
         public async Task DeepTreeNavigableAsync()
         {
-            NodeState treeRoot = await FindNodeAsync(5490).ConfigureAwait(false);
+            NodeState treeRoot = (await FindNodeAsync(5490).ConfigureAwait(false))!;
             Assert.That(treeRoot, Is.Not.Null);
 
             var context = m_server.CurrentInstance.DefaultSystemContext;
-            BaseInstanceState branchA = treeRoot.FindChild(context, new QualifiedName("BranchA", m_ns));
-            BaseInstanceState subBranchA = branchA?.FindChild(context, new QualifiedName("SubBranchA", m_ns));
-            BaseInstanceState leafA2 = subBranchA?.FindChild(context, new QualifiedName("LeafA2", m_ns));
+            BaseInstanceState branchA = treeRoot.FindChild(context, new QualifiedName("BranchA", m_ns))!;
+            BaseInstanceState subBranchA = (branchA?.FindChild(context, new QualifiedName("SubBranchA", m_ns)))!;
+            BaseInstanceState leafA2 = (subBranchA?.FindChild(context, new QualifiedName("LeafA2", m_ns)))!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(branchA?.NodeId, Is.EqualTo(new NodeId(5491u, m_ns)));
                 Assert.That(subBranchA?.NodeId, Is.EqualTo(new NodeId(5493u, m_ns)));
                 Assert.That(leafA2, Is.Not.Null);
-                Assert.That(leafA2.NodeId, Is.EqualTo(new NodeId(5494u, m_ns)));
+                Assert.That(leafA2!.NodeId, Is.EqualTo(new NodeId(5494u, m_ns)));
             });
         }
 
@@ -432,11 +432,11 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(500)]
         public async Task MethodArgumentMetadataRoundTripsAsync()
         {
-            var inputArgs = (BaseVariableState)await FindNodeAsync(5452).ConfigureAwait(false);
-            var outputArgs = (BaseVariableState)await FindNodeAsync(5453).ConfigureAwait(false);
+            var inputArgs = (BaseVariableState)(await FindNodeAsync(5452).ConfigureAwait(false))!;
+            var outputArgs = (BaseVariableState)(await FindNodeAsync(5453).ConfigureAwait(false))!;
 
-            Argument[] inputs = ReadArguments(inputArgs);
-            Argument[] outputs = ReadArguments(outputArgs);
+            Argument[] inputs = ReadArguments(inputArgs!);
+            Argument[] outputs = ReadArguments(outputArgs!);
 
             Assert.Multiple(() =>
             {
@@ -458,7 +458,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(505)]
         public async Task MethodCallYieldsDeterministicStatusAsync()
         {
-            var method = (MethodState)await FindNodeAsync(5450).ConfigureAwait(false);
+            var method = (MethodState)(await FindNodeAsync(5450).ConfigureAwait(false))!;
             Assert.That(method, Is.Not.Null);
 
             ISystemContext context = m_server.CurrentInstance.DefaultSystemContext;
@@ -497,7 +497,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [Order(510)]
         public async Task MethodDeclarationIdWiredAsync()
         {
-            var method = (MethodState)await FindNodeAsync(5404).ConfigureAwait(false);
+            var method = (MethodState)(await FindNodeAsync(5404).ConfigureAwait(false))!;
             Assert.That(method, Is.Not.Null);
             Assert.That(method.MethodDeclarationId, Is.EqualTo(new NodeId(5216u, m_ns)));
         }
@@ -522,13 +522,13 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType enumType),
+                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType? enumType),
                     Is.True,
                     "CoverageEnumeration stand-in should be registered in the server factory.");
                 Assert.That(enumType, Is.Not.Null);
 
                 Assert.That(
-                    server.Factory.TryGetEncodeableType(optionSetTypeId, out IEncodeableType optionSetType),
+                    server.Factory.TryGetEncodeableType(optionSetTypeId, out IEncodeableType? optionSetType),
                     Is.True,
                     "CoverageOptionSet stand-in should be registered in the server factory.");
                 Assert.That(optionSetType, Is.Not.Null);
@@ -552,32 +552,32 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
 
             foreach (CoverageTestCatalogue.ExpectedNode expected in CoverageTestCatalogue.SecondaryNodes)
             {
-                NodeState node = await m_server.CurrentInstance.NodeManager
+                NodeState node = (await m_server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(new NodeId(expected.Id, ns2))
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 Assert.That(node, Is.Not.Null,
                     $"secondary node ns={ns2};i={expected.Id} ({expected.BrowseName}) should be present.");
                 Assert.That(node.NodeClass, Is.EqualTo(expected.NodeClass));
             }
 
-            NodeState secondaryInstance = await m_server.CurrentInstance.NodeManager
-                .FindNodeInAddressSpaceAsync(new NodeId(6010u, ns2)).ConfigureAwait(false);
-            NodeState secondaryType = await m_server.CurrentInstance.NodeManager
-                .FindNodeInAddressSpaceAsync(new NodeId(6001u, ns2)).ConfigureAwait(false);
-            NodeState primaryRoot = await FindNodeAsync(5400).ConfigureAwait(false);
+            NodeState secondaryInstance = (await m_server.CurrentInstance.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(6010u, ns2)).ConfigureAwait(false))!;
+            NodeState secondaryType = (await m_server.CurrentInstance.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(6001u, ns2)).ConfigureAwait(false))!;
+            NodeState primaryRoot = (await FindNodeAsync(5400).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
                 // SecondaryInstance is parented under the primary CoverageRoot.
                 Assert.That(
-                    ReferenceExists(secondaryInstance, new NodeId(ReferenceTypes.HasComponent, 0),
+                    ReferenceExists(secondaryInstance!, new NodeId(ReferenceTypes.HasComponent, 0),
                         isInverse: true, new NodeId(5400u, m_ns)),
                     Is.True,
                     "SecondaryInstance should have an inverse HasComponent to the primary CoverageRoot.");
 
                 // SecondaryObjectType is a subtype of the primary CoverageObjectType.
                 Assert.That(
-                    ReferenceExists(secondaryType, new NodeId(ReferenceTypes.HasSubtype, 0),
+                    ReferenceExists(secondaryType!, new NodeId(ReferenceTypes.HasSubtype, 0),
                         isInverse: true, new NodeId(5210u, m_ns)),
                     Is.True,
                     "SecondaryObjectType should be a HasSubtype of the primary CoverageObjectType.");
@@ -585,14 +585,14 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
                 // The forward edge is visible from the primary root (resolved
                 // across NodeManagers where the two models are hosted separately).
                 Assert.That(
-                    ReferenceExists(primaryRoot, new NodeId(ReferenceTypes.HasComponent, 0),
+                    ReferenceExists(primaryRoot!, new NodeId(ReferenceTypes.HasComponent, 0),
                         isInverse: false, new NodeId(6010u, ns2)),
                     Is.True,
                     "The primary CoverageRoot should have a forward HasComponent to SecondaryInstance.");
             });
         }
 
-        private ValueTask<NodeState> FindNodeAsync(uint id)
+        private ValueTask<NodeState?> FindNodeAsync(uint id)
         {
             return m_server.CurrentInstance.NodeManager
                 .FindNodeInAddressSpaceAsync(new NodeId(id, m_ns));
@@ -623,7 +623,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             using INodeBrowser browser = node.CreateBrowser(
                 context, null, NodeId.Null, false, BrowseDirection.Both, QualifiedName.Null, null, true);
 
-            for (IReference reference = browser.Next(); reference != null; reference = browser.Next())
+            for (IReference reference = browser.Next()!; reference != null; reference = browser.Next()!)
             {
                 if (reference.ReferenceTypeId != referenceTypeId ||
                     reference.IsInverse != isInverse)
@@ -661,16 +661,16 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         {
             if (arguments == null)
             {
-                return null;
+                return null!;
             }
 
             IServiceMessageContext context = m_server.CurrentInstance.MessageContext;
             if (arguments.WrappedValue.TryGetValue(out ArrayOf<Argument> decoded, context))
             {
-                return decoded.ToArray();
+                return decoded.ToArray()!;
             }
 
-            return null;
+            return null!;
         }
     }
 }

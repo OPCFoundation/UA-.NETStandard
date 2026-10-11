@@ -71,10 +71,10 @@ namespace Opc.Ua.Lds.Tests
                     .ConfigureAwait(false);
             Assert.That(all.Count, Is.GreaterThan(0));
 
-            string uri = all[0].ApplicationUri;
+            string uri = all[0].ApplicationUri!;
             ArrayOf<ApplicationDescription> filtered =
                 await client.FindServersAsync(
-                    new string[] { uri }.ToArrayOf(),
+                    new string[] { uri! }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(filtered.Count, Is.GreaterThan(0),

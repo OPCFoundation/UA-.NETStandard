@@ -6,7 +6,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Scales.Server</PackageId>
     <RootNamespace>Opc.Ua.Scales.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Server hosting for the source-generated OPC 40200 Weighing Technology (Scales) model: a DI-based node manager that materialises scales and scale systems into the DeviceSet and the Machinery Machines folder, a weighing runtime behind CurrentWeight/RegisteredWeight and the zero, tare and register methods, production preset and product management with DI locking, the PackML state machine, scale events and alarms, the type-specific methods of every scale type, recipe management, and fluent application configuration APIs.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

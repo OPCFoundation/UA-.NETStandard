@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -144,7 +144,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -153,7 +153,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -168,7 +168,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -177,7 +177,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Security.Tests
             using DiscoveryClient dc = await DiscoveryClient.CreateAsync(
                 ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await dc.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            EndpointDescription ep = default;
+            EndpointDescription? ep = default;
             foreach (EndpointDescription e in eps)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Security.Tests
                     break;
                 }
             }
-            if (ep.SecurityPolicyUri == null)
+            if (ep!.SecurityPolicyUri == null)
             {
                 Assert.Ignore("Server does not support Security Basic256Sha256 policy.");
             }

@@ -174,7 +174,7 @@ namespace Opc.Ua.Fuzzing
             using var reassembler = new UadpReassembler(new FakeTimeProvider(PubSubSeedAssertions.SeedTime));
             Assert.That(reassembler.TryAddChunk(PublisherId.FromUInt16(300), 1, frame, out var complete), Is.True);
             Assert.That(complete, Is.Not.Null);
-            Assert.That(complete.Value.ToArray(), Is.EqualTo(rawSeed));
+            Assert.That(complete!.Value.ToArray(), Is.EqualTo(rawSeed));
             Assert.That(reassembler.PendingCount, Is.Zero);
 
             PubSubNetworkMessageContext decodedContext = FuzzableCode.NewContext();
@@ -237,7 +237,7 @@ namespace Opc.Ua.Fuzzing
                     }
                 }
                 Assert.That(result, Is.Not.Null);
-                Assert.That(result.Value.ToArray(), Is.EqualTo(rawSeed));
+                Assert.That(result!.Value.ToArray(), Is.EqualTo(rawSeed));
                 PubSubNetworkMessageContext context = FuzzableCode.NewContext();
                 PubSubSeedAssertions.AssertUadpSeed(
                     FuzzableCode.DecodeUadp(result.Value, context), PubSubFieldEncoding.RawData);
@@ -442,7 +442,7 @@ namespace Opc.Ua.Fuzzing
                 reassembler.TryAddChunk(PublisherId.FromUInt16(300), 1, frame, out var result),
                 Is.True);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Value.ToArray(), Is.EqualTo(expected));
+            Assert.That(result!.Value.ToArray(), Is.EqualTo(expected));
             Assert.That(reassembler.PendingCount, Is.Zero);
         }
 

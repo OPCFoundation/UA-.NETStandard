@@ -424,7 +424,7 @@ namespace TestApp.Nested
                 Does.Contain("EncodeableType<global::TestApp.Nested.Models.Foo>"));
 
             INamedTypeSymbol nested = output.GetTypeByMetadataName(
-                "TestApp.Nested.Models+Foo");
+                "TestApp.Nested.Models+Foo")!;
             Assert.That(nested, Is.Not.Null);
             Assert.That(
                 nested.AllInterfaces.Select(i => i.Name),
@@ -863,21 +863,21 @@ namespace TestApp.CloneRepro
 
             Assembly assembly = Assembly.Load(stream.ToArray());
             Type derivedType = assembly.GetType(
-                "TestApp.CloneRepro.DerivedStruct", throwOnError: true);
+                "TestApp.CloneRepro.DerivedStruct", throwOnError: true)!;
 
-            object original = Activator.CreateInstance(derivedType);
-            derivedType.GetProperty("Name").SetValue(original, "kept?");
-            derivedType.GetProperty("Count").SetValue(original, 7u);
+            object original = Activator.CreateInstance(derivedType!)!;
+            derivedType.GetProperty("Name")!.SetValue(original, "kept?");
+            derivedType.GetProperty("Count")!.SetValue(original, 7u);
 
-            object clone = derivedType.GetMethod("Clone").Invoke(original, null);
+            object clone = derivedType.GetMethod("Clone")!.Invoke(original, null)!;
 
             Assert.That(clone, Is.Not.SameAs(original));
             Assert.That(clone, Is.InstanceOf(derivedType));
             Assert.That(
-                derivedType.GetProperty("Count").GetValue(clone),
+                derivedType.GetProperty("Count")!.GetValue(clone),
                 Is.EqualTo(7u));
             Assert.That(
-                derivedType.GetProperty("Name").GetValue(clone),
+                derivedType.GetProperty("Name")!.GetValue(clone),
                 Is.EqualTo("kept?"),
                 "Clone() dropped the inherited field");
         }
@@ -981,7 +981,7 @@ namespace AB.C
             Diagnostic warning = reported.Single(d => d.Id == "MODELGEN002");
             Assert.That(warning.IsSuppressed, Is.False);
             Assert.That(warning.Location.IsInSource, Is.True, "reported in the syntax tree");
-            Assert.That(warning.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+            Assert.That(warning.Location.SourceTree!.FilePath, Is.EqualTo("TestSource.cs"));
 
             ImmutableArray<Diagnostic> suppressed = RunGeneratorForDiagnostics(
                 "using Opc.Ua;\nnamespace TestApp.Pragma\n{\n#pragma warning disable MODELGEN002" +
@@ -1028,7 +1028,7 @@ namespace AB.C
 
             Diagnostic notPartial = reported.Single(d => d.Id == "MODELGEN011");
             Assert.That(notPartial.Location.IsInSource, Is.True, "reported in the syntax tree");
-            Assert.That(notPartial.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+            Assert.That(notPartial.Location.SourceTree!.FilePath, Is.EqualTo("TestSource.cs"));
         }
 
         /// <summary>
@@ -1139,7 +1139,7 @@ namespace TestApp.Ctor
 
         private static ImmutableArray<Diagnostic> RunGeneratorForDiagnostics(
             string source,
-            AnalyzerOptionsProvider options = null,
+            AnalyzerOptionsProvider? options = null,
             ImmutableArray<AdditionalText> additionalTexts = default)
         {
             CSharpCompilation compilation = OptimizationLevel.Release

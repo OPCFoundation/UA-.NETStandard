@@ -118,9 +118,9 @@ namespace Opc.Ua.Client.Tests.Historian
             ExtensionObject modifiedDetails = capturedDetails ??
                 throw new AssertionException("No ReadRawModifiedDetails captured.");
             Assert.That(
-                modifiedDetails.TryGetValue(out ReadRawModifiedDetails details),
+                modifiedDetails.TryGetValue(out ReadRawModifiedDetails? details),
                 Is.True);
-            Assert.That(details.IsReadModified, Is.True);
+            Assert.That(details!.IsReadModified, Is.True);
             Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
         }
 
@@ -302,8 +302,8 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject eventDetails = capturedDetails ??
                 throw new AssertionException("No ReadEventDetails captured.");
-            Assert.That(eventDetails.TryGetValue(out ReadEventDetails details), Is.True);
-            Assert.That(details.Filter, Is.SameAs(filter));
+            Assert.That(eventDetails.TryGetValue(out ReadEventDetails? details), Is.True);
+            Assert.That(details!.Filter, Is.SameAs(filter));
             Assert.That(details.NumValuesPerNode, Is.EqualTo(1u));
             Assert.That(
                 capturedTimestamps,
@@ -523,18 +523,18 @@ namespace Opc.Ua.Client.Tests.Historian
             for (int i = 0; i < expectedUpdates.Length; i++)
             {
                 Assert.That(
-                    capturedDetails[i].TryGetValue(out UpdateEventDetails details),
+                    capturedDetails[i].TryGetValue(out UpdateEventDetails? details),
                     Is.True);
-                Assert.That(details.NodeId, Is.EqualTo(nodeId));
+                Assert.That(details!.NodeId, Is.EqualTo(nodeId));
                 Assert.That(details.PerformInsertReplace, Is.EqualTo(expectedUpdates[i]));
                 Assert.That(details.Filter, Is.SameAs(filter));
                 Assert.That(details.EventData, Has.Count.EqualTo(1));
                 Assert.That(details.EventData[0], Is.SameAs(fields));
             }
             Assert.That(
-                capturedDetails[3].TryGetValue(out DeleteEventDetails deleteDetails),
+                capturedDetails[3].TryGetValue(out DeleteEventDetails? deleteDetails),
                 Is.True);
-            Assert.That(deleteDetails.NodeId, Is.EqualTo(nodeId));
+            Assert.That(deleteDetails!.NodeId, Is.EqualTo(nodeId));
             Assert.That(deleteDetails.EventIds, Is.EqualTo([eventId]));
         }
 
@@ -914,9 +914,9 @@ namespace Opc.Ua.Client.Tests.Historian
             ExtensionObject structuredDetails = capturedDetails ??
                 throw new AssertionException("No UpdateStructureDataDetails captured.");
             Assert.That(
-                structuredDetails.TryGetValue(out UpdateStructureDataDetails details),
+                structuredDetails.TryGetValue(out UpdateStructureDataDetails? details),
                 Is.True);
-            Assert.That(details.NodeId, Is.EqualTo(annotationsNodeId));
+            Assert.That(details!.NodeId, Is.EqualTo(annotationsNodeId));
             Assert.That(details.PerformInsertReplace, Is.EqualTo(PerformUpdateType.Remove));
             Assert.That(details.UpdateValues, Has.Count.EqualTo(2));
             Assert.That(details.UpdateValues[0].SourceTimestamp, Is.EqualTo(firstTime));

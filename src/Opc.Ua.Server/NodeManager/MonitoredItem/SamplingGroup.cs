@@ -570,7 +570,9 @@ namespace Opc.Ua.Server
                 m_logger.ServerNameThreadStarted(Thread.CurrentThread.Name);
 
                 int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
-                int timeToWait = sleepCycle;
+
+                long frequency = m_timeProvider.TimestampFrequency;
+                var schedule = SamplingSchedule.Create(samplingInterval, frequency, m_timeProvider.GetTimestamp());
 
                 while (m_server.IsRunning && !cancellationToken.IsCancellationRequested)
                 {
@@ -579,7 +581,19 @@ namespace Opc.Ua.Server
                     // wait till next sample without holding a thread.
                     try
                     {
-                        await Task.Delay(timeToWait, cancellationToken).ConfigureAwait(false);
+                        long remaining = schedule.GetWait(startTimestamp);
+                        if (remaining > 0)
+                        {
+                            await Task.Delay(
+                                SamplingSchedule.ToTimeSpan(remaining, frequency),
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            // catching up: let other work run between back-to-back samples.
+                            await Task.Yield();
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -630,18 +644,11 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    int delay = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                    timeToWait = sleepCycle;
-
-                    if (delay > sleepCycle)
+                    if (schedule.Advance(m_timeProvider.GetTimestamp()))
                     {
-                        timeToWait = (2 * sleepCycle) - delay;
-
-                        if (timeToWait < 0)
-                        {
-                            m_logger.WARNINGSamplingGroupCannotSampleFastEnoughTimeToSample(delay, sleepCycle);
-                            timeToWait = sleepCycle;
-                        }
+                        // the samples take longer than the interval, or the process stalled
+                        int delay = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                        m_logger.WARNINGSamplingGroupCannotSampleFastEnoughTimeToSample(delay, sleepCycle);
                     }
                 }
 

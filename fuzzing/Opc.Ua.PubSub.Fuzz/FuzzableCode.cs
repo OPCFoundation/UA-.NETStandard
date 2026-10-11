@@ -54,7 +54,7 @@ namespace Opc.Ua.Fuzzing
             Console.WriteLine("OPC UA PubSub fuzzer for UADP, UADP chunk reassembly and JSON decode.");
         }
 
-        internal static PubSubNetworkMessageContext NewContext(TimeProvider timeProvider = null)
+        internal static PubSubNetworkMessageContext NewContext(TimeProvider? timeProvider = null)
         {
             TimeProvider clock = timeProvider ?? new FixedTimeProvider();
             DataSetMetaDataType metaData = CreateMetaData();

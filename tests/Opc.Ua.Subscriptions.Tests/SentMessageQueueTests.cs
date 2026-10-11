@@ -36,8 +36,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 
-#nullable enable
-
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>

@@ -78,9 +78,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("class", "@class")]
         [TestCase("", "Value")]
         [TestCase(null, "Value")]
-        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string input, string expected)
+        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string? input, string expected)
         {
-            Assert.That(input.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
+            Assert.That(input!.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -93,9 +93,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("plain", "plain")]
         [TestCase("", "")]
         [TestCase(null, "")]
-        public void AsXmlTextEscapesMarkupCharacters(string input, string expected)
+        public void AsXmlTextEscapesMarkupCharacters(string? input, string expected)
         {
-            Assert.That(input.AsXmlText(), Is.EqualTo(expected));
+            Assert.That(input!.AsXmlText(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -123,9 +123,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("a<b", false)]
         [TestCase("", false)]
         [TestCase(null, false)]
-        public void IsValidXmlNameAcceptsOnlyNCNames(string input, bool expected)
+        public void IsValidXmlNameAcceptsOnlyNCNames(string? input, bool expected)
         {
-            Assert.That(input.IsValidXmlName(), Is.EqualTo(expected));
+            Assert.That(input!.IsValidXmlName(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -214,10 +214,10 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         public void ToLowerCamelCase_NullInput_ReturnsNull()
         {
             // Arrange
-            const string input = null;
+            const string? input = null;
 
             // Act
-            string result = input.ToLowerCamelCase();
+            string result = input!.ToLowerCamelCase();
 
             // Assert
             Assert.That(result, Is.Null);

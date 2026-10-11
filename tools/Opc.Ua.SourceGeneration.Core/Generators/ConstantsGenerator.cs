@@ -106,7 +106,7 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        private TemplateString LoadTemplate_BrowseNames(ILoadContext context)
+        private TemplateString? LoadTemplate_BrowseNames(ILoadContext context)
         {
             if (context.Target is not KeyValuePair<string, string> browseName ||
                 browseName.Value == null)
@@ -211,7 +211,7 @@ namespace Opc.Ua.SourceGeneration
 
                 if (child.SymbolicName.Namespace == m_context.ModelDesign.TargetNamespace.Value)
                 {
-                    if (browseNames.TryGetValue(child.SymbolicName.Name, out string browseName) &&
+                    if (browseNames.TryGetValue(child.SymbolicName.Name, out string? browseName) &&
                         !m_defaultInstanceBrowseNameKeys.Remove(child.SymbolicName.Name))
                     {
                         if (browseName != child.BrowseName)
@@ -286,7 +286,7 @@ namespace Opc.Ua.SourceGeneration
             string name,
             string uri)
         {
-            if (!emitted.TryGetValue(name, out string claimed))
+            if (!emitted.TryGetValue(name, out string? claimed))
             {
                 emitted.Add(name, uri);
                 return true;

@@ -143,7 +143,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 restored.Aliases!.Where(
-                    alias => WotNodeSetAliases.Instance.TryResolve(alias.Alias, out _)),
+                    alias => WotNodeSetAliases.Instance.TryResolve(alias.Alias!, out _)),
                 Is.Not.Empty,
                 "A restored document declares the standard names the policy knows.");
             foreach (NodeIdAlias alias in restored.Aliases!)
@@ -152,7 +152,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 // the policy also knows has to say what the policy says, or the
                 // completion pass and the comparison would read the document
                 // differently.
-                if (WotNodeSetAliases.Instance.TryResolve(alias.Alias, out string nodeId))
+                if (WotNodeSetAliases.Instance.TryResolve(alias.Alias!, out string nodeId))
                 {
                     Assert.That(alias.Value, Is.EqualTo(nodeId));
                 }

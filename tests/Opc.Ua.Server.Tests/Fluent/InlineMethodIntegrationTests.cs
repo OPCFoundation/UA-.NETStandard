@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void InlineMethodIsBaseMethodStateWithArgumentProperties()
         {
             NodeState node = m_manager.Find(
-                ToNodeId(InlineMethodModel.MethodIds.Thermostat_Boost));
+                ToNodeId(InlineMethodModel.MethodIds.Thermostat_Boost))!;
 
             Assert.That(node, Is.TypeOf<MethodState>());
             var method = (MethodState)node;

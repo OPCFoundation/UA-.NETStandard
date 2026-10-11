@@ -49,29 +49,29 @@ namespace Opc.Ua.Interop.Tests
         /// <summary>
         /// The stack, e.g. UA-.NETStandard, node-opcua or Eclipse Milo.
         /// </summary>
-        public string Stack { get; private set; }
+        public string Stack { get; private set; } = null!;
 
         /// <summary>
         /// The stack version.
         /// </summary>
-        public string Version { get; private set; }
+        public string Version { get; private set; } = null!;
 
         /// <summary>
         /// The application URI of the peer.
         /// </summary>
-        public string ApplicationUri { get; private set; }
+        public string ApplicationUri { get; private set; } = null!;
 
         /// <summary>
         /// The BuildInfo.SoftwareVersion the peer's server reports.
         /// </summary>
-        public string SoftwareVersion { get; private set; }
+        public string SoftwareVersion { get; private set; } = null!;
 
         /// <summary>
         /// The security policy URIs the peer implements (its server offers
         /// them, and its client of the same build can use them), or null
         /// when the peer does not declare them.
         /// </summary>
-        public IReadOnlyList<string> Policies { get; private set; }
+        public IReadOnlyList<string> Policies { get; private set; } = null!;
 
         /// <summary>
         /// Whether the peer is the 1.5.x .NET peer.
@@ -91,11 +91,11 @@ namespace Opc.Ua.Interop.Tests
         {
             using var document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
-            List<string> policies = null;
+            List<string>? policies = null;
             if (root.TryGetProperty("policies", out JsonElement array) &&
                 array.ValueKind == JsonValueKind.Array)
             {
-                policies = [.. array.EnumerateArray().Select(e => e.GetString())];
+                policies = [.. array.EnumerateArray().Select(e => e.GetString()!)];
             }
             return new PeerInfo
             {
@@ -103,13 +103,13 @@ namespace Opc.Ua.Interop.Tests
                 Version = Get(root, "version"),
                 ApplicationUri = Get(root, "applicationUri"),
                 SoftwareVersion = Get(root, "softwareVersion"),
-                Policies = policies
+                Policies = policies!
             };
         }
 
         private static string Get(JsonElement root, string name)
         {
-            return root.TryGetProperty(name, out JsonElement value) ? value.GetString() : null;
+            return (root.TryGetProperty(name, out JsonElement value) ? value.GetString() : null)!;
         }
     }
 }

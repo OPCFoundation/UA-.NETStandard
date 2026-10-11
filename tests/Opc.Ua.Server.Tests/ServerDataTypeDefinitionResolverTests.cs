@@ -44,9 +44,9 @@ namespace Opc.Ua.Server.Tests
         {
             var resolver = new ServerDataTypeDefinitionResolver();
 
-            Assert.That(resolver.TryResolve(new ExpandedNodeId(1), out UaTypeDescription expanded), Is.False);
+            Assert.That(resolver.TryResolve(new ExpandedNodeId(1), out UaTypeDescription? expanded), Is.False);
             Assert.That(expanded, Is.Null);
-            Assert.That(resolver.TryResolve(new NodeId(1), out UaTypeDescription node), Is.False);
+            Assert.That(resolver.TryResolve(new NodeId(1), out UaTypeDescription? node), Is.False);
             Assert.That(node, Is.Null);
             Assert.That(resolver.GetNamespaceTypes("urn:test"), Is.Empty);
         }
@@ -68,9 +68,9 @@ namespace Opc.Ua.Server.Tests
 
             resolver.SetResolver(inner.Object);
 
-            Assert.That(resolver.TryResolve(new ExpandedNodeId(1), out UaTypeDescription expanded), Is.True);
+            Assert.That(resolver.TryResolve(new ExpandedNodeId(1), out UaTypeDescription? expanded), Is.True);
             Assert.That(expanded, Is.SameAs(description));
-            Assert.That(resolver.TryResolve(new NodeId(1), out UaTypeDescription node), Is.True);
+            Assert.That(resolver.TryResolve(new NodeId(1), out UaTypeDescription? node), Is.True);
             Assert.That(node, Is.SameAs(description));
             Assert.That(resolver.GetNamespaceTypes("urn:test"), Is.SameAs(namespaceTypes));
         }

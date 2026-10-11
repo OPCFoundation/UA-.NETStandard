@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 structure.Encode(encoder);
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             Assert.That(encoded, Is.EqualTo(Int32s(-1, 2, 0, 0, 2, 4, 5, 42)));
@@ -206,11 +206,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using var encoder = new XmlEncoder(CreateContext());
             encoder.WriteVariantValue(null, Variant.From(default(MatrixOf<double>)));
-            string xml = encoder.CloseAndReturnText();
+            string xml = encoder.CloseAndReturnText()!;
 
             var document = new XmlDocument();
-            document.LoadInnerXml(xml);
-            Assert.That(document.DocumentElement.LocalName, Is.EqualTo("ListOfDouble"));
+            document.LoadInnerXml(xml!);
+            Assert.That(document.DocumentElement!.LocalName, Is.EqualTo("ListOfDouble"));
         }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             foreach (Variant value in MatrixValues())
             {
                 var source = new SerializableVariant(value) { Context = context };
-                System.Xml.XmlElement xml = source.XmlEncodedValue;
+                System.Xml.XmlElement xml = source.XmlEncodedValue!;
                 Assert.That(xml, Is.Not.Null);
 
                 var target = new SerializableVariant { Context = context };
@@ -260,9 +260,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var stream = new MemoryStream();
             collection.SaveAsNodeSet2(context, stream);
             stream.Position = 0;
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream)!;
             var imported = new NodeStateCollection();
-            nodeSet.Import(context, imported);
+            nodeSet!.Import(context, imported);
 
             for (int ii = 0; ii < values.Length; ii++)
             {
@@ -600,7 +600,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     using var encoder = new BinaryEncoder(context);
                     Write(encoder);
-                    return Convert.ToBase64String(encoder.CloseAndReturnBuffer());
+                    return Convert.ToBase64String(encoder.CloseAndReturnBuffer()!);
                 }
                 case Codec.Json:
                 {
@@ -614,7 +614,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     encoder.PushNamespace(Namespaces.OpcUaXsd);
                     encoder.WriteEncodeable("Root", new DelegateEncodeable(Write));
                     encoder.PopNamespace();
-                    return encoder.CloseAndReturnText();
+                    return encoder.CloseAndReturnText()!;
                 }
             }
         }
@@ -646,9 +646,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                     using (var encoder = new BinaryEncoder(context))
                     {
                         Write(encoder);
-                        buffer = encoder.CloseAndReturnBuffer();
+                        buffer = encoder.CloseAndReturnBuffer()!;
                     }
-                    using var decoder = new BinaryDecoder(buffer, context);
+                    using var decoder = new BinaryDecoder(buffer!, context);
                     return Read(decoder);
                 }
                 case Codec.Json:
@@ -670,9 +670,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                         encoder.PushNamespace(Namespaces.OpcUaXsd);
                         encoder.WriteEncodeable("Root", new DelegateEncodeable(Write));
                         encoder.PopNamespace();
-                        xml = encoder.CloseAndReturnText();
+                        xml = encoder.CloseAndReturnText()!;
                     }
-                    using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                    using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml!));
                     using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                     using var decoder = new XmlDecoder(reader, context);
                     decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -745,12 +745,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         public sealed class DelegateEncodeable : IEncodeable
         {
             [ThreadStatic]
-            internal static Func<IDecoder, Variant> Reader;
+            internal static Func<IDecoder, Variant>? Reader;
 
             [ThreadStatic]
             internal static Variant LastRead;
 
-            private readonly Action<IEncoder> m_write;
+            private readonly Action<IEncoder> m_write = null!;
 
             public DelegateEncodeable()
             {
@@ -772,10 +772,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             public void Decode(IDecoder decoder)
             {
-                LastRead = Reader(decoder);
+                LastRead = Reader!(decoder);
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }

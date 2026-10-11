@@ -140,7 +140,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         [TestCase("/some/directory", false)]
         [TestCase("simhw:token", false)]
         [TestCase(null, false)]
-        public void IsPkcs11UriRecognisesTheScheme(string storePath, bool expected)
+        public void IsPkcs11UriRecognisesTheScheme(string? storePath, bool expected)
         {
             Assert.That(Pkcs11TokenOptions.IsPkcs11Uri(storePath), Is.EqualTo(expected));
         }

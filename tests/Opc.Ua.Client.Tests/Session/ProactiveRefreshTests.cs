@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore("The test server endpoint does not advertise UserName tokens.");
@@ -286,7 +286,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime + m_lifetime;
                 var identity = new UserIdentity("user1", "password"u8)
                 {
-                    PolicyId = policy.PolicyId
+                    PolicyId = policy.PolicyId!
                 };
                 return new ValueTask<IUserIdentity>(identity);
             }
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client.Tests.Identity
 
             public override ITimer CreateTimer(
                 TimerCallback callback,
-                object state,
+                object? state,
                 TimeSpan dueTime,
                 TimeSpan period)
             {
@@ -335,7 +335,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 {
                     throw new ArgumentOutOfRangeException(nameof(dueTime));
                 }
-                var timer = new FakeTimer(this, callback, state, dueTime, period);
+                var timer = new FakeTimer(this, callback, state!, dueTime, period);
                 lock (m_timers)
                 {
                     m_timers.Add(timer);

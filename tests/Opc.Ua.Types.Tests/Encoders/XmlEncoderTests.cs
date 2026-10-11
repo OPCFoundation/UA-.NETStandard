@@ -52,7 +52,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.PushNamespace(Namespaces.OpcUaXsd);
             encoder.WriteString("Test", "value");
             encoder.PopNamespace();
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -95,7 +95,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Type systemType = typeof(ExtensionObject);
 
             // Act
-            using var encoder = new XmlEncoder(systemType, null, messageContext);
+            using var encoder = new XmlEncoder(systemType, null!, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -137,7 +137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var root = new XmlQualifiedName("TestRoot", Namespaces.OpcUaXsd);
 
             // Act
-            using var encoder = new XmlEncoder(root, null, messageContext);
+            using var encoder = new XmlEncoder(root, null!, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var contextServerUris = new StringTable();
 
-            messageContext.NamespaceUris = default;
+            messageContext.NamespaceUris = default!;
             messageContext.ServerUris = contextServerUris;
 
             using var encoder = new XmlEncoder(messageContext);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 NamespaceUris = new NamespaceTable(),
-                ServerUris = default
+                ServerUris = default!
             };
 
             using var encoder = new XmlEncoder(messageContext);
@@ -258,8 +258,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
-                NamespaceUris = default,
-                ServerUris = default
+                NamespaceUris = default!,
+                ServerUris = default!
             };
 
             using var encoder = new XmlEncoder(messageContext);
@@ -281,8 +281,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
-                NamespaceUris = default,
-                ServerUris = default
+                NamespaceUris = default!,
+                ServerUris = default!
             };
 
             using var encoder = new XmlEncoder(messageContext);
@@ -307,8 +307,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new XmlEncoder(messageContext);
 
             // Act
-            encoder.SaveStringTable("NamespaceUris", "Uri", null);
-            string result = encoder.CloseAndReturnText();
+            encoder.SaveStringTable("NamespaceUris", "Uri", null!);
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Does.Not.Contain("NamespaceUris"));
@@ -327,7 +327,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act
             encoder.SaveStringTable("NamespaceUris", "Uri", stringTable);
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Does.Not.Contain("NamespaceUris"));
@@ -347,7 +347,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act
             encoder.SaveStringTable("NamespaceUris", "Uri", stringTable);
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Does.Not.Contain("NamespaceUris"));
@@ -368,7 +368,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act
             encoder.SaveStringTable("NamespaceUris", "Uri", stringTable);
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Does.Contain("NamespaceUris"));
@@ -394,7 +394,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act
             encoder.SaveStringTable("TestTable", "Element", stringTable);
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Does.Contain("TestTable"));
@@ -424,7 +424,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new XmlEncoder(root, writer, messageContext);
 
             // Act
-            string result = encoder.CloseAndReturnText();
+            string? result = encoder.CloseAndReturnText();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -507,7 +507,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act
             encoder.EncodeMessage(message);
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -522,11 +522,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             using var encoder = new XmlEncoder(messageContext);
-            TestEncodeable message = null;
+            TestEncodeable? message = null;
 
             // Act & Assert
             ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => encoder.EncodeMessage(message));
+                () => encoder.EncodeMessage(message!));
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.ParamName, Is.EqualTo("message"));
         }
@@ -1528,7 +1528,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                null,
+                null!,
                 messageContext);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -1565,15 +1565,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             string xml;
             using (var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                null,
+                null!,
                 messageContext))
             {
                 encoder.WriteString("String", value);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             using var decoder = new XmlDecoder(
-                XmlReader.Create(new StringReader(xml)),
+                XmlReader.Create(new StringReader(xml!)),
                 messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
             decoder.ReadStartElement();
@@ -1613,7 +1613,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     new ExtensionObject(
                         new ExpandedNodeId(999),
                         XmlElement.From("<?xml version=\"1.0\"?><a xmlns=\"urn:a\"> <b/> </a>")));
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Not.Contain("<?xml version=\"1.0\"?><a"));
@@ -1630,12 +1630,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteXmlElement("Xml", XmlElement.From("<a><b> </b>\n <c>x</c></a>"));
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             // the body is in no namespace, not in the default namespace in scope.
             Assert.That(
-                xml.ReplaceLineEndings("\n"),
+                xml!.ReplaceLineEndings("\n"),
                 Does.Contain("<a xmlns=\"\"><b> </b>\n <c>x</c></a>"));
         }
 
@@ -1667,11 +1667,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             string xml;
             using (var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                null,
+                null!,
                 messageContext))
             {
                 encoder.WriteExtensionObject("EO", value);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Not.Contain("Body"));
@@ -1706,14 +1706,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 string xml;
                 using (var encoder = new XmlEncoder(
                     new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                    null,
+                    null!,
                     messageContext))
                 {
                     encoder.WriteVariant("V", value);
-                    xml = encoder.CloseAndReturnText();
+                    xml = encoder.CloseAndReturnText()!;
                 }
 
-                using var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext);
+                using var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml!)), messageContext);
                 decoder.PushNamespace(Namespaces.OpcUaXsd);
                 decoder.ReadStartElement();
                 Variant decoded = decoder.ReadVariant("V");
@@ -1731,15 +1731,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var values = new ArrayOf<TestArrayElement>(
-                [new TestArrayElement { Value = 1 }, null, new TestArrayElement { Value = 3 }]);
+                [new TestArrayElement { Value = 1 }, null!, new TestArrayElement { Value = 3 }]);
             string xml;
             using (var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                null,
+                null!,
                 messageContext))
             {
                 encoder.WriteEncodeableArray("A", values);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Contain("<uax:TestArrayElement xsi:nil=\"true\" />"));
@@ -1774,25 +1774,25 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase(null)]
         [TestCase("")]
         [TestCase("x")]
-        public void WriteVariantKeepsTheTypeAndValueOfAStringScalar(string value)
+        public void WriteVariantKeepsTheTypeAndValueOfAStringScalar(string? value)
         {
             // A null String was left out (<V />), which decodes as a null
             // Variant, and a nil String element was decoded as "" (5.3.1.17).
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var variant = new Variant(value);
+            var variant = new Variant(value!);
             string xml;
             using (var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
-                null,
+                null!,
                 messageContext))
             {
                 encoder.WriteVariant("V", variant);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Variant decoded;
-            using (var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext))
+            using (var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml!)), messageContext))
             {
                 decoder.PushNamespace(Namespaces.OpcUaXsd);
                 decoder.ReadStartElement();
@@ -1831,7 +1831,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteDateTime("Earliest", DateTimeUtc.MinValue);
                 encoder.WriteDateTime("Latest", DateTimeUtc.MaxValue);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Contain(">0001-01-01T00:00:00Z</Earliest>"));
@@ -2320,7 +2320,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
             using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
-            DiagnosticInfo diagnosticInfo = null;
+            DiagnosticInfo? diagnosticInfo = null;
 
             // Act
             encoder.WriteDiagnosticInfo("TestDiagnosticInfo", diagnosticInfo);
@@ -2801,7 +2801,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
-            encoder.WriteEncodeable<TestEncodeable>("TestEncodeable", null);
+            encoder.WriteEncodeable<TestEncodeable>("TestEncodeable", null!);
             encoder.Close();
 
             // Assert
@@ -5828,7 +5828,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             // Act
-            encoder.WriteSwitchField(42u, out string fieldName);
+            encoder.WriteSwitchField(42u, out string? fieldName);
             writer.Flush();
 
             // Assert
@@ -5969,7 +5969,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var variant = Variant.From(42);
 
-            string result = WriteVariantValueToString(variant, null);
+            string result = WriteVariantValueToString(variant, null!);
 
             Assert.That(result, Does.Not.Contain("TestValue"));
             Assert.That(result, Does.Contain("Int32"));
@@ -5989,17 +5989,17 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd),
-                    null,
+                    null!,
                     context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteFloat("Value", binaryValue);
                 xmlEncoder.PopNamespace();
-                actualXmlValue = xmlEncoder.CloseAndReturnText();
+                actualXmlValue = xmlEncoder.CloseAndReturnText()!;
             }
 
             // Check encode result against expected XML value
-            Match m = REValue().Match(actualXmlValue);
+            Match m = REValue().Match(actualXmlValue!);
             Assert.That(m.Success, Is.True);
             Assert.That(m.Groups, Has.Count.EqualTo(2));
             Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
@@ -6036,17 +6036,17 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd),
-                    null,
+                    null!,
                     context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteDouble("Value", binaryValue);
                 xmlEncoder.PopNamespace();
-                actualXmlValue = xmlEncoder.CloseAndReturnText();
+                actualXmlValue = xmlEncoder.CloseAndReturnText()!;
             }
 
             // Check encode result against expected XML value
-            Match m = REValue().Match(actualXmlValue);
+            Match m = REValue().Match(actualXmlValue!);
             Assert.That(m.Success, Is.True);
             Assert.That(m.Groups, Has.Count.EqualTo(2));
             Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
@@ -6106,20 +6106,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
-                    null,
+                    null!,
                     context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
                 xmlEncoder.PopNamespace();
-                actualXmlValue = xmlEncoder.CloseAndReturnText();
+                actualXmlValue = xmlEncoder.CloseAndReturnText()!;
             }
 
             // Check encode result against expected XML value
             Assert.That(
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
-                Is.EqualTo(actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                Is.EqualTo(actualXmlValue!.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal)));
             // Decode
             Variant actualVariant;
@@ -6148,20 +6148,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
-                    null,
+                    null!,
                     context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
                 xmlEncoder.PopNamespace();
-                actualXmlValue = xmlEncoder.CloseAndReturnText();
+                actualXmlValue = xmlEncoder.CloseAndReturnText()!;
             }
 
             // Check encode result against expected XML value
             Assert.That(
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
-                Is.EqualTo(actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                Is.EqualTo(actualXmlValue!.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal)));
             // Decode
             Variant actualVariant;
@@ -6660,7 +6660,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(new NodeId(50u), null, 0u);
             string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, 1);
 
-            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext, null, encoderServerUris);
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext, null!, encoderServerUris);
             string identifier = GetIdentifierValue(result);
 
             Assert.That(identifier, Is.EqualTo(expected));
@@ -6854,7 +6854,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             string result = WriteExtensionObjectToString(
                 value,
                 messageContext,
-                fieldName: null);
+                fieldName: null!);
 
             Assert.That(result, Does.Not.Contain("TestExtension").And.Contain("TypeId"));
         }
@@ -7066,7 +7066,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var value = new DiagnosticInfo { AdditionalInfo = "info" };
 
-            string result = WriteDiagnosticInfoToString(value, messageContext, null);
+            string result = WriteDiagnosticInfoToString(value, messageContext, null!);
 
             Assert.That(result, Does.Not.Contain("TestDiagnosticInfo").And.Contain("AdditionalInfo"));
         }
@@ -7189,8 +7189,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static string WriteExpandedNodeIdToString(
             ExpandedNodeId value,
             ServiceMessageContext messageContext,
-            NamespaceTable encoderNamespaceUris = null,
-            StringTable encoderServerUris = null,
+            NamespaceTable? encoderNamespaceUris = null,
+            StringTable? encoderServerUris = null,
             string fieldName = "TestExpandedNodeId")
         {
             var sb = new StringBuilder();
@@ -7219,7 +7219,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             document.Load(reader);
             var manager = new XmlNamespaceManager(document.NameTable);
             manager.AddNamespace("uax", Namespaces.OpcUaXsd);
-            XmlNode node = document.SelectSingleNode("//uax:Identifier", manager);
+            XmlNode node = document.SelectSingleNode("//uax:Identifier", manager)!;
             return node?.InnerText ?? string.Empty;
         }
 
@@ -7243,8 +7243,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static string WriteExtensionObjectToString(
             ExtensionObject value,
             ServiceMessageContext messageContext,
-            NamespaceTable encoderNamespaceUris = null,
-            StringTable encoderServerUris = null,
+            NamespaceTable? encoderNamespaceUris = null,
+            StringTable? encoderServerUris = null,
             string fieldName = "TestExtension")
         {
             var sb = new StringBuilder();
@@ -7454,7 +7454,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestArrayElement other && other.Value == Value;
             }
@@ -7480,7 +7480,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is ThrowingEncodeable;
             }
@@ -7507,7 +7507,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }

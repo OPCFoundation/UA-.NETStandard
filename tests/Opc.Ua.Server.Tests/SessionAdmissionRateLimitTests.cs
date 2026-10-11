@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests
             // and dispose the caller-owned provider being replaced (the server only
             // disposes providers it created) so RateLimiter timers do not leak
             // across the suite. Dispose is idempotent.
-            IServerRateLimiterProvider previous = m_server.RateLimiterProvider;
+            IServerRateLimiterProvider previous = m_server.RateLimiterProvider!;
             m_server.RateLimiterProvider = new DefaultServerRateLimiterProvider(
                 new ServerRateLimitOptions { Enabled = false });
             previous?.Dispose();
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
         private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri!.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal))
                 ?? throw new NotSupportedException("No supported transport profile found.");
 
@@ -274,11 +274,11 @@ namespace Opc.Ua.Server.Tests
 
             public int ListenBacklog => 0;
 
-            public IConnectionRateLimiter ConnectionRateLimiter => null;
+            public IConnectionRateLimiter ConnectionRateLimiter => null!;
 
             public bool TryAcquireSessionEstablishment(out IDisposable lease, out TimeSpan? retryAfter)
             {
-                lease = null;
+                lease = null!;
                 retryAfter = m_retryAfter;
                 return false;
             }
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests
 
             public int ListenBacklog => 0;
 
-            public IConnectionRateLimiter ConnectionRateLimiter => null;
+            public IConnectionRateLimiter ConnectionRateLimiter => null!;
 
             public void Grant()
             {
@@ -307,12 +307,12 @@ namespace Opc.Ua.Server.Tests
 
             public bool TryAcquireSessionEstablishment(out IDisposable lease, out TimeSpan? retryAfter)
             {
-                lease = null;
+                lease = null!;
                 retryAfter = null;
                 return false;
             }
 
-            public async ValueTask<(bool Acquired, IDisposable Lease, TimeSpan? RetryAfter)>
+            public async ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)>
                 AcquireSessionEstablishmentAsync(System.Threading.CancellationToken cancellationToken = default)
             {
                 await m_permit.Task.ConfigureAwait(false);

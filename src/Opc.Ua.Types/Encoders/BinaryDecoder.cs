@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
@@ -36,9 +37,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
-#if NET6_0_OR_GREATER
-using System.Buffers;
-#endif
 
 namespace Opc.Ua
 {
@@ -512,18 +510,129 @@ namespace Opc.Ua
                 }
             }
 #else
-            // Does not allocate a declared length the message cannot hold.
-            byte[] bytes = SafeReadBytes(length);
+            if (m_hasBuffer)
+            {
+                return DecodeUtf8String(SafeReadSpan(length, nameof(ReadString)));
+            }
 
+            // Does not allocate a declared length the message cannot hold.
+            CheckRemainingBytes(length, nameof(ReadString));
+            if (GetRemainingLength() < 0)
+            {
+                // The remaining bytes are unknown: grow with the bytes read.
+                byte[] bytes = SafeReadStreamBytes(length, nameof(ReadString));
+                return DecodeUtf8String(bytes, bytes.Length);
+            }
+
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
+            try
+            {
+                int read = ReadFromReader(buffer, length);
+                if (read != length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                        length,
+                        nameof(ReadString),
+                        read);
+                }
+                return DecodeUtf8String(buffer, length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+#endif
+        }
+
+#if !NET6_0_OR_GREATER
+        /// <summary>
+        /// Decodes an UTF-8 string from the message buffer through a pooled
+        /// array, there is no span overload of Encoding.GetString here.
+        /// </summary>
+        private static string DecodeUtf8String(ReadOnlySpan<byte> bytes)
+        {
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bytes.Length);
+            try
+            {
+                bytes.CopyTo(buffer);
+                return DecodeUtf8String(buffer, bytes.Length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        /// <summary>
+        /// Decodes the first <paramref name="count"/> bytes as UTF-8 string.
+        /// </summary>
+        private static string DecodeUtf8String(byte[] bytes, int count)
+        {
             // If 0 terminated, decrease length to remove 0 terminators before converting to string
-            int utf8StringLength = bytes.Length;
+            int utf8StringLength = count;
             while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
             {
                 utf8StringLength--;
             }
             return Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-#endif
         }
+
+        /// <summary>
+        /// Reads up to <paramref name="count"/> bytes like BinaryReader.ReadBytes,
+        /// that is until the count is read or the stream ends, without
+        /// allocating the result.
+        /// </summary>
+        /// <returns>The number of bytes read.</returns>
+        private int ReadFromReader(byte[] buffer, int count)
+        {
+            int total = 0;
+            while (total < count)
+            {
+                int read = m_reader.Read(buffer, total, count - total);
+                if (read == 0)
+                {
+                    break;
+                }
+                total += read;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Reads up to the length of <paramref name="destination"/> bytes like
+        /// BinaryReader.ReadBytes through a pooled buffer.
+        /// </summary>
+        /// <returns>The number of bytes read.</returns>
+        private int ReadFromReader(Span<byte> destination)
+        {
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(Math.Min(destination.Length, kMaxPooledReadLength));
+            try
+            {
+                int total = 0;
+                while (total < destination.Length)
+                {
+                    int read = ReadFromReader(
+                        buffer,
+                        Math.Min(buffer.Length, destination.Length - total));
+                    if (read == 0)
+                    {
+                        break;
+                    }
+                    buffer.AsSpan(0, read).CopyTo(destination.Slice(total));
+                    total += read;
+                }
+                return total;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        private const int kMaxPooledReadLength = 64 * 1024;
+#endif
 
         /// <inheritdoc/>
         public DateTimeUtc ReadDateTime(string? fieldName)
@@ -535,8 +644,25 @@ namespace Opc.Ua
         public Uuid ReadGuid(string? fieldName)
         {
             const int kGuidLength = 16;
-            byte[] bytes = SafeReadBytes(kGuidLength);
-            return new Uuid(bytes);
+            Span<byte> bytes = stackalloc byte[kGuidLength];
+            ReadRawBytes(bytes);
+#if NET6_0_OR_GREATER
+            return new Uuid(new Guid(bytes));
+#else
+            // the layout of Guid(byte[]): little endian a, b and c then d to k.
+            return new Uuid(new Guid(
+                BinaryPrimitives.ReadInt32LittleEndian(bytes),
+                BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(4)),
+                BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(6)),
+                bytes[8],
+                bytes[9],
+                bytes[10],
+                bytes[11],
+                bytes[12],
+                bytes[13],
+                bytes[14],
+                bytes[15]));
+#endif
         }
 
         /// <inheritdoc/>
@@ -2422,9 +2548,7 @@ namespace Opc.Ua
 #if NET6_0_OR_GREATER
                 length = m_reader.Read(destination[offset..]);
 #else
-                byte[] buffer = m_reader.ReadBytes(destination.Length - offset);
-                length = buffer.Length;
-                buffer.AsSpan().CopyTo(destination[offset..]);
+                length = ReadFromReader(destination[offset..]);
 #endif
 
                 if (length == 0)
@@ -2549,9 +2673,7 @@ namespace Opc.Ua
 #if NET6_0_OR_GREATER
             length = m_reader.Read(bytes);
 #else
-            byte[] buffer = m_reader.ReadBytes(bytes.Length);
-            length = buffer.Length;
-            buffer.CopyTo(bytes);
+            length = ReadFromReader(bytes);
 #endif
 
             if (bytes.Length != length)

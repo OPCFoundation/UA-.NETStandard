@@ -72,7 +72,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void CreateFromString_NullString_CreatesValidTemplateString()
         {
             // Act
-            TemplateString templateString = (string)null;
+            TemplateString templateString = (string)null!;
 
             // Assert
             Assert.That(templateString, Is.Not.Null);

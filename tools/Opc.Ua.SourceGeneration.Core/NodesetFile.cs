@@ -48,29 +48,29 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Nodeset information
         /// </summary>
-        public NodesetFileOptions Info { get; init; }
+        public NodesetFileOptions? Info { get; init; }
 
         /// <summary>
         /// File name
         /// </summary>
-        public string FileName { get; init; }
+        public string? FileName { get; init; }
 
         /// <summary>
         /// The nodeset parsed
         /// </summary>
-        public UANodeSet NodeSet { get; init; }
+        public UANodeSet? NodeSet { get; init; }
 
         /// <summary>
         /// Previous versions
         /// </summary>
-        internal List<NodesetFile> PreviousVersions { get; set; }
+        internal List<NodesetFile>? PreviousVersions { get; set; }
 
         /// <summary>
         /// The ModelVersion used to order editions of the model: the item
         /// metadata Version when set, otherwise the ModelTableEntry
         /// ModelVersion (OPC 10000-6 F.2). Null when neither declares one.
         /// </summary>
-        internal string ModelVersion { get; init; }
+        internal string? ModelVersion { get; init; }
     }
 
     /// <summary>
@@ -81,17 +81,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Model uri
         /// </summary>
-        public string ModelUri { get; init; }
+        public string? ModelUri { get; init; }
 
         /// <summary>
         /// Name
         /// </summary>
-        public string Name { get; init; }
+        public string? Name { get; init; }
 
         /// <summary>
         /// Prefix to use
         /// </summary>
-        public string Prefix { get; init; }
+        public string? Prefix { get; init; }
 
         /// <summary>
         /// Should be ignored
@@ -101,12 +101,12 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Version
         /// </summary>
-        public string Version { get; init; }
+        public string? Version { get; init; }
 
         /// <summary>
         /// Optional identifier CSV explicitly associated with this NodeSet.
         /// </summary>
-        public string IdentifierFile { get; init; }
+        public string? IdentifierFile { get; init; }
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.SourceGeneration
         /// The files in the collection
         /// </summary>
         public Dictionary<string, string> Files => m_nodesets
-            .ToDictionary(x => x.Key, x => x.Value.FileName);
+            .ToDictionary(x => x.Key, x => x.Value.FileName!);
 
         /// <summary>
         /// The path of every file identified as a NodeSet2 input, including the
@@ -136,8 +136,8 @@ namespace Opc.Ua.SourceGeneration
         /// The models in the collection
         /// </summary>
         public IEnumerable<string> ModelUris => m_nodesets.Values
-            .Where(x => !x.Info.Ignore)
-            .Select(x => x.Info.ModelUri)
+            .Where(x => !x.Info!.Ignore)
+            .Select(x => x.Info!.ModelUri!)
             .Where(x => !string.IsNullOrEmpty(x));
 
         /// <summary>
@@ -150,8 +150,8 @@ namespace Opc.Ua.SourceGeneration
         /// namespace and ignored nodesets are excluded.
         /// </summary>
         public IEnumerable<string> DesignFileEntries => m_nodesets.Values
-            .Where(x => !x.Info.Ignore && x.Info.ModelUri != Namespaces.OpcUa)
-            .Select(x => $"{x.FileName},{x.Info.Prefix},{x.Info.Name}");
+            .Where(x => !x.Info!.Ignore && x.Info.ModelUri != Namespaces.OpcUa)
+            .Select(x => $"{x.FileName},{x.Info!.Prefix},{x.Info.Name}");
 
         /// <summary>
         /// The identifier CSV files claimed by a NodeSet through its
@@ -204,7 +204,7 @@ namespace Opc.Ua.SourceGeneration
                     var collection = new NodeStateCollection();
                     try
                     {
-                        nodeset.Import(systemContext, collection);
+                        nodeset!.Import(systemContext, collection);
                     }
                     catch (Exception e)
                     {
@@ -279,7 +279,7 @@ namespace Opc.Ua.SourceGeneration
 
                     if (!string.IsNullOrWhiteSpace(options.IdentifierFile))
                     {
-                        string identifierFile = NodesetIdentifierFileValidator.ResolvePath(
+                        string? identifierFile = NodesetIdentifierFileValidator.ResolvePath(
                             file,
                             options.IdentifierFile,
                             csvFiles);
@@ -296,7 +296,7 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    if (m_nodesets.TryGetValue(model.ModelUri, out NodesetFile existing))
+                    if (m_nodesets.TryGetValue(model.ModelUri, out NodesetFile? existing))
                     {
                         // Keep the newest version under the model URI and record
                         // the superseded one. Replacing unconditionally used to
@@ -344,7 +344,7 @@ namespace Opc.Ua.SourceGeneration
                     {
                         m_identifierValidationErrors.Add(
                             NodesetIdentifierValidationError.AssignedToMultipleModels(
-                                nodeset.FileName,
+                                nodeset.FileName!,
                                 identifierFile));
                     }
                     continue;
@@ -354,8 +354,8 @@ namespace Opc.Ua.SourceGeneration
                 m_identifierValidationErrors.AddRange(
                     NodesetIdentifierFileValidator.Validate(
                         fileSystem,
-                        singleNodeset.FileName,
-                        singleNodeset.Info.ModelUri,
+                        singleNodeset.FileName!,
+                        singleNodeset.Info!.ModelUri!,
                         singleIdentifierFile,
                         telemetry));
             }
@@ -365,12 +365,12 @@ namespace Opc.Ua.SourceGeneration
         /// Get nodeset and dependencies for the model uri
         /// </summary>
         /// <returns></returns>
-        public List<string> GetDesignFileListForModel(
+        public List<string>? GetDesignFileListForModel(
             string modelUri,
             out NodesetFile nodeset,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
         {
-            if (!m_nodesets.TryGetValue(modelUri, out nodeset))
+            if (!m_nodesets.TryGetValue(modelUri, out nodeset!))
             {
                 return null;
             }
@@ -380,7 +380,7 @@ namespace Opc.Ua.SourceGeneration
             // add the root a second time.
             Dictionary<string, NodesetFile> dependencies = new(StringComparer.Ordinal)
             {
-                [nodeset.Info.ModelUri] = nodeset
+                [nodeset.Info!.ModelUri!] = nodeset
             };
             if (!CollectDependencies(nodeset, dependencies, referencedModels))
             {
@@ -390,9 +390,9 @@ namespace Opc.Ua.SourceGeneration
             NodesetFile root = nodeset;
             List<string> files = [$"{root.FileName},{root.Info.Prefix},{root.Info.Name}"];
             foreach (NodesetFile dependency in dependencies.Values
-                .Where(x => !ReferenceEquals(x, root) && x.Info.ModelUri != Namespaces.OpcUa))
+                .Where(x => !ReferenceEquals(x, root) && x.Info!.ModelUri != Namespaces.OpcUa))
             {
-                files.Add($"{dependency.FileName},{dependency.Info.Prefix},{dependency.Info.Name}");
+                files.Add($"{dependency.FileName},{dependency.Info!.Prefix},{dependency.Info.Name}");
             }
             return files;
         }
@@ -403,21 +403,21 @@ namespace Opc.Ua.SourceGeneration
         private bool CollectDependencies(
             NodesetFile target,
             Dictionary<string, NodesetFile> dependencies,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels)
         {
-            if (target.NodeSet.NamespaceUris == null)
+            if (target.NodeSet!.NamespaceUris == null)
             {
                 return true;
             }
 
             foreach (string ns in target.NodeSet.NamespaceUris)
             {
-                if (dependencies.ContainsKey(ns) || ns == target.Info.ModelUri)
+                if (dependencies.ContainsKey(ns) || ns == target.Info!.ModelUri)
                 {
                     continue;
                 }
 
-                if (!m_nodesets.TryGetValue(ns, out NodesetFile nodeset))
+                if (!m_nodesets.TryGetValue(ns, out NodesetFile? nodeset))
                 {
                     if (referencedModels != null && referencedModels.ContainsKey(ns))
                     {
@@ -480,26 +480,26 @@ namespace Opc.Ua.SourceGeneration
             // OPC 10000-6 F.2 Table F.1: ModelVersion, then PublicationDate;
             // the Version attribute only as a last heuristic.
             return SemVer.CompareModels(
-                left.ModelVersion,
+                left.ModelVersion!,
                 GetPublicationDate(left),
-                GetModel(left)?.Version,
-                right.ModelVersion,
+                (GetModel(left)?.Version)!,
+                right.ModelVersion!,
                 GetPublicationDate(right),
-                GetModel(right)?.Version);
+                (GetModel(right)?.Version)!);
         }
 
-        private static ModelTableEntry GetModel(NodesetFile nodeset)
+        private static ModelTableEntry? GetModel(NodesetFile nodeset)
         {
-            ModelTableEntry[] models = nodeset.NodeSet?.Models;
+            ModelTableEntry[]? models = nodeset.NodeSet?.Models;
             return models != null && models.Length > 0 ? models[0] : null;
         }
 
         /// <summary>
         /// The first of the candidates that carries a value.
         /// </summary>
-        private static string FirstNonEmpty(params string[] candidates)
+        private static string FirstNonEmpty(params string?[] candidates)
         {
-            foreach (string candidate in candidates)
+            foreach (string? candidate in candidates)
             {
                 if (!string.IsNullOrEmpty(candidate))
                 {
@@ -511,7 +511,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static DateTime GetPublicationDate(NodesetFile nodeset)
         {
-            ModelTableEntry[] models = nodeset.NodeSet?.Models;
+            ModelTableEntry[]? models = nodeset.NodeSet?.Models;
             return models != null && models.Length > 0
                 ? models[0].PublicationDate
                 : DateTime.MinValue;

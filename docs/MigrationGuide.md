@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
   - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
@@ -33,6 +34,7 @@ covers cross-cutting changes.
 - [Transport resource limits](#transport-resource-limits)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
+- [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
@@ -40,6 +42,22 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## Empty LocalizedText fields in 2.0
+
+`LocalizedText.Locale` and `LocalizedText.Text` now expose empty strings as
+`null`, matching the absent-field representation in OPC 10000-6, Table 24.
+Plain values constructed with both fields null or empty are the null value,
+including `new LocalizedText(string.Empty)`. Whitespace is not normalized.
+Use null-aware checks rather than relying on `Text == string.Empty`.
+
+Equality and hashing use these canonical fields, so empty inputs compare and
+hash like null inputs before and after encoding. Translation keys, templates,
+arguments, dictionaries and fallback metadata are retained. An explicitly
+empty selected translation remains absent text rather than selecting fallback
+text; its `Text` property returns `null`. Translation-backed values retain
+their metadata and are not necessarily `IsNull`, even when both exposed fields
+are null.
 
 ## General principles
 
@@ -907,6 +925,31 @@ There is no optional-capability fallback: `UserManagement` requires these member
 and no longer keeps metadata only in memory, so a store that cannot persist
 metadata should reject the write by returning `false` rather than silently
 accepting it.
+
+## Reading certificates from SecureChannelContext
+
+`SecureChannelContext.ClientChannelCertificate`, `ServerChannelCertificate` and
+`ChannelThumbprint` are `ByteString` instead of `byte[]`. The transport now shares
+one buffer of a channel's certificates with every request on that channel instead
+of copying the DER encoding per request, and a `ByteString` is a read-only view of
+it, so a request handler or an `IResourceIsolationClassifier` cannot alter the
+evidence later requests are checked against.
+
+The constructor still takes `byte[]` and wraps it without copying. A missing
+value is `IsNull`; an empty array stays empty, not null.
+
+| Before | After |
+|---|---|
+| `context.ClientChannelCertificate == null` | `context.ClientChannelCertificate.IsNull` |
+| `context.ClientChannelCertificate?.Length > 0` | `context.ClientChannelCertificate.Length > 0` |
+| `context.ClientChannelCertificate.AsSpan()` | `context.ClientChannelCertificate.Span` |
+| `Certificate.FromRawData(context.ClientChannelCertificate)` | `Certificate.FromRawData(context.ClientChannelCertificate.Memory)` |
+| `context.ClientChannelCertificate.ToByteString()` | `context.ClientChannelCertificate` |
+| passing the array to an API that takes `byte[]?` | `value.IsNull ? null : value.ToArray()` |
+
+Keep a missing certificate null when converting: the session signature helpers
+hash an empty array but skip a null one, so substituting `ToArray()` for a null
+value changes the signature data.
 
 ## ContentFilter NULL semantics follow OPC 10000-4 1.05.07
 

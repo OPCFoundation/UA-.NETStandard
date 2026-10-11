@@ -63,19 +63,19 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructorThrowsArgumentNullExceptionWhenServerNull()
         {
-            Assert.That(() => new RequestManager(null), Throws.ArgumentNullException);
+            Assert.That(() => new RequestManager(null!), Throws.ArgumentNullException);
         }
 
         [Test]
         public void RequestReceivedThrowsArgumentNullExceptionWhenContextNull()
         {
-            Assert.That(() => m_requestManager.RequestReceived(null), Throws.ArgumentNullException);
+            Assert.That(() => m_requestManager.RequestReceived(null!), Throws.ArgumentNullException);
         }
 
         [Test]
         public void RequestCompletedThrowsArgumentNullExceptionWhenContextNull()
         {
-            Assert.That(() => m_requestManager.RequestCompleted(null), Throws.ArgumentNullException);
+            Assert.That(() => m_requestManager.RequestCompleted(null!), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 requestHeader,
-                null,
+                null!,
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
@@ -136,13 +136,13 @@ namespace Opc.Ua.Server.Tests
             using var lifetime1 = new RequestLifetime();
             using var lifetime2 = new RequestLifetime();
             m_requestManager.RequestReceived(new OperationContext(
-                new RequestHeader { RequestHandle = 42 }, null, RequestType.Read, lifetime1, mockSession.Object));
+                new RequestHeader { RequestHandle = 42 }, null!, RequestType.Read, lifetime1, mockSession.Object));
             m_requestManager.RequestReceived(new OperationContext(
-                new RequestHeader { RequestHandle = 42 }, null, RequestType.Browse, lifetime2, mockSession.Object));
+                new RequestHeader { RequestHandle = 42 }, null!, RequestType.Browse, lifetime2, mockSession.Object));
             using var cancelLifetime = new RequestLifetime();
             var cancelContext = new OperationContext(
                 new RequestHeader { RequestHandle = 43, AuditEntryId = "op-42" },
-                null,
+                null!,
                 RequestType.Cancel,
                 cancelLifetime,
                 mockSession.Object);
@@ -152,8 +152,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(cancelCount, Is.EqualTo(2));
             Assert.That(auditEvents, Has.Count.EqualTo(1));
             var cancelEvent = (AuditCancelEventState)auditEvents[0];
-            Assert.That(cancelEvent.ClientAuditEntryId.Value, Is.EqualTo("op-42"));
-            Assert.That(cancelEvent.RequestHandle.Value, Is.EqualTo(42u));
+            Assert.That(cancelEvent.ClientAuditEntryId!.Value, Is.EqualTo("op-42"));
+            Assert.That(cancelEvent.RequestHandle!.Value, Is.EqualTo(42u));
 
             m_requestManager.CancelRequests(cancelContext, 99, out cancelCount);
 
@@ -174,11 +174,11 @@ namespace Opc.Ua.Server.Tests
             using var closeLifetime = new RequestLifetime();
             using var otherLifetime = new RequestLifetime();
             var call = new OperationContext(
-                new RequestHeader { RequestHandle = 1 }, null, RequestType.Call, callLifetime, session.Object);
+                new RequestHeader { RequestHandle = 1 }, null!, RequestType.Call, callLifetime, session.Object);
             var close = new OperationContext(
-                new RequestHeader { RequestHandle = 2 }, null, RequestType.CloseSession, closeLifetime, session.Object);
+                new RequestHeader { RequestHandle = 2 }, null!, RequestType.CloseSession, closeLifetime, session.Object);
             var other = new OperationContext(
-                new RequestHeader { RequestHandle = 1 }, null, RequestType.Read, otherLifetime, otherSession.Object);
+                new RequestHeader { RequestHandle = 1 }, null!, RequestType.Read, otherLifetime, otherSession.Object);
             m_requestManager.RequestReceived(call);
             m_requestManager.RequestReceived(close);
             m_requestManager.RequestReceived(other);
@@ -208,11 +208,11 @@ namespace Opc.Ua.Server.Tests
             using var otherLifetime = new RequestLifetime();
             using var lateLifetime = new RequestLifetime();
             var failing = new OperationContext(
-                new RequestHeader { RequestHandle = 1 }, null, RequestType.Call, failingLifetime, session.Object);
+                new RequestHeader { RequestHandle = 1 }, null!, RequestType.Call, failingLifetime, session.Object);
             var reentrant = new OperationContext(
-                new RequestHeader { RequestHandle = 2 }, null, RequestType.Read, reentrantLifetime, session.Object);
+                new RequestHeader { RequestHandle = 2 }, null!, RequestType.Read, reentrantLifetime, session.Object);
             var other = new OperationContext(
-                new RequestHeader { RequestHandle = 3 }, null, RequestType.Read, otherLifetime, session.Object);
+                new RequestHeader { RequestHandle = 3 }, null!, RequestType.Read, otherLifetime, session.Object);
             var late = new OperationContext(
                 new RequestHeader { RequestHandle = 4 }, null, RequestType.Read, lateLifetime);
             failingLifetime.CancellationToken.Register(() => throw new InvalidOperationException("callback"));
@@ -243,9 +243,9 @@ namespace Opc.Ua.Server.Tests
             using var otherLifetime = new RequestLifetime();
             using var lateLifetime = new RequestLifetime();
             var failing = new OperationContext(
-                new RequestHeader { RequestHandle = 7 }, null, RequestType.Call, failingLifetime, session.Object);
+                new RequestHeader { RequestHandle = 7 }, null!, RequestType.Call, failingLifetime, session.Object);
             var other = new OperationContext(
-                new RequestHeader { RequestHandle = 7 }, null, RequestType.Read, otherLifetime, session.Object);
+                new RequestHeader { RequestHandle = 7 }, null!, RequestType.Read, otherLifetime, session.Object);
             var late = new OperationContext(
                 new RequestHeader { RequestHandle = 8 }, null, RequestType.Read, lateLifetime);
             failingLifetime.CancellationToken.Register(() =>
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server.Tests
             using var cancelLifetime = new RequestLifetime();
             var cancel = new OperationContext(
                 new RequestHeader { RequestHandle = 10, Timestamp = sentAt.AddSeconds(1) },
-                null,
+                null!,
                 RequestType.Cancel,
                 cancelLifetime,
                 session.Object);
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
             {
                 return new OperationContext(
                     new RequestHeader { RequestHandle = handle, Timestamp = timestamp },
-                    null,
+                    null!,
                     RequestType.HistoryRead,
                     RequestLifetime.None,
                     owner);
@@ -323,7 +323,7 @@ namespace Opc.Ua.Server.Tests
             using var cancelLifetime = new RequestLifetime();
             var cancel = new OperationContext(
                 new RequestHeader { RequestHandle = 10 },
-                null,
+                null!,
                 RequestType.Cancel,
                 cancelLifetime,
                 session.Object);
@@ -332,7 +332,7 @@ namespace Opc.Ua.Server.Tests
 
             var later = new OperationContext(
                 new RequestHeader { RequestHandle = 0 },
-                null,
+                null!,
                 RequestType.Read,
                 RequestLifetime.None,
                 session.Object);
@@ -422,7 +422,7 @@ namespace Opc.Ua.Server.Tests
         {
             var cancel = new OperationContext(
                 new RequestHeader { RequestHandle = 1, Timestamp = timestamp },
-                null,
+                null!,
                 RequestType.Cancel,
                 RequestLifetime.None,
                 session);
@@ -433,7 +433,7 @@ namespace Opc.Ua.Server.Tests
         {
             return new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle, Timestamp = timestamp },
-                null,
+                null!,
                 RequestType.Read,
                 RequestLifetime.None,
                 session);
@@ -489,13 +489,13 @@ namespace Opc.Ua.Server.Tests
 
             var ownContext = new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle },
-                null,
+                null!,
                 RequestType.Read,
                 ownRequestLifetime,
                 cancellingSession.Object);
             var otherContext = new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle },
-                null,
+                null!,
                 RequestType.Read,
                 otherRequestLifetime,
                 otherSession.Object);
@@ -524,7 +524,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 requestHeader,
-                null,
+                null!,
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
@@ -554,7 +554,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 requestHeader,
-                null,
+                null!,
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
@@ -595,9 +595,9 @@ namespace Opc.Ua.Server.Tests
             using var claimedLifetime = new RequestLifetime();
             using var openLifetime = new RequestLifetime();
             var claimed = new OperationContext(
-                new RequestHeader { RequestHandle = 42 }, null, RequestType.Read, claimedLifetime, session.Object);
+                new RequestHeader { RequestHandle = 42 }, null!, RequestType.Read, claimedLifetime, session.Object);
             var open = new OperationContext(
-                new RequestHeader { RequestHandle = 42 }, null, RequestType.Browse, openLifetime, session.Object);
+                new RequestHeader { RequestHandle = 42 }, null!, RequestType.Browse, openLifetime, session.Object);
             m_requestManager.RequestReceived(claimed);
             m_requestManager.RequestReceived(open);
             Assert.That(claimedLifetime.TryCancel(StatusCodes.BadTimeout), Is.True);
@@ -626,13 +626,13 @@ namespace Opc.Ua.Server.Tests
             using var expiredLifetime = new RequestLifetime();
             var claimed = new OperationContext(
                 new RequestHeader { RequestHandle = 1, TimeoutHint = 100 },
-                null,
+                null!,
                 RequestType.Read,
                 claimedLifetime,
                 session.Object);
             var expired = new OperationContext(
                 new RequestHeader { RequestHandle = 2, TimeoutHint = 100 },
-                null,
+                null!,
                 RequestType.Read,
                 expiredLifetime,
                 session.Object);
@@ -662,7 +662,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 requestHeader,
-                null,
+                null!,
                 RequestType.Read,
                 requestLifetime,
                 mockSession.Object);
@@ -1068,7 +1068,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EnterRequestScopeThrowsArgumentNullExceptionWhenContextNull()
         {
-            Assert.That(() => m_requestManager.EnterRequestScope(null), Throws.ArgumentNullException);
+            Assert.That(() => m_requestManager.EnterRequestScope(null!), Throws.ArgumentNullException);
         }
 
         [Test]

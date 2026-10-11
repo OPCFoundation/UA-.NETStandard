@@ -39,7 +39,7 @@ namespace Opc.Ua.Core.TestFramework
     {
         public static string[] EnumerateTestAssets(string searchPattern)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, true, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, true, false)!;
             if (assetsPath != null)
             {
                 return [.. Directory.EnumerateFiles(assetsPath, searchPattern)];

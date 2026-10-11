@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.TestFramework
             IServiceResponse response,
             CancellationToken cancellationToken = default)
         {
-            Expectation matched = null;
+            Expectation? matched = null;
             lock (m_lock)
             {
                 // Prefer one-shot expectations (FIFO).
@@ -222,9 +222,9 @@ namespace Opc.Ua.Client.TestFramework
 
         private sealed class Expectation
         {
-            public Type RequestType { get; init; }
-            public Type ResponseType { get; init; }
-            public Action<IServiceRequest, IServiceResponse> Mutator { get; init; }
+            public Type RequestType { get; init; } = null!;
+            public Type ResponseType { get; init; } = null!;
+            public Action<IServiceRequest, IServiceResponse> Mutator { get; init; } = null!;
         }
 
         private sealed class ExpectationHandle : IDisposable

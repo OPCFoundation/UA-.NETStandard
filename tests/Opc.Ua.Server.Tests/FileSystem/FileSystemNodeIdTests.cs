@@ -43,7 +43,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public void ConstructIdForComponentReturnsNullForNullComponent()
         {
-            NodeId result = FileSystemNodeId.ConstructIdForComponent(null, 1);
+            NodeId result = FileSystemNodeId.ConstructIdForComponent(null!, 1);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 

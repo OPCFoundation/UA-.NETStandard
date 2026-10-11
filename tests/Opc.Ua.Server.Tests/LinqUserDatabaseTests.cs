@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act + Assert
             Assert.Throws<ArgumentException>(
-                () => usersDb.CreateUser(null, "PW"u8, [Role.AuthenticatedUser]));
+                () => usersDb.CreateUser(null!, "PW"u8, [Role.AuthenticatedUser]));
             Assert.Throws<ArgumentException>(
                 () => usersDb.CreateUser("Name", null, [Role.AuthenticatedUser]));
             Assert.Throws<ArgumentException>(

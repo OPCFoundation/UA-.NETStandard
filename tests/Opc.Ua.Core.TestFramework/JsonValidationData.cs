@@ -58,10 +58,10 @@ namespace Opc.Ua.Core.TestFramework
 
         public BuiltInType BuiltInType { get; set; }
         public Variant Instance { get; set; }
-        public string ExpectedCompact { get; set; }
-        public string ExpectedVerbose { get; set; }
+        public string ExpectedCompact { get; set; } = null!;
+        public string ExpectedVerbose { get; set; } = null!;
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (BuiltInType == BuiltInType.Variant)
             {

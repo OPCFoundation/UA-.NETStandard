@@ -55,14 +55,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void OneTimeSetUp()
         {
             m_assembly = DataTypeModelTests.Compile(DataTypeModelTests.Generate(Model));
-            m_looseType = m_assembly.GetType("Test.VF.Loose", throwOnError: true);
+            m_looseType = m_assembly.GetType("Test.VF.Loose", throwOnError: true)!;
         }
 
         [Test]
         public void VariantFieldsArePublishedAsScalarBaseDataType()
         {
-            Dictionary<string, StructureField> fields = CreateDefinition().Fields.ToArray()
-                .ToDictionary(f => f.Name);
+            Dictionary<string, StructureField> fields = CreateDefinition().Fields.ToArray()!
+                .ToDictionary(f => f.Name!);
             Assert.Multiple(() =>
             {
                 foreach (string name in s_variantFields)
@@ -88,8 +88,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [TestCase(true)]
         public void GeneratedAndDefinitionDrivenCodecsInteroperate(bool json)
         {
-            var original = (IEncodeable)System.Activator.CreateInstance(m_looseType);
-            Set(original, "Before", 7);
+            var original = (IEncodeable)System.Activator.CreateInstance(m_looseType)!;
+            Set(original!, "Before", 7);
             Set(original, "Mixed", Variant.From(s_oneTwoThree.ToArrayOf()));
             Set(original, "Anything", Variant.From(2.5));
             Set(original, "Line", Variant.From("x"));
@@ -103,8 +103,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 original.BinaryEncodingId,
                 original.XmlEncodingId,
                 definition,
-                definition.Fields.ToArray().ToDictionary(
-                    f => f.Name,
+                definition.Fields.ToArray()!.ToDictionary(
+                    f => f.Name!,
                     f => TypeInfo.GetBuiltInType(f.DataType)));
             ServiceMessageContext runtimeContext = CreateContext(c => c.AddEncodeableType(structureType));
 
@@ -123,10 +123,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             MethodInfo create = m_assembly.GetTypes()
                 .Select(t => t.GetMethod("CreateLoose", BindingFlags.Public | BindingFlags.Static))
-                .First(m => m != null);
+                .First(m => m != null)!;
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(ModelUri);
-            return (StructureDefinition)create.Invoke(null, [namespaceUris]);
+            return (StructureDefinition)create!.Invoke(null, [namespaceUris])!;
         }
 
         private static ServiceMessageContext CreateContext(
@@ -150,12 +150,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
             using var binary = new BinaryEncoder(context);
             binary.WriteEncodeable("Loose", value, value.TypeId);
-            return binary.CloseAndReturnBuffer();
+            return binary.CloseAndReturnBuffer()!;
         }
 
         private IEncodeable Decode(bool json, ServiceMessageContext context, object payload)
         {
-            var typeId = ((IEncodeable)System.Activator.CreateInstance(m_looseType)).TypeId;
+            var typeId = ((IEncodeable)System.Activator.CreateInstance(m_looseType)!).TypeId;
             if (json)
             {
                 using var decoder = new JsonDecoder((string)payload, context);
@@ -167,7 +167,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static void Set(object instance, string name, object value)
         {
-            instance.GetType().GetProperty(name).SetValue(instance, value);
+            instance.GetType().GetProperty(name)!.SetValue(instance, value);
         }
 
         private const string Model =

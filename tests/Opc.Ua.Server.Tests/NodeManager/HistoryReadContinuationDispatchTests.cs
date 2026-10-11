@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
                 session.SetupGet(value => value.ContinuationPoints).Returns(Points);
                 Context = new OperationContext(
-                    new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None, session.Object);
+                    new RequestHeader(), null!, RequestType.HistoryRead, RequestLifetime.None, session.Object);
             }
 
             public Mock<IAsyncNodeManager> Manager { get; } = new();
@@ -283,11 +283,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ArrayOf<HistoryReadValueId> nodesToRead,
                 CancellationToken cancellationToken)
             {
-                IHistoryContinuationPoint point = await context.Session.ContinuationPoints
+                IHistoryContinuationPoint point = (await context.Session.ContinuationPoints
                     .RestoreHistoryAsync(nodesToRead[0].ContinuationPoint, cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 await context.Session.ContinuationPoints
-                    .SaveHistoryAsync(point, cancellationToken).ConfigureAwait(false);
+                    .SaveHistoryAsync(point!, cancellationToken).ConfigureAwait(false);
                 throw new OperationCanceledException();
             }
 

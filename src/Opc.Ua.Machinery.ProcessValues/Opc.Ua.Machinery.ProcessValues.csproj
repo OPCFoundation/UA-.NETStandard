@@ -10,7 +10,6 @@
          signature, so a narrowed inherited method emits a redundant "new".
          Generated modifiers cannot be hand-tuned. -->
     <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Source-generated OPC 40001-2 Machinery Process Values information model over the OPC 30081 PADIM model and the OPC UA IRDI dictionary.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

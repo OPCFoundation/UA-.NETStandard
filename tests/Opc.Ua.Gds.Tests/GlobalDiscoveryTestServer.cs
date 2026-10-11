@@ -44,9 +44,9 @@ namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestServer : IAsyncDisposable
     {
-        public GlobalDiscoverySampleServer Server { get; private set; }
-        public IApplicationInstance Application { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
+        public GlobalDiscoverySampleServer Server { get; private set; } = null!;
+        public IApplicationInstance Application { get; private set; } = null!;
+        public ApplicationConfiguration Config { get; private set; } = null!;
         public int BasePort { get; private set; }
 
         public GlobalDiscoveryTestServer(bool autoAccept, ITelemetryContext telemetry, int maxTrustListSize)
@@ -64,14 +64,14 @@ namespace Opc.Ua.Gds.Tests
         {
             await StopServerAsync().ConfigureAwait(false);
             DisposeConfigurationCertificateManager(Config);
-            Config = null;
+            Config = null!;
             DisposeTrackedCertificateManagers();
             if (Application != null)
             {
                 DisposeConfigurationCertificateManager(Application.ApplicationConfiguration);
                 DisposeApplicationCertificateManager(Application);
                 await Application.DisposeAsync().ConfigureAwait(false);
-                Application = null;
+                Application = null!;
             }
             GC.SuppressFinalize(this);
         }
@@ -80,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
             bool clean,
             int basePort = -1,
             string storeType = CertificateStoreType.Directory,
-            IEnumerable<CertificateGroupConfiguration> additionalCertGroups = null)
+            IEnumerable<CertificateGroupConfiguration>? additionalCertGroups = null)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
@@ -108,13 +108,13 @@ namespace Opc.Ua.Gds.Tests
 
             if (clean)
             {
-                string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                string thumbprint = Config.SecurityConfiguration.ApplicationCertificate!.Thumbprint!;
                 if (thumbprint != null)
                 {
                     using ICertificateStore store = CertificateIdentifierResolver
                         .OpenStore(
                             Config.SecurityConfiguration.ApplicationCertificate,
-                            m_telemetry);
+                            m_telemetry)!;
                     if (store != null)
                     {
                         await store.DeleteAsync(thumbprint).ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
+                        Config.SecurityConfiguration.RejectedCertificateStore!, m_telemetry)
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
@@ -148,8 +148,8 @@ namespace Opc.Ua.Gds.Tests
             if (additionalCertGroups != null)
             {
                 GlobalDiscoveryServerConfiguration gdsConfig =
-                    Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-                gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
+                    Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!;
+                gdsConfig!.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
                 Config.UpdateExtension(null, gdsConfig);
             }
 
@@ -170,11 +170,11 @@ namespace Opc.Ua.Gds.Tests
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration =
-                Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
+                Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!;
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(
-                gdsConfiguration.DatabaseStorePath);
+                gdsConfiguration!.DatabaseStorePath)!;
             string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(
-                gdsConfiguration.UsersDatabaseStorePath);
+                gdsConfiguration.UsersDatabaseStorePath)!;
 
             if (clean)
             {
@@ -189,16 +189,16 @@ namespace Opc.Ua.Gds.Tests
                 }
 
                 // clean up GDS stores
-                TestUtils.DeleteDirectory(gdsConfiguration.AuthoritiesStorePath);
-                TestUtils.DeleteDirectory(gdsConfiguration.ApplicationCertificatesStorePath);
+                TestUtils.DeleteDirectory(gdsConfiguration.AuthoritiesStorePath!);
+                TestUtils.DeleteDirectory(gdsConfiguration.ApplicationCertificatesStorePath!);
                 foreach (CertificateGroupConfiguration group in gdsConfiguration.CertificateGroups)
                 {
-                    TestUtils.DeleteDirectory(group.BaseStorePath);
+                    TestUtils.DeleteDirectory(group.BaseStorePath!);
                 }
             }
 
-            var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
-            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, m_telemetry);
+            var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath!);
+            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath!, m_telemetry);
 
             RegisterDefaultUsers(userDatabase);
 
@@ -225,7 +225,7 @@ namespace Opc.Ua.Gds.Tests
                 m_logger.LogInformation("Server stopped. Waiting for exit...");
 
                 using GlobalDiscoverySampleServer server = Server;
-                Server = null;
+                Server = null!;
                 // Stop server and dispose
                 await server.StopAsync().ConfigureAwait(false);
             }
@@ -256,7 +256,7 @@ namespace Opc.Ua.Gds.Tests
             if (configuration?.CertificateManager is IDisposable certificateManager)
             {
                 certificateManager.Dispose();
-                configuration.CertificateManager = null;
+                configuration.CertificateManager = null!;
             }
         }
 
@@ -390,7 +390,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 #endif
 
-            config.ServerConfiguration.MaxTrustListSize = maxTrustListSize;
+            config.ServerConfiguration!.MaxTrustListSize = maxTrustListSize;
 
             TestUtils.PatchBaseAddressesPorts(config, basePort);
             return config;

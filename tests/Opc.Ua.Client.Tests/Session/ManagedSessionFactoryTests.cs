@@ -89,7 +89,7 @@ namespace Opc.Ua.Client.Tests
                 ClientConfiguration = new ClientConfiguration()
             };
 
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                 ClientConfiguration = new ClientConfiguration()
             };
 
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,

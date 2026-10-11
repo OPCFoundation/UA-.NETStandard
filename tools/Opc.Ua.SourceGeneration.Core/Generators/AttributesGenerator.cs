@@ -72,11 +72,11 @@ namespace Opc.Ua.SourceGeneration
                 LoadIdentifiers(BuiltInDesignFiles.AttributesCsv);
 
             var constants = new List<Constant>();
-            foreach (DataType datatype in validator.Dictionary.Items)
+            foreach (DataType datatype in validator.Dictionary!.Items!)
             {
                 if (!TypeDictionaryValidator.IsExcluded(m_context.Options.Exclusions, datatype) &&
                     datatype is Constant constant &&
-                    identifiers.TryGetValue(constant.Name, out int id))
+                    identifiers.TryGetValue(constant.Name!, out int id))
                 {
                     constant.Identifier = id;
                     constant.IdentifierSpecified = true;
@@ -125,7 +125,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             context.Template.AddReplacement(Tokens.SymbolicId, constant.Name);
-            string description = constant.Documentation.GetDescription();
+            string? description = constant.Documentation.GetDescription();
             context.Template.AddReplacement(Tokens.Description, description);
 
             return context.Template.Render();
@@ -159,11 +159,11 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Write lookup entries for identifiers.
         /// </summary>
-        private TemplateString LoadTemplate_IdentifierLookup(ILoadContext context)
+        private TemplateString? LoadTemplate_IdentifierLookup(ILoadContext context)
         {
             if (context.Target is Constant constant)
             {
-                string symbolicId = constant.Name;
+                string? symbolicId = constant.Name;
                 if (context.Token == Tokens.ListOfIdentifersToNames)
                 {
                     context.Out.WriteLine("lookup[{0}] = \"{0}\";", symbolicId);
@@ -188,7 +188,7 @@ namespace Opc.Ua.SourceGeneration
             using TextReader reader = m_context.FileSystem.CreateTextReader(identifiersFile);
             while (true)
             {
-                string line = reader.ReadLine();
+                string? line = reader.ReadLine();
                 if (line == null)
                 {
                     break;

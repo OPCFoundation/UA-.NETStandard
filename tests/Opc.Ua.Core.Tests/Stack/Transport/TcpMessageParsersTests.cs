@@ -221,9 +221,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static byte[] Encode(Action<BinaryEncoder> write)
         {
-            using var encoder = new BinaryEncoder(ServiceMessageContext.CreateEmpty(null));
+            using var encoder = new BinaryEncoder(ServiceMessageContext.CreateEmpty(null!));
             write(encoder);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
     }
 }

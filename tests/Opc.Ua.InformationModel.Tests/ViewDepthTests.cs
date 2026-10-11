@@ -563,7 +563,7 @@ namespace Opc.Ua.InformationModel.Tests
             bool found = false;
             foreach (ReferenceDescription r in result.References)
             {
-                if (r.BrowseName.Name.Contains(
+                if (r.BrowseName.Name!.Contains(
                     "Session", StringComparison.Ordinal))
                 {
                     found = true;

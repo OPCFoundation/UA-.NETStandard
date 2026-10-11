@@ -104,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var fields = new Variant[registry.StandardFields.Length];
             fields[eventTypePosition] = Variant.From(ObjectTypeIds.BaseEventType);
 
-            EventRecord record = registry.Decode(fields);
+            EventRecord record = registry.Decode(fields)!;
 
             Assert.That(record, Is.Not.Null);
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             EventRecord record = registry.DecodeAs(
                 unknownVendor,
-                [default, Variant.From(unknownVendor)]);
+                [default, Variant.From(unknownVendor)])!;
 
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
         }
@@ -168,7 +168,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var registry = new EventRecordDecoderRegistry();
             var unknownType = new NodeId(987u, 7);
 
-            EventRecord record = registry.DecodeAs(unknownType, [Variant.From(1)]);
+            EventRecord? record = registry.DecodeAs(unknownType, [Variant.From(1)]);
 
             Assert.That(record, Is.Null);
         }
@@ -214,7 +214,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             fields[eventTypePosition] = Variant.From(ObjectTypeIds.BaseEventType);
             fields[severityPosition] = Variant.From((ushort)999);
 
-            EventRecord record = registry.Decode(fields);
+            EventRecord record = registry.Decode(fields)!;
 
             Assert.That(record, Is.InstanceOf<BaseEventTypeRecord>());
             var baseRecord = (BaseEventTypeRecord)record;
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var fields = new Variant[registry.StandardFields.Length];
             fields[eventTypePosition] = Variant.From(NodeId.Null);
 
-            EventRecord record = registry.Decode(fields);
+            EventRecord? record = registry.Decode(fields);
 
             Assert.That(record, Is.Null);
         }

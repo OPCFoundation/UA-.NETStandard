@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(pkiRoot);
-            ApplicationInstance clientApp = null;
+            ApplicationInstance? clientApp = null;
 
             try
             {

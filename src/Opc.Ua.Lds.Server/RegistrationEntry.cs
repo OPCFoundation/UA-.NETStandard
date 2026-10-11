@@ -46,12 +46,12 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// The server's <c>ApplicationUri</c>. Acts as the unique key for the registration.
         /// </summary>
-        public string ServerUri { get; set; }
+        public string ServerUri { get; set; } = null!;
 
         /// <summary>
         /// The server's product URI.
         /// </summary>
-        public string ProductUri { get; set; }
+        public string? ProductUri { get; set; }
 
         /// <summary>
         /// The server's localized application names.
@@ -67,7 +67,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// Optional gateway server URI for non-OPC UA server registrations.
         /// </summary>
-        public string GatewayServerUri { get; set; }
+        public string? GatewayServerUri { get; set; }
 
         /// <summary>
         /// One or more discovery endpoint URLs.
@@ -77,7 +77,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// Optional file path used to keep the registration alive while the file exists.
         /// </summary>
-        public string SemaphoreFilePath { get; set; }
+        public string? SemaphoreFilePath { get; set; }
 
         /// <summary>
         /// Whether the server is currently online and accepting connections.
@@ -100,6 +100,6 @@ namespace Opc.Ua.Lds.Server
         /// The mDNS server name advertised by the most recent
         /// <c>MdnsDiscoveryConfiguration</c>. Null for plain <c>RegisterServer</c> calls.
         /// </summary>
-        public string MdnsServerName { get; set; }
+        public string? MdnsServerName { get; set; }
     }
 }

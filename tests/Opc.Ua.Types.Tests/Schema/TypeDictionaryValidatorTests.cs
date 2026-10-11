@@ -98,18 +98,18 @@ namespace Opc.Ua.Types.Tests.Schema
             Validate(validator, CreateDictionary(integer, alias, baseStruct, childStruct, mode, service));
 
             Assert.That(validator.Dictionary, Is.Not.Null);
-            UaDataType resolvedInteger = validator.FindType(QName("UInt32"));
-            var resolvedMode = (EnumeratedType)validator.FindType(QName("Mode"));
-            var resolvedChild = (UaComplexType)validator.FindType(QName("ChildStruct"));
+            UaDataType resolvedInteger = validator.FindType(QName("UInt32"))!;
+            var resolvedMode = (EnumeratedType)validator.FindType(QName("Mode"))!;
+            var resolvedChild = (UaComplexType)validator.FindType(QName("ChildStruct"))!;
 
-            Assert.That(resolvedInteger.Name, Is.EqualTo("UInt32"));
+            Assert.That(resolvedInteger!.Name, Is.EqualTo("UInt32"));
             Assert.That(validator.ResolveType(QName("Counter")), Is.SameAs(resolvedInteger));
             Assert.That(validator.ResolveType(XmlQualifiedName.Empty), Is.Null);
             Assert.That(validator.ResolveType(QName("Missing")), Is.Null);
-            Assert.That(resolvedMode.Value[0].Value, Is.Zero);
+            Assert.That(resolvedMode!.Value![0].Value, Is.Zero);
             Assert.That(resolvedMode.Value[0].ValueSpecified, Is.True);
             Assert.That(resolvedMode.Value[1].Value, Is.EqualTo(4));
-            Assert.That(resolvedChild.Field[1].DataType, Is.EqualTo(QName("NestedStruct")));
+            Assert.That(resolvedChild!.Field![1].DataType, Is.EqualTo(QName("NestedStruct")));
             Assert.That(validator.LoadedTypeDictionaries, Is.Empty);
             Assert.That(TypeDictionaryValidator.IsExcluded(["Numeric"], resolvedInteger), Is.True);
             Assert.That(TypeDictionaryValidator.IsExcluded([nameof(ReleaseStatus.Released)], resolvedMode.Value[0]), Is.True);

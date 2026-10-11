@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Opc.Ua
 {
@@ -744,34 +745,59 @@ namespace Opc.Ua
             switch (field.TypeInfo.BuiltInType)
             {
                 case BuiltInType.SByte when field.TryGetValue(out sbyte v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.Byte when field.TryGetValue(out byte v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.Int16 when field.TryGetValue(out short v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.UInt16 when field.TryGetValue(out ushort v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.UInt32 when field.TryGetValue(out uint v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.Int64 when field.TryGetValue(out long v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(v);
                     return true;
                 case BuiltInType.UInt64 when field.TryGetValue(out ulong v):
-                    value = (T)Enum.ToObject(typeof(T), v);
+                    value = EnumFromInt64<T>(unchecked((long)v));
                     return true;
                 default:
                     if (field.TryGetValue(out int int32))
                     {
-                        value = (T)Enum.ToObject(typeof(T), int32);
+                        value = EnumFromInt64<T>(int32);
                         return true;
                     }
                     value = default;
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// Converts to the enum like <see cref="Enum.ToObject(Type, long)"/>
+        /// without boxing: keeps the low bytes of the value that fit the
+        /// underlying type.
+        /// </summary>
+        /// <typeparam name="T">The generated enumeration type.</typeparam>
+        private static T EnumFromInt64<T>(long value)
+            where T : struct, Enum
+        {
+            switch (Unsafe.SizeOf<T>())
+            {
+                case sizeof(byte):
+                    byte b = unchecked((byte)value);
+                    return Unsafe.As<byte, T>(ref b);
+                case sizeof(short):
+                    short s = unchecked((short)value);
+                    return Unsafe.As<short, T>(ref s);
+                case sizeof(int):
+                    int i = unchecked((int)value);
+                    return Unsafe.As<int, T>(ref i);
+                default:
+                    return Unsafe.As<long, T>(ref value);
             }
         }
 

@@ -388,7 +388,7 @@ namespace Opc.Ua.Interop.Tests
         {
             ArrayOf<EndpointDescription> endpoints = await client.GetEndpointsAsync(new Uri(url))
                 .ConfigureAwait(false);
-            EndpointDescription description = endpoints.ToArray().First(e =>
+            EndpointDescription description = endpoints.ToArray()!.First(e =>
                 e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
                 e.SecurityMode == MessageSecurityMode.SignAndEncrypt);
             var endpoint = new ConfiguredEndpoint(null, description, EndpointConfiguration.Create(client.Config));

@@ -59,7 +59,7 @@ namespace Opc.Ua.Lds.Server
         private readonly TimeProvider m_timeProvider;
         private uint m_nextRecordId = 1;
         private DateTime m_lastCounterResetTime;
-        private ITimer m_pruneTimer;
+        private ITimer? m_pruneTimer;
         private bool m_disposed;
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Opc.Ua.Lds.Server
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for the
         /// background prune timer and registration timestamps. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
-        public RegisteredServerStore(ILogger logger = null, TimeProvider timeProvider = null)
+        public RegisteredServerStore(ILogger? logger = null, TimeProvider? timeProvider = null)
         {
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -169,9 +169,9 @@ namespace Opc.Ua.Lds.Server
         /// (post-merge) or <c>null</c> if it was removed.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
-        public async Task<RegistrationEntry> RegisterAsync(
+        public async Task<RegistrationEntry?> RegisterAsync(
             RegisteredServer server,
-            MdnsDiscoveryConfiguration mdnsConfig,
+            MdnsDiscoveryConfiguration? mdnsConfig,
             CancellationToken cancellationToken = default)
         {
             if (server == null)
@@ -182,7 +182,7 @@ namespace Opc.Ua.Lds.Server
             await m_lock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                string uri = server.ServerUri;
+                string uri = server.ServerUri!;
 
                 // semaphore file: if path is set but file is missing, drop the registration
                 bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath) ||
@@ -198,7 +198,7 @@ namespace Opc.Ua.Lds.Server
                     return null;
                 }
 
-                if (!m_byUri.TryGetValue(uri, out RegistrationEntry entry))
+                if (!m_byUri.TryGetValue(uri, out RegistrationEntry? entry))
                 {
                     entry = new RegistrationEntry { ServerUri = uri };
                     m_byUri[uri] = entry;
@@ -331,7 +331,7 @@ namespace Opc.Ua.Lds.Server
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="discoveryUrl"/> is null or empty.</exception>
         public void UpsertMulticastRecord(
-            string serverUri,
+            string? serverUri,
             string serverName,
             string discoveryUrl,
             IEnumerable<string> capabilities)
@@ -344,7 +344,7 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                ServerOnNetworkRecord existing = m_records.FirstOrDefault(r =>
+                ServerOnNetworkRecord? existing = m_records.FirstOrDefault(r =>
                     r.ObservedViaMulticast &&
                     string.Equals(r.DiscoveryUrl, discoveryUrl, StringComparison.Ordinal));
 

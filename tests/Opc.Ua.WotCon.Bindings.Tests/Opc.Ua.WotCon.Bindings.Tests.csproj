@@ -6,7 +6,6 @@
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.WotCon.Bindings.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
   </PropertyGroup>

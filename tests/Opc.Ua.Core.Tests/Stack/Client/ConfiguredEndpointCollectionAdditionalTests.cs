@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests
                 "opc.tcp://localhost:4840- [SignAndEncrypt:Basic256Sha256:Binary]");
             Assert.That(ep, Is.Not.Null);
             Assert.That(ep.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-            Assert.That(ep.Configuration.UseBinaryEncoding, Is.True);
+            Assert.That(ep.Configuration!.UseBinaryEncoding, Is.True);
         }
 
         [Test]
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Tests
         {
             ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
-            var other = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://other:4840"));
+            var other = new ConfiguredEndpoint(null!, CreateEndpoint("opc.tcp://other:4840"));
             Assert.That(col.IndexOf(other), Is.EqualTo(-1));
         }
 
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.Tests
         public void ContainsReturnsFalseForMissingEndpoint()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            var other = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://other:4840"));
+            var other = new ConfiguredEndpoint(null!, CreateEndpoint("opc.tcp://other:4840"));
             Assert.That(col.Contains(other), Is.False);
         }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests
         {
             ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
-            var ep2 = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://server2:4840"));
+            var ep2 = new ConfiguredEndpoint(null!, CreateEndpoint("opc.tcp://server2:4840"));
             col.Insert(0, ep2);
             Assert.That(col[0], Is.SameAs(ep2));
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests
             ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(
-                () => col[0] = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://x:1")),
+                () => col[0] = new ConfiguredEndpoint(null!, CreateEndpoint("opc.tcp://x:1")),
                 Throws.TypeOf<NotImplementedException>());
         }
 
@@ -298,14 +298,14 @@ namespace Opc.Ua.Core.Tests
         public void RemoveNullThrows()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            Assert.That(() => col.Remove(null), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => col.Remove(null!), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void AddNullConfiguredEndpointThrows()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            Assert.That(() => col.Add((ConfiguredEndpoint)null), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => col.Add((ConfiguredEndpoint)null!), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -322,7 +322,7 @@ namespace Opc.Ua.Core.Tests
         public void RemoveServerNullThrows()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            Assert.That(() => col.RemoveServer(null), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => col.RemoveServer(null!), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests
         {
             ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(
-                () => col.SetApplicationDescription("urn:test", null),
+                () => col.SetApplicationDescription("urn:test", null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

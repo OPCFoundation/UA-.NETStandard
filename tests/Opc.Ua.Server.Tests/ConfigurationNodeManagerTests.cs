@@ -92,10 +92,10 @@ namespace Opc.Ua.Server.Tests
             // Act 1: CreateNamespaceMetadataState
             NamespaceMetadataState metadata = await configManager.CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
             Assert.That(metadata, Is.Not.Null);
-            Assert.That(metadata.NamespaceUri.Value, Is.EqualTo(namespaceUri));
+            Assert.That(metadata.NamespaceUri!.Value, Is.EqualTo(namespaceUri));
 
             // Act 2: GetNamespaceMetadataState
-            NamespaceMetadataState metadataGet = await configManager.GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
+            NamespaceMetadataState metadataGet = (await configManager.GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false))!;
             Assert.That(metadataGet, Is.SameAs(metadata));
 
             // Act 3: Verify Event Subscription
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
 
             // Trigger change
             // Use array initialization
-            metadata.DefaultRolePermissions.Value =
+            metadata.DefaultRolePermissions!.Value =
             [
                 new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Observer, Permissions = (uint)PermissionType.Read }
             ];
@@ -148,9 +148,9 @@ namespace Opc.Ua.Server.Tests
             // Note: We need to access the node directly to modify it.
             // Since we are in the same process and using StandardServer, we can try to find it via NodeManager.
             // StandardServer.NodeManager is IMasterNodeManager which has FindNodeInAddressSpaceAsync.
-            NodeState result = await serverInternal.NodeManager
+            NodeState result = (await serverInternal.NodeManager
                 .FindNodeInAddressSpaceAsync(ObjectIds.Server_Namespaces)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             var serverNamespacesNode = result as NamespacesState;
             Assert.That(serverNamespacesNode, Is.Not.Null, "ServerNamespaces node not found in address space");
 
@@ -215,9 +215,9 @@ namespace Opc.Ua.Server.Tests
             IServerInternal serverInternal = server.CurrentInstance;
             Assert.That(serverInternal.UserManagement, Is.Null);
 
-            NodeState userManagementNode = await serverInternal.NodeManager
+            NodeState userManagementNode = (await serverInternal.NodeManager
                 .FindNodeInAddressSpaceAsync(ObjectIds.UserManagement)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(userManagementNode, Is.Null);
 
             await fixture.StopAsync().ConfigureAwait(false);
@@ -294,18 +294,18 @@ namespace Opc.Ua.Server.Tests
 
                 foreach (NodeId suppressedNodeId in suppressedNodeIds)
                 {
-                    NodeState node = await serverInternal.NodeManager
+                    NodeState node = (await serverInternal.NodeManager
                         .FindNodeInAddressSpaceAsync(suppressedNodeId)
-                        .ConfigureAwait(false);
+                        .ConfigureAwait(false))!;
                     Assert.That(node, Is.Null,
                         $"NodeId {suppressedNodeId} should not be exposed because the SDK does not " +
                         "implement it. See issue #3768.");
                 }
 
                 // ServerConfiguration itself must exist.
-                NodeState serverConfigurationNode = await serverInternal.NodeManager
+                NodeState serverConfigurationNode = (await serverInternal.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 Assert.That(serverConfigurationNode, Is.Not.Null,
                     "ServerConfiguration itself must exist in the address space.");
 
@@ -451,9 +451,9 @@ namespace Opc.Ua.Server.Tests
 
                 foreach (NodeId sdkAddedNodeId in sdkAddedNodeIds)
                 {
-                    NodeState node = await serverInternal.NodeManager
+                    NodeState node = (await serverInternal.NodeManager
                         .FindNodeInAddressSpaceAsync(sdkAddedNodeId)
-                        .ConfigureAwait(false);
+                        .ConfigureAwait(false))!;
                     Assert.That(node, Is.Not.Null,
                         $"NodeId {sdkAddedNodeId} must be exposed at its " +
                         "well-known instance-level NodeId by the SDK.");

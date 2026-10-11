@@ -155,7 +155,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         {
             var manager = new SecurityConfigurationManager(m_telemetry);
             Assert.That(
-                () => manager.ReadConfiguration(null),
+                () => manager.ReadConfiguration(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         {
             var manager = new SecurityConfigurationManager(m_telemetry);
             Assert.That(
-                () => manager.WriteConfiguration("somefile.xml", null),
+                () => manager.WriteConfiguration("somefile.xml", null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

@@ -239,12 +239,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 CreateOptions(kSourceNamespaceUri, xml), null).ConfigureAwait(false);
             IServerInternal server = m_server.CurrentInstance;
             ushort ns = checked((ushort)server.NamespaceUris.GetIndex(kSourceNamespaceUri));
-            NodeState node = await server.NodeManager.FindNodeInAddressSpaceAsync(new NodeId(2, ns))
-                .ConfigureAwait(false);
+            NodeState node = (await server.NodeManager.FindNodeInAddressSpaceAsync(new NodeId(2, ns))
+                .ConfigureAwait(false))!;
             Assert.That(node, Is.InstanceOf<MethodState>());
             var method = (MethodState)node;
-            PropertyState<ArrayOf<Argument>> arguments = argumentName == "InputArguments"
-                ? method.InputArguments : method.OutputArguments;
+            PropertyState<ArrayOf<Argument>> arguments = (argumentName == "InputArguments"
+                ? method.InputArguments : method.OutputArguments)!;
             Assert.That(arguments, Is.Not.Null);
             Assert.That(arguments.NodeId, Is.EqualTo(new NodeId(3, ns)));
             Assert.That(arguments.Value.Count, Is.EqualTo(1));
@@ -267,10 +267,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var targetId = new NodeId(kTargetFolderNodeId, targetNs);
             var sourceId = new NodeId(kSourceObjectNodeId, sourceNs);
 
-            NodeState target = await server.NodeManager
-                .FindNodeInAddressSpaceAsync(targetId).ConfigureAwait(false);
-            NodeState source = await server.NodeManager
-                .FindNodeInAddressSpaceAsync(sourceId).ConfigureAwait(false);
+            NodeState target = (await server.NodeManager
+                .FindNodeInAddressSpaceAsync(targetId).ConfigureAwait(false))!;
+            NodeState source = (await server.NodeManager
+                .FindNodeInAddressSpaceAsync(sourceId).ConfigureAwait(false))!;
             Assert.That(target, Is.Not.Null, "The target NodeSet must be in the address space.");
             Assert.That(source, Is.Not.Null, "The source NodeSet must be in the address space.");
 

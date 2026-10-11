@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
 
             OAuth2Credential credential = OAuth2CredentialCollection.FindByServerUri(
                 configuration,
-                $"https://{host}/server");
+                $"https://{host}/server")!;
 
             Assert.That(credential, Is.Not.Null);
             Assert.That(credential.ClientId, Is.EqualTo("client"));
@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
 
             OAuth2Credential credential = OAuth2CredentialCollection.FindByAuthorityUrl(
                 configuration,
-                $"https://{host}/issuer/");
+                $"https://{host}/issuer/")!;
 
             Assert.That(credential, Is.Not.Null);
             Assert.That(credential.AuthorityUrl, Is.EqualTo($"https://{host}/issuer/"));
@@ -95,10 +95,10 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             ApplicationConfiguration configuration = CreateConfigurationWithOAuthCredential();
 
             Assert.That(
-                () => OAuth2CredentialCollection.Load(null),
+                () => OAuth2CredentialCollection.Load(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OAuth2CredentialCollection.FindByServerUri(configuration, null),
+                () => OAuth2CredentialCollection.FindByServerUri(configuration, null!),
                 Throws.ArgumentException);
             Assert.That(
                 () => OAuth2CredentialCollection.FindByAuthorityUrl(configuration, "not a uri"),
@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             SetSourceFilePath(configuration, filePath);
             var timeProvider = new FakeTimeProvider();
             int changedCount = 0;
-            ConfigurationWatcherEventArgs raised = null;
+            ConfigurationWatcherEventArgs? raised = null;
 
             using (var watcher = new ConfigurationWatcher(
                 configuration,
@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         public void ConfigurationWatcherValidatesConfigurationAndSourceFile()
         {
             Assert.That(
-                () => _ = new ConfigurationWatcher(null, NUnitTelemetryContext.Create()),
+                () => _ = new ConfigurationWatcher(null!, NUnitTelemetryContext.Create()),
                 Throws.ArgumentNullException);
 
             var configuration = new ApplicationConfiguration();

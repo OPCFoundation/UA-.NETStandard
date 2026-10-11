@@ -94,14 +94,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ResolveAsyncReturnsNullForNullIdentifier()
         {
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .ResolveAsync(
-                    identifier: null,
+                    identifier: null!,
                     registry: null,
                     needPrivateKey: false,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(result, Is.Null);
         }
 
@@ -110,14 +110,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var id = new CertificateIdentifier { RawData = m_diskCert.RawData };
 
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .ResolveAsync(
                     id,
                     registry: null,
                     needPrivateKey: false,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Thumbprint, Is.EqualTo(m_diskCert.Thumbprint));
@@ -135,14 +135,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .ResolveAsync(
                     id,
                     registry: null,
                     needPrivateKey: false,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Thumbprint, Is.EqualTo(m_diskCert.Thumbprint));
@@ -159,14 +159,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .ResolveAsync(
                     id,
                     registry: null,
                     needPrivateKey: false,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
         }
@@ -174,13 +174,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task LoadPrivateKeyAsyncReturnsNullForNullIdentifier()
         {
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(
-                    identifier: null,
+                    identifier: null!,
                     passwordProvider: null,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(result, Is.Null);
         }
 
@@ -196,13 +196,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(
                     id,
                     passwordProvider: null,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Thumbprint, Is.EqualTo(m_diskCert.Thumbprint));
@@ -220,13 +220,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            using Certificate result = await CertificateIdentifierResolver
+            using Certificate result = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(
                     id,
                     passwordProvider: null,
                     applicationUri: null,
                     m_telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
         }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
 
             using ICertificateStore store = CertificateIdentifierResolver
-                .OpenStore(id, m_telemetry);
+                .OpenStore(id, m_telemetry)!;
 
             Assert.That(store, Is.Null);
         }
@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
 
             using ICertificateStore store = CertificateIdentifierResolver
-                .OpenStore(id, m_telemetry);
+                .OpenStore(id, m_telemetry)!;
 
             Assert.That(store, Is.Not.Null);
         }

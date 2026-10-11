@@ -49,10 +49,10 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         public void GetDescription_NullDocumentation_ReturnsNull()
         {
             // Arrange
-            Documentation documentation = null;
+            Documentation? documentation = null;
 
             // Act
-            string result = documentation.GetDescription();
+            string? result = documentation!.GetDescription();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -71,7 +71,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string? result = documentation.GetDescription();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -90,7 +90,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello World"));
@@ -129,7 +129,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello World OPC UA"));
@@ -148,7 +148,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("First Second"));
@@ -163,11 +163,11 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             // Arrange
             var documentation = new Documentation
             {
-                Text = ["Hello", null, "World"]
+                Text = ["Hello", null!, "World"]
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello  World"));
@@ -186,7 +186,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello  World"));
@@ -205,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello     World"));
@@ -224,7 +224,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Line1\n Tab\t Quote\""));
@@ -244,7 +244,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -271,7 +271,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -293,7 +293,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -308,11 +308,11 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             // Arrange
             var documentation = new Documentation
             {
-                Text = [null]
+                Text = [null!]
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -327,11 +327,11 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             // Arrange
             var documentation = new Documentation
             {
-                Text = [null, null, null]
+                Text = [null!, null!, null!]
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -350,7 +350,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
             };
 
             // Act
-            string result = documentation.GetDescription();
+            string result = documentation.GetDescription()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello 世界 🌍"));

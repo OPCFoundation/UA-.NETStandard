@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -1017,7 +1015,7 @@ namespace Opc.Ua.Server.Tests
             var classifier = new Mock<IResourceIsolationClassifier>(MockBehavior.Strict);
             ResourceIsolationIdentity identity = default;
             classifier.Setup(c => c.TryClassify(
-                It.Is<SecureChannelContext>(c => c.ClientChannelCertificate == null),
+                It.Is<SecureChannelContext>(c => c.ClientChannelCertificate.IsNull),
                 null, out identity)).Returns(false);
             classifier.Setup(c => c.TryClassifyIngress(It.IsAny<IPEndPoint>(), out identity)).Returns(false);
             using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), classifier.Object);

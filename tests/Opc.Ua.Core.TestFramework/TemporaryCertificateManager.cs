@@ -86,10 +86,10 @@ namespace Opc.Ua.Core.TestFramework
             if (disposing && Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
                 CleanupValidatorAndStoresAsync(true).GetAwaiter().GetResult();
-                m_issuerStore = null;
-                m_trustedStore = null;
-                m_rejectedStore = null;
-                string path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
+                m_issuerStore = null!;
+                m_trustedStore = null!;
+                m_rejectedStore = null!;
+                string path = Utils.ReplaceSpecialFolderNames(m_pkiRoot)!;
                 int retries = 5;
                 while (retries-- > 0)
                 {
@@ -155,12 +155,12 @@ namespace Opc.Ua.Core.TestFramework
                 TrustedIssuerCertificates = new CertificateTrustList
                 {
                     StoreType = CertificateStoreType.Directory,
-                    StorePath = m_issuerStore.Directory.FullName
+                    StorePath = m_issuerStore.Directory!.FullName
                 },
                 TrustedPeerCertificates = new CertificateTrustList
                 {
                     StoreType = CertificateStoreType.Directory,
-                    StorePath = m_trustedStore.Directory.FullName
+                    StorePath = m_trustedStore.Directory!.FullName
                 }
             };
             if (m_rejectedStore != null)
@@ -168,7 +168,7 @@ namespace Opc.Ua.Core.TestFramework
                 securityConfiguration.RejectedCertificateStore = new CertificateTrustList
                 {
                     StoreType = CertificateStoreType.Directory,
-                    StorePath = m_rejectedStore.Directory.FullName
+                    StorePath = m_rejectedStore.Directory!.FullName
                 };
             }
 
@@ -202,10 +202,10 @@ namespace Opc.Ua.Core.TestFramework
         }
 
         private int m_disposed;
-        private ICertificateManager m_manager;
+        private ICertificateManager m_manager = null!;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
-        private DirectoryCertificateStore m_rejectedStore;
+        private DirectoryCertificateStore m_rejectedStore = null!;
         private readonly string m_pkiRoot;
         private readonly ITelemetryContext m_telemetry;
     }

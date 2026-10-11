@@ -47,7 +47,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private Mock<IFileSystem> m_mockFileSystem;
         private Mock<IModelDesign> m_mockModelDesign;
         private Mock<ITelemetryContext> m_mockTelemetry;
-        private GeneratorContext m_context;
+        private GeneratorContext m_context = null!;
 
         [SetUp]
         public void SetUp()
@@ -74,10 +74,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             // Arrange
-            GeneratorContext context = null;
+            GeneratorContext? context = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => new StatusCodesGenerator(context));
+            Assert.Throws<ArgumentNullException>(() => new StatusCodesGenerator(context!));
         }
 
         /// <summary>

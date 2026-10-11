@@ -33,8 +33,6 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

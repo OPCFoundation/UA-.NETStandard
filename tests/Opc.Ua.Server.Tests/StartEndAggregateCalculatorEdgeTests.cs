@@ -95,8 +95,8 @@ namespace Opc.Ua.Server.Tests
             NodeId aggregateId, List<DataValue> values, DateTimeUtc startTime, DateTimeUtc endTime, double interval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry);
-            return RunFirst(calculator, values);
+                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry)!;
+            return RunFirst(calculator!, values);
         }
 
         [Test]
@@ -297,8 +297,8 @@ namespace Opc.Ua.Server.Tests
             NodeId aggregateId, List<DataValue> values, DateTimeUtc startTime, DateTimeUtc endTime, double interval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry);
-            return RunAll(calculator, values);
+                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry)!;
+            return RunAll(calculator!, values);
         }
 
         [Test]

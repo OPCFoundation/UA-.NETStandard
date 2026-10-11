@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasTokenPolicies = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default && ep.UserIdentityTokens.Count > 0)
+                if (ep.UserIdentityTokens != default! && ep.UserIdentityTokens.Count > 0)
                 {
                     hasTokenPolicies = true;
                     break;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasAnonymous = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -272,7 +272,7 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {

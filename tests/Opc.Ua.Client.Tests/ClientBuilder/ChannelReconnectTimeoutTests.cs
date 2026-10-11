@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 client.Session = new ManagedSessionOptions
                 {
                     ChannelReconnectTimeout = timeout,
-                    Endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+                    Endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
                     {
                         EndpointUrl = "opc.tcp://localhost:4840",
                         SecurityMode = MessageSecurityMode.None,

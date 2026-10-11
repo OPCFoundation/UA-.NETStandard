@@ -251,7 +251,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             set.Add(node);
 
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri); // index 2 -> custom uri
-            Node found = set.Find(new NodeId(7u, 2), source);
+            Node found = set.Find(new NodeId(7u, 2), source)!;
 
             Assert.That(found, Is.SameAs(node));
         }
@@ -467,8 +467,8 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
-            Assert.That(exported.Value.GetExtensionObject().TryGetValue(out Argument result), Is.True);
-            Assert.That(result.Name, Is.EqualTo("arg"));
+            Assert.That(exported.Value.GetExtensionObject().TryGetValue(out Argument? result), Is.True);
+            Assert.That(result!.Name, Is.EqualTo("arg"));
             Assert.That(result.DataType, Is.EqualTo(new NodeId(20u)));
         }
 
@@ -555,8 +555,8 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             ArrayOf<ExtensionObject> result = exported.Value.GetExtensionObjectArray();
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0].TryGetValue(out Argument first), Is.True);
-            Assert.That(first.Name, Is.EqualTo("a"));
+            Assert.That(result[0].TryGetValue(out Argument? first), Is.True);
+            Assert.That(first!.Name, Is.EqualTo("a"));
         }
 
         [Test]
@@ -630,8 +630,8 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             MatrixOf<ExtensionObject> result = exported.Value.GetExtensionObjectMatrix();
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result.ToArrayOf()[1].TryGetValue(out Argument second), Is.True);
-            Assert.That(second.Name, Is.EqualTo("b"));
+            Assert.That(result.ToArrayOf()[1].TryGetValue(out Argument? second), Is.True);
+            Assert.That(second!.Name, Is.EqualTo("b"));
         }
 
         [Test]
@@ -734,8 +734,8 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
-            Assert.That(copy.Value.GetExtensionObject().TryGetValue(out Argument result), Is.True);
-            Assert.That(result.Name, Is.EqualTo("arg"));
+            Assert.That(copy.Value.GetExtensionObject().TryGetValue(out Argument? result), Is.True);
+            Assert.That(result!.Name, Is.EqualTo("arg"));
         }
 
         [Test]

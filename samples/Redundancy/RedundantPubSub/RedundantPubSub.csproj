@@ -9,7 +9,6 @@
     <Description>OPC UA PubSub active/standby high-availability sample with SequenceNumber continuity.</Description>
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
     <RootNamespace>RedundantPubSub</RootNamespace>
-    <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>

@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new UserIdentity();
 
             var monitoredItem = new Mock<IMonitoredItem>();
-            monitoredItem.SetupGet(item => item.Session).Returns((ISession)null);
+            monitoredItem.SetupGet(item => item.Session).Returns((ISession)null!);
             monitoredItem.SetupGet(item => item.EffectiveIdentity).Returns(identity);
 
             using var context = new OperationContext(monitoredItem.Object);

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;

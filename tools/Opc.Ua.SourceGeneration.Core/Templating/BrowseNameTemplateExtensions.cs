@@ -77,8 +77,8 @@ namespace Opc.Ua
             this Template template,
             string rawToken,
             string literalToken,
-            string value,
-            ILogger logger = null)
+            string? value,
+            ILogger? logger = null)
         {
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
                 value, out bool modified);

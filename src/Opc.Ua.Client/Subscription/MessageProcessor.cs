@@ -251,15 +251,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         protected virtual void OnPublishStateChanged(PublishState stateMask)
         {
-            if (stateMask.HasFlag(PublishState.Stopped))
+            if ((stateMask & PublishState.Stopped) == PublishState.Stopped)
             {
                 Logger.SubscriptionSTOPPED(Id);
             }
-            if (stateMask.HasFlag(PublishState.Recovered))
+            if ((stateMask & PublishState.Recovered) == PublishState.Recovered)
             {
                 Logger.SubscriptionRECOVERED(Id);
             }
-            if (stateMask.HasFlag(PublishState.Completed))
+            if ((stateMask & PublishState.Completed) == PublishState.Completed)
             {
                 Logger.SubscriptionCLOSED(Id);
             }

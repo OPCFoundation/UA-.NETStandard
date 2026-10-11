@@ -53,7 +53,7 @@ namespace Opc.Ua.Fuzzing
             return FuzzOracles.MeasureAllocation(
                 "PubSubJsonDecoder",
                 input.Length,
-                () => PubSubJsonDecoder.DecodeCore(input, context));
+                () => PubSubJsonDecoder.DecodeCore(input, context))!;
         }
     }
 }

@@ -158,7 +158,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var provider = new ProvisioningStoreProvider();
-            string thumbprint = null;
+            string? thumbprint = null;
             for (int iteration = 0; iteration < 2; iteration++)
             {
                 var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
@@ -167,7 +167,7 @@ namespace Opc.Ua.Configuration.Tests
                     var builder = application.Build(ApplicationUri, ProductUri).AsClient()
                         .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                             SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot);
-                    SecurityConfiguration security = application.ApplicationConfiguration.SecurityConfiguration;
+                    SecurityConfiguration security = application.ApplicationConfiguration!.SecurityConfiguration;
                     if (customProvider)
                     {
                         foreach (CertificateIdentifier identifier in security.ApplicationCertificates)
@@ -193,7 +193,7 @@ namespace Opc.Ua.Configuration.Tests
                     bool valid = await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
                     Assert.That(valid, Is.True);
                     using CertificateEntry entry = configuration.CertificateManager.AcquireApplicationCertificateByType(
-                        ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
                     Assert.That(entry, Is.Not.Null);
                     Assert.That(entry.Certificate.HasPrivateKey, Is.True);
                     if (iteration == 0)
@@ -202,16 +202,16 @@ namespace Opc.Ua.Configuration.Tests
                     }
                     Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(thumbprint));
                     using ICertificateStore trusted = configuration.CertificateManager.OpenTrustedStore(TrustListIdentifier.Peers);
-                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(thumbprint).ConfigureAwait(false);
+                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(thumbprint!).ConfigureAwait(false);
                     Assert.That(peers, Has.Count.EqualTo(1));
                     if (iteration == 1)
                     {
                         CertificateIdentifier identifier = security.ApplicationCertificates[0];
                         await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
                         using ICertificateStore own = ((ICertificateStoreResolver)configuration.CertificateManager)
-                            .OpenCertificateStore(identifier.StorePath, identifier.StoreType, false);
+                            .OpenCertificateStore(identifier.StorePath!, identifier.StoreType, false);
                         using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
-                        using CertificateCollection trustedAfterDelete = await trusted.FindByThumbprintAsync(thumbprint)
+                        using CertificateCollection trustedAfterDelete = await trusted.FindByThumbprintAsync(thumbprint!)
                             .ConfigureAwait(false);
                         Assert.That(remaining, Is.Empty);
                         Assert.That(trustedAfterDelete, Is.Empty);
@@ -223,7 +223,7 @@ namespace Opc.Ua.Configuration.Tests
 
         [TestCase(null)]
         [TestCase("")]
-        public async Task DeleteCertificateSkipsMissingTrustedStorePathAsync(string trustedPath)
+        public async Task DeleteCertificateSkipsMissingTrustedStorePathAsync(string? trustedPath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using Certificate certificate = CertificateBuilder.Create(SubjectName).SetRSAKeySize(2048).CreateForRSA();
@@ -251,8 +251,8 @@ namespace Opc.Ua.Configuration.Tests
             await using (application.ConfigureAwait(false))
             {
                 await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
-                using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry);
-                using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry)!;
+                using CertificateCollection remaining = await own!.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(remaining, Is.Empty);
             }
         }
@@ -273,7 +273,7 @@ namespace Opc.Ua.Configuration.Tests
                     Is.True);
                 ICertificateManager originalManager = configuration.CertificateManager;
                 using CertificateEntry entry = originalManager.AcquireApplicationCertificateByType(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
                 var legacyManager = new Mock<ICertificateManager>(MockBehavior.Strict);
                 legacyManager.Setup(manager => manager.SnapshotApplicationCertificates())
                     .Returns(originalManager.SnapshotApplicationCertificates);
@@ -282,11 +282,11 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
                     CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates[0];
-                    using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry);
-                    using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                    using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry)!;
+                    using CertificateCollection remaining = await own!.EnumerateAsync().ConfigureAwait(false);
                     using ICertificateStore trusted = configuration.SecurityConfiguration.TrustedPeerCertificates
                         .OpenStore(telemetry);
-                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(entry.Certificate.Thumbprint)
+                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(entry!.Certificate.Thumbprint)
                         .ConfigureAwait(false);
                     Assert.That(remaining, Is.Empty);
                     Assert.That(peers, Is.Empty);
@@ -316,13 +316,13 @@ namespace Opc.Ua.Configuration.Tests
                 var builder = application.Build(ApplicationUri, ProductUri).AsClient()
                     .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot);
-                SecurityConfiguration security = application.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration security = application.ApplicationConfiguration!.SecurityConfiguration;
                 CertificateIdentifier identifier = security.ApplicationCertificates[0];
                 identifier.StoreType = provider.StoreTypeName;
                 var manager = CertificateManagerFactory.Create(security, telemetry, options => options.AddStoreProvider(provider));
                 application.ApplicationConfiguration.CertificateManager = manager;
-                string originalThumbprint = null;
-                using (ICertificateStore store = manager.OpenCertificateStore(identifier.StorePath, identifier.StoreType, false))
+                string? originalThumbprint = null;
+                using (ICertificateStore store = manager.OpenCertificateStore(identifier.StorePath!, identifier.StoreType, false))
                 {
                     if (publicOnly)
                     {
@@ -333,7 +333,7 @@ namespace Opc.Ua.Configuration.Tests
                     }
                 }
                 await builder.CreateAsync().ConfigureAwait(false);
-                ServiceResultException failure = null;
+                ServiceResultException? failure = null;
                 try
                 {
                     await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
@@ -344,7 +344,7 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 Assert.That(failure, Is.Not.Null);
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
-                using ICertificateStore own = manager.OpenCertificateStore(identifier.StorePath, identifier.StoreType, false);
+                using ICertificateStore own = manager.OpenCertificateStore(identifier.StorePath!, identifier.StoreType, false);
                 using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(remaining, Has.Count.EqualTo(publicOnly ? 1 : 0));
                 if (publicOnly)
@@ -402,13 +402,13 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(certOK, Is.True);
 
                 CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
-                using Certificate certificate = await CertificateIdentifierResolver
+                using Certificate certificate = (await CertificateIdentifierResolver
                     .LoadPrivateKeyAsync(
                         certId,
                         passwordProvider: config.SecurityConfiguration.CertificatePasswordProvider,
                         config.ApplicationUri,
                         telemetry)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
 
                 Assert.That(certificate, Is.Not.Null);
                 Assert.That(X509Utils.GetPublicKeySize(certificate), Is.EqualTo(minimumKeySize));
@@ -530,7 +530,7 @@ namespace Opc.Ua.Configuration.Tests
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
-                        .AddUserTokenPolicy(null)
+                        .AddUserTokenPolicy(null!)
                         .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                         .CreateAsync()
                         .ConfigureAwait(false));
@@ -703,9 +703,9 @@ namespace Opc.Ua.Configuration.Tests
                     .ConfigureAwait(false);
                 Assert.That(config, Is.Not.Null);
                 CertificateIdentifier applicationCertificate = applicationInstance
-                    .ApplicationConfiguration
+                    .ApplicationConfiguration!
                     .SecurityConfiguration
-                    .ApplicationCertificate;
+                    .ApplicationCertificate!;
 
                 bool certOK = await applicationInstance
                     .CheckApplicationInstanceCertificatesAsync(true)
@@ -713,14 +713,14 @@ namespace Opc.Ua.Configuration.Tests
 
                 // Resolve the cert via the resolver since the identifier no
                 // longer caches it.
-                using Certificate appCert = await CertificateIdentifierResolver
+                using Certificate appCert = (await CertificateIdentifierResolver
                     .ResolveAsync(
                         applicationCertificate,
                         registry: null,
                         needPrivateKey: false,
                         applicationInstance.ApplicationConfiguration.ApplicationUri,
                         telemetry)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 bool deleteAfterUse = appCert != null;
 
                 Assert.That(certOK, Is.True);
@@ -731,7 +731,7 @@ namespace Opc.Ua.Configuration.Tests
                             .OpenStore(telemetry))
                 {
                     // store public key in trusted store
-                    byte[] rawData = appCert.RawData;
+                    byte[] rawData = appCert!.RawData;
                     using var publicKey = Certificate.FromRawData(rawData);
                     await store.AddAsync(publicKey)
                         .ConfigureAwait(false);
@@ -741,9 +741,9 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     string thumbprint = appCert.Thumbprint;
                     using (ICertificateStore store = CertificateIdentifierResolver
-                        .OpenStore(applicationCertificate, telemetry))
+                        .OpenStore(applicationCertificate, telemetry)!)
                     {
-                        bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                        bool success = await store!.DeleteAsync(thumbprint).ConfigureAwait(false);
                         Assert.That(success, Is.True);
                     }
                     using (
@@ -859,19 +859,19 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(config, Is.Not.Null);
 
                 CertificateIdentifier applicationCertificate = applicationInstance
-                    .ApplicationConfiguration
+                    .ApplicationConfiguration!
                     .SecurityConfiguration
-                    .ApplicationCertificate;
-                Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
+                    .ApplicationCertificate!;
+                Assert.That(applicationCertificate!.Thumbprint, Is.Null.Or.Empty);
 
-                Certificate publicKey = null;
+                Certificate? publicKey = null;
                 using (Certificate testCert = CreateInvalidCert(certType))
                 {
                     Assert.That(testCert, Is.Not.Null);
                     Assert.That(testCert.HasPrivateKey, Is.True);
                     await testCert.AddToStoreAsync(
-                        applicationCertificate.StoreType,
-                        applicationCertificate.StorePath,
+                        applicationCertificate.StoreType!,
+                        applicationCertificate.StorePath!,
                         password: null,
                         telemetry).ConfigureAwait(false);
                     publicKey = Certificate.FromRawData(testCert.RawData);
@@ -960,10 +960,10 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(config, Is.Not.Null);
 
                 CertificateIdentifier applicationCertificate = applicationInstance
-                    .ApplicationConfiguration
+                    .ApplicationConfiguration!
                     .SecurityConfiguration
-                    .ApplicationCertificate;
-                Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
+                    .ApplicationCertificate!;
+                Assert.That(applicationCertificate!.Thumbprint, Is.Null.Or.Empty);
 
                 using CertificateCollection testCerts = CreateInvalidCertChain(certType);
                 if (certType != InvalidCertType.NoIssuer)
@@ -976,24 +976,24 @@ namespace Opc.Ua.Configuration.Tests
                             .ApplicationConfiguration
                             .SecurityConfiguration
                             .TrustedIssuerCertificates
-                            .StoreType,
+                            .StoreType!,
                         applicationInstance
                             .ApplicationConfiguration
                             .SecurityConfiguration
                             .TrustedIssuerCertificates
-                            .StorePath,
+                            .StorePath!,
                         password: null,
                         telemetry).ConfigureAwait(false);
                 }
 
-                Certificate publicKey = null;
+                Certificate? publicKey = null;
                 using (Certificate testCert = testCerts[0])
                 {
                     Assert.That(testCert, Is.Not.Null);
                     Assert.That(testCert.HasPrivateKey, Is.True);
                     await testCert.AddToStoreAsync(
-                        applicationCertificate.StoreType,
-                        applicationCertificate.StorePath,
+                        applicationCertificate.StoreType!,
+                        applicationCertificate.StorePath!,
                         password: null,
                         telemetry).ConfigureAwait(false);
                     publicKey = Certificate.FromRawData(testCert.RawData);
@@ -1204,10 +1204,10 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(config, Is.Not.Null);
 
                 CertificateIdentifier applicationCertificate = applicationInstance
-                    .ApplicationConfiguration
+                    .ApplicationConfiguration!
                     .SecurityConfiguration
-                    .ApplicationCertificate;
-                Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
+                    .ApplicationCertificate!;
+                Assert.That(applicationCertificate!.Thumbprint, Is.Null.Or.Empty);
 
                 if (disableCertificateAutoCreation)
                 {
@@ -1453,10 +1453,10 @@ namespace Opc.Ua.Configuration.Tests
 
                 // Verify the certificate has multiple URIs
                 // Load the certificate to check its URIs
-                using Certificate loadedCert = await CertificateIdentifierResolver
+                using Certificate loadedCert = (await CertificateIdentifierResolver
                     .ResolveAsync(certId, registry: null, needPrivateKey: false, applicationUri: null, telemetry)
-                    .ConfigureAwait(false);
-                IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
+                    .ConfigureAwait(false))!;
+                IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert!);
                 Assert.That(uris, Has.Count.EqualTo(3));
                 Assert.Contains(uri1, uris.ToList());
                 Assert.Contains(uri2, uris.ToList());

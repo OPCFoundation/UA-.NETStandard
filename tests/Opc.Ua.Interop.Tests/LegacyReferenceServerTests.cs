@@ -396,7 +396,7 @@ namespace Opc.Ua.Interop.Tests
                 foreach (ExtensionObject extension in extensions)
                 {
                     structures++;
-                    if (!extension.TryGetValue(out IEncodeable _))
+                    if (!extension.TryGetValue(out IEncodeable? _))
                     {
                         undecoded.Add((custom[ii], extension.TypeId));
                     }
@@ -470,7 +470,7 @@ namespace Opc.Ua.Interop.Tests
             }
             if (value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
             {
-                return [.. extensions.ToArray().Where(e => !e.IsNull)];
+                return [.. extensions.ToArray()!.Where(e => !e.IsNull)];
             }
             return [];
         }
@@ -561,14 +561,14 @@ namespace Opc.Ua.Interop.Tests
             ];
             BrowseResponse response = await session.BrowseAsync(null, null, 0, nodesToBrowse, ct)
                 .ConfigureAwait(false);
-            var references = new List<ReferenceDescription>(response.Results[0].References.ToArray());
+            var references = new List<ReferenceDescription>(response.Results[0].References.ToArray()!);
             ByteString continuationPoint = response.Results[0].ContinuationPoint;
             while (!continuationPoint.IsEmpty)
             {
                 BrowseNextResponse next = await session
                     .BrowseNextAsync(null, false, [continuationPoint], ct)
                     .ConfigureAwait(false);
-                references.AddRange(next.Results[0].References.ToArray());
+                references.AddRange(next.Results[0].References.ToArray()!);
                 continuationPoint = next.Results[0].ContinuationPoint;
             }
             return references;
@@ -593,7 +593,7 @@ namespace Opc.Ua.Interop.Tests
                 ReadResponse response = await session
                     .ReadAsync(null, 0, TimestampsToReturn.Neither, nodesToRead, ct)
                     .ConfigureAwait(false);
-                results.AddRange(response.Results.ToArray());
+                results.AddRange(response.Results.ToArray()!);
             }
             return [.. results];
         }

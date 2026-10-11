@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             const int dataLength = 18;
             const int paddingLength = 13;
-            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256);
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
             using var aes = Aes.Create();
             aes.KeySize = 256;
             aes.Mode = CipherMode.CBC;
@@ -81,14 +81,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (corrupt < 0)
                 {
                     ArraySegment<byte> plaintext = CryptoUtils.SymmetricDecryptAndVerify(
-                        message, policy, aes.Key, aes.IV, hmac.Key, false, 1, 1);
+                        message, policy!, aes.Key, aes.IV, hmac.Key, false, 1, 1);
                     Assert.That(plaintext, Has.Count.EqualTo(offset + dataLength));
                     Assert.That(plaintext.Array.AsSpan(offset, dataLength).ToArray(), Is.All.EqualTo(0x31));
                 }
                 else
                 {
                     Assert.Throws<CryptographicException>(() => CryptoUtils.SymmetricDecryptAndVerify(
-                        message, policy, aes.Key, aes.IV, hmac.Key, false, 1, 1), $"padding byte {corrupt}");
+                        message, policy!, aes.Key, aes.IV, hmac.Key, false, 1, 1), $"padding byte {corrupt}");
                 }
             }
         }

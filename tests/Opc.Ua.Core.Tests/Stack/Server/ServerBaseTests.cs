@@ -380,13 +380,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             bool noUrlExtension)
         {
             TestContext.Out.WriteLine("Endpoint Url: {0}", endpointUrl);
-            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl)!;
             if (noUrlExtension)
             {
                 try
                 {
                     parsedEndpointUrl = new Uri(
-                        parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
+                        parsedEndpointUrl!.GetLeftPart(UriPartial.Authority));
                     TestContext.Out.WriteLine($"Using left part of Url: {parsedEndpointUrl}");
                 }
                 catch (UriFormatException e)
@@ -397,7 +397,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
             IList<BaseAddress> filteredBaseAddresses
                 = FilterByEndpointUrl(
-                parsedEndpointUrl,
+                parsedEndpointUrl!,
                 BaseAddresses);
             Assert.That(filteredBaseAddresses, Is.Not.Null);
             Assert.That(filteredBaseAddresses, Is.Not.Empty);
@@ -425,13 +425,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             bool noUrlExtension)
         {
             IList<BaseAddress> baseAddresses = BaseAddresses;
-            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl)!;
             if (noUrlExtension)
             {
                 try
                 {
                     parsedEndpointUrl = new Uri(
-                        parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
+                        parsedEndpointUrl!.GetLeftPart(UriPartial.Authority));
                 }
                 catch (UriFormatException e)
                 {
@@ -446,7 +446,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
             Assert.That(BaseAddressCount, Is.GreaterThan(0));
             ArrayOf<EndpointDescription> translatedEndpoints = TranslateEndpointDescriptions(
-                parsedEndpointUrl,
+                parsedEndpointUrl!,
                 baseAddresses,
                 m_endpoints,
                 m_serverDescription);
@@ -468,12 +468,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // validate results have matching UserTokenPolicies in baseaddresses
             foreach (EndpointDescription translatedEndpoint in translatedEndpoints)
             {
-                var translatedUri = new Uri(translatedEndpoint.EndpointUrl);
+                var translatedUri = new Uri(translatedEndpoint.EndpointUrl!);
 
                 ArrayOf<EndpointDescription> matches = m_endpoints
                      .Filter(endpoint =>
                      {
-                         var endpointUri = new Uri(endpoint.EndpointUrl);
+                         var endpointUri = new Uri(endpoint.EndpointUrl!);
                          return endpoint.TransportProfileUri == translatedEndpoint.TransportProfileUri &&
                              endpoint.SecurityMode == translatedEndpoint.SecurityMode &&
                              endpoint.SecurityPolicyUri == translatedEndpoint.SecurityPolicyUri &&
@@ -508,8 +508,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Assert.That(translatedEndpoint.BinaryEncodingId, Is.EqualTo(firstMatch.BinaryEncodingId));
                 Assert.That(translatedEndpoint.SecurityMode, Is.EqualTo(firstMatch.SecurityMode));
                 Assert.That(translatedEndpoint.SecurityPolicyUri, Is.EqualTo(firstMatch.SecurityPolicyUri));
-                var firstMatchEndpointUrl = new Uri(firstMatch.EndpointUrl);
-                var translatedEndpointUrl = new Uri(translatedEndpoint.EndpointUrl);
+                var firstMatchEndpointUrl = new Uri(firstMatch.EndpointUrl!);
+                var translatedEndpointUrl = new Uri(translatedEndpoint.EndpointUrl!);
                 if (m_testConfiguration
                     is not TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
                         and not TestConfigurations.SingleBaseAdressesWithAlternatePort
@@ -530,7 +530,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
                     ArrayOf<EndpointDescription> theSchemes = m_endpoints
                         .Filter(endpoint =>
-                            endpoint.EndpointUrl
+                            endpoint.EndpointUrl!
                                 .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal));
                     Assert.That(firstMatch.EndpointUrl, Is.EqualTo(theSchemes[0].EndpointUrl));
                 }
@@ -603,7 +603,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             foreach (EndpointDescription ep in translatedForIp)
             {
-                var epUri = new Uri(ep.EndpointUrl);
+                var epUri = new Uri(ep.EndpointUrl!);
                 Assert.That(epUri.Host, Is.EqualTo("192.168.1.100"),
                     "Translated endpoint URLs should use the IP address that the client connected with.");
             }
@@ -612,7 +612,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public void RequireEncryptionNullDescriptionReturnsFalse()
         {
-            bool result = RequireEncryption(null);
+            bool result = RequireEncryption(null!);
             Assert.That(result, Is.False);
         }
 

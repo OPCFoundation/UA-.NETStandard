@@ -933,8 +933,8 @@ namespace Opc.Ua.Client.Subscriptions
             // for an in-place recreate instead of leaving the
             // subscription dark.
             if (notification.Status == StatusCodes.GoodSubscriptionTransferred &&
-                Options.RecoveryPolicy
-                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
+                (Options.RecoveryPolicy & SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) ==
+                    SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer &&
                 Created &&
                 !Disposed &&
                 Interlocked.CompareExchange(

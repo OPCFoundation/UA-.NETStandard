@@ -182,7 +182,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(browse.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(browse.Results[0].StatusCode), Is.True);
             Assert.That(
-                browse.Results[0].References.ToArray().Any(r => r.NodeId == ObjectIds.Server),
+                browse.Results[0].References.ToArray()!.Any(r => r.NodeId == ObjectIds.Server),
                 Is.True,
                 "the Objects folder must reference the Server object");
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task ARequestWithoutATokenIsUnsupportedWhileTheFeatureIsOffAsync()
         {
-            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation!;
             using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
                 .ConfigureAwait(false);
             try
@@ -332,12 +332,12 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task SessionlessRequestsRunInABudgetOfTheirOwnAsync()
         {
-            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
-            int maxRequests = options.MaxConcurrentRequests;
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation!;
+            int maxRequests = options!.MaxConcurrentRequests;
             int maxPerChannel = options.MaxConcurrentRequestsPerChannel;
-            SessionClient client1 = null;
-            SessionClient client2 = null;
-            SessionClient client3 = null;
+            SessionClient? client1 = null;
+            SessionClient? client2 = null;
+            SessionClient? client3 = null;
             try
             {
                 options.MaxConcurrentRequests = 2;
@@ -457,8 +457,8 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task ACancelledAccessTokenValidationAnswersTheTimeoutAndReturnsItsPlaceAsync()
         {
-            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
-            int maxRequests = options.MaxConcurrentRequests;
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation!;
+            int maxRequests = options!.MaxConcurrentRequests;
             try
             {
                 options.MaxConcurrentRequests = 1;
@@ -544,10 +544,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl)
                 .ConfigureAwait(false);
-            EndpointDescription endpoint = endpoints.ToArray().FirstOrDefault(e =>
-                e.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal) &&
+            EndpointDescription endpoint = endpoints.ToArray()!.FirstOrDefault(e =>
+                e.EndpointUrl!.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal) &&
                 e.SecurityMode == securityMode &&
-                ClientFixture.Config.SecurityConfiguration.SupportedSecurityPolicies.Contains(e.SecurityPolicyUri));
+                ClientFixture.Config.SecurityConfiguration.SupportedSecurityPolicies.Contains(e.SecurityPolicyUri!))!;
             if (endpoint == null)
             {
                 Assert.Ignore($"The server offers no {securityMode} endpoint.");
@@ -591,7 +591,7 @@ namespace Opc.Ua.Sessions.Tests
 
             public void ReleaseRequests()
             {
-                Interlocked.Exchange(ref m_gate, null)?.TrySetResult(true);
+                Interlocked.Exchange(ref m_gate!, null)?.TrySetResult(true);
             }
 
             public async Task WaitUntilHeldAsync(int count)
@@ -635,7 +635,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     // a token that asserts the SecurityAdmin role claim
                     string[] roles = ["SecurityAdmin"];
-                    var claims = new System.Collections.Generic.Dictionary<string, object>
+                    var claims = new System.Collections.Generic.Dictionary<string, object?>
                     {
                         ["sub"] = "admin-user",
                         ["roles"] = roles
@@ -648,7 +648,7 @@ namespace Opc.Ua.Sessions.Tests
 
             private readonly string m_accessToken;
             private readonly string m_adminAccessToken;
-            private TaskCompletionSource<bool> m_gate;
+            private TaskCompletionSource<bool> m_gate = null!;
             private int m_calls;
             private int m_held;
         }

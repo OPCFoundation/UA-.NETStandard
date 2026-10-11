@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             public bool IsLeader => true;
 
-            public event Action<bool> LeadershipChanged
+            public event Action<bool>? LeadershipChanged
             {
                 add { }
                 remove { }

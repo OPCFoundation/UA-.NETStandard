@@ -466,7 +466,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(retryResult.ContinuationPoint.IsEmpty, Is.True);
             Assert.That(
-                retryResult.HistoryData.TryGetValue(out HistoryEvent history),
+                retryResult.HistoryData.TryGetValue(out HistoryEvent? history),
                 Is.True);
             Assert.That(history!.Events, Has.Count.EqualTo(1));
             Assert.That(history.Events[0].EventFields, Has.Count.EqualTo(1));
@@ -669,7 +669,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 successor.BufferedProcessedOutputs,
                 Is.SameAs(bufferedPayload));
             Assert.That(
-                retryResult.HistoryData.TryGetValue(out HistoryData history),
+                retryResult.HistoryData.TryGetValue(out HistoryData? history),
                 Is.True);
             Assert.That(history!.DataValues, Has.Count.EqualTo(1));
             Assert.That(
@@ -1130,9 +1130,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(successors, Has.Count.EqualTo(1));
             Assert.That(successors[0].CodecVersion, Is.EqualTo(5));
             var decodedSuccessor =
-                (HistorianContinuationState)await codec.DecodeAsync(
+                (HistorianContinuationState)(await codec.DecodeAsync(
                     successors[0],
-                    CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(decodedSuccessor, Is.Not.Null);
             Assert.That(decodedSuccessor!.NodeId, Is.EqualTo(propertyNodeId));
             Assert.That(
@@ -1541,9 +1541,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Guid id = new(continuationPoint.ToArray());
                 if (!m_history.TryGetValue(
                         id,
-                        out IHistoryContinuationPoint value))
+                        out IHistoryContinuationPoint? value))
                 {
-                    return null;
+                    return null!;
                 }
                 m_history.Remove(id);
                 return value;
@@ -1557,12 +1557,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 return value != null;
             }
 
-            public ValueTask<IHistoryContinuationPoint> RestoreHistoryAsync(
+            public ValueTask<IHistoryContinuationPoint?> RestoreHistoryAsync(
                 ByteString continuationPoint,
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return new ValueTask<IHistoryContinuationPoint>(
+                return new ValueTask<IHistoryContinuationPoint?>(
                     RestoreHistory(continuationPoint));
             }
 

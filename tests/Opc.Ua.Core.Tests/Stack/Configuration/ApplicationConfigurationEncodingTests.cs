@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests
             Assert.That(copy.ApplicationUri, Is.EqualTo("urn:test:app"));
             Assert.That(copy.ApplicationType, Is.EqualTo(ApplicationType.Client));
             Assert.That(copy.DisableHiResClock, Is.True);
-            Assert.That(copy.TransportQuotas.MaxMessageSize, Is.EqualTo(4096));
+            Assert.That(copy.TransportQuotas!.MaxMessageSize, Is.EqualTo(4096));
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry)
             {
-                SecurityConfiguration = null
+                SecurityConfiguration = null!
             };
             Assert.That(config.SecurityConfiguration, Is.Not.Null);
         }

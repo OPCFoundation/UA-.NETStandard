@@ -105,7 +105,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNotAfter(DateTime.Today.AddYears(25))
                 .AddExtension(
                     new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", s_domainNames));
-            byte[] previousSerialNumber = null;
+            byte[]? previousSerialNumber = null;
             foreach (ECCurveHashPair eCCurveHash in ECCurveHashPairs)
             {
                 if (!eCCurveHash.Curve.IsNamed)
@@ -122,7 +122,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     cert,
                     $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
                 Assert.That(
-                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value!),
                     Is.EqualTo(eCCurveHash.HashAlgorithmName));
                 // ensure serial numbers are different
                 Assert.That(cert.GetSerialNumber(), Is.Not.EqualTo(previousSerialNumber));
@@ -146,26 +146,26 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForECDsa();
             Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, "Default ECDsa cert");
-            using (ECDsa privateKey = cert.GetECDsaPrivateKey())
+            using (ECDsa privateKey = cert.GetECDsaPrivateKey()!)
             {
                 Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
-            using (ECDsa publicKey = cert.GetECDsaPublicKey())
+            using (ECDsa publicKey = cert.GetECDsaPublicKey()!)
             {
                 Assert.That(publicKey, Is.Not.Null);
                 publicKey.ExportParameters(false);
             }
             Assert.That(
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value!),
                 Is.EqualTo(eccurveHashPair.HashAlgorithmName));
             Assert.That(DateTime.UtcNow, Is.GreaterThanOrEqualTo(cert.NotBefore));
             Assert.That(
                 DateTime.UtcNow.AddMonths(X509Defaults.LifeTime),
                 Is.GreaterThanOrEqualTo(cert.NotAfter.ToUniversalTime()));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
-            X509KeyUsageExtension keyUsage = cert.Extensions.FindExtension<X509KeyUsageExtension>();
+            X509KeyUsageExtension keyUsage = cert.Extensions.FindExtension<X509KeyUsageExtension>()!;
             Assert.That(keyUsage, Is.Not.Null);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
             Assert.That(X509Utils.VerifySelfSigned(cert), Is.True, "Verify self signed.");
@@ -192,19 +192,19 @@ namespace Opc.Ua.Security.Certificates.Tests
                 cert,
                 $"Default cert ECDsa {ecCurveHashPair.Curve.Oid.FriendlyName} with modified lifetime and alt name extension");
             Assert.That(cert.Subject, Is.EqualTo(Subject));
-            using (ECDsa privateKey = cert.GetECDsaPrivateKey())
+            using (ECDsa privateKey = cert.GetECDsaPrivateKey()!)
             {
                 Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
-            using (ECDsa publicKey = cert.GetECDsaPublicKey())
+            using (ECDsa publicKey = cert.GetECDsaPublicKey()!)
             {
                 Assert.That(publicKey, Is.Not.Null);
                 publicKey.ExportParameters(false);
             }
             Assert.That(
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value!),
                 Is.EqualTo(ecCurveHashPair.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
@@ -229,10 +229,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 cert,
                 "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
             Assert.That(
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value!),
                 Is.EqualTo(ecCurveHashPair.HashAlgorithmName));
             X509BasicConstraintsExtension basicConstraintsExtension =
-                cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
+                cert.Extensions.FindExtension<X509BasicConstraintsExtension>()!;
             Assert.That(basicConstraintsExtension, Is.Not.Null);
             Assert.That(basicConstraintsExtension.CertificateAuthority, Is.True);
             Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
@@ -329,11 +329,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             WriteCertificate(
                 signingCert,
-                $"Signing ECDsa {signingCert.GetECDsaPublicKey().KeySize} cert");
+                $"Signing ECDsa {signingCert.GetECDsaPublicKey()!.KeySize} cert");
 
-            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
+            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey()!)
             {
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey!);
                 using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -343,24 +343,24 @@ namespace Opc.Ua.Security.Certificates.Tests
                 WriteCertificate(cert, "Default signed ECDsa cert");
             }
 
-            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
-            using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
+            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey()!)
+            using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey()!)
             {
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey!);
                 using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                     .SetIssuer(issuer)
-                    .SetECDsaPublicKey(ecdsaPublicKey)
+                    .SetECDsaPublicKey(ecdsaPublicKey!)
                     .CreateForECDsa(generator);
                 Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
             }
 
-            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
+            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey()!)
             {
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey!);
                 using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -376,8 +376,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             // ensure invalid path throws argument exception
             Assert.Throws<NotSupportedException>(() =>
             {
-                using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey()!;
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey!);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
@@ -399,13 +399,13 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             WriteCertificate(
                 signingCert,
-                $"Signing ECDsa {signingCert.GetECDsaPublicKey().KeySize} cert");
+                $"Signing ECDsa {signingCert.GetECDsaPublicKey()!.KeySize} cert");
 
-            using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
-            using ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey();
-            byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
+            using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey()!;
+            using ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey()!;
+            byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey!);
 
-            var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+            var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey!);
             using var issuer = Certificate.FromRawData(signingCert.RawData);
             using Certificate cert = CertificateBuilder
                 .Create("CN=App Cert")
@@ -443,8 +443,8 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NETFRAMEWORK
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
 #if NETCOREAPP3_1 || NET5_0_OR_GREATER
-                byte[] exportedPrivateKey = null;
-                ECDsa ecdsaPrivKey = null;
+                byte[]? exportedPrivateKey = null;
+                ECDsa? ecdsaPrivKey = null;
                 exportedPrivateKey = PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
                 ecdsaPrivKey = PEMReader.ImportECDsaPrivateKeyFromPEM(exportedPrivateKey, password);
 #endif
@@ -478,7 +478,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             int i = 0;
             while (i < result.Count)
             {
-                ECDsa key = null;
+                ECDsa? key = null;
 
                 // test if curve is supported
                 try

@@ -77,10 +77,10 @@ namespace Opc.Ua.SourceGeneration
             StructureDefinition definition = GetDefinition("Pt");
 
             Assert.That(definition.StructureType, Is.EqualTo(StructureType.Structure));
-            Assert.That(definition.Fields.ToArray().Any(f => f.IsOptional), Is.False);
+            Assert.That(definition.Fields.ToArray()!.Any(f => f.IsOptional), Is.False);
             var inner = new NodeId(1u, 1);
-            StructureField child = definition.Fields.ToArray().Single(f => f.Name == "Child");
-            StructureField items = definition.Fields.ToArray().Single(f => f.Name == "Items");
+            StructureField child = definition.Fields.ToArray()!.Single(f => f.Name == "Child");
+            StructureField items = definition.Fields.ToArray()!.Single(f => f.Name == "Items");
             Assert.That(child.DataType, Is.EqualTo(inner));
             Assert.That(items.DataType, Is.EqualTo(inner));
             Assert.That(items.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration
             StructureDefinition definition = GetDefinition("Pt3D");
 
             Assert.That(
-                definition.Fields.ToArray().Select(f => f.Name),
+                definition.Fields.ToArray()!.Select(f => f.Name),
                 Is.EqualTo(s_pt3DFields));
             Assert.That(definition.FirstExplicitFieldIndex, Is.EqualTo(4));
             Assert.That(definition.BaseDataType, Is.EqualTo(new NodeId(2u, 1)));
@@ -127,7 +127,7 @@ namespace Opc.Ua.SourceGeneration
             object cfg = Create("Cfg");
             Set(cfg, "Retries", 0);
             Set(cfg, "Enabled", false);
-            Set(cfg, "Label", null);
+            Set(cfg, "Label", null!);
             Set(cfg, "Stamp", DateTimeUtc.MinValue);
 
             object decoded = JsonRoundTrip((IEncodeable)cfg);
@@ -164,9 +164,9 @@ namespace Opc.Ua.SourceGeneration
             cells.SetValue(cell, 0, 0);
             cells.SetValue(Create("Inner"), 0, 1);
             object cellMatrix = typeof(MatrixOf<>).MakeGenericType(innerType)
-                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)
-                .Invoke(null, [cells]);
-            Set(img, "Cells", cellMatrix);
+                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)!
+                .Invoke(null, [cells])!;
+            Set(img, "Cells", cellMatrix!);
 
             byte[] bytes = EncodeBinary((IEncodeable)img);
             var decoded = (IEncodeable)Create("Img");
@@ -183,17 +183,17 @@ namespace Opc.Ua.SourceGeneration
             // structure matrix is compared element by element.
             object decodedCells = Get(decoded, "Cells");
             Assert.That(
-                decodedCells.GetType().GetProperty("Dimensions").GetValue(decodedCells),
+                decodedCells.GetType().GetProperty("Dimensions")!.GetValue(decodedCells),
                 Is.EqualTo(s_cellDimensions));
             object flattened = decodedCells.GetType()
-                .GetMethod("ToArrayOf", Type.EmptyTypes)
-                .Invoke(decodedCells, null);
-            var decodedCell = (IEncodeable)((Array)flattened.GetType()
-                .GetMethod("ToArray", Type.EmptyTypes)
-                .Invoke(flattened, null)).GetValue(0);
-            Assert.That(decodedCell.IsEqual((IEncodeable)cell), Is.True);
+                .GetMethod("ToArrayOf", Type.EmptyTypes)!
+                .Invoke(decodedCells, null)!;
+            var decodedCell = (IEncodeable)((Array)flattened!.GetType()
+                .GetMethod("ToArray", Type.EmptyTypes)!
+                .Invoke(flattened, null)!).GetValue(0)!;
+            Assert.That(decodedCell!.IsEqual((IEncodeable)cell), Is.True);
             object perms = Get(decoded, "Perms");
-            Assert.That(perms.GetType().GetProperty("IsNull").GetValue(perms), Is.True);
+            Assert.That(perms.GetType().GetProperty("IsNull")!.GetValue(perms), Is.True);
         }
 
         /// <summary>
@@ -209,7 +209,7 @@ namespace Opc.Ua.SourceGeneration
             StructureDefinition definition = GetDefinition("Img");
             foreach (string name in s_imgMatrices)
             {
-                StructureField field = definition.Fields.ToArray().Single(f => f.Name == name);
+                StructureField field = definition.Fields.ToArray()!.Single(f => f.Name == name);
                 Assert.That(field.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), name);
                 Assert.That(field.ArrayDimensions.ToArray(), Is.EqualTo(s_unknownTwoDimensions), name);
             }
@@ -337,16 +337,16 @@ namespace Opc.Ua.SourceGeneration
             cells.SetValue(cell, 0, 0);
             cells.SetValue(Create("Inner"), 0, 1);
             Set(img, "Cells", typeof(MatrixOf<>).MakeGenericType(innerType)
-                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)
-                .Invoke(null, [cells]));
-            Type permType = m_assembly.GetType("TestApp.Defs.Perm", throwOnError: true);
-            var perms = Array.CreateInstance(permType, 2, 1);
+                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)!
+                .Invoke(null, [cells])!);
+            Type permType = m_assembly.GetType("TestApp.Defs.Perm", throwOnError: true)!;
+            var perms = Array.CreateInstance(permType!, 2, 1);
             perms.SetValue(Enum.ToObject(permType, 1), 0, 0);
             perms.SetValue(Enum.ToObject(permType, 6), 1, 0);
             Set(img, "Perms", typeof(MatrixOf)
-                .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)
+                .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)!
                 .MakeGenericMethod(permType)
-                .Invoke(null, [perms]));
+                .Invoke(null, [perms])!);
             Set(img, "Names", MatrixOf<string>.Empty);
             Set(img, "Values", new[,] { { Variant.From("v") } }.ToMatrixOf());
             Set(img, "Tail", 9);
@@ -366,7 +366,7 @@ namespace Opc.Ua.SourceGeneration
         {
             using var encoder = new BinaryEncoder(context);
             encoder.WriteEncodeable(null, value, typeId);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static object XmlRoundTrip(ServiceMessageContext context, IEncodeable value, ExpandedNodeId typeId)
@@ -377,9 +377,9 @@ namespace Opc.Ua.SourceGeneration
                 encoder.PushNamespace(NamespaceUri);
                 encoder.WriteEncodeable("Img", value, typeId);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
-            using var parser = new XmlParser(xml, context);
+            using var parser = new XmlParser(xml!, context);
             parser.PushNamespace(NamespaceUri);
             IEncodeable decoded = parser.ReadEncodeable<IEncodeable>("Img", typeId);
             parser.PopNamespace();
@@ -411,13 +411,13 @@ namespace Opc.Ua.SourceGeneration
             object order = Create("Order");
             Type linesType = typeof(ArrayOf<>).MakeGenericType(lineType);
             Set(order, "Lines", linesType
-                .GetMethod("op_Implicit", [lines.GetType()])
-                .Invoke(null, [lines]));
+                .GetMethod("op_Implicit", [lines.GetType()])!
+                .Invoke(null, [lines])!);
 
-            object clone = order.GetType().GetMethod("Clone").Invoke(order, null);
-            object clonedLines = Get(clone, "Lines");
-            object clonedLine = clonedLines.GetType().GetProperty("Item").GetValue(clonedLines, [0]);
-            Set(clonedLine, "Qty", 9);
+            object clone = order.GetType().GetMethod("Clone")!.Invoke(order, null)!;
+            object clonedLines = Get(clone!, "Lines");
+            object clonedLine = clonedLines.GetType().GetProperty("Item")!.GetValue(clonedLines, [0])!;
+            Set(clonedLine!, "Qty", 9);
 
             Assert.That(Get(line, "Qty"), Is.EqualTo(1), "the clone must not share the element");
         }
@@ -432,15 +432,15 @@ namespace Opc.Ua.SourceGeneration
         [Test]
         public void FlagsEnumDefinitionIsTheEncodedEnumeration()
         {
-            Type activator = m_assembly.GetType("TestApp.Defs.PermActivator", throwOnError: true);
-            var source = (IDataTypeDefinitionSource)activator
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            var definition = (EnumDefinition)source.GetDataTypeDefinition(m_namespaceUris);
+            Type activator = m_assembly.GetType("TestApp.Defs.PermActivator", throwOnError: true)!;
+            var source = (IDataTypeDefinitionSource)activator!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            var definition = (EnumDefinition)source!.GetDataTypeDefinition(m_namespaceUris);
 
             Assert.That(definition.IsOptionSet, Is.False);
             Assert.That(
-                definition.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                definition.Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("None", 0L), ("Read", 1L), ("Write", 2L), ("Exec", 4L), ("ReadWrite", 3L) }));
         }
 
@@ -512,14 +512,14 @@ namespace Opc.Ua.SourceGeneration
             ];
             foreach ((string typeName, string property, object value) in cases)
             {
-                Type type = assembly.GetType(typeName, throwOnError: true);
-                var original = (IEncodeable)Activator.CreateInstance(type, nonPublic: true);
-                Set(original, property, value);
+                Type type = assembly.GetType(typeName, throwOnError: true)!;
+                var original = (IEncodeable)Activator.CreateInstance(type!, nonPublic: true)!;
+                Set(original!, property, value);
                 byte[] bytes = EncodeBinary(original);
-                var decoded = (IEncodeable)Activator.CreateInstance(type, nonPublic: true);
+                var decoded = (IEncodeable)Activator.CreateInstance(type, nonPublic: true)!;
                 using (var decoder = new BinaryDecoder(bytes, m_context))
                 {
-                    decoded.Decode(decoder);
+                    decoded!.Decode(decoder);
                 }
                 Assert.That(Get(decoded, property), Is.EqualTo(value), typeName);
                 Assert.That(Get(JsonRoundTrip(original), property), Is.EqualTo(value), typeName);
@@ -576,13 +576,13 @@ namespace Opc.Ua.SourceGeneration
 
             EnumDefinition mode = GetEnumDefinition(assembly, "TestApp.Minus.ModeActivator");
             Assert.That(
-                mode.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                mode.Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("Invalid", -1L), ("A", 0L), ("B", 1L) }));
 
             EnumDefinition bits = GetEnumDefinition(assembly, "TestApp.Minus.BitsActivator");
             Assert.That(bits.IsOptionSet, Is.False);
             Assert.That(
-                bits.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                bits.Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)int.MinValue) }));
         }
 
@@ -616,11 +616,11 @@ namespace Opc.Ua.SourceGeneration
                 }
                 """;
             Assembly assembly = CompileAndLoad(source, out _);
-            Type type = assembly.GetType("TestApp.SetIfMissing.Counter", throwOnError: true);
+            Type type = assembly.GetType("TestApp.SetIfMissing.Counter", throwOnError: true)!;
 
             // The initializer values must survive.
-            var original = (IEncodeable)Activator.CreateInstance(type);
-            object json = JsonRoundTrip(original);
+            var original = (IEncodeable)Activator.CreateInstance(type!)!;
+            object json = JsonRoundTrip(original!);
             Assert.That(Get(json, "Count"), Is.EqualTo(5), "JSON");
             Assert.That(Get(json, "Flag"), Is.True, "JSON");
             Assert.That(Get(json, "Text"), Is.EqualTo("abc"), "JSON");
@@ -633,10 +633,10 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(xml, "Text"), Is.EqualTo("abc"), "XML");
 
             // The CLR defaults are omitted and decoded as the CLR default.
-            var zero = (IEncodeable)Activator.CreateInstance(type);
-            Set(zero, "Count", 0);
+            var zero = (IEncodeable)Activator.CreateInstance(type)!;
+            Set(zero!, "Count", 0);
             Set(zero, "Flag", false);
-            Set(zero, "Text", null);
+            Set(zero, "Text", null!);
             string zeroJson = EncodeJson(zero, JsonEncoderOptions.Compact);
             Assert.That(zeroJson, Does.Not.Contain("Count"));
             object decodedZero = JsonRoundTrip(zero);
@@ -703,11 +703,11 @@ namespace Opc.Ua.SourceGeneration
                 }
                 """;
             Assembly assembly = CompileAndLoad(source, out _);
-            Type cfgType = assembly.GetType("TestApp.CtorDefaults.Cfg", throwOnError: true);
+            Type cfgType = assembly.GetType("TestApp.CtorDefaults.Cfg", throwOnError: true)!;
 
-            var cleared = (IEncodeable)Activator.CreateInstance(cfgType);
-            Set(cleared, "Retries", 0);
-            Set(cleared, "Name", null);
+            var cleared = (IEncodeable)Activator.CreateInstance(cfgType!)!;
+            Set(cleared!, "Retries", 0);
+            Set(cleared, "Name", null!);
             Set(cleared, "Timeout", 0);
             Set(cleared, "Port", 0);
             object decoded = JsonRoundTrip(cleared);
@@ -719,8 +719,8 @@ namespace Opc.Ua.SourceGeneration
             // Only type defaults are omitted (Compact): the CLR default of
             // properties nothing assigns. The backing field literal 4840 is
             // not the type default and is written (E7).
-            var defaults = (IEncodeable)Activator.CreateInstance(cfgType);
-            string json = EncodeJson(defaults, JsonEncoderOptions.Compact);
+            var defaults = (IEncodeable)Activator.CreateInstance(cfgType)!;
+            string json = EncodeJson(defaults!, JsonEncoderOptions.Compact);
             Assert.That(json, Does.Contain("Port"));
             Assert.That(json, Does.Not.Contain("Plain"));
             Assert.That(json, Does.Not.Contain("Untouched"));
@@ -729,9 +729,9 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(decodedDefaults, "Port"), Is.EqualTo(4840));
             Assert.That(Get(decodedDefaults, "Retries"), Is.EqualTo(3));
 
-            Type initializedType = assembly.GetType("TestApp.CtorDefaults.Initialized", throwOnError: true);
-            var zero = (IEncodeable)Activator.CreateInstance(initializedType);
-            Set(zero, "Count", 0);
+            Type initializedType = assembly.GetType("TestApp.CtorDefaults.Initialized", throwOnError: true)!;
+            var zero = (IEncodeable)Activator.CreateInstance(initializedType!)!;
+            Set(zero!, "Count", 0);
             Assert.That(Get(JsonRoundTrip(zero), "Count"), Is.Zero, "set by a helper the constructor calls");
         }
 
@@ -764,15 +764,15 @@ namespace Opc.Ua.SourceGeneration
                 }
                 """;
             Assembly assembly = CompileAndLoad(source, out string generated);
-            Type type = assembly.GetType("TestApp.TypeDefaults.Endpoint", throwOnError: true);
+            Type type = assembly.GetType("TestApp.TypeDefaults.Endpoint", throwOnError: true)!;
             Assert.That(generated, Does.Contain("if (!encoder.CanOmitFields || Count != 0) encoder.WriteInt32(\"Count\", Count);"));
             Assert.That(generated, Does.Not.Contain("|| Port"));
             ServiceMessageContext context = CreateContext();
             context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
 
             // Port at its declared default 4840 is written, also in Compact.
-            var atDeclared = (IEncodeable)Activator.CreateInstance(type);
-            Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Contain("\"Port\":4840"));
+            var atDeclared = (IEncodeable)Activator.CreateInstance(type!)!;
+            Assert.That(EncodeJson(atDeclared!, JsonEncoderOptions.Compact), Does.Contain("\"Port\":4840"));
             Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Verbose), Does.Contain("\"Port\":4840"));
             Assert.That(EncodeXml(context, atDeclared), Does.Contain("<Port>4840</Port>"));
             Assert.That(Get(JsonRoundTrip(atDeclared), "Port"), Is.EqualTo(4840));
@@ -780,8 +780,8 @@ namespace Opc.Ua.SourceGeneration
             // Port at the type default 0 is written too (the Compact
             // JsonEncoder itself drops a 0 value, which a conformant decoder
             // reads back as 0).
-            var atTypeDefault = (IEncodeable)Activator.CreateInstance(type);
-            Set(atTypeDefault, "Port", 0);
+            var atTypeDefault = (IEncodeable)Activator.CreateInstance(type)!;
+            Set(atTypeDefault!, "Port", 0);
             Assert.That(EncodeJson(atTypeDefault, JsonEncoderOptions.Verbose), Does.Contain("\"Port\":0"));
             Assert.That(EncodeXml(context, atTypeDefault), Does.Contain("<Port>0</Port>"));
             Assert.That(Get(JsonRoundTrip(atTypeDefault), "Port"), Is.Zero, "JSON");
@@ -801,8 +801,8 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // An empty string is a value, only null is the String default.
-            var empty = (IEncodeable)Activator.CreateInstance(type);
-            Set(empty, "Name", string.Empty);
+            var empty = (IEncodeable)Activator.CreateInstance(type)!;
+            Set(empty!, "Name", string.Empty);
             Assert.That(EncodeJson(empty, JsonEncoderOptions.Compact), Does.Contain("\"Name\":\"\""));
             Assert.That(Get(JsonRoundTrip(empty), "Name"), Is.EqualTo(string.Empty));
             Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Not.Contain("Name"));
@@ -835,15 +835,15 @@ namespace Opc.Ua.SourceGeneration
                 }
                 """;
             Assembly assembly = CompileAndLoad(source, out _);
-            Type type = assembly.GetType("TestApp.MissingDefaults.Endpoint", throwOnError: true);
+            Type type = assembly.GetType("TestApp.MissingDefaults.Endpoint", throwOnError: true)!;
             ServiceMessageContext context = CreateContext();
             context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
 
             // Compact JSON round trip of the type defaults returns them.
-            var zero = (IEncodeable)Activator.CreateInstance(type);
-            Set(zero, "Port", 0);
+            var zero = (IEncodeable)Activator.CreateInstance(type!)!;
+            Set(zero!, "Port", 0);
             Set(zero, "Enabled", false);
-            Set(zero, "Name", null);
+            Set(zero, "Name", null!);
             string compact = EncodeCompactJson(zero);
             Assert.That(compact, Does.Not.Contain("Port"));
             object decoded = DecodeJson(type, compact);
@@ -894,9 +894,9 @@ namespace Opc.Ua.SourceGeneration
 
         private object DecodeJson(Type type, string json)
         {
-            var decoded = (IEncodeable)Activator.CreateInstance(type);
+            var decoded = (IEncodeable)Activator.CreateInstance(type)!;
             using var decoder = new JsonDecoder(json, m_context);
-            decoded.Decode(decoder);
+            decoded!.Decode(decoder);
             return decoded;
         }
 
@@ -906,7 +906,7 @@ namespace Opc.Ua.SourceGeneration
             encoder.PushNamespace(NamespaceUri);
             encoder.WriteEncodeable("Value", value, value.TypeId);
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         /// <summary>
@@ -958,56 +958,56 @@ namespace Opc.Ua.SourceGeneration
 
             ServiceMessageContext context = CreateContext();
             context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
-            Type shapeType = assembly.GetType("TestApp.Shapes.Shape", throwOnError: true);
-            Type circleType = assembly.GetType("TestApp.Shapes.Circle", throwOnError: true);
-            object circle = Activator.CreateInstance(circleType);
-            Set(circle, "Id", 1);
+            Type shapeType = assembly.GetType("TestApp.Shapes.Shape", throwOnError: true)!;
+            Type circleType = assembly.GetType("TestApp.Shapes.Circle", throwOnError: true)!;
+            object circle = Activator.CreateInstance(circleType!)!;
+            Set(circle!, "Id", 1);
             Set(circle, "R", 2.5);
-            object shape = Activator.CreateInstance(shapeType);
-            Set(shape, "Id", 2);
+            object shape = Activator.CreateInstance(shapeType!)!;
+            Set(shape!, "Id", 2);
             Array shapes = Array.CreateInstance(shapeType, 1, 2);
             shapes.SetValue(circle, 0, 0);
             shapes.SetValue(shape, 0, 1);
             object drawing = Activator.CreateInstance(
-                assembly.GetType("TestApp.Shapes.Drawing", throwOnError: true));
-            Set(drawing, "Shapes", typeof(MatrixOf<>).MakeGenericType(shapeType)
-                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)
-                .Invoke(null, [shapes]));
+                assembly.GetType("TestApp.Shapes.Drawing", throwOnError: true)!)!;
+            Set(drawing!, "Shapes", typeof(MatrixOf<>).MakeGenericType(shapeType)
+                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)!
+                .Invoke(null, [shapes])!);
             Set(drawing, "Tail", 9);
 
             byte[] bytes;
             using (var encoder = new BinaryEncoder(context))
             {
                 ((IEncodeable)drawing).Encode(encoder);
-                bytes = encoder.CloseAndReturnBuffer();
+                bytes = encoder.CloseAndReturnBuffer()!;
             }
-            var decoded = (IEncodeable)Activator.CreateInstance(drawing.GetType());
-            using (var decoder = new BinaryDecoder(bytes, context))
+            var decoded = (IEncodeable)Activator.CreateInstance(drawing.GetType())!;
+            using (var decoder = new BinaryDecoder(bytes!, context))
             {
-                decoded.Decode(decoder);
+                decoded!.Decode(decoder);
                 Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
             }
             Assert.That(Get(decoded, "Tail"), Is.EqualTo(9));
             object decodedShapes = Get(decoded, "Shapes");
             object flattened = decodedShapes.GetType()
-                .GetMethod("ToArrayOf", Type.EmptyTypes)
-                .Invoke(decodedShapes, null);
-            var elements = (Array)flattened.GetType()
-                .GetMethod("ToArray", Type.EmptyTypes)
-                .Invoke(flattened, null);
-            Assert.That(elements.GetValue(0), Is.InstanceOf(circleType), "the subtype survives");
+                .GetMethod("ToArrayOf", Type.EmptyTypes)!
+                .Invoke(decodedShapes, null)!;
+            var elements = (Array)flattened!.GetType()
+                .GetMethod("ToArray", Type.EmptyTypes)!
+                .Invoke(flattened, null)!;
+            Assert.That(elements!.GetValue(0), Is.InstanceOf(circleType), "the subtype survives");
             Assert.That(Get(elements.GetValue(0), "R"), Is.EqualTo(2.5));
-            Assert.That(Get(elements.GetValue(1), "Id"), Is.EqualTo(2));
+            Assert.That(Get(elements.GetValue(1)!, "Id"), Is.EqualTo(2));
 
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(NamespaceUri);
             var definitionSource = (IDataTypeDefinitionSource)assembly
-                .GetType("TestApp.Shapes.DrawingActivator", throwOnError: true)
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            var definition = (StructureDefinition)definitionSource.GetDataTypeDefinition(namespaceUris);
+                .GetType("TestApp.Shapes.DrawingActivator", throwOnError: true)!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            var definition = (StructureDefinition)definitionSource!.GetDataTypeDefinition(namespaceUris);
             Assert.That(
-                definition.Fields.ToArray().Single(f => f.Name == "Shapes").DataType,
+                definition.Fields.ToArray()!.Single(f => f.Name == "Shapes").DataType,
                 Is.EqualTo(new NodeId(22u)),
                 "a matrix of extension objects publishes the abstract Structure");
         }
@@ -1061,15 +1061,15 @@ namespace Opc.Ua.SourceGeneration
             EnumDefinition small = GetEnumDefinition(assembly, "TestApp.Widths.SmallActivator");
             Assert.That(small.IsOptionSet, Is.False);
             Assert.That(
-                small.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                small.Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)sbyte.MinValue) }));
             Assert.That(
                 GetEnumDefinition(assembly, "TestApp.Widths.MediumActivator")
-                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
+                    .Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)short.MinValue) }));
             Assert.That(
                 GetEnumDefinition(assembly, "TestApp.Widths.LargeActivator")
-                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
+                    .Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[]
                 {
                     ("None", 0L),
@@ -1140,74 +1140,74 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(generated, Does.Contain("sealed class Models_FooActivator"));
             Assert.That(generated, Does.Contain("sealed class Models_Foo_2Activator"));
             var modelsFooActivator = (IEncodeableType)assembly
-                .GetType("TestApp.Nesting.Models_Foo_2Activator", throwOnError: true)
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            Assert.That(modelsFooActivator.Type, Is.EqualTo(modelsFoo.GetType()));
+                .GetType("TestApp.Nesting.Models_Foo_2Activator", throwOnError: true)!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            Assert.That(modelsFooActivator!.Type, Is.EqualTo(modelsFoo.GetType()));
             Assert.That(modelsFooActivator.XmlName.Name, Is.EqualTo("Models.Foo"));
 
             // A derived nested type follows the rename of its base activator.
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(NamespaceUri);
             var barSource = (IDataTypeDefinitionSource)assembly
-                .GetType("TestApp.Nesting.Models_BarActivator", throwOnError: true)
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            var bar = (StructureDefinition)barSource.GetDataTypeDefinition(namespaceUris);
-            Assert.That(bar.Fields.ToArray().Select(f => f.Name), Is.EqualTo(s_barFields));
+                .GetType("TestApp.Nesting.Models_BarActivator", throwOnError: true)!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            var bar = (StructureDefinition)barSource!.GetDataTypeDefinition(namespaceUris);
+            Assert.That(bar.Fields.ToArray()!.Select(f => f.Name), Is.EqualTo(s_barFields));
         }
 
         private static IEncodeable CreateEncodeable(Assembly assembly, string typeName)
         {
-            return (IEncodeable)Activator.CreateInstance(assembly.GetType(typeName, throwOnError: true));
+            return (IEncodeable)Activator.CreateInstance(assembly.GetType(typeName, throwOnError: true)!)!;
         }
 
         private static EnumDefinition GetEnumDefinition(Assembly assembly, string activatorName)
         {
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(NamespaceUri);
-            Type activator = assembly.GetType(activatorName, throwOnError: true);
-            var source = (IDataTypeDefinitionSource)activator
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            return (EnumDefinition)source.GetDataTypeDefinition(namespaceUris);
+            Type activator = assembly.GetType(activatorName, throwOnError: true)!;
+            var source = (IDataTypeDefinitionSource)activator!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            return (EnumDefinition)source!.GetDataTypeDefinition(namespaceUris);
         }
 
         private StructureDefinition GetDefinition(string typeName)
         {
             Type activator = m_assembly.GetType(
                 "TestApp.Defs." + typeName + "Activator",
-                throwOnError: true);
-            var source = (IDataTypeDefinitionSource)activator
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            return (StructureDefinition)source.GetDataTypeDefinition(m_namespaceUris);
+                throwOnError: true)!;
+            var source = (IDataTypeDefinitionSource)activator!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            return (StructureDefinition)source!.GetDataTypeDefinition(m_namespaceUris);
         }
 
         private object Create(string typeName)
         {
             return Activator.CreateInstance(
-                m_assembly.GetType("TestApp.Defs." + typeName, throwOnError: true));
+                m_assembly.GetType("TestApp.Defs." + typeName, throwOnError: true)!)!;
         }
 
         private static void Set(object instance, string name, object value)
         {
-            instance.GetType().GetProperty(name).SetValue(instance, value);
+            instance.GetType().GetProperty(name)!.SetValue(instance, value);
         }
 
         private static object Get(object instance, string name)
         {
-            return instance.GetType().GetProperty(name).GetValue(instance);
+            return instance.GetType().GetProperty(name)!.GetValue(instance)!;
         }
 
         private byte[] EncodeBinary(IEncodeable value)
         {
             using var encoder = new BinaryEncoder(m_context);
             value.Encode(encoder);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
-        private string EncodeJson(IEncodeable value, JsonEncoderOptions options = null)
+        private string EncodeJson(IEncodeable value, JsonEncoderOptions? options = null)
         {
             using var encoder = new JsonEncoder(m_context, options);
             value.Encode(encoder);
@@ -1228,9 +1228,9 @@ namespace Opc.Ua.SourceGeneration
         private object JsonRoundTrip(IEncodeable value)
         {
             string json = EncodeJson(value);
-            var decoded = (IEncodeable)Activator.CreateInstance(value.GetType());
+            var decoded = (IEncodeable)Activator.CreateInstance(value.GetType())!;
             using var decoder = new JsonDecoder(json, m_context);
-            decoded.Decode(decoder);
+            decoded!.Decode(decoder);
             return decoded;
         }
 
@@ -1374,7 +1374,7 @@ namespace Opc.Ua.SourceGeneration
         private static readonly string[] s_imgMatrices =
             ["Pixels", "Cells", "Perms", "Names", "Objects", "Values"];
         private Assembly m_assembly;
-        private string m_generated;
+        private string m_generated = null!;
         private ServiceMessageContext m_context;
         private NamespaceTable m_namespaceUris;
     }

@@ -72,7 +72,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var referenced = new Dictionary<string, ModelDependencyReference>
             {
                 [DependencyUri] = new ModelDependencyReference(
-                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null, null)
+                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null!, null!)
             };
 
             Generators.OverrideDependencyPrefixes(md, referenced);
@@ -95,7 +95,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var referenced = new Dictionary<string, ModelDependencyReference>
             {
                 [DependencyUri] = new ModelDependencyReference(
-                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null, null)
+                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null!, null!)
             };
 
             Generators.OverrideDependencyPrefixes(md, referenced);
@@ -120,7 +120,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var referenced = new Dictionary<string, ModelDependencyReference>
             {
                 [DependencyUri] = new ModelDependencyReference(
-                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null, null)
+                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null!, null!)
             };
 
             Generators.OverrideDependencyPrefixes(md, referenced);
@@ -142,9 +142,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var referenced = new Dictionary<string, ModelDependencyReference>
             {
                 [DependencyUri] = new ModelDependencyReference(
-                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null, null),
+                    "Opc.Ua.Di", DependencyUri, "Opc.Ua.Di", null!, null!),
                 [MachineryUri] = new ModelDependencyReference(
-                    "Acme.Machinery", MachineryUri, "Acme.Machinery", null, null)
+                    "Acme.Machinery", MachineryUri, "Acme.Machinery", null!, null!)
             };
 
             Generators.OverrideDependencyPrefixes(md, referenced);
@@ -167,7 +167,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var referenced = new Dictionary<string, ModelDependencyReference>
             {
                 [TargetUri] = new ModelDependencyReference(
-                    "Foreign.Asm", TargetUri, "Foreign.Target", null, null)
+                    "Foreign.Asm", TargetUri, "Foreign.Target", null!, null!)
             };
 
             Generators.OverrideDependencyPrefixes(md, referenced);
@@ -184,13 +184,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Null modelDesign
             Assert.DoesNotThrow(() =>
                 Generators.OverrideDependencyPrefixes(
-                    null, new Dictionary<string, ModelDependencyReference>()));
+                    null!, new Dictionary<string, ModelDependencyReference>()));
 
             // Null referenced map
             var target = new Namespace { Value = TargetUri, Prefix = "Opc.Ua.Target" };
             IModelDesign md = BuildDesign(target, [target]);
             Assert.DoesNotThrow(() =>
-                Generators.OverrideDependencyPrefixes(md, null));
+                Generators.OverrideDependencyPrefixes(md, null!));
         }
 
         private static IModelDesign BuildDesign(Namespace target, Namespace[] all)

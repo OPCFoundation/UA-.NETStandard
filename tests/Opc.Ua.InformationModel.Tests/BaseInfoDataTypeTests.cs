@@ -468,14 +468,14 @@ namespace Opc.Ua.InformationModel.Tests
                 return;
             }
             if (!dv.WrappedValue.TryGetValue(out ExtensionObject ext) ||
-                !ext.TryGetValue(out StructureDefinition definition))
+                !ext.TryGetValue(out StructureDefinition? definition))
             {
                 Assert.Ignore(
                     $"DataTypeDefinition for {nodeId} is not a StructureDefinition.");
                 return;
             }
             bool found = false;
-            if (definition.Fields != default)
+            if (definition.Fields != default!)
             {
                 foreach (StructureField f in definition.Fields)
                 {
@@ -554,7 +554,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
 
             var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription r in
                     response.Results[0].References)

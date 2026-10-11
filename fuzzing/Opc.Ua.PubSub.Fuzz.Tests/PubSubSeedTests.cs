@@ -66,12 +66,12 @@ namespace Opc.Ua.Fuzzing
             PubSubNetworkMessageContext publicContext = FuzzableCode.NewContext();
 
             PubSubNetworkMessage coreResult = FuzzableCode.DecodePubSubJson(seed, coreContext);
-            PubSubNetworkMessage publicResult = await new PubSubJsonDecoder()
-                .TryDecodeAsync(seed, publicContext).ConfigureAwait(false);
+            PubSubNetworkMessage publicResult = (await new PubSubJsonDecoder()
+                .TryDecodeAsync(seed, publicContext).ConfigureAwait(false))!;
 
             // Agreement alone is insufficient: both paths must preserve the actual seed values.
             PubSubSeedAssertions.AssertJsonSeed(coreResult, messageId, encoding);
-            PubSubSeedAssertions.AssertJsonSeed(publicResult, messageId, encoding);
+            PubSubSeedAssertions.AssertJsonSeed(publicResult!, messageId, encoding);
             PubSubSeedAssertions.AssertDiagnostics(coreContext, received: 1, dataSets: 1);
             PubSubSeedAssertions.AssertDiagnostics(publicContext, received: 1, dataSets: 1);
             PubSubSeedAssertions.ReplayJsonAdapters(seed);
@@ -255,8 +255,8 @@ namespace Opc.Ua.Fuzzing
                 .ConfigureAwait(false);
             PubSubSeedAssertions.AssertDiagnostics(context);
 
-            PubSubNetworkMessage decoded = await decoder.TryDecodeAsync(seed, context).ConfigureAwait(false);
-            PubSubSeedAssertions.AssertJsonSeed(decoded, "retained-RawData-Variant", PubSubFieldEncoding.RawData);
+            PubSubNetworkMessage decoded = (await decoder.TryDecodeAsync(seed, context).ConfigureAwait(false))!;
+            PubSubSeedAssertions.AssertJsonSeed(decoded!, "retained-RawData-Variant", PubSubFieldEncoding.RawData);
             PubSubSeedAssertions.AssertDiagnostics(context, received: 1, dataSets: 1);
         }
     }

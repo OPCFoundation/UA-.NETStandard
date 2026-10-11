@@ -49,8 +49,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             ArrayOf<EndpointDescription> availableEndpoints,
             ArrayOf<string> discoveryProfileUris)
         {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client
                 channel,
                 configuration,
                 endpoint,
-                clientCertificate,
+                clientCertificate!,
                 availableEndpoints,
                 discoveryProfileUris,
                 SubscriptionEngineFactory);

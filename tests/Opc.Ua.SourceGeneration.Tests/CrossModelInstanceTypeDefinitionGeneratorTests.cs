@@ -215,8 +215,8 @@ namespace Opc.Ua.SourceGeneration
             var emitted = outputCompilation.Emit(stream);
             Assert.That(emitted.Success, Is.True, string.Join("\n", emitted.Diagnostics));
             Assembly assembly = Assembly.Load(stream.ToArray());
-            string result = (string)assembly.GetType("InitializationProbe").GetMethod("Run")
-                .Invoke(null, [prepareOptional, operation]);
+            string result = (string)assembly.GetType("InitializationProbe")!.GetMethod("Run")!
+                .Invoke(null, [prepareOptional, operation])!;
             Assert.That(result, Is.Empty);
         }
 

@@ -187,7 +187,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool foundWithPolicy = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasPolicy = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -354,7 +354,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasIssued = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -396,7 +396,7 @@ namespace Opc.Ua.Core.Security.Tests
             var tokenTypes = new HashSet<UserTokenType>();
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -444,7 +444,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {

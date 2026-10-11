@@ -37,13 +37,13 @@ namespace Opc.Ua.Schema.Model
     public partial class Namespace : IEquatable<Namespace>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Namespace other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(Namespace other)
+        public bool Equals(Namespace? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -79,13 +79,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Namespace left, Namespace right)
+        public static bool operator ==(Namespace? left, Namespace? right)
         {
             return EqualityComparer<Namespace>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Namespace left, Namespace right)
+        public static bool operator !=(Namespace? left, Namespace? right)
         {
             return !(left == right);
         }
@@ -94,13 +94,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ListOfChildren : IEquatable<ListOfChildren>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ListOfChildren other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ListOfChildren other)
+        public bool Equals(ListOfChildren? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -147,13 +147,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ListOfChildren left, ListOfChildren right)
+        public static bool operator ==(ListOfChildren? left, ListOfChildren? right)
         {
             return EqualityComparer<ListOfChildren>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(ListOfChildren left, ListOfChildren right)
+        public static bool operator !=(ListOfChildren? left, ListOfChildren? right)
         {
             return !(left == right);
         }
@@ -162,13 +162,13 @@ namespace Opc.Ua.Schema.Model
     public partial class RolePermissionSet : IEquatable<RolePermissionSet>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is RolePermissionSet other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(RolePermissionSet other)
+        public bool Equals(RolePermissionSet? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -191,13 +191,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(RolePermissionSet left, RolePermissionSet right)
+        public static bool operator ==(RolePermissionSet? left, RolePermissionSet? right)
         {
             return EqualityComparer<RolePermissionSet>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(RolePermissionSet left, RolePermissionSet right)
+        public static bool operator !=(RolePermissionSet? left, RolePermissionSet? right)
         {
             return !(left == right);
         }
@@ -206,13 +206,13 @@ namespace Opc.Ua.Schema.Model
     public partial class RolePermission : IEquatable<RolePermission>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is RolePermission other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(RolePermission other)
+        public bool Equals(RolePermission? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -248,13 +248,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ReferenceTypeDesign : IEquatable<ReferenceTypeDesign>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ReferenceTypeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ReferenceTypeDesign other)
+        public bool Equals(ReferenceTypeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -275,13 +275,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ReferenceTypeDesign left, ReferenceTypeDesign right)
+        public static bool operator ==(ReferenceTypeDesign? left, ReferenceTypeDesign? right)
         {
             return EqualityComparer<ReferenceTypeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(ReferenceTypeDesign left, ReferenceTypeDesign right)
+        public static bool operator !=(ReferenceTypeDesign? left, ReferenceTypeDesign? right)
         {
             return !(left == right);
         }
@@ -290,7 +290,7 @@ namespace Opc.Ua.Schema.Model
     public partial class EncodingDesign : IEquatable<EncodingDesign>
     {
         /// <inheritdoc/>
-        public bool Equals(EncodingDesign other)
+        public bool Equals(EncodingDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -300,7 +300,7 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is EncodingDesign other && base.Equals(other);
         }
@@ -315,13 +315,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ObjectDesign : IEquatable<ObjectDesign>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ObjectDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ObjectDesign other)
+        public bool Equals(ObjectDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -340,13 +340,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ObjectDesign left, ObjectDesign right)
+        public static bool operator ==(ObjectDesign? left, ObjectDesign? right)
         {
             return EqualityComparer<ObjectDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(ObjectDesign left, ObjectDesign right)
+        public static bool operator !=(ObjectDesign? left, ObjectDesign? right)
         {
             return !(left == right);
         }
@@ -355,13 +355,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ObjectTypeDesign : IEquatable<ObjectTypeDesign>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ObjectTypeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ObjectTypeDesign other)
+        public bool Equals(ObjectTypeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -380,13 +380,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ObjectTypeDesign left, ObjectTypeDesign right)
+        public static bool operator ==(ObjectTypeDesign? left, ObjectTypeDesign? right)
         {
             return EqualityComparer<ObjectTypeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(ObjectTypeDesign left, ObjectTypeDesign right)
+        public static bool operator !=(ObjectTypeDesign? left, ObjectTypeDesign? right)
         {
             return !(left == right);
         }
@@ -395,13 +395,13 @@ namespace Opc.Ua.Schema.Model
     public partial class DictionaryDesign : IEquatable<DictionaryDesign>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is DictionaryDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(DictionaryDesign other)
+        public bool Equals(DictionaryDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -438,7 +438,7 @@ namespace Opc.Ua.Schema.Model
     public partial class PropertyDesign : IEquatable<PropertyDesign>
     {
         /// <inheritdoc/>
-        public bool Equals(PropertyDesign other)
+        public bool Equals(PropertyDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -448,7 +448,7 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is PropertyDesign other && Equals(other);
         }
@@ -463,13 +463,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ViewDesign : IEquatable<ViewDesign>
     {
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ViewDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ViewDesign other)
+        public bool Equals(ViewDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -488,7 +488,7 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ViewDesign left, ViewDesign right)
+        public static bool operator ==(ViewDesign left, ViewDesign? right)
         {
             return EqualityComparer<ViewDesign>.Default.Equals(left, right);
         }
@@ -523,20 +523,20 @@ namespace Opc.Ua.Schema.Model
         public bool IsSourceNodeSet { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ModelDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ModelDesign design)
+        public bool Equals(ModelDesign? design)
         {
             if (ReferenceEquals(this, design))
             {
                 return true;
             }
             return
-                ArrayEqualityComparer<Namespace>.Default.Equals(Namespaces, design.Namespaces) &&
+                ArrayEqualityComparer<Namespace>.Default.Equals(Namespaces, design!.Namespaces) &&
                 ArrayEqualityComparer<RolePermissionSet>.Default.Equals(PermissionSets, design.PermissionSets) &&
                 ArrayEqualityComparer<NodeDesign>.Default.Equals(Items, design.Items) &&
                 XmlElementArrayStringEqualityComparer.Default.Equals(Extensions, design.Extensions) &&
@@ -564,13 +564,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(ModelDesign left, ModelDesign right)
+        public static bool operator ==(ModelDesign left, ModelDesign? right)
         {
             return EqualityComparer<ModelDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(ModelDesign left, ModelDesign right)
+        public static bool operator !=(ModelDesign left, ModelDesign? right)
         {
             return !(left == right);
         }
@@ -585,13 +585,13 @@ namespace Opc.Ua.Schema.Model
         public bool IsAutogenerated { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is LocalizedText other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(LocalizedText other)
+        public bool Equals(LocalizedText? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -611,13 +611,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(LocalizedText left, LocalizedText right)
+        public static bool operator ==(LocalizedText? left, LocalizedText? right)
         {
             return EqualityComparer<LocalizedText>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(LocalizedText left, LocalizedText right)
+        public static bool operator !=(LocalizedText? left, LocalizedText? right)
         {
             return !(left == right);
         }
@@ -631,17 +631,17 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Relative path
         /// </summary>
-        public string RelativePath { get; set; }
+        public string? RelativePath { get; set; }
 
         /// <summary>
         /// Instance
         /// </summary>
-        public NodeDesign Instance { get; set; }
+        public NodeDesign? Instance { get; set; }
 
         /// <summary>
         /// Overridden nodes
         /// </summary>
-        public List<NodeDesign> OverriddenNodes { get; set; }
+        public List<NodeDesign>? OverriddenNodes { get; set; }
 
         /// <summary>
         /// Explicitly defined
@@ -672,12 +672,12 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Identifier
         /// </summary>
-        public object Identifier { get; set; }
+        public object? Identifier { get; set; }
 
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        public override string ToString()
+        public override string? ToString()
         {
             if (Instance != null && Instance.SymbolicId != null)
             {
@@ -695,12 +695,12 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Source path
         /// </summary>
-        public string SourcePath { get; set; }
+        public string? SourcePath { get; set; }
 
         /// <summary>
         /// reference type
         /// </summary>
-        public XmlQualifiedName ReferenceType { get; set; }
+        public XmlQualifiedName? ReferenceType { get; set; }
 
         /// <summary>
         /// Is inverse
@@ -710,12 +710,12 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Target path
         /// </summary>
-        public string TargetPath { get; set; }
+        public string? TargetPath { get; set; }
 
         /// <summary>
         /// Target id
         /// </summary>
-        public XmlQualifiedName TargetId { get; set; }
+        public XmlQualifiedName? TargetId { get; set; }
 
         /// <summary>
         /// Declared on a type rather than on an instance or instance declaration.
@@ -744,7 +744,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Type
         /// </summary>
-        public TypeDesign Type { get; set; }
+        public TypeDesign? Type { get; set; }
 
         /// <summary>
         /// Nodes
@@ -771,7 +771,7 @@ namespace Opc.Ua.Schema.Model
         /// Parent node
         /// </summary>
         [XmlIgnore]
-        public NodeDesign Parent { get; set; }
+        public NodeDesign? Parent { get; set; }
 
         /// <summary>
         /// Has children
@@ -805,7 +805,7 @@ namespace Opc.Ua.Schema.Model
         /// Returns the string representation of the object.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -823,7 +823,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Create symbol
         /// </summary>
-        public static string CreateSymbolicId(XmlQualifiedName parentId, string childName)
+        public static string CreateSymbolicId(XmlQualifiedName? parentId, string childName)
         {
             if (parentId == null)
             {
@@ -852,13 +852,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is NodeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(NodeDesign other)
+        public bool Equals(NodeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -942,13 +942,13 @@ namespace Opc.Ua.Schema.Model
         public static readonly char[] PathChars = [PathChar];
 
         /// <inheritdoc/>
-        public static bool operator ==(NodeDesign left, NodeDesign right)
+        public static bool operator ==(NodeDesign? left, NodeDesign? right)
         {
             return EqualityComparer<NodeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(NodeDesign left, NodeDesign right)
+        public static bool operator !=(NodeDesign? left, NodeDesign? right)
         {
             return !(left == right);
         }
@@ -963,7 +963,7 @@ namespace Opc.Ua.Schema.Model
         /// Decoded value
         /// </summary>
         [XmlIgnore]
-        public object DecodedValue { get; set; }
+        public object? DecodedValue { get; set; }
 
         /// <summary>
         /// The namespace table the namespace indexes inside
@@ -974,13 +974,13 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         [XmlIgnore]
         [field: NonSerialized]
-        public NamespaceTable DecodedValueNamespaceUris { get; set; }
+        public NamespaceTable? DecodedValueNamespaceUris { get; set; }
 
         /// <summary>
         /// Data type node
         /// </summary>
         [XmlIgnore]
-        public DataTypeDesign DataTypeNode { get; set; }
+        public DataTypeDesign? DataTypeNode { get; set; }
 
         /// <summary>
         /// The verbatim OPC UA AccessLevel bitmask imported from a
@@ -1002,13 +1002,13 @@ namespace Opc.Ua.Schema.Model
         public uint? RawUserAccessLevel { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is VariableDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(VariableDesign other)
+        public bool Equals(VariableDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1056,13 +1056,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(VariableDesign left, VariableDesign right)
+        public static bool operator ==(VariableDesign? left, VariableDesign? right)
         {
             return EqualityComparer<VariableDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(VariableDesign left, VariableDesign right)
+        public static bool operator !=(VariableDesign? left, VariableDesign? right)
         {
             return !(left == right);
         }
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Schema.Model
         /// Decoded value
         /// </summary>
         [XmlIgnore]
-        public object DecodedValue { get; set; }
+        public object? DecodedValue { get; set; }
 
         /// <summary>
         /// The namespace table the namespace indexes inside
@@ -1086,22 +1086,22 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         [XmlIgnore]
         [field: NonSerialized]
-        public NamespaceTable DecodedValueNamespaceUris { get; set; }
+        public NamespaceTable? DecodedValueNamespaceUris { get; set; }
 
         /// <summary>
         /// Data type node
         /// </summary>
         [XmlIgnore]
-        public DataTypeDesign DataTypeNode { get; set; }
+        public DataTypeDesign? DataTypeNode { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is VariableTypeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(VariableTypeDesign other)
+        public bool Equals(VariableTypeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1145,13 +1145,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(VariableTypeDesign left, VariableTypeDesign right)
+        public static bool operator ==(VariableTypeDesign? left, VariableTypeDesign? right)
         {
             return EqualityComparer<VariableTypeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(VariableTypeDesign left, VariableTypeDesign right)
+        public static bool operator !=(VariableTypeDesign? left, VariableTypeDesign? right)
         {
             return !(left == right);
         }
@@ -1172,22 +1172,22 @@ namespace Opc.Ua.Schema.Model
         /// Method type node
         /// </summary>
         [XmlIgnore]
-        public MethodDesign MethodType { get; set; }
+        public MethodDesign? MethodType { get; set; }
 
         /// <summary>
         /// Method declaration node
         /// </summary>
         [XmlIgnore]
-        public MethodDesign MethodDeclarationNode { get; set; }
+        public MethodDesign? MethodDeclarationNode { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is MethodDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(MethodDesign other)
+        public bool Equals(MethodDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1215,13 +1215,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(MethodDesign left, MethodDesign right)
+        public static bool operator ==(MethodDesign? left, MethodDesign? right)
         {
             return EqualityComparer<MethodDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(MethodDesign left, MethodDesign right)
+        public static bool operator !=(MethodDesign? left, MethodDesign? right)
         {
             return !(left == right);
         }
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Schema.Model
         /// Base type node
         /// </summary>
         [XmlIgnore]
-        public TypeDesign BaseTypeNode { get; set; }
+        public TypeDesign? BaseTypeNode { get; set; }
 
         /// <summary>
         /// True if the type is excluded from generation (for example a
@@ -1256,13 +1256,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is TypeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(TypeDesign other)
+        public bool Equals(TypeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1292,13 +1292,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(TypeDesign left, TypeDesign right)
+        public static bool operator ==(TypeDesign? left, TypeDesign? right)
         {
             return EqualityComparer<TypeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(TypeDesign left, TypeDesign right)
+        public static bool operator !=(TypeDesign? left, TypeDesign? right)
         {
             return !(left == right);
         }
@@ -1313,13 +1313,13 @@ namespace Opc.Ua.Schema.Model
         /// Type definition node
         /// </summary>
         [XmlIgnore]
-        public TypeDesign TypeDefinitionNode { get; set; }
+        public TypeDesign? TypeDefinitionNode { get; set; }
 
         /// <summary>
         /// Overidden node
         /// </summary>
         [XmlIgnore]
-        public InstanceDesign OveriddenNode { get; set; }
+        public InstanceDesign? OveriddenNode { get; set; }
 
         /// <summary>
         /// Identifier required
@@ -1336,13 +1336,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is InstanceDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(InstanceDesign other)
+        public bool Equals(InstanceDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1383,20 +1383,20 @@ namespace Opc.Ua.Schema.Model
             hash.Add(MaxCardinality);
             hash.Add(PreserveDefaultAttributes);
             hash.Add(DesignToolOnly);
-            hash.Add(TypeDefinitionNode?.SymbolicId, XmlQualifiedNameEqualityComparer.Default);
-            hash.Add(OveriddenNode?.SymbolicId, XmlQualifiedNameEqualityComparer.Default);
+            hash.Add(TypeDefinitionNode?.SymbolicId!, XmlQualifiedNameEqualityComparer.Default);
+            hash.Add(OveriddenNode?.SymbolicId!, XmlQualifiedNameEqualityComparer.Default);
             hash.Add(IdentifierRequired);
             return hash.ToHashCode();
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(InstanceDesign left, InstanceDesign right)
+        public static bool operator ==(InstanceDesign? left, InstanceDesign? right)
         {
             return EqualityComparer<InstanceDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(InstanceDesign left, InstanceDesign right)
+        public static bool operator !=(InstanceDesign? left, InstanceDesign? right)
         {
             return !(left == right);
         }
@@ -1436,13 +1436,13 @@ namespace Opc.Ua.Schema.Model
 #pragma warning restore CA2235 // Mark all non-serializable fields
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Reference other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(Reference other)
+        public bool Equals(Reference? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1469,7 +1469,7 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Reference left, Reference right)
+        public static bool operator ==(Reference left, Reference? right)
         {
             return EqualityComparer<Reference>.Default.Equals(left, right);
         }
@@ -1496,7 +1496,7 @@ namespace Opc.Ua.Schema.Model
         /// Data type node
         /// </summary>
         [XmlIgnore]
-        public DataTypeDesign DataTypeNode { get; set; }
+        public DataTypeDesign? DataTypeNode { get; set; }
 
         /// <summary>
         /// Identifier is in name
@@ -1523,13 +1523,13 @@ namespace Opc.Ua.Schema.Model
         public int? OptionSetBit { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Parameter other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(Parameter other)
+        public bool Equals(Parameter? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1575,13 +1575,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Parameter left, Parameter right)
+        public static bool operator ==(Parameter? left, Parameter? right)
         {
             return EqualityComparer<Parameter>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Parameter left, Parameter right)
+        public static bool operator !=(Parameter? left, Parameter? right)
         {
             return !(left == right);
         }
@@ -1791,13 +1791,13 @@ namespace Opc.Ua.Schema.Model
         public BasicDataType BasicDataType { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is DataTypeDesign other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataTypeDesign other)
+        public bool Equals(DataTypeDesign? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1835,13 +1835,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(DataTypeDesign left, DataTypeDesign right)
+        public static bool operator ==(DataTypeDesign? left, DataTypeDesign? right)
         {
             return EqualityComparer<DataTypeDesign>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(DataTypeDesign left, DataTypeDesign right)
+        public static bool operator !=(DataTypeDesign? left, DataTypeDesign? right)
         {
             return !(left == right);
         }
@@ -1863,28 +1863,28 @@ namespace Opc.Ua.Schema.Model
         /// Name of the service the data type belongs to
         /// </summary>
         [XmlIgnore]
-        public string Name { get; init; }
+        public string? Name { get; init; }
 
         /// <summary>
         /// Service request data type
         /// </summary>
         [XmlIgnore]
-        public DataTypeDesign Request { get; set; }
+        public DataTypeDesign? Request { get; set; }
 
         /// <summary>
         /// Service response data type
         /// </summary>
         [XmlIgnore]
-        public DataTypeDesign Response { get; set; }
+        public DataTypeDesign? Response { get; set; }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Service other && Equals(other);
         }
 
         /// <inheritdoc/>
-        public bool Equals(Service other)
+        public bool Equals(Service? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -1903,13 +1903,13 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Service left, Service right)
+        public static bool operator ==(Service left, Service? right)
         {
             return EqualityComparer<Service>.Default.Equals(left, right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Service left, Service right)
+        public static bool operator !=(Service left, Service? right)
         {
             return !(left == right);
         }

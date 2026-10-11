@@ -150,7 +150,7 @@ namespace Opc.Ua.SourceGeneration
                 """;
         }
 
-        private static string Instance(string typeDefinition, string method = null)
+        private static string Instance(string typeDefinition, string? method = null)
         {
             string children = method == null
                 ? string.Empty

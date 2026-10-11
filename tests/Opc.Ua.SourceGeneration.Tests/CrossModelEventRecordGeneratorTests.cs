@@ -162,8 +162,8 @@ namespace Opc.Ua.SourceGeneration
                     LanguageVersion.CSharp13);
 
             INamedTypeSymbol downstreamRecord = eventRecordCompilation.GetTypeByMetadataName(
-                "Test.Downstream.DownstreamEventTypeRecord");
-            IPropertySymbol sourceUrl = FindProperty(downstreamRecord, "SourceUrl");
+                "Test.Downstream.DownstreamEventTypeRecord")!;
+            IPropertySymbol sourceUrl = FindProperty(downstreamRecord!, "SourceUrl");
             Assert.That(sourceUrl, Is.Not.Null);
             Assert.That(sourceUrl!.Type.SpecialType, Is.EqualTo(SpecialType.System_String));
 
@@ -183,18 +183,18 @@ namespace Opc.Ua.SourceGeneration
         {
             for (INamedTypeSymbol current = type;
                 current != null;
-                current = current.BaseType)
+                current = current.BaseType!)
             {
                 IPropertySymbol property = current
                     .GetMembers(name)
                     .OfType<IPropertySymbol>()
-                    .SingleOrDefault();
+                    .SingleOrDefault()!;
                 if (property != null)
                 {
                     return property;
                 }
             }
-            return null;
+            return null!;
         }
 
         private const string EventModelStubs =

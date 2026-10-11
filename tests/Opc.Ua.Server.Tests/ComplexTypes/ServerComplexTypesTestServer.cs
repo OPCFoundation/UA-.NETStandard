@@ -87,9 +87,9 @@ namespace Opc.Ua.Server.Tests
                 ServerComplexTypesTestNodeManager.PointValueVariable,
                 namespaceIndex);
 
-            NodeState node = await server.NodeManager
+            NodeState node = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(pointVariableId, cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             if (node is BaseVariableState pointVariable)
             {
                 var pointTypeId = NodeId.ToExpandedNodeId(
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests
                         namespaceIndex),
                     server.NamespaceUris);
 
-                if (server.Factory.TryGetEncodeableType(pointTypeId, out IEncodeableType pointType))
+                if (server.Factory.TryGetEncodeableType(pointTypeId, out IEncodeableType? pointType))
                 {
                     IEncodeable body = pointType.CreateInstance();
                     if (body is Structure structure)
@@ -114,16 +114,16 @@ namespace Opc.Ua.Server.Tests
             }
 
             // TestPoint3D inherits X, Y and Name from TestPoint.
-            NodeState point3DNode = await server.NodeManager
+            NodeState point3DNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     new NodeId(ServerComplexTypesTestNodeManager.Point3DValueVariable, namespaceIndex),
                     cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             var point3DTypeId = NodeId.ToExpandedNodeId(
                 new NodeId(ServerComplexTypesTestNodeManager.TestPoint3DDataType, namespaceIndex),
                 server.NamespaceUris);
             if (point3DNode is BaseVariableState point3DVariable &&
-                server.Factory.TryGetEncodeableType(point3DTypeId, out IEncodeableType point3DType))
+                server.Factory.TryGetEncodeableType(point3DTypeId, out IEncodeableType? point3DType))
             {
                 IEncodeable body = point3DType.CreateInstance();
                 if (body is Structure structure)
@@ -143,9 +143,9 @@ namespace Opc.Ua.Server.Tests
                 ServerComplexTypesTestNodeManager.ColorValueVariable,
                 namespaceIndex);
 
-            NodeState colorNode = await server.NodeManager
+            NodeState colorNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(colorVariableId, cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             if (colorNode is BaseVariableState colorVariable)
             {
                 colorVariable.Value = new Variant(1);

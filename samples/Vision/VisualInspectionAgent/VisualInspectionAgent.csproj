@@ -7,7 +7,6 @@
     <PackageId>VisualInspectionAgent</PackageId>
     <Description>Orchestrating client for the Vision visual-inspection sample cell.</Description>
     <RootNamespace>Vision.VisualInspectionAgent</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1014;CA1812;CA1822;CA1852</NoWarn>
     <PublishAot>false</PublishAot>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

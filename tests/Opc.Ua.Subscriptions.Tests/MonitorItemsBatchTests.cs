@@ -94,7 +94,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(resp.Results.Count, Is.EqualTo(10));
-            int goodCount = resp.Results.ToArray()
+            int goodCount = resp.Results.ToArray()!
                 .Count(r => StatusCode.IsGood(r.StatusCode));
             Assert.That(goodCount, Is.EqualTo(10),
                 "All 10 items on different nodes should be created.");
@@ -117,7 +117,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(resp.Results.Count, Is.EqualTo(10));
-            int goodCount = resp.Results.ToArray()
+            int goodCount = resp.Results.ToArray()!
                 .Count(r => StatusCode.IsGood(r.StatusCode));
             Assert.That(goodCount, Is.GreaterThan(0),
                 "At least some items on the same node should succeed.");
@@ -365,7 +365,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None).ConfigureAwait(false);
             Assert.That(createResp.Results.Count, Is.EqualTo(10));
 
-            uint[] monIds = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
+            uint[] monIds = [.. createResp.Results.ToArray()!.Select(r => r.MonitoredItemId)];
 
             DeleteMonitoredItemsResponse delResp =
                 await Session.DeleteMonitoredItemsAsync(
@@ -430,7 +430,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Delete all items
-            uint[] monIds = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
+            uint[] monIds = [.. createResp.Results.ToArray()!.Select(r => r.MonitoredItemId)];
             await Session.DeleteMonitoredItemsAsync(
                 null, m_subscriptionId, monIds.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);

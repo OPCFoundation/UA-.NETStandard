@@ -421,6 +421,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
 
             BrowseNameKey browseName = ToBrowseNameKey(session, references[0].BrowseName);
+            if (browseName.NamespaceUri == kWotPumpNamespaceUri)
+            {
+                // The aggregated pump is typed by its own subtype of the
+                // companion PumpType, which declares the alarms it raises
+                // (OPC 10000-3 §7.15 forbids GeneratesEvent on the Object).
+                // Structurally it is the companion type it derives from.
+                return await ReadSuperTypeAsync(
+                    session,
+                    ExpandedNodeId.ToNodeId(references[0].NodeId, session.NamespaceUris),
+                    cancellationToken).ConfigureAwait(false);
+            }
             return new TypeKey(browseName.NamespaceUri, browseName.Name);
         }
 

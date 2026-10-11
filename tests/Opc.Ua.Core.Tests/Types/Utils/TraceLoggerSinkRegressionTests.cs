@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 provider.SetTraceLog(path, deleteExisting: true);
             }
             var received = new List<string>();
-            void OnTrace(object sender, TraceEventArgs args)
+            void OnTrace(object? sender, TraceEventArgs args)
             {
                 received.Add(args.Format);
             }

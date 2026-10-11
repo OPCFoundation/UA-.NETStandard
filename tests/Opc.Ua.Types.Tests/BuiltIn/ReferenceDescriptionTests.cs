@@ -122,11 +122,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ReferenceDescription();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -144,11 +144,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ReferenceDescription();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ReferenceDescription rd = CreatePopulated();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(rd.Equals((object)null), Is.False);
+            Assert.That(rd.Equals((object)null!), Is.False);
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(rd.Equals((ReferenceDescription)null), Is.False);
+            Assert.That(rd.Equals((ReferenceDescription)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -360,8 +360,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualWithBothNullReturnsTrue()
         {
-            ReferenceDescription rd1 = null;
-            ReferenceDescription rd2 = null;
+            ReferenceDescription? rd1 = null;
+            ReferenceDescription? rd2 = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(rd1 == rd2, Is.True);
@@ -372,7 +372,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualWithOneNullReturnsFalse()
         {
             ReferenceDescription rd1 = CreatePopulated();
-            ReferenceDescription rd2 = null;
+            ReferenceDescription? rd2 = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(rd1 == rd2, Is.False);

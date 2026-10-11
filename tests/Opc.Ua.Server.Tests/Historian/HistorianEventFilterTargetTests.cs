@@ -31,8 +31,6 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>

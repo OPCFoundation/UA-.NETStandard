@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -237,7 +237,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -286,7 +286,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task EndpointsExcludeDefaultIsFalseAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync().ConfigureAwait(false);
@@ -324,7 +324,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -368,7 +368,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -410,7 +410,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -455,7 +455,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession userSession = null;
+            ISession? userSession = null;
             try
             {
                 userSession = await ConnectAsRegularUserAsync()
@@ -472,8 +472,8 @@ namespace Opc.Ua.Core.Security.Tests
                         "Feature not supported by server.");
                 }
 
-                ServiceResultException ex = null;
-                CallMethodResult result = null;
+                ServiceResultException? ex = null;
+                CallMethodResult? result = null;
                 try
                 {
                     result = await CallRoleMethodAsync(
@@ -508,7 +508,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -549,7 +549,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId engineerId = ToNodeId(ObjectIds.WellKnownRole_Engineer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -591,7 +591,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId engineerId = ToNodeId(ObjectIds.WellKnownRole_Engineer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -682,7 +682,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -733,7 +733,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -793,7 +793,7 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId anonymousId = ToNodeId(
                 ObjectIds.WellKnownRole_Anonymous);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -834,7 +834,7 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId secAdminId = ToNodeId(
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -876,7 +876,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -929,7 +929,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -983,7 +983,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1023,7 +1023,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1126,7 +1126,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1197,7 +1197,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1248,7 +1248,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1336,7 +1336,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1424,7 +1424,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1468,7 +1468,7 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1519,7 +1519,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession userSession = null;
+            ISession? userSession = null;
             try
             {
                 userSession = await ConnectAsRegularUserAsync()
@@ -1536,8 +1536,8 @@ namespace Opc.Ua.Core.Security.Tests
                         "Feature not supported by server.");
                 }
 
-                ServiceResultException ex = null;
-                CallMethodResult result = null;
+                ServiceResultException? ex = null;
+                CallMethodResult? result = null;
                 try
                 {
                     result = await CallRoleMethodAsync(
@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession userSession = null;
+            ISession? userSession = null;
             try
             {
                 userSession = await ConnectAsRegularUserAsync()
@@ -1598,8 +1598,8 @@ namespace Opc.Ua.Core.Security.Tests
                         "Feature not supported by server.");
                 }
 
-                ServiceResultException ex = null;
-                CallMethodResult result = null;
+                ServiceResultException? ex = null;
+                CallMethodResult? result = null;
                 try
                 {
                     result = await CallRoleMethodAsync(
@@ -1781,7 +1781,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession userSession = null;
+            ISession? userSession = null;
             try
             {
                 userSession = await ConnectAsRegularUserAsync()
@@ -1807,8 +1807,8 @@ namespace Opc.Ua.Core.Security.Tests
                     }
 
                     testedCount++;
-                    ServiceResultException ex = null;
-                    CallMethodResult result = null;
+                    ServiceResultException? ex = null;
+                    CallMethodResult? result = null;
                     try
                     {
                         result = await CallRoleMethodAsync(
@@ -1861,7 +1861,7 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
             NodeId operatorId = ToNodeId(ObjectIds.WellKnownRole_Operator);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1956,7 +1956,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
 
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -1977,7 +1977,7 @@ namespace Opc.Ua.Core.Security.Tests
                 await adminSession.CloseAsync(5000, true)
                     .ConfigureAwait(false);
                 adminSession.Dispose();
-                adminSession = null;
+                adminSession = null!;
 
                 adminSession = await ConnectAsAdminAsync()
                     .ConfigureAwait(false);
@@ -2013,7 +2013,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<BrowseResponse> BrowseForwardAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             return await session.BrowseAsync(
@@ -2036,7 +2036,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> GetMethodIdByName(
             NodeId roleId,
             string name,
-            ISession session = null)
+            ISession? session = null)
         {
             List<ReferenceDescription> children =
                 await BrowseRoleChildrenAsync(roleId, session)
@@ -2058,7 +2058,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindChildAsync(
             NodeId parentId,
             string childName,
-            ISession session = null)
+            ISession? session = null)
         {
             List<ReferenceDescription> children =
                 await BrowseRoleChildrenAsync(parentId, session)
@@ -2078,7 +2078,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<DataValue> ReadPropertyValueAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(
@@ -2213,7 +2213,7 @@ namespace Opc.Ua.Core.Security.Tests
                         continue;
                     }
 
-                    if (ep.UserIdentityTokens == default)
+                    if (ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -2222,19 +2222,19 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            return ep.SecurityPolicyUri;
+                            return ep.SecurityPolicyUri!;
                         }
                     }
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private async Task<NodeId> RequireMethodAsync(
             NodeId parentId,
             string methodName,
-            ISession session = null)
+            ISession? session = null)
         {
             NodeId methodId = await GetMethodIdByName(
                 parentId, methodName, session).ConfigureAwait(false);
@@ -2334,7 +2334,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<List<ReferenceDescription>>
             BrowseRoleChildrenAsync(
                 NodeId roleId,
-                ISession session = null)
+                ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(roleId, session)
@@ -2342,7 +2342,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             if (response?.Results == null ||
                 response.Results.Count == 0 ||
-                response.Results[0].References == default)
+                response.Results[0].References == default!)
             {
                 return [];
             }

@@ -164,9 +164,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
             using XmlDecoder decoder = CreateDecoder(xml);
 
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo")!;
 
-            Assert.That(result.SymbolicId, Is.EqualTo(1));
+            Assert.That(result!.SymbolicId, Is.EqualTo(1));
             Assert.That(result.NamespaceUri, Is.EqualTo(2));
             Assert.That(result.Locale, Is.EqualTo(3));
             Assert.That(result.LocalizedText, Is.EqualTo(4));

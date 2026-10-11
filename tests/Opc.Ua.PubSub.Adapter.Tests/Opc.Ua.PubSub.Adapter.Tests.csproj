@@ -4,7 +4,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.PubSub.Adapter.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.PubSub.Adapter.Tests</AssemblyName>
-    <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
   </PropertyGroup>

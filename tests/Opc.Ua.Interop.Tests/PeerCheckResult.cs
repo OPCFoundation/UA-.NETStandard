@@ -40,9 +40,9 @@ namespace Opc.Ua.Interop.Tests
     /// </summary>
     public sealed class PeerCheckResult
     {
-        public string Check { get; private set; }
+        public string Check { get; private set; } = null!;
         public bool Passed { get; private set; }
-        public string Message { get; private set; }
+        public string Message { get; private set; } = null!;
         public long Milliseconds { get; private set; }
 
         public static PeerCheckResult Parse(string json)
@@ -51,9 +51,9 @@ namespace Opc.Ua.Interop.Tests
             JsonElement root = document.RootElement;
             return new PeerCheckResult
             {
-                Check = root.GetProperty("check").GetString(),
+                Check = root.GetProperty("check").GetString()!,
                 Passed = root.GetProperty("outcome").GetString() == "Passed",
-                Message = root.GetProperty("message").GetString(),
+                Message = root.GetProperty("message").GetString()!,
                 Milliseconds = root.GetProperty("milliseconds").GetInt64()
             };
         }
@@ -67,7 +67,7 @@ namespace Opc.Ua.Interop.Tests
             string check,
             string peerOutput)
         {
-            PeerCheckResult result = results.FirstOrDefault(r => r.Check == check);
+            PeerCheckResult? result = results.FirstOrDefault(r => r.Check == check);
             if (result == null)
             {
                 Assert.Fail(

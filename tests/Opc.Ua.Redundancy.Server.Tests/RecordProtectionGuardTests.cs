@@ -31,8 +31,6 @@
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
 #pragma warning disable CA2000 // Dispose objects before losing scope
 
-#nullable enable
-
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;

@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasAnonymous = false;
             foreach (EndpointDescription e in endpoints)
             {
-                if (e.UserIdentityTokens != default)
+                if (e.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in e.UserIdentityTokens)
                     {
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription e in endpoints)
             {
-                if (e.UserIdentityTokens != default)
+                if (e.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in e.UserIdentityTokens)
                     {
@@ -257,10 +257,10 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task ConnectWithEmptyUsernameReturnsBadIdentityTokenInvalidAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription usernameEp = null;
+            EndpointDescription? usernameEp = null;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -361,7 +361,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -409,7 +409,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -456,7 +456,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -504,7 +504,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool anyHasTokens = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default &&
+                if (ep.UserIdentityTokens != default! &&
                     ep.UserIdentityTokens.Count > 0)
                 {
                     anyHasTokens = true;
@@ -586,7 +586,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task ConnectWithSignSecurityModeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription signEp = null;
+            EndpointDescription? signEp = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityMode == MessageSecurityMode.Sign)
@@ -602,7 +602,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ClientFixture
-                .ConnectAsync(ServerUrl, signEp.SecurityPolicyUri)
+                .ConnectAsync(ServerUrl, signEp!.SecurityPolicyUri!)
                 .ConfigureAwait(false);
             try
             {
@@ -619,7 +619,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task ConnectWithSignAndEncryptSecurityModeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription encryptEp = null;
+            EndpointDescription? encryptEp = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt)
@@ -635,7 +635,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ClientFixture
-                .ConnectAsync(ServerUrl, encryptEp.SecurityPolicyUri)
+                .ConnectAsync(ServerUrl, encryptEp!.SecurityPolicyUri!)
                 .ConfigureAwait(false);
             try
             {
@@ -661,8 +661,8 @@ namespace Opc.Ua.Core.Security.Tests
 
                             X509CertificateLoader.LoadCertificate(ep.ServerCertificate.ToArray());
                     int keySize;
-                    using (RSA rsa = cert.GetRSAPublicKey())
-                    using (ECDsa ecdsa = rsa is null ? cert.GetECDsaPublicKey() : null)
+                    using (RSA rsa = cert.GetRSAPublicKey()!)
+                    using (ECDsa ecdsa = (rsa is null ? cert.GetECDsaPublicKey() : null)!)
                     {
                         keySize = rsa?.KeySize ?? ecdsa?.KeySize ?? 0;
                     }
@@ -716,7 +716,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool hasUsername = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -814,7 +814,7 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             Assert.That(endpoints.Count, Is.GreaterThan(0));
 
-            string firstUri = endpoints[0].Server.ApplicationUri;
+            string firstUri = endpoints[0].Server.ApplicationUri!;
             Assert.That(firstUri, Is.Not.Null.And.Not.Empty);
 
             foreach (EndpointDescription ep in endpoints)
@@ -864,9 +864,9 @@ namespace Opc.Ua.Core.Security.Tests
                     continue;
                 }
 
-                string key = ep.SecurityPolicyUri;
+                string key = ep.SecurityPolicyUri!;
                 byte[] certBytes = ep.ServerCertificate.ToArray();
-                if (certsByPolicy.TryGetValue(key, out byte[] existing))
+                if (certsByPolicy.TryGetValue(key!, out byte[]? existing))
                 {
                     Assert.That(certBytes, Is.EqualTo(existing),
                         $"Endpoints with policy '{key}' should have same cert.");

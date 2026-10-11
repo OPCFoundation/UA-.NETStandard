@@ -51,7 +51,7 @@ namespace Opc.Ua.Interop.Tests
 
         public void AfterTest(ITest test)
         {
-            string reason = ExpectedDifferences.ReasonForTest(test.TypeInfo?.Name, test.Name);
+            string reason = ExpectedDifferences.ReasonForTest((test.TypeInfo?.Name)!, test.Name);
             if (reason == null)
             {
                 return;

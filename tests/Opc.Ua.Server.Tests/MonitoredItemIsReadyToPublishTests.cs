@@ -150,8 +150,8 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class ServerMockWrapper : IDisposable
         {
-            public Mock<IServerInternal> Mock { get; set; }
-            public MonitoredItemQueueFactory QueueFactory { get; set; }
+            public Mock<IServerInternal> Mock { get; set; } = null!;
+            public MonitoredItemQueueFactory QueueFactory { get; set; } = null!;
 
             public void Dispose()
             {
@@ -182,8 +182,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry,
             double samplingInterval = 1000.0,
             double sourceSamplingInterval = 1000,
-            MonitoringFilter filterToUse = null,
-            ServerMockWrapper serverMock = null,
+            MonitoringFilter? filterToUse = null,
+            ServerMockWrapper? serverMock = null,
             MonitoringMode monitoringMode = MonitoringMode.Reporting)
         {
             serverMock ??= CreateServerMock(telemetry);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests
             return new MonitoredItem(
                 serverMock.Mock.Object,
                 nodeMangerMock.Object,
-                null,           // managerHandle
+                null!,           // managerHandle
                 1,              // subscriptionId
                 2,              // id
                 readValueId,

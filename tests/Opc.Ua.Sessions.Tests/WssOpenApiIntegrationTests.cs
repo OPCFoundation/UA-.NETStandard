@@ -92,7 +92,7 @@ namespace Opc.Ua.Sessions.Tests
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -136,8 +136,8 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription openApi = endpoints
-                .ToArray()
-                .FirstOrDefault(ep => Profiles.IsWssOpenApi(ep.TransportProfileUri));
+                .ToArray()!
+                .FirstOrDefault(ep => Profiles.IsWssOpenApi(ep.TransportProfileUri))!;
             Assert.That(openApi, Is.Not.Null,
                 "Reference server must advertise the WSS OpenAPI sub-profile (profile/2339) " +
                 "as a discovery-only twin alongside the SM=None WSS binary endpoint.");

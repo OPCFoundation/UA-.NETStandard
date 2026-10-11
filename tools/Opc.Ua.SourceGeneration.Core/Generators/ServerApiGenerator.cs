@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes an asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_AsyncParameters(
+        private TemplateString? LoadTemplate_AsyncParameters(
             ILoadContext context,
             bool isInterface)
         {
@@ -214,22 +214,22 @@ namespace Opc.Ua.SourceGeneration
         /// Collects the parameters to write.
         /// </summary>
         private void CollectParameters(
-            DataTypeDesign dataType,
+            DataTypeDesign? dataType,
             List<string> types,
             List<string> names)
         {
-            Parameter[] fields = dataType?.Fields;
+            Parameter[]? fields = dataType?.Fields;
             if (fields != null)
             {
                 foreach (Parameter field in fields)
                 {
-                    DataTypeDesign datatype = field.DataTypeNode;
-                    string typeName = datatype.GetDotNetTypeName(
+                    DataTypeDesign? datatype = field.DataTypeNode;
+                    string typeName = datatype!.GetDotNetTypeName(
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.Nullable,
-                        useMatrixTypeInsteadOfVariant: datatype.SupportsMatrixOf());
+                        useMatrixTypeInsteadOfVariant: datatype!.SupportsMatrixOf());
 
                     types.Add(typeName);
                     names.Add(field.Name.ToLowerCamelCase());

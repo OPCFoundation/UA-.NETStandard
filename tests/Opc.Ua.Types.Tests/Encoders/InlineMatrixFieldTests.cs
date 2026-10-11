@@ -214,7 +214,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void BinaryStringCubeInlineMatrixExactBytes()
         {
-            Variant value = Variant.From(new string[] { "a", null, string.Empty, "bc" }
+            Variant value = Variant.From(new string[] { "a", null!, string.Empty, "bc" }
                 .ToArrayOf().ToMatrix(2, 1, 2));
 
             byte[] encoded = EncodeBinary(value);
@@ -324,7 +324,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteInt32("A", 7);
                 encoder.WriteEncodeableMatrix("M", value);
                 encoder.WriteInt32("B", 9);
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 2, 2, 1, 2, 3, 4, 9)));
@@ -355,7 +355,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     Array.Empty<Pair>().ToArrayOf().ToMatrix(0, 0),
                     new ExpandedNodeId(77790u));
                 encoder.WriteInt32("B", 9);
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             Assert.That(encoded, Is.EqualTo(Int32s(-1, 2, 0, 0, 2, 2, 0, 2, 0, 0, 9)));
@@ -467,7 +467,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var encoder = new BinaryEncoder(context);
             encoder.WriteVariant(null, Variant.From(s_oneToSix.ToArrayOf().ToMatrix(2, 3)));
-            byte[] encoded = encoder.CloseAndReturnBuffer();
+            byte[] encoded = encoder.CloseAndReturnBuffer()!;
 
             byte[] expected = Concat(
                 [(byte)((byte)BuiltInType.Int32 | 0x80 | 0x40)],
@@ -718,14 +718,14 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         private static Variant Create(BuiltInType builtInType, Shape shape)
         {
-            int[] dimensions = shape switch
+            int[] dimensions = (shape switch
             {
                 Shape.Empty => [0],
                 Shape.EmptyRows => [2, 0],
                 Shape.Full => [2, 3],
                 Shape.Cube => [2, 1, 2],
                 _ => null
-            };
+            })!;
             if (shape == Shape.TypedNull)
             {
                 return Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.TwoDimensions));
@@ -736,15 +736,15 @@ namespace Opc.Ua.Types.Tests.Encoders
                 case BuiltInType.Double:
                     return Variant.From(Matrix(
                         Enumerable.Range(0, count).Select(i => i + 0.5).ToArray(),
-                        dimensions));
+                        dimensions!));
                 case BuiltInType.String:
                     return Variant.From(Matrix(
-                        Enumerable.Range(0, count).Select(i => i == 1 ? null : "s" + i).ToArray(),
-                        dimensions));
+                        Enumerable.Range(0, count).Select(i => i == 1 ? null! : "s" + i).ToArray(),
+                        dimensions!));
                 case BuiltInType.Enumeration:
                     return Variant.From(Matrix(
                         Enumerable.Range(0, count).Select(i => new EnumValue(i % 3)).ToArray(),
-                        dimensions));
+                        dimensions!));
                 case BuiltInType.ExtensionObject:
                     return Variant.From(Matrix(
                         Enumerable.Range(0, count)
@@ -754,13 +754,13 @@ namespace Opc.Ua.Types.Tests.Encoders
                                     new ExpandedNodeId((uint)(5000 + i)),
                                     ByteString.From(new byte[] { (byte)i, 42 })))
                             .ToArray(),
-                        dimensions));
+                        dimensions!));
                 case BuiltInType.Variant:
                     return Variant.From(Matrix(
                         Enumerable.Range(0, count)
                             .Select(i => i % 2 == 0 ? Variant.From(i) : Variant.From("v" + i))
                             .ToArray(),
-                        dimensions));
+                        dimensions!));
                 default:
                     throw new ArgumentOutOfRangeException(nameof(builtInType));
             }
@@ -844,20 +844,20 @@ namespace Opc.Ua.Types.Tests.Encoders
                         encoder.PushNamespace(Namespaces.OpcUaXsd);
                         encoder.WriteEncodeable("Root", new FieldHolder { Value = value });
                         encoder.PopNamespace();
-                        xml = encoder.CloseAndReturnText();
+                        xml = encoder.CloseAndReturnText()!;
                     }
                     FieldHolder.ReadTypeInfo = typeInfo;
                     FieldHolder holder;
                     if (codec == Codec.XmlParser)
                     {
-                        using var parser = new XmlParser(xml, context);
+                        using var parser = new XmlParser(xml!, context);
                         parser.PushNamespace(Namespaces.OpcUaXsd);
                         holder = parser.ReadEncodeable<FieldHolder>("Root");
                         parser.PopNamespace();
                     }
                     else
                     {
-                        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml!));
                         using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                         using var xmlDecoder = new XmlDecoder(reader, context);
                         xmlDecoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -876,7 +876,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using var encoder = new BinaryEncoder(CreateContext());
             WriteField(encoder, value);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static void WriteField(IEncoder encoder, Variant value)
@@ -925,7 +925,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 X = decoder.ReadInt32("X");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is Pair other && other.X == X;
             }
@@ -960,7 +960,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = ReadField(decoder, ReadTypeInfo);
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }

@@ -393,8 +393,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AreDomainsEqualNullReturnsFalse()
         {
-            Assert.That(Utils.AreDomainsEqual((string)null, "localhost"), Is.False);
-            Assert.That(Utils.AreDomainsEqual("localhost", (string)null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((string)null!, "localhost"), Is.False);
+            Assert.That(Utils.AreDomainsEqual("localhost", (string)null!), Is.False);
         }
 
         [Test]
@@ -422,8 +422,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AreDomainsEqualWithNullUri()
         {
-            Assert.That(Utils.AreDomainsEqual((Uri)null, new Uri("opc.tcp://localhost:4840")), Is.False);
-            Assert.That(Utils.AreDomainsEqual(new Uri("opc.tcp://localhost:4840"), (Uri)null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((Uri)null!, new Uri("opc.tcp://localhost:4840")), Is.False);
+            Assert.That(Utils.AreDomainsEqual(new Uri("opc.tcp://localhost:4840"), (Uri)null!), Is.False);
         }
 
         [Test]
@@ -545,7 +545,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GetFilePathDisplayNameNull()
         {
-            string result = Utils.GetFilePathDisplayName(null, 100);
+            string? result = Utils.GetFilePathDisplayName(null, 100);
             Assert.That(result, Is.Null);
         }
 
@@ -560,7 +560,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ReplaceLocalhostWithNullReturnsInput()
         {
-            string result = Utils.ReplaceLocalhost(null);
+            string? result = Utils.ReplaceLocalhost(null);
             Assert.That(result, Is.Null);
         }
 
@@ -595,7 +595,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ReplaceDCLocalhostWithNullReturnsInput()
         {
-            string result = Utils.ReplaceDCLocalhost(null);
+            string? result = Utils.ReplaceDCLocalhost(null);
             Assert.That(result, Is.Null);
         }
 
@@ -621,13 +621,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsEqualWithBothNull()
         {
-            Assert.That(Utils.IsEqual((object)null, (object)null), Is.True);
+            Assert.That(Utils.IsEqual((object)null!, (object)null!), Is.True);
         }
 
         [Test]
         public void IsEqualWithOneNull()
         {
-            Assert.That(Utils.IsEqual((object)42, (object)null), Is.False);
+            Assert.That(Utils.IsEqual((object)42, (object)null!), Is.False);
         }
 
         [Test]
@@ -717,7 +717,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ParseUriValid()
         {
-            Uri uri = Utils.ParseUri("opc.tcp://localhost:4840");
+            Uri uri = Utils.ParseUri("opc.tcp://localhost:4840")!;
             Assert.That(uri, Is.Not.Null);
             Assert.That(uri.Host, Is.EqualTo("localhost"));
         }
@@ -725,21 +725,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ParseUriNull()
         {
-            Uri uri = Utils.ParseUri(null);
+            Uri? uri = Utils.ParseUri(null);
             Assert.That(uri, Is.Null);
         }
 
         [Test]
         public void ParseUriInvalid()
         {
-            Uri uri = Utils.ParseUri("not a valid uri :::");
+            Uri? uri = Utils.ParseUri("not a valid uri :::");
             Assert.That(uri, Is.Null);
         }
 
         [Test]
         public void ParseUriEmpty()
         {
-            Uri uri = Utils.ParseUri(string.Empty);
+            Uri? uri = Utils.ParseUri(string.Empty);
             Assert.That(uri, Is.Null);
         }
 
@@ -747,21 +747,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void PSHANullHmacThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA(null, "label", [1], 0, 32));
+                Utils.PSHA(null!, "label", [1], 0, 32));
         }
 
         [Test]
         public void PSHA1NullSecretThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA1((byte[])null, "label", [1], 0, 32));
+                Utils.PSHA1((byte[])null!, "label", [1], 0, 32));
         }
 
         [Test]
         public void PSHA256NullSecretThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA256((byte[])null, "label", [1], 0, 32));
+                Utils.PSHA256((byte[])null!, "label", [1], 0, 32));
         }
 
         [Test]

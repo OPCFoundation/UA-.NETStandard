@@ -165,9 +165,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 WithBinding(),
                 out List<string> diagnostics,
                 producerEmittedAccessors,
-                separateAccessorProvider
+                (separateAccessorProvider
                     ? [new ModelFluentAccessorProviderReference("Referenced.Server", ModelUri, Prefix)]
-                    : null,
+                    : null)!,
                 out List<string> accessorDiagnostics);
 
             Assert.That(files.Keys, Has.Some.EndsWith(".NodeManager.g.cs"));
@@ -222,7 +222,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             IReadOnlyList<NodeManagerAttributeBinding> bindings,
             out List<string> diagnostics)
         {
-            return Generate(bindings, out diagnostics, false, null, out _);
+            return Generate(bindings, out diagnostics, false, null!, out _);
         }
 
         private static Dictionary<string, string> Generate(
@@ -266,19 +266,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 fileSystem,
                 string.Empty,
                 telemetry,
-                options: null,
+                options: null!,
                 useAllowSubtypes: false,
-                identifierFiles: null,
+                identifierFiles: null!,
                 referencedModels: new Dictionary<string, ModelDependencyReference>(StringComparer.Ordinal)
                 {
                     [ModelUri] = referenced
                 },
                 nodeManagerBindings: bindings,
                 reportBindingDiagnostic: (_, message) => captured.Add(message),
-                sharedUsedBindings: null,
+                sharedUsedBindings: null!,
                 bindingModelCount: 0,
                 reportFluentAccessorsOnlyDiagnostic: (_, _, _, reason) => capturedAccessors.Add(reason),
-                referencedModelProviders: null,
+                referencedModelProviders: null!,
                 referencedAccessorProviders: accessorProviders);
 
             diagnostics = captured;

@@ -57,15 +57,15 @@ namespace Opc.Ua.Server.Tests
                 true, 1, persistor.Object, NUnitTelemetryContext.Create());
             queue.ResetQueue(2, false);
             var expected = new DataValue(new Variant(42));
-            queue.Enqueue(expected, null);
-            DataChangeBatch batch = queue.ToStorableQueue().DequeueBatch;
+            queue.Enqueue(expected, null!);
+            DataChangeBatch batch = queue.ToStorableQueue().DequeueBatch!;
             if (persisted)
             {
-                batch.SetPersisted();
+                batch!.SetPersisted();
             }
             else
             {
-                batch.PersistingInProgress = true;
+                batch!.PersistingInProgress = true;
             }
 
             Assert.That(queue.Dequeue(out DataValue pending, out ServiceResult error), Is.False);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
 
             StorableEventQueue stored = queue.ToStorableQueue();
             Assert.That(stored.DequeueBatch, Is.Not.SameAs(stored.EnqueueBatch));
-            Assert.That(stored.EnqueueBatch.Events, Is.Empty);
+            Assert.That(stored.EnqueueBatch!.Events, Is.Empty);
             Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
             Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
         }

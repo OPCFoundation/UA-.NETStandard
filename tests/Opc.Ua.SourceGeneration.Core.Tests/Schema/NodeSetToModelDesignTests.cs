@@ -185,7 +185,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void TearDown()
         {
             m_fileSystem?.Dispose();
-            m_fileSystem = null;
+            m_fileSystem = null!;
         }
 
         [Test]
@@ -219,7 +219,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsNodeSetNullFileSystemThrowsArgumentNullException()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => NodeSetToModelDesign.IsNodeSet(null, ResourcePath(NodeSetResource)));
+                () => NodeSetToModelDesign.IsNodeSet(null!, ResourcePath(NodeSetResource)));
             Assert.That(ex.ParamName, Is.EqualTo("fileSystem"));
         }
 
@@ -227,7 +227,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsNodeSetNullFilePathThrowsArgumentNullException()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => NodeSetToModelDesign.IsNodeSet(m_fileSystem, null));
+                () => NodeSetToModelDesign.IsNodeSet(m_fileSystem, null!));
             Assert.That(ex.ParamName, Is.EqualTo("filePath"));
         }
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void LoadNamespacesNullFileSystemThrowsArgumentNullException()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => NodeSetToModelDesign.LoadNamespaces(null, ResourcePath(NodeSetResource)));
+                () => NodeSetToModelDesign.LoadNamespaces(null!, ResourcePath(NodeSetResource)));
             Assert.That(ex.ParamName, Is.EqualTo("fileSystem"));
         }
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void LoadNamespacesNullFilePathThrowsArgumentNullException()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => NodeSetToModelDesign.LoadNamespaces(m_fileSystem, null));
+                () => NodeSetToModelDesign.LoadNamespaces(m_fileSystem, null!));
             Assert.That(ex.ParamName, Is.EqualTo("filePath"));
         }
 
@@ -286,7 +286,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => new NodeSetToModelDesign(
-                    m_fileSystem, null, new NodeSetReaderSettings(), CreateTelemetry()));
+                    m_fileSystem, null!, new NodeSetReaderSettings(), CreateTelemetry()));
             Assert.That(ex.ParamName, Is.EqualTo("filePath"));
         }
 
@@ -295,7 +295,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => new NodeSetToModelDesign(
-                    m_fileSystem, ResourcePath(NodeSetResource), null, CreateTelemetry()));
+                    m_fileSystem, ResourcePath(NodeSetResource), null!, CreateTelemetry()));
             Assert.That(ex.ParamName, Is.EqualTo("settings"));
         }
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
                 () => new NodeSetToModelDesign(
-                    null, ResourcePath(NodeSetResource), new NodeSetReaderSettings(), CreateTelemetry()));
+                    null!, ResourcePath(NodeSetResource), new NodeSetReaderSettings(), CreateTelemetry()));
             Assert.That(ex.ParamName, Is.EqualTo("fileSystem"));
         }
 
@@ -332,7 +332,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 telemetry);
             List<string> designFiles = nodesets.GetDesignFileListForModel(
                 SameNamedArgumentsNamespaceUri,
-                out _);
+                out _)!;
             Assert.That(designFiles, Is.Not.Null);
 
             IFileSystem fileSystem = typeof(Generators).Assembly
@@ -514,9 +514,9 @@ namespace Opc.Ua.Schema.Model.Tests
             XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
                 new UADataType(),
                 symbolicId,
-                symbolicName);
+                symbolicName)!;
 
-            Assert.That(normalized.Name, Is.EqualTo(symbolicName.Name));
+            Assert.That(normalized!.Name, Is.EqualTo(symbolicName.Name));
             Assert.That(normalized.Namespace, Is.EqualTo(symbolicId.Namespace));
         }
 
@@ -533,7 +533,7 @@ namespace Opc.Ua.Schema.Model.Tests
             XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
                 new UAVariable(),
                 symbolicId,
-                symbolicName);
+                symbolicName)!;
             Assert.That(normalized, Is.SameAs(symbolicName));
             Assert.That(normalized, Is.SameAs(symbolicName));
         }
@@ -590,10 +590,10 @@ namespace Opc.Ua.Schema.Model.Tests
             NodeSetToModelDesign importer = new(
                 m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
 
-            ModelDesign model = null;
+            ModelDesign? model = null;
             Assert.DoesNotThrow(() => model = importer.Import("NoParent", "NoParent"));
             Assert.That(
-                model.Items.Select(x => x.SymbolicName?.Name),
+                model!.Items.Select(x => x.SymbolicName?.Name),
                 Does.Contain("Orphan"));
         }
 

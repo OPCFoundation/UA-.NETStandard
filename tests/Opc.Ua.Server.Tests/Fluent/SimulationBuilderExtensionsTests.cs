@@ -34,7 +34,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
-#nullable enable
 #pragma warning disable CA2000
 
 namespace Opc.Ua.Server.Tests.Fluent

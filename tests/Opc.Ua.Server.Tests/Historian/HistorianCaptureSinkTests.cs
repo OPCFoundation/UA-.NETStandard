@@ -40,8 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>

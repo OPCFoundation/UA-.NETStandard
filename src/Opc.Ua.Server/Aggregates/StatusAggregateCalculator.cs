@@ -117,22 +117,19 @@ namespace Opc.Ua.Server
             double duration = 0;
             double total = 0;
 
+            // Part 13 §5.4.3.31-34: a region is Good if its data point is Good and Bad if it is Bad;
+            // an Uncertain region counts for neither, and TreatUncertainAsBad does not apply
+            // (Mantis 11425 ~0025847). The region status of GetRegionsInValueSet already applies
+            // TreatUncertainAsBad, so the status of the raw data point is used after the first region.
             for (int ii = 0; ii < regions!.Count; ii++)
             {
                 total += regions[ii].Duration;
 
-                if (isBad)
-                {
-                    if (StatusCode.IsBad(regions[ii].StatusCode) ||
-                        (Configuration.TreatUncertainAsBad &&
-                            StatusCode.IsUncertain(regions[ii].StatusCode)))
-                    {
-                        duration += regions[ii].Duration;
-                    }
-                }
-                else if (StatusCode.IsGood(regions[ii].StatusCode) ||
-                    (!Configuration.TreatUncertainAsBad &&
-                        StatusCode.IsUncertain(regions[ii].StatusCode)))
+                StatusCode status = ii == 0
+                    ? regions[ii].StatusCode
+                    : regions[ii].DataPoint.StatusCode;
+
+                if (isBad ? StatusCode.IsBad(status) : StatusCode.IsGood(status))
                 {
                     duration += regions[ii].Duration;
                 }

@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Security.Tests
         public void AddUserWithNullNameThrows()
         {
             EnsureUserDatabase();
-            Assert.That(() => UserDb.CreateUser(null, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Throws.Exception);
+            Assert.That(() => UserDb.CreateUser(null!, ToUtf8("Pass123!"), [Role.AuthenticatedUser]), Throws.Exception);
         }
 
         [Test]
@@ -393,9 +393,9 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task ThreeSimultaneousSessionsSucceedAsync()
         {
-            ISession s1 = null;
-            ISession s2 = null;
-            ISession s3 = null;
+            ISession? s1 = null;
+            ISession? s2 = null;
+            ISession? s3 = null;
             try
             {
                 s1 = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -405,9 +405,9 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     Assert.Fail("Cannot create three admin sessions.");
                 }
-                Assert.That(s1.Connected, Is.True);
-                Assert.That(s2.Connected, Is.True);
-                Assert.That(s3.Connected, Is.True);
+                Assert.That(s1!.Connected, Is.True);
+                Assert.That(s2!.Connected, Is.True);
+                Assert.That(s3!.Connected, Is.True);
             }
             finally
             {
@@ -434,7 +434,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             EnsureUserDatabase();
             string u = "sesdel_" + Guid.NewGuid().ToString("N")[..8];
-            ISession us = null;
+            ISession? us = null;
             try
             {
                 UserDb.CreateUser(u, ToUtf8("SesPass!"), [Role.AuthenticatedUser]);
@@ -443,7 +443,7 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     Assert.Fail("Could not connect as test user.");
                 }
-                Assert.That(us.Connected, Is.True);
+                Assert.That(us!.Connected, Is.True);
                 UserDb.DeleteUser(u);
                 Assert.That(us.Connected, Is.True, "Existing session should remain active.");
             }
@@ -481,7 +481,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             EnsureUserDatabase();
             string u = "chpw_" + Guid.NewGuid().ToString("N")[..8];
-            ISession us = null;
+            ISession? us = null;
             try
             {
                 UserDb.CreateUser(u, ToUtf8("OldPw!"), [Role.AuthenticatedUser]);
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail("Could not connect as test user.");
                 }
                 UserDb.CreateUser(u, ToUtf8("NewPw!"), [Role.AuthenticatedUser]);
-                Assert.That(us.Connected, Is.True, "Active session should survive password change.");
+                Assert.That(us!.Connected, Is.True, "Active session should survive password change.");
             }
             finally
             {
@@ -623,7 +623,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -646,7 +646,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -655,6 +655,6 @@ namespace Opc.Ua.Core.Security.Tests
             return Encoding.UTF8.GetBytes(s);
         }
 
-        private IUserDatabase UserDb => ReferenceServer?.UserDatabase;
+        private IUserDatabase UserDb => (ReferenceServer?.UserDatabase)!;
     }
 }

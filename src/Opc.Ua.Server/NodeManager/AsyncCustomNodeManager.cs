@@ -644,6 +644,15 @@ namespace Opc.Ua.Server
         public ServerSystemContext SystemContext { get; }
 
         /// <summary>
+        /// Returns the system context for an operation, reusing the copy already made
+        /// for the same request. Use it in callbacks that run once per node of a request.
+        /// </summary>
+        private ServerSystemContext GetOperationSystemContext(OperationContext context)
+        {
+            return context != null ? context.GetSystemContext(SystemContext) : SystemContext.Copy(context!);
+        }
+
+        /// <summary>
         /// Gets the default index for the node manager's namespace.
         /// </summary>
         public ushort NamespaceIndex => m_namespaceIndexes[0];
@@ -4345,7 +4354,7 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -4716,8 +4725,6 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint,
             CancellationToken cancellationToken = default)
         {
-            _ = SystemContext.Copy(context);
-
             // create the type definition reference.
             var description = new ReferenceDescription { NodeId = reference.TargetId };
             description.SetReferenceType(
@@ -4821,7 +4828,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(sourceHandle);
@@ -4944,7 +4951,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -5208,7 +5215,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -5936,7 +5943,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -6808,7 +6815,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -7422,7 +7429,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             NodeHandle? handle = await GetManagerHandleAsync(
                 systemContext,
@@ -7482,7 +7489,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
@@ -8244,7 +8251,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy();
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var restoredItems = new List<IMonitoredItem>();
 
@@ -8416,7 +8423,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
 
@@ -9195,6 +9202,25 @@ namespace Opc.Ua.Server
             {
                 // ignore unknown nodes.
                 return StatusCodes.Good;
+            }
+
+            // Browse validates every reference target: read only the permission
+            // attributes instead of the full node metadata.
+            if (nodeManager is AsyncCustomNodeManager customNodeManager)
+            {
+                (bool handled, ServiceResult? verdict) = await customNodeManager.TryValidatePermissionsAsync(
+                    operationContext,
+                    nodeHandle,
+                    requestedPermission,
+                    null,
+                    permissionsOnly: true,
+                    logger: null,
+                    validateAccessRestrictions: false,
+                    cancellationToken).ConfigureAwait(false);
+                if (handled)
+                {
+                    return verdict!;
+                }
             }
 
             NodeMetadata nodeMetadata = await nodeManager.GetNodeMetadataAsync(
@@ -10369,7 +10395,7 @@ namespace Opc.Ua.Server
             if (handle.Node != null)
             {
                 return new ValueTask<bool>(
-                    IsNodeInView(SystemContext.Copy(context), viewId, handle.Node));
+                    IsNodeInView(GetOperationSystemContext(context), viewId, handle.Node));
             }
 
             return new ValueTask<bool>(false);
@@ -10390,7 +10416,7 @@ namespace Opc.Ua.Server
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -10408,8 +10434,6 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            var values = new Variant[3];
-
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
             {
@@ -10420,25 +10444,10 @@ namespace Opc.Ua.Server
             if (uniqueNodesServiceAttributesCache != null)
             {
                 NodeId key = handle.NodeId;
-                if (uniqueNodesServiceAttributesCache.ContainsKey(key))
+                if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out Variant[]? values) ||
+                    values.Length != 3)
                 {
-                    if (uniqueNodesServiceAttributesCache[key].Length != 3)
-                    {
-                        ReadAndCacheValidationAttributes(
-                            uniqueNodesServiceAttributesCache,
-                            systemContext,
-                            target,
-                            key,
-                            ref values);
-                    }
-                    else
-                    {
-                        // Retrieve value from cache
-                        values = uniqueNodesServiceAttributesCache[key];
-                    }
-                }
-                else
-                {
+                    values = new Variant[3];
                     ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
@@ -10451,6 +10460,7 @@ namespace Opc.Ua.Server
             } // All other calls that do not use the cache
             else if (permissionsOnly)
             {
+                var values = new Variant[3];
                 ReadValidationAttributes(systemContext, target, ref values);
                 SetAccessAndRolePermissions(values, metadata);
             }
@@ -10469,6 +10479,133 @@ namespace Opc.Ua.Server
             NodeMetadata metadata,
             CancellationToken cancellationToken = default)
         {
+            (AccessRestrictionType defaultAccessRestrictions,
+                ArrayOf<RolePermissionType> defaultRolePermissions,
+                ArrayOf<RolePermissionType> defaultUserRolePermissions) =
+                await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
+            metadata.DefaultAccessRestrictions = defaultAccessRestrictions;
+            metadata.DefaultRolePermissions = defaultRolePermissions;
+            metadata.DefaultUserRolePermissions = defaultUserRolePermissions;
+        }
+
+        /// <summary>
+        /// Validates the role permissions and access restrictions of a node for the requested
+        /// permission, reading the same attributes as <see cref="GetPermissionMetadataAsync"/>
+        /// without materializing a <see cref="NodeMetadata"/>.
+        /// </summary>
+        /// <returns>
+        /// <c>Handled</c> is <c>false</c> when the handle does not resolve to a node of this
+        /// node manager; the caller then takes the <see cref="NodeMetadata"/> path, which has
+        /// the fallbacks for that case.
+        /// </returns>
+        internal async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
+            OperationContext context,
+            object targetHandle,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            bool validateAccessRestrictions,
+            CancellationToken cancellationToken = default)
+        {
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
+
+            NodeHandle? handle = IsHandleInNamespace(targetHandle);
+            if (handle == null)
+            {
+                return (false, null);
+            }
+
+            NodeState? target = await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false);
+            if (target == null)
+            {
+                return (false, null);
+            }
+
+            Variant[]? values = null;
+            if (uniqueNodesServiceAttributesCache != null)
+            {
+                NodeId key = handle.NodeId;
+                if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out values) ||
+                    values.Length != 3)
+                {
+                    values = new Variant[3];
+                    ReadAndCacheValidationAttributes(
+                        uniqueNodesServiceAttributesCache,
+                        systemContext,
+                        target,
+                        key,
+                        ref values);
+                }
+            }
+            else if (permissionsOnly)
+            {
+                values = new Variant[3];
+                ReadValidationAttributes(systemContext, target, ref values);
+            }
+
+            // the same conversions as SetAccessAndRolePermissions; the arrays are only read
+            // for the verdict, so they are not copied.
+            AccessRestrictionType accessRestrictions = AccessRestrictionType.None;
+            ArrayOf<RolePermissionType> rolePermissions = default;
+            ArrayOf<RolePermissionType> userRolePermissions = default;
+            if (values != null)
+            {
+                if (values[0].TryGetValue(out ushort restrictions))
+                {
+                    accessRestrictions = (AccessRestrictionType)restrictions;
+                }
+                if (values[1].TryGetStructure(out ArrayOf<RolePermissionType> roles))
+                {
+                    rolePermissions = roles;
+                }
+                if (values[2].TryGetStructure(out ArrayOf<RolePermissionType> userRoles))
+                {
+                    userRolePermissions = userRoles;
+                }
+            }
+
+            (AccessRestrictionType defaultAccessRestrictions,
+                ArrayOf<RolePermissionType> defaultRolePermissions,
+                ArrayOf<RolePermissionType> defaultUserRolePermissions) =
+                await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
+
+            var permissions = new PermissionMetadata(
+                target.NodeId,
+                target.IsPartOfTypeHierarchy,
+                accessRestrictions,
+                defaultAccessRestrictions,
+                rolePermissions,
+                defaultRolePermissions,
+                userRolePermissions,
+                defaultUserRolePermissions);
+
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                context,
+                permissions,
+                requestedPermission,
+                logger);
+            return (true, validateAccessRestrictions && ServiceResult.IsGood(result)
+                ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
+                : result);
+        }
+
+        /// <summary>
+        /// Reads the namespace default values for DefaultAccessRestrictions, DefaultRolePermissions
+        /// and DefaultUserRolePermissions of the node's namespace.
+        /// </summary>
+        private async ValueTask<(
+            AccessRestrictionType DefaultAccessRestrictions,
+            ArrayOf<RolePermissionType> DefaultRolePermissions,
+            ArrayOf<RolePermissionType> DefaultUserRolePermissions)> GetDefaultPermissionsAsync(
+            ServerSystemContext systemContext,
+            NodeState target,
+            CancellationToken cancellationToken = default)
+        {
+            AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
+            ArrayOf<RolePermissionType> defaultRolePermissions = default;
+            ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
+
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
             NamespaceMetadataState? namespaceMetadataState = await
                 Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
@@ -10491,7 +10628,7 @@ namespace Opc.Ua.Server
 
                     if (!value.IsNull)
                     {
-                        metadata.DefaultAccessRestrictions =
+                        defaultAccessRestrictions =
                             value.GetEnumeration<AccessRestrictionType>();
                     }
                 }
@@ -10508,7 +10645,7 @@ namespace Opc.Ua.Server
 
                     if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultRolePermissions = rolePermissions;
+                        defaultRolePermissions = rolePermissions;
                     }
                 }
 
@@ -10524,10 +10661,12 @@ namespace Opc.Ua.Server
 
                     if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
                     {
-                        metadata.DefaultUserRolePermissions = userRolePermissions;
+                        defaultUserRolePermissions = userRolePermissions;
                     }
                 }
             }
+
+            return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
         }
 
         /// <summary>

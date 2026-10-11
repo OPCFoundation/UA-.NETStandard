@@ -80,12 +80,41 @@ sessionManager.SessionlessInvocation = new SessionlessInvocationOptions();
   error, or `Bad_IdentityTokenRejected`.
 - A request without a token is answered with `Bad_IdentityTokenInvalid`
   unless `AllowAnonymous` is set.
+- With `AllowAnonymous` the request has to meet what the endpoint demands of
+  CreateSession and ActivateSession; see
+  [Anonymous requests and the channel](#anonymous-requests-and-the-channel).
 - Session tokens are UInt32 or ByteString NodeIds. A token of that kind that
   names no Session stays `Bad_SessionIdInvalid`, which is what a Client
   whose Session expired needs to see.
 
 Override `SessionManager.ValidateSessionlessRequestAsync` for different
 rules.
+
+### Anonymous requests and the channel
+
+§6.3.1 lets a Server skip the Access Token and assume an anonymous user "if
+application authentication through the SecureChannel is sufficient". A request
+that `AllowAnonymous` admits therefore runs only if its channel authenticates
+the application the way the endpoint demands for CreateSession:
+
+| Endpoint | The request needs | Otherwise |
+| --- | --- | --- |
+| opc.tcp or opc.wss with a security mode or policy other than None | the client certificate of the SecureChannel, which opc.tcp has validated while it opened the channel | `Bad_SecurityChecksFailed` |
+| HTTPS (REST, binary or JSON) with a security mode or policy other than None, or with `HttpsMutualTls` set | the TLS client certificate, which the HTTPS listener has validated during the TLS handshake | `Bad_SecurityChecksFailed` |
+| HTTPS without `HttpsMutualTls`, SecurityMode None | nothing | |
+| any, with user token policies that include no Anonymous policy | an anonymous user token policy on the endpoint, as ActivateSession requires it | `Bad_IdentityTokenRejected` |
+| unknown (no endpoint on the channel) | an endpoint | `Bad_SecurityModeInsufficient` |
+
+The endpoints of an HTTPS listener without `HttpsMutualTls` offer no Anonymous
+user token policy, so on them an anonymous Session-less request is rejected
+as an anonymous Session is.
+
+HTTPS clients are not required to present a certificate (OPC 10000-6 §7.4.1),
+and HTTPS authenticates the application when a Session is created. With
+`HttpsMutualTls` set, a Client that wants an anonymous Session-less call
+presents its application certificate in the TLS handshake. A request that
+carries an Access Token does not need the client certificate: the token
+authenticates the caller, and HTTPS keeps it confidential.
 
 ## Answers without the feature
 

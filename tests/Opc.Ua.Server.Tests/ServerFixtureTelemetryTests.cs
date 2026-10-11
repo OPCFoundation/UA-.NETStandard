@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(fixture.ActivityListener.ShouldListenTo!(source), Is.True);
                 Assert.That(fixture.ActivityListener.ShouldListenTo!(unrelatedSource), Is.False);
 
-                using Activity activity = source.StartActivity(nameof(ActivityListenerSamplesOnlyResolvedSource));
+                using Activity activity = source.StartActivity(nameof(ActivityListenerSamplesOnlyResolvedSource))!;
 
                 Assert.That(activity, Is.Not.Null);
                 Assert.That(activity!.Source, Is.SameAs(source));

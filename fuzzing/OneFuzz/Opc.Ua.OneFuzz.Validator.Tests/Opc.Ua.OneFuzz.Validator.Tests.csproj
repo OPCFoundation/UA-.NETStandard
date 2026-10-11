@@ -7,7 +7,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.OneFuzz.Validator.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

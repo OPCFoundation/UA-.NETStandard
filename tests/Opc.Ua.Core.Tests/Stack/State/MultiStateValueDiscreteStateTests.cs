@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void WriteWithoutEnumValuesChildFallsThroughToBase()
         {
-            MultiStateValueDiscreteState node = CreateNode(null);
+            MultiStateValueDiscreteState node = CreateNode(null!);
 
             ServiceResult result = WriteValue(node, Variant.From((uint)99));
 

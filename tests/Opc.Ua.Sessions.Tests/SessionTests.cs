@@ -97,7 +97,7 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task Session005CreateAndCloseAdditionalSessionAsync()
         {
-            ISession additionalSession = null;
+            ISession? additionalSession = null;
             try
             {
                 additionalSession = await ClientFixture
@@ -179,7 +179,7 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public void Session008ServerUri()
         {
-            string applicationUri = Session.Endpoint.Server.ApplicationUri;
+            string applicationUri = Session.Endpoint.Server.ApplicationUri!;
             Assert.That(applicationUri, Is.Not.Null.And.Not.Empty,
                 "Server ApplicationUri should be set.");
         }
@@ -222,7 +222,7 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public void Session011VerifyEndpointUrl()
         {
-            string endpointUrl = Session.Endpoint.EndpointUrl;
+            string endpointUrl = Session.Endpoint.EndpointUrl!;
             Assert.That(endpointUrl, Is.Not.Null.And.Not.Empty);
             Assert.That(endpointUrl,
                 Does.Contain(ServerUrl.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)),

@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     null,
                     new ExtensionObject(CreateInnerSub(model, 8, "x"))); // Any: subtype
                 encoder.WriteInt32(null, 9); // Number
-                expected = encoder.CloseAndReturnBuffer();
+                expected = encoder.CloseAndReturnBuffer()!;
             }
             Assert.That(actual, Is.EqualTo(expected));
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 encoder.WriteUInt32(null, 1);
                 encoder.WriteInt32(null, 5);
-                expectedFixed = encoder.CloseAndReturnBuffer();
+                expectedFixed = encoder.CloseAndReturnBuffer()!;
             }
             Assert.That(fixedBytes, Is.EqualTo(expectedFixed));
 
@@ -129,20 +129,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 encoder.WriteExtensionObject(
                     null,
                     new ExtensionObject(CreateInnerSub(model, 6, "y")));
-                expectedAny = encoder.CloseAndReturnBuffer();
+                expectedAny = encoder.CloseAndReturnBuffer()!;
             }
             Assert.That(anyBytes, Is.EqualTo(expectedAny));
 
             var decodedFixed = (IStructure)DecodeBinary(model, model.UnionId, fixedBytes);
             var decodedAny = (IStructure)DecodeBinary(model, model.UnionId, anyBytes);
-            IStructure fixedInner = decodedFixed["Fixed"].GetStructure<IEncodeable>() as IStructure;
-            IStructure anyInner = decodedAny["Any"].GetStructure<IEncodeable>() as IStructure;
+            IStructure fixedInner = (decodedFixed["Fixed"].GetStructure<IEncodeable>() as IStructure)!;
+            IStructure anyInner = (decodedAny["Any"].GetStructure<IEncodeable>() as IStructure)!;
             Assert.Multiple(() =>
             {
                 Assert.That(fixedInner, Is.Not.Null);
-                Assert.That(fixedInner["Value"].GetInt32(), Is.EqualTo(5));
+                Assert.That(fixedInner!["Value"].GetInt32(), Is.EqualTo(5));
                 Assert.That(anyInner, Is.Not.Null);
-                Assert.That(((IEncodeable)anyInner).TypeId, Is.EqualTo(model.InnerSubTypeId));
+                Assert.That(((IEncodeable)anyInner!).TypeId, Is.EqualTo(model.InnerSubTypeId));
                 Assert.That(anyInner["Extra"].GetString(), Is.EqualTo("y"));
             });
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 // Value: Read and Execute set; ValidBits: all three bits assigned
                 encoder.WriteByteString(null, ByteString.From([0x05]));
                 encoder.WriteByteString(null, ByteString.From([0x07]));
-                expected = encoder.CloseAndReturnBuffer();
+                expected = encoder.CloseAndReturnBuffer()!;
             }
             Assert.That(actual, Is.EqualTo(expected));
 
@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             shifted.Append("urn:test:shifted");
             for (uint ii = 1; ii < model.Context.NamespaceUris.Count; ii++)
             {
-                shifted.Append(model.Context.NamespaceUris.GetString(ii));
+                shifted.Append(model.Context.NamespaceUris.GetString(ii)!);
             }
             var shiftedContext = new ServiceMessageContext(
                 NUnitTelemetryContext.Create(),
@@ -323,14 +323,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private static void AssertSubtypedStructure(IStructure decoded)
         {
-            IStructure fixedInner = decoded["Fixed"].GetStructure<IEncodeable>() as IStructure;
-            IStructure anyInner = decoded["Any"].GetStructure<IEncodeable>() as IStructure;
+            IStructure fixedInner = (decoded["Fixed"].GetStructure<IEncodeable>() as IStructure)!;
+            IStructure anyInner = (decoded["Any"].GetStructure<IEncodeable>() as IStructure)!;
             Assert.Multiple(() =>
             {
                 Assert.That(fixedInner, Is.Not.Null);
-                Assert.That(fixedInner["Value"].GetInt32(), Is.EqualTo(7));
+                Assert.That(fixedInner!["Value"].GetInt32(), Is.EqualTo(7));
                 Assert.That(anyInner, Is.Not.Null);
-                Assert.That(anyInner["Value"].GetInt32(), Is.EqualTo(8));
+                Assert.That(anyInner!["Value"].GetInt32(), Is.EqualTo(8));
                 Assert.That(anyInner["Extra"].GetString(), Is.EqualTo("x"));
                 Assert.That(decoded["Number"].GetInt32(), Is.EqualTo(9));
             });
@@ -363,9 +363,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         private static Encoders.OptionSet CreateOptions(TypeModel model)
         {
             Assert.That(
-                model.Context.Factory.TryGetEncodeableType(model.OptionsTypeId, out IEncodeableType type),
+                model.Context.Factory.TryGetEncodeableType(model.OptionsTypeId, out IEncodeableType? type),
                 Is.True);
-            var options = (Encoders.OptionSet)type.CreateInstance();
+            var options = (Encoders.OptionSet)type!.CreateInstance();
             options["Read"] = true;
             options["Write"] = false;
             options["Execute"] = true;
@@ -377,17 +377,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.That(
                 model.Context.Factory.TryGetEncodeableType(
                     NodeId.ToExpandedNodeId(typeId, model.Context.NamespaceUris),
-                    out IEncodeableType type),
+                    out IEncodeableType? type),
                 Is.True,
                 $"Type {typeId} was not loaded.");
-            return (IStructure)type.CreateInstance();
+            return (IStructure)type!.CreateInstance();
         }
 
         private static byte[] EncodeBinary(TypeModel model, IEncodeable value)
         {
             using var encoder = new BinaryEncoder(model.Context);
             encoder.WriteEncodeable(null, value, value.TypeId);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static IEncodeable DecodeBinary(TypeModel model, NodeId typeId, byte[] buffer)
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
                 encoder.WriteExtensionObject("Value", new ExtensionObject(value));
                 encoder.PopNamespace();
-                return encoder.CloseAndReturnText();
+                return encoder.CloseAndReturnText()!;
             }
             using var jsonEncoder = new JsonEncoder(model.Context);
             jsonEncoder.WriteExtensionObject("Value", new ExtensionObject(value));
@@ -428,13 +428,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 using var decoder = new JsonDecoder(text, model.Context);
                 result = decoder.ReadExtensionObject("Value");
             }
-            Assert.That(result.TryGetValue(out IEncodeable body), Is.True, text);
-            return body;
+            Assert.That(result.TryGetValue(out IEncodeable? body), Is.True, text);
+            return body!;
         }
 
         private static async Task<TypeModel> LoadModelAsync(
             BuilderKind builder,
-            Func<IComplexTypeFactory, IComplexTypeFactory> wrap = null)
+            Func<IComplexTypeFactory, IComplexTypeFactory>? wrap = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var resolver = new MockResolver();
@@ -603,9 +603,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private sealed class TypeModel
         {
-            public ServiceMessageContext Context { get; init; }
-            public IComplexTypeFactory Factory { get; init; }
-            public ComplexTypeSystem TypeSystem { get; init; }
+            public ServiceMessageContext Context { get; init; } = null!;
+            public IComplexTypeFactory Factory { get; init; } = null!;
+            public ComplexTypeSystem TypeSystem { get; init; } = null!;
             public bool Loaded { get; init; }
             public NodeId InnerId { get; init; }
             public NodeId InnerSubId { get; init; }
@@ -623,7 +623,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         private sealed class NoOptionSetFactory : IComplexTypeFactory
         {
-            public NoOptionSetFactory(IComplexTypeFactory inner, Func<Exception> createException = null)
+            public NoOptionSetFactory(IComplexTypeFactory inner, Func<Exception>? createException = null)
             {
                 m_inner = inner;
                 m_createException = createException ??
@@ -633,7 +633,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             public IComplexTypeBuilder Create(
                 string targetNamespace,
                 int targetNamespaceIndex,
-                string moduleName = null)
+                string? moduleName = null)
             {
                 return new Builder(
                     m_inner.Create(targetNamespace, targetNamespaceIndex, moduleName),

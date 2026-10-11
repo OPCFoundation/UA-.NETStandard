@@ -195,9 +195,9 @@ namespace Opc.Ua.Fuzzing.Tests
             string missingFile = Path.Combine(m_directory, "missing-input");
 
             FileNotFoundException exception =
-                Assert.Throws<FileNotFoundException>(() => Run("--replay", target, missingFile));
+                Assert.Throws<FileNotFoundException>(() => Run("--replay", target, missingFile))!;
 
-            Assert.That(exception.FileName, Is.EqualTo(missingFile));
+            Assert.That(exception!.FileName, Is.EqualTo(missingFile));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(FuzzableCode.FuzzInfoCalls, Is.Zero);
         }
@@ -224,9 +224,9 @@ namespace Opc.Ua.Fuzzing.Tests
             }
 
             InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-                () => Run("--replay", nameof(FuzzableCode.SpanTarget), m_directory));
+                () => Run("--replay", nameof(FuzzableCode.SpanTarget), m_directory))!;
 
-            Assert.That(exception.Message, Does.Contain("Replay corpus is empty:").And.Contain(m_directory));
+            Assert.That(exception!.Message, Does.Contain("Replay corpus is empty:").And.Contain(m_directory));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(FuzzableCode.FuzzInfoCalls, Is.Zero);
         }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Fuzzing.Tests
             string file = await WriteInputAsync("failing-input", input).ConfigureAwait(false);
 
             InvalidOperationException exception =
-                Assert.Throws<InvalidOperationException>(() => Run("--replay", target, file));
+                Assert.Throws<InvalidOperationException>(() => Run("--replay", target, file))!;
 
             Assert.That(exception, Is.SameAs(FuzzableCode.InjectedFailure));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Fuzzing.Tests
             _ = await WriteInputAsync("a-failing", [0x61]).ConfigureAwait(false);
 
             InvalidOperationException exception =
-                Assert.Throws<InvalidOperationException>(() => Run("--replay", target, m_directory));
+                Assert.Throws<InvalidOperationException>(() => Run("--replay", target, m_directory))!;
 
             Assert.That(exception, Is.SameAs(FuzzableCode.InjectedFailure));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));
@@ -317,9 +317,9 @@ namespace Opc.Ua.Fuzzing.Tests
             }
         }
 
-        private string m_directory;
-        private TestInputDirectory m_inputs;
-        private string m_standardOutput;
-        private string m_standardError;
+        private string m_directory = null!;
+        private TestInputDirectory m_inputs = null!;
+        private string m_standardOutput = null!;
+        private string m_standardError = null!;
     }
 }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -69,12 +68,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void SealOpenChaChaRoundTripSucceedsWhenSupported()
         {
-#if NET8_0_OR_GREATER
             SkipIfAeadUnsupported(DtlsCipherSuite.TlsChaCha20Poly1305Sha256);
+#if NET8_0_OR_GREATER
             if (!ChaCha20Poly1305.IsSupported)
             {
                 Assert.Ignore("ChaCha20-Poly1305 is not supported by this platform.");
             }
+#endif
 
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsChaCha20Poly1305Sha256);
             byte[] payload = [0x10, 0x20, 0x30];
@@ -84,9 +84,6 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CreateProfile(DtlsCipherSuite.TlsChaCha20Poly1305Sha256), secret, epoch: 1);
 
             Assert.That(reader.Open(writer.Seal(payload)), Is.EqualTo(payload));
-#else
-            Assert.Ignore("ChaCha20-Poly1305 requires .NET 8 or later.");
-#endif
         }
 
         [Test]
@@ -312,4 +309,3 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
     }
 }
-#endif

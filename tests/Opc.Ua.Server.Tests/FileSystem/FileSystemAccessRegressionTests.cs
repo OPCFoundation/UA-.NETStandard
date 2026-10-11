@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
 
             (ServiceResult closed, _) = await FileReadRegressionTests.CallAsync(
-                file.Close, m_manager.SystemContext, file.NodeId, [handle]).ConfigureAwait(false);
+                file.Close!, m_manager.SystemContext, file.NodeId, [handle]).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(closed), Is.True);
             ServiceResult deleted = await DeleteAsync(CreateDirectory("a"), DirId("a/b")).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
@@ -159,14 +159,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var file = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
 
             (ServiceResult eraseWithoutWrite, _) = await FileReadRegressionTests.CallAsync(
-                file.Open, m_manager.SystemContext, file.NodeId, [(byte)0x05]).ConfigureAwait(false);
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x05]).ConfigureAwait(false);
             (ServiceResult reservedBits, _) = await FileReadRegressionTests.CallAsync(
-                file.Open, m_manager.SystemContext, file.NodeId, [(byte)0x11]).ConfigureAwait(false);
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x11]).ConfigureAwait(false);
             await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext, 0x02).ConfigureAwait(false);
             (ServiceResult readWhileWriting, _) = await FileReadRegressionTests.CallAsync(
-                file.Open, m_manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
             (ServiceResult writeWhileWriting, _) = await FileReadRegressionTests.CallAsync(
-                file.Open, m_manager.SystemContext, file.NodeId, [(byte)0x02]).ConfigureAwait(false);
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x02]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 .ConfigureAwait(false);
             ServiceResult delete = await DeleteAsync(a, FileId("a/x.txt")).ConfigureAwait(false);
             (ServiceResult openWrite, _) = await FileReadRegressionTests.CallAsync(
-                file.Open, m_manager.SystemContext, file.NodeId, [(byte)0x02]).ConfigureAwait(false);
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x02]).ConfigureAwait(false);
             uint readHandle = await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext)
                 .ConfigureAwait(false);
 
@@ -202,10 +202,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(delete.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(openWrite.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(readHandle, Is.Not.Zero);
-                Assert.That(ReadBoolean(file.Writable), Is.True);
-                Assert.That(ReadBoolean(file.UserWritable), Is.False);
-                Assert.That(ReadUserExecutable(a.DeleteFileSystemObject), Is.False);
-                Assert.That(ReadUserExecutable(file.Write), Is.False);
+                Assert.That(ReadBoolean(file.Writable!), Is.True);
+                Assert.That(ReadBoolean(file.UserWritable!), Is.False);
+                Assert.That(ReadUserExecutable(a.DeleteFileSystemObject!), Is.False);
+                Assert.That(ReadUserExecutable(file.Write!), Is.False);
                 Assert.That(System.IO.File.Exists(Path.Combine(m_root, "a", "x.txt")), Is.True);
             });
         }
@@ -224,8 +224,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState a = CreateDirectory("a");
             var file = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
 
-            Assert.That(ReadBoolean(file.UserWritable), Is.True);
-            Assert.That(ReadUserExecutable(a.DeleteFileSystemObject), Is.True);
+            Assert.That(ReadBoolean(file.UserWritable!), Is.True);
+            Assert.That(ReadUserExecutable(a.DeleteFileSystemObject!), Is.True);
             ServiceResult delete = await DeleteAsync(a, FileId("a/x.txt")).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(delete), Is.True, delete.ToString());
         }
@@ -501,9 +501,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         private string m_root;
-        private PhysicalFileSystemProvider m_physical;
+        private PhysicalFileSystemProvider m_physical = null!;
         private Mock<IServerInternal> m_server;
-        private MonitoredItemQueueFactory m_queues;
+        private MonitoredItemQueueFactory m_queues = null!;
         private FileSystemNodeManager m_manager;
     }
 }

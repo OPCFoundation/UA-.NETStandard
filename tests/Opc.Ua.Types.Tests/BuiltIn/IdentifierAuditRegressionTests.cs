@@ -184,8 +184,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AmbientScopeRestoresAMissingPreviousContext()
         {
             ServiceMessageContext scoped = CreateContext();
-            IServiceMessageContext inScope = null;
-            IServiceMessageContext afterScope = null;
+            IServiceMessageContext? inScope = null;
+            IServiceMessageContext? afterScope = null;
 
             // run on a thread without any ambient context flowing into it.
             Thread thread;
@@ -275,7 +275,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // A nsu= that resolved to namespace 0 stayed absolute, unlike the
             // equivalent ns=0 form parsed by NodeId.Parse.
             ServiceMessageContext context = CreateContext();
-            string namespaceZeroUri = context.NamespaceUris.GetString(0);
+            string namespaceZeroUri = context.NamespaceUris.GetString(0)!;
 
             Assert.That(
                 ExpandedNodeId.TryParse(
@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Bad,
                 new LocalizedText("en", "Error"),
                 "debug info",
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask =

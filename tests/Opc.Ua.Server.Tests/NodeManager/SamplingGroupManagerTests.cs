@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private static SamplingGroupManager CreateManager(
             out Mock<IServerInternal> mockServer,
-            IEnumerable<SamplingRateGroup> samplingRates = null)
+            IEnumerable<SamplingRateGroup>? samplingRates = null)
         {
             mockServer = DeterministicServerMock.Create(out _);
             var mockNodeManager = new Mock<IAsyncNodeManager>();
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             return new OperationContext(
                 new RequestHeader(),
-                null,
+                null!,
                 RequestType.CreateMonitoredItems,
                 RequestLifetime.None,
                 new Mock<ISession>().Object);
@@ -339,7 +339,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(stored.FilterToUse, Is.SameAs(revisedCreateFilter));
             Assert.That(itemToCreate.RequestedParameters, Is.SameAs(createParameters));
             Assert.That(
-                createParameters.Filter.TryGetValue(out MonitoringFilter createRequestFilter),
+                createParameters.Filter.TryGetValue(out MonitoringFilter? createRequestFilter),
                 Is.True);
             Assert.That(createRequestFilter, Is.SameAs(originalCreateFilter));
             Assert.That(originalCreateFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));
@@ -378,7 +378,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 item,
                 itemToModify,
                 revisedModifyFilter,
-                new Range());
+                new Range())!;
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             stored = item.ToStorableMonitoredItem();
@@ -386,7 +386,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(stored.FilterToUse, Is.SameAs(revisedModifyFilter));
             Assert.That(itemToModify.RequestedParameters, Is.SameAs(modifyParameters));
             Assert.That(
-                modifyParameters.Filter.TryGetValue(out MonitoringFilter modifyRequestFilter),
+                modifyParameters.Filter.TryGetValue(out MonitoringFilter? modifyRequestFilter),
                 Is.True);
             Assert.That(modifyRequestFilter, Is.SameAs(originalModifyFilter));
             Assert.That(originalModifyFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));

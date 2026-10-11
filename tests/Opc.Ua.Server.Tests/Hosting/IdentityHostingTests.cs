@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public void DefaultAuthenticatorsRespectFlagsAndAvailableDependencies()
         {
-            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
             {
                 ["OpcUa:Server:Identity:Defaults:EnableAnonymous"] = "true",
                 ["OpcUa:Server:Identity:Defaults:EnableUserNamePassword"] = "true",
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(authenticators, Has.Exactly(1).TypeOf<UserNamePasswordAuthenticator>());
             Assert.That(authenticators, Has.Exactly(1).TypeOf<X509Authenticator>());
 
-            IConfiguration disabledConfiguration = CreateConfiguration(new Dictionary<string, string>
+            IConfiguration disabledConfiguration = CreateConfiguration(new Dictionary<string, string?>
             {
                 ["OpcUa:Server:Identity:Defaults:EnableAnonymous"] = "false",
                 ["OpcUa:Server:Identity:Defaults:EnableUserNamePassword"] = "false",
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             using var rsa = RSA.Create(2048);
             RSAParameters parameters = rsa.ExportParameters(false);
-            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
             {
                 ["OpcUa:Server:Identity:Defaults:EnableAnonymous"] = "false",
                 ["OpcUa:Server:Identity:Defaults:EnableUserNamePassword"] = "false",
@@ -104,8 +104,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                 ["OpcUa:Server:Identity:Issuers:0:IssuerUri"] = "https://issuer.example.test",
                 ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:Kid"] = "kid-rsa",
                 ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:Algorithm"] = "RS256",
-                ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:RsaModulus"] = Base64UrlEncode(parameters.Modulus),
-                ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:RsaExponent"] = Base64UrlEncode(parameters.Exponent)
+                ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:RsaModulus"] = Base64UrlEncode(parameters.Modulus!),
+                ["OpcUa:Server:Identity:Issuers:0:StaticKeys:0:RsaExponent"] = Base64UrlEncode(parameters.Exponent!)
             });
             using ServiceProvider services = CreateServices(configuration).BuildServiceProvider();
 
@@ -155,8 +155,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                         {
                             Kid = "kid-rsa",
                             Algorithm = "RS256",
-                            RsaModulus = Base64UrlEncode(parameters.Modulus),
-                            RsaExponent = Base64UrlEncode(parameters.Exponent)
+                            RsaModulus = Base64UrlEncode(parameters.Modulus!),
+                            RsaExponent = Base64UrlEncode(parameters.Exponent!)
                         }
                     }
                 });
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public void BareConfigurationServerRegistersAnonymousFallback()
         {
-            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>());
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>());
             using ServiceProvider sp = CreateServices(configuration).BuildServiceProvider();
 
             IList<IUserTokenAuthenticator> authenticators = CreateAuthenticators(sp);
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             // No Identity section: the custom authenticator is the only configuration and
             // must not disable anonymous access (the endpoint policy still governs it).
-            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>());
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>());
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddOpcUa().AddServer(configuration)
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             public UserTokenType TokenType => UserTokenType.UserName;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => null!;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             return authenticators;
         }
 
-        private static IConfiguration CreateConfiguration(IDictionary<string, string> values)
+        private static IConfiguration CreateConfiguration(IDictionary<string, string?> values)
         {
             var source = new MemoryConfigurationSource { InitialData = values };
             var builder = new ConfigurationBuilder();

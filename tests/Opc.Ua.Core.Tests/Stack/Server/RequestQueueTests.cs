@@ -56,9 +56,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public TaskCompletionSource<bool> ProcessingCompleted { get; } = new TaskCompletionSource<bool>();
             public StatusCode? CompletedStatusCode { get; private set; }
 
-            public IServiceRequest Request => null;
+            public IServiceRequest Request => null!;
 
-            public SecureChannelContext SecureChannelContext => null;
+            public SecureChannelContext SecureChannelContext => null!;
 
             public ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 return new ValueTask(ProcessingCompleted.Task);
             }
 
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 CompletedStatusCode = error?.StatusCode;
                 ProcessingCompleted.TrySetResult(true);
@@ -79,9 +79,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public TaskCompletionSource<bool> ProcessingCompleted { get; } = new TaskCompletionSource<bool>();
             public StatusCode? CompletedStatusCode { get; private set; }
 
-            public IServiceRequest Request => null;
+            public IServiceRequest Request => null!;
 
-            public SecureChannelContext SecureChannelContext => null;
+            public SecureChannelContext SecureChannelContext => null!;
 
             RequestParkSink IParkableIncomingRequest.ParkSink => m_parkSink;
 
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 return new ValueTask(ProcessingCompleted.Task);
             }
 
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 CompletedStatusCode = error?.StatusCode;
                 ProcessingCompleted.TrySetResult(true);
@@ -122,11 +122,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 get
                 {
                     FieldInfo queueField = typeof(ServerBase).GetField(
-                        "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var queue = (RequestQueue)queueField.GetValue(this);
+                        "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                    var queue = (RequestQueue)queueField!.GetValue(this)!;
                     FieldInfo countField = typeof(RequestQueue).GetField(
-                        "m_totalThreadCount", BindingFlags.NonPublic | BindingFlags.Instance);
-                    return (int)countField.GetValue(queue);
+                        "m_totalThreadCount", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                    return (int)countField!.GetValue(queue)!;
                 }
             }
 
@@ -138,13 +138,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 int maxThreads,
                 int maxQueue,
                 bool decoupleHeldPublishRequests = true,
-                IServerResourceIsolationProvider provider = null)
+                IServerResourceIsolationProvider? provider = null)
             {
                 FieldInfo field = typeof(ServerBase).GetField(
                     "m_requestQueue",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
+                    BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-                var oldQueue = field.GetValue(this) as IDisposable;
+                var oldQueue = field!.GetValue(this) as IDisposable;
                 oldQueue?.Dispose();
 
                 var newQueue = new RequestQueue(

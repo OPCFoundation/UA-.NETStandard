@@ -85,7 +85,6 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 string signalPath = AlarmConditionPath(alarm)[..^".Alarm".Length];
                 FindSourceNode(root, "ns=1;s=Pump1." + signalPath).Element(ns + "Value")?.Remove();
                 string eventId = "ns=1;s=Pump1." + alarm + "Alarm";
-                AddSourceReference(pump, "GeneratesEvent", eventId);
                 SetSourceNode(root, new XElement(ns + "UAObjectType",
                     new XAttribute("NodeId", eventId),
                     new XAttribute("BrowseName", "1:" + alarm + "Alarm"),
@@ -98,6 +97,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 AddSourceMethod(root, pump, alarm + "Acknowledge", "i=9111");
                 AddSourceMethod(root, pump, alarm + "Confirm", "i=9113");
             }
+
+            SetPumpEventSourceType(root, pump);
 
             // Pump2 is a deterministic instance of the same source hierarchy,
             // not an affordance overlay that only appears in a projection.
@@ -135,6 +136,63 @@ namespace Opc.Ua.WotCon.Tests.Samples
             stream.WriteByte(10);
             return ByteString.From(stream.ToArray());
         }
+
+        /// <summary>
+        /// Types the pump with a sample-owned subtype of its companion type that
+        /// declares the alarm EventTypes it raises.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-3 §7.15 lets only an ObjectType, a VariableType or a
+        /// Method be the source of <c>GeneratesEvent</c>, so the pump Object
+        /// cannot state it. Each pump owns its alarm EventTypes, so each pump
+        /// gets its own type; Pump2's is cloned from Pump1's with the rest of
+        /// its hierarchy.
+        /// </remarks>
+        private static void SetPumpEventSourceType(XElement root, XElement pump)
+        {
+            XNamespace ns = root.Name.Namespace;
+            XElement typeDefinition = pump.Element(ns + "References")!
+                .Elements(ns + "Reference")
+                .Single(reference => string.Equals(
+                    (string?)reference.Attribute("ReferenceType"), "HasTypeDefinition",
+                    StringComparison.Ordinal));
+            string supertype = typeDefinition.Value;
+            if (string.Equals(supertype, PumpEventSourceTypeId, StringComparison.Ordinal))
+            {
+                // Regenerating from a NodeSet that already holds the type: the
+                // companion type it derives from is the one it states.
+                supertype = FindSourceNode(root, PumpEventSourceTypeId)
+                    .Element(ns + "References")!
+                    .Elements(ns + "Reference")
+                    .Single(reference => string.Equals(
+                        (string?)reference.Attribute("ReferenceType"), "HasSubtype",
+                        StringComparison.Ordinal))
+                    .Value;
+            }
+            typeDefinition.Value = PumpEventSourceTypeId;
+            pump.Element(ns + "References")!
+                .Elements(ns + "Reference")
+                .Where(reference => string.Equals(
+                    (string?)reference.Attribute("ReferenceType"), "GeneratesEvent",
+                    StringComparison.Ordinal))
+                .Remove();
+
+            var references = new XElement(ns + "References",
+                SourceReference(ns, "HasSubtype", supertype, isForward: false));
+            foreach ((string alarm, string _) in s_alarmSources)
+            {
+                references.Add(SourceReference(ns, "GeneratesEvent", "ns=1;s=Pump1." + alarm + "Alarm"));
+            }
+            SetSourceNode(root, new XElement(ns + "UAObjectType",
+                new XAttribute("NodeId", PumpEventSourceTypeId),
+                new XAttribute("BrowseName", "1:Pump_1Type"),
+                new XElement(ns + "DisplayName", "Pump_1Type"),
+                new XElement(ns + "Description",
+                    "Sample-owned PumpType subtype declaring the alarms Pump1 raises."),
+                references));
+        }
+
+        private const string PumpEventSourceTypeId = "ns=1;s=Pump1.Type";
 
         private static void AddSourceMethod(
             XElement root,

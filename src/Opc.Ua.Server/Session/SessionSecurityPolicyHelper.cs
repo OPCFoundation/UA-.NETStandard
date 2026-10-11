@@ -63,11 +63,11 @@ namespace Opc.Ua.Server
             SecureChannelContext channelContext = context.ChannelContext!;
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
-                channelContext.ChannelThumbprint,
+                channelContext.ChannelThumbprint.ToArrayOrNull(),
                 clientNonce.ToArray(),
-                channelContext.ServerChannelCertificate,
+                channelContext.ServerChannelCertificate.ToArrayOrNull(),
                 parsedClientCertificate.RawData,
-                channelContext.ClientChannelCertificate,
+                channelContext.ClientChannelCertificate.ToArrayOrNull(),
                 serverNonce.ToArray());
 
             return policies.CreateSignatureData(

@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             byte[] dataToSign = CreateHandshakeData();
             byte[] signature = CryptoUtils.Sign(
-                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri);
+                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri)!;
 
             Assert.That(signature, Is.Not.Null.And.Not.Empty);
             Assert.That(
@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certificate, securityPolicyUri, secret);
 
             byte[] decrypted = SecurityPolicies.Default.Decrypt(
-                certificate, securityPolicyUri, encrypted);
+                certificate, securityPolicyUri, encrypted)!;
 
             Assert.That(decrypted, Is.EqualTo(secret));
             Assert.That(
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             byte[] dataToSign = CreateHandshakeData();
             byte[] signature = CryptoUtils.Sign(
-                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri);
+                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri)!;
 
             Assert.That(signature, Is.Not.Null.And.Not.Empty);
             Assert.That(

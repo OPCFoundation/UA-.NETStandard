@@ -174,7 +174,7 @@ namespace Opc.Ua.Interop.Tests
             await m_serverFixture.LoadConfigurationAsync(InteropPki.ServerPki(m_pkiRoot)).ConfigureAwait(false);
             // The fixture only advertises anonymous logon; the user name cases
             // log on as a user of the reference server's user database.
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             // The X509UserToken check logs on with a self-signed user certificate,
             // which the auto-accepting fixture trusts.
@@ -304,7 +304,7 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         private Task<PeerRun> GetRunAsync(string key, List<string> arguments)
         {
-            if (!m_runs.TryGetValue(key, out Task<PeerRun> run))
+            if (!m_runs.TryGetValue(key, out Task<PeerRun>? run))
             {
                 arguments.InsertRange(0,
                 [
@@ -325,8 +325,8 @@ namespace Opc.Ua.Interop.Tests
     public sealed class PeerRun
     {
         public int ExitCode { get; private set; }
-        public string Output { get; private set; }
-        public IReadOnlyList<PeerCheckResult> Results { get; private set; }
+        public string Output { get; private set; } = null!;
+        public IReadOnlyList<PeerCheckResult> Results { get; private set; } = null!;
 
         /// <summary>
         /// Asserts that the run completed (exit code 0 or 1 - all checks

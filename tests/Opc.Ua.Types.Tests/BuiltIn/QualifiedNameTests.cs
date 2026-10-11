@@ -242,7 +242,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("Test");
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(qn, Is.Not.EqualTo((object)null));
+            Assert.That(qn, Is.Not.EqualTo((object)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
         }
 
@@ -290,7 +290,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateWithNullNameReturnsNull()
         {
             var table = new NamespaceTable();
-            var result = QualifiedName.Create(null, "http://test.org/", table);
+            var result = QualifiedName.Create(null!, "http://test.org/", table);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -306,7 +306,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateWithNullNamespaceUriReturnsDefaultNamespace()
         {
             var table = new NamespaceTable();
-            var result = QualifiedName.Create("MyName", null, table);
+            var result = QualifiedName.Create("MyName", null!, table);
             Assert.That(result.Name, Is.EqualTo("MyName"));
             Assert.That(result.NamespaceIndex, Is.Zero);
         }
@@ -334,21 +334,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateWithNullTableAndNonEmptyNamespaceThrows()
         {
             Assert.That(
-    () => QualifiedName.Create("MyName", "http://test.org/", null),
+    () => QualifiedName.Create("MyName", "http://test.org/", null!),
     Throws.TypeOf<ServiceResultException>());
         }
 
         [Test]
         public void IsValidWithEmptyNameReturnsFalse()
         {
-            Assert.That(QualifiedName.IsValid(new QualifiedName(null), null), Is.False);
-            Assert.That(QualifiedName.IsValid(new QualifiedName(string.Empty), null), Is.False);
+            Assert.That(QualifiedName.IsValid(new QualifiedName(null), null!), Is.False);
+            Assert.That(QualifiedName.IsValid(new QualifiedName(string.Empty), null!), Is.False);
         }
 
         [Test]
         public void IsValidWithValidNameAndNullTableReturnsTrue()
         {
-            Assert.That(QualifiedName.IsValid(new QualifiedName("Test"), null), Is.True);
+            Assert.That(QualifiedName.IsValid(new QualifiedName("Test"), null!), Is.True);
         }
 
         [Test]
@@ -371,7 +371,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseEmptyStringReturnsNull()
         {
-            Assert.That(QualifiedName.Parse(null).IsNull, Is.True);
+            Assert.That(QualifiedName.Parse(null!).IsNull, Is.True);
             Assert.That(QualifiedName.Parse(string.Empty).IsNull, Is.True);
         }
 
@@ -379,7 +379,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseContextEmptyStringReturnsNull()
         {
             ServiceMessageContext context = CreateContext();
-            Assert.That(QualifiedName.Parse(context, null, false).IsNull, Is.True);
+            Assert.That(QualifiedName.Parse(context, null!, false).IsNull, Is.True);
             Assert.That(QualifiedName.Parse(context, string.Empty, false).IsNull, Is.True);
         }
 
@@ -497,7 +497,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FromNullReturnsNull()
         {
-            Assert.That(QualifiedName.From(null).IsNull, Is.True);
+            Assert.That(QualifiedName.From(null!).IsNull, Is.True);
         }
 
         [Test]
@@ -526,7 +526,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitOperatorFromNull()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            var qn = (QualifiedName)(string)null;
+            var qn = (QualifiedName)(string)null!;
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(qn.IsNull, Is.True);
         }
@@ -617,7 +617,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormThrowsWhenTableIsNull()
         {
             Assert.That(
-                () => QualifiedName.ParseLongForm("Foo", null),
+                () => QualifiedName.ParseLongForm("Foo", null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -625,7 +625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForNullText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            var result = QualifiedName.ParseLongForm(null, table);
+            var result = QualifiedName.ParseLongForm(null!, table);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
 
@@ -708,7 +708,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormRoundTrip()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            var context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null!);
             context.NamespaceUris = table;
 
             var original = new QualifiedName("Bar", 1);

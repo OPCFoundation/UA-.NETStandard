@@ -31,6 +31,10 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 using System.Threading;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
@@ -71,7 +75,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             m_key = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "key", [], keyLength);
             m_iv = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "iv", [], NonceLength);
             m_snKey = DtlsHkdf.ExpandLabel(m_hashAlgorithmName, trafficSecret, "sn", [], keyLength);
-#if NET8_0_OR_GREATER
             if (profile.CipherSuite is DtlsCipherSuite.TlsAes128GcmSha256 or DtlsCipherSuite.TlsAes256GcmSha384)
             {
                 m_aesGcm = new AesGcm(m_key, 16);
@@ -85,7 +88,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
                 m_chacha20Poly1305 = new ChaCha20Poly1305(m_key);
             }
-#endif
         }
 
         /// <summary>
@@ -108,21 +110,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// DTLS record protection is available in this compiled assembly.
         /// </summary>
         /// <remarks>
-        /// The AEAD record-protection path relies on BCL primitives
-        /// (<c>System.Security.Cryptography.AesGcm</c>,
-        /// <c>System.Security.Cryptography.ChaCha20Poly1305</c>) that are
-        /// only available on .NET 8 or later. When the assembly is compiled for
-        /// an older target framework (<c>net48</c>) the
-        /// AEAD cipher suites cannot be used and this probe returns
-        /// <see langword="false"/>, allowing callers and tests to react at
-        /// runtime instead of assuming compile-time availability.
+        /// Always <see langword="true"/>: .NET 8+ uses the BCL
+        /// <c>AesGcm</c> and <c>ChaCha20Poly1305</c>, and the .NET Framework
+        /// build uses the managed BouncyCastle implementations in
+        /// <c>Opc.Ua.Security.Certificates</c>, which are not a validated
+        /// (FIPS) module. Kept so callers and tests can still probe at runtime.
         /// </remarks>
         public static bool IsAeadSupported =>
-#if NET8_0_OR_GREATER
             true;
-#else
-            false;
-#endif
 
         /// <summary>
         /// Determines whether the supplied cipher suite uses AEAD record
@@ -173,7 +168,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     innerPlaintext[^1] = ApplicationDataContentType;
                     Span<byte> nonce = stackalloc byte[NonceLength];
                     BuildNonce(sequenceNumber, nonce);
-#if NET8_0_OR_GREATER
                     SealAead(
                         nonce,
                         record.AsSpan(0, HeaderLength),
@@ -181,9 +175,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         record.AsSpan(HeaderLength, innerPlaintext.Length),
                         record.AsSpan(HeaderLength + innerPlaintext.Length, m_tagLength));
                     CryptoUtils.ZeroMemory(nonce);
-#else
-                    throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
                 }
                 else
                 {
@@ -289,7 +280,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 {
                     if (m_isAead)
                     {
-#if NET8_0_OR_GREATER
                         Span<byte> nonce = stackalloc byte[NonceLength];
                         BuildNonce(sequenceNumber, nonce);
                         try
@@ -308,10 +298,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         }
 
                         CryptoUtils.ZeroMemory(nonce);
-#else
-                        throw new NotSupportedException(
-                            "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
                     }
                     else
                     {
@@ -371,10 +357,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 CryptoUtils.ZeroMemory(m_key);
                 CryptoUtils.ZeroMemory(m_iv);
                 CryptoUtils.ZeroMemory(m_snKey);
-#if NET8_0_OR_GREATER
                 m_aesGcm?.Dispose();
                 m_chacha20Poly1305?.Dispose();
-#endif
                 m_disposed = true;
             }
         }
@@ -416,7 +400,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return cipherSuite is DtlsCipherSuite.TlsSha384Sha384 ? 48 : 16;
         }
 
-#if NET8_0_OR_GREATER
         private void SealAead(
             ReadOnlySpan<byte> nonce,
             ReadOnlySpan<byte> associatedData,
@@ -440,9 +423,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
             }
         }
-#endif
 
-#if NET8_0_OR_GREATER
         private void OpenAead(
             ReadOnlySpan<byte> nonce,
             ReadOnlySpan<byte> associatedData,
@@ -466,7 +447,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     throw new NotSupportedException("Cipher suite is not AEAD-protected.");
             }
         }
-#endif
 
         private void ComputeHmac(ReadOnlySpan<byte> header, ReadOnlySpan<byte> plaintext, Span<byte> tag)
         {
@@ -564,31 +544,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             {
                 case DtlsCipherSuite.TlsAes128GcmSha256:
                 case DtlsCipherSuite.TlsAes256GcmSha384:
-#if NET8_0_OR_GREATER
-                {
-                    Span<byte> block = stackalloc byte[SequenceNumberSampleLength];
-                    using (var aes = Aes.Create())
-                    {
-                        aes.Key = m_snKey;
-                        aes.EncryptEcb(sample, block, PaddingMode.None);
-                    }
-
-                    block[..2].CopyTo(mask);
-                    CryptoUtils.ZeroMemory(block);
+                    AesSequenceNumberMask(sample, mask);
                     break;
-                }
-#else
-                    throw new NotSupportedException(
-                        "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
                 case DtlsCipherSuite.TlsChaCha20Poly1305Sha256:
-#if NET8_0_OR_GREATER
                     ChaCha20Mask(m_snKey, sample[..4], sample.Slice(4, 12), mask);
                     break;
-#else
-                    throw new NotSupportedException(
-                        "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
-#endif
                 case DtlsCipherSuite.TlsSha256Sha256:
                 case DtlsCipherSuite.TlsSha384Sha384:
                 {
@@ -622,7 +582,45 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
         }
 
+        /// <summary>
+        /// RFC 9147 §4.2.3 record number mask for the AES cipher suites: the
+        /// first two bytes of AES-ECB over one ciphertext sample block.
+        /// </summary>
+        private void AesSequenceNumberMask(ReadOnlySpan<byte> sample, Span<byte> mask)
+        {
+            Span<byte> block = stackalloc byte[SequenceNumberSampleLength];
 #if NET8_0_OR_GREATER
+            using (var aes = Aes.Create())
+            {
+                aes.Key = m_snKey;
+                aes.EncryptEcb(sample, block, PaddingMode.None);
+            }
+#else
+            byte[] input = sample.ToArray();
+            byte[] output = new byte[SequenceNumberSampleLength];
+            try
+            {
+                using var aes = Aes.Create();
+#pragma warning disable CA5358 // RFC 9147 masks the record number with a single ECB block.
+                aes.Mode = CipherMode.ECB;
+#pragma warning restore CA5358
+                aes.Padding = PaddingMode.None;
+                aes.Key = m_snKey;
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                encryptor.TransformBlock(input, 0, input.Length, output, 0);
+                output.CopyTo(block);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(input);
+                CryptoUtils.ZeroMemory(output);
+            }
+#endif
+
+            block[..2].CopyTo(mask);
+            CryptoUtils.ZeroMemory(block);
+        }
+
         private static void ChaCha20Mask(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> counter,
@@ -683,7 +681,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             return (value << bits) | (value >> (32 - bits));
         }
-#endif
 
         private void ThrowIfDisposed()
         {
@@ -705,10 +702,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private readonly byte[] m_key;
         private readonly byte[] m_iv;
         private readonly byte[] m_snKey;
-#if NET8_0_OR_GREATER
         private readonly AesGcm? m_aesGcm;
         private readonly ChaCha20Poly1305? m_chacha20Poly1305;
-#endif
         private readonly DtlsAntiReplayWindow m_replayWindow = new();
         private readonly int m_tagLength;
         private readonly bool m_isAead;

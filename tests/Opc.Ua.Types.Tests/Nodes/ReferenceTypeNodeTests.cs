@@ -138,11 +138,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ReferenceTypeNode();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -161,11 +161,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ReferenceTypeNode();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new ReferenceTypeNode();
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(node.Equals((object)null), Is.False);
+            Assert.That(node.Equals((object)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 #pragma warning restore CA1508

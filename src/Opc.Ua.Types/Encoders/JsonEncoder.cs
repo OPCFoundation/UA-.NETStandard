@@ -1283,17 +1283,20 @@ namespace Opc.Ua
                 return;
             }
             // Without a literal for the value (undefined or combined flags) only the
-            // numeric value is encoded as a JSON string (5.4.4.2).
+            // numeric value is encoded as a JSON string (5.4.4.2). The name is null
+            // exactly when the value is not defined.
 #if NET5_0_OR_GREATER
-            if (!Enum.IsDefined(value))
+            string? name = Enum.GetName(value);
 #else
-            if (!Enum.IsDefined(typeof(T), value))
+            string? name = Enum.GetName(typeof(T), value);
 #endif
+            if (name == null)
             {
                 m_writer.WriteStringValue(numeric.ToString(CultureInfo.InvariantCulture));
                 return;
             }
-            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", value, numeric));
+            m_writer.WriteStringValue(
+                string.Concat(name, "_", numeric.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -1310,10 +1313,11 @@ namespace Opc.Ua
             string? symbol = value.Symbol;
             if (string.IsNullOrEmpty(symbol))
             {
-                m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
+                m_writer.WriteStringValue(numeric.ToString(CultureInfo.InvariantCulture));
                 return;
             }
-            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol!, numeric));
+            m_writer.WriteStringValue(
+                string.Concat(symbol, "_", numeric.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>

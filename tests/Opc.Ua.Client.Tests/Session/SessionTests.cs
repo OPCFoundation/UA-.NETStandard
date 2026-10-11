@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -789,7 +789,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -2523,7 +2523,7 @@ namespace Opc.Ua.Client.Tests
 
             await InvokeRecreateInPlaceCoreAsync(
                 sut,
-                new ConfiguredEndpoint(null, failoverDescription),
+                new ConfiguredEndpoint(null!, failoverDescription),
                 failoverChannel.Object,
                 requireTokenReuse).ConfigureAwait(false);
 
@@ -2583,7 +2583,7 @@ namespace Opc.Ua.Client.Tests
 
             await InvokeRecreateInPlaceCoreAsync(
                 sut,
-                new ConfiguredEndpoint(null, failoverDescription),
+                new ConfiguredEndpoint(null!, failoverDescription),
                 failoverChannel.Object,
                 requireTokenReuse: false).ConfigureAwait(false);
 
@@ -2603,7 +2603,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await InvokeRecreateInPlaceCoreAsync(
                     sut,
-                    new ConfiguredEndpoint(null, failoverDescription),
+                    new ConfiguredEndpoint(null!, failoverDescription),
                     failoverChannel.Object,
                     requireTokenReuse: true).ConfigureAwait(false))!;
 
@@ -2860,21 +2860,21 @@ namespace Opc.Ua.Client.Tests
         private static void SetClientNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)
+                .GetField("m_clientNonce", PrivateInstance)!
                 .SetValue(session, value.ToArray());
         }
 
         private static void SetServerNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)
+                .GetField("m_serverNonce", PrivateInstance)!
                 .SetValue(session, ByteString.From(value));
         }
 
         private static byte[] GetClientNonce(Session session)
         {
             return typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)
+                .GetField("m_clientNonce", PrivateInstance)!
                 .GetValue(session) is byte[] bytes
                 ? [.. bytes]
                 : [];
@@ -2883,8 +2883,8 @@ namespace Opc.Ua.Client.Tests
         private static byte[] GetServerNonce(Session session)
         {
             return ((ByteString)typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)
-                .GetValue(session)).ToArray();
+                .GetField("m_serverNonce", PrivateInstance)!
+                .GetValue(session)!).ToArray();
         }
 
         private static ArrayOf<DataValue> CreateOperationLimitsRead(uint operationLimit, uint maxArrayLength)

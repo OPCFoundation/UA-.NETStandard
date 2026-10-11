@@ -81,25 +81,25 @@ namespace Opc.Ua.Server.Tests
             double processingInterval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
+                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry)!;
 
             if (endTime < startTime)
             {
                 for (int ii = values.Count - 1; ii >= 0; ii--)
                 {
-                    Assert.That(calculator.QueueRawValue(values[ii]), Is.True);
+                    Assert.That(calculator!.QueueRawValue(values[ii]), Is.True);
                 }
             }
             else
             {
                 foreach (DataValue value in values)
                 {
-                    Assert.That(calculator.QueueRawValue(value), Is.True);
+                    Assert.That(calculator!.QueueRawValue(value), Is.True);
                 }
             }
 
             var results = new List<DataValue>();
-            while (calculator.TryGetProcessedValue(true, out DataValue result))
+            while (calculator!.TryGetProcessedValue(true, out DataValue result))
             {
                 results.Add(result);
             }

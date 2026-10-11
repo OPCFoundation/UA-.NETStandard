@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Tests
             };
             await m_source.LoadConfigurationAsync(m_sourcePkiRoot).ConfigureAwait(false);
             await m_source.StartAsync().ConfigureAwait(false);
-            m_sourceUri = m_source.Config.ApplicationUri;
+            m_sourceUri = m_source.Config.ApplicationUri!;
             m_sourceUrl = Utils.UriSchemeOpcTcp + "://localhost:" +
                 m_source.Port.ToString(CultureInfo.InvariantCulture);
             m_aggregateNamespace = (ushort)Session.NamespaceUris.GetIndex(
@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Tests
                 // alias and the aggregated one.
                 AliasNameDataType[] found = await FindAliasAsync(Ua.ObjectIds.TagVariables, "Heater_Power")
                     .ConfigureAwait(false);
-                Assert.That(found.SelectMany(a => a.ReferencedNodes.ToArray()).Any(n => n.ServerIndex > 0), Is.True);
+                Assert.That(found.SelectMany(a => a.ReferencedNodes.ToArray()!).Any(n => n.ServerIndex > 0), Is.True);
 
                 // FindAlias on the aggregated category answers from the merged list.
                 AliasNameDataType[] inDevices = await FindAliasAsync(ToNodeId(devices.NodeId), "%")
@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(await ReadServerArrayAsync().ConfigureAwait(false), Does.Not.Contain(m_sourceUri));
             AliasNameDataType[] remaining = await FindAliasAsync(Ua.ObjectIds.TagVariables, "Heater_Power")
                 .ConfigureAwait(false);
-            Assert.That(remaining.SelectMany(a => a.ReferencedNodes.ToArray()).All(n => n.ServerIndex == 0), Is.True);
+            Assert.That(remaining.SelectMany(a => a.ReferencedNodes.ToArray()!).All(n => n.ServerIndex == 0), Is.True);
         }
 
         [Test]
@@ -212,7 +212,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(parentId).ConfigureAwait(false);
             return children.FirstOrDefault(r =>
                 r.BrowseName.Name == browseName &&
-                r.NodeId.NamespaceIndex == m_aggregateNamespace);
+                r.NodeId.NamespaceIndex == m_aggregateNamespace)!;
         }
 
         private async Task<ExpandedNodeId> GetAliasForTargetAsync(NodeId aliasId)
@@ -239,7 +239,7 @@ namespace Opc.Ua.Gds.Tests
         private async Task<string[]> ReadServerArrayAsync()
         {
             DataValue value = await Session.ReadValueAsync(Ua.VariableIds.Server_ServerArray).ConfigureAwait(false);
-            return value.WrappedValue.GetStringArray().ToArray();
+            return value.WrappedValue.GetStringArray().ToArray()!;
         }
 
         private async Task<AliasNameDataType[]> FindAliasAsync(NodeId categoryId, string pattern)

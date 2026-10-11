@@ -78,16 +78,11 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the number of requests still waiting for execution admission.
         /// </summary>
-        internal int Count
-        {
-            get
-            {
-                lock (m_gate)
-                {
-                    return m_count;
-                }
-            }
-        }
+        /// <remarks>
+        /// Read without the queue gate: the count is only mutated under the gate and
+        /// callers use it as a snapshot (worker growth heuristics, diagnostics).
+        /// </remarks>
+        internal int Count => Volatile.Read(ref m_count);
 
         /// <summary>
         /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
@@ -128,18 +123,17 @@ namespace Opc.Ua
                 error = StatusCodes.BadRequestCancelledByClient;
                 return false;
             }
-            lock (m_gate)
+            // Fail fast without the gate; both conditions are re-checked under the
+            // gate before the entry is published.
+            if (Volatile.Read(ref m_stopped))
             {
-                if (m_stopped)
-                {
-                    error = StatusCodes.BadServerHalted;
-                    return false;
-                }
-                if (m_count >= m_maxQueuedRequests)
-                {
-                    error = StatusCodes.BadServerTooBusy;
-                    return false;
-                }
+                error = StatusCodes.BadServerHalted;
+                return false;
+            }
+            if (Volatile.Read(ref m_count) >= m_maxQueuedRequests)
+            {
+                error = StatusCodes.BadServerTooBusy;
+                return false;
             }
 
             ResourceIsolationOwner owner = Classify(request);
@@ -225,8 +219,8 @@ namespace Opc.Ua
         /// </summary>
         public bool TryDequeue([NotNullWhen(true)] out Entry? result)
         {
-            int attempts = OwnerCount;
-            while (attempts-- > 0 && TrySelect(out Entry? candidate, out long version))
+            int attempts = -1;
+            while (TrySelect(ref attempts, out Entry? candidate, out long version))
             {
                 IDisposable? executionLease = null;
                 StatusCode error = StatusCodes.Good;
@@ -323,12 +317,9 @@ namespace Opc.Ua
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                lock (m_gate)
+                if (Volatile.Read(ref m_stopped))
                 {
-                    if (m_stopped)
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
+                    throw new OperationCanceledException(cancellationToken);
                 }
                 if (TryDequeue(out Entry? entry))
                 {
@@ -337,6 +328,10 @@ namespace Opc.Ua
                 try
                 {
                     await m_signals.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                    // The token is consumed; let the next Pulse publish a new one. This
+                    // reader dequeues after the reset, so a Pulse skipped before it is
+                    // still observed.
+                    Volatile.Write(ref m_signalPending, 0);
                 }
                 catch (ChannelClosedException)
                 {
@@ -434,13 +429,19 @@ namespace Opc.Ua
 
         /// <summary>
         /// Selects one eligible owner head while excluding concurrent provider admission attempts.
+        /// The first call of a dequeue pass (<paramref name="attempts"/> negative) snapshots the
+        /// number of scheduling FIFOs under the same gate acquisition; each call consumes one attempt.
         /// </summary>
-        private bool TrySelect([NotNullWhen(true)] out Entry? entry, out long version)
+        private bool TrySelect(ref int attempts, [NotNullWhen(true)] out Entry? entry, out long version)
         {
             lock (m_gate)
             {
                 version = Volatile.Read(ref m_version);
-                if (!m_stopped && !m_selecting)
+                if (attempts < 0)
+                {
+                    attempts = m_owners.Count;
+                }
+                if (attempts-- > 0 && !m_stopped && !m_selecting)
                 {
                     int remaining = m_round.Count;
                     while (remaining-- > 0 && m_round.First != null)
@@ -539,9 +540,16 @@ namespace Opc.Ua
         /// <summary>
         /// Retains at most one wake token and hands it to only one reader, never broadcasting.
         /// </summary>
+        /// <remarks>
+        /// Pulse runs on every admission, dispatch and capacity release. While a token is
+        /// already pending the call returns without entering the signal channel's lock,
+        /// which otherwise serialises every request thread on it.
+        /// </remarks>
         private void Pulse()
         {
             if (Volatile.Read(ref m_count) > 0 && !Volatile.Read(ref m_stopped) &&
+                Volatile.Read(ref m_signalPending) == 0 &&
+                Interlocked.Exchange(ref m_signalPending, 1) == 0 &&
                 m_signals.Writer.TryWrite(true))
             {
                 Interlocked.Increment(ref m_wakeSignalCount);
@@ -856,6 +864,11 @@ namespace Opc.Ua
         /// Single coalesced wake token; a successful dispatch passes it to another waiter.
         /// </summary>
         private readonly Channel<bool> m_signals = Channel.CreateBounded<bool>(1);
+
+        /// <summary>
+        /// 1 while a wake token is in <see cref="m_signals"/> and not yet consumed.
+        /// </summary>
+        private int m_signalPending;
 
         /// <summary>
         /// Number of linked requests.

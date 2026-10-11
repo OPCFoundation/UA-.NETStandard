@@ -495,8 +495,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             ContentFilterElement equals = Element(
                 FilterOperator.Equals,
-                new LiteralOperand(lhsNull ? Variant.From((string)null) : Variant.From("a")),
-                new LiteralOperand(rhsNull ? Variant.From((string)null) : Variant.From("a")));
+                new LiteralOperand(lhsNull ? Variant.From((string)null!) : Variant.From("a")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null!) : Variant.From("a")));
             Assert.That(Filter(equals).Evaluate(m_context, m_target), Is.False);
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), equals)
@@ -509,7 +509,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             ContentFilterElement inList = Element(
                 FilterOperator.InList,
-                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From((string)null!)),
                 new LiteralOperand(Variant.From("a")));
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
@@ -523,7 +523,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             ContentFilterElement inList = Element(
                 FilterOperator.InList,
                 new LiteralOperand(Variant.From("a")),
-                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From((string)null!)),
                 new LiteralOperand(Variant.From("b")));
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
@@ -539,7 +539,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void IsNullWithNullStringOperandYieldsTrue()
         {
             Assert.That(
-                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From((string)null))))
+                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From((string)null!))))
                     .Evaluate(m_context, m_target),
                 Is.True);
             Assert.That(
@@ -558,8 +558,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             ContentFilterElement like = Element(
                 FilterOperator.Like,
-                new LiteralOperand(lhsNull ? Variant.From((string)null) : Variant.From("abc")),
-                new LiteralOperand(rhsNull ? Variant.From((string)null) : Variant.From("a%")));
+                new LiteralOperand(lhsNull ? Variant.From((string)null!) : Variant.From("abc")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null!) : Variant.From("a%")));
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), like)
                     .Evaluate(m_context, m_target),
@@ -623,7 +623,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             ContentFilterElement cast = Element(
                 FilterOperator.Cast,
-                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From((string)null!)),
                 new LiteralOperand(Variant.From(DataTypeIds.String)));
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), cast)
@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             ContentFilterElement equals = Element(
                 FilterOperator.Equals,
-                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From((string)null!)),
                 new LiteralOperand(Variant.From("a")));
             Assert.That(
                 Filter(
@@ -889,7 +889,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.From(false)),
                 new LiteralOperand(Variant.From(false))
             ];
-            operands[parameter] = new LiteralOperand(Variant.From((string)null));
+            operands[parameter] = new LiteralOperand(Variant.From((string)null!));
             Assert.That(Filter(Element(FilterOperator.RelatedTo, operands)).Evaluate(m_context, advanced), Is.False);
         }
 

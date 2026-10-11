@@ -137,7 +137,7 @@ namespace Opc.Ua.Fuzzing
                     .SetNextUpdate(s_certificateFixtureTime.AddDays(7));
                 WriteCrlTestcase(
                     workPath,
-                    "crl-" + hash.Name.ToLowerInvariant() + ".der",
+                    "crl-" + hash.Name!.ToLowerInvariant() + ".der",
                     builder.CreateForRSA(issuer),
                     issuer);
             }

@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests
                 using var item = new MonitoredItem(
                     server.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    null,
+                    null!,
                     1,
                     2,
                     new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests
                 using var item = new MonitoredItem(
                     server.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    null,
+                    null!,
                     1,
                     2,
                     new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },

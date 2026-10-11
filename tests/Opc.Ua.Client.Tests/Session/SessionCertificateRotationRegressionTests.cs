@@ -224,9 +224,9 @@ namespace Opc.Ua.Client.Tests
             };
             try
             {
-                using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(identifier, telemetry))
+                using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(identifier, telemetry)!)
                 {
-                    await store.AddAsync(replacement).ConfigureAwait(false);
+                    await store!.AddAsync(replacement).ConfigureAwait(false);
                 }
 
                 using CertificateEntry loaded = await Session.LoadInstanceCertificateEntryAsync(

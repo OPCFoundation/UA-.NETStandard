@@ -86,6 +86,15 @@ namespace Opc.Ua.Server
         /// an Access Token the request is rejected with
         /// Bad_IdentityTokenInvalid.
         /// </summary>
+        /// <remarks>
+        /// Without an Access Token the channel has to authenticate the
+        /// application (§6.3.1): on an endpoint that uses security, and on
+        /// HTTPS with mutual TLS, the request needs the client certificate of
+        /// its channel, otherwise it is rejected with Bad_SecurityChecksFailed,
+        /// the status CreateSession uses. The endpoint also has to offer an
+        /// anonymous user token policy, otherwise the request is rejected with
+        /// Bad_IdentityTokenRejected, as ActivateSession does.
+        /// </remarks>
         public bool AllowAnonymous { get; set; }
 
         /// <summary>

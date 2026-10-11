@@ -105,15 +105,15 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(payload.TryGetProperty("exp", out _), Is.True);
             Assert.That(payload.TryGetProperty("iat", out _), Is.True);
 
-            using ECDsa publicKey = certificate.GetECDsaPublicKey();
+            using ECDsa publicKey = certificate.GetECDsaPublicKey()!;
             byte[] signingInput = Encoding.ASCII.GetBytes(parts[0] + "." + parts[1]);
             byte[] signature = Base64UrlDecode(parts[2]);
-            Assert.That(VerifyEcdsaSignature(publicKey, signingInput, signature), Is.True);
+            Assert.That(VerifyEcdsaSignature(publicKey!, signingInput, signature), Is.True);
 
-            ECDsa verifier = certificate.GetECDsaPublicKey();
+            ECDsa verifier = certificate.GetECDsaPublicKey()!;
             using var resolver = new StaticIssuerKeyResolver(
                 Issuer,
-                [new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256")]);
+                [new IssuerVerificationKey(certificate.Thumbprint, verifier!, "ES256")]);
             AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
                 .AuthenticateAsync(CreateContext(jwt))
                 .ConfigureAwait(false);

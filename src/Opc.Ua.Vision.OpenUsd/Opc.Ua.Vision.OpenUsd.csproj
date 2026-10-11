@@ -10,7 +10,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Vision.OpenUsd</PackageId>
     <RootNamespace>Opc.Ua.Vision.OpenUsd</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Offscreen renderer for the draft OPC UA Vision companion server: renders a stage camera prim's view through the OpenUSD Silk backend (D3D12 hardware, D3D12 WARP software, or Vulkan headless), returns encoded PNG frames through a small ISceneCameraCaptureProvider abstraction, and reports a clear result when no graphics backend is available so the Vision server can degrade to a non-rendering sensor.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

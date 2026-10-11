@@ -55,7 +55,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
         [Test]
         public void AddLdsServerWithConfigurationBindsOptions()
         {
-            var configData = new Dictionary<string, string>
+            var configData = new Dictionary<string, string?>
             {
                 ["OpcUa:Lds:ApplicationName"] = "BoundLds",
                 ["OpcUa:Lds:ApplicationUri"] = "urn:test:bound:lds"
@@ -78,7 +78,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
         [Test]
         public void AddLdsServerWithConfigurationSectionBindsOptions()
         {
-            var configData = new Dictionary<string, string>
+            var configData = new Dictionary<string, string?>
             {
                 ["OpcUa:Lds:ApplicationName"] = "SectionLds"
             };
@@ -104,14 +104,14 @@ namespace Opc.Ua.Lds.Tests.Hosting
             IOpcUaBuilder builder = services.AddOpcUa();
 
             Assert.That(
-                () => builder.AddLdsServer((IConfiguration)null),
+                () => builder.AddLdsServer((IConfiguration)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddLdsServer((IConfigurationSection)null),
+                () => builder.AddLdsServer((IConfigurationSection)null!),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => OpcUaLdsServerBuilderExtensions.AddLdsServer(
-                    null, new ConfigurationBuilder().Build().GetSection("OpcUa")),
+                    null!, new ConfigurationBuilder().Build().GetSection("OpcUa")),
                 Throws.ArgumentNullException);
         }
 
@@ -183,10 +183,10 @@ namespace Opc.Ua.Lds.Tests.Hosting
                 });
 
             Assert.That(
-                () => builder.AddRegistrationStore(null),
+                () => builder.AddRegistrationStore(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddMulticastDiscovery(null),
+                () => builder.AddMulticastDiscovery(null!),
                 Throws.ArgumentNullException);
         }
 
@@ -209,22 +209,22 @@ namespace Opc.Ua.Lds.Tests.Hosting
         public void LdsTransportForwardersThrowForNullBuilder()
         {
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddOpcTcpTransport(null),
+                () => OpcUaLdsServerBuilderExtensions.AddOpcTcpTransport(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddHttpsTransport(null),
+                () => OpcUaLdsServerBuilderExtensions.AddHttpsTransport(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddHttpsTransport(null, _ => { }),
+                () => OpcUaLdsServerBuilderExtensions.AddHttpsTransport(null!, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddWssTransport(null),
+                () => OpcUaLdsServerBuilderExtensions.AddWssTransport(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddWssTransport(null, _ => { }),
+                () => OpcUaLdsServerBuilderExtensions.AddWssTransport(null!, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaLdsServerBuilderExtensions.AddReverseConnect(null, _ => { }),
+                () => OpcUaLdsServerBuilderExtensions.AddReverseConnect(null!, _ => { }),
                 Throws.ArgumentNullException);
         }
 
@@ -240,7 +240,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
                 });
 
             Assert.That(
-                () => builder.AddReverseConnect(null),
+                () => builder.AddReverseConnect(null!),
                 Throws.ArgumentNullException);
         }
 

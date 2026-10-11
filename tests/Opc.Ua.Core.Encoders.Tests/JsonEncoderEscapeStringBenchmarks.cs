@@ -361,9 +361,9 @@ namespace Opc.Ua.Core.Encoders.Tests
         public void OneTimeTearDown()
         {
             m_streamWriter?.Dispose();
-            m_streamWriter = null;
+            m_streamWriter = null!;
             m_memoryStream?.Dispose();
-            m_memoryStream = null;
+            m_memoryStream = null!;
         }
 
         /// <summary>
@@ -381,9 +381,9 @@ namespace Opc.Ua.Core.Encoders.Tests
         public void GlobalCleanup()
         {
             m_streamWriter?.Dispose();
-            m_streamWriter = null;
+            m_streamWriter = null!;
             m_memoryStream?.Dispose();
-            m_memoryStream = null;
+            m_memoryStream = null!;
         }
 
         /// <summary>
@@ -724,7 +724,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 char ch = charSpan[i];
 
-                if (s_replace.TryGetValue(ch, out string escapeSequence))
+                if (s_replace.TryGetValue(ch, out string? escapeSequence))
                 {
                     if (lastOffset < i)
                     {
@@ -781,7 +781,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             foreach (char ch in value)
             {
-                if (s_replace.TryGetValue(ch, out string escapeSequence))
+                if (s_replace.TryGetValue(ch, out string? escapeSequence))
                 {
                     stringBuilder.Append(escapeSequence);
                 }
@@ -798,7 +798,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             m_streamWriter.Write(stringBuilder);
         }
 
-        private static string s_testString;
+        private static string s_testString = null!;
 #pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private MemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;

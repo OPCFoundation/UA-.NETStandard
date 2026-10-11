@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             {
                 if (value is TransitionEventState transition)
                 {
-                    events.Add((transition.FromState.Value.Text, transition.ToState.Value.Text));
+                    events.Add((transition.FromState!.Value.Text!, transition.ToState!.Value.Text!));
                 }
             };
             Observe(machine, context, fluent, (from, to) => observed.Add((from, to)));
@@ -180,14 +180,14 @@ namespace Opc.Ua.Server.Tests.StateMachines
             var events = new List<IFilterTarget>();
             machine.SetAreEventsMonitored(context, monitored, false);
             machine.OnReportEvent = (_, _, value) => events.Add(value);
-            MethodState method = methodCause
+            MethodState method = (methodCause
                 ? new MethodState(machine)
                 {
                     NodeId = new NodeId(100u, 1),
                     DisplayName = new LocalizedText("Start"),
                     BrowseName = new QualifiedName("Start", 1)
                 }
-                : null;
+                : null)!;
             ServiceResult result = machine.DoCause(context, method, 100, default, []);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(Current(machine), Is.EqualTo(2));
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             var observed = new List<(uint From, uint To)>();
             Observe(machine, context, fluent, (from, to) => observed.Add((from, to)));
             Task<ServiceResult> first = Task.Run(() => machine.DoTransition(context, 10, 0, default, []));
-            Task<ServiceResult> second = null;
+            Task<ServiceResult>? second = null;
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             var events = new List<IFilterTarget>();
             machine.SetAreEventsMonitored(context, true, false);
             machine.OnReportEvent = (_, _, value) => events.Add(value);
-            MethodInfo method = builder.GetType().GetMethod("OnSimulationTick", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo method = builder.GetType().GetMethod("OnSimulationTick", BindingFlags.Instance | BindingFlags.NonPublic)!;
 #if NET5_0_OR_GREATER
             Action<ISystemContext, TimeSpan> tick = method.CreateDelegate<Action<ISystemContext, TimeSpan>>(builder);
 #else
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
         /// </summary>
         private static uint Current(FluentFiniteStateMachineState machine)
         {
-            return machine.GetStateId(machine.CurrentState.Id.Value);
+            return machine.GetStateId(machine.CurrentState!.Id!.Value);
         }
 
         /// <summary>
@@ -390,9 +390,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             /// <summary>
             /// Creates a fake-clock timer and retains a wrapper that can replay its captured callback.
             /// </summary>
-            public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
             {
-                var timer = new CapturedTimer(callback, state, m_clock.CreateTimer(callback, state, dueTime, period));
+                var timer = new CapturedTimer(callback, state!, m_clock.CreateTimer(callback, state, dueTime, period));
                 Timers.Add(timer);
                 return timer;
             }

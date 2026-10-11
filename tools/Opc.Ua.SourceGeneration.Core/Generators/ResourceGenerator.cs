@@ -144,7 +144,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_ResourceDeclaration(ILoadContext context)
+        private TemplateString? LoadTemplate_ResourceDeclaration(ILoadContext context)
         {
             if (context.Target is not Resource resource)
             {
@@ -199,7 +199,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_Resource(ILoadContext context)
+        private TemplateString? LoadTemplate_Resource(ILoadContext context)
         {
             if (context.Target is not Resource resource)
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void WriteTextResource(ILoadContext context, Resource resource)
         {
-            TextReader reader = null;
+            TextReader? reader = null;
             try
             {
                 reader = GetResourceTextReader(context, out bool leaveOpen);
@@ -407,7 +407,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Out.Write("\"\"\"");
             bool firstLine = true;
-            for (string line = reader.ReadLine();
+            for (string? line = reader.ReadLine();
                 line != null;
                 line = reader.ReadLine())
             {
@@ -588,7 +588,7 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="inputFile"></param>
         /// <param name="namespacePrefix"></param>
         /// <returns></returns>
-        public static string GetNameForFile(string inputFile, string namespacePrefix)
+        public static string GetNameForFile(string inputFile, string? namespacePrefix)
         {
             inputFile = Path.GetFileName(inputFile);
             if (namespacePrefix != null &&
@@ -715,7 +715,7 @@ namespace Opc.Ua.SourceGeneration
     {
         public static TextFileResource AsTextFileResource(
             this string fileName,
-            string namespacePrefix = null)
+            string? namespacePrefix = null)
         {
             return new TextFileResource(
                 Resource.GetNameForFile(fileName, namespacePrefix),
@@ -724,7 +724,7 @@ namespace Opc.Ua.SourceGeneration
 
         public static BinaryFileResource ToBinaryFileResource(
             this string fileName,
-            string namespacePrefix = null)
+            string? namespacePrefix = null)
         {
             return new BinaryFileResource(
                 Resource.GetNameForFile(fileName, namespacePrefix),

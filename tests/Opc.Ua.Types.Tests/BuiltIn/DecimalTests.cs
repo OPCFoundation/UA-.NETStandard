@@ -148,7 +148,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase("-")]
         [TestCase(".")]
         [TestCase("--1")]
-        public void AMalformedLexicalFormIsRejected(string lexical)
+        public void AMalformedLexicalFormIsRejected(string? lexical)
         {
             Assert.That(Opc.Ua.Decimal.TryParse(lexical, out _), Is.False);
         }

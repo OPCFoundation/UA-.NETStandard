@@ -31,8 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,6 +81,25 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 _ => null) as DistributedSessionManager;
 
             Assert.That(manager, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-7: the public factory applies the same fail-closed rule as the
+        /// dependency injection registration instead of mirroring session secrets in
+        /// cleartext to an external store.
+        /// </summary>
+        [Test]
+        public void FactoryRejectsExternalStoreWithoutProtector()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var external = new SharedSessionStoreTests.NoCompareAndSwapStore(inner);
+
+            Assert.That(
+                () => new DistributedSessionManagerFactory(external),
+                Throws.InvalidOperationException);
+            Assert.That(
+                () => new DistributedSessionManagerFactory(external, NullRecordProtector.Instance),
+                Throws.Nothing);
         }
 
         [Test]

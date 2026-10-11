@@ -70,7 +70,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root></Root>";
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xml, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xml, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlContent);
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -130,10 +130,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root>Content</Root>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act
-            using var decoder = new XmlParser(xmlElement, messageContext);
+            using var decoder = new XmlParser(xmlElement!, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -148,10 +148,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root>Content</Root>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement!, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -164,10 +164,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root/>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act
-            using var decoder = new XmlParser(xmlElement, messageContext);
+            using var decoder = new XmlParser(xmlElement!, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -200,7 +200,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root><Value>Test</Value></Root>";
 
             // Act
-            using var decoder = new XmlParser(null, xml, messageContext);
+            using var decoder = new XmlParser(null!, xml, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -219,7 +219,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
 
             // Act
-            using var decoder = new XmlParser(null, xml, messageContext);
+            using var decoder = new XmlParser(null!, xml, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeable());
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(true);
 
             const string xml = """
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetValue(out IEncodeable encodeable), Is.True);
+            Assert.That(result.TryGetValue(out IEncodeable? encodeable), Is.True);
         }
 
         [Test]
@@ -1032,9 +1032,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
-            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null!);
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
 
             const string xml = """
@@ -1057,8 +1057,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var mockFactory = new Mock<IEncodeableFactory>();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            IEncodeableType type = null;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            IEncodeableType? type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
 
             string xml = "<CustomElement xmlns=\"http://test.namespace\">" +
@@ -1353,8 +1353,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            IEncodeableType type = null;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            IEncodeableType? type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.Setup(type => type.CreateInstance()).Returns(() => new TestEncodeableWithData());
             IEncodeableType registeredType = encodeableType.Object;
             var factory = new Mock<IEncodeableFactory>();
-            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType))
+            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType!))
                 .Returns(true);
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create(), factory.Object);
             const string xml = """
@@ -1483,10 +1483,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo")!;
 
             // Assert
-            Assert.That(result.SymbolicId, Is.EqualTo(42));
+            Assert.That(result!.SymbolicId, Is.EqualTo(42));
         }
 
         [Test]
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+            DiagnosticInfo? result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
 
             // Assert
             Assert.That(result, Is.Null);
@@ -1543,7 +1543,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo");
+            ArrayOf<DiagnosticInfo?> result = decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo");
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
@@ -1588,7 +1588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadEncodingMask(null);
+            uint result = decoder.ReadEncodingMask(null!);
 
             // Assert
             Assert.That(result, Is.EqualTo(5u));
@@ -1606,7 +1606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadEncodingMask(null);
+            uint result = decoder.ReadEncodingMask(null!);
 
             // Assert
             Assert.That(result, Is.Zero);
@@ -1624,7 +1624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadSwitchField(null, out _);
+            uint result = decoder.ReadSwitchField(null!, out _);
 
             // Assert
             Assert.That(result, Is.EqualTo(7u));
@@ -1642,7 +1642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            decoder.ReadSwitchField(null, out string fieldName);
+            decoder.ReadSwitchField(null!, out string? fieldName);
 
             // Assert
             Assert.That(fieldName, Is.Null);
@@ -1877,7 +1877,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .Returns(new XmlQualifiedName("TestEncodeableWithData", Namespaces.OpcUaXsd));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeableWithData());
             IType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type!))
                 .Returns(true);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -1900,8 +1900,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            IType type = null;
-            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
+            IType? type = null;
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type!))
                 .Returns(false);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -2058,9 +2058,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
-            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null!);
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
 
             const string xml = """
@@ -2092,7 +2092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }
@@ -2118,7 +2118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithTypeId;
             }
@@ -2148,7 +2148,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithData other && other.Value == Value;
             }
@@ -2230,7 +2230,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root/>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
 
-            Assert.Throws<ArgumentNullException>(() => new XmlParser(stream, null));
+            Assert.Throws<ArgumentNullException>(() => new XmlParser(stream, null!));
         }
 
         [Test]
@@ -2277,7 +2277,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Element);
+            XmlQualifiedName result = decoder.Peek(XmlNodeType.Element)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("Child"));
@@ -2294,7 +2294,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.None);
+            XmlQualifiedName result = decoder.Peek(XmlNodeType.None)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("Child"));
@@ -2312,7 +2312,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
             // Text node type should return null for DOM-based parser
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Text);
+            XmlQualifiedName? result = decoder.Peek(XmlNodeType.Text);
 
             Assert.That(result, Is.Null);
         }
@@ -2325,7 +2325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(xml, ctx);
 
             // No children and Text node type → null
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Text);
+            XmlQualifiedName? result = decoder.Peek(XmlNodeType.Text);
 
             Assert.That(result, Is.Null);
         }
@@ -2696,7 +2696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(xml, ctx);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            ArrayOf<string> result = decoder.ReadStringArray("ListOfString");
+            ArrayOf<string?> result = decoder.ReadStringArray("ListOfString");
 
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0], Is.EqualTo("Hello"));
@@ -4734,7 +4734,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }
@@ -4764,7 +4764,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is CoverageTestEncodeableWithData other && other.Value == Value;
             }

@@ -821,9 +821,9 @@ namespace Opc.Ua.Server.Tests
             uint queueSize = 1,
             bool discardOldest = true,
             MonitoringMode monitoringMode = MonitoringMode.Reporting,
-            IAsyncNodeManager nodeManager = null,
-            object managerHandle = null,
-            MonitoringFilter filter = null,
+            IAsyncNodeManager? nodeManager = null,
+            object? managerHandle = null,
+            MonitoringFilter? filter = null,
             double samplingInterval = 1000)
         {
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);

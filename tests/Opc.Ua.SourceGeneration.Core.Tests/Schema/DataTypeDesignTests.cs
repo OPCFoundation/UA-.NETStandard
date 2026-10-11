@@ -53,7 +53,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = dataType.Equals((object)null);
+            bool result = dataType.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -462,13 +462,13 @@ namespace Opc.Ua.Schema.Model.Tests
             var dataType1 = new DataTypeDesign
             {
                 SymbolicName = symbolicName,
-                Service = null
+                Service = null!
             };
 
             var dataType2 = new DataTypeDesign
             {
                 SymbolicName = symbolicName,
-                Service = null
+                Service = null!
             };
 
             // Act
@@ -604,8 +604,8 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result1 = dataType.Equals(null);
-            bool result2 = dataType.Equals((object)null);
+            bool result1 = dataType.Equals(null!);
+            bool result2 = dataType!.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var dataType1 = new DataTypeDesign
             {
-                Service = null
+                Service = null!
             };
 
             var dataType2 = new DataTypeDesign
@@ -1060,12 +1060,12 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var dataType1 = new DataTypeDesign
             {
-                Service = null
+                Service = null!
             };
 
             var dataType2 = new DataTypeDesign
             {
-                Service = null
+                Service = null!
             };
 
             // Act
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var instance = new DataTypeDesign
             {
-                Service = null,
+                Service = null!,
                 IsServiceResponse = false,
                 NoEncodings = true
             };

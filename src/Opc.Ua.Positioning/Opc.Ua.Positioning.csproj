@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Positioning</PackageId>
     <RootNamespace>Opc.Ua.Positioning</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>OPC UA Relative Spatial Location (OPC 10000-210) and Global Positioning (OPC 10000-211) information models and transformation primitives.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

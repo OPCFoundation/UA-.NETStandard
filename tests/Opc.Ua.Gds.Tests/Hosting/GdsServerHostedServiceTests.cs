@@ -279,7 +279,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -332,10 +332,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
             FieldInfo field = typeof(ServerIdentityRegistry).GetField(
                 "m_augmenters",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            var augmenters = (ICollection)field.GetValue(registry);
-            return augmenters.Count;
+            var augmenters = (ICollection)field.GetValue(registry)!;
+            return augmenters!.Count;
         }
 
         private static async Task<AuthenticationResult> WaitForAuthenticationAsync(
@@ -344,7 +344,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -383,7 +383,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -430,13 +430,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
             FieldInfo field = typeof(ServerIdentityRegistry).GetField(
                 "m_augmenters",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            var augmenters = (IEnumerable)field.GetValue(registry);
+            var augmenters = (IEnumerable)field.GetValue(registry)!;
 
             try
             {
-                foreach (object registered in augmenters)
+                foreach (object registered in augmenters!)
                 {
                     if (ReferenceEquals(registered, augmenter))
                     {
@@ -479,9 +479,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             FieldInfo field = typeof(GdsServerHostedService).GetField(
                 "m_server",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            return (StandardServer)field.GetValue(hostedService);
+            return (StandardServer)field.GetValue(hostedService)!;
         }
 
         private static int GetAvailablePort()
@@ -514,7 +514,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public int CallCount { get; private set; }
 
-            public IUserIdentity InputIdentity { get; private set; }
+            public IUserIdentity InputIdentity { get; private set; } = null!;
 
             public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
@@ -552,7 +552,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ApplicationRecordDataType GetApplication(NodeId applicationId)
             {
-                return null;
+                return null!;
             }
 
             public ApplicationRecordDataType[] FindApplications(string applicationUri)
@@ -603,7 +603,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 string certificateTypeId,
                 out string trustListId)
             {
-                trustListId = null;
+                trustListId = null!;
                 return false;
             }
 
@@ -702,22 +702,22 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ArrayOf<NodeId> CertificateTypes { get; set; } = [];
 
-            public ConcurrentDictionary<NodeId, Certificate> Certificates { get; } = new();
+            public ConcurrentDictionary<NodeId, Certificate?> Certificates { get; } = new();
 
             public CertificateGroupConfiguration Configuration { get; private set; } = new();
 
             public CertificateStoreIdentifier AuthoritiesStore { get; } = new();
 
-            public CertificateStoreIdentifier IssuerCertificatesStore { get; }
+            public CertificateStoreIdentifier IssuerCertificatesStore { get; } = null!;
 
-            public TrustListState DefaultTrustList { get; set; }
+            public TrustListState DefaultTrustList { get; set; } = null!;
 
             public bool UpdateRequired { get; set; }
 
             public ICertificateGroup Create(
                 string authoritiesStorePath,
                 CertificateGroupConfiguration certificateGroupConfiguration,
-                string issuerCertificatesStorePath)
+                string? issuerCertificatesStorePath)
             {
                 Configuration = certificateGroupConfiguration;
                 return this;

@@ -54,7 +54,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (TypeFieldModel field in model.Fields)
             {
-                string resolvedType = field.IsArray || field.IsMatrix
+                string? resolvedType = field.IsArray || field.IsMatrix
                     ? field.ElementShortTypeName
                     : field.ShortTypeName;
 
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.AccessModifier,
                 model.PublicExtensions ? "public" : "internal");
             template.AddReplacement(Tokens.DataTypeDefinitionsClass,
-                DataTypeDefinitionsClassName(model.NamespaceSymbol));
+                DataTypeDefinitionsClassName(model.NamespaceSymbol!));
 
             if (model.IsEnum)
             {
@@ -208,7 +208,7 @@ namespace Opc.Ua.SourceGeneration
             return stringWriter.ToString();
         }
 
-        private static TemplateString LoadTemplate_ListOfPartialClasses(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfPartialClasses(ILoadContext context)
         {
             if (context.Target is not TypeSourceModel ctx ||
                 ctx.IsEnum)
@@ -268,11 +268,11 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string typeIdExpr = FormatExpandedNodeIdExpression(
-                model.DataTypeId, GetDataTypeName(model), model.NamespaceUri);
+                model.DataTypeId, GetDataTypeName(model)!, model.NamespaceUri!);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.BinaryEncodingId, model.NamespaceUri);
+                model.BinaryEncodingId, model.NamespaceUri!);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.XmlEncodingId, model.NamespaceUri);
+                model.XmlEncodingId, model.NamespaceUri!);
 
             context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
             context.Template.AddBrowseNameReplacement(
@@ -314,7 +314,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static TemplateString LoadTemplate_ListOfChildCopies(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfChildCopies(ILoadContext context)
         {
             if (context.Target is not TypeSourceModel model ||
                 model.HasManualClone)
@@ -347,14 +347,14 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static TemplateString LoadTemplate_ListOfEncodedFields(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfEncodedFields(ILoadContext context)
         {
             if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
 
-            (string writeMethod, string _) = ResolveEncoderDecoder(field);
+            (string? writeMethod, string? _) = ResolveEncoderDecoder(field);
             if (writeMethod == null)
             {
                 return null;
@@ -471,14 +471,14 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private static TemplateString LoadTemplate_ListOfDecodedFields(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfDecodedFields(ILoadContext context)
         {
             if (context.Target is not TypeFieldModel field)
             {
                 return null;
             }
 
-            (string _, string readMethod) = ResolveEncoderDecoder(field);
+            (string? _, string? readMethod) = ResolveEncoderDecoder(field);
             if (readMethod == null)
             {
                 return null;
@@ -487,7 +487,7 @@ namespace Opc.Ua.SourceGeneration
             // For init-only partial properties, assign to the backing
             // field directly since the init setter is not available
             // inside the Decode method body.
-            string target = field.BackingFieldName ?? field.PropertyName;
+            string? target = field.BackingFieldName ?? field.PropertyName;
 
             string decodeLine;
             if (field.IsMatrix)
@@ -517,7 +517,7 @@ namespace Opc.Ua.SourceGeneration
                     // dimensions.
                     string builtInType = field.IsEnum
                         ? "Enumeration"
-                        : s_matrixGetterMap[field.ElementShortTypeName];
+                        : s_matrixGetterMap[field.ElementShortTypeName!];
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadVariantValue(\"{1}\", global::Opc.Ua.TypeInfo.Create(" +
                         "global::Opc.Ua.BuiltInType.{2}, global::Opc.Ua.ValueRanks.TwoDimensions)).{3};",
@@ -563,7 +563,7 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (field.IsEnum)
             {
-                string typeName = field.IsArray ? field.ElementTypeName : field.TypeName;
+                string? typeName = field.IsArray ? field.ElementTypeName : field.TypeName;
                 if (field.IsArray)
                 {
                     decodeLine = CoreUtils.Format(
@@ -612,7 +612,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private static TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfComparedFields(ILoadContext context)
         {
             if (context.Target is not TypeFieldModel field)
             {
@@ -650,7 +650,7 @@ namespace Opc.Ua.SourceGeneration
                     field.ShortTypeName.Equals("Float", StringComparison.OrdinalIgnoreCase));
         }
 
-        private static TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfClonedFields(ILoadContext context)
         {
             if (context.Target is not TypeFieldModel field)
             {
@@ -678,7 +678,7 @@ namespace Opc.Ua.SourceGeneration
             // have reference semantics, like the model driven generator does.
             static bool NeedsCloning(TypeFieldModel field)
             {
-                string typeName = field.IsArray || field.IsMatrix
+                string? typeName = field.IsArray || field.IsMatrix
                     ? field.ElementShortTypeName
                     : field.ShortTypeName;
                 switch (typeName)
@@ -697,7 +697,7 @@ namespace Opc.Ua.SourceGeneration
         /// init-only partial properties so that Decode() can assign
         /// to the backing field directly.
         /// </summary>
-        private static TemplateString LoadTemplate_ListOfInitOnlyBackingFields(
+        private static TemplateString? LoadTemplate_ListOfInitOnlyBackingFields(
             ILoadContext context)
         {
             if (context.Target is not TypeFieldModel field ||
@@ -710,7 +710,7 @@ namespace Opc.Ua.SourceGeneration
             // For field declarations the global:: prefix on C# keyword
             // aliases (global::string, global::int etc.) is invalid.
             // Strip it for built-in aliases, keep it for everything else.
-            string typeName = StripGlobalPrefixForAliases(field.TypeName);
+            string typeName = StripGlobalPrefixForAliases(field.TypeName!);
 
             // Include the property initializer on the backing field if present,
             // so that default values from the defining declaration are preserved.
@@ -761,7 +761,7 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        private static TemplateString LoadTemplate_ListOfTypeActivators(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfTypeActivators(ILoadContext context)
         {
             if (context.Target is not TypeSourceModel model)
             {
@@ -774,7 +774,7 @@ namespace Opc.Ua.SourceGeneration
             return TypeSourceTemplates.StructureActivatorClassWithSourceDefinition;
         }
 
-        private static TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
         {
             if (context.Target is not TypeSourceModel model)
             {
@@ -796,14 +796,14 @@ namespace Opc.Ua.SourceGeneration
 
             string typeIdExpr = FormatExpandedNodeIdExpression(
                 model.DataTypeId,
-                GetDataTypeName(model),
-                model.NamespaceUri);
+                GetDataTypeName(model)!,
+                model.NamespaceUri!);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.BinaryEncodingId,
-                model.NamespaceUri);
+                model.NamespaceUri!);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.XmlEncodingId,
-                model.NamespaceUri);
+                model.NamespaceUri!);
 
             // The activator lives at namespace level: it is named after the
             // symbol name and refers to a nested type by its qualified name.
@@ -821,7 +821,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
             context.Template.AddReplacement(Tokens.DataTypeDefinitionsClass,
-                DataTypeDefinitionsClassName(model.NamespaceSymbol));
+                DataTypeDefinitionsClassName(model.NamespaceSymbol!));
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"""
                 "{model.NamespaceUri.Escape()}"
@@ -830,7 +830,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static TemplateString LoadTemplate_ListOfDataTypeDefinitions(ILoadContext context)
+        private static TemplateString? LoadTemplate_ListOfDataTypeDefinitions(ILoadContext context)
         {
             if (context.Target is not TypeSourceModel model)
             {
@@ -958,7 +958,7 @@ namespace Opc.Ua.SourceGeneration
                 // ExtensionObject (OPC 10000-6 5.2.6).
                 dataType = CoreUtils.Format(
                     "global::Opc.Ua.ExpandedNodeId.ToNodeId(new {0}().TypeId, namespaceUris)",
-                    (field.IsArray || field.IsMatrix ? field.ElementTypeName : field.TypeName)
+                    ((field.IsArray || field.IsMatrix ? field.ElementTypeName : field.TypeName)!)
                         .TrimEnd('?'));
             }
             context.Template.AddReplacement(Tokens.DataType, dataType);
@@ -988,7 +988,7 @@ namespace Opc.Ua.SourceGeneration
         /// Formats an enum member's numeric value (captured as a string from
         /// the Roslyn constant) as a long literal for the EnumField.Value.
         /// </summary>
-        private static string FormatEnumMemberValue(string value)
+        private static string FormatEnumMemberValue(string? value)
         {
             if (!string.IsNullOrEmpty(value) &&
                 long.TryParse(
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.SourceGeneration
         /// Resolves the IEncoder/IDecoder method names for a field.
         /// Returns (writeMethod, readMethod) or (null, null) if unsupported.
         /// </summary>
-        internal static (string writeMethod, string readMethod) ResolveEncoderDecoder(
+        internal static (string? writeMethod, string? readMethod) ResolveEncoderDecoder(
             TypeFieldModel field)
         {
             if (field.IsEncodeable)
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.SourceGeneration
                 return ("WriteEnumerated", "ReadEnumerated");
             }
 
-            string lookupType = field.IsArray
+            string? lookupType = field.IsArray
                 ? field.ElementShortTypeName
                 : field.ShortTypeName;
 
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.SourceGeneration
         /// nested type (so same-named nested types do not share an identity),
         /// the class name otherwise.
         /// </summary>
-        private static string GetDataTypeName(TypeSourceModel model)
+        private static string? GetDataTypeName(TypeSourceModel model)
         {
             return model.QualifiedName ?? model.ClassName;
         }
@@ -1247,7 +1247,7 @@ namespace Opc.Ua.SourceGeneration
                 return $"!{field.PropertyName}.IsNull";
             }
             if (field.IsEnum ||
-                !NotDefaultCheckExpression.TryGetValue(field.ShortTypeName, out string expr))
+                !NotDefaultCheckExpression.TryGetValue(field.ShortTypeName!, out string? expr))
             {
                 return $"{field.PropertyName} != default";
             }
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static string FormatExpandedNodeIdExpression(
-            string idString,
+            string? idString,
             string className,
             string nsUri)
         {
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static string FormatOptionalExpandedNodeIdExpression(
-            string idString,
+            string? idString,
             string nsUri)
         {
             if (string.IsNullOrEmpty(idString))
@@ -1286,12 +1286,12 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Name of the property in the type
         /// </summary>
-        public string PropertyName { get; set; }
+        public string? PropertyName { get; set; }
 
         /// <summary>
         /// Type name to generate code for
         /// </summary>
-        public string TypeName { get; set; }
+        public string? TypeName { get; set; }
 
         /// <summary>
         /// Error code
@@ -1301,6 +1301,6 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Message
         /// </summary>
-        public string Message { get; set; }
+        public string? Message { get; set; }
     }
 }

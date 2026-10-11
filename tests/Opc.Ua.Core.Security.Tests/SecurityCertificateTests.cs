@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
+            Assert.That(cert!.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
                 "Certificate NotBefore should be in the past.");
             Assert.That(cert.NotAfter, Is.GreaterThan(DateTime.UtcNow),
                 "Certificate NotAfter should be in the future.");
@@ -74,18 +74,18 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            string appUri = endpoints[0].Server.ApplicationUri;
+            string appUri = endpoints[0].Server.ApplicationUri!;
 
             // Parse SAN from the raw extension
             bool found = false;
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 // OID 2.5.29.17 is SubjectAlternativeName
                 if (ext.Oid?.Value == "2.5.29.17")
                 {
                     string formatted = ext.Format(true);
                     if (formatted.Contains(
-                        appUri, StringComparison.OrdinalIgnoreCase))
+                        appUri!, StringComparison.OrdinalIgnoreCase))
                     {
                         found = true;
                     }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             bool found = false;
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext.Oid?.Value is X509SubjectAltNameExtension.SubjectAltNameOid
                     or X509SubjectAltNameExtension.SubjectAltName2Oid)
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             // AutoAccept is true in the fixture, so trusted certs work
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription secureEp = null;
+            EndpointDescription? secureEp = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityMode != MessageSecurityMode.None)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ClientFixture
-                .ConnectAsync(ServerUrl, secureEp.SecurityPolicyUri)
+                .ConnectAsync(ServerUrl, secureEp!.SecurityPolicyUri!)
                 .ConfigureAwait(false);
             try
             {
@@ -216,8 +216,8 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             int keySize;
-            using (RSA rsa = cert.GetRSAPublicKey())
-            using (ECDsa ecdsa = rsa is null ? cert.GetECDsaPublicKey() : null)
+            using (RSA rsa = cert!.GetRSAPublicKey()!)
+            using (ECDsa ecdsa = (rsa is null ? cert!.GetECDsaPublicKey() : null)!)
             {
                 keySize = rsa?.KeySize ?? ecdsa?.KeySize ?? 0;
             }
@@ -239,7 +239,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.Subject, Is.Not.Null.And.Not.Empty,
+            Assert.That(cert!.Subject, Is.Not.Null.And.Not.Empty,
                 "Default app certificate should have a Subject.");
             Assert.That(cert.HasPrivateKey, Is.False,
                 "Public cert from endpoint should not expose " +
@@ -250,7 +250,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task DefaultCert002EstablishCommunicationAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription secureEp = null;
+            EndpointDescription? secureEp = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityMode != MessageSecurityMode.None)
@@ -266,7 +266,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ClientFixture
-                .ConnectAsync(ServerUrl, secureEp.SecurityPolicyUri)
+                .ConnectAsync(ServerUrl, secureEp!.SecurityPolicyUri!)
                 .ConfigureAwait(false);
             try
             {
@@ -294,7 +294,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.NotBefore,
+            Assert.That(cert!.NotBefore,
                 Is.LessThanOrEqualTo(DateTime.UtcNow),
                 "Certificate should be currently valid (NotBefore).");
             Assert.That(cert.NotAfter,
@@ -303,8 +303,8 @@ namespace Opc.Ua.Core.Security.Tests
 
             // Verify it has a reasonable key size
             int keySize;
-            using (RSA rsa = cert.GetRSAPublicKey())
-            using (ECDsa ecdsa = rsa is null ? cert.GetECDsaPublicKey() : null)
+            using (RSA rsa = cert.GetRSAPublicKey()!)
+            using (ECDsa ecdsa = (rsa is null ? cert.GetECDsaPublicKey() : null)!)
             {
                 keySize = rsa?.KeySize ?? ecdsa?.KeySize ?? 0;
             }
@@ -345,13 +345,13 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None &&
                     !ep.ServerCertificate.IsEmpty &&
-                    !IsEccPolicy(ep.SecurityPolicyUri))
+                    !IsEccPolicy(ep.SecurityPolicyUri!))
                 {
                     return X509CertificateLoader.LoadCertificate(
                         ep.ServerCertificate.ToArray());
                 }
             }
-            return null;
+            return null!;
         }
 
         private static X509Certificate2 FindAnySecureEndpointCert(
@@ -367,7 +367,7 @@ namespace Opc.Ua.Core.Security.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private static bool IsEccPolicy(string policyUri)

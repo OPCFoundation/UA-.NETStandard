@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Schema
         public void ToCertificateIdentifierNullReturnsNull()
         {
             var result =
-                SecuredApplication.ToCertificateIdentifier(null);
+                SecuredApplication.ToCertificateIdentifier(null!);
             Assert.That(result, Is.Null);
         }
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Schema
         {
             var result =
                 SecuredApplication.ToCertificateStoreIdentifier(
-                    (CertificateStoreIdentifier)null);
+                    (CertificateStoreIdentifier)null!);
             Assert.That(result, Is.Null);
         }
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Schema
         public void ToListOfBaseAddressesNullReturnsEmpty()
         {
             var result =
-                SecuredApplication.ToListOfBaseAddresses(null);
+                SecuredApplication.ToListOfBaseAddresses(null!);
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
         }
@@ -492,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Schema
                     ],
                     ValidationOptions = 13
                 },
-                Extensions = new SecurityNs.ListOfExtensions { xmlDocument.DocumentElement },
+                Extensions = new SecurityNs.ListOfExtensions { xmlDocument.DocumentElement! },
                 ApplicationCertificates = new SecurityNs.CertificateList
                 {
                     Certificates =

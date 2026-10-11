@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private static SystemContext CreateContext()
         {
-            return new SystemContext(telemetry: null);
+            return new SystemContext(telemetry: null!);
         }
 
         [Test]
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 systemContext,
                 "Root/Child",
                 defaultNamespaceIndex: 2,
-                rootResolver: bn => bn == root.BrowseName ? root : null);
+                rootResolver: bn => (bn == root.BrowseName ? root : null)!);
 
             Assert.That(resolved, Is.SameAs(child));
         }
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     systemContext,
                     "Missing",
                     0,
-                    rootResolver: _ => null));
+                    rootResolver: _ => null!));
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 systemContext,
                 "Pump #1/Operational",
                 defaultNamespaceIndex: 2,
-                rootResolver: bn => bn == pump.BrowseName ? pump : null);
+                rootResolver: bn => (bn == pump.BrowseName ? pump : null)!);
 
             Assert.That(resolved, Is.SameAs(operational));
         }
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     systemContext,
                     "Root/ns=99;Foo",
                     defaultNamespaceIndex: 2,
-                    rootResolver: bn => bn == root.BrowseName ? root : null));
+                    rootResolver: bn => (bn == root.BrowseName ? root : null)!));
 
             Assert.That(
                 ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 systemContext,
                 "Root/ns=3;Foo",
                 defaultNamespaceIndex: 2,
-                rootResolver: bn => bn == root.BrowseName ? root : null);
+                rootResolver: bn => (bn == root.BrowseName ? root : null)!);
 
             Assert.That(resolved, Is.SameAs(child3));
         }

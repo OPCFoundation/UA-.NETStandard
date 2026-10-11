@@ -31,8 +31,6 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

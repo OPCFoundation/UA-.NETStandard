@@ -55,7 +55,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = nodeDesign.Equals((object)null);
+            bool result = nodeDesign.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -463,10 +463,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const string parentId = "Parent";
-            const string childName = null;
+            const string? childName = null;
 
             // Act
-            string result = NodeDesign.CreateSymbolicId(parentId, childName);
+            string result = NodeDesign.CreateSymbolicId(parentId, childName!);
 
             // Assert
             Assert.That(result, Is.EqualTo(parentId));
@@ -496,11 +496,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void CreateSymbolicId_ParentIdNull_ReturnsChildName()
         {
             // Arrange
-            const string parentId = null;
+            const string? parentId = null;
             const string childName = "Child";
 
             // Act
-            string result = NodeDesign.CreateSymbolicId(parentId, childName);
+            string result = NodeDesign.CreateSymbolicId(parentId!, childName);
 
             // Assert
             Assert.That(result, Is.EqualTo(childName));
@@ -530,11 +530,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void CreateSymbolicId_BothNull_ReturnsNull()
         {
             // Arrange
-            const string parentId = null;
-            const string childName = null;
+            const string? parentId = null;
+            const string? childName = null;
 
             // Act
-            string result = NodeDesign.CreateSymbolicId(parentId, childName);
+            string result = NodeDesign.CreateSymbolicId(parentId!, childName!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -616,10 +616,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const string parentId = "   ";
-            const string childName = null;
+            const string? childName = null;
 
             // Act
-            string result = NodeDesign.CreateSymbolicId(parentId, childName);
+            string result = NodeDesign.CreateSymbolicId(parentId, childName!);
 
             // Assert
             Assert.That(result, Is.EqualTo(parentId));
@@ -733,11 +733,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void CreateSymbolicId_ParentIdNullChildNameEmpty_ReturnsNull()
         {
             // Arrange
-            const string parentId = null;
+            const string? parentId = null;
             const string childName = "";
 
             // Act
-            string result = NodeDesign.CreateSymbolicId(parentId, childName);
+            string result = NodeDesign.CreateSymbolicId(parentId!, childName);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -806,7 +806,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var nodeDesign = new NodeDesign();
 
             // Act
-            string result = nodeDesign.ToString(null, null);
+            string result = nodeDesign.ToString(null!, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("NodeDesign"));
@@ -825,7 +825,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, null);
+            string result = nodeDesign.ToString(null!, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("MyNode"));
@@ -844,7 +844,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, null);
+            string result = nodeDesign.ToString(null!, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -863,7 +863,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, CultureInfo.InvariantCulture);
+            string result = nodeDesign.ToString(null!, CultureInfo.InvariantCulture);
 
             // Assert
             Assert.That(result, Is.EqualTo("TestNode"));
@@ -882,7 +882,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, CultureInfo.GetCultureInfo("en-US"));
+            string result = nodeDesign.ToString(null!, CultureInfo.GetCultureInfo("en-US"));
 
             // Assert
             Assert.That(result, Is.EqualTo("TestNode"));
@@ -898,7 +898,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var nodeDesign = new NodeDesign();
 
             // Act & Assert
-            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(string.Empty, null));
+            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(string.Empty, null!));
             Assert.That(ex.Message, Does.Contain("Invalid format string"));
             Assert.That(ex.Message, Does.Contain("''"));
         }
@@ -922,7 +922,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act & Assert
-            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(format, null));
+            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(format, null!));
             Assert.That(ex.Message, Does.Contain("Invalid format string"));
             Assert.That(ex.Message, Does.Contain(format));
         }
@@ -940,7 +940,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var nodeDesign = new NodeDesign();
 
             // Act & Assert
-            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(format, null));
+            FormatException ex = Assert.Throws<FormatException>(() => nodeDesign.ToString(format, null!));
             Assert.That(ex.Message, Does.Contain("Invalid format string"));
         }
 
@@ -975,7 +975,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, null);
+            string result = nodeDesign.ToString(null!, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo(name));
@@ -995,7 +995,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = nodeDesign.ToString(null, null);
+            string result = nodeDesign.ToString(null!, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo(longName));
@@ -1011,13 +1011,13 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("ChildNode", ExpectedResult = "ChildNode")]
         [TestCase("   ", ExpectedResult = "   ")]
         [TestCase("Child_With_Underscores", ExpectedResult = "Child_With_Underscores")]
-        public string CreateSymbolicId_NullParentId_ReturnsChildName(string childName)
+        public string? CreateSymbolicId_NullParentId_ReturnsChildName(string? childName)
         {
             // Arrange
-            XmlQualifiedName parentId = null;
+            XmlQualifiedName? parentId = null;
 
             // Act
-            return NodeDesign.CreateSymbolicId(parentId, childName);
+            return NodeDesign.CreateSymbolicId(parentId!, childName!);
         }
 
         /// <summary>
@@ -1028,13 +1028,13 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("ParentNode", "", ExpectedResult = "ParentNode")]
         [TestCase("", null, ExpectedResult = "")]
         [TestCase("", "", ExpectedResult = "")]
-        public string CreateSymbolicId_NonNullParentId_NullOrEmptyChildName_ReturnsParentName(string parentName, string childName)
+        public string CreateSymbolicId_NonNullParentId_NullOrEmptyChildName_ReturnsParentName(string parentName, string? childName)
         {
             // Arrange
             var parentId = new XmlQualifiedName(parentName);
 
             // Act
-            return NodeDesign.CreateSymbolicId(parentId, childName);
+            return NodeDesign.CreateSymbolicId(parentId, childName!);
         }
 
         /// <summary>
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         [TestCase(null, "ChildNode", ExpectedResult = "ChildNode")]
         [TestCase("", "ChildNode", ExpectedResult = "ChildNode")]
-        public string CreateSymbolicId_NullOrEmptyParentName_NonEmptyChildName_ReturnsChildName(string parentName, string childName)
+        public string CreateSymbolicId_NullOrEmptyParentName_NonEmptyChildName_ReturnsChildName(string? parentName, string childName)
         {
             // Arrange
             var parentId = new XmlQualifiedName(parentName ?? string.Empty);
@@ -2063,7 +2063,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = node.Equals(null);
+            bool result = node.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert

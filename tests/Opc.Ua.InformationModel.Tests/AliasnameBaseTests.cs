@@ -318,7 +318,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
-            string[] names = [.. records.Select(r => r.AliasName.Name)];
+            string[] names = [.. records.Select(r => r.AliasName.Name)!];
             Assert.That(names, Does.Not.Contain("Pump1_Status"));
             Assert.That(names, Contains.Item("TIC101_Setpoint"));
             Assert.That(names, Contains.Item("TIC101_PV"));

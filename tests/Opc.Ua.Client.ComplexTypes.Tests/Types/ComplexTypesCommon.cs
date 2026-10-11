@@ -105,14 +105,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             public StructureFieldParameter(StructureField structureField)
             {
-                Name = structureField.Name;
+                Name = structureField.Name!;
                 BuiltInType = TypeInfo.GetBuiltInType(structureField.DataType);
             }
 
-            public string Name { get; set; }
+            public string Name { get; set; } = null!;
             public BuiltInType BuiltInType { get; set; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return Name;
             }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             StructureType structureType,
             string testFunc)
         {
-            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out _);
+            return BuildComplexTypeWithAllBuiltInTypes(null!, structureType, testFunc, out _);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             int i = 1;
             foreach (StructureField field in complexTypeStructure.Fields)
             {
-                IType fieldType = TypeInfo.GetSystemType(field.DataType, null);
+                IType fieldType = TypeInfo.GetSystemType(field.DataType, null!)!;
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
                 fieldBuilder.AddField(field, fieldType, i++, false);
             }

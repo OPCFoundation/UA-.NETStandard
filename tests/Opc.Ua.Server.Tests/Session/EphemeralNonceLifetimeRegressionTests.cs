@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: the test harness owns or immediately tears down the disposable cryptographic helpers.
 #pragma warning disable CA2000
 using System;
@@ -584,8 +582,8 @@ namespace Opc.Ua.Server.Tests
                     beforeSignature?.Invoke(this);
                     ClientSignature = SecurityPolicies.Default.CreateSignatureData(
                         policy, ClientCertificate, policy.GetClientSignatureData(
-                            channel.ChannelThumbprint, ServerNonce.Data, ServerCertificate.RawData,
-                            channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data));
+                            channel.ChannelThumbprint.ToArrayOrNull(), ServerNonce.Data, ServerCertificate.RawData,
+                            channel.ServerChannelCertificate.ToArrayOrNull(), channel.ClientChannelCertificate.ToArrayOrNull(), clientNonce.Data));
                 }
                 catch
                 {
@@ -753,6 +751,19 @@ namespace Opc.Ua.Server.Tests
             {
                 WaitForRelease();
                 return inner.DeriveRawSecretAgreement(otherPartyPublicKey);
+            }
+#else
+            /// <summary>
+            /// Waits for the borrower's release gate before the raw-agreement
+            /// polyfill reads the retained private key.
+            /// </summary>
+            public override ECParameters ExportParameters(bool includePrivateParameters)
+            {
+                if (includePrivateParameters)
+                {
+                    WaitForRelease();
+                }
+                return inner.ExportParameters(includePrivateParameters);
             }
 #endif
 

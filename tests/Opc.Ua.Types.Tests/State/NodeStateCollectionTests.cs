@@ -238,11 +238,11 @@ namespace Opc.Ua.Types.Tests.State
             stream.Position = 0;
             var nodeSet = Export.UANodeSet.Read(stream);
 
-            Assert.That(nodeSet.Models, Is.Not.Null, "<Models> element must be present");
+            Assert.That(nodeSet!.Models, Is.Not.Null, "<Models> element must be present");
             Assert.That(nodeSet.Models, Is.Not.Empty, "<Models> must contain at least one <Model>");
 
             Export.ModelTableEntry customModel =
-                Array.Find(nodeSet.Models, m => m.ModelUri == ApplicationUri);
+                Array.Find(nodeSet.Models, m => m.ModelUri == ApplicationUri)!;
             Assert.That(customModel, Is.Not.Null, "Expected a <Model> for the custom namespace");
             Assert.That(customModel.Version, Is.Not.Null.And.Not.Empty);
             Assert.That(customModel.PublicationDateSpecified, Is.True);
@@ -283,8 +283,8 @@ namespace Opc.Ua.Types.Tests.State
 
             using var stream = new MemoryStream(
                 System.Text.Encoding.UTF8.GetBytes(nodeSetXml));
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
-            Assert.That(nodeSet.Items, Is.Not.Null.And.Not.Empty,
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream)!;
+            Assert.That(nodeSet!.Items, Is.Not.Null.And.Not.Empty,
                 "The fixture NodeSet must parse into at least one node.");
             var imported = new NodeStateCollection();
 

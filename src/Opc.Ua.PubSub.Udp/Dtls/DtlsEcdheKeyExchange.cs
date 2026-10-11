@@ -29,6 +29,9 @@
 
 using System;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using Opc.Ua.Security.Certificates.BouncyCastle;
+#endif
 
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
@@ -68,17 +71,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         /// <remarks>
         /// Extracting the raw ECDHE shared secret requires
-        /// <c>ECDiffieHellman.DeriveRawSecretAgreement</c>, which is only
-        /// available on .NET 8 or later. When the assembly is compiled for an
-        /// older target framework (<c>net48</c>) this probe
-        /// returns <see langword="false"/>.
+        /// <c>ECDiffieHellman.DeriveRawSecretAgreement</c>, a .NET 8 API. The
+        /// .NET Framework build computes it with the BouncyCastle polyfill in
+        /// <c>Opc.Ua.Security.Certificates</c> instead, so this is always
+        /// <see langword="true"/>.
         /// </remarks>
         public static bool IsRawSharedSecretSupported =>
-#if NET8_0_OR_GREATER
             true;
-#else
-            false;
-#endif
 
         /// <summary>
         /// Encoded ephemeral public key share sent to the peer.
@@ -100,11 +99,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             try
             {
                 using var peer = ECDiffieHellman.Create(peerParameters);
-#if NET8_0_OR_GREATER
                 return m_ecdh.DeriveRawSecretAgreement(peer.PublicKey);
-#else
-                throw new NotSupportedException("Raw ECDHE shared-secret extraction requires .NET 8 or later.");
-#endif
             }
             finally
             {

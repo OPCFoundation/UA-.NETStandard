@@ -182,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var held = new Handler();
             var peer = new Handler();
             var endpoint = new TestEndpoint(server, held, peer);
-            Task<IServiceResponse> blocker = null;
+            Task<IServiceResponse>? blocker = null;
             try
             {
                 if (queued)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 }
                 Task<IServiceResponse> response = endpoint.SendAsync(
                     new CallRequest(), cancellationToken: cancellation.Token);
-                IRequestParkSink sink = null;
+                IRequestParkSink? sink = null;
                 if (!queued)
                 {
                     sink = await held.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 sink.NotifyParked();
                 await provider.WaitForReleaseAsync(ResourceIsolationStage.RequestExecution, 1, deadline.Token)
                     .ConfigureAwait(false);
-                Task stopping = null;
+                Task? stopping = null;
                 if (stop)
                 {
                     stopping = server.StopAsync(deadline.Token).AsTask();
@@ -372,10 +372,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         {
             var provider = new TrackingProvider();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            IRequestParkingPolicy policy = installPolicy
+            IRequestParkingPolicy policy = (installPolicy
                 ? new DelegateRequestParkingPolicy(_ => !decouple)
-                : null;
-            await using var server = new QueueServer(provider, decouple, policy);
+                : null)!;
+            await using var server = new QueueServer(provider, decouple, policy!);
             var held = new Handler();
             var peer = new Handler();
             var endpoint = new TestEndpoint(server, held, peer);
@@ -411,10 +411,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         {
             var provider = new TrackingProvider();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            IRequestParkingPolicy policy = installPolicy
+            IRequestParkingPolicy policy = (installPolicy
                 ? new DelegateRequestParkingPolicy(static _ => throw new InvalidOperationException("Not for Publish."))
-                : null;
-            await using var server = new QueueServer(provider, policy: policy);
+                : null)!;
+            await using var server = new QueueServer(provider, policy: policy!);
             var held = new Handler();
             var endpoint = new TestEndpoint(server, held, new Handler());
             Task<IServiceResponse> response = endpoint.SendAsync(new PublishRequest());
@@ -503,10 +503,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public void DelegatePolicyRejectsNullAndSelectsByRequestContents()
         {
-            Assert.That(() => new DelegateRequestParkingPolicy(null), Throws.ArgumentNullException);
+            Assert.That(() => new DelegateRequestParkingPolicy(null!), Throws.ArgumentNullException);
             var policy = new DelegateRequestParkingPolicy(
                 request => request.TypeId == DataTypeIds.CallRequest && request.RequestHeader.RequestHandle == 42);
-            Assert.That(() => policy.CanPark(null), Throws.ArgumentNullException);
+            Assert.That(() => policy.CanPark(null!), Throws.ArgumentNullException);
             Assert.That(policy.CanPark(new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 42 } }),
                 Is.False);
             Assert.That(policy.CanPark(new CallRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } }),
@@ -644,7 +644,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 using CancellationTokenRegistration registration = lifetime.CancellationToken.Register(
                     () => Cancelled.TrySetResult(true));
-                Started.TrySetResult(lifetime.ParkSink);
+                Started.TrySetResult(lifetime.ParkSink!);
                 await m_release.Task.WaitAsync(
                     ObserveCancellation ? lifetime.CancellationToken : CancellationToken.None)
                     .ConfigureAwait(false);
@@ -674,7 +674,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public QueueServer(
                 TrackingProvider provider,
                 bool decouple = true,
-                IRequestParkingPolicy policy = null)
+                IRequestParkingPolicy? policy = null)
                 : base(NUnitTelemetryContext.Create(), null, policy)
             {
                 m_context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
@@ -738,7 +738,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 OperationCompleted(new CallResponse(), ServiceResult.Good);
             }
 
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 Interlocked.Increment(ref m_completionCount);
                 Completed.TrySetResult(error.StatusCode);
@@ -792,9 +792,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 }
             }
 
-            public event Action<ResourceIsolationStage> CapacityAvailable;
+            public event Action<ResourceIsolationStage>? CapacityAvailable;
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 return m_held;
             }
@@ -829,7 +829,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 {
                     if (amount > m_capacity[(int)stage] - m_used[(int)stage])
                     {
-                        lease = null;
+                        lease = null!;
                         failure = new ResourceIsolationFailure(ResourceIsolationFailureReason.Capacity, TimeSpan.Zero);
                         return false;
                     }

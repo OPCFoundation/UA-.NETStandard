@@ -87,12 +87,12 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 m_gdsClient.Dispose();
-                m_gdsClient = null;
+                m_gdsClient = null!;
             }
             if (m_server != null)
             {
                 await m_server.DisposeAsync().ConfigureAwait(false);
-                m_server = null;
+                m_server = null!;
             }
         }
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.Gds.Tests
 #pragma warning disable IDE0007 // Use implicit type
                 NodeId defaultGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
-                    m_gdsClient.GDSClient.Session.NamespaceUris);
+                    m_gdsClient.GDSClient.Session!.NamespaceUris);
 #pragma warning restore IDE0007 // Use implicit type
 
                 // Verify the custom group NodeId is among the returned groups

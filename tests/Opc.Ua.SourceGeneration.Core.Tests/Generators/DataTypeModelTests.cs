@@ -76,12 +76,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void StructureDefinitionIncludesFieldsInheritedThroughFieldlessType()
         {
             StructureDefinition midB = CreateDefinition<StructureDefinition>("MidB");
-            Assert.That(midB.Fields.ToArray().Select(f => f.Name), Is.EqualTo(s_midBFields));
+            Assert.That(midB.Fields.ToArray()!.Select(f => f.Name), Is.EqualTo(s_midBFields));
             Assert.That(midB.FirstExplicitFieldIndex, Is.EqualTo(1));
 
             StructureDefinition leafC = CreateDefinition<StructureDefinition>("LeafC");
             Assert.That(
-                leafC.Fields.ToArray().Select(f => f.Name),
+                leafC.Fields.ToArray()!.Select(f => f.Name),
                 Is.EqualTo(s_leafCFields));
             Assert.That(leafC.FirstExplicitFieldIndex, Is.EqualTo(1));
         }
@@ -157,7 +157,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             object first = Rent("WithDefaults");
             Set(first, "Level", 0);
-            Set(first, "Child", null);
+            Set(first, "Child", null!);
             Set(first, "Note", "x");
             Set(first, "EncodingMask", 1u);
             ((IPooledEncodeable)first).Reuse();
@@ -198,12 +198,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ReuseThroughBaseReferenceReturnsToRuntimeTypePool()
         {
             object derived = Rent("FromConcrete");
-            Type baseType = m_assembly.GetType("Test.DT.WithDefaults", throwOnError: true);
-            Assert.That(derived, Is.InstanceOf(baseType));
+            Type baseType = m_assembly.GetType("Test.DT.WithDefaults", throwOnError: true)!;
+            Assert.That(derived, Is.InstanceOf(baseType!));
 
             // A non-virtual call of the base Reuse(), as C# emits it for
             // ((WithDefaults)derived).Reuse().
-            baseType.GetMethod("Reuse", Type.EmptyTypes).Invoke(derived, null);
+            baseType.GetMethod("Reuse", Type.EmptyTypes)!.Invoke(derived, null);
 
             object rentedBase = Rent("WithDefaults");
             Assert.That(rentedBase, Is.Not.SameAs(derived));
@@ -221,7 +221,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             EnumDefinition flags = CreateDefinition<EnumDefinition>("Flags64");
             Assert.That(
-                flags.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                flags.Fields.ToArray()!.Select(f => (f.Name, f.Value)),
                 Is.EqualTo(new[] { ("Low", 0L), ("Top", 63L) }));
         }
 
@@ -315,38 +315,38 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Select(t => t.GetMethod(
                     "Create" + typeName,
                     BindingFlags.Public | BindingFlags.Static))
-                .First(m => m != null);
+                .First(m => m != null)!;
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append(ModelUri);
-            return (T)create.Invoke(null, [namespaceUris]);
+            return (T)create!.Invoke(null, [namespaceUris])!;
         }
 
         private IEncodeable Create(string typeName, params (string Name, object Value)[] values)
         {
-            Type type = m_assembly.GetType("Test.DT." + typeName, throwOnError: true);
-            object instance = Activator.CreateInstance(type);
+            Type type = m_assembly.GetType("Test.DT." + typeName, throwOnError: true)!;
+            object instance = Activator.CreateInstance(type!)!;
             foreach ((string name, object value) in values)
             {
-                Set(instance, name, value);
+                Set(instance!, name, value);
             }
-            return (IEncodeable)instance;
+            return (IEncodeable)instance!;
         }
 
         private object Rent(string typeName)
         {
             Type activator = m_assembly.GetType(
                 "Test.DT." + typeName + "Activator",
-                throwOnError: true);
-            var instance = (IEncodeableType)activator
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
-            return instance.CreateInstance();
+                throwOnError: true)!;
+            var instance = (IEncodeableType)activator!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
+            return instance!.CreateInstance();
         }
 
         private static void Set(object instance, string name, object value)
         {
-            PropertyInfo property = instance.GetType().GetProperty(name);
-            if (property.PropertyType.IsEnum)
+            PropertyInfo property = instance.GetType().GetProperty(name)!;
+            if (property!.PropertyType.IsEnum)
             {
                 value = Enum.ToObject(property.PropertyType, value);
             }
@@ -355,7 +355,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static object Get(object instance, string name)
         {
-            return instance.GetType().GetProperty(name).GetValue(instance);
+            return instance.GetType().GetProperty(name)!.GetValue(instance)!;
         }
 
         internal static Dictionary<string, string> Generate(
@@ -389,15 +389,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         OmitEventRecords = omitEventRecords
                     },
                     useAllowSubtypes: false,
-                    identifierFiles: null,
-                    referencedModels: null,
-                    nodeManagerBindings: null,
-                    reportBindingDiagnostic: null,
-                    sharedUsedBindings: null,
+                    identifierFiles: null!,
+                    referencedModels: null!,
+                    nodeManagerBindings: null!,
+                    reportBindingDiagnostic: null!,
+                    sharedUsedBindings: null!,
                     bindingModelCount: 0,
-                    reportFluentAccessorsOnlyDiagnostic: null,
-                    referencedModelProviders: null,
-                    referencedAccessorProviders: null);
+                    reportFluentAccessorsOnlyDiagnostic: null!,
+                    referencedModelProviders: null!,
+                    referencedAccessorProviders: null!);
                 return fileSystem.CreatedFiles
                     .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
             }

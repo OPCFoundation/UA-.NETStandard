@@ -256,7 +256,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 GetIdentityCallCount++;
                 return new ValueTask<IUserIdentity>(new UserIdentity(DisplayName, "password"u8)
                 {
-                    PolicyId = policy.PolicyId
+                    PolicyId = policy.PolicyId!
                 });
             }
         }

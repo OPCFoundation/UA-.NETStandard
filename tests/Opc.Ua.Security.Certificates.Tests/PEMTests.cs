@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Remove leaf certificate from the collection
             Assert.That(
-                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile),
+                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[]? updatedFile),
                 Is.True);
 
             Assert.That(updatedFile, Is.Not.Null, "Updated PEM file should not be null.");
@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Is.True,
                 "PEM file should contain a private key.");
 
-            Certificate newCert = null;
+            Certificate? newCert = null;
             try
             {
                 using var leafCert = Certificate.FromRawData(leaf.RawData);

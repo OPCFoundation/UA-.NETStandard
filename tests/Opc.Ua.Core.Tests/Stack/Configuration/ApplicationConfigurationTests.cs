@@ -245,7 +245,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry)
             {
-                SecurityConfiguration = null
+                SecurityConfiguration = null!
             };
             Assert.That(config.SecurityConfiguration, Is.Not.Null);
         }

@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Tests
 {
     public sealed class ServerConfigurationPushTestClient : IDisposable
     {
-        public ServerPushConfigurationClient PushClient { get; private set; }
+        public ServerPushConfigurationClient PushClient { get; private set; } = null!;
         public static bool AutoAccept { get; set; }
 
         public ServerConfigurationPushTestClient(bool autoAccept, ITelemetryContext telemetry)
@@ -50,17 +50,17 @@ namespace Opc.Ua.Gds.Tests
             m_logger = telemetry.CreateLogger<ServerConfigurationPushTestClient>();
         }
 
-        public IUserIdentity AppUser { get; private set; }
-        public IUserIdentity SysAdminUser { get; private set; }
-        public string TempStorePath { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
-        public string EndpointUrl { get; private set; }
+        public IUserIdentity AppUser { get; private set; } = null!;
+        public IUserIdentity SysAdminUser { get; private set; } = null!;
+        public string TempStorePath { get; private set; } = null!;
+        public ApplicationConfiguration Config { get; private set; } = null!;
+        public string EndpointUrl { get; private set; } = null!;
 
         public void Dispose()
         {
             PushClient?.Dispose();
             m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            m_application = null;
+            m_application = null!;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests
             if (m_application != null)
             {
                 await m_application.DisposeAsync().ConfigureAwait(false);
-                m_application = null;
+                m_application = null!;
             }
             m_application = new ApplicationInstance(m_telemetry)
             {
@@ -141,11 +141,11 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateManager?.AcceptError = AcceptCertificate;
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
-                m_application.ApplicationConfiguration
-                    .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
+                m_application.ApplicationConfiguration!
+                    .ParseExtension<ServerConfigurationPushTestClientConfiguration>()!;
             PushClient = new ServerPushConfigurationClient(m_application.ApplicationConfiguration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                clientConfiguration.ServerUrl,
+                clientConfiguration!.ServerUrl,
                 port);
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
@@ -170,7 +170,7 @@ namespace Opc.Ua.Gds.Tests
             if (PushClient != null)
             {
                 ServerPushConfigurationClient pushClient = PushClient;
-                PushClient = null;
+                PushClient = null!;
                 try
                 {
                     await pushClient.DisconnectAsync().ConfigureAwait(false);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Gds.Tests
             ArrayOf<EndpointDescription> endpoints =
                 await discoveryClient.GetEndpointsAsync(default).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityPolicyUri == securityPolicyUri && ep.SecurityMode == securityMode)
@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Tests
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
 
-        private ApplicationInstance m_application;
+        private ApplicationInstance m_application = null!;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }
@@ -255,21 +255,21 @@ namespace Opc.Ua.Gds.Tests
     public partial class ServerConfigurationPushTestClientConfiguration
     {
         [DataTypeField(Order = 1)]
-        public string ServerUrl { get; set; }
+        public string ServerUrl { get; set; } = null!;
 
         [DataTypeField(Order = 2)]
-        public string AppUserName { get; set; }
+        public string AppUserName { get; set; } = null!;
 
         [DataTypeField(Order = 3)]
-        public string AppPassword { get; set; }
+        public string AppPassword { get; set; } = null!;
 
         [DataTypeField(Order = 4)]
-        public string SysAdminUserName { get; set; }
+        public string SysAdminUserName { get; set; } = null!;
 
         [DataTypeField(Order = 5)]
-        public string SysAdminPassword { get; set; }
+        public string SysAdminPassword { get; set; } = null!;
 
         [DataTypeField(Order = 6)]
-        public string TempStorePath { get; set; }
+        public string TempStorePath { get; set; } = null!;
     }
 }

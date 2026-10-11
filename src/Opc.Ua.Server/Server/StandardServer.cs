@@ -751,9 +751,8 @@ namespace Opc.Ua.Server
                             {
                                 string? profile = context.ChannelContext.EndpointDescription!.TransportProfileUri;
                                 if (profile is Profiles.UaTcpTransport or Profiles.UaWssTransport &&
-                                    !Utils.IsEqual(
-                                        parsedClientCertificate!.RawData,
-                                        context.ChannelContext.ClientChannelCertificate))
+                                    !context.ChannelContext.ClientChannelCertificate.Span.SequenceEqual(
+                                        parsedClientCertificate!.RawData))
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadSecurityChecksFailed,

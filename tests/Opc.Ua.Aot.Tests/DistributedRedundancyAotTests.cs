@@ -37,8 +37,6 @@ using Opc.Ua.Server;
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007
 
-#nullable enable
-
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

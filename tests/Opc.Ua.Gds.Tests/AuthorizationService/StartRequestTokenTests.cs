@@ -102,10 +102,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(tokenResult.RefreshToken, Is.Not.Null.And.Not.Empty);
             Assert.That(tokenResult.RefreshTokenExpiryTime, Is.GreaterThan(DateTime.UtcNow));
 
-            ECDsa verifier = certificate.GetECDsaPublicKey();
+            ECDsa verifier = certificate.GetECDsaPublicKey()!;
             using var resolver = new StaticIssuerKeyResolver(
                 Issuer,
-                [new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256")]);
+                [new IssuerVerificationKey(certificate.Thumbprint, verifier!, "ES256")]);
             AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
                 .AuthenticateAsync(CreateContext(tokenResult.AccessToken))
                 .ConfigureAwait(false);
@@ -471,10 +471,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
         private static async Task<IIdentityClaims> AuthenticateAsync(Certificate certificate, string jwt)
         {
-            ECDsa verifier = certificate.GetECDsaPublicKey();
+            ECDsa verifier = certificate.GetECDsaPublicKey()!;
             using var resolver = new StaticIssuerKeyResolver(
                 Issuer,
-                [new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256")]);
+                [new IssuerVerificationKey(certificate.Thumbprint, verifier!, "ES256")]);
             AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
                 .AuthenticateAsync(CreateContext(jwt))
                 .ConfigureAwait(false);

@@ -34,6 +34,15 @@
   <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <DefineConstants>$(DefineConstants);HAS_KESTREL_TCP_LISTENER</DefineConstants>
   </PropertyGroup>
+  <!-- The net48 AEAD polyfill is compiled into the tests on .NET 8+ as well,
+       so AeadPolyfillTests can cross-check it against the BCL ciphers. -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="BouncyCastle.Cryptography" />
+    <Compile Include="..\..\src\Opc.Ua.Security.Certificates\Org.BouncyCastle\AeadCiphers.cs" Link="Security\Crypto\AeadCiphers.cs" />
+  </ItemGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <DefineConstants>$(DefineConstants);AEAD_POLYFILL_CROSSCHECK</DefineConstants>
+  </PropertyGroup>
   <ItemGroup Condition="'$(SignAssembly)' != 'true'">
     <PackageReference Include="EmbedIO" />
   </ItemGroup>

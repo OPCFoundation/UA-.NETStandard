@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;

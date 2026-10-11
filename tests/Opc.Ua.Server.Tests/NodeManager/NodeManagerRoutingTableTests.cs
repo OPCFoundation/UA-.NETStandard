@@ -340,15 +340,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     int namespaceIndex = ConcurrentNamespaceIndexes[0];
                     bool hasRoute = namespaceRoutes.TryGetValue(
                         namespaceIndex,
-                        out IReadOnlyList<IAsyncNodeManager> route);
+                        out IReadOnlyList<IAsyncNodeManager>? route);
                     if (!hasRoute ||
-                        route.Count != 1 ||
+                        route!.Count != 1 ||
                         (!ReferenceEquals(route[0], generationA) &&
                             !ReferenceEquals(route[0], generationB)))
                     {
                         namespaceSnapshotFailures.Add(
                             $"iteration {iteration}: hasRoute {hasRoute}, " +
-                            $"count {(hasRoute ? route.Count : -1)}");
+                            $"count {(hasRoute ? route!.Count : -1)}");
                     }
 
                     Thread.Yield();

@@ -32,8 +32,6 @@ using System.Globalization;
 using System.IO;
 using Opc.Ua.Tests;
 
-#nullable enable
-
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
     /// <summary>

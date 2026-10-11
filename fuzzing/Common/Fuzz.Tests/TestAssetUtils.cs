@@ -94,7 +94,7 @@ namespace Opc.Ua.Tests
     {
         public static string[] EnumerateTestAssets(string folder, string searchPattern)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false)!;
             if (assetsPath != null)
             {
                 return [.. Directory.EnumerateFiles(assetsPath, searchPattern, SearchOption.AllDirectories)];
@@ -104,7 +104,7 @@ namespace Opc.Ua.Tests
 
         public static string[] DiscoverTestcaseEncoderSuffixes(string folder)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string? assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             if (assetsPath == null)
             {
                 return [];
@@ -126,7 +126,7 @@ namespace Opc.Ua.Tests
 
             if (string.Equals(rootName, "Testcases", StringComparison.OrdinalIgnoreCase))
             {
-                string parent = Path.GetDirectoryName(testcasesRoot);
+                string parent = Path.GetDirectoryName(testcasesRoot)!;
                 if (parent != null)
                 {
                     sourceDirectories = sourceDirectories.Concat(

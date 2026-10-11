@@ -77,8 +77,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             byte[] original = [1, 2, 3];
             var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, original);
 
-            byte[] firstCopy = handler.DecryptedTokenData;
-            firstCopy[0] = 99;
+            byte[] firstCopy = handler.DecryptedTokenData!;
+            firstCopy![0] = 99;
             handler.DecryptedTokenData = [4, 5];
 
             Assert.That(handler.DecryptedTokenData, Is.EqualTo(new byte[] { 4, 5 }));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [0x10, 0x20, 0x30]);
             IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
 
-            await handler.EncryptAsync(null, [], SecurityPolicies.None, context).ConfigureAwait(false);
+            await handler.EncryptAsync(null!, [], SecurityPolicies.None, context).ConfigureAwait(false);
             Assert.That(((IssuedIdentityToken)handler.Token).EncryptionAlgorithm, Is.EqualTo(string.Empty));
             Assert.That(((IssuedIdentityToken)handler.Token).TokenData.ToArray(), Is.EqualTo(new byte[] { 0x10, 0x20, 0x30 }));
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 TokenData = new byte[] { 0x10, 0x20, 0x30 }.ToByteString()
             };
             handler = new IssuedIdentityTokenHandler(encryptedToken);
-            await handler.DecryptAsync(null, null, SecurityPolicies.None, context).ConfigureAwait(false);
+            await handler.DecryptAsync(null!, null!, SecurityPolicies.None, context).ConfigureAwait(false);
 
             Assert.That(handler.DecryptedTokenData, Is.EqualTo(new byte[] { 0x10, 0x20, 0x30 }));
         }
@@ -114,13 +114,13 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             [Values] bool rsaDh)
         {
             string policyUri = rsaDh ? SecurityPolicies.RSA_DH_AesGcm : SecurityPolicies.ECC_nistP256;
-            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri);
+            SecurityPolicyInfo? policy = SecurityPolicies.Default.GetInfo(policyUri);
             IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             if (policy == null)
             {
                 var unsupported = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1, 2, 3]);
                 ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await unsupported.EncryptAsync(null, [], policyUri, context).ConfigureAwait(false));
+                    async () => await unsupported.EncryptAsync(null!, [], policyUri, context).ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
                 return;
             }
@@ -155,8 +155,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 await handler.EncryptAsync(
                     receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false);
                 using var decryptor = EncryptedSecret.CreateForEcc(
-                    context, policyUri, chain, receiver, receiverKey, sender, null);
-                (bool success, byte[] secret) = await decryptor.TryDecryptAsync(
+                    context, policyUri, chain, receiver, receiverKey, sender, null!);
+                (bool success, byte[]? secret) = await decryptor.TryDecryptAsync(
                     ((IssuedIdentityToken)handler.Token).TokenData.ToArray(), nonce).ConfigureAwait(false);
                 Assert.That(success, Is.True);
                 Assert.That(secret, Is.EqualTo(expected));
@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(chain[1].Thumbprint, Is.EqualTo(issuer.Thumbprint));
             chain.Dispose();
             issuer.Dispose();
-            byte[] retainedSecret = temporarySenderKey.GenerateSecret(receiverKey, null);
+            byte[] retainedSecret = temporarySenderKey.GenerateSecret(receiverKey, null)!;
             try
             {
                 Assert.Multiple(() =>

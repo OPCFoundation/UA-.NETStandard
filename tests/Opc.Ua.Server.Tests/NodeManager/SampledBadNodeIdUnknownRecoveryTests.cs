@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new() { NodeId = nodeId, AttributeId = Attributes.Value }
             };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.ReadAsync(
                 new OperationContext(
@@ -212,12 +212,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (!IsNodeIdInNamespace(nodeId) || nodeId != UnresolvableNodeId)
                 {
-                    return null;
+                    return null!;
                 }
 
                 // Report an unvalidated handle so the read has to resolve the node,
                 // exactly like a NodeManager that serves component paths.
-                return new NodeHandle { NodeId = nodeId, Node = null, Validated = false };
+                return new NodeHandle { NodeId = nodeId, Node = null!, Validated = false };
             }
 
             protected override NodeState ValidateNode(
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (!NodeIsResolvable)
                 {
-                    return null;
+                    return null!;
                 }
 
                 handle.Node = m_node;

@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     [Method.NodeId] = Method
                 };
                 Builder = new NodeManagerBuilder(Context, FluentTestNodeManager.Create(factory), 1,
-                    _ => Root, id => nodes.TryGetValue(id, out NodeState node) ? node : null, _ => []);
+                    _ => Root, id => (nodes.TryGetValue(id, out NodeState? node) ? node : null)!, _ => []);
             }
 
             /// <summary>

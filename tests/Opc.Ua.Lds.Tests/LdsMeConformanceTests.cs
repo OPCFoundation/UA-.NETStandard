@@ -338,7 +338,7 @@ namespace Opc.Ua.Lds.Tests
         private async Task<(ArrayOf<ServerOnNetwork>, DateTime)> FindServersOnNetworkAsync(
             uint startingRecordId = 0,
             uint maxRecords = 0,
-            IList<string> serverCapabilityFilter = null)
+            IList<string>? serverCapabilityFilter = null)
         {
             using DiscoveryClient discovery = await CreateDiscoveryClientAsync().ConfigureAwait(false);
             ArrayOf<string> filter = serverCapabilityFilter != null
@@ -384,7 +384,7 @@ namespace Opc.Ua.Lds.Tests
                     return r;
                 }
             }
-            return null;
+            return null!;
         }
 
         private static int NumRecordsForUri(ArrayOf<ServerOnNetwork> records, string serverUri)

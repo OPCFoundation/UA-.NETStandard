@@ -5,7 +5,6 @@
     <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
     <PublishAot>true</PublishAot>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
     <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
          warnings from third-party packages that are not trim/AOT-analysis-clean
          (e.g. the default Dekaf and opt-in Confluent.Kafka clients). These are

@@ -135,9 +135,9 @@ namespace Opc.Ua.Core.Encoders.Tests
 
         public virtual void OneTimeTearDown()
         {
-            m_context = null;
-            m_telemetry = null;
-            m_bufferManager = null;
+            m_context = null!;
+            m_telemetry = null!;
+            m_bufferManager = null!;
         }
 
         /// <summary>
@@ -159,17 +159,17 @@ namespace Opc.Ua.Core.Encoders.Tests
         /// </summary>
         public virtual void GlobalCleanup()
         {
-            m_context = null;
-            m_telemetry = null;
-            m_bufferManager = null;
+            m_context = null!;
+            m_telemetry = null!;
+            m_bufferManager = null!;
         }
 
         protected NodeId m_nodeId = new(1234);
         protected ArrayOf<int> m_list;
         protected ArrayOf<DataValue> m_values;
-        protected ITelemetryContext m_telemetry;
-        protected IServiceMessageContext m_context;
-        protected BufferManager m_bufferManager;
+        protected ITelemetryContext m_telemetry = null!;
+        protected IServiceMessageContext m_context = null!;
+        protected BufferManager m_bufferManager = null!;
     }
 
 #if NET6_0_OR_GREATER

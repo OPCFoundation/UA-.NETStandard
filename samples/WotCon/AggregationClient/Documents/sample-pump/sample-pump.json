@@ -909,7 +909,7 @@
   },
   "links": [
     {
-      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1052",
+      "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Type",
       "rel": "ua:HasTypeDefinition"
     },
     {
@@ -1530,7 +1530,7 @@
           },
           {
             "referenceType": "HasTypeDefinition",
-            "target": "ns=2;i=1052"
+            "target": "ns=1;s=Pump1.Type"
           },
           {
             "isForward": false,
@@ -1570,20 +1570,12 @@
             "target": "ns=1;s=Pump1.SourceBReset"
           },
           {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump1.CavitationAlarm"
-          },
-          {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump1.CavitationAcknowledge"
           },
           {
             "referenceType": "HasComponent",
             "target": "ns=1;s=Pump1.CavitationConfirm"
-          },
-          {
-            "referenceType": "GeneratesEvent",
-            "target": "ns=1;s=Pump1.MotorOverheatAlarm"
           },
           {
             "referenceType": "HasComponent",
@@ -1594,7 +1586,7 @@
             "target": "ns=1;s=Pump1.MotorOverheatConfirm"
           }
         ],
-        "typeDefinition": "ns=2;i=1052"
+        "typeDefinition": "ns=1;s=Pump1.Type"
       },
       {
         "browseName": "1:SourceARunning",

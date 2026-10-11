@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var response = (BrowseResponse)decoded.Message;
             Assert.That(response.Results[0].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(42)));
             Assert.That(response.Results[0].References[0].TypeDefinition.ServerIndex, Is.Zero);
-            Assert.That(decoded.ServerUris.Count, Is.EqualTo(1));
+            Assert.That(decoded.ServerUris!.Count, Is.EqualTo(1));
             Assert.That(decoded.ServerUris.GetString(0), Is.Empty);
             Assert.That(destination.ServerUris.Count, Is.Zero, "Decoding must not invent a local application URI.");
         }
@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 response.Results[0].References[0].NodeId,
                 Is.EqualTo(new ExpandedNodeId(42).WithServerIndex(2)));
             Assert.That(response.Results[0].References[0].TypeDefinition.ServerIndex, Is.Zero);
-            Assert.That(decoded.ServerUris.Count, Is.EqualTo(2));
+            Assert.That(decoded.ServerUris!.Count, Is.EqualTo(2));
             Assert.That(decoded.ServerUris.GetString(0), Is.EqualTo("urn:destination"));
             Assert.That(decoded.ServerUris.GetString(1), Is.EqualTo("urn:remote"));
             Assert.That(destination.ServerUris.Count, Is.EqualTo(3));
@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 using var encoder = new BinaryEncoder(source);
                 message.Encode(encoder);
-                using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), destination);
+                using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, destination);
                 decoded.Decode(decoder);
             }
             return decoded;

@@ -395,7 +395,7 @@ queueSize: 2, discardOldest: true))
                 if (dcn != null && dcn.MonitoredItems.Count > 0)
                 {
                     // Check if any item has the Overflow bit set
-                    bool hasOverflow = dcn.MonitoredItems.ToArray()
+                    bool hasOverflow = dcn.MonitoredItems.ToArray()!
                         .Any(m => m.Value.StatusCode.Overflow);
                     // Overflow bit is optional per spec, so just log
                     Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0),
@@ -958,7 +958,7 @@ queueSize: 2, discardOldest: true))
                     DataChangeNotification;
                 if (dcn != null && dcn.MonitoredItems.Count > 0)
                 {
-                    bool hasOverflow = dcn.MonitoredItems.ToArray()
+                    bool hasOverflow = dcn.MonitoredItems.ToArray()!
                         .Any(m => m.Value.StatusCode.Overflow);
                     // Overflow bit is optional per spec
                     Assert.That(dcn.MonitoredItems.Count,

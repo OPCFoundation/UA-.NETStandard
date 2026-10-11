@@ -101,11 +101,11 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.LegacyReversibleOptions,
                 FuzzableCode.MessageContext);
 
-            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
-            ExtensionObject decodedHeader = decoded.RequestHeader.AdditionalHeader;
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true)!;
+            ExtensionObject decodedHeader = decoded!.RequestHeader.AdditionalHeader;
 
             Assert.That(
-                decodedHeader.TryGetValue(out IEncodeable materialized),
+                decodedHeader.TryGetValue(out IEncodeable? materialized),
                 Is.True,
                 "A registered TypeId must materialize a default instance.");
             Assert.That(materialized, Is.InstanceOf<ObjectAttributes>());
@@ -127,8 +127,8 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.MessageContext);
 
             var unregisteredDecoded =
-                (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(unregisteredJson, true);
-            ExtensionObject unregisteredHeader = unregisteredDecoded.RequestHeader.AdditionalHeader;
+                (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(unregisteredJson, true)!;
+            ExtensionObject unregisteredHeader = unregisteredDecoded!.RequestHeader.AdditionalHeader;
 
             Assert.That(
                 unregisteredHeader.Encoding,
@@ -165,13 +165,13 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.LegacyReversibleOptions,
                 FuzzableCode.MessageContext);
 
-            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true)!;
 
             Assert.That(
-                decoded.RequestHeader.AdditionalHeader.TryGetValue(out IEncodeable body),
+                decoded!.RequestHeader.AdditionalHeader.TryGetValue(out IEncodeable? body),
                 Is.True);
             Assert.That(body, Is.InstanceOf<ObjectAttributes>());
-            Assert.That(((ObjectAttributes)body).EventNotifier, Is.EqualTo(5));
+            Assert.That(((ObjectAttributes)body!).EventNotifier, Is.EqualTo(5));
             Assert.That(Utils.IsEqual(body, new ObjectAttributes()), Is.False);
         }
 
@@ -199,13 +199,13 @@ namespace Opc.Ua.Fuzzing
                     ServerNames =
                     [
                         LocalizedText.Null,
-                        new LocalizedText((string)null, (string)null),
+                        new LocalizedText((string)null!, (string)null!),
                         new LocalizedText("en", string.Empty),
                         new LocalizedText("de", "Server")
                     ],
                     ServerType = ApplicationType.ClientAndServer,
                     GatewayServerUri = string.Empty,
-                    DiscoveryUrls = [null, string.Empty, "opc.tcp://localhost:4840"],
+                    DiscoveryUrls = [null!, string.Empty, "opc.tcp://localhost:4840"],
                     SemaphoreFilePath = string.Empty,
                     IsOnline = true
                 });
@@ -294,7 +294,7 @@ namespace Opc.Ua.Fuzzing
                         DataType = NodeId.Null,
                         ValueRank = ValueRanks.Any,
                         ArrayDimensions = ArrayOf<uint>.Null,
-                        Description = new LocalizedText((string)null, (string)null)
+                        Description = new LocalizedText((string)null!, (string)null!)
                     })),
                     DataType = DataTypeIds.BaseDataType,
                     ValueRank = ValueRanks.OneDimension,

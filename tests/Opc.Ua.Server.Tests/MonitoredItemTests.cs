@@ -100,11 +100,11 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            MonitoredItemNotification publishResult = result.FirstOrDefault();
+            MonitoredItemNotification publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
-            DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+            DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
-                publishErrorResult.InnerStatusCode,
+                publishErrorResult!.InnerStatusCode,
                 Is.EqualTo(StatusCodes.Good));
         }
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId { NodeId = new NodeId("V", 1), AttributeId = Attributes.Value },
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            EventFieldList publishResult = result.FirstOrDefault();
+            EventFieldList publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
@@ -214,11 +214,11 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
             Assert.That(result, Is.Not.Empty);
-            MonitoredItemNotification publishResult = result.FirstOrDefault();
+            MonitoredItemNotification publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
-            DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+            DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
-                publishErrorResult.InnerStatusCode,
+                publishErrorResult!.InnerStatusCode,
                 Is.EqualTo(StatusCodes.Good));
         }
 
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -561,7 +561,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -640,7 +640,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -735,7 +735,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -784,7 +784,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 1,
-                discardOldest);
+                discardOldest)!;
             Assert.That(ServiceResult.IsGood(result), Is.True);
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
@@ -839,7 +839,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 2,
-                discardOldest: true);
+                discardOldest: true)!;
             Assert.That(ServiceResult.IsGood(result), Is.True);
             monitoredItem.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
             monitoredItem.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
@@ -911,7 +911,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -951,7 +951,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 10,
-                discardOldest: false);
+                discardOldest: false)!;
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(calculatorCalls, Is.EqualTo(2));
@@ -971,7 +971,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 10,
-                discardOldest: false);
+                discardOldest: false)!;
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(monitoredItem.Filter, Is.SameAs(originalDataFilter));
             Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.SameAs(effectiveDataFilter));
@@ -985,7 +985,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 10,
-                discardOldest: false);
+                discardOldest: false)!;
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(monitoredItem.Filter, Is.Null);
             Assert.That(monitoredItem.ToStorableMonitoredItem().FilterToUse, Is.Null);
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
             using var restored = new MonitoredItem(
                 serverMock.Object,
                 Mock.Of<IAsyncNodeManager>(),
-                null,
+                null!,
                 aggregateState);
             Assert.That(calculatorCalls, Is.EqualTo(3));
             Assert.That(restored.Filter, Is.SameAs(originalFilter));
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Server.Tests
             using var item = new MonitoredItem(
                 server.Object,
                 Mock.Of<IAsyncNodeManager>(),
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId { NodeId = new NodeId("V", 1), AttributeId = Attributes.Value },
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Server.Tests
                 PrimeInitialValue = true
             };
 
-            AggregationFilterHandler.Modification preparation = item.PrepareAggregateModification(proposed);
+            AggregationFilterHandler.Modification preparation = item.PrepareAggregateModification(proposed)!;
 
             Assert.That(preparation, Is.Not.Null);
             Assert.That(preparation.RequiresInitialValue, Is.True);
@@ -1131,7 +1131,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -1168,7 +1168,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 10,
-                discardOldest: false);
+                discardOldest: false)!;
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(calculatorCalls, Is.EqualTo(1));
@@ -1219,7 +1219,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.LastOrDefault();
+            EventFieldList publishResult = result.LastOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
@@ -1448,7 +1448,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault();
+            EventFieldList publishResult = result.LastOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
@@ -1461,7 +1461,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.FirstOrDefault();
+            EventFieldList publishResult2 = result2.FirstOrDefault()!;
             Assert.That(publishResult2, Is.Not.Null);
             Assert.That(publishResult2.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
@@ -1495,7 +1495,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.FirstOrDefault();
+            EventFieldList publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault();
+            EventFieldList publishResult = result.LastOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.LastOrDefault();
+            EventFieldList publishResult2 = result2.LastOrDefault()!;
             Assert.That(publishResult2, Is.Not.Null);
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
@@ -1560,7 +1560,7 @@ namespace Opc.Ua.Server.Tests
             using var monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 nodeManagerMock.Object,
-                managerHandle: null,
+                managerHandle: null!,
                 subscriptionId: 1,
                 id: 2,
                 itemToMonitor: new ReadValueId
@@ -1603,10 +1603,10 @@ namespace Opc.Ua.Server.Tests
                 new MonitoredItem(
                     serverMock.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    managerHandle: null,
+                    managerHandle: null!,
                     subscriptionId: 1,
                     id: 2,
-                    itemToMonitor: null,
+                    itemToMonitor: null!,
                     diagnosticsMasks: DiagnosticsMasks.All,
                     timestampsToReturn: TimestampsToReturn.Server,
                     monitoringMode: MonitoringMode.Reporting,
@@ -1641,7 +1641,7 @@ namespace Opc.Ua.Server.Tests
             return new MonitoredItem(
                 serverMock.Object,
                 nodeMangerMock.Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId(),
