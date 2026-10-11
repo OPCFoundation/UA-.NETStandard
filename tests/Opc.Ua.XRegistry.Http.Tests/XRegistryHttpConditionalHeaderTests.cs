@@ -110,7 +110,6 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 Assert.That(write.Header("xRegistry-score"), Is.EqualTo("17"));
                 Assert.That(write.Header("xRegistry-scores.large"), Is.EqualTo("18446744073709551616"));
                 Assert.That(write.Header("xRegistry-rank"), Is.EqualTo("2.5"));
-                Assert.That(write.Header("Accept-Encoding"), Is.EqualTo("gzip, deflate"));
                 Assert.That(write.Body, Is.EqualTo(new byte[] { 0x41 }));
             });
         }

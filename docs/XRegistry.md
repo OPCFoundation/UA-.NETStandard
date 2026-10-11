@@ -597,18 +597,13 @@ injection use the same implementation. Native models are source-generated;
 registry JSON is not OPC UA Part 6 JSON.
 
 On net8.0 and later, the HTTP binding consumes the published
-`XRegistry` and `XRegistry.Client` NuGet packages (`0.1.0-alpha.2`). The shared
-Core package compiles Core-valid models and provides the model-driven Document
-metadata codec. The client package supplies bounded, single-dispatch HTTP
-transport for model-defined entity operations and preserves the injected
-`HttpClient` credential pipeline. The UA adapter still owns the xRegistry-to-UA
-protocol projection, contextual authorization, prepared native transaction
-boundary, gateway route policy and compatibility handling. Well-known routes
-and historical/experimental model forms outside the Core compiler grammar
-continue through the stack's HTTP compatibility path. The package ASP.NET host
-is not yet used: its request lifetime and backend shape do not yet preserve the
-UA gateway's caller-lease, audit, timeout and compatibility guarantees. This
-staged integration is not a conformance claim.
+`XRegistry` NuGet package (`0.1.0-alpha.2`) for Core model compilation and
+model-driven Document metadata header encoding/decoding. The bridge still owns
+its caller-contextual HTTP transport, OPC UA-specific transaction boundary,
+native projection and synchronization. The existing compatibility codec remains
+active for historical or experimental model documents that are outside the
+published Core model grammar. This is a staged package integration, not a
+replacement of the generic server engine or evidence of conformance.
 
 ### Choose a mode
 
