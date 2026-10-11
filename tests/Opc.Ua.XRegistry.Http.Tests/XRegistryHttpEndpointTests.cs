@@ -617,6 +617,36 @@ namespace Opc.Ua.XRegistry.Http.Tests
             Assert.That(handler.Requests, Has.Count.EqualTo(1));
         }
 
+        [Test]
+        public async Task PublishedClientPathRejectsRedirectedFinalUriBeforeReturningResponse()
+        {
+            using var handler = new RecordingHttpHandler(message =>
+            {
+                if (message.RequestUri!.AbsolutePath == "/registry/model")
+                {
+                    return HttpTestData.JsonResponse(HttpTestData.Model);
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    RequestMessage = new HttpRequestMessage(HttpMethod.Get,
+                        "https://foreign.example/redirected"),
+                    Content = new StringContent("""{"schemaid":"r"}""", Encoding.UTF8, "application/json")
+                };
+            });
+            using var client = new HttpClient(handler);
+            var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot);
+
+            await Assert.ThatAsync(async () =>
+            {
+                await endpoint.ExecuteAsync(new XRegistryRequest(
+                    XRegistryAction.Read, HttpTestData.ResourcePath)).ConfigureAwait(false);
+            }, Throws.TypeOf<InvalidDataException>().With.Message.Contains("redirect"))
+                .ConfigureAwait(false);
+
+            Assert.That(handler.Requests, Has.Count.EqualTo(2));
+        }
+
         [TestCase(200)]
         [TestCase(201)]
         [TestCase(303)]

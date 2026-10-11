@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.XRegistry.Protocol;
@@ -334,11 +335,284 @@ namespace Opc.Ua.XRegistry.Http
             ValidateClientHeaders();
             using HttpRequestMessage message = m_wire.EncodeRequest(request, shape);
             Uri sentUri = message.RequestUri!;
+#if NET8_0_OR_GREATER
+            if (CanUsePublishedClient(request, shape))
+            {
+                using var transportHandler = new PublishedClientHandler(m_client);
+                using var publishedTransport = new HttpClient(transportHandler, disposeHandler: false)
+                {
+                    Timeout = Timeout.InfiniteTimeSpan
+                };
+                using var packageClient = global::XRegistry.Client.XRegistryHttpClient.Create(
+                    RegistryRoot, publishedTransport, CreatePublishedClientOptions());
+                using global::XRegistry.Client.XRegistryHttpResponse packageResponse =
+                    await SendThroughPublishedClientAsync(
+                        packageClient, message, request, shape, cancellationToken).ConfigureAwait(false);
+                using HttpResponseMessage materialized = await MaterializeResponseAsync(
+                    packageResponse, message.Method, sentUri, cancellationToken).ConfigureAwait(false);
+                return await m_wire.DecodeResponseAsync(
+                    materialized, request, shape, model, sentUri, cancellationToken).ConfigureAwait(false);
+            }
+#endif
             using HttpResponseMessage response = await m_client.SendAsync(
                 message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             return await m_wire.DecodeResponseAsync(
                 response, request, shape, model, sentUri, cancellationToken).ConfigureAwait(false);
         }
+
+#if NET8_0_OR_GREATER
+        private bool CanUsePublishedClient(XRegistryRequest request, XRegistryHttpShape shape)
+        {
+            if (XRegistryHttpShape.IsWellKnown(request.Path) ||
+                request.Action == XRegistryAction.Describe ||
+                request.View == XRegistryView.Metadata ||
+                (!request.IsMutation && !shape.IsResource))
+            {
+                return false;
+            }
+            if (m_options.MaximumBodyBytes > 256 * 1024 * 1024 ||
+                m_options.MaximumHeaderBytes > 1024 * 1024 ||
+                m_options.MaximumHeaders > 65_536 ||
+                m_options.MaximumUriLength > 1024 * 1024 ||
+                m_options.MaximumParameters > 4096 ||
+                m_options.MaximumJsonDepth > 256)
+            {
+                return false;
+            }
+
+            if (!shape.IsDocumentView(request) || !request.IsMutation)
+            {
+                return true;
+            }
+
+            return request.AddressPath is null &&
+                request.Action is XRegistryAction.Replace or XRegistryAction.Create &&
+                shape.GetResourceDefinition(m_options) is not null;
+        }
+
+        private async ValueTask<global::XRegistry.Client.XRegistryHttpResponse> SendThroughPublishedClientAsync(
+            global::XRegistry.Client.XRegistryHttpClient client,
+            HttpRequestMessage message,
+            XRegistryRequest request,
+            XRegistryHttpShape shape,
+            CancellationToken cancellationToken)
+        {
+            string path = GetRelativePath(message.RequestUri!);
+            var query = new global::System.Collections.Generic.KeyValuePair<string, string?>[
+                request.Parameters.Count];
+            for (int index = 0; index < request.Parameters.Count; index++)
+            {
+                XRegistryParameter parameter = request.Parameters[index];
+                query[index] = new(parameter.Name, parameter.Value);
+            }
+            if (shape.IsDocumentView(request) && request.IsMutation)
+            {
+                global::XRegistry.RegistryJson metadata = GetDocumentMetadata(request);
+                var resource = shape.GetResourceDefinition(m_options) ??
+                    throw new InvalidDataException("The published client requires a compiled Resource definition.");
+                using var document = new MemoryStream(
+                    request.Document.IsNull ? [] : request.Document.Memory.ToArray(), writable: false);
+                return await client.SendDocumentAsync(message.Method, path, document,
+                    metadata, resource, query, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            ReadOnlyMemory<byte>? body = message.Content is null
+                ? null
+                : await message.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            string? contentType = message.Content?.Headers.ContentType?.ToString();
+            return await client.SendAsync(message.Method, path, body, contentType,
+                query, cancellationToken).ConfigureAwait(false);
+        }
+
+        private string GetRelativePath(Uri requestUri)
+        {
+            string requestPath = requestUri.AbsolutePath;
+            string rootPath = m_address.Root.AbsolutePath;
+            if (!requestPath.StartsWith(rootPath, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The encoded request URI left the configured Registry root.");
+            }
+            return requestPath[rootPath.Length..];
+        }
+
+        private global::XRegistry.RegistryJson GetDocumentMetadata(XRegistryRequest request)
+        {
+            JsonObject metadata = request.Metadata.ValueKind == JsonValueKind.Object
+                ? JsonNode.Parse(request.Metadata.GetRawText()) as JsonObject ?? []
+                : [];
+            if (request.ContentType is { } contentType)
+            {
+                if (metadata.TryGetPropertyValue("contenttype", out JsonNode? current) &&
+                    (current is not JsonValue value ||
+                        !value.TryGetValue(out string? currentContentType) ||
+                        !string.Equals(currentContentType, contentType, StringComparison.Ordinal)))
+                {
+                    throw new XRegistryHttpWireException(400, "invalid_attribute",
+                        "The Document Content-Type disagrees with the metadata contenttype.");
+                }
+                metadata["contenttype"] = contentType;
+            }
+            return global::XRegistry.RegistryJson.Parse(metadata.ToJsonString(),
+                new global::XRegistry.RegistryJsonLimits
+                {
+                    MaxBytes = m_options.MaximumBodyBytes,
+                    MaxDepth = m_options.MaximumJsonDepth
+                });
+        }
+
+        private global::XRegistry.Client.XRegistryHttpClientOptions CreatePublishedClientOptions() => new()
+        {
+            AllowLoopbackHttp = m_options.AllowLoopbackHttp,
+            AllowPrivateOrigin = true,
+            RequestTimeout = m_options.RequestTimeout,
+            MaxMetadataBytes = m_options.MaximumBodyBytes,
+            MaxHeaderBytes = m_options.MaximumHeaderBytes,
+            MaxHeaderCount = m_options.MaximumHeaders,
+            MaxDocumentBytes = m_options.MaximumBodyBytes,
+            EnableContentDecoding = true,
+            MaxEncodedResponseBytes = m_options.MaximumBodyBytes,
+            MaxJsonDepth = m_options.MaximumJsonDepth,
+            MaxUriLength = m_options.MaximumUriLength,
+            MaxQueryParameters = m_options.MaximumParameters
+        };
+
+        private static async ValueTask<HttpResponseMessage> MaterializeResponseAsync(
+            global::XRegistry.Client.XRegistryHttpResponse response,
+            HttpMethod method,
+            Uri sentUri,
+            CancellationToken cancellationToken)
+        {
+            ValidatePublishedClientEncodings(response);
+            using var body = new MemoryStream();
+            try
+            {
+                await response.CopyDocumentToAsync(body, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidDataException exception)
+            {
+                throw new IOException("The HTTP response encoding is malformed or exceeds its configured body limit.",
+                    exception);
+            }
+            var materialized = new HttpResponseMessage(response.StatusCode)
+            {
+                RequestMessage = new HttpRequestMessage(method, sentUri),
+                Content = new ByteArrayContent(body.ToArray())
+            };
+            foreach (var header in response.Headers.NonValidated)
+            {
+                if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                if (!materialized.Headers.TryAddWithoutValidation(header.Key, header.Value))
+                {
+                    materialized.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                }
+            }
+            foreach (var header in response.ContentHeaders.NonValidated)
+            {
+                if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                materialized.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+            materialized.Content.Headers.ContentLength = body.Length;
+            return materialized;
+        }
+
+        private static void ValidatePublishedClientEncodings(
+            global::XRegistry.Client.XRegistryHttpResponse response)
+        {
+            if (!response.ContentHeaders.NonValidated.TryGetValues(
+                "Content-Encoding", out var values))
+            {
+                return;
+            }
+            int count = 0;
+            foreach (string field in values)
+            {
+                foreach (string coding in field.Split(','))
+                {
+                    count++;
+                    string normalized = coding.Trim();
+                    if (count > 2 || normalized.Length == 0 ||
+                        !(normalized.Equals("identity", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("gzip", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("deflate", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        throw new XRegistryHttpWireException(415, "about:blank",
+                            "The HTTP content encoding is unsupported or excessive.");
+                    }
+                }
+            }
+        }
+
+        private sealed class PublishedClientHandler(HttpClient client) : HttpMessageHandler
+        {
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                if (request.Headers.AcceptEncoding.Count == 0)
+                {
+                    request.Headers.AcceptEncoding.ParseAdd("gzip, deflate");
+                }
+
+                using var forwarded = new HttpRequestMessage(request.Method, request.RequestUri)
+                {
+                    Version = request.Version,
+                    VersionPolicy = request.VersionPolicy
+                };
+#if NET5_0_OR_GREATER
+                foreach (global::System.Collections.Generic.KeyValuePair<string, object?> option in request.Options)
+                {
+                    forwarded.Options.Set(
+                        new HttpRequestOptionsKey<object?>(option.Key), option.Value);
+                }
+#endif
+                foreach (global::System.Collections.Generic.KeyValuePair<string,
+                    System.Collections.Generic.IEnumerable<string>> header in request.Headers)
+                {
+                    forwarded.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                }
+                if (request.Content is { } content)
+                {
+                    byte[] bytes = await content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                    forwarded.Content = new ByteArrayContent(bytes);
+                    foreach (global::System.Collections.Generic.KeyValuePair<string,
+                        System.Collections.Generic.IEnumerable<string>> header in content.Headers)
+                    {
+                        if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        forwarded.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    }
+                }
+
+                HttpResponseMessage response = await client.SendAsync(
+                    forwarded, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (response.RequestMessage?.RequestUri is { } finalUri &&
+                    forwarded.RequestUri is { } sentUri && sentUri != finalUri)
+                {
+                    response.Dispose();
+                    throw new InvalidDataException(
+                        "The injected HTTP client followed a redirect. Disable automatic redirects and mutation retries.");
+                }
+                if (response.RequestMessage?.RequestUri is { } handlerUri && request.RequestUri != handlerUri)
+                {
+                    response.Dispose();
+                    throw new InvalidDataException(
+                        "The injected HTTP client followed a redirect. Disable automatic redirects and mutation retries.");
+                }
+                response.RequestMessage = request;
+                return response;
+            }
+        }
+#endif
 
         private void ValidateClientHeaders()
         {

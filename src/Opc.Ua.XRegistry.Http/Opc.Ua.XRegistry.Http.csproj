@@ -21,6 +21,7 @@
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <PackageReference Include="XRegistry" />
+    <PackageReference Include="XRegistry.Client" />
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

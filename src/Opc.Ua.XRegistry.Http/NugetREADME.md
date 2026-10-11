@@ -10,11 +10,16 @@ The `HttpClient` endpoint is available on the project's portable library targets
 The ASP.NET Core minimal route API is compiled **only for .NET 8 and later**.
 Both paths use open JSON values and explicit request delegates without
 reflection-based serializer contracts, MVC discovery or runtime code generation.
-The modern target also references the published xregistry-dotnet `XRegistry`
-Core package (`0.1.0-alpha.2`) for Core model compilation and the standard
-model-driven Document header codec. The historical and experimental companion
-model dialects remain available through the stack's compatibility path; using
-this Core package is not a conformance claim.
+Modern targets reference the published xregistry-dotnet `XRegistry` and
+`XRegistry.Client` packages (`0.1.0-alpha.2`). The Core package compiles
+Core-valid models and encodes/decodes model-driven Document headers. The client
+package provides bounded, single-dispatch HTTP transport for model-defined
+entity operations over the caller's existing `HttpClient` pipeline.
+Well-known routes and historical/experimental companion model dialects remain
+on the stack's compatibility path. The ASP.NET Core route host remains the
+stack-owned adapter because it preserves caller-bound leases, prepared
+mutations, audit, deadlines and compatibility behavior not yet exposed by the
+package host. Package use does not imply xRegistry conformance.
 
 ## Direct client and dependency injection
 
