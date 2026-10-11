@@ -1128,7 +1128,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, e));
                 }
 
                 return m_vts.Task;
@@ -1171,7 +1171,7 @@ namespace Opc.Ua
                     {
                         ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
                         IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
-                        m_vts.TrySetResult(m_lease,response);
+                        m_vts.TrySetResult(m_lease, response);
                     }
                 }
                 catch (Exception e)
@@ -1180,7 +1180,7 @@ namespace Opc.Ua
                     {
                         e = new ServiceResultException(StatusCodes.BadTimeout);
                     }
-                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, e));
                 }
             }
 
@@ -1189,11 +1189,11 @@ namespace Opc.Ua
             {
                 if (ServiceResult.IsBad(error))
                 {
-                    m_vts.TrySetResult(m_lease,m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, new ServiceResultException(error)));
                 }
                 else
                 {
-                    m_vts.TrySetResult(m_lease,response);
+                    m_vts.TrySetResult(m_lease, response);
                 }
             }
 

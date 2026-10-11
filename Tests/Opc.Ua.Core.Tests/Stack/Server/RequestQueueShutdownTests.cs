@@ -42,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [TestFixture]
     [Category("Server")]
     [Parallelizable]
-    public class RequestQueueShutdownTests
+    public sealed class RequestQueueShutdownTests
     {
         [Test]
         public async Task DisposeCompletesQueuedRequestsOnceAsync()
