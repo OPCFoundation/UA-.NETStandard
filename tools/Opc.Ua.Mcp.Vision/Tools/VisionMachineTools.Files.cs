@@ -59,15 +59,26 @@ namespace Opc.Ua.Mcp.Tools
             "WaitForCompletion waits at most 60 seconds and fails on Error, timeout, or unavailable state.")]
         public static async Task<JsonElement> FileAsync(
             VisionClientAccessor accessor,
+            [Description("Transfer, file, or completion-state-machine NodeId selected as described by operation.")]
             string nodeId,
+            [Description("GenerateRead, GenerateWrite, Commit, Open, Read, Write, Close, GetPosition, SetPosition, " +
+                "ReadCompletion, or WaitForCompletion; names are case-sensitive.")]
             string operation,
+            [Description("Document kind for GenerateRead/GenerateWrite: Recipe, Configuration, or Result.")]
             string kind = "Recipe",
+            [Description("Internal document identifier for GenerateRead/GenerateWrite; not a NodeId or filename.")]
             string id = "",
+            [Description("Session-bound file handle returned by Open or GenerateRead/GenerateWrite.")]
             uint handle = 0,
+            [Description("Requested Read chunk size in bytes, from 1 to 1048576; default 65536.")]
             [Range(1, 1048576)] int length = 65536,
+            [Description("Base64 data for Write, with at most 1048576 decoded bytes; for example AQID encodes 1,2,3.")]
             string? dataBase64 = null,
+            [Description("Absolute byte offset for SetPosition; zero denotes the start of the file.")]
             ulong position = 0,
+            [Description("Open bitmask: Read=1, Write=2, EraseExisting=4, Append=8; combine compatible flags.")]
             byte mode = 1,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -135,7 +146,8 @@ namespace Opc.Ua.Mcp.Tools
                 case "Write":
                     if (dataBase64 == null || dataBase64.Length > 1398104)
                     {
-                        throw new ArgumentException("Supply at most 1 MiB of base64-encoded data.", nameof(dataBase64));
+                        throw new ArgumentException(
+                            "Supply at most 1 MiB of base64-encoded data.", nameof(dataBase64));
                     }
                     byte[] bytes = Convert.FromBase64String(dataBase64);
                     if (bytes.Length > 1048576)
@@ -169,9 +181,13 @@ namespace Opc.Ua.Mcp.Tools
             "Use the RecipeNodeId returned by Add; this is not the recipe's internal ID string.")]
         public static async Task<JsonElement> RecipeObjectAsync(
             VisionClientAccessor accessor,
+            [Description("Recipe object NodeId returned as RecipeNodeId by Add; not the recipe's internal ID.")]
             string recipeNodeId,
+            [Description("Prepare, Unprepare, LinkProduct, or UnlinkProduct; operation names are case-sensitive.")]
             string operation,
+            [Description("Product identifier for LinkProduct or UnlinkProduct; ignored by preparation operations.")]
             string productId = "",
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -207,10 +223,15 @@ namespace Opc.Ua.Mcp.Tools
             "operation is Acknowledge or Confirm. Confirmation does not imply that the physical error is resolved.")]
         public static async Task<JsonElement> ConditionAsync(
             VisionClientAccessor accessor,
+            [Description("Condition instance NodeId returned as conditionNodeId by vision_machine_observe.")]
             string conditionNodeId,
+            [Description("Exact eventIdBase64 from the condition notification being acknowledged or confirmed.")]
             string eventIdBase64,
+            [Description("Acknowledge or Confirm (case-sensitive); neither operation clears the physical cause.")]
             string operation,
+            [Description("Operator comment attached to this acknowledgement or confirmation; default empty text.")]
             string comment = "",
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {

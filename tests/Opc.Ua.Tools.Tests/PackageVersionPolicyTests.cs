@@ -1873,12 +1873,12 @@ namespace Opc.Ua.Tools.Tests
                     type = archive.Type
                 })
             });
+            // Each fixture uses its own process; globals bridge the invoked script's separate scope.
+            // Keep shell comments outside raw literals: inactive C# branches still parse a leading '#'.
             return RunPolicyScriptAsync(
                 $$"""
                 $ErrorActionPreference = 'Stop'
                 $manifestPath = [System.IO.Path]::ChangeExtension($PSCommandPath, '.manifest.json')
-                # The invoked script has its own script scope. These globals
-                # belong only to this fixture's fresh, short-lived pwsh process.
                 $global:orderingRequests = [System.Collections.Generic.List[string]]::new()
                 $global:unexpectedOrderingRequests = [System.Collections.Generic.List[string]]::new()
                 $global:allowedOrderingRequests = @({{string.Join(",", allowedRequests.Select(uri => $"'{uri}'"))}})

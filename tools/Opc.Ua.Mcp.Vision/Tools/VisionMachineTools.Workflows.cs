@@ -53,7 +53,9 @@ namespace Opc.Ua.Mcp.Tools
             "An absent interface has available=false; a loaded namespace alone does not imply interface support.")]
         public static async Task<JsonElement> CapabilitiesAsync(
             VisionClientAccessor accessor,
+            [Description("Optional Part 1 system NodeId for interface inspection; omit for namespace support only.")]
             string? systemNodeId = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -103,11 +105,17 @@ namespace Opc.Ua.Mcp.Tools
             "Use nextIndex when isComplete=false; pages are live views, not a snapshot across topology edits.")]
         public static async Task<JsonElement> RelationshipsAsync(
             VisionClientAccessor accessor,
+            [Description("Source system, asset or component NodeId whose one-hop relationships should be read.")]
             string nodeId,
+            [Description("SameEntity, OpticalPath, DataTransmission, or Interface; default SameEntity.")]
             string relationship = "SameEntity",
+            [Description("Reference direction: Forward, Inverse, or Both; default Both.")]
             string direction = "Both",
+            [Description("Maximum references returned in this page, from 1 to 100; default 50.")]
             [Range(1, 100)] uint maximumResults = 50,
+            [Description("Zero-based reference offset, from 0 to 10000; use nextIndex to request another page.")]
             [Range(0, 10000)] uint startIndex = 0,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -164,15 +172,22 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Observes Events or Conditions for 5 seconds/50 notifications by default, at most " +
             "60 seconds/100 notifications. refreshConditions requests retained conditions in Conditions mode. " +
             "Returns exact eventIdBase64/conditionNodeId selectors and namespace-qualified fields. " +
-            "refreshComplete=false is not a complete retained-condition snapshot. Always cleans up its subscription; " +
+            "refreshComplete=false is not a complete retained-condition snapshot. " +
+            "Always cleans up its subscription; " +
             "never acknowledges conditions, starts acquisition, or leaves a monitoring handle.")]
         public static async Task<JsonElement> ObserveAsync(
             VisionClientAccessor accessor,
+            [Description("Event-notifier NodeId to monitor, such as i=2253 for the Server object.")]
             string notifierNodeId,
+            [Description("Events or Conditions; Conditions selects condition fields needed for acknowledgement.")]
             string mode = "Events",
+            [Description("Request a retained-condition refresh; only valid in Conditions mode, default false.")]
             bool refreshConditions = false,
+            [Description("Observation window in seconds, from 1 to 60; default 5.")]
             [Range(1, 60)] int durationSeconds = 5,
+            [Description("Maximum notifications to retain, from 1 to 100; default 50.")]
             [Range(1, 100)] int maximumNotifications = 50,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -234,12 +249,19 @@ namespace Opc.Ua.Mcp.Tools
             "Use vision_machine_file for larger uploads. identifierJson preserves complete UA identifier data.")]
         public static async Task<JsonElement> UploadRecipeAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("Complete base64 recipe content, at most 1048576 decoded bytes; may be empty.")]
             string dataBase64,
+            [Description("External recipe ID to register, unless supplied in identifierJson; not a NodeId.")]
             string externalId = "",
+            [Description("Optional product identifier to associate with the recipe; default empty identifier.")]
             string productId = "",
+            [Description("External recipe version used with externalId; empty leaves the version unspecified.")]
             string version = "",
+            [Description("Optional UA JSON recipe identifier with Id, Version, Hash, HashAlgorithm and Description.")]
             string? identifierJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -262,11 +284,17 @@ namespace Opc.Ua.Mcp.Tools
             "Use vision_machine_file for larger chunked content. identifierJson preserves version/hash metadata.")]
         public static async Task<JsonElement> UploadConfigurationAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("Complete base64 configuration content, at most 1048576 decoded bytes; may be empty.")]
             string dataBase64,
+            [Description("External configuration ID to register, unless supplied in identifierJson; not a NodeId.")]
             string externalId = "",
+            [Description("Configuration version used with externalId; empty leaves the version unspecified.")]
             string version = "",
+            [Description("UA JSON configuration identifier with Id, Version, Hash, HashAlgorithm and Description.")]
             string? identifierJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -285,14 +313,19 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         [McpServerTool(Name = "vision_machine_download_result")]
-        [Description("Downloads complete result file bytes and releases file/metadata handles on success or failure. " +
+        [Description("Downloads complete result file bytes and releases file/metadata handles " +
+            "on success or failure. " +
             "maximumBytes is 1-1048576; exceeding it fails rather than returning truncated content. " +
             "Use the chunked file tool for larger results. Returns Data as an OPC UA ByteString.")]
         public static async Task<JsonElement> DownloadResultAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("Result identifier returned by List/Get in vision_machine_results; not the result's NodeId.")]
             string resultId,
+            [Description("Maximum complete result bytes (1-1048576); larger results fail without truncation.")]
             [Range(1, 1048576)] int maximumBytes = 1048576,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {

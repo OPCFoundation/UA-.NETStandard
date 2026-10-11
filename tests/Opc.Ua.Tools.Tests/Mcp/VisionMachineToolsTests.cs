@@ -77,6 +77,38 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Has.None.StartsWith("vision_machine_"));
         }
 
+        /// <summary>
+        /// Keeps every released-model wire parameter usable without reading the implementation.
+        /// </summary>
+        [TestCase(McpToolProfile.Vision)]
+        [TestCase(McpToolProfile.Full)]
+        public void ReleasedToolSchemasDescribeEveryWireParameter(McpToolProfile profile)
+        {
+            using ServiceProvider provider = Services(profile).BuildServiceProvider();
+            McpServerTool[] tools = [.. provider.GetServices<McpServerTool>()];
+            Assert.Multiple(() =>
+            {
+                foreach (string name in s_names.Concat(s_followupNames))
+                {
+                    JsonElement schema = tools.Single(tool => tool.ProtocolTool.Name == name).ProtocolTool.InputSchema;
+                    JsonElement properties = schema.GetProperty("properties");
+                    Assert.That(properties.EnumerateObject(), Is.Not.Empty, name);
+                    foreach (JsonProperty parameter in properties.EnumerateObject())
+                    {
+                        bool hasDescription = parameter.Value.TryGetProperty(
+                            "description", out JsonElement description);
+                        Assert.That(hasDescription, Is.True, $"{name}.{parameter.Name}");
+                        if (hasDescription)
+                        {
+                            Assert.That(description.ValueKind, Is.EqualTo(JsonValueKind.String));
+                            Assert.That(description.GetString(), Has.Length.GreaterThanOrEqualTo(20),
+                                $"{name}.{parameter.Name}");
+                        }
+                    }
+                }
+            });
+        }
+
         [Test]
         public void FileSchemaCarriesChunkLimitsAndRequiredSelectors()
         {

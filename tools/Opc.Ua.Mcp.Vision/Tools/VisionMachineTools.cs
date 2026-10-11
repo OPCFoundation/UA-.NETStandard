@@ -58,13 +58,17 @@ namespace Opc.Ua.Mcp.Tools
             "Works without the Perception namespace. Does not change device state.")]
         public static async Task<JsonElement> ListAsync(
             VisionClientAccessor accessor,
+            [Description("True discovers Part 2 assets; false discovers Part 1 control systems.")]
             bool assets = false,
+            [Description("Optional browse root NodeId, such as i=85; omit to use the client's discovery root.")]
             string? rootNodeId = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
             MachineVisionClient client = accessor.CreateClient(sessionName).MachineVision();
-            NodeId root = string.IsNullOrWhiteSpace(rootNodeId) ? NodeId.Null : OpcUaJsonHelper.ParseNodeId(rootNodeId);
+            NodeId root = string.IsNullOrWhiteSpace(rootNodeId)
+                ? NodeId.Null : OpcUaJsonHelper.ParseNodeId(rootNodeId);
             var entries = new JsonArray();
             await foreach (VisionNodeEntry entry in (assets
                 ? client.EnumerateAssetsAsync(root, cancellationToken: ct)
@@ -102,15 +106,19 @@ namespace Opc.Ua.Mcp.Tools
             "with their actual quality/status. The default response is unchanged.")]
         public static async Task<JsonElement> ReadStateWithDetailsAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("Include optional diagnostics, safety, active configuration and step states; default false.")]
             bool includeDetails = false,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
             VisionClient client = accessor.CreateClient(sessionName);
             MachineVisionSystemClient system = System(client, systemNodeId);
             VisionStateMachineTypeClient control = await system.ControlAsync(ct).ConfigureAwait(false);
-            VisionAutomaticModeStateMachineTypeClient automatic = await system.AutomaticAsync(ct).ConfigureAwait(false);
+            VisionAutomaticModeStateMachineTypeClient automatic = await system.AutomaticAsync(ct)
+                .ConfigureAwait(false);
             FiniteStateSnapshot top = await control.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
             FiniteStateSnapshot mode = await automatic.GetCurrentFiniteStateAsync(ct).ConfigureAwait(false);
             var response = new JsonObject
@@ -139,17 +147,28 @@ namespace Opc.Ua.Mcp.Tools
             "Never retries or changes mode implicitly.")]
         public static async Task<JsonElement> CommandAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId; for Sync, supply the step state-machine NodeId instead.")]
             string systemNodeId,
+            [Description("SelectAutomatic, Halt, Reset, Stop, Abort, StartSingleJob, StartContinuous, " +
+                "EnableSimulation, DisableSimulation, ConfirmAll, or Sync; names are case-sensitive.")]
             string command,
+            [Description("External recipe ID for job starts; must agree with " +
+                "parametersJson.ExternalRecipeId if supplied.")]
             string? recipeId = null,
+            [Description("Product identifier for a job start; omit when selecting the recipe without a product.")]
             string? productId = null,
+            [Description("Application measurement identifier for a job start; omission sends an empty identifier.")]
             string? measurementId = null,
+            [Description("Application part identifier for a job start; omission sends an empty identifier.")]
             string? partId = null,
+            [Description("Integer cause code for stop/reset/synchronization and simulation commands; default zero.")]
             int cause = 0,
+            [Description("Human-readable command cause, or operator comment for ConfirmAll; default empty text.")]
             string causeDescription = "",
             [Description("Optional UA JSON object containing a Parameters Variant array and optionally an " +
                 "ExternalRecipeId (Id, Version, Hash, HashAlgorithm, Description), as written by JsonEncoder.")]
             string? parametersJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -241,9 +260,13 @@ namespace Opc.Ua.Mcp.Tools
             "Returned NodeIds can be monitored with standard OPC UA subscriptions.")]
         public static async Task<JsonElement> ReadAssetAsync(
             VisionClientAccessor accessor,
+            [Description("Part 2 asset, component or group NodeId returned by discovery, such as ns=2;s=Camera.")]
             string assetNodeId,
+            [Description("Maximum descendant traversal depth, from 0 to 32; default 5.")]
             [Range(0, 32)] int maximumDepth = 5,
+            [Description("Maximum returned values, from 1 to 1024; default 128. Check isComplete for truncation.")]
             [Range(1, 1024)] int maximumValues = 128,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -287,19 +310,31 @@ namespace Opc.Ua.Mcp.Tools
             "Error is the domain result, not a service status.")]
         public static async Task<JsonElement> RecipesAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("List, Add, Prepare, Unprepare, Remove, PrepareProduct, UnprepareProduct, UnlinkProduct, " +
+                "or Release; names are case-sensitive.")]
             string operation,
+            [Description("External recipe ID for Add/Prepare/Unprepare/Remove, or a recipe-ID filter for List.")]
             string externalId = "",
+            [Description("Server-assigned recipe ID for Prepare, Unprepare or UnlinkProduct; not a NodeId.")]
             string internalId = "",
+            [Description("Product ID for recipe linking, product preparation/unpreparation, or filtering List.")]
             string productId = "",
+            [Description("External recipe version used with externalId; empty leaves the version unspecified.")]
             string version = "",
+            [Description("Maximum recipe records returned by List, from 1 to 100; default 50.")]
             [Range(1, 100)] uint maximumResults = 50,
+            [Description("Zero-based recipe offset for List; default zero starts the first page.")]
             uint startIndex = 0,
+            [Description("Recipe metadata handle returned by List; pass it to Release when finished.")]
             uint handle = 0,
+            [Description("Prepared-state filter for List: 0=False, 1=True, 2=DontCare; default 2.")]
             [Range(0, 2)] int preparedState = 2,
             [Description("Optional UA JSON recipe identifier including " +
                 "Id, Version, Hash, HashAlgorithm, and Description.")]
             string? identifierJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -379,16 +414,24 @@ namespace Opc.Ua.Mcp.Tools
             "Activation is never implicit.")]
         public static async Task<JsonElement> ConfigurationsAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("List, Get, Add, Activate, Remove, or Release; operation names are case-sensitive.")]
             string operation,
+            [Description("Configuration ID for Get/Add/Activate/Remove, unless the ID is supplied in identifierJson.")]
             string id = "",
+            [Description("Configuration version used with id; empty leaves the version unspecified.")]
             string version = "",
+            [Description("Maximum configuration records returned by List, from 1 to 100; default 50.")]
             [Range(1, 100)] uint maximumResults = 50,
+            [Description("Zero-based configuration offset for List; default zero starts the first page.")]
             uint startIndex = 0,
+            [Description("Configuration metadata handle returned by List or Get; pass it to Release when finished.")]
             uint handle = 0,
             [Description("Optional UA JSON configuration identifier including " +
                 "Id, Version, Hash, HashAlgorithm, and Description.")]
             string? identifierJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -418,7 +461,8 @@ namespace Opc.Ua.Mcp.Tools
                         ("Configuration", Variant.FromStructure(found.configuration)),
                         ("Error", Variant.From(found.error)));
                 case "Add":
-                    (ConfigurationIdDataType internalId, NodeId configuration, bool transferRequired, int error) added =
+                    (ConfigurationIdDataType internalId, NodeId configuration,
+                        bool transferRequired, int error) added =
                         await configurations.AddConfigurationAsync(identifier, ct).ConfigureAwait(false);
                     return Response(client, ("InternalId", Variant.FromStructure(added.internalId)),
                         ("ConfigurationNodeId", Variant.From(added.configuration)),
@@ -448,18 +492,27 @@ namespace Opc.Ua.Mcp.Tools
             "Returns complete typed OPC UA metadata/content and the handle to release.")]
         public static async Task<JsonElement> ResultsAsync(
             VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
             string systemNodeId,
+            [Description("Get, Components, List, or Release; operation names are case-sensitive.")]
             string operation,
+            [Description("Result ID returned by List; Get and Components use this ID, not its NodeId.")]
             string resultId = "",
+            [Description("Job ID filter for List; must match filtersJson.JobId.Id if both selectors are supplied.")]
             string jobId = "",
+            [Description("Integer result-state filter for List, forwarded unchanged to the server; default zero.")]
             int resultState = 0,
+            [Description("Maximum result records returned by List, from 1 to 100; default 50.")]
             [Range(1, 100)] uint maximumResults = 50,
+            [Description("Zero-based result offset for List; default zero starts the first page.")]
             uint startIndex = 0,
+            [Description("Metadata handle returned by Get, Components or List; pass it to Release when finished.")]
             uint handle = 0,
             [Description("Optional UA JSON object with MeasId, PartId, ExternalRecipeId, InternalRecipeId, " +
                 "ExternalConfigurationId, InternalConfigurationId, ProductId, and JobId structures. " +
                 "Binary identifiers retain Version, Hash, HashAlgorithm, and Description.")]
             string? filtersJson = null,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
             string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -521,7 +574,8 @@ namespace Opc.Ua.Mcp.Tools
                 }
                 job.Id = jobId;
             }
-            (bool isComplete, uint resultCount, uint resultHandle, ArrayOf<ResultDataType> resultList, int error) list =
+            (bool isComplete, uint resultCount, uint resultHandle,
+                ArrayOf<ResultDataType> resultList, int error) list =
                 await results.GetResultListFilteredAsync(resultState,
                     filters?.ReadEncodeable<MeasIdDataType>("MeasId") ?? new MeasIdDataType(),
                     filters?.ReadEncodeable<PartIdDataType>("PartId") ?? new PartIdDataType(),
@@ -549,8 +603,16 @@ namespace Opc.Ua.Mcp.Tools
             "This does not implement a safety controller " +
             "and must not replace a certified safety circuit.")]
         public static async Task<JsonElement> ReportSafetyAsync(
-            VisionClientAccessor accessor, string systemNodeId, bool triggered, string information,
-            string? sessionName = null, CancellationToken ct = default)
+            VisionClientAccessor accessor,
+            [Description("Part 1 system NodeId returned by vision_machine_list, such as ns=2;s=VisionSystem.")]
+            string systemNodeId,
+            [Description("True reports a triggered external safety input; this does not command a safety circuit.")]
+            bool triggered,
+            [Description("Human-readable information describing the reported external safety state.")]
+            string information,
+            [Description("Connected OPC UA session name; omit when exactly one session is available.")]
+            string? sessionName = null,
+            CancellationToken ct = default)
         {
             VisionClient client = accessor.CreateClient(sessionName);
             SafetyStateManagementTypeClient safety = await System(client, systemNodeId).SafetyAsync(ct)
