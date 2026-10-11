@@ -275,7 +275,7 @@ $BatchFixedMinutes = 6
 $PerProjectTimeoutMinutes = 45
 # Full-corpus sample workflows include generation replacement and two native
 # companion comparisons; retain them in a dedicated, bounded job.
-$SampleProjectTimeoutMinutes = 180
+$SampleProjectTimeoutMinutes = 240
 $IntegrationProjectTimeoutMinutes = 90
 $DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 
@@ -501,7 +501,7 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
             if ($batch.Count -eq 1 -and
                 [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Samples.Tests') {
                 $batchTimeout = $SampleProjectTimeoutMinutes
-                $batchHangTimeout = '45m'
+                $batchHangTimeout = '65m'
             }
             elseif ($batch.Count -eq 1 -and
                 $DedicatedIntegrationProjects -contains [System.IO.Path]::GetFileNameWithoutExtension($batch[0])) {

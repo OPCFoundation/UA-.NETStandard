@@ -429,8 +429,9 @@ namespace Opc.Ua.Tools.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(sample.Projects, Does.Not.Contain(";"));
-                    Assert.That(sample.PerProjectTimeout, Is.EqualTo(180));
-                    Assert.That(sample.TimeoutMinutes, Is.EqualTo(200));
+                    Assert.That(sample.PerProjectTimeout, Is.EqualTo(240));
+                    Assert.That(sample.TimeoutMinutes, Is.EqualTo(260));
+                    Assert.That(sample.HangTimeout, Is.EqualTo("65m"));
                 });
             }
             Assert.That(matrix.Tests.Where(entry =>

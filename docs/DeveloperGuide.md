@@ -434,8 +434,8 @@ GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
 The WoT aggregation sample tests keep their complete companion-model corpus in a
-dedicated CI batch. That batch has a finite 180-minute combined build/test budget
-and a 45-minute inactivity limit; ordinary projects retain their 45-minute combined
+dedicated CI batch. That batch has a finite 240-minute combined build/test budget
+and a 65-minute inactivity limit; ordinary projects retain their 45-minute combined
 budget. The sample's full generation-replacement case includes two complete
 publications and must not be truncated to fit the ordinary project budget.
 The Server, WoT and Types integration projects also run separately, with a 90-minute

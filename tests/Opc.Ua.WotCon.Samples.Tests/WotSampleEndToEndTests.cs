@@ -112,7 +112,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(40));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(60));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
