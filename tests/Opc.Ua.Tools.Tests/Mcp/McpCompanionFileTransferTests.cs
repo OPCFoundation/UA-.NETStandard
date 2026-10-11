@@ -71,7 +71,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [TestCase(4)]
         public async Task UploadPreservesBytesAtBoundariesAsync(int length)
         {
-            byte[] expected = Enumerable.Range(0, length).Select(value => (byte)(value + 1)).ToArray();
+            byte[] expected = [.. Enumerable.Range(0, length).Select(value => (byte)(value + 1))];
             await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), expected).ConfigureAwait(false);
             using var received = new MemoryStream();
             var transfers = new McpFileTransfers(m_options);
@@ -95,13 +95,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [TestCase(4)]
         public async Task DownloadPublishesBytesAtBoundariesAsync(int length)
         {
-            byte[] expected = Enumerable.Range(0, length).Select(value => (byte)(value + 1)).ToArray();
+            byte[] expected = [.. Enumerable.Range(0, length).Select(value => (byte)(value + 1))];
             var transfers = new McpFileTransfers(m_options);
 
-            JsonObject result = await transfers.DownloadAsync("result.bin", async (target, ct) =>
-            {
-                await target.WriteAsync(expected, ct).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+            JsonObject result = await transfers.DownloadAsync("result.bin",
+                async (target, ct) => await target.WriteAsync(expected, ct).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(await File.ReadAllBytesAsync(Path.Combine(m_root, "result.bin")).ConfigureAwait(false),
                 Is.EqualTo(expected));
@@ -239,6 +238,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// <summary>
         /// Links and Windows junctions are rejected both as the configured root and inside it.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The test junction process cannot be started.</exception>
         [TestCase(false)]
         [TestCase(true)]
         public async Task TransfersRejectLinkedRootOrPathAsync(bool rootIsLink)
@@ -318,7 +318,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }).ConfigureAwait(false), Throws.TypeOf<IOException>());
 
             Assert.That(invoked, Is.EqualTo(createdDuringDownload));
-            Assert.That(await File.ReadAllBytesAsync(destination).ConfigureAwait(false), Is.EqualTo(new byte[] { 9 }));
+            Assert.That(await File.ReadAllBytesAsync(destination).ConfigureAwait(false), Is.EqualTo("\t"u8.ToArray()));
             Assert.That(Directory.GetFiles(m_root), Has.Length.EqualTo(1));
         }
 
@@ -331,12 +331,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         {
             var transfers = new McpFileTransfers(m_options);
             using var cancelled = new CancellationTokenSource();
-            Func<Task> download = async () => await transfers.DownloadAsync("result.bin", async (target, ct) =>
+            async Task download() => await transfers.DownloadAsync("result.bin", async (target, ct) =>
             {
                 await target.WriteAsync(new byte[] { 1 }, ct).ConfigureAwait(false);
                 if (cancellation)
                 {
-                    cancelled.Cancel();
+                    await cancelled.CancelAsync().ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                 }
                 throw new InvalidOperationException("remote refused download");
@@ -369,6 +369,96 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using FileStream probe = File.Open(Path.Combine(m_root, "source.bin"),
                 FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             Assert.That(probe.Length, Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Every upload stream read overload observes the same byte budget and sequential position.
+        /// </summary>
+        [Test]
+        public async Task UploadReadOverloadsShareOneSequentialBudgetAsync()
+        {
+            await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), [1, 2, 3, 4]).ConfigureAwait(false);
+            var transfers = new McpFileTransfers(m_options);
+            byte[] bytes = new byte[5];
+
+            JsonObject result = await transfers.UploadAsync("source.bin", async (stream, ct) =>
+            {
+                Assert.That(stream.CanRead, Is.True);
+                Assert.That(stream.CanWrite, Is.False);
+                Assert.That(stream.CanSeek, Is.False);
+                Assert.That(stream.Length, Is.EqualTo(4));
+                // Bind the exact synchronous overloads under test, rather than their async alternatives.
+                Func<byte[], int, int, int> read = stream.Read;
+                Action flush = stream.Flush;
+                Assert.That(read(bytes, 1, 1), Is.EqualTo(1));
+                Assert.That(stream.Read(bytes.AsSpan(2, 1)), Is.EqualTo(1));
+                Func<byte[], int, int, CancellationToken, Task<int>> readArray = stream.ReadAsync;
+                Assert.That(await readArray(bytes, 3, 1, ct).ConfigureAwait(false), Is.EqualTo(1));
+                Assert.That(await stream.ReadAsync(bytes.AsMemory(4, 1), ct).ConfigureAwait(false), Is.EqualTo(1));
+                Assert.That(stream.Position, Is.EqualTo(4));
+                Assert.That(stream.ReadByte(), Is.EqualTo(-1));
+                Assert.That(() => stream.Seek(0, SeekOrigin.Begin), Throws.TypeOf<NotSupportedException>());
+                Assert.That(() => stream.Position = 0, Throws.TypeOf<NotSupportedException>());
+                Assert.That(() => stream.SetLength(1), Throws.TypeOf<NotSupportedException>());
+                flush();
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+                return stream.Position;
+            }).ConfigureAwait(false);
+
+            Assert.That(bytes, Is.EqualTo(new byte[] { 0, 1, 2, 3, 4 }));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Array and span destination writes share the same cumulative limit.
+        /// </summary>
+        [Test]
+        public async Task DownloadWriteOverloadsShareOneSequentialBudgetAsync()
+        {
+            var transfers = new McpFileTransfers(m_options);
+            byte[] bytes = [1, 2, 3, 4];
+            JsonObject result = await transfers.DownloadAsync("result.bin", async (stream, ct) =>
+            {
+                Assert.That(stream.CanRead, Is.False);
+                Assert.That(stream.CanWrite, Is.True);
+                Assert.That(stream.CanSeek, Is.False);
+                // Bind the exact synchronous overloads under test, rather than their async alternatives.
+                Action<byte[], int, int> write = stream.Write;
+                Action flush = stream.Flush;
+                write(bytes, 0, 1);
+                stream.Write(bytes.AsSpan(1, 1));
+                Func<byte[], int, int, CancellationToken, Task> writeArray = stream.WriteAsync;
+                await writeArray(bytes, 2, 2, ct).ConfigureAwait(false);
+                Assert.That(stream.Position, Is.EqualTo(4));
+                flush();
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(await File.ReadAllBytesAsync(Path.Combine(m_root, "result.bin")).ConfigureAwait(false),
+                Is.EqualTo(bytes));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// A missing host root or destination parent cannot cause a remote download.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MissingTransferDirectoryRejectsBeforeRemoteCall(bool missingRoot)
+        {
+            if (missingRoot)
+            {
+                m_options.TransferRoot = Path.Combine(m_root, "missing");
+            }
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync(Path.Combine("missing", "file.bin"), (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.TypeOf<DirectoryNotFoundException>());
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
         }
 
         /// <summary>

@@ -46,7 +46,6 @@ using NUnit.Framework;
 using Opc.Ua.ISA95.Server;
 using Opc.Ua.ISA95.Server.Providers;
 using Opc.Ua.Machinery.Result;
-using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.Builders;
 using Opc.Ua.Machinery.Server.Results;
 using Opc.Ua.Machinery.Server.StateMachines;
@@ -87,7 +86,6 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             })
                 .AddMachinery()
                 .ConfigureMachinery(async (context, ct) =>
-                {
                     m_machine = await context.AddMachine(new QualifiedName("Press"))
                         .WithIdentification(id =>
                         {
@@ -100,8 +98,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                             .WithOperationMode(MachineryOperationModeValue.Setup))
                         .WithJobManagement(jobs => jobs.WithPredefinedParameters())
                         .WithResultManagement(results => results.WithInMemoryStore().WithFileTransfer())
-                        .BuildAsync(ct).ConfigureAwait(false);
+                        .BuildAsync(ct).ConfigureAwait(false))
+                .AddStartupTask((_, _, _) =>
+                {
                     ready.SetResult(true);
+                    return ValueTask.CompletedTask;
                 });
             m_serverServices = services.BuildServiceProvider();
             m_serverHost = m_serverServices.GetServices<IHostedService>().Single();
@@ -200,7 +201,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [Test]
         public async Task ResultFiltersMetadataAndStreamingDownloadWorkThroughMcpAsync()
         {
-            byte[] payload = Enumerable.Range(0, 131079).Select(index => (byte)(index % 251)).ToArray();
+            byte[] payload = [.. Enumerable.Range(0, 131079).Select(index => (byte)(index % 251))];
             await m_machine!.Results!.PublishAsync(new MachineryResult(
                 new ResultDataType
                 {
@@ -211,7 +212,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         PartId = "part-1",
                         CreationTime = new DateTimeUtc(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
                         EncodingMask = (uint)(ResultMetaDataTypeFields.JobId |
-                            ResultMetaDataTypeFields.PartId | ResultMetaDataTypeFields.CreationTime)
+                            ResultMetaDataTypeFields.PartId |
+                            ResultMetaDataTypeFields.CreationTime)
                     }
                 }, new ByteString(payload))).ConfigureAwait(false);
             (string Id, string Job, string Part, int Year)[] excluded =
@@ -232,7 +234,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         PartId = part,
                         CreationTime = new DateTimeUtc(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
                         EncodingMask = (uint)(ResultMetaDataTypeFields.JobId |
-                            ResultMetaDataTypeFields.PartId | ResultMetaDataTypeFields.CreationTime)
+                            ResultMetaDataTypeFields.PartId |
+                            ResultMetaDataTypeFields.CreationTime)
                     }
                 })).ConfigureAwait(false);
             }
@@ -312,7 +315,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         private async Task<CallToolResult> CallAsync(string name, JsonObject arguments)
         {
             arguments["sessionName"] = "plant";
-            using JsonDocument json = JsonDocument.Parse(arguments.ToJsonString());
+            using var json = JsonDocument.Parse(arguments.ToJsonString());
             ServiceProvider services = m_clients ??
                 throw new InvalidOperationException("The MCP client host is not initialized.");
             McpServerTool tool = services.GetServices<McpServerTool>()

@@ -29,7 +29,6 @@
 
 #if NET10_0
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -43,12 +42,12 @@ using Microsoft.Extensions.Hosting;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
-using Opc.Ua.AMB.Server;
 using Opc.Ua.AMB.Server.Assets;
-using Opc.Ua.Di.Server;
+using Opc.Ua.Di;
+using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Mcp;
 using Opc.Ua.Pumps;
-using Opc.Ua.Pumps.Server;
+using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Scales;
 using Opc.Ua.Scales.Server;
 using Opc.Ua.Scales.Server.Runtime;
@@ -73,6 +72,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             var scaleReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var pumpReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var assetReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var serverStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddOpcUa().AddServer<StandardServer>(options =>
@@ -90,7 +90,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 .AddScales()
                 .ConfigureDevicesFor<ScalesNodeManager>(async context =>
                 {
-                    var device = await context.CreateDeviceAsync(
+                    IDeviceBuilder<DeviceState> device = await context.CreateDeviceAsync(
                         new QualifiedName("Asset", context.Manager.InstanceNamespaceIndex)).ConfigureAwait(false);
                     device.WithIdentification(identity =>
                     {
@@ -123,13 +123,19 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                             .WithAllowedEngineeringUnits(ScaleUnits.Kilogram),
                         context.CancellationToken).ConfigureAwait(false);
                     scaleReady.SetResult(true);
+                })
+                .AddStartupTask((_, _, _) =>
+                {
+                    serverStarted.SetResult(true);
+                    return ValueTask.CompletedTask;
                 });
 
             m_serverServices = services.BuildServiceProvider();
             m_serverHost = m_serverServices.GetServices<IHostedService>().Single();
             using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(45));
             await m_serverHost.StartAsync(startup.Token).ConfigureAwait(false);
-            await AwaitReadyAsync(m_serverHost, Task.WhenAll(scaleReady.Task, assetReady.Task), startup.Token)
+            await AwaitReadyAsync(
+                m_serverHost, Task.WhenAll(scaleReady.Task, assetReady.Task, serverStarted.Task), startup.Token)
                 .ConfigureAwait(false);
 
             string pumpEndpoint = $"opc.tcp://localhost:{AvailablePort()}/pump-mcp";
@@ -149,7 +155,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 .AddPumps()
                 .ConfigurePumps(async context =>
                 {
-                    var pump = await context.Manager.CreatePumpAsync(
+                    IPumpBuilder pump = await context.Manager.CreatePumpAsync(
                         new QualifiedName("Pump", context.Manager.InstanceNamespaceIndex),
                         context.CancellationToken).ConfigureAwait(false);
                     pump.WithNameplate(new PumpNameplate
@@ -159,10 +165,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         Manufacturer = new LocalizedText("Test"),
                         ProductInstanceUri = "urn:industrial-mcp:pump:1"
                     });
-                    pump.Measurements.SetAnalog(Opc.Ua.Pumps.BrowseNames.MassFlow, 12.5,
+                    pump.Measurements.SetAnalog(Pumps.BrowseNames.MassFlow, 12.5,
                         new EUInformation { DisplayName = new LocalizedText("kg/s") });
-                    pump.Signals.SetDiscrete(Opc.Ua.Pumps.BrowseNames.PumpOperation, false);
+                    pump.Signals.SetDiscrete(Pumps.BrowseNames.PumpOperation, false);
+                })
+                .AddStartupTask((_, _, _) =>
+                {
                     pumpReady.SetResult(true);
+                    return ValueTask.CompletedTask;
                 });
             m_pumpServices = pumpServices.BuildServiceProvider();
             m_pumpHost = m_pumpServices.GetServices<IHostedService>().Single();
@@ -174,7 +184,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             clients.AddOpcUaMcpAmb();
             clients.AddOpcUaMcpScales();
             clients.AddOpcUaMcpPumps();
-            McpToolProfileSet profiles = McpToolProfileSet.Parse("amb,scales,pumps");
+            var profiles = McpToolProfileSet.Parse("amb,scales,pumps");
             clients.AddMcpServer()
                 .WithStreamServerTransport(Stream.Null, Stream.Null)
                 .WithOpcUaMcpFilters()
@@ -235,7 +245,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [Test]
         public async Task AmbToolsDiscoverWriteAndReadThroughMcpAsync()
         {
-            CallToolResult discovery = await CallAsync("amb_discover_assets", """{"sessionName":"plant"}""")
+            CallToolResult discovery = await CallAsync("amb_discover_assets",
+                /*lang=json,strict*/ """{"sessionName":"plant"}""")
                 .ConfigureAwait(false);
             Assert.That(discovery.IsError, Is.False);
             Assert.That(discovery.StructuredContent!.Value.GetProperty("items").EnumerateArray()
@@ -296,7 +307,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [Test]
         public async Task PumpsToolsDiscoverAndPreserveMeasurementsAsync()
         {
-            CallToolResult discovery = await CallAsync("pumps_list_pumps", """{"sessionName":"pumps"}""")
+            CallToolResult discovery = await CallAsync("pumps_list_pumps",
+                /*lang=json,strict*/ """{"sessionName":"pumps"}""")
                 .ConfigureAwait(false);
             Assert.That(discovery.IsError, Is.False);
             JsonElement items = discovery.StructuredContent!.Value.GetProperty("items");
@@ -310,7 +322,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             })).ConfigureAwait(false);
             Assert.That(measurements.IsError, Is.False);
             JsonElement flow = measurements.StructuredContent!.Value.GetProperty("values").EnumerateArray()
-                .Single(value => value.GetProperty("name").GetString() == Opc.Ua.Pumps.BrowseNames.MassFlow);
+                .Single(value => value.GetProperty("name").GetString() == Pumps.BrowseNames.MassFlow);
             Assert.That(flow.GetProperty("value").GetProperty("Value").GetDouble(), Is.EqualTo(12.5));
             Assert.That(flow.GetProperty("engineeringUnits").GetProperty("DisplayName").GetProperty("Text").GetString(),
                 Is.EqualTo("kg/s"));
@@ -323,7 +335,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             })).ConfigureAwait(false);
             Assert.That(signals.IsError, Is.False);
             JsonElement operation = signals.StructuredContent!.Value.GetProperty("values").EnumerateArray()
-                .Single(value => value.GetProperty("name").GetString() == Opc.Ua.Pumps.BrowseNames.PumpOperation);
+                .Single(value => value.GetProperty("name").GetString() == Pumps.BrowseNames.PumpOperation);
             Assert.That(operation.GetProperty("value").GetProperty("Value").GetBoolean(), Is.False);
         }
 
@@ -331,7 +343,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// Ambiguous or missing sessions cannot silently select another connection.
         /// </summary>
         [TestCase("{}")]
-        [TestCase("{\"sessionName\":\"missing\"}")]
+        [TestCase(/*lang=json,strict*/ "{\"sessionName\":\"missing\"}")]
         public async Task CompanionToolsRejectAmbiguousOrMissingSessionAsync(string arguments)
         {
             CallToolResult result = await CallAsync("amb_discover_assets", arguments).ConfigureAwait(false);
@@ -367,9 +379,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// <summary>
         /// Invokes the SDK's real tool binder, not a direct wrapper method call.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The MCP client host has not been initialized.</exception>
         private async Task<CallToolResult> CallAsync(string name, string arguments)
         {
-            using JsonDocument json = JsonDocument.Parse(arguments);
+            using var json = JsonDocument.Parse(arguments);
             ServiceProvider services = m_clientServices ??
                 throw new InvalidOperationException("The MCP client host is not initialized.");
             McpServerTool tool = services.GetServices<McpServerTool>()
@@ -401,8 +414,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         /// <summary>
-        /// Waits for the configured address space while preserving startup exceptions.
+        /// Waits for post-start readiness while preserving startup exceptions.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The server exits before reaching readiness.</exception>
         private static async Task AwaitReadyAsync(IHostedService host, Task ready, CancellationToken ct)
         {
             if (host is BackgroundService { ExecuteTask: { } execution })

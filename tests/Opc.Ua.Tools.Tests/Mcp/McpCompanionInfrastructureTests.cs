@@ -300,10 +300,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public void ExecutePropagatesCancellationAfterOperation()
         {
             using var cancellation = new CancellationTokenSource();
-            Assert.That(() => McpCompanionTools.ExecuteAsync(_ =>
+            Assert.That(() => McpCompanionTools.ExecuteAsync(async _ =>
             {
-                cancellation.Cancel();
-                return ValueTask.FromResult<JsonNode?>(new JsonObject { ["completed"] = true });
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                return new JsonObject { ["completed"] = true };
             }, cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -369,6 +369,29 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         /// <summary>
+        /// Writer output distinguishes null from empty arrays and preserves escaped string content.
+        /// </summary>
+        [TestCase("null")]
+        [TestCase("[]")]
+        [TestCase("[\"line\\nfeed\",\"quote\\\"\",\"slash\\\\\"]")]
+        public void StringArrayWriterPreservesJsonShape(string json)
+        {
+            ArrayOf<string> input = ReadStringArray(json);
+            using var stream = new System.IO.MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                new McpStringArrayJsonConverter().Write(writer, input, new JsonSerializerOptions());
+            }
+            using var expected = JsonDocument.Parse(json);
+            using var actual = JsonDocument.Parse(stream.ToArray());
+            Assert.That(JsonElement.DeepEquals(actual.RootElement, expected.RootElement), Is.True);
+            if (!input.IsNull)
+            {
+                Assert.That(actual.RootElement.GetArrayLength(), Is.EqualTo(input.Count));
+            }
+        }
+
+        /// <summary>
         /// Non-finite outputs retain the correct sign and classification.
         /// </summary>
         [TestCase(double.NaN, "NaN")]
@@ -383,6 +406,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// <summary>
         /// Invokes the public converter without reflection-based serialization.
         /// </summary>
+        /// <exception cref="JsonException">The input contains no JSON token.</exception>
         private static ArrayOf<string> ReadStringArray(string json)
         {
             var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(json));

@@ -45,10 +45,10 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
@@ -82,9 +82,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 builder.WithOpcUaDiTools(McpToolProfile.Di);
             }
             await using ServiceProvider provider = services.BuildServiceProvider();
-            McpServerTool[] all = provider.GetServices<McpServerTool>().ToArray();
-            McpServerTool[] tools = all
-                .Where(tool => tool.ProtocolTool.Name.StartsWith("di_", StringComparison.Ordinal)).ToArray();
+            McpServerTool[] all = [.. provider.GetServices<McpServerTool>()];
+            McpServerTool[] tools =
+            [
+                .. all.Where(tool => tool.ProtocolTool.Name.StartsWith("di_", StringComparison.Ordinal))
+            ];
 
             Assert.That(tools.Select(tool => tool.ProtocolTool.Name), Is.EquivalentTo(kToolNames));
             Assert.That(all.Count(tool => tool.ProtocolTool.Name == "Connect"), Is.EqualTo(1));
@@ -242,6 +244,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// <summary>
         /// Two real sessions reach a DI server and preserve its ownership refusals without stealing the lock.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The DI server exits before reaching readiness.</exception>
         [Test]
         [Category("Integration")]
         [NonParallelizable]
@@ -254,6 +257,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string other = "di-other-" + identity;
             var ready = new TaskCompletionSource<(NodeId Device, NodeId Lock)>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddSingleton<ILockService, DefaultLockService>();
@@ -271,7 +275,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .AddOpcUaDi()
                 .ConfigureDevicesFor<DiNodeManager>(async context =>
                 {
-                    var device = await context.CreateDeviceAsync(
+                    IDeviceBuilder<DeviceState> device = await context.CreateDeviceAsync(
                         new QualifiedName("LockingDevice", context.Manager.InstanceNamespaceIndex))
                         .ConfigureAwait(false);
                     LockingServicesState locking = context.Manager.SystemContext.CreateInstanceOfLockingServicesType(
@@ -284,6 +288,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     await context.Manager.AddPredefinedNodeAsync(locking, context.CancellationToken)
                         .ConfigureAwait(false);
                     ready.SetResult((device.Device.NodeId, locking.NodeId));
+                })
+                .AddStartupTask((_, _, _) =>
+                {
+                    started.SetResult(true);
+                    return ValueTask.CompletedTask;
                 });
             await using ServiceProvider serverServices = services.BuildServiceProvider();
             IHostedService serverHost = serverServices.GetServices<IHostedService>().Single();
@@ -292,16 +301,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
             try
             {
                 await serverHost.StartAsync(timeout.Token).ConfigureAwait(false);
+                var readyForConnections = Task.WhenAll(ready.Task, started.Task);
                 if (serverHost is BackgroundService { ExecuteTask: { } execution })
                 {
-                    Task completed = await Task.WhenAny(ready.Task, execution).WaitAsync(timeout.Token)
+                    Task completed = await Task.WhenAny(readyForConnections, execution).WaitAsync(timeout.Token)
                         .ConfigureAwait(false);
                     await completed.ConfigureAwait(false);
-                    if (completed == execution && !ready.Task.IsCompleted)
+                    if (completed == execution && !readyForConnections.IsCompleted)
                     {
                         throw new InvalidOperationException("The DI server stopped before configuring the device.");
                     }
                 }
+                await readyForConnections.WaitAsync(timeout.Token).ConfigureAwait(false);
                 (NodeId deviceId, NodeId lockId) = await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await sessions.ConnectAsync(owner, endpoint, "None", "None", "Anonymous",
                     null, null, true, timeout.Token).ConfigureAwait(false);
@@ -561,7 +572,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(package.PatchIdentifiers[1], Is.EqualTo("p2"));
             Assert.That(DiJson.PackageHash(package).ToBase64(), Is.EqualTo("AQIDBA=="));
             Assert.That(DiJson.FileNodeIds(files).ToArray(),
-                Is.EqualTo(new[] { new NodeId("file-a", 2), new NodeId("file-b", 2) }));
+                Is.EqualTo([new NodeId("file-a", 2), new NodeId("file-b", 2)]));
         }
 
         /// <summary>
@@ -598,7 +609,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var services = new ServiceCollection();
             services.AddMcpServer().WithOpcUaDiTools(McpToolProfile.Di);
             await using ServiceProvider provider = services.BuildServiceProvider();
-            Tool[] tools = provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool).ToArray();
+            Tool[] tools = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool)];
             Tool unrelated = tools.Single(tool => tool.Name == "di_acquire_lock");
             string original = unrelated.InputSchema.GetRawText();
             var response = new ListToolsResult { Tools = tools };
@@ -670,7 +681,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var namespaces = new NamespaceTable();
             namespaces.GetIndexOrAppend(Di.Namespaces.OpcUaDi);
             namespaces.GetIndexOrAppend("urn:di-test");
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris = namespaces;
             session.SetupGet(value => value.NamespaceUris).Returns(namespaces);
             session.SetupGet(value => value.MessageContext).Returns(context);
