@@ -379,8 +379,9 @@ Downloads enforce the limit while writing, use a temporary file, publish the
 completed file without overwriting an existing destination, and remove partial
 files on failure or cancellation. Parent directories must already exist.
 There is no arbitrary URL fetching or large inline base64 transport.
-Uploading a software package does not install or confirm it; those are separate
-explicit operations.
+Uploading a software package does not invoke the Installation or Confirmation
+methods; those are separate explicit operations. A server's DirectLoading
+profile may apply the software when the upload commits.
 
 ## Usage
 
@@ -432,6 +433,12 @@ return codes, including ISA-95 job and DI lock statuses, are not confused
 with a successful UA service response. Missing optional capabilities are
 distinguished from an empty supported result. A timeout does not prove that
 a remote mutation did not occur; inspect server state before deciding to retry.
+
+Cancellation is checked before dispatch and propagates when an in-progress
+operation observes it. Once a command or upload callback returns its completed
+result, late cancellation does not replace that result with a cancellation
+error: a mutation or software-package commit may already have taken effect.
+Downloads still honor cancellation before publishing their local destination.
 
 Paged lists return `items`, `offset`, `nextOffset`, `hasMore` and
 `consistency: "live"`. The default page size is 100, with a maximum of 500.

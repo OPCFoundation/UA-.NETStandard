@@ -50,7 +50,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Executes one explicit operation and preserves actionable failures as MCP tool errors.
         /// A model refusal can return an object with <c>error: true</c> and its original return code.
-        /// Caller cancellation is propagated, not converted to a successful or partial result.
+        /// Cancellation is checked before invocation and propagated when raised by the operation.
+        /// A completed operation's result is not replaced by late cancellation, which could prompt an unsafe retry.
         /// </summary>
         public static async Task<CallToolResult> ExecuteAsync(
             Func<CancellationToken, ValueTask<JsonNode?>> operation,
@@ -61,7 +62,6 @@ namespace Opc.Ua.Mcp
             {
                 ct.ThrowIfCancellationRequested();
                 JsonNode? result = await operation(ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested();
                 return Result(result);
             }
             catch (ServiceResultException exception)
@@ -94,9 +94,10 @@ namespace Opc.Ua.Mcp
         {
             JsonObject payload = data as JsonObject ?? new JsonObject { ["data"] = data };
             bool isError = payload["error"] is JsonValue flag &&
-                flag.TryGetValue(out bool error) && error;
+                flag.TryGetValue(out bool error) &&
+                error;
             string json = payload.ToJsonString();
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             return new CallToolResult
             {
                 IsError = isError,
@@ -211,6 +212,7 @@ namespace Opc.Ua.Mcp
         /// Borrows the current managed session's streaming subscription.
         /// Dispose observation enumerators, not this shared subscription.
         /// </summary>
+        /// <exception cref="NotSupportedException">The session does not provide managed streaming.</exception>
         public static IStreamingSubscription GetStreaming(ISession session)
         {
             ArgumentNullException.ThrowIfNull(session);

@@ -294,17 +294,58 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         /// <summary>
-        /// Cancellation arriving during an operation is not reported as success if the callee ignores it.
+        /// A completed operation's result is preserved even when cancellation arrives before it is returned.
         /// </summary>
-        [Test]
-        public void ExecutePropagatesCancellationAfterOperation()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExecutePreservesCompletedResultAfterCancellationAsync(bool refused)
         {
             using var cancellation = new CancellationTokenSource();
-            Assert.That(() => McpCompanionTools.ExecuteAsync(async _ =>
+            var payload = new JsonObject
             {
+                ["error"] = refused,
+                ["returnStatus"] = refused ? 7 : 0,
+                ["operationId"] = "operation-1"
+            };
+            int calls = 0;
+
+            CallToolResult result = await McpCompanionTools.ExecuteAsync(async token =>
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                calls++;
                 await cancellation.CancelAsync().ConfigureAwait(false);
+                return payload;
+            }, cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(cancellation.IsCancellationRequested, Is.True);
+            Assert.That(result.IsError, Is.EqualTo(refused));
+            Assert.That(result.StructuredContent!.Value.GetRawText(), Is.EqualTo(payload.ToJsonString()));
+            Assert.That(((TextContentBlock)result.Content[0]).Text, Is.EqualTo(payload.ToJsonString()));
+        }
+
+        /// <summary>
+        /// Cancellation observed by an in-progress operation still propagates rather than becoming a tool result.
+        /// </summary>
+        [Test]
+        public void ExecutePropagatesCancellationRaisedByCallback()
+        {
+            using var cancellation = new CancellationTokenSource();
+            int calls = 0;
+            bool completed = false;
+
+            Assert.That(() => McpCompanionTools.ExecuteAsync(async token =>
+            {
+                calls++;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                completed = true;
                 return new JsonObject { ["completed"] = true };
-            }, cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+            }, cancellation.Token), Throws.InstanceOf<OperationCanceledException>()
+                .With.Property(nameof(OperationCanceledException.CancellationToken)).EqualTo(cancellation.Token));
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(completed, Is.False);
         }
 
         /// <summary>

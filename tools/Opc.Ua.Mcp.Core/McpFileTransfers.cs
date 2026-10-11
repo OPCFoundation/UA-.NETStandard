@@ -57,7 +57,9 @@ namespace Opc.Ua.Mcp
 
         /// <summary>
         /// Uploads a bounded file stream. Rejects oversized files before invoking the remote operation.
+        /// The callback observes cancellation while uploading; its completed commit is not masked by late cancellation.
         /// </summary>
+        /// <exception cref="IOException">The source exceeds the byte limit or is not completely consumed.</exception>
         public async ValueTask<JsonObject> UploadAsync(
             string filePath,
             Func<Stream, CancellationToken, ValueTask<long>> upload,
@@ -82,7 +84,6 @@ namespace Opc.Ua.Mcp
             var bounded = new BoundedTransferStream(file, limit);
             await using ConfiguredAsyncDisposable boundedScope = bounded.ConfigureAwait(false);
             long reported = await upload(bounded, ct).ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
             if (reported != bounded.BytesTransferred || bounded.BytesTransferred != file.Length)
             {
                 throw new IOException("The upload did not report consumption of the complete source file.");
@@ -94,6 +95,9 @@ namespace Opc.Ua.Mcp
         /// Downloads through a bounded destination stream and atomically publishes the completed file.
         /// Failed or cancelled transfers remove their temporary file and never replace the destination.
         /// </summary>
+        /// <exception cref="IOException">The destination exists or the download exceeds the byte limit.</exception>
+        /// <exception cref="ArgumentException">The destination path is not permitted.</exception>
+        /// <exception cref="DirectoryNotFoundException">The destination directory does not exist.</exception>
         public async ValueTask<JsonObject> DownloadAsync(
             string filePath,
             Func<Stream, CancellationToken, ValueTask> download,
@@ -146,6 +150,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Captures and validates the host policy for one transfer.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The host transfer policy is missing or invalid.</exception>
+        /// <exception cref="DirectoryNotFoundException">The configured transfer root does not exist.</exception>
         private (string Root, long Limit) GetPolicy()
         {
             if (string.IsNullOrWhiteSpace(m_options.TransferRoot))
@@ -170,6 +176,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Resolves a regular file beneath the root using platform-correct path comparison.
         /// </summary>
+        /// <exception cref="ArgumentException">The path is not a permitted file beneath the root.</exception>
         private static string ResolvePath(string root, string filePath)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -190,6 +197,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Rejects symlinks, junctions and other reparse points in every existing path segment.
         /// </summary>
+        /// <exception cref="ArgumentException">The path is not absolute or contains a link.</exception>
         private static void RejectLinks(string path)
         {
             string current = Path.GetPathRoot(path) ??
@@ -403,6 +411,7 @@ namespace Opc.Ua.Mcp
             /// <summary>
             /// Rejects a chunk before writing it when it would cross the host policy.
             /// </summary>
+            /// <exception cref="IOException">The chunk would exceed the remaining byte budget.</exception>
             private void CheckWrite(int count)
             {
                 if (count > m_limit - BytesTransferred)

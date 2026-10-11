@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
@@ -85,6 +86,85 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(received.ToArray(), Is.EqualTo(expected));
             Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(length));
             Assert.That(result["filePath"]!.GetValue<string>(), Is.EqualTo("source.bin"));
+        }
+
+        /// <summary>
+        /// A completed upload remains successful when cancellation arrives after its remote commit.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UploadPreservesCommittedResultAfterCancellationAsync(bool throughTool)
+        {
+            byte[] expected = [1, 2, 3, 4];
+            string path = Path.Combine(m_root, "source.bin");
+            await File.WriteAllBytesAsync(path, expected).ConfigureAwait(false);
+            using var received = new MemoryStream();
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            int commits = 0;
+
+            ValueTask<JsonObject> UploadAsync(CancellationToken token)
+            {
+                return transfers.UploadAsync("source.bin", async (source, ct) =>
+                {
+                    Assert.That(ct, Is.EqualTo(cancellation.Token));
+                    await source.CopyToAsync(received, ct).ConfigureAwait(false);
+                    commits++;
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                    return received.Length;
+                }, token);
+            }
+
+            JsonObject result;
+            if (throughTool)
+            {
+                CallToolResult toolResult = await McpCompanionTools.ExecuteAsync(
+                    async token => await UploadAsync(token).ConfigureAwait(false), cancellation.Token)
+                    .ConfigureAwait(false);
+                Assert.That(toolResult.IsError, Is.False);
+                result = JsonNode.Parse(toolResult.StructuredContent!.Value.GetRawText())!.AsObject();
+            }
+            else
+            {
+                result = await UploadAsync(cancellation.Token).ConfigureAwait(false);
+            }
+
+            Assert.That(commits, Is.EqualTo(1));
+            Assert.That(cancellation.IsCancellationRequested, Is.True);
+            Assert.That(received.ToArray(), Is.EqualTo(expected));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(expected.Length));
+            Assert.That(result["filePath"]!.GetValue<string>(), Is.EqualTo("source.bin"));
+            using FileStream probe = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.That(probe.Length, Is.EqualTo(expected.Length));
+        }
+
+        /// <summary>
+        /// Cancellation during a stream read stops the upload before commit and releases the source file.
+        /// </summary>
+        [Test]
+        public async Task UploadPropagatesReadCancellationBeforeCommitAsync()
+        {
+            string path = Path.Combine(m_root, "source.bin");
+            await File.WriteAllBytesAsync(path, [1, 2, 3, 4]).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            int calls = 0;
+            bool committed = false;
+
+            Assert.That(async () => await transfers.UploadAsync("source.bin", async (source, ct) =>
+            {
+                calls++;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                int read = await source.ReadAsync(new byte[4], ct).ConfigureAwait(false);
+                committed = true;
+                return read;
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>()
+                .With.Property(nameof(OperationCanceledException.CancellationToken)).EqualTo(cancellation.Token));
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(committed, Is.False);
+            using FileStream probe = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.That(probe.Length, Is.EqualTo(4));
         }
 
         /// <summary>
@@ -353,6 +433,27 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         /// <summary>
+        /// A download can still be cancelled after its callback because its local file has not been published.
+        /// </summary>
+        [Test]
+        public void DownloadCancellationAfterCallbackPreventsPublication()
+        {
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            bool callbackCompleted = false;
+
+            Assert.That(async () => await transfers.DownloadAsync("result.bin", async (target, ct) =>
+            {
+                await target.WriteAsync(new byte[] { 1, 2, 3, 4 }, ct).ConfigureAwait(false);
+                callbackCompleted = true;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(callbackCompleted, Is.True);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
         /// An upload must consume the complete source and accurately report its consumption.
         /// </summary>
         [TestCase(0)]
@@ -476,6 +577,27 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 invoked = true;
                 return ValueTask.CompletedTask;
             }, cancelled.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// Cancellation before an upload cannot open the source or invoke a remote operation.
+        /// </summary>
+        [Test]
+        public void PreCancelledUploadDoesNotInvokeCallback()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+
+            Assert.That(async () => await transfers.UploadAsync("missing.bin", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.FromResult(0L);
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+
             Assert.That(invoked, Is.False);
             Assert.That(Directory.GetFiles(m_root), Is.Empty);
         }
