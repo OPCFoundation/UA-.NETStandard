@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public async Task FindAliasAsyncPassesNullFilterAsNodeIdNullAsync()
         {
             var harness = AliasNameSessionHarness.Create();
-            CallMethodRequest captured = null;
+            CallMethodRequest? captured = null;
             harness.CallHandler = req =>
             {
                 captured = req;
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             await foreach (AliasNameSubCategoryInfo info in
                 client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
             {
-                names.Add(info.BrowseName.Name);
+                names.Add(info.BrowseName.Name!);
             }
 
             var expectedNames = new[] { "Page1", "Page2" };
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             await foreach (AliasNameSubCategoryInfo info in
                 client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
             {
-                names.Add(info.BrowseName.Name);
+                names.Add(info.BrowseName.Name!);
             }
 
             string[] expectedNames = ["Standard", "Vendor", "Derived"];

@@ -64,7 +64,7 @@ namespace Opc.Ua.Fuzzing
 
             if (args.Length == 3 && args[0] == "--replay")
             {
-                Delegate method = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
+                Delegate? method = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
                 if (method == null)
                 {
                     return 2;
@@ -93,7 +93,7 @@ namespace Opc.Ua.Fuzzing
 
             if (args.Length == 1)
             {
-                Delegate method = FuzzMethods.FindFuzzMethod(Console.Error, args[0]);
+                Delegate? method = FuzzMethods.FindFuzzMethod(Console.Error, args[0]);
                 if (method != null)
                 {
                     FuzzableCode.FuzzInfo();
@@ -108,7 +108,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void Usage()
         {
-            string applicationName = typeof(Program).Assembly.GetName().Name;
+            string applicationName = typeof(Program).Assembly.GetName().Name!;
             Console.Error.WriteLine(
                 "Usage: {0} <fuzzingFunction> | --list | --replay <target> <file-or-corpus>",
                 applicationName);

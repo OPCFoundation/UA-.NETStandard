@@ -80,7 +80,7 @@ namespace Opc.Ua.Types.Tests.Diagnostics
             };
             ActivitySource.AddActivityListener(listener);
 
-            using Activity activity = telemetry.StartActivity();
+            using Activity activity = telemetry.StartActivity()!;
 
             Assert.That(activity, Is.Not.Null);
             Assert.That(activity!.Source.Name, Is.EqualTo(expectedSourceName));
@@ -113,7 +113,7 @@ namespace Opc.Ua.Types.Tests.Diagnostics
 
             using Meter meter = TelemetryExtensions.CreateMeter(telemetry);
             ActivitySource source = telemetry.GetActivitySource();
-            using Activity activity = telemetry.StartActivity();
+            using Activity activity = telemetry.StartActivity()!;
 
             Assert.That(meter.Name, Is.EqualTo(expectedSourceName));
             Assert.That(source.Name, Is.EqualTo(expectedSourceName));
@@ -157,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Diagnostics
                 m_activitySource?.Dispose();
             }
 
-            private ActivitySource m_activitySource;
+            private ActivitySource m_activitySource = null!;
         }
 
         private sealed class NullTelemetryContext : ITelemetryContext

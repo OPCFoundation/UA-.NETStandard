@@ -141,7 +141,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
             Assert.That(childNames, Is.Not.Empty,
                 "ServerDiagnostics should have child nodes.");
@@ -175,7 +175,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("The server has no UserName endpoint for the administrator.");
             }
 
-            ISession other = null;
+            ISession? other = null;
             uint ownSubscriptionId = 0;
             uint otherSubscriptionId = 0;
             try
@@ -214,8 +214,8 @@ namespace Opc.Ua.InformationModel.Tests
             finally
             {
                 await DeleteSubscriptionAsync(Session, ownSubscriptionId).ConfigureAwait(false);
-                await DeleteSubscriptionAsync(other, otherSubscriptionId).ConfigureAwait(false);
-                await CloseAsync(other).ConfigureAwait(false);
+                await DeleteSubscriptionAsync(other!, otherSubscriptionId).ConfigureAwait(false);
+                await CloseAsync(other!).ConfigureAwait(false);
                 await CloseAsync(admin).ConfigureAwait(false);
             }
         }
@@ -268,7 +268,7 @@ namespace Opc.Ua.InformationModel.Tests
             BrowseResult result = response.Results[0];
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.StatusCode.ToString());
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
-            return [.. result.References.ToArray().Select(r => ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris))];
+            return [.. result.References.ToArray()!.Select(r => ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris))];
         }
 
         private static async Task<List<SubscriptionDiagnosticsDataType>> ReadSubscriptionDiagnosticsAsync(
@@ -289,8 +289,8 @@ namespace Opc.Ua.InformationModel.Tests
                 DataValue value = response.Results[ii];
                 Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, $"{nodeIds[ii]}: {value.StatusCode}");
                 Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True, nodeIds[ii].ToString());
-                Assert.That(extension.TryGetValue(out SubscriptionDiagnosticsDataType entry), Is.True, nodeIds[ii].ToString());
-                diagnostics.Add(entry);
+                Assert.That(extension.TryGetValue(out SubscriptionDiagnosticsDataType? entry), Is.True, nodeIds[ii].ToString());
+                diagnostics.Add(entry!);
             }
             return diagnostics;
         }

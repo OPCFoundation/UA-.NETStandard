@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             serverMock.SetupGet(s => s.ServerUris).Returns(servers);
 
             var resolver = new ServerPortableNodeIdResolver(serverMock.Object);
-            PortableNodeId portable = resolver.ToPortable(new NodeId("MyCat", 1));
+            PortableNodeId portable = resolver.ToPortable(new NodeId("MyCat", 1))!;
 
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         public void PortableResolverPreservesNumericIdentifier()
         {
             ServerPortableNodeIdResolver resolver = NewResolver();
-            PortableNodeId portable = resolver.ToPortable(new NodeId(42u, 1));
+            PortableNodeId portable = resolver.ToPortable(new NodeId(42u, 1))!;
 
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         {
             ServerPortableNodeIdResolver resolver = NewResolver();
             var guid = Guid.NewGuid();
-            PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1));
+            PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1))!;
 
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         {
             ServerPortableNodeIdResolver resolver = NewResolver();
             byte[] bytes = [0xCA, 0xFE, 0xBA, 0xBE];
-            PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
+            PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1))!;
 
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         public void PortableResolverReturnsNullForNullNodeId()
         {
             ServerPortableNodeIdResolver resolver = NewResolver();
-            PortableNodeId portable = resolver.ToPortable(NodeId.Null);
+            PortableNodeId? portable = resolver.ToPortable(NodeId.Null);
             Assert.That(portable, Is.Null,
                 "Null NodeId must short-circuit to null without throwing.");
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             // Namespace index 99 is not registered — the resolver must
             // gracefully return null rather than emit a PortableNodeId
             // with a null/empty namespace URI.
-            PortableNodeId portable = resolver.ToPortable(new NodeId("X", 99));
+            PortableNodeId? portable = resolver.ToPortable(new NodeId("X", 99));
             Assert.That(portable, Is.Null);
         }
 
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
                 resolver,
                 applicationUri: "urn:example:publisher");
 
-            AliasUpdateDataType captured = null;
+            AliasUpdateDataType? captured = null;
             publisher.AliasUpdateProduced += (_, e) => captured = e.Update;
 
             store.AddAliasesAsync(

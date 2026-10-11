@@ -65,7 +65,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public ushort HashSize;
         public HashAlgorithmName HashAlgorithmName;
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             return $"{KeySize}-{HashAlgorithmName}";
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public ushort HashSize { get; }
         public HashAlgorithmName HashAlgorithmName { get; }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             try
             {
@@ -173,8 +173,8 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     public class CRLAsset : IAsset, IFormattable
     {
-        public string Path { get; private set; }
-        public byte[] Crl { get; private set; }
+        public string Path { get; private set; } = null!;
+        public byte[] Crl { get; private set; } = null!;
 
         public void Initialize(byte[] blob, string path)
         {
@@ -182,7 +182,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Crl = blob;
         }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
@@ -194,9 +194,9 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     public sealed class CertificateAsset : IAsset, IFormattable, IDisposable
     {
-        public string Path { get; private set; }
-        public byte[] Cert { get; private set; }
-        public Certificate X509Certificate { get; private set; }
+        public string Path { get; private set; } = null!;
+        public byte[] Cert { get; private set; } = null!;
+        public Certificate X509Certificate { get; private set; } = null!;
 
         public void Initialize(byte[] blob, string path)
         {
@@ -214,10 +214,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void Dispose()
         {
             X509Certificate?.Dispose();
-            X509Certificate = null;
+            X509Certificate = null!;
         }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             string file = System.IO.Path.GetFileName(Path);
             return $"{file}";

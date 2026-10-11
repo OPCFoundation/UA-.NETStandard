@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AddPredefinedNode(SystemContext, m_node);
             }
 
-            public NodeState CachedNode => LookupNodeInComponentCache(SystemContext, Handle());
+            public NodeState CachedNode => LookupNodeInComponentCache(SystemContext, Handle())!;
 
             public void HoldCacheReference()
             {
@@ -141,19 +141,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public IMonitoredItem Create()
             {
                 using OperationContext context = NewContext(RequestType.CreateMonitoredItems);
-                var errors = new List<ServiceResult> { null };
-                var filterErrors = new List<MonitoringFilterResult> { null };
-                var items = new List<IMonitoredItem> { null };
+                var errors = new List<ServiceResult> { null! };
+                var filterErrors = new List<MonitoringFilterResult> { null! };
+                var items = new List<IMonitoredItem> { null! };
                 CreateMonitoredItems(
                     context, 1, 1000, TimestampsToReturn.Both, [NewRequest(m_node.NodeId)],
                     errors, filterErrors, items, false, new MonitoredItemIdFactory());
-                return ServiceResult.IsGood(errors[0]) ? items[0] : null;
+                return (ServiceResult.IsGood(errors[0]) ? items[0] : null)!;
             }
 
             public void Delete(IMonitoredItem item)
             {
                 using OperationContext context = NewContext(RequestType.DeleteMonitoredItems);
-                var errors = new List<ServiceResult> { null };
+                var errors = new List<ServiceResult> { null! };
                 DeleteMonitoredItems(context, [item], new List<bool> { false }, errors);
                 Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
             }
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_node = NewVariable(NamespaceIndex);
             }
 
-            public NodeState CachedNode => LookupNodeInComponentCache(SystemContext, Handle());
+            public NodeState CachedNode => LookupNodeInComponentCache(SystemContext, Handle())!;
 
             public ValueTask InitializeAsync()
             {
@@ -194,19 +194,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public async Task<IMonitoredItem> CreateAsync()
             {
                 using OperationContext context = NewContext(RequestType.CreateMonitoredItems);
-                var errors = new List<ServiceResult> { null };
-                var filterErrors = new List<MonitoringFilterResult> { null };
-                var items = new List<IMonitoredItem> { null };
+                var errors = new List<ServiceResult> { null! };
+                var filterErrors = new List<MonitoringFilterResult> { null! };
+                var items = new List<IMonitoredItem> { null! };
                 await CreateMonitoredItemsAsync(
                     context, 1, 1000, TimestampsToReturn.Both, [NewRequest(m_node.NodeId)],
                     errors, filterErrors, items, false, new MonitoredItemIdFactory()).ConfigureAwait(false);
-                return ServiceResult.IsGood(errors[0]) ? items[0] : null;
+                return (ServiceResult.IsGood(errors[0]) ? items[0] : null)!;
             }
 
             public async Task DeleteAsync(IMonitoredItem item)
             {
                 using OperationContext context = NewContext(RequestType.DeleteMonitoredItems);
-                var errors = new List<ServiceResult> { null };
+                var errors = new List<ServiceResult> { null! };
                 await DeleteMonitoredItemsAsync(context, [item], new List<bool> { false }, errors)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(errors[0]), Is.True);

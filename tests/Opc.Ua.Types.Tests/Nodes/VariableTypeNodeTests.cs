@@ -187,11 +187,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new VariableTypeNode();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -598,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             serializer.WriteObject(stream, original);
             stream.Position = 0;
 
-            var deserialized = (VariableTypeNode)serializer.ReadObject(stream);
+            var deserialized = (VariableTypeNode)serializer.ReadObject(stream)!;
 
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.IsAbstract, Is.False);
@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             VariableTypeNode node = CreatePopulatedNode();
             var dataValue = new DataValue();
-            ServiceResult result = node.Read(null, Attributes.Value, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.Value, ref dataValue);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((int)dataValue.WrappedValue, Is.EqualTo(100));
@@ -637,7 +637,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new VariableTypeNode { Value = Variant.Null };
             var dataValue = new DataValue();
-            ServiceResult result = node.Read(null, Attributes.Value, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.Value, ref dataValue);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }

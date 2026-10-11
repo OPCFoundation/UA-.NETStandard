@@ -64,6 +64,9 @@ namespace Opc.Ua.Bindings
                 ClientHmac?.Dispose();
                 ClientHmac = null;
 
+                ServerAes.Dispose();
+                ClientAes.Dispose();
+
                 m_localNonce?.Dispose();
                 m_localNonce = null;
                 m_remoteNonce?.Dispose();
@@ -124,6 +127,17 @@ namespace Opc.Ua.Bindings
         internal bool IsExpired(TimeProvider timeProvider)
         {
             return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds > Lifetime;
+        }
+
+        /// <summary>
+        /// Whether the token has expired, allowing for the fraction of its lifetime
+        /// (<paramref name="gracePeriod"/>) during which messages secured with it are
+        /// still accepted.
+        /// </summary>
+        internal bool IsExpired(TimeProvider timeProvider, double gracePeriod)
+        {
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds >
+                Lifetime + Math.Round(Lifetime * gracePeriod);
         }
 
         /// <summary>
@@ -200,6 +214,16 @@ namespace Opc.Ua.Bindings
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
         internal HMAC? ClientHmac { get; set; }
+
+        /// <summary>
+        /// The AES cache for <see cref="ServerEncryptingKey"/> with the CBC policies.
+        /// </summary>
+        internal AesCache ServerAes { get; } = new();
+
+        /// <summary>
+        /// The AES cache for <see cref="ClientEncryptingKey"/> with the CBC policies.
+        /// </summary>
+        internal AesCache ClientAes { get; } = new();
 
         /// <summary>
         /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.

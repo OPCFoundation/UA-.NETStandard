@@ -219,8 +219,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 // A typed variant whose reference payload is absent still equals
                 // the null variant - that is what a null bodied ExtensionObject
                 // round trips to.
-                Assert.That(nullVariant, Is.EqualTo(new Variant((string)null)));
-                Assert.That(new Variant((string)null), Is.EqualTo(nullVariant));
+                Assert.That(nullVariant, Is.EqualTo(new Variant((string)null!)));
+                Assert.That(new Variant((string)null!), Is.EqualTo(nullVariant));
             });
         }
 
@@ -258,8 +258,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     Has.Count.EqualTo(3));
 
                 // and the order agrees with Equals where Equals says equal.
-                Assert.That(nullVariant.CompareTo(new Variant((string)null)), Is.Zero);
-                Assert.That(new Variant((string)null).CompareTo(nullVariant), Is.Zero);
+                Assert.That(nullVariant.CompareTo(new Variant((string)null!)), Is.Zero);
+                Assert.That(new Variant((string)null!).CompareTo(nullVariant), Is.Zero);
                 Assert.That(nullVariant.CompareTo(nullVariant), Is.Zero);
             });
         }
@@ -780,7 +780,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.Multiple(() =>
             {
                 Assert.That(value.CompareTo(Array.Empty<byte>()), Is.GreaterThan(0));
-                Assert.That(value.CompareTo((byte[])null), Is.GreaterThan(0));
+                Assert.That(value.CompareTo((byte[])null!), Is.GreaterThan(0));
                 Assert.That(value.CompareTo(ByteString.Empty), Is.GreaterThan(0));
                 Assert.That(ByteString.Empty.CompareTo(Array.Empty<byte>()), Is.Zero);
             });

@@ -72,7 +72,7 @@ jobs:
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
       builds: ${{ steps.matrix.outputs.builds }}
-      batch_size: ${{ steps.matrix.outputs.batch_size }}
+      batch_target_minutes: ${{ steps.matrix.outputs.batch_target_minutes }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
       include_macos: ${{ steps.list.outputs.include_macos }}
@@ -156,7 +156,7 @@ jobs:
             Write-Host 'Nothing to expand: the pull request changed no build-relevant file.'
             'tests=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             'builds=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            'batch_size=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            'batch_target_minutes=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
         ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true')

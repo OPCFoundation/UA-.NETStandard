@@ -53,8 +53,8 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 await fixture.LoadConfigurationAsync().ConfigureAwait(false);
-                fixture.Config.ServerConfiguration.ReverseConnect =
-                    CreateConfiguration("configured").ServerConfiguration.ReverseConnect;
+                fixture.Config.ServerConfiguration!.ReverseConnect =
+                    CreateConfiguration("configured").ServerConfiguration!.ReverseConnect;
                 ReloadableReverseConnectServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var dynamicUrl = new Uri("opc.tcp://localhost:4840/dynamic");
                 server.AddReverseConnection(dynamicUrl, timeout: 1234, maxSessionCount: 2, enabled: false);
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests
                 var dynamicUrl = new Uri("opc.tcp://localhost:4840/dynamic");
                 server.AddReverseConnection(dynamicUrl, timeout: 1234, maxSessionCount: 2, enabled: false);
                 ReverseConnectProperty retained = server.GetReverseConnections()[dynamicUrl];
-                fixture.Config.ServerConfiguration.ReverseConnect = new ReverseConnectServerConfiguration
+                fixture.Config.ServerConfiguration!.ReverseConnect = new ReverseConnectServerConfiguration
                 {
                     Clients =
                     [

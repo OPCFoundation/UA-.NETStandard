@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             using var releaseChild = new ManualResetEventSlim();
             using var releaseParent = new ManualResetEventSlim();
             ServiceResult nestedResult = StatusCodes.BadUnexpectedError;
-            FluentFiniteStateMachineState parent = null;
+            FluentFiniteStateMachineState? parent = null;
             parent = BuildParent()
                 .AddTransition(11, "ReenterA", 1, 1)
                 .OnCause(110, 1, 11)
@@ -166,8 +166,8 @@ namespace Opc.Ua.Server.Tests.StateMachines
                             throw new TimeoutException("The child callback was not released.");
                         }
                         nestedResult = useCause
-                            ? parent.DoCause(context, null, 120, default, [])
-                            : parent.DoTransition(context, 12, 0, default, []);
+                            ? parent!.DoCause(context, null, 120, default, [])
+                            : parent!.DoTransition(context, 12, 0, default, []);
                     }))
                 .StateMachine;
             var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
@@ -344,9 +344,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 default,
                 null,
                 false);
-            for (IReference reference = browser.Next();
+            for (IReference reference = browser.Next()!;
                 reference != null;
-                reference = browser.Next())
+                reference = browser.Next()!)
             {
                 targets.Add(ExpandedNodeId.ToNodeId(
                     reference.TargetId, m_context.NamespaceUris));
@@ -670,11 +670,11 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
         private sealed class TimerCreationGateClock : TimeProvider
         {
-            public Action BeforeTimerCreation { get; set; }
+            public Action BeforeTimerCreation { get; set; } = null!;
 
             public override ITimer CreateTimer(
                 TimerCallback callback,
-                object state,
+                object? state,
                 TimeSpan dueTime,
                 TimeSpan period)
             {

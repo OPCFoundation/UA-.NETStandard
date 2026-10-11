@@ -125,11 +125,11 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription wss = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep => string.Equals(
                     ep.TransportProfileUri,
                     Profiles.UaWssTransport,
-                    StringComparison.Ordinal));
+                    StringComparison.Ordinal))!;
             Assert.That(wss, Is.Not.Null, "Reference server did not advertise a WSS endpoint.");
             Assert.That(wss.EndpointUrl, Does.StartWith("opc.wss://").Or.StartWith("wss://"));
         }
@@ -218,7 +218,7 @@ namespace Opc.Ua.Sessions.Tests
             try
             {
                 ConfiguredEndpoint endpoint = new ConfiguredEndpoint(
-                    null,
+                    null!,
                     new EndpointDescription
                     {
                         EndpointUrl = m_endpointUrl.ToString(),

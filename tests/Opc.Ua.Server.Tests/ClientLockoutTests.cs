@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
             await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
-            m_fixture.Config.ServerConfiguration.UserTokenPolicies =
+            m_fixture.Config.ServerConfiguration!.UserTokenPolicies =
             [
                 new UserTokenPolicy(UserTokenType.Anonymous),
                 new UserTokenPolicy(UserTokenType.UserName)
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext firstContext = CreateSecureChannelContext(
                     hasPeerAddress ? sessionName + i : "shared-listener",
                     endpoint,
-                    hasPeerAddress ? IPAddress.Loopback : null);
+                    (hasPeerAddress ? IPAddress.Loopback : null)!);
                 var firstHeader = new RequestHeader();
                 CreateSessionResponse firstSession = await m_server.CreateSessionAsync(
                     firstContext,
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server.Tests
             SecureChannelContext victimContext = CreateSecureChannelContext(
                 hasPeerAddress ? sessionName + "-victim" : "shared-listener",
                 endpoint,
-                hasPeerAddress ? IPAddress.Loopback : null);
+                (hasPeerAddress ? IPAddress.Loopback : null)!);
             var victimHeader = new RequestHeader
             {
                 ReturnDiagnostics = (uint)DiagnosticsMasks.ServiceLocalizedText
@@ -486,7 +486,7 @@ namespace Opc.Ua.Server.Tests
             // lock the shared certificate out.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
             await fixture.LoadConfigurationAsync().ConfigureAwait(false);
-            fixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
+            fixture.Config.ServerConfiguration!.MaxFailedAuthenticationAttempts = 0;
             fixture.Config.ServerConfiguration.UserTokenPolicies =
             [
                 new UserTokenPolicy(UserTokenType.Anonymous),
@@ -585,7 +585,7 @@ namespace Opc.Ua.Server.Tests
         private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri!.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal))
                 ?? throw new NotSupportedException("No supported transport profile found.");
 
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server.Tests
         private static SecureChannelContext CreateSecureChannelContext(
             string sessionName,
             EndpointDescription endpoint,
-            IPAddress peerAddress = null)
+            IPAddress? peerAddress = null)
         {
             return new SecureChannelContext(
                 sessionName,

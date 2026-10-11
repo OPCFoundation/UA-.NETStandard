@@ -289,8 +289,8 @@ namespace Opc.Ua.Features.Tests
             foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                INode node = await Session.NodeCache.FindAsync(reference.NodeId)
-                    .ConfigureAwait(false);
+                INode node = (await Session.NodeCache.FindAsync(reference.NodeId)
+                    .ConfigureAwait(false))!;
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -307,8 +307,8 @@ namespace Opc.Ua.Features.Tests
             foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                INode node = await Session.NodeCache.FetchNodeAsync(reference.NodeId)
-                    .ConfigureAwait(false);
+                INode node = (await Session.NodeCache.FetchNodeAsync(reference.NodeId)
+                    .ConfigureAwait(false))!;
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -323,11 +323,11 @@ namespace Opc.Ua.Features.Tests
             }
 
             ArrayOf<ExpandedNodeId> testSet = ReferenceDescriptions[..MaxReferences].ConvertAll(r => r.NodeId);
-            ArrayOf<Node> nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet)
+            ArrayOf<Node?> nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet)
                 .ConfigureAwait(false);
-            foreach (Node node in nodeCollection)
+            foreach (Node? node in nodeCollection)
             {
-                var nodeId = ExpandedNodeId.ToNodeId(node.NodeId, Session.NamespaceUris);
+                var nodeId = ExpandedNodeId.ToNodeId(node!.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -551,10 +551,10 @@ namespace Opc.Ua.Features.Tests
                                     .ConfigureAwait(false);
                                 break;
                             case 2:
-                                ArrayOf<Node> result2 = await Session.NodeCache.FetchNodesAsync(testSet3)
+                                ArrayOf<Node?> result2 = await Session.NodeCache.FetchNodesAsync(testSet3)
                                     .ConfigureAwait(false);
-                                string displayText = await Session.NodeCache.GetDisplayTextAsync(
-                                    result2[0]).ConfigureAwait(false);
+                                string displayText = (await Session.NodeCache.GetDisplayTextAsync(
+                                    result2[0]).ConfigureAwait(false))!;
                                 break;
                             case 3:
                                 _ = await Session
@@ -566,22 +566,22 @@ namespace Opc.Ua.Features.Tests
                                     .ConfigureAwait(false);
                                 break;
                             case 4:
-                                INode result4 = await Session.NodeCache.FindAsync(testSet2[0])
-                                    .ConfigureAwait(false);
+                                INode result4 = (await Session.NodeCache.FindAsync(testSet2[0])
+                                    .ConfigureAwait(false))!;
                                 Assert.That(result4, Is.Not.Null);
                                 Assert.That(result4, Is.InstanceOf<VariableNode>());
                                 break;
                             case 5:
-                                Node result5 = await Session
+                                Node result5 = (await Session
                                     .NodeCache.FetchNodeAsync(testSet3[0])
-                                    .ConfigureAwait(false);
+                                    .ConfigureAwait(false))!;
                                 Assert.That(result5, Is.Not.Null);
                                 Assert.That(result5, Is.InstanceOf<VariableNode>());
-                                await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId)
+                                await Session.NodeCache.FetchSuperTypesAsync(result5!.NodeId)
                                     .ConfigureAwait(false);
                                 break;
                             case 6:
-                                string text = await Session.NodeCache.GetDisplayTextAsync(testSet2[0]).ConfigureAwait(false);
+                                string text = (await Session.NodeCache.GetDisplayTextAsync(testSet2[0]).ConfigureAwait(false))!;
                                 Assert.That(text, Is.Not.Null);
                                 break;
                             case 7:

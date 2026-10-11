@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         private ConnectionStateMachine CreateMachine(
-            IReconnectPolicy policy = null)
+            IReconnectPolicy? policy = null)
         {
             return new ConnectionStateMachine(
                 policy ??
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            void Handler(object sender, ConnectionStateChangedEventArgs e)
+            void Handler(object? sender, ConnectionStateChangedEventArgs e)
             {
                 if (e.NewState == target)
                 {
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             private ConnectionState? m_waitTarget;
 
             public void Handler(
-                object sender, ConnectionStateChangedEventArgs e)
+                object? sender, ConnectionStateChangedEventArgs e)
             {
                 lock (m_transitions)
                 {
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 var gate = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 bool inWorkerDuringConnect = false;
-                Task<bool> spawned = null;
+                Task<bool>? spawned = null;
                 sm.ConnectAsync = _ =>
                 {
                     inWorkerDuringConnect = sm.IsWorkerFlow;
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 gate.SetResult(true);
 
                 Assert.That(inWorkerDuringConnect, Is.True);
-                Assert.That(await spawned.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.False,
+                Assert.That(await spawned!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.False,
                     "Spawned background work must not be treated as the worker after the step ended.");
             }
         }
@@ -1148,7 +1148,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task CloseRacingPolicyExhaustionIsNotLostAsync()
         {
-            ConnectionStateMachine sm = null;
+            ConnectionStateMachine? sm = null;
             var mockPolicy = new Mock<IReconnectPolicy>();
             mockPolicy.Setup(p => p.GetNextDelay(
                 It.IsAny<int>(),
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Returns(() =>
                 {
                     // Close arrives right before the policy reports exhaustion.
-                    sm.RequestClose();
+                    sm!.RequestClose();
                     return (TimeSpan?)null;
                 });
 

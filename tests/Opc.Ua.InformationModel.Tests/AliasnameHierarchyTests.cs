@@ -65,7 +65,7 @@ namespace Opc.Ua.InformationModel.Tests
                 {
                     continue;
                 }
-                categoryNames.Add(category.BrowseName.Name);
+                categoryNames.Add(category.BrowseName.Name!);
 
                 var categoryId = ExpandedNodeId.ToNodeId(
                     category.NodeId, Session.NamespaceUris);
@@ -138,7 +138,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(nestedResult.StatusCode), Is.True,
                 $"FindAlias on the nested category should succeed: {nestedResult.StatusCode}");
             string[] nestedNames =
-                [.. DecodeAliasResults(Session, nestedResult).Select(r => r.AliasName.Name)];
+                [.. DecodeAliasResults(Session, nestedResult).Select(r => r.AliasName.Name)!];
 
             Assert.That(nestedNames, Is.EquivalentTo(s_stringValues1),
                 "FindAlias on the nested category should return only its own aliases.");
@@ -149,7 +149,7 @@ namespace Opc.Ua.InformationModel.Tests
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(parentResult.StatusCode), Is.True);
             string[] parentNames =
-                [.. DecodeAliasResults(Session, parentResult).Select(r => r.AliasName.Name)];
+                [.. DecodeAliasResults(Session, parentResult).Select(r => r.AliasName.Name)!];
 
             Assert.That(parentNames, Is.SupersetOf(nestedNames),
                 "FindAlias on the parent category should also return the nested aliases.");
@@ -175,7 +175,7 @@ namespace Opc.Ua.InformationModel.Tests
                     return child;
                 }
             }
-            return null;
+            return null!;
         }
 
         [Description("Call the FindAlias method on an instance of AliasNameCategoryType (under Aliases), passing in a '%' for the filter. Pass in the AliasFor for the Reference type.")]
@@ -191,8 +191,8 @@ namespace Opc.Ua.InformationModel.Tests
             // standard NodeSet exposes empty placeholder TagVariables /
             // Topics objects in namespace 0 that have no working FindAlias
             // implementation).
-            ReferenceDescription target = null;
-            ReferenceDescription fallback = null;
+            ReferenceDescription? target = null;
+            ReferenceDescription? fallback = null;
             foreach (ReferenceDescription c in categories)
             {
                 if (ExpandedNodeId.ToNodeId(c.TypeDefinition, Session.NamespaceUris) !=
@@ -209,7 +209,7 @@ namespace Opc.Ua.InformationModel.Tests
                 }
                 fallback ??= c;
             }
-            target ??= fallback;
+            target ??= fallback!;
             if (target == null)
             {
                 Assert.Ignore("No AliasNameCategory exposed under Aliases.");

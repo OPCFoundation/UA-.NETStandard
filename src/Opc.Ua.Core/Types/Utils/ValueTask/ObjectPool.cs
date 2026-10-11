@@ -27,31 +27,45 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+
 using System;
-using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// A simple object pool implementation.
+    /// A simple bounded, lock-free object pool.
     /// </summary>
+    /// <remarks>
+    /// Get and Return run once per service request on the server hot path and
+    /// typically on different threads (the request is taken on a receive thread
+    /// and returned on whichever thread awaits the response). A fixed slot array
+    /// with interlocked exchange keeps both operations wait-free; a
+    /// ConcurrentBag would steal across thread-local lists and its Count takes
+    /// every per-thread lock.
+    /// </remarks>
     /// <typeparam name="T">The type of object to pool.</typeparam>
     internal class ObjectPool<T> where T : class
     {
-        private readonly ConcurrentBag<T> m_objects;
         private readonly Func<T> m_objectGenerator;
-        private readonly int m_maxSize;
+        private readonly T?[] m_items;
+        private T? m_firstItem;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectPool{T}"/> class.
         /// </summary>
         /// <param name="objectGenerator">The function to generate new objects.</param>
-        /// <param name="maxSize">The maximum size of the pool.</param>
+        /// <param name="maxSize">The maximum number of retained objects (capped at four per processor).</param>
         public ObjectPool(Func<T> objectGenerator, int maxSize)
         {
             m_objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
-            m_maxSize = maxSize > 0 ? maxSize : throw new ArgumentOutOfRangeException(nameof(maxSize));
-            m_objects = [];
+            if (maxSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxSize));
+            }
+            // Retained objects only need to cover the concurrently outstanding ones;
+            // more slots would only lengthen the scan when the pool runs dry.
+            m_items = new T?[Math.Max(Math.Min(maxSize, Environment.ProcessorCount * 4), 1) - 1];
         }
 
         /// <summary>
@@ -60,9 +74,20 @@ namespace Opc.Ua
         /// <returns>An object from the pool or a new one if the pool is empty.</returns>
         public T Get()
         {
-            if (m_objects.TryTake(out T? item))
+            T? item = m_firstItem;
+            if (item != null && Interlocked.CompareExchange(ref m_firstItem, null, item) == item)
             {
                 return item;
+            }
+
+            T?[] items = m_items;
+            for (int i = 0; i < items.Length; i++)
+            {
+                item = items[i];
+                if (item != null && Interlocked.CompareExchange(ref items[i], null, item) == item)
+                {
+                    return item;
+                }
             }
 
             return m_objectGenerator();
@@ -74,9 +99,18 @@ namespace Opc.Ua
         /// <param name="item">The object to return.</param>
         public void Return(T item)
         {
-            if (m_objects.Count < m_maxSize)
+            if (m_firstItem == null && Interlocked.CompareExchange(ref m_firstItem, item, null) == null)
             {
-                m_objects.Add(item);
+                return;
+            }
+
+            T?[] items = m_items;
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (Interlocked.CompareExchange(ref items[i], item, null) == null)
+                {
+                    return;
+                }
             }
         }
     }

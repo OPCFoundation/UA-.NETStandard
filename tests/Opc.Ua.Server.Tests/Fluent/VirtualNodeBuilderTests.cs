@@ -38,8 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Tests.NodeManager;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>

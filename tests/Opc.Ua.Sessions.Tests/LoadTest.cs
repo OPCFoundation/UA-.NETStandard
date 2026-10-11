@@ -159,9 +159,9 @@ namespace Opc.Ua.Sessions.Tests
 
             // Resolve the endpoint once so ManagedSession creation does not
             // need to do endpoint discovery on every parallel task.
-            ConfiguredEndpoint configuredEndpoint = useManagedSession
+            ConfiguredEndpoint configuredEndpoint = (useManagedSession
                 ? await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false)
-                : null;
+                : null)!;
 
             TestContext.Out.WriteLine(
                 useManagedSession
@@ -190,7 +190,7 @@ namespace Opc.Ua.Sessions.Tests
                         {
                             ManagedSession managedSession = await ManagedSession.CreateAsync(
                                 ClientFixture.Config,
-                                configuredEndpoint,
+                                configuredEndpoint!,
                                 new DefaultSessionFactory(Telemetry),
                                 engineFactory: DefaultSubscriptionEngineFactory.Instance,
                                 ct: connectCts.Token).ConfigureAwait(false);
@@ -923,7 +923,7 @@ namespace Opc.Ua.Sessions.Tests
                                     return;
                                 }
 
-                                ManagedSession session = null;
+                                ManagedSession? session = null;
                                 try
                                 {
                                     session = await ManagedSession.CreateAsync(
@@ -1144,7 +1144,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         private static void AppendBenchmarkResult(string line)
         {
-            string path = Environment.GetEnvironmentVariable("BENCH_RESULT_FILE");
+            string path = Environment.GetEnvironmentVariable("BENCH_RESULT_FILE")!;
             if (string.IsNullOrEmpty(path))
             {
                 return;

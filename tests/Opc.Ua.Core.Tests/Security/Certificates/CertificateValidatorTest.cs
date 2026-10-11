@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             m_caChain[0] = rootCert;
-            m_crlChain[0] = s_issuer.RevokeCertificates(rootCert, null, null);
+            m_crlChain[0] = s_issuer.RevokeCertificates(rootCert, null!, null!);
 
             // to save time, the dupe chain uses just the default key size/hash
             m_caDupeChain[0] = s_factory
@@ -112,8 +112,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetCAConstraint()
                 .CreateForRSA();
 
-            m_crlDupeChain[0] = s_issuer.RevokeCertificates(m_caDupeChain[0], null, null);
-            m_crlRevokedChain[0] = null;
+            m_crlDupeChain[0] = s_issuer.RevokeCertificates(m_caDupeChain[0], null!, null!);
+            m_crlRevokedChain[0] = null!;
 
             Certificate signingCert = rootCert;
             DateTime subCABaseTime = DateTime.UtcNow.AddDays(-1);
@@ -148,8 +148,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_caChain[i] = subCACert;
                 m_crlChain[i] = s_issuer.RevokeCertificates(
                     subCACert,
-                    null,
-                    null,
+                    null!,
+                    null!,
                     subCABaseTime,
                     subCABaseTime + TimeSpan.FromDays(10));
                 Certificate subCADupeCert = s_factory
@@ -162,11 +162,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_caDupeChain[i] = subCADupeCert;
                 m_crlDupeChain[i] = s_issuer.RevokeCertificates(
                     subCADupeCert,
-                    null,
-                    null,
+                    null!,
+                    null!,
                     subCABaseTime,
                     subCABaseTime + TimeSpan.FromDays(10));
-                m_crlRevokedChain[i] = null;
+                m_crlRevokedChain[i] = null!;
                 signingCert = subCACert;
             }
 
@@ -1263,7 +1263,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     result.StatusCode,
                     Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 // check the chained service result
-                ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
+                ServiceResult innerResult = result.Errors[0].InnerResult!.InnerResult!;
                 Assert.That(innerResult, Is.Not.Null);
                 Assert.That(
                     innerResult.StatusCode,
@@ -1392,7 +1392,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var validator = TemporaryCertificateManager.Create(telemetry);
             CertificateManager certValidator = validator.Update();
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await certValidator.UpdateAsync(null).ConfigureAwait(false));
+                await certValidator.UpdateAsync(null!).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -1508,7 +1508,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 result.StatusCode,
                 Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
             Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
-            ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
+            ServiceResult? innerResult = result.Errors[0].InnerResult.InnerResult;
             if (trusted)
             {
                 Assert.That(innerResult, Is.Null);
@@ -1533,17 +1533,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             using Certificate certBase = s_factory.CreateApplicationCertificate(
-                null,
-                null,
+                null!,
+                null!,
                 subject).CreateForRSA();
 
             var generator = X509SignatureGenerator.CreateForRSA(
-                m_caChain[0].GetRSAPrivateKey(),
+                m_caChain[0].GetRSAPrivateKey()!,
                 RSASignaturePadding.Pkcs1);
             // generate a self signed cert with invalid signature
             ICertificateBuilder builder = s_factory.CreateApplicationCertificate(
-                null,
-                null,
+                null!,
+                null!,
                 subject);
             if (ca)
             {
@@ -1552,7 +1552,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             using Certificate cert = builder
                 .SetIssuer(certBase)
-                .SetRSAPublicKey(certBase.GetRSAPublicKey())
+                .SetRSAPublicKey(certBase.GetRSAPublicKey()!)
                 .CreateForRSA(generator);
 
             Assert.That(X509Utils.VerifySelfSigned(cert), Is.False);
@@ -1576,11 +1576,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     result.StatusCode,
                     Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
-                innerResult = result.Errors[0].InnerResult.InnerResult;
+                innerResult = result.Errors[0].InnerResult.InnerResult!;
             }
             else
             {
-                innerResult = result.Errors[0].InnerResult;
+                innerResult = result.Errors[0].InnerResult!;
             }
             if (!trusted)
             {
@@ -1590,7 +1590,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     innerResult.StatusCode,
                     Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                     innerResult.LocalizedText.Text);
-                innerResult = innerResult.InnerResult;
+                innerResult = innerResult.InnerResult!;
             }
             // However, all cert versions got an invalid signature, must fail...
             Assert.That(innerResult, Is.Not.Null);
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 result.StatusCode,
                 Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
             Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
-            ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
+            ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult!;
             if (!trusted)
             {
                 Assert.That(innerResult, Is.Not.Null);
@@ -1695,7 +1695,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     result.StatusCode,
                     Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
-                ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
+                ServiceResult? innerResult = result.Errors[0].InnerResult.InnerResult;
                 Assert.That(innerResult, Is.Null);
             }
         }
@@ -1710,8 +1710,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using Certificate cert = s_factory.CreateApplicationCertificate(
-                null,
-                null,
+                null!,
+                null!,
                 "CN=Test").CreateForRSA();
             using var validator = TemporaryCertificateManager.Create(telemetry);
             if (trusted)
@@ -1737,7 +1737,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     result.StatusCode,
                     Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
-                ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
+                ServiceResult? innerResult = result.Errors[0].InnerResult.InnerResult;
                 Assert.That(innerResult, Is.Null);
             }
 
@@ -1899,14 +1899,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                     // ensure the missing issuer certificate is detected, also.
                     int isPresentCertificateIssuerRevocationUnknown = 0;
-                    ServiceResult inner = result.Errors[0].InnerResult;
+                    ServiceResult inner = result.Errors[0].InnerResult!;
                     while (inner != null)
                     {
                         if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                         {
                             isPresentCertificateIssuerRevocationUnknown++;
                         }
-                        inner = inner.InnerResult;
+                        inner = inner.InnerResult!;
                     }
                     Assert.That(isPresentCertificateIssuerRevocationUnknown, Is.EqualTo(kCaChainCount - 1));
                 }
@@ -2125,7 +2125,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     // BadCertificateTimeInvalid can be suppressed. Ensure the other issues are caught, as well:
                     int isPresentCertificateIssuerRevocationUnknown = 0;
                     int isPresentCertificateRevocationUnknown = 0;
-                    ServiceResult inner = result.Errors[0].InnerResult;
+                    ServiceResult inner = result.Errors[0].InnerResult!;
                     while (inner != null)
                     {
                         if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
@@ -2136,7 +2136,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         {
                             isPresentCertificateRevocationUnknown++;
                         }
-                        inner = inner.InnerResult;
+                        inner = inner.InnerResult!;
                     }
                     if (rejectUnknownRevocationStatus)
                     {
@@ -2224,7 +2224,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
             using var publicKey = Certificate.FromRawData(selfSigned.RawData);
 
-            CertificateValidationResult result = null;
+            CertificateValidationResult? result = null;
             Assert.DoesNotThrowAsync(async () => result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false), "AcceptError callback exception must not propagate out of ValidateAsync.");
@@ -2534,7 +2534,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CreateIssuerKeyUsageChain(X509KeyUsageFlags? issuerKeyUsage, string slug)
         {
             Certificate rootCa = CreateRootCa(issuerKeyUsage, slug);
-            X509CRL rootCrl = s_issuer.RevokeCertificates(rootCa, null, null);
+            X509CRL rootCrl = s_issuer.RevokeCertificates(rootCa, null!, null!);
             Certificate appCert = s_factory
                 .CreateApplicationCertificate(
                     $"urn:opcfoundation.org:{slug}:app",
@@ -2556,7 +2556,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             foreach (ServiceResult error in errors)
             {
-                for (ServiceResult sr = error; sr != null; sr = sr.InnerResult)
+                for (ServiceResult sr = error; sr != null; sr = sr.InnerResult!)
                 {
                     if (sr.StatusCode.Code == expectedCode.Code)
                     {
@@ -2579,7 +2579,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TimeSpan timeout)
         {
             var sw = Stopwatch.StartNew();
-            CertificateCollection certificates = null;
+            CertificateCollection? certificates = null;
             do
             {
                 certificates?.Dispose();

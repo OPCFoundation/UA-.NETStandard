@@ -234,7 +234,9 @@ namespace Opc.Ua.Server
                 value = values[^1];
             }
 
-            if (!IsGood(value))
+            // Part 13 Tables 76/77: a Bad bound is Bad_NoData, an Uncertain bound keeps its
+            // status; TreatUncertainAsBad does not apply to bounds (Mantis 11462).
+            if (!IsBoundCandidate(value))
             {
                 value = value.WithStatus(StatusCodes.BadNoData);
             }

@@ -874,7 +874,7 @@ namespace Opc.Ua.Server
         /// hierarchy visibility exemption.
         /// </summary>
         private static bool IsTypeHierarchyVisibilityRequest(
-            NodeMetadata nodeMetadata,
+            in PermissionMetadata nodeMetadata,
             PermissionType requestedPermission)
         {
             return nodeMetadata.IsPartOfTypeHierarchy &&
@@ -909,6 +909,20 @@ namespace Opc.Ua.Server
         protected internal static ServiceResult ValidateAccessRestrictions(
             OperationContext context,
             NodeMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
+            return ValidateAccessRestrictions(
+                context,
+                PermissionMetadata.From(nodeMetadata),
+                requestedPermission);
+        }
+
+        /// <summary>
+        /// Validate the AccessRestrictions attribute for the requested permission.
+        /// </summary>
+        internal static ServiceResult ValidateAccessRestrictions(
+            OperationContext context,
+            in PermissionMetadata nodeMetadata,
             PermissionType requestedPermission)
         {
             ServiceResult serviceResult = StatusCodes.Good;
@@ -993,7 +1007,29 @@ namespace Opc.Ua.Server
             PermissionType requestedPermission,
             ILogger? logger = null)
         {
-            if (nodeMetadata == null || requestedPermission == PermissionType.None)
+            if (nodeMetadata == null)
+            {
+                // no permission is required hence the validation passes
+                return StatusCodes.Good;
+            }
+
+            return ValidateRolePermissions(
+                context,
+                PermissionMetadata.From(nodeMetadata),
+                requestedPermission,
+                logger);
+        }
+
+        /// <summary>
+        /// Validates the role permissions
+        /// </summary>
+        internal static ServiceResult ValidateRolePermissions(
+            OperationContext context,
+            in PermissionMetadata nodeMetadata,
+            PermissionType requestedPermission,
+            ILogger? logger = null)
+        {
+            if (requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes
                 return StatusCodes.Good;

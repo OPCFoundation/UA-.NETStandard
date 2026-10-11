@@ -198,7 +198,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotProjection.IsProjection(document), Is.True);
 
             var diagnostics = new List<WotDiagnostic>();
-            WotProjection projection = WotProjection.Parse(document, diagnostics);
+            WotProjection projection = WotProjection.Parse(document, diagnostics)!;
 
             Assert.That(projection, Is.Not.Null);
             Assert.That(
@@ -445,18 +445,18 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.Empty);
             Assert.That(result.Value, Is.Not.Null);
 
-            UANode root = result.Value.Items.First(i => i is UAObject);
-            Reference typeDefinition = root.References.First(r =>
+            UANode root = result.Value.Items!.First(i => i is UAObject);
+            Reference typeDefinition = root.References!.First(r =>
                 string.Equals(r.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal));
 
             // The bound type lives in the pump namespace, not the document's
             // own, so asserting the exact node means resolving the emitted
             // namespace index back through the NodeSet's table rather than
             // hard-coding it.
-            var bound = NodeId.Parse(typeDefinition.Value);
+            var bound = NodeId.Parse(typeDefinition.Value!);
             Assert.That(bound.IdentifierAsString, Is.EqualTo("1042"));
             Assert.That(
-                result.Value.NamespaceUris[bound.NamespaceIndex - 1],
+                result.Value.NamespaceUris![bound.NamespaceIndex - 1],
                 Is.EqualTo("http://example.com/demo/pump"));
         }
 

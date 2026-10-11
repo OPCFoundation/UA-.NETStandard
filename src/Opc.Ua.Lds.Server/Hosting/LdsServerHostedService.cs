@@ -37,8 +37,6 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>

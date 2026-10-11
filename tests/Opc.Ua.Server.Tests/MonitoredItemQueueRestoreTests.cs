@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests
             var storeMock = new Mock<ISubscriptionStore>();
             storeMock
                 .Setup(s => s.RestoreDataChangeMonitoredItemQueue(It.IsAny<uint>()))
-                .Returns((IDataChangeMonitoredItemQueue)null);
+                .Returns((IDataChangeMonitoredItemQueue)null!);
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory, storeMock.Object);
 
@@ -253,10 +253,10 @@ namespace Opc.Ua.Server.Tests
             restoredQueue.ResetQueue(10, false);
             restoredQueue.Enqueue(new DataValue(new Variant(7)), ServiceResult.Good);
             storeMock.Setup(s => s.RestoreDataChangeMonitoredItemQueueAsync(2, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IDataChangeMonitoredItemQueue>(restoredQueue));
+                .Returns(new ValueTask<IDataChangeMonitoredItemQueue?>(restoredQueue));
             storeMock.Setup(s => s.RestoreDataChangeMonitoredItemQueueAsync(3, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IDataChangeMonitoredItemQueue>(
-                    Task.FromException<IDataChangeMonitoredItemQueue>(
+                .Returns(new ValueTask<IDataChangeMonitoredItemQueue?>(
+                    Task.FromException<IDataChangeMonitoredItemQueue?>(
                         new InvalidOperationException("store failed"))));
 
             fixture.Server.Setup(s => s.SubscriptionStore).Returns(storeMock.Object);
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server.Tests
             IList<IStoredMonitoredItem> items)
         {
             FieldInfo field = typeof(MasterNodeManager).GetField(
-                "m_serviceDispatch", BindingFlags.Instance | BindingFlags.NonPublic);
+                "m_serviceDispatch", BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
             var dispatcher = (NodeManagerServiceDispatcher)field!.GetValue(manager)!;
             return dispatcher.PreHydrateMonitoredItemQueuesAsync(items, CancellationToken.None);
@@ -470,10 +470,10 @@ namespace Opc.Ua.Server.Tests
                 LogLevel logLevel,
                 EventId eventId,
                 TState state,
-                Exception exception,
+                Exception? exception,
                 Func<TState, Exception, string> formatter)
             {
-                m_messages.Add(formatter(state, exception));
+                m_messages.Add(formatter(state, exception!));
             }
 
             private readonly ConcurrentBag<string> m_messages;

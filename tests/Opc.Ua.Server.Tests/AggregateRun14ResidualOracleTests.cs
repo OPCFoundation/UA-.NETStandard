@@ -427,7 +427,7 @@ namespace Opc.Ua.Server.Tests
                 QualifiedName aggregateName = Aggregators.GetNameForStandardAggregate(aggregateId);
                 await AggregateManager.RegisterFactoryAsync(
                     aggregateId,
-                    aggregateName.Name,
+                    aggregateName.Name!,
                     Aggregators.CreateStandardCalculator,
                     CancellationToken.None).ConfigureAwait(false);
 
@@ -475,7 +475,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(result.HistoryData.TryGetValue(out HistoryData historyData), Is.True);
+                Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
                 return [.. historyData!.DataValues];
             }
 

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;

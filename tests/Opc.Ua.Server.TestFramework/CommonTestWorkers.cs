@@ -216,8 +216,8 @@ namespace Opc.Ua.Server.TestFramework
         public static async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceWorkerAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
-            OperationLimits operationLimits = null,
-            BrowseDescription browseDescription = null,
+            OperationLimits? operationLimits = null,
+            BrowseDescription? browseDescription = null,
             bool outputResult = false)
         {
             operationLimits ??= new OperationLimits();
@@ -251,10 +251,10 @@ namespace Opc.Ua.Server.TestFramework
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     _ = await services.BrowseAsync(
                         requestHeader,
-                        null,
+                        null!,
                         0,
-                        []).ConfigureAwait(false));
-                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+                        []).ConfigureAwait(false))!;
+                Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
             while (browseDescriptionCollection.Count > 0)
@@ -268,11 +268,11 @@ namespace Opc.Ua.Server.TestFramework
                     ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.BrowseAsync(
                                 requestHeader,
-                                null,
+                                null!,
                                 0,
-                                browseDescriptionCollection).ConfigureAwait(false));
+                                browseDescriptionCollection).ConfigureAwait(false))!;
                     Assert.That(
-                        sre.StatusCode,
+                        sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
 
                     // Test if server responds with BadTooManyOperations
@@ -281,17 +281,17 @@ namespace Opc.Ua.Server.TestFramework
                     sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         _ = await services.BrowseAsync(
                             requestHeader,
-                            null,
+                            null!,
                             0,
-                            tempBrowsePath).ConfigureAwait(false));
+                            tempBrowsePath).ConfigureAwait(false))!;
                     Assert.That(
-                        sre.StatusCode,
+                        sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
 
                 bool repeatBrowse;
                 uint maxNodesPerBrowse = operationLimits.MaxNodesPerBrowse;
-                BrowseResponse browseResponse = null;
+                BrowseResponse? browseResponse = null;
                 do
                 {
                     if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server.TestFramework
                         requestHeader.Timestamp = DateTime.UtcNow;
                         browseResponse = await services.BrowseAsync(
                             requestHeader,
-                            null,
+                            null!,
                             requestedMaxReferencesPerNode,
                             browseCollection).ConfigureAwait(false);
                         ServerFixtureUtils.ValidateResponse(
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.TestFramework
 
                 // Browse next
                 ArrayOf<ByteString> continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
-                    browseResponse.Results);
+                    browseResponse!.Results);
                 while (continuationPoints.Count > 0)
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.TestFramework
                     referenceDescriptions.AddRange(result.References);
                     foreach (ReferenceDescription reference in result.References)
                     {
-                        browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, null));
+                        browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, null!));
                     }
                 }
                 browseDescriptionCollection = ServerFixtureUtils
@@ -442,9 +442,9 @@ namespace Opc.Ua.Server.TestFramework
                     ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.TranslateBrowsePathsToNodeIdsAsync(
                                 requestHeader,
-                                browsePaths).ConfigureAwait(false));
+                                browsePaths).ConfigureAwait(false))!;
                     Assert.That(
-                        sre.StatusCode,
+                        sre!.StatusCode,
                         Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
                 ArrayOf<BrowsePath> browsePathSnippet =
@@ -520,8 +520,8 @@ namespace Opc.Ua.Server.TestFramework
                     requestHeader,
                     id,
                     TimestampsToReturn.Neither,
-                    itemsToCreate).ConfigureAwait(false));
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+                    itemsToCreate).ConfigureAwait(false))!;
+            Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
 
             // add item
             uint handleCounter = 1;
@@ -645,10 +645,10 @@ namespace Opc.Ua.Server.TestFramework
                 }
                 else
                 {
-                    DataChangeNotification dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetValue(out DataChangeNotification d) ? d : default;
-                    EventNotificationList eventNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetValue(out EventNotificationList e) ? e : default;
+                    DataChangeNotification dataChangeNotification = (publishResponse.NotificationMessage.NotificationData[0]
+                        .TryGetValue(out DataChangeNotification? d) ? d : default)!;
+                    EventNotificationList eventNotification = (publishResponse.NotificationMessage.NotificationData[0]
+                        .TryGetValue(out EventNotificationList? e) ? e : default)!;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
@@ -846,8 +846,8 @@ namespace Opc.Ua.Server.TestFramework
             if (sendInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
-                Assert.That(items.TryGetValue(out DataChangeNotification dataChangeNotification), Is.True);
-                ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
+                Assert.That(items.TryGetValue(out DataChangeNotification? dataChangeNotification), Is.True);
+                ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification!.MonitoredItems;
                 Assert.That(monitoredItemsCollection.IsEmpty, Is.False);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);

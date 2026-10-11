@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>

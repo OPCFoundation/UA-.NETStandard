@@ -9,7 +9,6 @@
     <Description>Minimal .NET console OPC UA server demonstrating distributed high-availability address-space replication, service-level publishing, and server redundancy metadata.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <RootNamespace>RedundantServer</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot>true</PublishAot>

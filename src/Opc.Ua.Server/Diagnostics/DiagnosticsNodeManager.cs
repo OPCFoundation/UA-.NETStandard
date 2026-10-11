@@ -1046,11 +1046,28 @@ namespace Opc.Ua.Server
                 SessionDiagnosticsObjectState sessionNode = tempSessionNode;
                 var browseName = QualifiedName.From(diagnostics.SessionName!);
 
+                // A session manager may request the SessionId, for example to keep the id
+                // of a session restored from another replica of a redundant server set.
+                // The children still get ids from the factory; an id that is already in
+                // use (or not in this manager's namespace) is replaced by a new one.
+                ServerSystemContext createContext = SystemContext;
+                NodeId requestedId = diagnostics.SessionId;
+                if (!requestedId.IsNull &&
+                    requestedId.NamespaceIndex == m_namespaceIndex &&
+                    !IsSessionIdInUse(requestedId))
+                {
+                    createContext = SystemContext.Copy();
+                    createContext.NodeIdFactory = new RequestedRootNodeIdFactory(
+                        SystemContext.NodeIdFactory,
+                        sessionNode,
+                        requestedId);
+                }
+
                 if (DiagnosticsEnabled)
                 {
                     // create a new instance and assign ids.
                     nodeId = await CreateNodeAsync(
-                        SystemContext,
+                        createContext,
                         default,
                         ReferenceTypeIds.HasComponent,
                         browseName,
@@ -1063,8 +1080,8 @@ namespace Opc.Ua.Server
                     // collection is disabled; assign the ids so that the node can be
                     // added when the collection is enabled.
                     sessionNode.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-                    sessionNode.Create(SystemContext, default, browseName, default, true);
-                    SystemContext.AssignInstanceNodeId(sessionNode);
+                    sessionNode.Create(createContext, default, browseName, default, true);
+                    createContext.AssignInstanceNodeId(sessionNode);
                     nodeId = sessionNode.NodeId;
                 }
                 tempSessionNode = null; // ownership transferred to the session registration
@@ -1107,6 +1124,53 @@ namespace Opc.Ua.Server
             }
 
             return nodeId;
+        }
+
+        /// <summary>
+        /// Whether a session diagnostics node (or any other node of this manager) already
+        /// uses the NodeId. Called under the address space modification lock.
+        /// </summary>
+        private bool IsSessionIdInUse(NodeId nodeId)
+        {
+            if (PredefinedNodes.ContainsKey(nodeId))
+            {
+                return true;
+            }
+
+            lock (m_diagnosticsCollectionLock)
+            {
+                foreach (SessionDiagnosticsData session in m_sessions)
+                {
+                    if (session.Summary.NodeId == nodeId)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Assigns a requested NodeId to the root of an instance and delegates every other
+        /// node (its children) to the manager's factory.
+        /// </summary>
+        private sealed class RequestedRootNodeIdFactory : INodeIdFactory
+        {
+            public RequestedRootNodeIdFactory(INodeIdFactory inner, NodeState root, NodeId requestedId)
+            {
+                m_inner = inner;
+                m_root = root;
+                m_requestedId = requestedId;
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return ReferenceEquals(node, m_root) ? m_requestedId : m_inner.New(context, node);
+            }
+
+            private readonly INodeIdFactory m_inner;
+            private readonly NodeState m_root;
+            private readonly NodeId m_requestedId;
         }
 
         /// <summary>

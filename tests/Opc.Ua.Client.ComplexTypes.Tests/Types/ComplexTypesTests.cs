@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
             var property = new ComplexTypePropertyInfo(
-                reflectionProperty,
+                reflectionProperty!,
                 new StructureFieldAttribute { BuiltInType = (int)builtInType, ValueRank = valueRank },
                 new DataMemberAttribute { Name = propertyName });
             Variant expected = valueRank switch
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 : nameof(StructurePropertyHolder.Matrix);
             var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
             var property = new ComplexTypePropertyInfo(
-                reflectionProperty,
+                reflectionProperty!,
                 new StructureFieldAttribute { BuiltInType = (int)builtInType, ValueRank = valueRank },
                 new DataMemberAttribute { Name = propertyName });
             Variant value = isNull ? Variant.Null : valueRank == ValueRanks.OneDimension
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (isNull)
             {
-                Assert.That(reflectionProperty.GetValue(holder), Is.Null);
+                Assert.That(reflectionProperty!.GetValue(holder), Is.Null);
                 Variant actual = property.GetValue(holder);
                 Assert.That(valueRank == ValueRanks.OneDimension
                     ? actual.GetStructureArray<IEncodeable>().IsNull
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else
             {
-                var actual = (Array)reflectionProperty.GetValue(holder);
+                var actual = (Array)reflectionProperty!.GetValue(holder)!;
                 Assert.That(actual, Has.Length.Zero);
                 Assert.That(actual.Rank, Is.EqualTo(valueRank));
                 Assert.That(property.GetValue(holder).IsNull, Is.False);
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 : nameof(StructurePropertyHolder.Int32Matrix);
             var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
             var property = new ComplexTypePropertyInfo(
-                reflectionProperty,
+                reflectionProperty!,
                 new StructureFieldAttribute
                 {
                     BuiltInType = (int)(structure ? BuiltInType.Null : BuiltInType.Int32),
@@ -192,8 +192,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             property.SetValue(holder, value);
-            var actual = (Array)reflectionProperty.GetValue(holder);
-            Assert.That(actual.Rank, Is.EqualTo(2));
+            var actual = (Array)reflectionProperty!.GetValue(holder)!;
+            Assert.That(actual!.Rank, Is.EqualTo(2));
             Assert.That(actual, Has.Length.Zero);
         }
 
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 : nameof(StructurePropertyHolder.ExtensionMatrix);
             var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
             var property = new ComplexTypePropertyInfo(
-                reflectionProperty,
+                reflectionProperty!,
                 new StructureFieldAttribute { BuiltInType = (int)BuiltInType.ExtensionObject, ValueRank = valueRank },
                 new DataMemberAttribute { Name = propertyName });
             var elements = new ExtensionObject[elementCount];
@@ -231,12 +231,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (isNull)
             {
-                Assert.That(reflectionProperty.GetValue(holder), Is.Null);
+                Assert.That(reflectionProperty!.GetValue(holder), Is.Null);
             }
             else
             {
                 Assert.That(property.GetValue(holder), Is.EqualTo(expected));
-                Assert.That(reflectionProperty.GetValue(holder), Is.TypeOf(reflectionProperty.PropertyType));
+                Assert.That(reflectionProperty!.GetValue(holder), Is.TypeOf(reflectionProperty.PropertyType));
             }
         }
 
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 ? nameof(StructurePropertyHolder.Array)
                 : nameof(StructurePropertyHolder.Matrix);
             var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
-            var previous = (Array)reflectionProperty.GetValue(holder);
+            var previous = (Array)reflectionProperty!.GetValue(holder)!;
             var property = new ComplexTypePropertyInfo(
                 reflectionProperty,
                 new StructureFieldAttribute { BuiltInType = (int)BuiltInType.ExtensionObject, ValueRank = valueRank },
@@ -283,19 +283,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 structureType,
                 nameof(CreateComplexType));
             Assert.That(complexType, Is.Not.Null);
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var structType = emittedType as BaseComplexType;
             switch (structureType)
             {
                 case StructureType.Structure:
                     Assert.That(structType, Is.Not.Null);
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyTypes().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType!.GetPropertyTypes().Count));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyCount()));
                     break;
                 case StructureType.StructureWithOptionalFields:
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.That(structWithOptionalFieldsType, Is.Not.Null);
-                    Assert.That(structWithOptionalFieldsType.EncodingMask, Is.Zero);
+                    Assert.That(structWithOptionalFieldsType!.EncodingMask, Is.Zero);
                     Assert.That(
                         propertyBuiltInTypes,
                         Is.EqualTo(structWithOptionalFieldsType.GetPropertyTypes().Count));
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
                     Assert.That(unionType, Is.Not.Null);
-                    Assert.That(unionType.SwitchField, Is.Zero);
+                    Assert.That(unionType!.SwitchField, Is.Zero);
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyTypes().Count));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyCount()));
                     Assert.That(unionType.Value.IsNull, Is.True);
@@ -315,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var encodeable = emittedType as IEncodeable;
             Assert.That(encodeable, Is.Not.Null);
             // try the accessor by name
-            foreach (string accessorname in structType.GetPropertyNames())
+            foreach (string accessorname in structType!.GetPropertyNames())
             {
                 object obj = structType[accessorname];
             }
@@ -338,13 +338,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 structureType,
                 nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.That(complexType, Is.Not.Null);
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
-            FillStructWithValues(baseType, randomValue, NameSpaceUris);
+            FillStructWithValues(baseType!, randomValue, NameSpaceUris);
 
-            for (int i = 0; i < baseType.GetPropertyCount(); i++)
+            for (int i = 0; i < baseType!.GetPropertyCount(); i++)
             {
                 Variant obj = baseType[i];
                 if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -366,17 +366,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
         private sealed class StructurePropertyHolder
         {
-            public Argument Scalar { get; set; }
+            public Argument Scalar { get; set; } = null!;
 
-            public Argument[] Array { get; set; }
+            public Argument[] Array { get; set; } = null!;
 
-            public Argument[,] Matrix { get; set; }
+            public Argument[,] Matrix { get; set; } = null!;
 
-            public ExtensionObject[] ExtensionArray { get; set; }
+            public ExtensionObject[] ExtensionArray { get; set; } = null!;
 
-            public ExtensionObject[,] ExtensionMatrix { get; set; }
+            public ExtensionObject[,] ExtensionMatrix { get; set; } = null!;
 
-            public int[,] Int32Matrix { get; set; }
+            public int[,] Int32Matrix { get; set; } = null!;
         }
     }
 }

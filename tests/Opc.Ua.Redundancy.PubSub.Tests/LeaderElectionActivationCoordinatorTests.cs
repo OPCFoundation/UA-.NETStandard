@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             public int StartCount { get; private set; }
 
-            public event Action<bool> LeadershipChanged;
+            public event Action<bool>? LeadershipChanged;
 
             public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
             {

@@ -148,15 +148,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IConfiguration configuration = BuildConfiguration();
 
             Assert.That(
-                () => ((IOpcUaBuilder)null).AddGdsClient(
-(Action<GdsClientOptions>)null),
+                () => ((IOpcUaBuilder)null!).AddGdsClient(
+(Action<GdsClientOptions>)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => ((IOpcUaBuilder)null).AddGdsClient(
+                () => ((IOpcUaBuilder)null!).AddGdsClient(
 configuration),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => ((IOpcUaBuilder)null).AddGdsClient(
+                () => ((IOpcUaBuilder)null!).AddGdsClient(
 configuration.GetSection("OpcUa:Gds:Client")),
                 Throws.ArgumentNullException);
         }
@@ -167,10 +167,10 @@ configuration.GetSection("OpcUa:Gds:Client")),
             IOpcUaBuilder builder = new ServiceCollection().AddOpcUa();
 
             Assert.That(
-                () => builder.AddGdsClient((IConfiguration)null),
+                () => builder.AddGdsClient((IConfiguration)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddGdsClient((IConfigurationSection)null),
+                () => builder.AddGdsClient((IConfigurationSection)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -178,25 +178,25 @@ configuration.GetSection("OpcUa:Gds:Client")),
         public void AddGdsClientFromClientBuilderThrowsForNullArgs()
         {
             Assert.That(
-                () => ((IOpcUaClientBuilder)null).AddGdsClient(
-(Action<GdsClientOptions>)null),
+                () => ((IOpcUaClientBuilder)null!).AddGdsClient(
+(Action<GdsClientOptions>)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => ((IOpcUaClientBuilder)null).AddGdsClient(
-(IConfiguration)null),
+                () => ((IOpcUaClientBuilder)null!).AddGdsClient(
+(IConfiguration)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => ((IOpcUaClientBuilder)null).AddGdsClient(
-(IConfigurationSection)null),
+                () => ((IOpcUaClientBuilder)null!).AddGdsClient(
+(IConfigurationSection)null!),
                 Throws.ArgumentNullException);
 
             IOpcUaClientBuilder clientBuilder = new ServiceCollection().AddOpcUa()
                 .AddClient(options => options.Configuration = CreateConfiguration());
             Assert.That(
-                () => clientBuilder.AddGdsClient((IConfiguration)null),
+                () => clientBuilder.AddGdsClient((IConfiguration)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => clientBuilder.AddGdsClient((IConfigurationSection)null),
+                () => clientBuilder.AddGdsClient((IConfigurationSection)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -218,29 +218,29 @@ configuration.GetSection("OpcUa:Gds:Client")),
         public void PerSessionClientBuilderMethodsThrowForNullBuilder()
         {
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddKeyCredentialServiceClient(null),
+                () => OpcUaGdsClientBuilderExtensions.AddKeyCredentialServiceClient(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddAuthorizationServiceClient(null),
+                () => OpcUaGdsClientBuilderExtensions.AddAuthorizationServiceClient(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddLocalDiscoveryServerClient(null),
+                () => OpcUaGdsClientBuilderExtensions.AddLocalDiscoveryServerClient(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddOnboardingClient(null),
+                () => OpcUaGdsClientBuilderExtensions.AddOnboardingClient(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddCertificateManagement(null),
+                () => OpcUaGdsClientBuilderExtensions.AddCertificateManagement(null!),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => OpcUaGdsClientBuilderExtensions.AddCertificateManagement(
-                    null, NodeId.Null),
+                    null!, NodeId.Null),
                 Throws.ArgumentNullException);
         }
 
         private static IConfiguration BuildConfiguration()
         {
-            var settings = new Dictionary<string, string>
+            var settings = new Dictionary<string, string?>
             {
                 ["OpcUa:Gds:Client:MaxConnectAttempts"] = "7",
                 ["OpcUa:Gds:Client:FileTransferChunkSize"] = "512"

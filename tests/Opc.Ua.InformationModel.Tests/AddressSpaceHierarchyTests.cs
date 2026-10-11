@@ -104,7 +104,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("Server has no HasEventSource references.");
             }
 
-            foreach (ReferenceDescription r in result.References.ToArray())
+            foreach (ReferenceDescription r in result.References.ToArray()!)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(
                     r.NodeId, Session.NamespaceUris);
@@ -253,7 +253,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             // Check that at least some children have HasModellingRule
             bool foundModellingRule = false;
-            foreach (ReferenceDescription child in children.References.ToArray())
+            foreach (ReferenceDescription child in children.References.ToArray()!)
             {
                 var childId = ExpandedNodeId.ToNodeId(
                     child.NodeId, Session.NamespaceUris);
@@ -338,7 +338,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             // Check first few object children
             int checkedCount = 0;
-            foreach (ReferenceDescription child in children.References.ToArray())
+            foreach (ReferenceDescription child in children.References.ToArray()!)
             {
                 if (child.NodeClass == NodeClass.Object)
                 {
@@ -375,7 +375,7 @@ namespace Opc.Ua.InformationModel.Tests
                 ReferenceTypeIds.HasTypeDefinition).ConfigureAwait(false);
 
             Assert.That(result.References.Count, Is.GreaterThan(0));
-            string typeName = result.References[0].BrowseName.Name;
+            string typeName = result.References[0].BrowseName.Name!;
             Assert.That(
                 typeName,
                 Is.EqualTo("BaseDataVariableType")
@@ -548,7 +548,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new HashSet<string>();
             foreach (ReferenceDescription r in result.References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("ServerCapabilities"),

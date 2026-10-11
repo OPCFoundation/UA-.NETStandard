@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     .FirstOrDefault(node => node.BrowseName == q)!,
                 nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(
                     id,
-                    out NodeState node) ? node : null!,
+                    out NodeState? node) ? node : null!,
                 typeIdResolver: _ => []);
 
             return new Harness(manager, builder, analog);

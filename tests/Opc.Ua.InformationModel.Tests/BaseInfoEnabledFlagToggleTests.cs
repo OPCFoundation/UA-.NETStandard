@@ -205,7 +205,7 @@ namespace Opc.Ua.InformationModel.Tests
                     .ConfigureAwait(false);
                 Assert.That(sessionArray[0].WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> sessions), Is.True);
                 Assert.That(
-                    sessions.ToArray().Select(s => s.TryGetValue(out SessionDiagnosticsDataType d) ? d.SessionId : default),
+                    sessions.ToArray()!.Select(s => s.TryGetValue(out SessionDiagnosticsDataType? d) ? d.SessionId : default),
                     Does.Contain(admin.SessionId));
             }
             finally

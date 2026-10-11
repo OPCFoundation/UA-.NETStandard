@@ -55,21 +55,21 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             using Certificate pending = NewKey("peek");
             using Certificate wrong = NewKey("wrong");
             Assert.That(await writer.SaveAsync(context, pending).ConfigureAwait(false), Is.True);
-            using Certificate rejected = await reader.TryPeekMatchingAsync(context, wrong).ConfigureAwait(false);
+            using Certificate? rejected = await reader.TryPeekMatchingAsync(context, wrong).ConfigureAwait(false);
             Assert.That(rejected, Is.Null);
-            using (Certificate peeked = await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false))
+            using (Certificate peeked = (await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false))!)
             {
-                Assert.That(peeked.Thumbprint, Is.EqualTo(pending.Thumbprint));
+                Assert.That(peeked!.Thumbprint, Is.EqualTo(pending.Thumbprint));
                 Assert.That(X509Utils.VerifyKeyPair(pending, peeked), Is.True);
             }
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
             Assert.That(() => reader.TryPeekMatchingAsync(context, pending, cancelled.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>());
-            using Certificate taken = await writer.TryTakeMatchingAsync(context, pending).ConfigureAwait(false);
-            Assert.That(taken.Thumbprint, Is.EqualTo(pending.Thumbprint));
+            using Certificate taken = (await writer.TryTakeMatchingAsync(context, pending).ConfigureAwait(false))!;
+            Assert.That(taken!.Thumbprint, Is.EqualTo(pending.Thumbprint));
             Assert.That(X509Utils.VerifyKeyPair(pending, taken), Is.True);
-            using Certificate consumed = await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false);
+            using Certificate? consumed = await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false);
             Assert.That(consumed, Is.Null);
         }
 
@@ -86,12 +86,12 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             using Certificate pending = NewKey("pending");
             using Certificate wrong = NewKey("wrong");
             Assert.That(await writer.SaveAsync(context, pending).ConfigureAwait(false), Is.True);
-            using Certificate rejected = await reader.TryTakeMatchingAsync(context, wrong).ConfigureAwait(false);
+            using Certificate? rejected = await reader.TryTakeMatchingAsync(context, wrong).ConfigureAwait(false);
             Assert.That(rejected, Is.Null);
-            using Certificate taken = await reader.TryTakeMatchingAsync(context, pending).ConfigureAwait(false);
-            Assert.That(taken.Thumbprint, Is.EqualTo(pending.Thumbprint));
+            using Certificate taken = (await reader.TryTakeMatchingAsync(context, pending).ConfigureAwait(false))!;
+            Assert.That(taken!.Thumbprint, Is.EqualTo(pending.Thumbprint));
             Assert.That(taken.HasPrivateKey, Is.True);
-            using Certificate again = await writer.TryTakeMatchingAsync(context, pending).ConfigureAwait(false);
+            using Certificate? again = await writer.TryTakeMatchingAsync(context, pending).ConfigureAwait(false);
             Assert.That(again, Is.Null);
         }
 
@@ -118,10 +118,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
                 .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
                     new ValueTask<bool>(SwapAsync(key, expected, value, ct)));
             var consumer = new SharedKeyValuePendingCertificateKeyStore(proxy.Object, options);
-            using Certificate claimed = await consumer.TryTakeMatchingAsync(context, original).ConfigureAwait(false);
+            using Certificate claimed = (await consumer.TryTakeMatchingAsync(context, original).ConfigureAwait(false))!;
             Assert.That(claimed != null, Is.EqualTo(replaceAfterClaim));
             proxy.Verify(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-            using Certificate retained = await writer.TryTakeMatchingAsync(context, newer).ConfigureAwait(false);
+            using Certificate retained = (await writer.TryTakeMatchingAsync(context, newer).ConfigureAwait(false))!;
             Assert.That(retained, Is.Not.Null);
             Assert.That(retained.Thumbprint, Is.EqualTo(newer.Thumbprint));
 
@@ -152,14 +152,14 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             using Certificate original = NewKey("original");
             using Certificate newer = NewKey("newer");
             Assert.That(await store.SaveAsync(context, original).ConfigureAwait(false), Is.True);
-            using Certificate claimed = await store.TryTakeMatchingAsync(context, original).ConfigureAwait(false);
+            using Certificate claimed = (await store.TryTakeMatchingAsync(context, original).ConfigureAwait(false))!;
             if (replace)
             {
                 Assert.That(await store.SaveAsync(context, newer).ConfigureAwait(false), Is.True);
             }
-            Assert.That(await store.TryRestoreAsync(context, claimed).ConfigureAwait(false), Is.EqualTo(!replace));
-            using Certificate retained = await store.TryTakeAsync(context).ConfigureAwait(false);
-            Assert.That(retained.Thumbprint, Is.EqualTo(replace ? newer.Thumbprint : original.Thumbprint));
+            Assert.That(await store.TryRestoreAsync(context, claimed!).ConfigureAwait(false), Is.EqualTo(!replace));
+            using Certificate retained = (await store.TryTakeAsync(context).ConfigureAwait(false))!;
+            Assert.That(retained!.Thumbprint, Is.EqualTo(replace ? newer.Thumbprint : original.Thumbprint));
             Assert.That(retained.HasPrivateKey, Is.True);
         }
 
@@ -178,8 +178,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             cancelled.Cancel();
             Assert.That(() => store.TryTakeMatchingAsync(context, original, cancelled.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>());
-            using Certificate retained = await store.TryTakeAsync(context).ConfigureAwait(false);
-            Assert.That(retained.Thumbprint, Is.EqualTo(original.Thumbprint));
+            using Certificate retained = (await store.TryTakeAsync(context).ConfigureAwait(false))!;
+            Assert.That(retained!.Thumbprint, Is.EqualTo(original.Thumbprint));
         }
 
         /// <summary>

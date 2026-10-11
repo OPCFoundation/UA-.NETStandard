@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         public Dictionary<NodeId, List<NodeId>> ChildrenOf { get; } = [];
 
         public List<CallMethodRequest> CallRequests { get; } = [];
-        public Func<CallMethodRequest, CallMethodResult> CallHandler { get; set; }
+        public Func<CallMethodRequest, CallMethodResult> CallHandler { get; set; } = null!;
 
         private FileSystemSessionHarness(
             Mock<ISession> mock,
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             NodeId parent,
             QualifiedName name,
             NodeId childId = default,
-            FileProperties properties = null)
+            FileProperties? properties = null)
         {
             if (childId.IsNull)
             {
@@ -273,14 +273,14 @@ namespace Opc.Ua.Client.Tests.FileSystem
             QualifiedName name,
             NodeId typeDefinition,
             bool isDirectory,
-            FileProperties properties = null)
+            FileProperties? properties = null)
         {
             Nodes[nodeId] = new FakeNode(nodeId, name, typeDefinition, isDirectory, properties);
         }
 
         private void LinkChild(NodeId parent, NodeId child)
         {
-            if (!ChildrenOf.TryGetValue(parent, out List<NodeId> list))
+            if (!ChildrenOf.TryGetValue(parent, out List<NodeId>? list))
             {
                 list = [];
                 ChildrenOf[parent] = list;
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 NodeId match = NodeId.Null;
 
                 // Look at child nodes first.
-                if (ChildrenOf.TryGetValue(current, out List<NodeId> children))
+                if (ChildrenOf.TryGetValue(current, out List<NodeId>? children))
                 {
                     foreach (NodeId childId in children)
                     {
@@ -328,7 +328,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
                 // Fall back to the property bag (FileType metadata).
                 if (match.IsNull &&
-                    Nodes.TryGetValue(current, out FakeNode owner) &&
+                    Nodes.TryGetValue(current, out FakeNode? owner) &&
                     owner.Properties != null &&
                     owner.Properties.TryGetProperty(element.TargetName, out NodeId propId))
                 {
@@ -381,7 +381,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             // to classify a single object.
             if (description.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition))
             {
-                if (Nodes.TryGetValue(source, out FakeNode node) && !node.TypeDefinition.IsNull)
+                if (Nodes.TryGetValue(source, out FakeNode? node) && !node.TypeDefinition.IsNull)
                 {
                     refs.Add(new ReferenceDescription
                     {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             else
             {
                 // Hierarchical browse — used by EnumerateChildrenAsync.
-                if (ChildrenOf.TryGetValue(source, out List<NodeId> children))
+                if (ChildrenOf.TryGetValue(source, out List<NodeId>? children))
                 {
                     foreach (NodeId childId in children)
                     {
@@ -430,7 +430,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         {
             if (rvi.AttributeId == Attributes.BrowseName)
             {
-                if (Nodes.TryGetValue(rvi.NodeId, out FakeNode node))
+                if (Nodes.TryGetValue(rvi.NodeId, out FakeNode? node))
                 {
                     return new DataValue(new Variant(node.Name));
                 }
@@ -466,20 +466,20 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 QualifiedName name,
                 NodeId typeDefinition,
                 bool isDirectory,
-                FileProperties properties = null)
+                FileProperties? properties = null)
             {
                 Id = id;
                 Name = name;
                 TypeDefinition = typeDefinition;
                 IsDirectory = isDirectory;
-                Properties = properties;
+                Properties = properties!;
             }
 
             public NodeId Id { get; }
             public QualifiedName Name { get; }
             public NodeId TypeDefinition { get; }
             public bool IsDirectory { get; }
-            public FileProperties Properties { get; }
+            public FileProperties Properties { get; } = null!;
         }
     }
 
@@ -499,7 +499,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         public bool? Writable { get; set; }
         public bool? UserWritable { get; set; }
         public ushort? OpenCount { get; set; }
-        public string MimeType { get; set; }
+        public string MimeType { get; set; } = null!;
         public uint? MaxByteStringLength { get; set; }
         public DateTime? LastModifiedTime { get; set; }
 

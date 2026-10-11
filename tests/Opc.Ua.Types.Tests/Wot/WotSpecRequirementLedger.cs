@@ -35,8 +35,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 
-#nullable enable
-
 namespace Opc.Ua.SpecTraceability
 {
     /// <summary>

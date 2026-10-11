@@ -100,9 +100,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
         public void AdversarialPatternEvaluationHasAnExplicitFiniteBudget()
         {
             FieldInfo budget = typeof(AliasNameWildcardMatcher).GetField(
-                "s_matchTimeout", BindingFlags.Static | BindingFlags.NonPublic);
+                "s_matchTimeout", BindingFlags.Static | BindingFlags.NonPublic)!;
             Assert.That(budget, Is.Not.Null, "Do not execute an unbounded adversarial wildcard match.");
-            Assert.That((TimeSpan)budget.GetValue(null), Is.EqualTo(TimeSpan.FromMilliseconds(100)));
+            Assert.That((TimeSpan)budget.GetValue(null)!, Is.EqualTo(TimeSpan.FromMilliseconds(100)));
             string target = new('a', 256);
             string pattern = string.Concat(System.Linq.Enumerable.Repeat("%a", 32)) + "%b";
             var timer = Stopwatch.StartNew();

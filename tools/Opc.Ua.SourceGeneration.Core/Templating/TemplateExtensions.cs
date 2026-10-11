@@ -67,7 +67,7 @@ namespace Opc.Ua
             string replacement,
             IEnumerable targets,
             LoadTemplateEventHandler onLoad,
-            WriteTemplateEventHandler onWrite = null)
+            WriteTemplateEventHandler? onWrite = null)
         {
             template.AddReplacement(
                 replacement,
@@ -87,8 +87,8 @@ namespace Opc.Ua
             string replacement,
             TemplateString templateString,
             IEnumerable targets,
-            LoadTemplateEventHandler onLoad = null,
-            WriteTemplateEventHandler onWrite = null)
+            LoadTemplateEventHandler? onLoad = null,
+            WriteTemplateEventHandler? onWrite = null)
         {
             object[] targetArray;
             if (targets is string str)
@@ -139,7 +139,7 @@ namespace Opc.Ua
             string replacement,
             IReadOnlyList<object> targets,
             LoadTemplateEventHandler onLoad,
-            WriteTemplateEventHandler onWrite = null)
+            WriteTemplateEventHandler? onWrite = null)
         {
             template.AddReplacement(
                 replacement,
@@ -159,8 +159,8 @@ namespace Opc.Ua
             string replacement,
             TemplateString templateString,
             IReadOnlyList<object> targets,
-            LoadTemplateEventHandler onLoad = null,
-            WriteTemplateEventHandler onWrite = null)
+            LoadTemplateEventHandler? onLoad = null,
+            WriteTemplateEventHandler? onWrite = null)
         {
             if (template == null)
             {

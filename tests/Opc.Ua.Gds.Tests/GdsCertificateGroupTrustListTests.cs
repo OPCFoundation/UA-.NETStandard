@@ -66,12 +66,12 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 m_gdsClient.Dispose();
-                m_gdsClient = null;
+                m_gdsClient = null!;
             }
             if (m_server != null)
             {
                 await m_server.DisposeAsync().ConfigureAwait(false);
-                m_server = null;
+                m_server = null!;
             }
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.Gds.Tests
             // OPC 10000-12 §7.8.2.6: the issuer of the added certificate must
             // already be in the TrustList.
             CallMethodResult result = await CallTrustListMethodAsync(
-                m_gdsClient.GDSClient.Session,
+                m_gdsClient.GDSClient.Session!,
                 Ua.MethodIds.TrustListType_AddCertificate,
                 new Variant(leaf.RawData.ToByteString()),
                 new Variant(true)).ConfigureAwait(false);
@@ -103,19 +103,19 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task WriteOpenOfClosedSessionDoesNotLockTheTrustListAsync()
         {
-            ISession session = m_gdsClient.GDSClient.Session;
+            ISession session = m_gdsClient.GDSClient.Session!;
             GlobalDiscoveryTestClient writer = await ConnectAdminClientAsync().ConfigureAwait(false);
             try
             {
                 CallMethodResult writeOpen = await CallTrustListMethodAsync(
-                    writer.GDSClient.Session,
+                    writer.GDSClient.Session!,
                     Ua.MethodIds.FileType_Open,
                     new Variant((byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting)))
                     .ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(writeOpen.StatusCode), Is.True, writeOpen.StatusCode.ToString());
 
                 CallMethodResult blocked = await CallTrustListMethodAsync(
-                    session,
+                    session!,
                     Ua.MethodIds.FileType_Open,
                     new Variant((byte)OpenFileMode.Read)).ConfigureAwait(false);
                 Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));

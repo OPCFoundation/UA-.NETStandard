@@ -66,7 +66,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void TearDown()
         {
             m_fileSystem?.Dispose();
-            m_fileSystem = null;
+            m_fileSystem = null!;
         }
 
         /// <summary>
@@ -196,7 +196,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 out _);
 
             NodeDesign diagnostics = model.Items.SingleOrDefault(
-                x => x.SymbolicName?.Name == "MyDiagnostics");
+                x => x.SymbolicName?.Name == "MyDiagnostics")!;
 
             Assert.That(diagnostics, Is.Not.Null, "the node must not be dropped");
             Assert.That(
@@ -272,7 +272,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 """,
                 out _);
 
-            NodeDesign alarm = model.Items.SingleOrDefault(x => x.SymbolicName?.Name == "Alarm");
+            NodeDesign alarm = model.Items.SingleOrDefault(x => x.SymbolicName?.Name == "Alarm")!;
 
             Assert.That(alarm, Is.Not.Null, "the node must not be dropped");
             Assert.That(alarm.References, Is.Not.Null);
@@ -296,7 +296,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(1, null, "")]
         public void ImportMultiDimensionalValueRankKeepsRank(
             int valueRank,
-            string arrayDimensions,
+            string? arrayDimensions,
             string expected)
         {
             string dimensions = arrayDimensions == null
@@ -954,7 +954,7 @@ namespace Opc.Ua.Schema.Model.Tests
                     NodeDesign node = settings.NodesById[new NodeId(id, 1)];
                     Assert.That(node.SymbolicId.Name, Is.EqualTo(reported[id]), $"node {id}");
                     Assert.That(
-                        settings.NodesByQName.TryGetValue(node.SymbolicId, out NodeDesign registered) &&
+                        settings.NodesByQName!.TryGetValue(node.SymbolicId, out NodeDesign? registered) &&
                             ReferenceEquals(registered, node),
                         Is.True,
                         $"node {id} must be registered under its emitted id");
@@ -1104,7 +1104,7 @@ namespace Opc.Ua.Schema.Model.Tests
         private ModelDesign Import(
             string nodes,
             out NodeSetReaderSettings settings,
-            string[] serverUris = null)
+            string[]? serverUris = null)
         {
             const string path = "memory://Import.NodeSet2.xml";
             string serverUriTable = serverUris == null

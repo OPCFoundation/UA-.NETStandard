@@ -214,7 +214,7 @@ namespace Opc.Ua.Types.Tests.State
             encoder.PushNamespace(Namespaces.OpcUaXsd);
             method.Save(context, encoder);
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         [Test]
@@ -486,7 +486,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var read = new DataValue();
-            ServiceResult readResult = node.Read(null, Attributes.DataTypeDefinition, ref read);
+            ServiceResult readResult = node.Read(null!, Attributes.DataTypeDefinition, ref read);
             ServiceResult result = node.Write(Attributes.DataTypeDefinition, read);
 
             Assert.Multiple(() =>
@@ -514,7 +514,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var read = new DataValue();
-            ServiceResult readResult = node.Read(null, Attributes.RolePermissions, ref read);
+            ServiceResult readResult = node.Read(null!, Attributes.RolePermissions, ref read);
             ServiceResult result = node.Write(Attributes.RolePermissions, read);
 
             Assert.Multiple(() =>
@@ -648,7 +648,7 @@ namespace Opc.Ua.Types.Tests.State
             reloaded[0].GetReferences(target, references);
 
             IReference organizes = references.Find(
-                r => r.ReferenceTypeId == ReferenceTypeIds.Organizes && !r.IsInverse);
+                r => r.ReferenceTypeId == ReferenceTypeIds.Organizes && !r.IsInverse)!;
 
             Assert.That(organizes, Is.Not.Null);
             Assert.That(

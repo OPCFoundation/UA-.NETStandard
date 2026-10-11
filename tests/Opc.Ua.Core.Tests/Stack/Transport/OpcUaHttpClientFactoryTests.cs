@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-#nullable enable
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport

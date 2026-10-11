@@ -202,6 +202,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reports whether the installed transport still carries the manager's current client certificate material.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool HasCurrentClientCertificate()
+        {
+            using ClientChannelCertificateSnapshot installed = SnapshotClientCertificate();
+            using ClientChannelCertificateSnapshot current = OwnerManager.SnapshotClientCertificate(installed);
+            return ClientChannelCertificateSnapshot.HaveSameMaterial(
+                installed.Certificate, installed.Chain, current.Certificate, current.Chain);
+        }
+
+        /// <summary>
         /// Open the initial transport channel. Called once per
         /// entry before any lease is handed out.
         /// </summary>
@@ -1106,6 +1118,15 @@ namespace Opc.Ua
                     }
 
                     deadline.ThrowIfCancellationRequested();
+
+                    // A rotation that landed while the transport was reconnecting
+                    // supersedes it: replace the transport before participants
+                    // reactivate their sessions on a channel about to be discarded.
+                    if (!HasCurrentClientCertificate())
+                    {
+                        continue;
+                    }
+
                     TransitionTo(
                         ChannelState.TransportConnectedSessionReactivating,
                         error: null,
@@ -1156,15 +1177,9 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    using (ClientChannelCertificateSnapshot installed = SnapshotClientCertificate())
-                    using (ClientChannelCertificateSnapshot current =
-                        OwnerManager.SnapshotClientCertificate(installed))
+                    if (!HasCurrentClientCertificate())
                     {
-                        if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
-                            installed.Certificate, installed.Chain, current.Certificate, current.Chain))
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     deadline.ThrowIfCancellationRequested();

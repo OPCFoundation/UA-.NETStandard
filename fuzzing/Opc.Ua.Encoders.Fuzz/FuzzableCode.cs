@@ -105,7 +105,7 @@ namespace Opc.Ua.Fuzzing
         internal static T DecodeWithOracles<T>(string decoder, long inputLength, Func<T> decode)
         {
             T value = FuzzOracles.MeasureAllocation(decoder, inputLength, decode);
-            FuzzOracles.CheckDecodedLimits(value, MessageContext, decoder);
+            FuzzOracles.CheckDecodedLimits(value!, MessageContext, decoder);
             return value;
         }
 

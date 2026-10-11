@@ -103,12 +103,12 @@ namespace Opc.Ua.Server.Tests
                 processingInterval,
                 false, // stepped
                 m_configuration,
-                m_telemetry);
+                m_telemetry)!;
 
             // Queue all values
             foreach (DataValue value in values)
             {
-                calculator.QueueRawValue(value);
+                calculator!.QueueRawValue(value);
             }
 
             // Get the processed values
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
             while (hasData)
             {
                 // Use returnPartial=true to get results even without a late bound
-                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                bool _hasresult = calculator!.TryGetProcessedValue(true, out DataValue result);
                 if (_hasresult)
                 {
                     results.Add(result);

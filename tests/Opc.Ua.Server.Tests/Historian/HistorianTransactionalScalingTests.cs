@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             Assert.That(outcome.OldValues, Is.Empty);
             HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values.ToArray().Select(value => value.Value.SourceTimestamp),
+            Assert.That(raw.Values.ToArray()!.Select(value => value.Value.SourceTimestamp),
                 Is.EqualTo(new DateTimeUtc[] { s_start.AddTicks(20), s_start.AddTicks(40) }));
             Assert.That(raw.Values[0].Value.WrappedValue.TryGetValue(out int first), Is.True);
             Assert.That(first, Is.EqualTo(20));
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 default,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(modified.Values, Has.Count.EqualTo(2));
-            Assert.That(modified.Values.ToArray().Select(value => value.Info.UpdateType),
+            Assert.That(modified.Values.ToArray()!.Select(value => value.Info.UpdateType),
                 Has.All.EqualTo(HistoryUpdateType.Insert));
         }
 
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OperationResults.ToArray(),
                 Is.EqualTo([StatusCodes.GoodEntryInserted, StatusCodes.GoodEntryInserted]));
             HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values.ToArray().Select(value => value.Value.SourceTimestamp),
+            Assert.That(raw.Values.ToArray()!.Select(value => value.Value.SourceTimestamp),
                 Is.EqualTo(new DateTimeUtc[] { s_start.AddTicks(10), s_start.AddTicks(15), s_start.AddTicks(30) }));
         }
 
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo([StatusCodes.BadTransactionFailed, StatusCodes.BadOutOfRange]));
             Assert.That(rejected.OldValues, Is.Empty);
             HistorianPage<HistoricalDataValue> unchanged = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(unchanged.Values.ToArray().Select(value => value.Value.SourceTimestamp),
+            Assert.That(unchanged.Values.ToArray()!.Select(value => value.Value.SourceTimestamp),
                 Is.EqualTo([older.SourceTimestamp, newer.SourceTimestamp]));
 
             HistorianUpdateOutcome<DataValue> committed = await provider.UpdateAtomicAsync(
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTimeUtc[] expected = maximumSamples == 2
                 ? [s_start.AddMinutes(15), newer.SourceTimestamp]
                 : [s_start, s_start.AddMinutes(15), newer.SourceTimestamp];
-            Assert.That(raw.Values.ToArray().Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
+            Assert.That(raw.Values.ToArray()!.Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
         }
 
         private static async Task<long> MeasureUpdatesAsync(

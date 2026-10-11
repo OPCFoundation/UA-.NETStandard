@@ -100,30 +100,30 @@ namespace Opc.Ua.Types.Tests.State
                     typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
                     typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
                 {
-                    instance = Activator.CreateInstance(systemType, (NodeState)null);
+                    instance = Activator.CreateInstance(systemType, (NodeState)null!)!;
                 }
                 else if (systemType.IsAbstract)
                 {
-                    instance = null;
+                    instance = null!;
                 }
                 else
                 {
-                    ConstructorInfo defaultConstructor = systemType.GetConstructor([]);
+                    ConstructorInfo? defaultConstructor = systemType.GetConstructor([]);
                     if (defaultConstructor == null || !defaultConstructor.IsPublic)
                     {
-                        instance = null;
+                        instance = null!;
                     }
                     else
                     {
-                        instance = Activator.CreateInstance(systemType);
+                        instance = Activator.CreateInstance(systemType)!;
                     }
                 }
             }
             catch
             {
-                return null;
+                return null!;
             }
-            return instance;
+            return instance!;
         }
 
         /// <summary>

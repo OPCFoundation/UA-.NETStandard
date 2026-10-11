@@ -85,7 +85,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] data = [1, 2, 3, 4];
             byte[] signature;
 
-            using (RSA privateKey = withKey.GetRSAPrivateKey())
+            using (RSA privateKey = withKey.GetRSAPrivateKey()!)
             {
                 Assert.That(privateKey, Is.Not.Null);
                 Assert.That(privateKey!.KeySize, Is.EqualTo(2048));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
 
-            using RSA publicKey = withKey.GetRSAPublicKey();
+            using RSA publicKey = withKey.GetRSAPublicKey()!;
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(
                 publicKey!.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
@@ -116,7 +116,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             for (int ii = 0; ii < 3; ii++)
             {
-                using RSA privateKey = withKey.GetRSAPrivateKey();
+                using RSA privateKey = withKey.GetRSAPrivateKey()!;
                 Assert.That(
                     () => privateKey!.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
                     Throws.Nothing,
@@ -136,7 +136,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using (second)
             {
-                using RSA privateKey = second.GetRSAPrivateKey();
+                using RSA privateKey = second.GetRSAPrivateKey()!;
                 Assert.That(privateKey, Is.Not.Null, "The detached key must outlive the first handle.");
                 Assert.That(
                     () => privateKey!.SignData([1], HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
@@ -170,13 +170,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] data = [5, 6, 7];
             byte[] signature;
 
-            using (ECDsa privateKey = withKey.GetECDsaPrivateKey())
+            using (ECDsa privateKey = withKey.GetECDsaPrivateKey()!)
             {
                 Assert.That(privateKey, Is.Not.Null);
                 signature = privateKey!.SignData(data, HashAlgorithmName.SHA256);
             }
 
-            using ECDsa publicKey = withKey.GetECDsaPublicKey();
+            using ECDsa publicKey = withKey.GetECDsaPublicKey()!;
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey!.VerifyData(data, signature, HashAlgorithmName.SHA256), Is.True);
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var hardwareKey = new NonExportableRsa(softwareKey, ownsKey: true);
             using Certificate withKey = publicOnly.CopyWithDetachedPrivateKey(hardwareKey);
 
-            using RSA privateKey = withKey.GetRSAPrivateKey();
+            using RSA privateKey = withKey.GetRSAPrivateKey()!;
 
             Assert.Multiple(() =>
             {

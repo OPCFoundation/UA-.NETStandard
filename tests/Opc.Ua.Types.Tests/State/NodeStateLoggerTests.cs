@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;

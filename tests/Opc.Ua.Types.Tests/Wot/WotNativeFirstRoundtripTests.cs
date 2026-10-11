@@ -311,7 +311,7 @@ namespace Opc.Ua.Types.Tests.Wot
             member.SetAttribute("Pointer", string.Concat(Enumerable.Repeat("/x", 12)));
 
             var options = new WotNodeSetConverterOptions { MaxJsonDepth = 8 };
-            WotConversionResult<WotDocument> result = null;
+            WotConversionResult<WotDocument>? result = null;
             Assert.That(
                 () => result = WotNodeSetConverter.FromNodeSetResult(
                     nodeSet,

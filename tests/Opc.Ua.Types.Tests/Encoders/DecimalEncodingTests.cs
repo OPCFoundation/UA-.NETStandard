@@ -73,10 +73,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, m_context);
             ExtensionObject output = decoder.ReadExtensionObject("Value");
 
-            Assert.That(output.TryGetValue(out Opc.Ua.Decimal decoded), Is.True);
+            Assert.That(output.TryGetValue(out Opc.Ua.Decimal? decoded), Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(decoded.Scale, Is.EqualTo(input.Scale));
+                Assert.That(decoded!.Scale, Is.EqualTo(input.Scale));
                 Assert.That(decoded.UnscaledValue, Is.EqualTo(input.UnscaledValue));
                 Assert.That(decoded.ToString(), Is.EqualTo(lexical));
             });
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             if (accepted)
             {
                 ExtensionObject output = decoder.ReadExtensionObject("Value");
-                Assert.That(output.TryGetValue(out Opc.Ua.Decimal _), Is.True);
+                Assert.That(output.TryGetValue(out Opc.Ua.Decimal? _), Is.True);
                 return;
             }
             Assert.That(() => decoder.ReadExtensionObject("Value"),
@@ -255,8 +255,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, m_context);
             ExtensionObject output = decoder.ReadExtensionObject("Value");
 
-            Assert.That(output.TryGetValue(out Opc.Ua.Decimal decoded), Is.True);
-            Assert.That(decoded.IsZero, Is.True);
+            Assert.That(output.TryGetValue(out Opc.Ua.Decimal? decoded), Is.True);
+            Assert.That(decoded!.IsZero, Is.True);
         }
 
         [TestCase("0")]
@@ -277,10 +277,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new JsonDecoder(json, m_context);
             ExtensionObject output = decoder.ReadExtensionObject("Value");
 
-            Assert.That(output.TryGetValue(out Opc.Ua.Decimal decoded), Is.True);
+            Assert.That(output.TryGetValue(out Opc.Ua.Decimal? decoded), Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(decoded.Scale, Is.EqualTo(input.Scale));
+                Assert.That(decoded!.Scale, Is.EqualTo(input.Scale));
                 Assert.That(decoded.UnscaledValue, Is.EqualTo(input.UnscaledValue));
             });
         }

@@ -55,7 +55,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new StateMachineIdsGenerator(null));
+                () => new StateMachineIdsGenerator(null!));
         }
 
         [Test]

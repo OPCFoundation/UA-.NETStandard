@@ -233,7 +233,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationCore core = NewCore();
 
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                () => core.ValidateAsync(null, null, null, CancellationToken.None));
+                () => core.ValidateAsync(null!, null, null, CancellationToken.None));
 
             Assert.That(ex.ParamName, Is.EqualTo("chain"));
         }
@@ -258,7 +258,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationCore core = NewCore();
 
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                () => core.UpdateAsync(null));
+                () => core.UpdateAsync(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("configuration"));
         }
@@ -426,10 +426,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(
                 Bindings.TcpServerChannel.TryGetReportableCertificateError(
-                    thrown, out ServiceResultException reportable),
+                    thrown, out ServiceResultException? reportable),
                 Is.True,
                 thrown.Result.ToLongString());
-            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+            Assert.That(reportable!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
         }
 
         [Test]
@@ -928,7 +928,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var revoked = new CertificateCollection { m_leaf };
             X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(
                 m_rootCa,
-                null,
+                null!,
                 revoked);
             using (var store = new DirectoryCertificateStore(m_telemetry))
             {
@@ -1235,8 +1235,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
                 }
-                using RSA sourceKey = m_rootCa.GetRSAPublicKey();
-                Assert.That(sourceKey.KeySize, Is.EqualTo(2048));
+                using RSA sourceKey = m_rootCa.GetRSAPublicKey()!;
+                Assert.That(sourceKey!.KeySize, Is.EqualTo(2048));
             }
             finally
             {
@@ -1285,10 +1285,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
                 }
-                using RSA issuerKey = m_intermediateCa.GetRSAPublicKey();
-                Assert.That(issuerKey.KeySize, Is.EqualTo(2048));
-                using RSA leafKey = m_leafUnderIntermediate.GetRSAPublicKey();
-                Assert.That(leafKey.KeySize, Is.EqualTo(2048));
+                using RSA issuerKey = m_intermediateCa.GetRSAPublicKey()!;
+                Assert.That(issuerKey!.KeySize, Is.EqualTo(2048));
+                using RSA leafKey = m_leafUnderIntermediate.GetRSAPublicKey()!;
+                Assert.That(leafKey!.KeySize, Is.EqualTo(2048));
             }
             finally
             {
@@ -1338,7 +1338,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 EndpointUrl = endpointUrl,
                 Server = new ApplicationDescription { ApplicationUri = applicationUri }
             };
-            return new ConfiguredEndpoint(null, description);
+            return new ConfiguredEndpoint(null!, description);
         }
 
         private static CertificateCollection Chain(params Certificate[] certificates)
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         return true;
                     }
-                    current = current.InnerResult;
+                    current = current.InnerResult!;
                 }
             }
             return false;
@@ -1392,7 +1392,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return core;
         }
 
-        private CertificateValidationCore NewCore(string trustedDir, string issuerDir = null)
+        private CertificateValidationCore NewCore(string trustedDir, string? issuerDir = null)
         {
             CertificateValidationCore core = NewCore();
             core.Update(
@@ -1423,7 +1423,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private async Task<string> WriteStoreAsync(
             IEnumerable<Certificate> certificates,
-            IEnumerable<X509CRL> crls = null)
+            IEnumerable<X509CRL>? crls = null)
         {
             string dir = NewTempDir();
             using var store = new DirectoryCertificateStore(m_telemetry);

@@ -72,17 +72,17 @@ namespace Opc.Ua.Server.Tests.Roles
             [Values("matching", "other", "absent")] string certificateKind)
         {
             using var manager = new RoleManager();
-            AddIdentity(manager, ObjectIds.WellKnownRole_Operator, IdentityCriteriaType.AuthenticatedUser, null);
+            AddIdentity(manager, ObjectIds.WellKnownRole_Operator, IdentityCriteriaType.AuthenticatedUser, null!);
             Assert.That(manager.AddApplication(ObjectIds.WellKnownRole_Operator, "urn:role:application").StatusCode,
                 Is.EqualTo(StatusCodes.Good));
             Assert.That(manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, exclude).StatusCode,
                 Is.EqualTo(StatusCodes.Good));
-            Certificate application = certificateKind switch
+            Certificate application = (certificateKind switch
             {
                 "matching" => m_application,
                 "other" => m_user,
                 _ => null
-            };
+            })!;
             IList<NodeId> granted = manager.ResolveGrantedRoles(
                 new UserIdentity("user", "password"u8), application,
                 new EndpointDescription { SecurityMode = mode });
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.Roles
         public void EmptyApplicationFilterDoesNotRequireAnApplicationCertificate()
         {
             using var manager = new RoleManager();
-            AddIdentity(manager, ObjectIds.WellKnownRole_Operator, IdentityCriteriaType.AuthenticatedUser, null);
+            AddIdentity(manager, ObjectIds.WellKnownRole_Operator, IdentityCriteriaType.AuthenticatedUser, null!);
             IList<NodeId> granted = manager.ResolveGrantedRoles(
                 new UserIdentity("user", "password"u8), null,
                 new EndpointDescription { SecurityMode = MessageSecurityMode.None });

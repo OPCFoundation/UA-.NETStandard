@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId expectedEventType,
             Func<Task> trigger)
         {
-            await AssertAuditEventFiresAsync(expectedEventType, trigger, null).ConfigureAwait(false);
+            await AssertAuditEventFiresAsync(expectedEventType, trigger, null!).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -208,9 +208,9 @@ namespace Opc.Ua.Core.Security.Tests
         [TestCase(true)]
         public async Task AuditEventNotDeliveredWithoutReceiveEventsPermissionAsync(bool authenticated)
         {
-            IUserIdentity identity = authenticated
+            IUserIdentity identity = (authenticated
                 ? new UserIdentity("user1", "password"u8)
-                : null;
+                : null)!;
             List<NodeId> eventTypes = await ObserveEventsAsync(
                 async (session, subscriptionId) =>
                 {
@@ -227,7 +227,7 @@ namespace Opc.Ua.Core.Security.Tests
                         CancellationToken.None,
                         new Variant(subscriptionId)).ConfigureAwait(false);
                 },
-                () => OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256, identity),
+                () => OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256, identity!),
                 (_, eventType) => Task.FromResult(eventType == ObjectTypeIds.RefreshEndEventType))
                 .ConfigureAwait(false);
 
@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Security.Tests
                         var candidateEventTypes = new List<NodeId>();
                         foreach (ExtensionObject notification in pubResp.NotificationMessage.NotificationData)
                         {
-                            if (notification.TryGetValue(out EventNotificationList eventList))
+                            if (notification.TryGetValue(out EventNotificationList? eventList))
                             {
                                 foreach (EventFieldList ef in eventList.Events)
                                 {

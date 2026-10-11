@@ -55,19 +55,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             TimeProvider timeProvider)
         {
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
-#if NET8_0_OR_GREATER
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_certificateValidator = certificateValidator;
             m_role = role;
             m_endpoint = endpoint;
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-#else
-            _ = options ?? throw new ArgumentNullException(nameof(options));
-            _ = certificateValidator;
-            _ = role;
-            _ = endpoint;
-            _ = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-#endif
         }
 
         /// <inheritdoc/>
@@ -76,7 +68,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <inheritdoc/>
         public async ValueTask OpenAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken = default)
         {
-#if NET8_0_OR_GREATER
             if (channel is null)
             {
                 throw new ArgumentNullException(nameof(channel));
@@ -102,14 +93,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 throw new DtlsHandshakeException(
                     "DTLS handshake exceeded the overall handshake timeout before completion.");
             }
-#else
-            _ = channel;
-            m_writeProtection = null;
-            m_readProtection = null;
-            m_keyingContext = null;
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new NotSupportedException("DTLS 1.3 ECDHE requires .NET 8 or later BCL primitives.");
-#endif
         }
 
         /// <inheritdoc/>
@@ -148,7 +131,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             m_disposed = true;
         }
 
-#if NET8_0_OR_GREATER
         private async ValueTask ConnectAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken)
         {
             using DtlsEcdheKeyExchange ecdhe = new(Profile.KeyExchangeCurve);
@@ -746,7 +728,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private static byte[] CreateRandom(int length)
         {
             byte[] bytes = new byte[length];
+#if NET8_0_OR_GREATER
             RandomNumberGenerator.Fill(bytes);
+#else
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(bytes);
+            }
+#endif
             return bytes;
         }
 
@@ -771,22 +760,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 peerChannel.SetAuthenticatedPeer(peer);
             }
         }
-#endif
 
-#if NET8_0_OR_GREATER
         private readonly DtlsTransportOptions m_options;
         private readonly ICertificateValidatorEx? m_certificateValidator;
         private readonly DtlsEndpointRole m_role;
         private readonly UdpEndpoint m_endpoint;
         private readonly TimeProvider m_timeProvider;
-#endif
         private DtlsRecordProtection? m_writeProtection;
         private DtlsRecordProtection? m_readProtection;
         private DtlsHandshakeKeyingContext? m_keyingContext;
-#if NET8_0_OR_GREATER
         private const int HandshakeFlightBudget = 4;
         private ushort m_nextSendSequence;
-#endif
         private bool m_disposed;
     }
 }

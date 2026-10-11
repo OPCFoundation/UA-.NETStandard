@@ -41,7 +41,6 @@
     <NoWarn Condition="'$(_StressTestSupportedTarget)' != 'true'">$(NoWarn);CA1014</NoWarn>
     <RootNamespace>Opc.Ua.Stress.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>enable</Nullable>
     <!--
       Common test-project suppression list (matches the rest of tests/*/*.csproj).
       Test code is allowed to be noisier on these analyzer rules.

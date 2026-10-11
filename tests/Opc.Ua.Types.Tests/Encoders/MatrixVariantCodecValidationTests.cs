@@ -117,9 +117,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(ctx))
             {
                 encoder.WriteVariant(null, ValidMatrixVariant());
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
-            using var decoder = new BinaryDecoder(encoded, ctx);
+            using var decoder = new BinaryDecoder(encoded!, ctx);
             MatrixOf<int> matrix = decoder.ReadVariant(null).GetInt32Matrix();
 
             Assert.That(matrix.Dimensions, Is.EqualTo([2, 3]));
@@ -148,9 +148,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(ctx))
             {
                 encoder.WriteVariantValue(null, DegenerateMatrixVariant());
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
-            using var decoder = new BinaryDecoder(encoded, ctx);
+            using var decoder = new BinaryDecoder(encoded!, ctx);
             MatrixOf<int> matrix = decoder.ReadVariantValue(
                 null,
                 TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)).GetInt32Matrix();
@@ -489,7 +489,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.PushNamespace(Namespaces.OpcUaXsd);
             encoder.WriteVariant("v", variant);
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         private static void DecodeXmlVariant(string xml)

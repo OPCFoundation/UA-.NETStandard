@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = ReferenceTypeState.Construct(null);
+            NodeState node = ReferenceTypeState.Construct(null!);
             Assert.That(node, Is.InstanceOf<ReferenceTypeState>());
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.Types.Tests.State
         public void InverseNamePropertySetterTriggersChangeMask()
         {
             var refType = new ReferenceTypeState();
-            refType.ClearChangeMasks(null, false);
+            refType.ClearChangeMasks(null!, false);
 
             var inverseName = new LocalizedText("IsReferencedBy");
             refType.InverseName = inverseName;
@@ -93,14 +93,14 @@ namespace Opc.Ua.Types.Tests.State
         public void SymmetricPropertySetterTriggersChangeMask()
         {
             var refType = new ReferenceTypeState();
-            refType.ClearChangeMasks(null, false);
+            refType.ClearChangeMasks(null!, false);
 
             refType.Symmetric = true;
             Assert.That(refType.Symmetric, Is.True);
             Assert.That(refType.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
 
-            refType.ClearChangeMasks(null, false);
+            refType.ClearChangeMasks(null!, false);
             refType.Symmetric = true;
             Assert.That(refType.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }

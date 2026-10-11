@@ -80,7 +80,7 @@ namespace Opc.Ua.Lds.Tests
 
             Assert.That(allServers.Count, Is.GreaterThan(0));
 
-            string serverUri = allServers[0].ApplicationUri;
+            string serverUri = allServers[0].ApplicationUri!;
             Assert.That(serverUri, Is.Not.Null.And.Not.Empty,
                 "Server ApplicationUri should not be null.");
         }

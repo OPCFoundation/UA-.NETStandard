@@ -90,11 +90,11 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(identifier.Thumbprint, Is.EqualTo(original.Thumbprint));
                 Assert.That(identifier.CertificateType,
                     Is.EqualTo(ObjectTypeIds.EccNistP256ApplicationCertificateType));
-                using Certificate reloaded = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
-                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false);
-                Assert.That(reloaded.RawData, Is.EqualTo(original.RawData));
+                using Certificate reloaded = (await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false))!;
+                Assert.That(reloaded!.RawData, Is.EqualTo(original.RawData));
                 Assert.That(reloaded.HasPrivateKey, Is.True);
-                using ECDsa key = reloaded.GetECDsaPrivateKey();
+                using ECDsa key = reloaded.GetECDsaPrivateKey()!;
                 Assert.That(key, Is.Not.Null);
                 Assert.That(key.KeySize, Is.EqualTo(256));
                 using ICertificateStore unchangedStore = new CertificateStoreIdentifier(path).OpenStore(telemetry);
@@ -160,11 +160,11 @@ namespace Opc.Ua.Configuration.Tests
                 }
 
                 Assert.That(identifier.Thumbprint, Is.EqualTo(original.Thumbprint));
-                using Certificate unchanged = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
-                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false);
-                Assert.That(unchanged.RawData, Is.EqualTo(original.RawData));
-                using RSA key = unchanged.GetRSAPrivateKey();
-                Assert.That(key.KeySize, Is.EqualTo(keySize));
+                using Certificate unchanged = (await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false))!;
+                Assert.That(unchanged!.RawData, Is.EqualTo(original.RawData));
+                using RSA key = unchanged.GetRSAPrivateKey()!;
+                Assert.That(key!.KeySize, Is.EqualTo(keySize));
             }
             finally
             {
@@ -203,10 +203,10 @@ namespace Opc.Ua.Configuration.Tests
 
                 Assert.That(valid, Is.True);
                 Assert.That(identifier.CertificateType, Is.EqualTo(ObjectTypeIds.HttpsCertificateType));
-                using Certificate created = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
-                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false);
-                Assert.That(created.HasPrivateKey, Is.True);
-                using RSA key = created.GetRSAPrivateKey();
+                using Certificate created = (await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    identifier, passwordProvider: null, kApplicationUri, telemetry).ConfigureAwait(false))!;
+                Assert.That(created!.HasPrivateKey, Is.True);
+                using RSA key = created.GetRSAPrivateKey()!;
                 Assert.That(key, Is.Not.Null);
                 Assert.That(key.KeySize, Is.EqualTo(3072));
             }

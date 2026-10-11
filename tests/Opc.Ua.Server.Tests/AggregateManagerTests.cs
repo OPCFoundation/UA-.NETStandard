@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
                 new DateTimeUtc(2024, 1, 1, 0, 1, 0),
                 1000,
                 false,
-                manager.GetDefaultConfiguration(NodeId.Null));
+                manager.GetDefaultConfiguration(NodeId.Null))!;
 
             Assert.That(calculator, Is.Null);
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
                 new DateTimeUtc(2024, 1, 1, 0, 1, 0),
                 1000,
                 false,
-                manager.GetDefaultConfiguration(NodeId.Null));
+                manager.GetDefaultConfiguration(NodeId.Null))!;
 
             Assert.That(calculator, Is.Null);
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests
                 new DateTimeUtc(2024, 1, 1, 0, 1, 0),
                 1000,
                 false,
-                configuration);
+                configuration)!;
 
             Assert.That(calculator, Is.Not.Null);
             m_diagnostics.Verify(
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
                 new DateTimeUtc(2024, 1, 1, 0, 1, 0),
                 1000,
                 false,
-                configuration);
+                configuration)!;
 
             Assert.That(calculator, Is.Not.Null);
         }

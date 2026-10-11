@@ -326,7 +326,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("Objects"),
@@ -599,7 +599,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription rd in response.Results[0].References)
             {
-                childNames.Add(rd.BrowseName.Name);
+                childNames.Add(rd.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("ServerStatus"),
@@ -672,7 +672,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription rd in statusResponse.Results[0].References)
             {
-                childNames.Add(rd.BrowseName.Name);
+                childNames.Add(rd.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("CurrentTime"),
@@ -708,7 +708,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription rd in response.Results[0].References)
             {
-                childNames.Add(rd.BrowseName.Name);
+                childNames.Add(rd.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("ObjectTypes"),
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
-            var names = response.Results[0].References.ToArray()
+            var names = response.Results[0].References.ToArray()!
                 .Select(r => r.BrowseName.Name).ToList();
             Assert.That(names, Does.Contain("Objects"));
             Assert.That(names, Does.Contain("Types"));
@@ -1415,7 +1415,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results[0].References.Count, Is.GreaterThan(0));
 
             // Should find Root folder as parent
-            bool foundRoot = response.Results[0].References.ToArray()
+            bool foundRoot = response.Results[0].References.ToArray()!
                 .Any(r => r.BrowseName.Name == "Root");
             Assert.That(foundRoot, Is.True,
                 "Inverse browse from Objects should find Root.");

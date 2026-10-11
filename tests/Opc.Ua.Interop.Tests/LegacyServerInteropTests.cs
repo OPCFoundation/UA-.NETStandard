@@ -108,7 +108,7 @@ namespace Opc.Ua.Interop.Tests
             m_session = await ConnectAsync(
                 SecurityPolicies.Basic256Sha256,
                 MessageSecurityMode.SignAndEncrypt,
-                null).ConfigureAwait(false);
+                null!).ConfigureAwait(false);
             m_ns = m_session.NamespaceUris.GetIndexOrAppend(kLegacyNamespace);
         }
 
@@ -160,10 +160,10 @@ namespace Opc.Ua.Interop.Tests
             MessageSecurityMode securityMode,
             bool userNameIdentity)
         {
-            IUserIdentity identity = userNameIdentity
+            IUserIdentity identity = (userNameIdentity
                 ? new UserIdentity(kUserName, System.Text.Encoding.UTF8.GetBytes(kPassword))
-                : null;
-            ISession session = await ConnectAsync(securityPolicyUri, securityMode, identity)
+                : null)!;
+            ISession session = await ConnectAsync(securityPolicyUri, securityMode, identity!)
                 .ConfigureAwait(false);
             try
             {
@@ -204,9 +204,9 @@ namespace Opc.Ua.Interop.Tests
             DataValue value = await m_session.ReadValueAsync(VariableIds.Server_ServerStatus)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, value.StatusCode.ToString());
-            Assert.That(value.WrappedValue.TryGetStructure(out ServerStatusDataType status), Is.True,
+            Assert.That(value.WrappedValue.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType? status), Is.True,
                 value.WrappedValue.ToString());
-            Assert.That(status.State, Is.EqualTo(ServerState.Running));
+            Assert.That(status!.State, Is.EqualTo(ServerState.Running));
             Assert.That(status.BuildInfo.ProductUri, Is.Not.Empty);
             Assert.That(status.BuildInfo.SoftwareVersion, Is.EqualTo(m_server.Info.SoftwareVersion));
             if (m_server.Info.IsLegacy)
@@ -237,7 +237,7 @@ namespace Opc.Ua.Interop.Tests
                 .ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
-            string[] names = [.. response.Results[0].References.ToArray().Select(r => r.BrowseName.Name)];
+            string[] names = [.. response.Results[0].References.ToArray()!.Select(r => r.BrowseName.Name)!];
             Assert.That(
                 names,
                 Is.SupersetOf(s_interopVariableNames));
@@ -322,9 +322,9 @@ namespace Opc.Ua.Interop.Tests
         public async Task ReadStructureAsync()
         {
             DataValue[] values = await ReadValuesAsync("Range").ConfigureAwait(false);
-            Assert.That(values[0].WrappedValue.TryGetStructure(out Range range), Is.True,
+            Assert.That(values[0].WrappedValue.TryGetStructure<Range>(out Range? range), Is.True,
                 values[0].WrappedValue.ToString());
-            Assert.That(range.Low, Is.Zero);
+            Assert.That(range!.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(100));
         }
 
@@ -384,8 +384,8 @@ namespace Opc.Ua.Interop.Tests
             Assert.That(s, Is.EqualTo("written by 2.0 äöü 中"));
             Assert.That(values[2].WrappedValue.TryGetValue(out ArrayOf<int> ints), Is.True);
             Assert.That(ints.ToArray(), Is.EqualTo(s_writtenInt32Array));
-            Assert.That(values[3].WrappedValue.TryGetStructure(out Range range), Is.True);
-            Assert.That(range.Low, Is.EqualTo(-5));
+            Assert.That(values[3].WrappedValue.TryGetStructure<Range>(out Range? range), Is.True);
+            Assert.That(range!.Low, Is.EqualTo(-5));
             Assert.That(range.High, Is.EqualTo(5));
         }
 
@@ -568,12 +568,12 @@ namespace Opc.Ua.Interop.Tests
 
             await using var smallClient = new ClientFixture(telemetry: m_telemetry);
             await smallClient.LoadClientConfigurationAsync(InteropPki.ClientPki(m_pkiRoot)).ConfigureAwait(false);
-            smallClient.Config.TransportQuotas.MaxMessageSize = 256 * 1024;
+            smallClient.Config.TransportQuotas!.MaxMessageSize = 256 * 1024;
             ISession session = await ConnectAsync(
                 smallClient,
                 SecurityPolicies.Basic256Sha256,
                 MessageSecurityMode.SignAndEncrypt,
-                null).ConfigureAwait(false);
+                null!).ConfigureAwait(false);
             try
             {
                 StatusCode result;
@@ -664,7 +664,7 @@ namespace Opc.Ua.Interop.Tests
             ReadResponse split = await m_session
                 .ReadAsync(null, 0, TimestampsToReturn.Neither, nodesToRead, CancellationToken.None)
                 .ConfigureAwait(false);
-            Assert.That(split.Results.ToArray().Count(r => StatusCode.IsGood(r.StatusCode)), Is.EqualTo(250));
+            Assert.That(split.Results.ToArray()!.Count(r => StatusCode.IsGood(r.StatusCode)), Is.EqualTo(250));
 
             uint limit = m_session.OperationLimits.MaxNodesPerRead;
             m_session.OperationLimits.MaxNodesPerRead = 0;
@@ -699,13 +699,13 @@ namespace Opc.Ua.Interop.Tests
         {
             await using var client = new ClientFixture(telemetry: m_telemetry);
             await client.LoadClientConfigurationAsync(InteropPki.ClientPki(m_pkiRoot)).ConfigureAwait(false);
-            client.Config.TransportQuotas.SecurityTokenLifetime = 60_000;
+            client.Config.TransportQuotas!.SecurityTokenLifetime = 60_000;
             client.SessionTimeout = 120_000;
             ISession session = await ConnectAsync(
                 client,
                 SecurityPolicies.Basic256Sha256,
                 MessageSecurityMode.SignAndEncrypt,
-                null).ConfigureAwait(false);
+                null!).ConfigureAwait(false);
             try
             {
                 var elapsed = System.Diagnostics.Stopwatch.StartNew();
@@ -759,7 +759,7 @@ namespace Opc.Ua.Interop.Tests
                 .BrowseAsync(null, null, maxReferences, [BrowseForward(nodeId)], CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
-            var references = new List<ReferenceDescription>(response.Results[0].References.ToArray());
+            var references = new List<ReferenceDescription>(response.Results[0].References.ToArray()!);
             ByteString continuationPoint = response.Results[0].ContinuationPoint;
             while (!continuationPoint.IsEmpty)
             {
@@ -768,7 +768,7 @@ namespace Opc.Ua.Interop.Tests
                     .ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(next.Results[0].StatusCode), Is.True,
                     next.Results[0].StatusCode.ToString());
-                references.AddRange(next.Results[0].References.ToArray());
+                references.AddRange(next.Results[0].References.ToArray()!);
                 continuationPoint = next.Results[0].ContinuationPoint;
             }
             return references;
@@ -788,8 +788,8 @@ namespace Opc.Ua.Interop.Tests
             MessageSecurityMode securityMode,
             IUserIdentity identity)
         {
-            EndpointDescription description = m_endpoints.ToArray().FirstOrDefault(e =>
-                e.SecurityPolicyUri == securityPolicyUri && e.SecurityMode == securityMode);
+            EndpointDescription description = m_endpoints.ToArray()!.FirstOrDefault(e =>
+                e.SecurityPolicyUri == securityPolicyUri && e.SecurityMode == securityMode)!;
             Assert.That(description, Is.Not.Null,
                 $"The 1.5.378 server offers no {securityPolicyUri}/{securityMode} endpoint.");
 
@@ -811,14 +811,14 @@ namespace Opc.Ua.Interop.Tests
             ReadResponse response = await m_session
                 .ReadAsync(null, 0, TimestampsToReturn.Both, nodesToRead, CancellationToken.None)
                 .ConfigureAwait(false);
-            DataValue[] values = response.Results.ToArray();
+            DataValue[] values = response.Results.ToArray()!;
             Assert.That(values, Has.Length.EqualTo(names.Length));
             for (int ii = 0; ii < names.Length; ii++)
             {
                 Assert.That(StatusCode.IsGood(values[ii].StatusCode), Is.True,
                     $"{names[ii]}: {values[ii].StatusCode}");
             }
-            return values;
+            return values!;
         }
 
         private WriteValue Write(string name, Variant value)

@@ -69,7 +69,7 @@ namespace Opc.Ua.Gds.Tests
             public string SecurityProfileUri { get; set; }
             public MessageSecurityMode MessageSecurityMode { get; set; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return $"{SecurityProfileUri.Split('#').Last()}:{MessageSecurityMode}";
             }
@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds.Tests
             m_supportedCertificateTypes =
             [
                 .. m_server
-                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!
                     .CertificateGroups
                     .ToList()
                     .Where(cg => cg.Id == "Default")
@@ -151,9 +151,9 @@ namespace Opc.Ua.Gds.Tests
         {
             await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
             m_gdsClient.Dispose();
-            m_gdsClient = null;
+            m_gdsClient = null!;
             await m_server.DisposeAsync().ConfigureAwait(false);
-            m_server = null;
+            m_server = null!;
             Thread.Sleep(1000);
         }
 
@@ -707,7 +707,7 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
+                string searchName = application.ApplicationRecord.ApplicationNames[0].Text!.Trim();
                 if (searchName.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
@@ -746,8 +746,8 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ApplicationUri;
-                if (searchName.Length > searchPatternLength)
+                string searchName = application.ApplicationRecord.ApplicationUri!;
+                if (searchName!.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
@@ -785,8 +785,8 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ProductUri;
-                if (searchName.Length > searchPatternLength)
+                string searchName = application.ApplicationRecord.ProductUri!;
+                if (searchName!.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
@@ -933,11 +933,11 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.That(issuerCertificates.IsNull, Is.False);
                                 application.Certificate = certificate.ToArray();
                                 application.PrivateKey = privateKey.ToArray();
-                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
                                     application.Certificate,
-                                    application.IssuerCertificates);
+                                    application.IssuerCertificates!);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     application.Certificate,
                                     application.PrivateKey,
@@ -1051,11 +1051,11 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.That(privateKey.IsNull, Is.True);
                                 Assert.That(issuerCertificates.IsNull, Is.False);
                                 application.Certificate = certificate.ToArray();
-                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
                                     application.Certificate,
-                                    application.IssuerCertificates);
+                                    application.IssuerCertificates!);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     application.Certificate,
                                     application.PrivateKey,
@@ -1409,11 +1409,11 @@ namespace Opc.Ua.Gds.Tests
                             Assert.That(privateKey.IsEmpty, Is.True);
                             Assert.That(issuerCertificates.IsNull, Is.False);
                             application.Certificate = certificate.ToArray();
-                            application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                            application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
                                 application.Certificate,
-                                application.IssuerCertificates);
+                                application.IssuerCertificates!);
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 application.Certificate,
                                 application.PrivateKey,
@@ -1535,13 +1535,13 @@ namespace Opc.Ua.Gds.Tests
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
                                 certificate.ToArray(),
-                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray());
+                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!);
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate.ToArray(),
                                 privateKey.ToArray(),
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray(),
+                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!,
                                 telemetry).ConfigureAwait(false);
                         }
                         else
@@ -1634,7 +1634,7 @@ namespace Opc.Ua.Gds.Tests
                 System.Security.Cryptography.HashAlgorithmName.SHA256,
                 System.Security.Cryptography.RSASignaturePadding.Pkcs1);
             var altNames = new System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder();
-            altNames.AddUri(new Uri(application.ApplicationRecord.ApplicationUri));
+            altNames.AddUri(new Uri(application.ApplicationRecord.ApplicationUri!));
             altNames.AddDnsName("localhost");
             request.CertificateExtensions.Add(altNames.Build());
             byte[] certificateRequest = request.CreateSigningRequest();

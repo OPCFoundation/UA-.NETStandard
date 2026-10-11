@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 HistorianPage<HistorianAnnotation> page = await provider.ReadAnnotationsWithTimestampsAsync(
                     context, request, token, CancellationToken.None).ConfigureAwait(false);
-                actual.AddRange(page.Values.ToArray().Select(a => a.Annotation.Message));
+                actual.AddRange(page.Values.ToArray()!.Select(a => a.Annotation.Message!));
                 Assert.That(actual, Has.Count.LessThanOrEqualTo(4), "Continuation must not repeat annotations.");
                 Assert.That(page.IsFinal || page.Values.Count > 0, Is.True);
                 token = page.NextToken;
@@ -211,8 +211,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 default,
                 CancellationToken.None).ConfigureAwait(false);
             string[] expectedMessages = ["replacement", "third"];
-            Assert.That(page.Values.ToArray().Select(a => a.Annotation.Message), Is.EqualTo(expectedMessages));
-            Assert.That(page.Values.ToArray().Select(a => a.SourceTimestamp),
+            Assert.That(page.Values.ToArray()!.Select(a => a.Annotation.Message), Is.EqualTo(expectedMessages));
+            Assert.That(page.Values.ToArray()!.Select(a => a.SourceTimestamp),
                 Is.EqualTo([(DateTimeUtc)s_start.AddSeconds(2), (DateTimeUtc)s_start.AddSeconds(3)]));
         }
 

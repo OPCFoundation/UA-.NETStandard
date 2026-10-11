@@ -5,7 +5,6 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>Opc.Ua.OneFuzz.Validator</AssemblyName>
     <RootNamespace>Opc.Ua.OneFuzz</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>

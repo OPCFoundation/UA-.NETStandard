@@ -367,7 +367,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
         }
 
-        private void OnOutput(object sender, DataReceivedEventArgs e)
+        private void OnOutput(object? sender, DataReceivedEventArgs e)
         {
             if (e.Data == null)
             {

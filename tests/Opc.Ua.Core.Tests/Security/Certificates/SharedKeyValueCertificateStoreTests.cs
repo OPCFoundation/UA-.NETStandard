@@ -31,8 +31,6 @@
 // short-lived, making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 
-#nullable enable
-
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;

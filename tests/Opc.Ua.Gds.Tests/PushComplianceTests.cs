@@ -144,11 +144,12 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(applyChangesRequired, Is.True);
 
             ISession other = await OpenAdminSessionAsync().ConfigureAwait(false);
+            using Certificate certificate = CreateSelfSigned();
             await AssertStatusAsync(
                 () => AppTrustList(other).OpenAsync(WriteEraseExisting).AsTask(),
                 StatusCodes.BadTransactionPending).ConfigureAwait(false);
             await AssertStatusAsync(
-                () => AppTrustList(other).AddCertificateAsync(CreateSelfSigned().RawData.ToByteString(), true).AsTask(),
+                () => AppTrustList(other).AddCertificateAsync(certificate.RawData.ToByteString(), true).AsTask(),
                 StatusCodes.BadTransactionPending).ConfigureAwait(false);
 
             await ApplyChangesAsync(owner).ConfigureAwait(false);
@@ -207,7 +208,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ISession session = await OpenAdminSessionAsync().ConfigureAwait(false);
             using Certificate ca = CreateCa("CN=Push Masks CA");
-            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null, null);
+            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null!, null!);
             using Certificate trusted = CreateSelfSigned();
             await PushTrustListAsync(session, new TrustListDataType
             {
@@ -266,8 +267,8 @@ namespace Opc.Ua.Gds.Tests
             session = await OpenAdminSessionAsync().ConfigureAwait(false);
             TrustListDataType read = await ReadTrustListAsync(session, (uint)TrustListMasks.TrustedCertificates)
                 .ConfigureAwait(false);
-            Assert.That(read.TrustedCertificates.ToArray().Count(c => c.ToArray().AsSpan().SequenceEqual(cert.RawData)), Is.EqualTo(1));
-            Assert.That(read.TrustedCertificates.ToArray().Any(c => c.ToArray().AsSpan().SequenceEqual(pemCert.RawData)), Is.True);
+            Assert.That(read.TrustedCertificates.ToArray()!.Count(c => c.ToArray().AsSpan().SequenceEqual(cert.RawData)), Is.EqualTo(1));
+            Assert.That(read.TrustedCertificates.ToArray()!.Any(c => c.ToArray().AsSpan().SequenceEqual(pemCert.RawData)), Is.True);
         }
 
         /// <summary>
@@ -280,7 +281,7 @@ namespace Opc.Ua.Gds.Tests
             ISession session = await OpenAdminSessionAsync().ConfigureAwait(false);
             using Certificate ca = CreateCa("CN=Push Known CA");
             using Certificate unknownCa = CreateCa("CN=Push Unknown CRL CA");
-            X509CRL unknownCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(unknownCa, null, null);
+            X509CRL unknownCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(unknownCa, null!, null!);
 
             await AssertStatusAsync(
                 () => PushTrustListAsync(session, new TrustListDataType
@@ -325,7 +326,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ISession first = await OpenAdminSessionAsync().ConfigureAwait(false);
             using Certificate ca = CreateCa("CN=Push Cross Session CA");
-            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null, null);
+            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null!, null!);
             TrustListDataType withCa = await ReadTrustListAsync(first, (uint)TrustListMasks.All).ConfigureAwait(false);
             withCa.SpecifiedLists = (uint)TrustListMasks.All;
             withCa.TrustedCertificates = withCa.TrustedCertificates.AddItem(ca.RawData.ToByteString());
@@ -346,8 +347,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(request.Verify(), Is.True);
             using Certificate signed = CertificateBuilder.Create(request.Subject)
                 .AddExtension(new X509SubjectAltNameExtension(
-                    m_server.Config.ApplicationUri,
-                    X509Utils.GetDomainsFromCertificate(current).ToArray()))
+                    m_server.Config.ApplicationUri!,
+                    X509Utils.GetDomainsFromCertificate(current).ToArray()!))
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(12)
                 .SetIssuer(ca)
@@ -360,7 +361,7 @@ namespace Opc.Ua.Gds.Tests
                 RsaType(second),
                 signed.RawData.ToByteString(),
                 default,
-                null,
+                null!,
                 default).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.True);
             await CancelChangesAsync(second).ConfigureAwait(false);
@@ -396,14 +397,14 @@ namespace Opc.Ua.Gds.Tests
         {
             ISession session = await OpenAdminSessionAsync().ConfigureAwait(false);
             using Certificate root = CreateCa("CN=Push Remove Root");
-            X509CRL rootCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(root, null, null);
+            X509CRL rootCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(root, null!, null!);
             using Certificate intermediate = CertificateBuilder
                 .Create("CN=Push Remove Intermediate " + Guid.NewGuid().ToString("N")[..8])
                 .SetCAConstraint(0)
                 .SetIssuer(root)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            X509CRL intermediateCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(intermediate, null, null);
+            X509CRL intermediateCrl = DefaultCertificateIssuer.Instance.RevokeCertificates(intermediate, null!, null!);
             await PushTrustListAsync(session, new TrustListDataType
             {
                 SpecifiedLists = (uint)TrustListMasks.All,
@@ -433,11 +434,11 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<ISession> OpenAdminSessionAsync()
         {
-            ConfiguredEndpoint endpoint = m_pushClient.PushClient.Endpoint;
+            ConfiguredEndpoint endpoint = m_pushClient.PushClient.Endpoint!;
             var factory = new DefaultSessionFactory(m_telemetry);
             ISession session = await factory.CreateAsync(
                 m_pushClient.Config,
-                endpoint,
+                endpoint!,
                 false,
                 false,
                 "PushComplianceTests",
@@ -580,8 +581,8 @@ namespace Opc.Ua.Gds.Tests
             await Task.CompletedTask.ConfigureAwait(false);
             return CertificateBuilder.Create(current.SubjectName)
                 .AddExtension(new X509SubjectAltNameExtension(
-                    m_server.Config.ApplicationUri,
-                    X509Utils.GetDomainsFromCertificate(current).ToArray()))
+                    m_server.Config.ApplicationUri!,
+                    X509Utils.GetDomainsFromCertificate(current).ToArray()!))
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(12)
                 .SetIssuer(issuer)
@@ -616,7 +617,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task AssertStatusAsync(Func<Task> call, StatusCode expected)
         {
-            ServiceResultException error = null;
+            ServiceResultException? error = null;
             try
             {
                 await call().ConfigureAwait(false);

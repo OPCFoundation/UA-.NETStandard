@@ -95,8 +95,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(certificates, Has.Count.EqualTo(2));
                 Assert.That(certificates[0].RawData, Is.EqualTo(m_first.RawData));
                 Assert.That(certificates[1].RawData, Is.EqualTo(m_second.RawData));
-                using RSA key = certificates[0].GetRSAPublicKey();
-                Assert.That(key.KeySize, Is.EqualTo(2048));
+                using RSA key = certificates[0].GetRSAPublicKey()!;
+                Assert.That(key!.KeySize, Is.EqualTo(2048));
             }
 
             long created = Certificate.InstancesCreated - createdBefore;
@@ -130,8 +130,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 second.Dispose();
 
                 Assert.That(borrowed.RawData, Is.EqualTo(m_first.RawData));
-                using RSA key = borrowed.GetRSAPublicKey();
-                Assert.That(key.KeySize, Is.EqualTo(2048));
+                using RSA key = borrowed.GetRSAPublicKey()!;
+                Assert.That(key!.KeySize, Is.EqualTo(2048));
             }
 
             AssertBalanced(createdBefore, disposedBefore);

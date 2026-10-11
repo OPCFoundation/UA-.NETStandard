@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 TestEncoding(binaryEncoder);
                 TestEncoding(binaryEncoder);
-                m_encodedByteArray = binaryEncoder.CloseAndReturnBuffer();
+                m_encodedByteArray = binaryEncoder.CloseAndReturnBuffer()!;
             }
 
             using (var memoryStream = new ArraySegmentStream(m_bufferManager))
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 TestEncoding(binaryEncoder);
                 TestEncoding(binaryEncoder);
-                m_encodedByteArray = binaryEncoder.CloseAndReturnBuffer();
+                m_encodedByteArray = binaryEncoder.CloseAndReturnBuffer()!;
             }
 
             using (var memoryStream = new ArraySegmentStream(m_bufferManager))

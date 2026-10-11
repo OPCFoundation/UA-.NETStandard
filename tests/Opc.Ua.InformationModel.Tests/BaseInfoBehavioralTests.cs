@@ -1143,7 +1143,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task ResendDataErr002CrossSessionAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
-            ISession otherSession = null;
+            ISession? otherSession = null;
             try
             {
                 await CreateMonitoredItemAsync(
@@ -1535,7 +1535,7 @@ namespace Opc.Ua.InformationModel.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(browseResp.Results.Count, Is.EqualTo(1));
-            if (browseResp.Results[0].References == default ||
+            if (browseResp.Results[0].References == default! ||
                 browseResp.Results[0].References.Count == 0)
             {
                 Assert.Ignore("SelectionListType not exposed by server.");
@@ -1563,7 +1563,7 @@ namespace Opc.Ua.InformationModel.Tests
             List<ReferenceDescription> refs = await BrowseForwardAsync(
                 SelectionListTypeId).ConfigureAwait(false);
             ReferenceDescription selDesc = refs.FirstOrDefault(
-                r => r.BrowseName.Name == "SelectionDescriptions");
+                r => r.BrowseName.Name == "SelectionDescriptions")!;
             if (selDesc == null)
             {
                 Assert.Ignore("SelectionDescriptions optional property not exposed.");
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.InformationModel.Tests
             List<ReferenceDescription> refs = await BrowseForwardAsync(
                 SelectionListTypeId).ConfigureAwait(false);
             ReferenceDescription restrict = refs.FirstOrDefault(
-                r => r.BrowseName.Name == "RestrictToList");
+                r => r.BrowseName.Name == "RestrictToList")!;
             if (restrict == null)
             {
                 Assert.Ignore("RestrictToList optional property not exposed.");
@@ -1624,7 +1624,7 @@ namespace Opc.Ua.InformationModel.Tests
                 OrderedListTypeId).ConfigureAwait(false);
             bool hasOrderedRef = refs.Any(
                 r => r.ReferenceTypeId == ReferenceTypeIds.HasOrderedComponent ||
-                    r.BrowseName.Name.Contains("Ordered", StringComparison.Ordinal));
+                    r.BrowseName.Name!.Contains("Ordered", StringComparison.Ordinal));
             Assert.That(dv.GetValue<QualifiedName>(default).Name,
                 Is.EqualTo("OrderedListType"));
         }
@@ -1652,7 +1652,7 @@ namespace Opc.Ua.InformationModel.Tests
         private static readonly NodeId RequestServerStateChangeId = new(12886);
 
         private async Task<DataValue> ReadAttributeAsync(
-            NodeId nodeId, uint attributeId, ISession session = null)
+            NodeId nodeId, uint attributeId, ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(
@@ -1676,7 +1676,7 @@ namespace Opc.Ua.InformationModel.Tests
                 nodeId, Attributes.Value);
         }
 
-        private Task<DataValue> ReadBrowseNameAsync(NodeId nodeId, ISession session = null)
+        private Task<DataValue> ReadBrowseNameAsync(NodeId nodeId, ISession? session = null)
         {
             return ReadAttributeAsync(
                 nodeId, Attributes.BrowseName, session);
@@ -1686,7 +1686,7 @@ namespace Opc.Ua.InformationModel.Tests
             NodeId nodeId,
             NodeId referenceTypeId = default,
             bool includeSubtypes = true,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResult result = await BrowseForwardResultAsync(
                 nodeId,
@@ -1695,7 +1695,7 @@ namespace Opc.Ua.InformationModel.Tests
                 session).ConfigureAwait(false);
 
             var refs = new List<ReferenceDescription>();
-            if (result.References != default)
+            if (result.References != default!)
             {
                 foreach (ReferenceDescription r in result.References)
                 {
@@ -1709,7 +1709,7 @@ namespace Opc.Ua.InformationModel.Tests
             NodeId nodeId,
             NodeId referenceTypeId = default,
             bool includeSubtypes = true,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             NodeId refType = referenceTypeId.IsNull
@@ -1737,7 +1737,7 @@ namespace Opc.Ua.InformationModel.Tests
 
         private static bool HasReference(BrowseResult result, string browseName)
         {
-            if (result.References == default)
+            if (result.References == default!)
             {
                 return false;
             }
@@ -1779,7 +1779,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
             var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription r in response.Results[0].References)
                 {
@@ -1872,7 +1872,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             if (variant.TryGetValue(out ArrayOf<uint> arr))
             {
-                return arr.ToArray();
+                return arr.ToArray()!;
             }
             // Some upstream code paths still surface uint[] / IConvertableToArray
             // directly; iterate via TypeInfo to avoid the boxed-object detour.
@@ -1888,7 +1888,7 @@ namespace Opc.Ua.InformationModel.Tests
             // FUTURE-AsBoxedObject-cleanup: legacy compatibility for callers
             // that still produce uint[] / IConvertableToArray outside the
             // typed Variant accessors. Once those paths migrate this can drop.
-            object val = variant.AsBoxedObject();
+            object val = variant.AsBoxedObject()!;
             if (val is uint[] legacyArr)
             {
                 return legacyArr;
@@ -1901,13 +1901,13 @@ namespace Opc.Ua.InformationModel.Tests
                     return uintArr;
                 }
 
-                return [.. converted.Cast<object>().Select(Convert.ToUInt32)];
+                return [.. converted!.Cast<object>().Select(Convert.ToUInt32)];
             }
             if (val is Array a)
             {
                 return [.. a.Cast<object>().Select(Convert.ToUInt32)];
             }
-            return null;
+            return null!;
         }
     }
 }

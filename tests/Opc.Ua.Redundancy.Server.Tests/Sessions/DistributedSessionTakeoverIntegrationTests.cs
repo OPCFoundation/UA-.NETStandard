@@ -31,8 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;

@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Arrange
             var resource = new TextFileResource("TestResource", "test.txt");
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => resource.GetLength(null));
+            Assert.Throws<NullReferenceException>(() => resource.GetLength(null!));
         }
 
         /// <summary>

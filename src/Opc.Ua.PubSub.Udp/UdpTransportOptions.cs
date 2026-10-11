@@ -108,7 +108,10 @@ namespace Opc.Ua.PubSub.Udp
         /// <c>NetworkInterface.Description</c>) or a literal IP
         /// address bound to a local NIC. When <see langword="null"/>
         /// or empty the transport picks the first up-and-running
-        /// interface that supports the target address family.
+        /// interface that supports the target address family. The
+        /// transport joins multicast groups and sends multicast
+        /// datagrams, including discovery announcements, on this
+        /// interface.
         /// </summary>
         public string? PreferredNetworkInterface { get; set; }
     }

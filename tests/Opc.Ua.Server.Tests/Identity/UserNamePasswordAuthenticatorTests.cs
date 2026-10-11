@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests.Identity
             server.Setup(s => s.UserManagement).Returns(userManagement);
 
             using var manager = new TestableSessionManager(server.Object, CreateConfiguration());
-            ServiceResult activationStatus = manager.PublicComputeActivationStatus(result.Identity);
+            ServiceResult activationStatus = manager.PublicComputeActivationStatus(result.Identity!);
 
             Assert.That(activationStatus.Code, Is.EqualTo((uint)StatusCodes.GoodPasswordChangeRequired));
         }

@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = id + 1000, SequenceNumber = seqNums[2] + 1000 } ];
             PublishResponse ap = await PublishWithAcksAsync(acks).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(ap.ResponseHeader.ServiceResult), Is.True);
-            if (ap.Results != default && ap.Results.Count >= 3)
+            if (ap.Results != default! && ap.Results.Count >= 3)
             {
                 Assert.That(ap.Results[0], Is.EqualTo(StatusCodes.BadSequenceNumberUnknown));
                 Assert.That(ap.Results[1], Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
@@ -1094,7 +1094,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 PublishResponse ap = await PublishWithAcksAsync(acks).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(ap.ResponseHeader.ServiceResult), Is.True);
-                if (ap.Results != default && ap.Results.Count >= 4)
+                if (ap.Results != default! && ap.Results.Count >= 4)
                 {
                     for (int i = 0; i < 4; i++)
                     {
@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = id, SequenceNumber = seqNums[2] + 1000 } ];
             PublishResponse ap = await PublishWithAcksAsync(acks).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(ap.ResponseHeader.ServiceResult), Is.True);
-            if (ap.Results != default && ap.Results.Count >= 3)
+            if (ap.Results != default! && ap.Results.Count >= 3)
             {
                 Assert.That(ap.Results[0], Is.EqualTo(StatusCodes.BadSequenceNumberUnknown));
                 Assert.That(StatusCode.IsGood(ap.Results[1]), Is.True);
@@ -1695,7 +1695,7 @@ namespace Opc.Ua.Subscriptions.Tests
             foreach (ExtensionObject ext in pub.NotificationMessage.NotificationData)
             {
                 var dcn = ExtensionObject.ToEncodeable(ext) as DataChangeNotification;
-                if (dcn != null && dcn.MonitoredItems != default && dcn.MonitoredItems.Count > 0)
+                if (dcn != null && dcn.MonitoredItems != default! && dcn.MonitoredItems.Count > 0)
                 {
                     return true;
                 }
@@ -1714,7 +1714,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var dcn = ExtensionObject.ToEncodeable(ext) as DataChangeNotification;
 
-                if (dcn != null && dcn.MonitoredItems != default)
+                if (dcn != null && dcn.MonitoredItems != default!)
                 {
                     count += dcn.MonitoredItems.Count;
                 }

@@ -220,11 +220,11 @@ namespace Opc.Ua.Gds.Tests
                 trustListRef.NodeId, Session.NamespaceUris);
             ReferenceDescription[] children = await BrowseChildrenAsync(trustListId).ConfigureAwait(false);
 
-            ReferenceDescription openMethod = children.FirstOrDefault(r => r.BrowseName.Name == "Open");
+            ReferenceDescription openMethod = children.FirstOrDefault(r => r.BrowseName.Name == "Open")!;
             Assert.That(openMethod, Is.Not.Null, "TrustList.Open not found.");
             Assert.That(openMethod.NodeClass, Is.EqualTo(NodeClass.Method));
 
-            ReferenceDescription closeMethod = children.FirstOrDefault(r => r.BrowseName.Name == "Close");
+            ReferenceDescription closeMethod = children.FirstOrDefault(r => r.BrowseName.Name == "Close")!;
             Assert.That(closeMethod, Is.Not.Null, "TrustList.Close not found.");
             Assert.That(closeMethod.NodeClass, Is.EqualTo(NodeClass.Method));
         }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.Fail("DefaultHttpsGroup not present (HTTPS not supported).");
             }
 
-            Assert.That(httpsGroup.NodeClass, Is.EqualTo(NodeClass.Object));
+            Assert.That(httpsGroup!.NodeClass, Is.EqualTo(NodeClass.Object));
         }
 
         [Test]

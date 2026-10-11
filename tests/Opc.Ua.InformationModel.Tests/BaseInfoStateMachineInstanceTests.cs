@@ -108,7 +108,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
             var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription reference in response.Results[0].References)
                 {

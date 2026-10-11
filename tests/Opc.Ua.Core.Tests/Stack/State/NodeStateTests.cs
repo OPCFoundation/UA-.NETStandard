@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 int visited = children.Count;
                 foreach (BaseInstanceState child in children)
                 {
-                    BaseInstanceState copiedChild = target.FindChild(context, child.BrowseName);
+                    BaseInstanceState copiedChild = target.FindChild(context, child.BrowseName)!;
                     Assert.That(copiedChild, Is.Not.Null);
                     Assert.Multiple(() =>
                     {
@@ -167,8 +167,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 CollectInstantiatedPlaceholders(
                     context,
                     testObject,
-                    systemType.Assembly.GetName().Name,
-                    systemType.FullName,
+                    systemType.Assembly.GetName().Name!,
+                    systemType.FullName!,
                     placeholders);
             }
 
@@ -192,30 +192,30 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
                     typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
                 {
-                    instance = Activator.CreateInstance(systemType, (NodeState)null);
+                    instance = Activator.CreateInstance(systemType, (NodeState)null!)!;
                 }
                 else if (systemType.IsAbstract)
                 {
-                    instance = null;
+                    instance = null!;
                 }
                 else
                 {
-                    ConstructorInfo defaultConstructor = systemType.GetConstructor([]);
+                    ConstructorInfo? defaultConstructor = systemType.GetConstructor([]);
                     if (defaultConstructor == null || !defaultConstructor.IsPublic)
                     {
-                        instance = null;
+                        instance = null!;
                     }
                     else
                     {
-                        instance = Activator.CreateInstance(systemType);
+                        instance = Activator.CreateInstance(systemType)!;
                     }
                 }
             }
             catch
             {
-                return null;
+                return null!;
             }
-            return instance;
+            return instance!;
         }
 
         /// <summary>
@@ -298,17 +298,17 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 AssemblyName assemblyName = assembly.GetName();
 
-                if (!assemblyName.Name.StartsWith("Opc.Ua", StringComparison.Ordinal))
+                if (!assemblyName.Name!.StartsWith("Opc.Ua", StringComparison.Ordinal))
                 {
                     return;
                 }
 
-                if (assemblies.ContainsKey(assembly.FullName))
+                if (assemblies.ContainsKey(assembly.FullName!))
                 {
                     return;
                 }
 
-                assemblies[assembly.FullName] = assembly;
+                assemblies[assembly.FullName!] = assembly;
                 toScan.Enqueue(assembly);
             }
 
@@ -327,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 foreach (AssemblyName reference in assembly.GetReferencedAssemblies())
                 {
-                    if (!reference.Name.StartsWith("Opc.Ua", StringComparison.Ordinal))
+                    if (!reference.Name!.StartsWith("Opc.Ua", StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -362,7 +362,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             catch (ReflectionTypeLoadException e)
             {
                 // Continue with loadable public types if some types in the assembly fail to load.
-                return e.Types.Where(type => type != null && type.IsPublic);
+                return e.Types.OfType<Type>().Where(type => type.IsPublic);
             }
         }
     }
@@ -506,7 +506,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             parent.AddChild(child);
 
             List<BaseInstanceState> children = [];
-            parent.GetChildren(null, children);
+            parent.GetChildren(null!, children);
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
         }
 
@@ -525,7 +525,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Verify references exist
             List<IReference> references = [];
-            node.GetReferences(null, references);
+            node.GetReferences(null!, references);
             Assert.That(references, Has.Count.GreaterThanOrEqualTo(1));
         }
 
@@ -541,7 +541,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(201, 0));
 
             List<IReference> references = [];
-            node.GetReferences(null, references);
+            node.GetReferences(null!, references);
             Assert.That(references, Has.Count.GreaterThanOrEqualTo(2));
         }
 
@@ -734,7 +734,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             folder.AddChild(variable);
 
             var children = new List<BaseInstanceState>();
-            folder.GetChildren(null, children);
+            folder.GetChildren(null!, children);
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
         }
 

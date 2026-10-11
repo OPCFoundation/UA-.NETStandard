@@ -32,7 +32,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-#nullable enable
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;

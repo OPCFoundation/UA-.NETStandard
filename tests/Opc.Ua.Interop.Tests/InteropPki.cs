@@ -213,7 +213,7 @@ namespace Opc.Ua.Interop.Tests
                     }
                     X509Extension alternativeNames = existing.Extensions
                         .Cast<X509Extension>()
-                        .First(e => e.Oid.Value == "2.5.29.17");
+                        .First(e => e.Oid!.Value == "2.5.29.17");
 
                     Certificate issued = CertificateBuilder.Create(existing.SubjectName)
                         .SetLifeTime(TimeSpan.FromDays(180))
@@ -270,7 +270,7 @@ namespace Opc.Ua.Interop.Tests
                 revokedCertificates.Add(certificate);
             }
 #pragma warning disable CS0618 // the static helper is the simplest CRL builder for a test
-            return CertificateFactory.RevokeCertificate(ca, null, revokedCertificates);
+            return CertificateFactory.RevokeCertificate(ca, null!, revokedCertificates);
 #pragma warning restore CS0618
         }
 

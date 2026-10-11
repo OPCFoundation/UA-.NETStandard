@@ -91,10 +91,10 @@ namespace Opc.Ua.Server.Tests.Hosting
         public void FluentRegistrationRejectsNullArguments()
         {
             var policy = new DelegateRequestParkingPolicy(static _ => false);
-            Assert.That(() => OpcUaServerBuilderExtensions.WithRequestParking(null, policy),
+            Assert.That(() => OpcUaServerBuilderExtensions.WithRequestParking(null!, policy),
                 Throws.ArgumentNullException);
             IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(static _ => { });
-            Assert.That(() => builder.WithRequestParking(null), Throws.ArgumentNullException);
+            Assert.That(() => builder.WithRequestParking(null!), Throws.ArgumentNullException);
         }
     }
 }

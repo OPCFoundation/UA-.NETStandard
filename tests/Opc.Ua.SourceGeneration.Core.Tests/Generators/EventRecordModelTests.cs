@@ -70,27 +70,27 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             Type decoder = m_assembly.GetType(
                 "Test.Ev.MachineEventTypeRecord+Decoder",
-                throwOnError: true);
-            MethodInfo getStandardFields = decoder.GetMethod(
+                throwOnError: true)!;
+            MethodInfo getStandardFields = decoder!.GetMethod(
                 "GetStandardFields",
-                BindingFlags.Public | BindingFlags.Static);
+                BindingFlags.Public | BindingFlags.Static)!;
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("urn:other");
             namespaceUris.Append(ModelUri);
 
-            var paths = (QualifiedName[][])getStandardFields.Invoke(null, [namespaceUris]);
+            var paths = (QualifiedName[][])getStandardFields!.Invoke(null, [namespaceUris])!;
 
-            QualifiedName machineId = paths.Single(p => p[0].Name == "MachineId")[0];
+            QualifiedName machineId = paths!.Single(p => p[0].Name == "MachineId")[0];
             Assert.That(machineId.NamespaceIndex, Is.EqualTo(2));
             QualifiedName eventId = paths.Single(p => p[0].Name == "EventId")[0];
             Assert.That(eventId.NamespaceIndex, Is.Zero);
 
             // The positional layout without a session keeps its positions.
             var standardFields = (QualifiedName[][])decoder
-                .GetField("StandardFields", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
+                .GetField("StandardFields", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
             Assert.That(
-                standardFields.Select(p => p[0].Name),
+                standardFields!.Select(p => p[0].Name),
                 Is.EqualTo(paths.Select(p => p[0].Name)));
 
             Assert.That(
@@ -111,25 +111,25 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             Type decoder = m_assembly.GetType(
                 "Test.Ev.MachineEventTypeRecord+Decoder",
-                throwOnError: true);
-            MethodInfo getStandardFields = decoder.GetMethod(
+                throwOnError: true)!;
+            MethodInfo getStandardFields = decoder!.GetMethod(
                 "GetStandardFields",
-                BindingFlags.Public | BindingFlags.Static);
+                BindingFlags.Public | BindingFlags.Static)!;
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("urn:other");
 
-            var paths = (QualifiedName[][])getStandardFields.Invoke(null, [namespaceUris]);
+            var paths = (QualifiedName[][])getStandardFields!.Invoke(null, [namespaceUris])!;
 
-            QualifiedName machineId = paths.Single(p => p[0].Name == "MachineId")[0];
+            QualifiedName machineId = paths!.Single(p => p[0].Name == "MachineId")[0];
             Assert.That(machineId.NamespaceIndex, Is.EqualTo(ushort.MaxValue));
             QualifiedName eventId = paths.Single(p => p[0].Name == "EventId")[0];
             Assert.That(eventId.NamespaceIndex, Is.Zero);
 
             FieldInfo standardFields = decoder.GetField(
                 "StandardFields",
-                BindingFlags.Public | BindingFlags.Static);
+                BindingFlags.Public | BindingFlags.Static)!;
             Assert.That(
-                standardFields.GetCustomAttribute<ObsoleteAttribute>(),
+                standardFields!.GetCustomAttribute<ObsoleteAttribute>(),
                 Is.Not.Null,
                 "the all-namespace-0 companion table must point callers to GetStandardFields");
         }
@@ -145,10 +145,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             Type record = m_assembly.GetType(
                 "Test.Ev.MachineEventTypeRecord",
-                throwOnError: true);
-            Assert.That(record.GetProperty("Load").PropertyType, Is.EqualTo(typeof(double?)));
-            Assert.That(record.GetProperty("Span").PropertyType.FullName, Is.EqualTo("Test.Ev.Duration"));
-            Assert.That(record.GetProperty("Elapsed").PropertyType, Is.EqualTo(typeof(double?)));
+                throwOnError: true)!;
+            Assert.That(record!.GetProperty("Load")!.PropertyType, Is.EqualTo(typeof(double?)));
+            Assert.That(record.GetProperty("Span")!.PropertyType.FullName, Is.EqualTo("Test.Ev.Duration"));
+            Assert.That(record.GetProperty("Elapsed")!.PropertyType, Is.EqualTo(typeof(double?)));
         }
 
         private const string Model =

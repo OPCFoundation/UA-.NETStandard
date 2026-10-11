@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = harness.CreateDataItem(queueSize: 1);
 
             item.SetSamplingError(new ServiceResult(StatusCodes.BadNodeIdUnknown));
-            item.SetSamplingError(null);
+            item.SetSamplingError(null!);
 
             ServiceResult createResult = item.GetCreateResult(out MonitoredItemCreateResult created);
             ServiceResult modifyResult = item.GetModifyResult(out MonitoredItemModifyResult modified);
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests
             using var item = new MonitoredItem(
                 harness.ServerMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 stored,
                 harness.TimeProvider);
 
@@ -390,7 +390,7 @@ namespace Opc.Ua.Server.Tests
             using var item = new MonitoredItem(
                 harness.ServerMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 stored,
                 harness.TimeProvider);
 
@@ -440,7 +440,7 @@ namespace Opc.Ua.Server.Tests
             using var item = new MonitoredItem(
                 harness.ServerMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 stored,
                 harness.TimeProvider);
 
@@ -635,7 +635,7 @@ namespace Opc.Ua.Server.Tests
 
             int testThread = Environment.CurrentManagedThreadId;
             int failedValidations = 0;
-            void OnFirstChance(object sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+            void OnFirstChance(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
             {
                 if (Environment.CurrentManagedThreadId == testThread &&
                     e.Exception is ServiceResultException)
@@ -676,7 +676,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 0,
                 10,
-                discardOldest: true);
+                discardOldest: true)!;
             Assert.That(ServiceResult.IsBad(result), Is.False);
         }
 
@@ -716,7 +716,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     throw new InvalidOperationException("The field cannot be resolved.");
                 }
-                return Variant.From(relativePath[0].Name);
+                return Variant.From(relativePath[0].Name!);
             }
         }
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 item.SamplingInterval,
                 queueSize,
-                discardOldest: true);
+                discardOldest: true)!;
             Assert.That(ServiceResult.IsBad(result), Is.False);
         }
 
@@ -797,7 +797,7 @@ namespace Opc.Ua.Server.Tests
                 return new MonitoredItem(
                     ServerMock.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    null,
+                    null!,
                     1,
                     2,
                     new ReadValueId
@@ -828,7 +828,7 @@ namespace Opc.Ua.Server.Tests
                 return new MonitoredItem(
                     ServerMock.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    null,
+                    null!,
                     1,
                     4,
                     new ReadValueId

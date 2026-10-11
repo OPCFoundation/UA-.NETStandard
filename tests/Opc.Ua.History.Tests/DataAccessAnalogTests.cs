@@ -66,7 +66,7 @@ namespace Opc.Ua.History.Tests
                 await ReadNodeValueAsync(euRangeId).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
 
-            Range range = result.GetValue<Range>(default);
+            Range range = result.GetValue<Range>(default!);
             Assert.That(range, Is.Not.Null);
             Assert.That(range.High, Is.GreaterThanOrEqualTo(range.Low));
         }

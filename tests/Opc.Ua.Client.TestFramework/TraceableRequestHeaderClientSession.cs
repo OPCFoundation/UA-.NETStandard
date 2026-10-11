@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
                     request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
                 else if (request.RequestHeader.AdditionalHeader.TryGetValue(
-                    out AdditionalParametersType existingParameters))
+                    out AdditionalParametersType? existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters =

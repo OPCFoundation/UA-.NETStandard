@@ -7,7 +7,6 @@
     <PackageId>GeneratorServer</PackageId>
     <Description>Self-contained .NET console OPC UA server demonstrating the Generators companion specification end-to-end, including a datasheet-driven generator-set simulation, a twelve-state operating state machine, protection alarms and a per-set OpenUSD twin.</Description>
     <RootNamespace>Generators</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

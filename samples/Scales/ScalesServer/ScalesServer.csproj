@@ -6,7 +6,6 @@
     <PackageId>ScalesServer</PackageId>
     <RootNamespace>ScalesSample</RootNamespace>
     <Description>Self-contained .NET console OPC UA server publishing an OPC 40200 packing line with the Opc.Ua.Scales.Server builders: a scale system with a checkweigher, infeed feeder and label printer, a laboratory scale, a piece-counting scale, a vehicle scale and a recipe scale, driven by a simulation that weighs packages, updates statistics and raises scale events and alarms.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>

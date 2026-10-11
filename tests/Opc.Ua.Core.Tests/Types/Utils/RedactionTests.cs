@@ -53,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             RedactionStrategies.ResetStrategy();
 
-            const string original = null;
+            const string? original = null;
 
             string result = Redact.Create(original).ToString();
 

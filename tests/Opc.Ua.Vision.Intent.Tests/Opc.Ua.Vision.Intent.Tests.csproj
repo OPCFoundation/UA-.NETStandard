@@ -5,7 +5,6 @@
     <AssemblyName>Opc.Ua.Vision.Intent.Tests</AssemblyName>
     <OutputType>Exe</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1508;CA1812;CA2213;CA1707</NoWarn>
   </PropertyGroup>

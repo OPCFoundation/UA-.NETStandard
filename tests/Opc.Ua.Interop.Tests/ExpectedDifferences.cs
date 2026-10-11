@@ -55,7 +55,7 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         public static string Reason(string name)
         {
-            if (s_differences.Value.TryGetValue(name, out string reason))
+            if (s_differences.Value.TryGetValue(name, out string? reason))
             {
                 return reason;
             }
@@ -69,7 +69,7 @@ namespace Opc.Ua.Interop.Tests
                     return entry.Value;
                 }
             }
-            return null;
+            return null!;
         }
 
         /// <summary>
@@ -111,8 +111,8 @@ namespace Opc.Ua.Interop.Tests
             string file = Path.Combine(folder, FileName);
             for (int level = 0; level < 2 && !File.Exists(file) && Path.GetDirectoryName(folder) != null; level++)
             {
-                folder = Path.GetDirectoryName(folder);
-                file = Path.Combine(folder, FileName);
+                folder = Path.GetDirectoryName(folder)!;
+                file = Path.Combine(folder!, FileName);
             }
             if (!File.Exists(file))
             {
@@ -121,12 +121,12 @@ namespace Opc.Ua.Interop.Tests
             using var document = JsonDocument.Parse(File.ReadAllText(file));
             foreach (JsonProperty entry in document.RootElement.EnumerateObject())
             {
-                string reason = entry.Value.TryGetProperty("reason", out JsonElement r) ? r.GetString() : string.Empty;
+                string reason = (entry.Value.TryGetProperty("reason", out JsonElement r) ? r.GetString() : string.Empty)!;
                 if (entry.Value.TryGetProperty("issue", out JsonElement issue))
                 {
                     reason += " (" + issue.GetString() + ")";
                 }
-                differences[entry.Name] = reason;
+                differences[entry.Name] = reason!;
             }
             return differences;
         }

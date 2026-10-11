@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
 
             // Ensure the model namespaces exist in the server namespace table so
             // the imported node ids map to the correct server indexes.
-            if (nodeSet.NamespaceUris != null)
+            if (nodeSet!.NamespaceUris != null)
             {
                 foreach (string namespaceUri in nodeSet.NamespaceUris)
                 {

@@ -146,7 +146,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes an asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_InvokeServiceAsyncParameters(ILoadContext context)
+        private TemplateString? LoadTemplate_InvokeServiceAsyncParameters(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {
@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes a synchronous method declaration for known types.
         /// </summary>
-        private TemplateString LoadTemplate_KnownType(ILoadContext context)
+        private TemplateString? LoadTemplate_KnownType(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {

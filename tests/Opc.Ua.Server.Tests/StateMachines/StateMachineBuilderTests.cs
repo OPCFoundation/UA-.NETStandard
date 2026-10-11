@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
         [TestCase("")]
         [TestCase(null)]
-        public void AddStateWithEmptyBrowseNameThrowsArgumentException(string browseName)
+        public void AddStateWithEmptyBrowseNameThrowsArgumentException(string? browseName)
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
                 StateMachineTestFixtures.NewBuilder(m_context);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
         [TestCase("")]
         [TestCase(null)]
-        public void AddTransitionWithEmptyBrowseNameThrowsArgumentException(string browseName)
+        public void AddTransitionWithEmptyBrowseNameThrowsArgumentException(string? browseName)
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
                 StateMachineTestFixtures.NewBuilder(m_context)
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
 
         [TestCase("")]
         [TestCase(null)]
-        public void UseElementNamespaceWithNullOrEmptyThrowsArgumentException(string namespaceUri)
+        public void UseElementNamespaceWithNullOrEmptyThrowsArgumentException(string? namespaceUri)
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
                 StateMachineTestFixtures.NewBuilder(m_context);

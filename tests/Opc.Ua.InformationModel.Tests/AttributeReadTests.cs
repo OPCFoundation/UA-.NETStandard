@@ -1056,7 +1056,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True,
                 "Server_ServerArray should return Good.");
 
-            string[] serverArray = response.Results[0].GetValue<string[]>(null);
+            string[] serverArray = response.Results[0].GetValue<string[]>(null!);
             Assert.That(serverArray, Is.Not.Null,
                 "ServerArray should not be null.");
             Assert.That(serverArray, Is.Not.Empty,
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True,
                 "Server_NamespaceArray should return Good.");
 
-            string[] namespaceArray = response.Results[0].GetValue<string[]>(null);
+            string[] namespaceArray = response.Results[0].GetValue<string[]>(null!);
             Assert.That(namespaceArray, Is.Not.Null,
                 "NamespaceArray should not be null.");
             Assert.That(namespaceArray, Is.Not.Empty,

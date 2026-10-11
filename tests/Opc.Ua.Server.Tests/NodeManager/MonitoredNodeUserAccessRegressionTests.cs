@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 writerSession.SetupGet(s => s.Id).Returns(new NodeId("writer", 1));
                 writerSession.SetupGet(s => s.EffectiveIdentity).Returns(writerIdentity);
                 using var writerOperation = new OperationContext(
-                    new RequestHeader(), null, RequestType.Write, RequestLifetime.None, writerSession.Object);
+                    new RequestHeader(), null!, RequestType.Write, RequestLifetime.None, writerSession.Object);
                 ISystemContext writerContext = plainReporterContext
                     ? new SessionSystemContext(server.Object.Telemetry) { UserIdentity = writerIdentity }
                     : new ServerSystemContext(server.Object, writerOperation);

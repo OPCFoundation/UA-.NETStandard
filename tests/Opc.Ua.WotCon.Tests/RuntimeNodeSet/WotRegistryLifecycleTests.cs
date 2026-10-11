@@ -48,8 +48,6 @@ using WotConModel = Opc.Ua.WotCon;
 using UaObjectIds = global::Opc.Ua.ObjectIds;
 using UaReferenceTypeIds = global::Opc.Ua.ReferenceTypeIds;
 
-#nullable disable warnings
-
 namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 {
     /// <summary>
@@ -327,7 +325,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(createGroup.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(m_registry.Current.FindGroup("sensors"), Is.Not.Null);
             var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
 
             // 2. GetOrCreateResource with RequestFileOpen returns a write FileHandle.
             NodeId getOrCreateResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
@@ -338,7 +336,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(createResource.StatusCode, Is.EqualTo(StatusCodes.Good));
             var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
             uint fileHandle = createResource.OutputArguments[2].GetUInt32();
             Assert.That(fileHandle, Is.Not.Zero,
                 "RequestFileOpen must return a non-zero write FileHandle.");
@@ -359,7 +357,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceNodeId, closeId, new Variant(fileHandle)).ConfigureAwait(false);
             Assert.That(close.StatusCode, Is.EqualTo(StatusCodes.Good));
 
-            WotResource stored = m_registry.Current.FindResource("sensors", "thing1");
+            WotResource stored = m_registry.Current.FindResource("sensors", "thing1")!;
             Assert.That(stored?.DefaultVersion, Is.Not.Null,
                 "Closing the write handle must commit the buffered document as a version.");
 
@@ -369,11 +367,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(validate.StatusCode, Is.EqualTo(StatusCodes.Good));
             object outcomeBoxed = validate.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
             Assert.That(outcomeBoxed, Is.InstanceOf<ExtensionObject>());
             Assert.That(((ExtensionObject)outcomeBoxed).TryGetValue(
-                out WoTValidationOutcomeDataType outcome), Is.True);
-            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                out WoTValidationOutcomeDataType? outcome), Is.True);
+            Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
 
             // 5. SetEnabled(false) through the document Method.
             NodeId setEnabledId = await FindChildAsync(resourceNodeId, "SetEnabled")
@@ -407,7 +405,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 createGroupId,
                 new Variant("secure-files")).ConfigureAwait(false);
             var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
 
             NodeId createResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
                 .ConfigureAwait(false);
@@ -418,7 +416,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 new Variant(string.Empty),
                 new Variant(true)).ConfigureAwait(false);
             var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
             uint writeHandle = createResource.OutputArguments[2].GetUInt32();
 
             m_options.ManagementAccess = new WotManagementAccessPolicy
@@ -513,7 +511,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             DataValue envValue = await ReadValueAsync(envNodeId).ConfigureAwait(false);
             Assert.That(envValue.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(envValue.GetValue<string>(null), Is.EqualTo("production"));
+            Assert.That(envValue.GetValue<string>(null!), Is.EqualTo("production"));
 
             // Group-level Labels.
             NodeId createGroupId = await FindChildAsync(registryNodeId, "CreateGroup")
@@ -522,7 +520,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 registryNodeId, createGroupId, new Variant("labelgroup")).ConfigureAwait(false);
             Assert.That(createGroup.StatusCode, Is.EqualTo(StatusCodes.Good));
             var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
 
             NodeId groupLabelsId = await FindChildAsync(groupNodeId, "Labels").ConfigureAwait(false);
             NodeId groupAddId = await FindChildAsync(groupLabelsId, "AddAttribute")
@@ -535,7 +533,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(addGroupLabel.StatusCode, Is.EqualTo(StatusCodes.Good));
             NodeId ownerNodeId = await FindChildAsync(groupLabelsId, "owner").ConfigureAwait(false);
             Assert.That(
-                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("team-iot"));
 
             // Epoch mismatch is rejected with Bad_InvalidState and makes no change.
@@ -548,7 +546,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(mismatchedGroup.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
-                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("team-iot"), "A rejected epoch mismatch must not change the label value.");
 
             // A key colliding with a fixed Labels container member is rejected.
@@ -573,7 +571,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(createResource.StatusCode, Is.EqualTo(StatusCodes.Good));
             var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
 
             NodeId resourceLabelsId = await FindChildAsync(resourceNodeId, "Labels")
                 .ConfigureAwait(false);
@@ -589,7 +587,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(addResourceLabel.StatusCode, Is.EqualTo(StatusCodes.Good));
             NodeId siteNodeId = await FindChildAsync(resourceLabelsId, "site").ConfigureAwait(false);
             Assert.That(
-                (await ReadValueAsync(siteNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(siteNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("seattle"));
 
             // Remove the resource label; it must disappear from Browse.
@@ -818,7 +816,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             return await services
-                .BrowseAsync(requestHeader, view: null, requestedMaxReferencesPerNode: 0, nodesToBrowse)
+                .BrowseAsync(requestHeader, view: null!, requestedMaxReferencesPerNode: 0, nodesToBrowse)
                 .ConfigureAwait(false);
         }
 
@@ -887,7 +885,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 {
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        if (notificationData.TryGetValue(out DataChangeNotification? dcn))
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {

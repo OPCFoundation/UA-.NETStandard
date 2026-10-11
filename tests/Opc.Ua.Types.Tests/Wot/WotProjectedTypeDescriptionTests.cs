@@ -115,10 +115,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.Empty);
             Assert.That(result.Value, Is.Not.Null);
 
-            UANode root = result.Value.Items.Single(i => i is UAObjectType);
+            UANode root = result.Value.Items!.Single(i => i is UAObjectType);
             Assert.That(
                 nodeId,
-                Is.EqualTo(ToPortableNodeId(root.NodeId, result.Value.NamespaceUris)));
+                Is.EqualTo(ToPortableNodeId(root.NodeId!, result.Value.NamespaceUris!)));
         }
 
         /// <summary>

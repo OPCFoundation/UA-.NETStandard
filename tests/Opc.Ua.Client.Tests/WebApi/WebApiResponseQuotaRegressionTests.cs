@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.Tests.WebApi
             /// <summary>
             /// Records a buffering attempt and copies the body using the captured request token.
             /// </summary>
-            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
             {
                 SerializeCalls++;
                 return m_body.CopyToAsync(stream, 81920, RequestToken);

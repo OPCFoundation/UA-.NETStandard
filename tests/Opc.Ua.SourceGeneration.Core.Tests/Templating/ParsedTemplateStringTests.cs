@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddFormatted("World", typeof(string));
 
             // Act
-            string result = parsed.ToString(null);
+            string result = parsed.ToString(null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("Hello World"));
@@ -2302,10 +2302,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void FromString_NullString_ParsesAsEmptyString()
         {
             // Arrange
-            const string input = null;
+            const string? input = null;
 
             // Act
-            var parsed = ParsedTemplateString.FromString(input);
+            var parsed = ParsedTemplateString.FromString(input!);
 
             // Assert
             Assert.That(parsed, Is.Not.Null);

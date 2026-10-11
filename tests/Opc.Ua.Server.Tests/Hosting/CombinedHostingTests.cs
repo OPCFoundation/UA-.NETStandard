@@ -42,8 +42,6 @@ using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Hosting
 {
     /// <summary>

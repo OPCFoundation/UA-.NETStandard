@@ -137,7 +137,7 @@ namespace Opc.Ua.SourceGeneration
         private List<MethodDesign> GetDeclaredMethods(ObjectTypeDesign objectType)
         {
             var methods = new List<MethodDesign>();
-            InstanceDesign[] children = objectType.Children?.Items;
+            InstanceDesign[]? children = objectType.Children?.Items;
             if (children == null)
             {
                 return methods;
@@ -172,7 +172,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetOutputNamespace()
         {
-            string @override = m_context.Options?.ObjectTypeProxyNamespace;
+            string? @override = m_context.Options?.ObjectTypeProxyNamespace;
             return string.IsNullOrWhiteSpace(@override)
                 ? m_context.ModelDesign.TargetNamespace.Prefix
                 : @override;
@@ -192,7 +192,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseClass;
             }
-            string parentName = parent.SymbolicName?.Name;
+            string? parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
                 return kRootBaseClass;
@@ -211,9 +211,9 @@ namespace Opc.Ua.SourceGeneration
         /// emitted for those, see <see cref="GetEmittedObjectTypes"/>), or
         /// <c>null</c> when the chain ends at a non-ObjectType.
         /// </summary>
-        private ObjectTypeDesign GetEmittedBaseType(ObjectTypeDesign objectType)
+        private ObjectTypeDesign? GetEmittedBaseType(ObjectTypeDesign objectType)
         {
-            TypeDesign current = objectType.BaseTypeNode;
+            TypeDesign? current = objectType.BaseTypeNode;
             while (current is ObjectTypeDesign parent)
             {
                 if (HasProxy(parent))
@@ -235,20 +235,20 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool HasProxy(ObjectTypeDesign type)
         {
-            string typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
+            string? typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
             if (!string.IsNullOrEmpty(typeUri) &&
                 !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
                 m_context.ReferencedModels != null &&
                 m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
             {
-                Dependency.ModelDependencyV1 payload = reference.GetDependency();
+                Dependency.ModelDependencyV1? payload = reference.GetDependency();
                 if (payload == null)
                 {
                     // No record of what the reference excluded: take the
                     // type as emitted.
                     return true;
                 }
-                string name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
+                string? name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
                 foreach (Dependency.DependencyNode node in payload.Nodes)
                 {
                     if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
@@ -274,8 +274,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveProxyNamespaceForType(TypeDesign type)
         {
-            string typeUri = type.SymbolicName?.Namespace;
-            string targetUri = m_context.ModelDesign.TargetNamespace?.Value;
+            string? typeUri = type.SymbolicName?.Namespace;
+            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
 
             if (!string.IsNullOrEmpty(typeUri) &&
                 string.Equals(typeUri, targetUri, StringComparison.Ordinal))
@@ -285,10 +285,10 @@ namespace Opc.Ua.SourceGeneration
 
             if (!string.IsNullOrEmpty(typeUri))
             {
-                IDictionary<string, string> overrides =
+                IDictionary<string, string>? overrides =
                     m_context.Options?.ObjectTypeProxyExternalNamespaces;
                 if (overrides != null &&
-                    overrides.TryGetValue(typeUri, out string mapped) &&
+                    overrides.TryGetValue(typeUri, out string? mapped) &&
                     !string.IsNullOrWhiteSpace(mapped))
                 {
                     return mapped;
@@ -305,7 +305,7 @@ namespace Opc.Ua.SourceGeneration
                     foreach (Namespace ns in namespaces)
                     {
                         if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
-                            !string.IsNullOrWhiteSpace(ns.Prefix))
+                            !string.IsNullOrWhiteSpace(ns!.Prefix))
                         {
                             return ns.Prefix;
                         }
@@ -327,12 +327,12 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            ObjectTypeDesign? parent = GetEmittedBaseType(objectType);
             while (parent != null)
             {
                 foreach (MethodDesign method in GetDeclaredMethods(parent))
                 {
-                    string name = method.SymbolicName?.Name;
+                    string? name = method.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
                         names.Add(name + "Async");
@@ -354,12 +354,12 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedObjectChildNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            ObjectTypeDesign? parent = GetEmittedBaseType(objectType);
             while (parent != null)
             {
                 foreach (ObjectDesign child in GetDeclaredObjectChildren(parent))
                 {
-                    string name = child.SymbolicName?.Name;
+                    string? name = child.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
                         names.Add("Get" + name + "Async");
@@ -434,7 +434,7 @@ namespace Opc.Ua.SourceGeneration
         private List<ObjectDesign> GetDeclaredObjectChildren(ObjectTypeDesign objectType)
         {
             var result = new List<ObjectDesign>();
-            InstanceDesign[] children = objectType.Children?.Items;
+            InstanceDesign[]? children = objectType.Children?.Items;
             if (children == null)
             {
                 return result;
@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
         /// same-class method (e.g. method <c>GetFoo</c> + child
         /// <c>Foo</c> would both emit <c>GetFooAsync</c>).
         /// </summary>
-        private TemplateString LoadTemplate_ObjectChildAccessor(ILoadContext context)
+        private TemplateString? LoadTemplate_ObjectChildAccessor(ILoadContext context)
         {
             if (context.Target is not ObjectDesign objectChild)
             {
@@ -500,7 +500,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string childBrowseName = objectChild.SymbolicName?.Name;
+            string? childBrowseName = objectChild.SymbolicName?.Name;
             if (string.IsNullOrEmpty(childBrowseName))
             {
                 return null;
@@ -511,7 +511,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string typeName = typeDef.SymbolicName?.Name;
+            string? typeName = typeDef.SymbolicName?.Name;
             if (string.IsNullOrEmpty(typeName))
             {
                 return null;
@@ -540,7 +540,7 @@ namespace Opc.Ua.SourceGeneration
                 "global::{0}.{1}Client", typeNamespace, typeName);
             string emittedName = "Get" + childBrowseName + "Async";
 
-            string browseNameNamespaceUri = objectChild.SymbolicName?.Namespace;
+            string? browseNameNamespaceUri = objectChild.SymbolicName?.Namespace;
             if (string.IsNullOrEmpty(browseNameNamespaceUri))
             {
                 browseNameNamespaceUri = m_context.ModelDesign.TargetNamespace?.Value;
@@ -606,7 +606,7 @@ namespace Opc.Ua.SourceGeneration
         /// signature and body) into the surrounding template at the
         /// position of the <see cref="Tokens.MethodList"/> placeholder.
         /// </summary>
-        private TemplateString LoadTemplate_Method(ILoadContext context)
+        private TemplateString? LoadTemplate_Method(ILoadContext context)
         {
             if (context.Target is not MethodDesign method)
             {
@@ -636,7 +636,7 @@ namespace Opc.Ua.SourceGeneration
             // Bad_MethodInvalid interoperability fallback against
             // non-conformant servers (resolve the instance MethodId via a
             // HasComponent browse path). Mirrors the child-accessor path.
-            string methodBrowseNamespaceUri = method.SymbolicName?.Namespace;
+            string? methodBrowseNamespaceUri = method.SymbolicName?.Namespace;
             if (string.IsNullOrEmpty(methodBrowseNamespaceUri))
             {
                 methodBrowseNamespaceUri = targetNamespace;
@@ -681,7 +681,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Out.WriteLine();
                 context.Out.Write(
                     "    {0} {1},",
-                    inputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
+                    inputs[ii].DataTypeNode!.GetMethodArgumentTypeAsCode(
                         inputs[ii].ValueRank,
                         targetNamespace,
                         namespaces,
@@ -765,7 +765,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return CoreUtils.Format(
                     "<{0}>",
-                    outputs[0].DataTypeNode.GetMethodArgumentTypeAsCode(
+                    outputs[0].DataTypeNode!.GetMethodArgumentTypeAsCode(
                         outputs[0].ValueRank,
                         targetNamespace,
                         namespaces,
@@ -781,7 +781,7 @@ namespace Opc.Ua.SourceGeneration
                     builder.Append(", ");
                 }
                 builder
-                    .Append(outputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
+                    .Append(outputs[ii].DataTypeNode!.GetMethodArgumentTypeAsCode(
                         outputs[ii].ValueRank,
                         targetNamespace,
                         namespaces,
@@ -866,14 +866,14 @@ namespace Opc.Ua.SourceGeneration
             string targetNamespace,
             Namespace[] namespaces)
         {
-            string typeName = parameter.DataTypeNode.GetMethodArgumentTypeAsCode(
+            string typeName = parameter.DataTypeNode!.GetMethodArgumentTypeAsCode(
                 parameter.ValueRank,
                 targetNamespace,
                 namespaces,
                 parameter.IsOptional);
             string localName = GetLocalVariableName(parameter);
 
-            switch (parameter.DataTypeNode.BasicDataType)
+            switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
@@ -955,7 +955,7 @@ namespace Opc.Ua.SourceGeneration
         private static string BoxInputArgument(Parameter parameter)
         {
             string name = GetMethodArgumentIdentifier(parameter);
-            switch (parameter.DataTypeNode.BasicDataType)
+            switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     return CoreUtils.Format(
@@ -993,7 +993,7 @@ namespace Opc.Ua.SourceGeneration
             // caller can pass a null subjectName / privateKeyFormat through to
             // the server (preserving the OPC UA wire semantics for optional
             // string inputs).
-            return parameter.DataTypeNode.BasicDataType == BasicDataType.UserDefined;
+            return parameter.DataTypeNode!.BasicDataType == BasicDataType.UserDefined;
         }
 
         /// <summary>
@@ -1051,8 +1051,8 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly IGeneratorContext m_context;
         private readonly Microsoft.Extensions.Logging.ILogger m_logger;
-        private HashSet<string> m_inheritedMethodNames;
-        private HashSet<string> m_inheritedAccessorNames;
-        private HashSet<string> m_inheritedObjectChildNames;
+        private HashSet<string>? m_inheritedMethodNames;
+        private HashSet<string>? m_inheritedAccessorNames;
+        private HashSet<string>? m_inheritedObjectChildNames;
     }
 }

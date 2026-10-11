@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void DetermineStoreTypeNullReturnsDirectory()
         {
-            string result = CertificateStoreIdentifier.DetermineStoreType(null);
+            string result = CertificateStoreIdentifier.DetermineStoreType(null!);
             Assert.That(result, Is.EqualTo(CertificateStoreType.Directory));
         }
 
@@ -436,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void CreateStoreNullTypeReturnsCertificateIdentifierCollectionStore()
         {
             using ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(null, NUnitTelemetryContext.Create());
+                .CreateStore(null!, NUnitTelemetryContext.Create());
             Assert.That(store, Is.Not.Null);
         }
 

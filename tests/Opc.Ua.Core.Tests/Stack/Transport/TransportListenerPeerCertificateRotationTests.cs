@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             RevalidationTestChannel trusted = CreateOpenChannel("trusted", 1, trustedCert);
             RevalidationTestChannel untrusted = CreateOpenChannel("untrusted", 2, untrustedCert);
-            RevalidationTestChannel noCert = CreateOpenChannel("nocert", 3, peerCertificate: null);
+            RevalidationTestChannel noCert = CreateOpenChannel("nocert", 3, peerCertificate: null!);
 
             var channels = new List<RevalidationTestChannel> { trusted, untrusted, noCert };
             try
@@ -331,7 +331,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private RevalidationTestChannel CreateOpenChannel(
             string contextId,
             uint channelId,
-            Certificate peerCertificate)
+            Certificate? peerCertificate)
         {
             var listenerMock = new Mock<ITcpChannelListener>();
             listenerMock.Setup(l => l.EndpointUrl).Returns(new Uri("opc.tcp://localhost:4840"));
@@ -436,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ChannelId = channelId;
             }
 
-            public void SetPeerCertificate(Certificate peerCertificate)
+            public void SetPeerCertificate(Certificate? peerCertificate)
             {
                 ClientCertificate = peerCertificate;
             }

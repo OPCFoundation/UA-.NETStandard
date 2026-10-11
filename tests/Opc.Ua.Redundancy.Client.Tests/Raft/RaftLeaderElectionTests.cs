@@ -32,8 +32,6 @@
 #pragma warning disable CA2007
 
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;

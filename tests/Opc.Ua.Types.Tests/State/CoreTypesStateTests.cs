@@ -263,8 +263,8 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(state.NodeId, Is.EqualTo(eventNodeId));
             Assert.That(state.TypeDefinitionId, Is.EqualTo(eventTypeId));
 
-            NodeState message = state.FindChild(m_context, new[] { messageName }.ToArrayOf(), 0);
-            NodeState source = state.FindChild(m_context, new[] { sourceName }.ToArrayOf(), 0);
+            NodeState message = state.FindChild(m_context, new[] { messageName }.ToArrayOf(), 0)!;
+            NodeState source = state.FindChild(m_context, new[] { sourceName }.ToArrayOf(), 0)!;
 
             Assert.That(message, Is.TypeOf<BaseDataVariableState>());
             Assert.That(((BaseDataVariableState)message).Value, Is.EqualTo("raised"));

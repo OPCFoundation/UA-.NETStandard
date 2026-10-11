@@ -250,7 +250,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);
                 }
                 DataDictionary dictionaryToLoad = await nodeResolver
-                    .LoadDictionaryAsync(dictionaryId, r.BrowseName.Name)
+                    .LoadDictionaryAsync(dictionaryId, r.BrowseName.Name!)
                     .ConfigureAwait(false);
 
                 // internal API for testing only

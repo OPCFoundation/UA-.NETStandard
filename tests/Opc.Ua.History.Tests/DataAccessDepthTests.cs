@@ -387,7 +387,7 @@ namespace Opc.Ua.History.Tests
                 await BrowseChildrenAsync(nodeId).ConfigureAwait(false);
 
             ReferenceDescription definition = children
-                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.Definition);
+                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.Definition)!;
 
             if (definition == null)
             {
@@ -409,7 +409,7 @@ namespace Opc.Ua.History.Tests
                 await BrowseChildrenAsync(nodeId).ConfigureAwait(false);
 
             ReferenceDescription precision = children
-                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.ValuePrecision);
+                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.ValuePrecision)!;
 
             if (precision == null)
             {
@@ -508,7 +508,7 @@ namespace Opc.Ua.History.Tests
                 await BrowseChildrenAsync(analogNode).ConfigureAwait(false);
 
             ReferenceDescription euRange = children
-                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.EURange);
+                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.EURange)!;
 
             if (euRange == null)
             {
@@ -537,7 +537,7 @@ namespace Opc.Ua.History.Tests
                 await BrowseChildrenAsync(analogNode).ConfigureAwait(false);
 
             ReferenceDescription instrRange = children
-                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.InstrumentRange);
+                .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.InstrumentRange)!;
 
             if (instrRange == null)
             {
@@ -568,7 +568,7 @@ namespace Opc.Ua.History.Tests
 
             ReferenceDescription engUnits = children
                 .FirstOrDefault(r => r.BrowseName.Name ==
-                    BrowseNames.EngineeringUnits);
+                    BrowseNames.EngineeringUnits)!;
 
             if (engUnits == null)
             {
@@ -1963,7 +1963,7 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
-            return response.Results[0].References.ToArray();
+            return response.Results[0].References.ToArray()!;
         }
 
         private async Task<uint> CreateSubscriptionAsync(

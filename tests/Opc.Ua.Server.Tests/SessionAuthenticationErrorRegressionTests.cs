@@ -88,21 +88,21 @@ namespace Opc.Ua.Server.Tests
             var error = new ServiceResult(statusCode, new LocalizedText("Authenticator rejection must survive."));
             var registry = new ServerIdentityRegistry(new UserNamePasswordAuthenticator(
                 (_, _) => throw new ServiceResultException(error)));
-            return AssertActivationRejectionAsync(registry, statusCode, error.LocalizedText.Text);
+            return AssertActivationRejectionAsync(registry, statusCode, error.LocalizedText.Text!);
         }
 
         [Test]
         public Task UnhandledNonAnonymousTokenStillFailsClosedAsync()
         {
             return AssertActivationRejectionAsync(
-                new ServerIdentityRegistry(), StatusCodes.BadIdentityTokenRejected, null);
+                new ServerIdentityRegistry(), StatusCodes.BadIdentityTokenRejected, null!);
         }
 
         private static async Task AssertActivationRejectionAsync(
             ServerIdentityRegistry registry,
             StatusCode expectedStatus,
             string expectedMessage,
-            string decryptionFailure = null)
+            string? decryptionFailure = null)
         {
             ServiceResultException error = await ActivateAsync(
                 registry,
@@ -117,10 +117,10 @@ namespace Opc.Ua.Server.Tests
                     };
                     if (decryptionFailure != null)
                     {
-                        using RSA rsa = certificate.GetRSAPublicKey();
+                        using RSA rsa = certificate.GetRSAPublicKey()!;
                         token.Password = decryptionFailure == "padding"
-                            ? ByteString.From(new byte[rsa.KeySize / 8])
-                            : ByteString.From(rsa.Encrypt(
+                            ? ByteString.From(new byte[rsa!.KeySize / 8])
+                            : ByteString.From(rsa!.Encrypt(
                                 [0xFF, 0xFF, 0xFF, 0x7F], RSAEncryptionPadding.Pkcs1));
                         token.EncryptionAlgorithm = decryptionFailure == "algorithm"
                             ? SecurityAlgorithms.RsaOaep
@@ -169,9 +169,9 @@ namespace Opc.Ua.Server.Tests
                     int keyDataLength = decoder.ReadUInt16(null);
                     int keyDataStart = decoder.Position;
 
-                    using RSA rsa = certificate.GetRSAPublicKey();
+                    using RSA rsa = certificate.GetRSAPublicKey()!;
                     byte[] keyData = wellFormedPadding
-                        ? rsa.Encrypt(
+                        ? rsa!.Encrypt(
                             [0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03],
                             policyUri switch
                             {
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests
                                 SecurityPolicies.Aes256_Sha256_RsaPss => RSAEncryptionPadding.OaepSHA256,
                                 _ => RSAEncryptionPadding.OaepSHA1
                             })
-                        : new byte[rsa.KeySize / 8];
+                        : new byte[rsa!.KeySize / 8];
                     Assert.That(keyData, Has.Length.EqualTo(keyDataLength));
                     Buffer.BlockCopy(keyData, 0, encoded, keyDataStart, keyDataLength);
 

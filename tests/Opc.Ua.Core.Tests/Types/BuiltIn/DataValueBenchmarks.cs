@@ -33,8 +33,6 @@ using System.IO;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
-#nullable enable
-
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
     /// <summary>

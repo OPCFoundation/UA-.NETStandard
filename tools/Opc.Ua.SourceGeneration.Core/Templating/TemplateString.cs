@@ -105,8 +105,8 @@ namespace Opc.Ua.SourceGeneration
         public readonly void AppendFormatted<T>(T t)
         {
             Parsed.AddFormatted(
-                t is IFormattable f ?
-                f.ToString(null, CultureInfo.InvariantCulture) : t.ToString(), typeof(T));
+                (t is IFormattable f ?
+                f.ToString(null, CultureInfo.InvariantCulture) : t!.ToString())!, typeof(T));
         }
 
         /// <inheritdoc/>
@@ -204,7 +204,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public override string ToString(IFormatProvider formatProvider)
+        public override string ToString(IFormatProvider? formatProvider)
         {
             return string.Format(formatProvider, Format, Arguments);
         }
@@ -314,8 +314,8 @@ namespace Opc.Ua.SourceGeneration
             int Offset,
             int LineNumber);
 
-        private object[] m_arguments;
-        private string m_format;
+        private object[]? m_arguments;
+        private string? m_format;
         private readonly List<Op> m_operations;
         private int m_curOffset;
         private int m_curLine;

@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             mockStream.Setup(s => s.Length).Returns(42L);
             var resource = new StreamResource("TestResource", mockStream.Object, false);
             // Act
-            long actualLength = resource.GetLength(null);
+            long actualLength = resource.GetLength(null!);
             // Assert
             Assert.That(actualLength, Is.EqualTo(42L));
         }
@@ -121,7 +121,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void GetLength_NullStream_ThrowsNullReferenceException()
         {
             // Arrange
-            var resource = new StreamResource("TestResource", null, false);
+            var resource = new StreamResource("TestResource", null!, false);
             var mockFileSystem = new Mock<IFileSystem>();
             // Act & Assert
             Assert.Throws<NullReferenceException>(() => resource.GetLength(mockFileSystem.Object));

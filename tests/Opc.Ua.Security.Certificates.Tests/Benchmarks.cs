@@ -40,15 +40,15 @@ namespace Opc.Ua.Security.Certificates.Tests
     [MemoryDiagnoser]
     public class Benchmarks
     {
-        private Certificate m_issuerCert;
-        private IX509CRL m_issuerCrl;
-        private X509CRL m_x509Crl;
-        private Certificate m_certificate;
-        private byte[] m_randomByteArray;
-        private byte[] m_encryptedByteArray;
-        private byte[] m_signature;
-        private RSA m_rsaPrivateKey;
-        private RSA m_rsaPublicKey;
+        private Certificate m_issuerCert = null!;
+        private IX509CRL m_issuerCrl = null!;
+        private X509CRL m_x509Crl = null!;
+        private Certificate m_certificate = null!;
+        private byte[] m_randomByteArray = null!;
+        private byte[] m_encryptedByteArray = null!;
+        private byte[] m_signature = null!;
+        private RSA m_rsaPrivateKey = null!;
+        private RSA m_rsaPublicKey = null!;
 
         private static readonly string[] s_domainNames
             = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
@@ -78,18 +78,18 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_issuerCrl = crlBuilder.CreateForRSA(m_issuerCert);
             m_x509Crl = new X509CRL(m_issuerCrl.RawData);
 
-            m_rsaPrivateKey = m_certificate.GetRSAPrivateKey();
-            m_rsaPublicKey = m_certificate.GetRSAPublicKey();
+            m_rsaPrivateKey = m_certificate.GetRSAPrivateKey()!;
+            m_rsaPublicKey = m_certificate.GetRSAPublicKey()!;
 
             // blob size for RSA padding OaepSHA256
-            int blobSize = (m_rsaPublicKey.KeySize / 8) - 66;
+            int blobSize = (m_rsaPublicKey!.KeySize / 8) - 66;
             m_randomByteArray = new byte[blobSize];
             UnsecureRandom.Shared.NextBytes(m_randomByteArray);
 
             m_encryptedByteArray = m_rsaPublicKey.Encrypt(
                 m_randomByteArray,
                 RSAEncryptionPadding.OaepSHA256);
-            m_signature = m_rsaPrivateKey.SignData(
+            m_signature = m_rsaPrivateKey!.SignData(
                 m_randomByteArray,
                 HashAlgorithmName.SHA256,
                 RSASignaturePadding.Pkcs1);
@@ -122,7 +122,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKey()
         {
-            using RSA privateKey = m_certificate.GetRSAPrivateKey();
+            using RSA privateKey = m_certificate.GetRSAPrivateKey()!;
         }
 
         /// <summary>
@@ -131,8 +131,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKeyAndExport()
         {
-            using RSA privateKey = m_certificate.GetRSAPrivateKey();
-            privateKey.ExportParameters(true);
+            using RSA privateKey = m_certificate.GetRSAPrivateKey()!;
+            privateKey!.ExportParameters(true);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKey()
         {
-            using RSA publicKey = m_certificate.GetRSAPublicKey();
+            using RSA publicKey = m_certificate.GetRSAPublicKey()!;
         }
 
         /// <summary>
@@ -150,8 +150,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKeyAndExport()
         {
-            using RSA publicKey = m_certificate.GetRSAPublicKey();
-            publicKey.ExportParameters(false);
+            using RSA publicKey = m_certificate.GetRSAPublicKey()!;
+            publicKey!.ExportParameters(false);
         }
 
         /// <summary>

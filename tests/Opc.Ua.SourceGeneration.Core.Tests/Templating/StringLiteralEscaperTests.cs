@@ -61,7 +61,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void NullInput_ReturnsEmpty()
         {
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
-                null, out bool modified);
+                null!, out bool modified);
 
             Assert.That(escaped, Is.EqualTo(string.Empty));
             Assert.That(modified, Is.False);
@@ -202,7 +202,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [Test]
         public void RequiresEscaping_ReturnsFalseForSafeStrings()
         {
-            Assert.That(StringLiteralEscaper.RequiresEscaping(null), Is.False);
+            Assert.That(StringLiteralEscaper.RequiresEscaping(null!), Is.False);
             Assert.That(StringLiteralEscaper.RequiresEscaping(string.Empty), Is.False);
             Assert.That(StringLiteralEscaper.RequiresEscaping("hello world"), Is.False);
             Assert.That(StringLiteralEscaper.RequiresEscaping("Ω"), Is.False);
@@ -264,7 +264,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var literal = (LiteralExpressionSyntax)expr;
             Assert.That(literal.Kind(), Is.EqualTo(SyntaxKind.StringLiteralExpression));
 
-            string parsed = (string)literal.Token.Value;
+            string parsed = (string)literal.Token.Value!;
             Assert.That(parsed, Is.EqualTo(original),
                 $"Round-trip mismatch. wrapped='{wrapped}'");
 

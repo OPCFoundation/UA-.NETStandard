@@ -84,12 +84,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.DoesNotThrow(() => alarm.SetShelvingState(m_context, true, true, 0));
 
             Assert.That(alarm.UnshelveTime, Is.EqualTo(DateTime.MaxValue));
-            Assert.That(alarm.ShelvingState.UnshelveTime.Value, Is.EqualTo(double.MaxValue));
+            Assert.That(alarm.ShelvingState!.UnshelveTime!.Value, Is.EqualTo(double.MaxValue));
 
             time.Advance(TimeSpan.FromDays(60));
 
             Assert.That(timedUnshelveCount[0], Is.Zero);
-            Assert.That(alarm.ShelvingState.CurrentState.Id.Value,
+            Assert.That(alarm.ShelvingState.CurrentState!.Id!.Value,
                 Is.EqualTo(ObjectIds.ShelvedStateMachineType_OneShotShelved));
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             alarm.SetShelvingState(m_context, true, true, 0);
 
-            Assert.That(alarm.ShelvingState.CurrentState.Value.Text, Is.EqualTo(BrowseNames.OneShotShelved));
+            Assert.That(alarm.ShelvingState!.CurrentState!.Value.Text, Is.EqualTo(BrowseNames.OneShotShelved));
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 () => alarm.CallTimedShelve(m_context, 1000));
 
             AuditConditionShelvingEventState audit = FindEvent<AuditConditionShelvingEventState>(events);
-            Assert.That(audit.Status.Value, Is.False);
+            Assert.That(audit.Status!.Value, Is.False);
         }
 
         /// <summary>
@@ -180,11 +180,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             TestAlarm alarm = CreateAlarm();
             alarm.SetAcknowledgedState(m_context, false);
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
 
             ServiceResult unknown = alarm.CallAcknowledge(m_context, Uuid.NewUuid().ToByteString());
             Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
-            Assert.That(alarm.AckedState.Id.Value, Is.False);
+            Assert.That(alarm.AckedState!.Id!.Value, Is.False);
 
             ServiceResult first = alarm.CallAcknowledge(m_context, alarm.EventId.Value);
             Assert.That(ServiceResult.IsGood(first), Is.True, first.ToString());
@@ -205,11 +205,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.ConfirmedState.Create(
                 m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
             alarm.SetConfirmedState(m_context, false);
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
 
             ServiceResult unknown = alarm.CallConfirm(m_context, Uuid.NewUuid().ToByteString());
             Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
-            Assert.That(alarm.ConfirmedState.Id.Value, Is.False);
+            Assert.That(alarm.ConfirmedState.Id!.Value, Is.False);
 
             ByteString confirmedEventId = alarm.EventId.Value;
             ServiceResult first = alarm.CallConfirm(m_context, confirmedEventId);
@@ -239,7 +239,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
             alarm.SetConfirmedState(m_context, true);
             alarm.SetAcknowledgedState(m_context, false);
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
             MonitorEvents(alarm);
             ByteString t1 = alarm.EventId.Value;
 
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ServiceResult ack = alarm.CallAcknowledge(m_context, t1);
             Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
-            Assert.That(alarm.AckedState.Id.Value, Is.True);
+            Assert.That(alarm.AckedState!.Id!.Value, Is.True);
 
             ServiceResult again = alarm.CallAcknowledge(m_context, t1);
             Assert.That(again.StatusCode, Is.EqualTo(StatusCodes.BadConditionBranchAlreadyAcked));
@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ServiceResult confirm = alarm.CallConfirm(m_context, t2);
             Assert.That(ServiceResult.IsGood(confirm), Is.True, confirm.ToString());
-            Assert.That(alarm.ConfirmedState.Id.Value, Is.True);
+            Assert.That(alarm.ConfirmedState.Id!.Value, Is.True);
 
             // a new unacknowledged state does not make the acknowledged EventId acknowledgeable again.
             alarm.SetAcknowledgedState(m_context, false);
@@ -278,13 +278,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             TestAlarm alarm = CreateAlarm();
             alarm.AutoReportStateChanges = true;
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
             MonitorEvents(alarm);
 
-            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42));
+            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42))!;
             Assert.That(branch, Is.Not.Null);
             ((AcknowledgeableConditionState)branch).SetAcknowledgedState(m_context, false);
-            ByteString b1 = branch.EventId.Value;
+            ByteString b1 = branch.EventId!.Value;
 
             ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
             Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
@@ -292,7 +292,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ServiceResult ack = alarm.CallAcknowledge(m_context, b1);
             Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
-            Assert.That(((AcknowledgeableConditionState)branch).AckedState.Id.Value, Is.True);
+            Assert.That(((AcknowledgeableConditionState)branch).AckedState!.Id!.Value, Is.True);
             Assert.That(alarm.GetBranchCount(), Is.Zero);
 
             ServiceResult again = alarm.CallAcknowledge(m_context, b1);
@@ -312,14 +312,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.ConfirmedState.Create(
                 m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
             alarm.SetConfirmedState(m_context, true);
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
             MonitorEvents(alarm);
 
-            var branch = (AcknowledgeableConditionState)alarm.CreateBranch(m_context, new NodeId(42));
+            var branch = (AcknowledgeableConditionState)alarm.CreateBranch(m_context, new NodeId(42))!;
             Assert.That(branch, Is.Not.Null);
             branch.SetAcknowledgedState(m_context, false);
             branch.SetConfirmedState(m_context, false);
-            ByteString b1 = branch.EventId.Value;
+            ByteString b1 = branch.EventId!.Value;
 
             ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
             Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
@@ -330,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
             Assert.That(alarm.GetBranchCount(), Is.EqualTo(1));
 
-            alarm.Retain.Value = true;
+            alarm.Retain!.Value = true;
             var refreshed = new List<IFilterTarget>();
             alarm.ConditionRefresh(m_context, refreshed, true);
             Assert.That(refreshed.FindAll(e => ReferenceEquals(e, branch)), Has.Count.EqualTo(1));
@@ -349,11 +349,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             TestAlarm alarm = CreateAlarm();
             alarm.AutoReportStateChanges = true;
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
 
-            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42));
+            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42))!;
             Assert.That(branch, Is.Not.Null);
-            ByteString b1 = branch.EventId.Value;
+            ByteString b1 = branch.EventId!.Value;
             ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
             Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
 
@@ -372,22 +372,22 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void AddCommentTargetsTheIdentifiedEventOnly()
         {
             TestAlarm alarm = CreateAlarm();
-            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
             alarm.SetComment(m_context, LocalizedText.From("trunk"), "user");
 
             ServiceResult unknown = alarm.CallAddComment(
                 m_context, Uuid.NewUuid().ToByteString(), LocalizedText.From("lost"));
             Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
-            Assert.That(alarm.Comment.Value.Text, Is.EqualTo("trunk"));
+            Assert.That(alarm.Comment!.Value.Text, Is.EqualTo("trunk"));
 
-            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42));
+            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42))!;
             Assert.That(branch, Is.Not.Null);
 
             ServiceResult result = alarm.CallAddComment(
-                m_context, branch.EventId.Value, LocalizedText.From("branch"));
+                m_context, branch.EventId!.Value, LocalizedText.From("branch"));
 
             Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
-            Assert.That(branch.Comment.Value.Text, Is.EqualTo("branch"));
+            Assert.That(branch.Comment!.Value.Text, Is.EqualTo("branch"));
             Assert.That(alarm.Comment.Value.Text, Is.EqualTo("trunk"));
         }
 
@@ -399,7 +399,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SnapshotReturnsNodeIdAttributeOfVariables()
         {
             TestAlarm alarm = CreateAlarm();
-            Assert.That(alarm.EnabledState.NodeId.IsNull, Is.False);
+            Assert.That(alarm.EnabledState!.NodeId.IsNull, Is.False);
 
             var snapshot = new InstanceStateSnapshot();
             snapshot.Initialize(m_context, alarm);
@@ -432,11 +432,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void RespondAuditEventCarriesUInt32SelectedResponse()
         {
-            var dialog = new TestDialog(null);
+            var dialog = new TestDialog(null!);
             dialog.Create(m_context, new NodeId(2), QualifiedName.From("Dialog"), default, true);
             dialog.SetEnableState(m_context, true);
-            dialog.DialogState.Id.Value = true;
-            dialog.ResponseOptionSet.Value = [LocalizedText.From("Yes"), LocalizedText.From("No")];
+            dialog.DialogState!.Id!.Value = true;
+            dialog.ResponseOptionSet!.Value = [LocalizedText.From("Yes"), LocalizedText.From("No")];
             dialog.OnRespond = (_, _, _) => ServiceResult.Good;
             List<IFilterTarget> events = MonitorEvents(dialog);
 
@@ -458,11 +458,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void RejectedNegativeRespondIsNotAuditedAsOptionZero()
         {
-            var dialog = new TestDialog(null);
+            var dialog = new TestDialog(null!);
             dialog.Create(m_context, new NodeId(2), QualifiedName.From("Dialog"), default, true);
             dialog.SetEnableState(m_context, true);
-            dialog.DialogState.Id.Value = true;
-            dialog.ResponseOptionSet.Value = [LocalizedText.From("Yes"), LocalizedText.From("No")];
+            dialog.DialogState!.Id!.Value = true;
+            dialog.ResponseOptionSet!.Value = [LocalizedText.From("Yes"), LocalizedText.From("No")];
             dialog.OnRespond = (_, _, _) => ServiceResult.Good;
             List<IFilterTarget> events = MonitorEvents(dialog);
 
@@ -470,16 +470,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDialogResponseInvalid));
 
             AuditConditionRespondEventState audit = FindEvent<AuditConditionRespondEventState>(events);
-            Assert.That(audit.Status.Value, Is.False);
+            Assert.That(audit.Status!.Value, Is.False);
             var property = audit.FindChild(
                 m_context, QualifiedName.From(BrowseNames.SelectedResponse)) as BaseVariableState;
             Assert.That(property == null || property.WrappedValue.IsNull, Is.True,
                 property?.WrappedValue.ToString());
         }
 
-        private TestAlarm CreateAlarm(TimeProvider timeProvider = null)
+        private TestAlarm CreateAlarm(TimeProvider? timeProvider = null)
         {
-            var alarm = new TestAlarm(m_telemetry, null, timeProvider);
+            var alarm = new TestAlarm(m_telemetry, null!, timeProvider!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SetEnableState(m_context, true);
             return alarm;
@@ -528,7 +528,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             Assert.Fail($"No {typeof(T).Name} was reported.");
-            return null;
+            return null!;
         }
 
         /// <summary>
@@ -548,7 +548,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             public ServiceResult CallAcknowledge(ISystemContext context, ByteString eventId)
             {
-                return OnAcknowledgeCalled(context, Acknowledge, NodeId, eventId, LocalizedText.From("ack"));
+                return OnAcknowledgeCalled(context, Acknowledge!, NodeId, eventId, LocalizedText.From("ack"));
             }
 
             public ServiceResult CallConfirm(ISystemContext context, ByteString eventId)
@@ -558,7 +558,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             public ServiceResult CallAddComment(ISystemContext context, ByteString eventId, LocalizedText comment)
             {
-                return OnAddCommentCalled(context, AddComment, NodeId, eventId, comment);
+                return OnAddCommentCalled(context, AddComment!, NodeId, eventId, comment);
             }
 
             public void CallReplaceBranchEvent(ByteString originalEventId, ConditionState branch)
@@ -573,7 +573,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             public ServiceResult CallTimedShelve(ISystemContext context, double shelvingTime)
             {
-                return OnTimedShelve(context, ShelvingState.TimedShelve ?? new MethodState(this), NodeId, shelvingTime);
+                return OnTimedShelve(context, ShelvingState!.TimedShelve ?? new MethodState(this), NodeId, shelvingTime);
             }
         }
 
@@ -607,7 +607,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             public override long TimestampFrequency => m_time.TimestampFrequency;
 
-            public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
             {
                 return m_time.CreateTimer(callback, state, dueTime, period);
             }

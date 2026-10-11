@@ -74,7 +74,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 SourcePath = "Source/Path",
                 TargetPath = "Target/Path",
-                TargetId = null
+                TargetId = null!
             };
 
             // Act
@@ -93,9 +93,9 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var hierarchyReference = new HierarchyReference
             {
-                SourcePath = null,
+                SourcePath = null!,
                 TargetPath = "Target/Path",
-                TargetId = null
+                TargetId = null!
             };
 
             // Act
@@ -116,7 +116,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 SourcePath = string.Empty,
                 TargetPath = "Target/Path",
-                TargetId = null
+                TargetId = null!
             };
 
             // Act
@@ -136,8 +136,8 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyReference = new HierarchyReference
             {
                 SourcePath = "Source/Path",
-                TargetPath = null,
-                TargetId = null
+                TargetPath = null!,
+                TargetId = null!
             };
 
             // Act
@@ -158,7 +158,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 SourcePath = "Source/Path",
                 TargetPath = string.Empty,
-                TargetId = null
+                TargetId = null!
             };
 
             // Act
@@ -202,7 +202,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 SourcePath = sourcePath,
                 TargetPath = targetPath,
-                TargetId = null
+                TargetId = null!
             };
 
             // Act

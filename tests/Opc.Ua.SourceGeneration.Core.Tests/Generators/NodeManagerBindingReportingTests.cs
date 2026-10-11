@@ -126,10 +126,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             Assert.DoesNotThrow(() =>
                 Generators.ReportUnmatchedNodeManagerBindings(
-                    null, null, 2, (_, _) => Assert.Fail("should not report")));
+                    null!, null!, 2, (_, _) => Assert.Fail("should not report")));
             Assert.DoesNotThrow(() =>
                 Generators.ReportUnmatchedNodeManagerBindings(
-                    [], null, 2, (_, _) => Assert.Fail("should not report")));
+                    [], null!, 2, (_, _) => Assert.Fail("should not report")));
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var reports = new List<string>();
             RunDesignGenerate(
                 CreateBinding(namespaceUri: "urn:not:in:test:model"),
-                sharedUsedBindings: null,
+                sharedUsedBindings: null!,
                 report: (_, message) => reports.Add(message));
 
             Assert.That(reports, Has.Count.EqualTo(1));
@@ -164,16 +164,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         private static NodeManagerAttributeBinding CreateBinding(
-            string namespaceUri = null,
-            string design = null,
+            string? namespaceUri = null,
+            string? design = null,
             string className = "TestNodeManager")
         {
             return new NodeManagerAttributeBinding
             {
                 TargetNamespace = "Test",
                 TargetClassName = className,
-                NamespaceUri = namespaceUri,
-                Design = design
+                NamespaceUri = namespaceUri!,
+                Design = design!
             };
         }
 

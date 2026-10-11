@@ -589,7 +589,7 @@ namespace Opc.Ua.Client.Tests
                 null,
                 description,
                 EndpointConfiguration.Create(ClientFixture.Config));
-            var identity = new UserIdentity("user1", "password"u8) { PolicyId = policy.PolicyId };
+            var identity = new UserIdentity("user1", "password"u8) { PolicyId = policy.PolicyId! };
             var factory = new DefaultSessionFactory(Telemetry);
 
             if (explicitNone)
@@ -607,6 +607,57 @@ namespace Opc.Ua.Client.Tests
                 60000, identity, default, timeout.Token).ConfigureAwait(false);
 
             Assert.That(session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            DataValue value = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// PolicyIds are server-assigned and a restarted server may renumber them, so a cached
+        /// endpoint whose token policy differs only in its PolicyId must still connect and pick
+        /// up the server's id, while a policy whose token security differs is still rejected.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateAdoptsRenumberedUserTokenPolicyIdAsync(bool changeTokenSecurity)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            ArrayOf<EndpointDescription> endpoints = await ClientFixture
+                .GetEndpointsAsync(ServerUrl, timeout.Token).ConfigureAwait(false);
+            EndpointDescription description = endpoints.ToList().First(endpoint =>
+                endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                endpoint.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
+            UserTokenPolicy policy = description.UserIdentityTokens.ToList().First(token =>
+                token.TokenType == UserTokenType.Anonymous);
+            string serverPolicyId = policy.PolicyId!;
+            policy.PolicyId = "stale-" + serverPolicyId;
+            if (changeTokenSecurity)
+            {
+                policy.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            }
+            var endpoint = new ConfiguredEndpoint(
+                null,
+                description,
+                EndpointConfiguration.Create(ClientFixture.Config));
+            var identity = new UserIdentity { PolicyId = policy.PolicyId };
+            var factory = new DefaultSessionFactory(Telemetry);
+
+            if (changeTokenSecurity)
+            {
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await factory.CreateAsync(
+                        ClientFixture.Config, endpoint, false, false, "changed-token-policy",
+                        60000, identity, default, timeout.Token).ConfigureAwait(false));
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                return;
+            }
+
+            using ISession session = await factory.CreateAsync(
+                ClientFixture.Config, endpoint, false, false, "renumbered-token-policy",
+                60000, identity, default, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.Identity.PolicyId, Is.EqualTo(serverPolicyId));
             DataValue value = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));

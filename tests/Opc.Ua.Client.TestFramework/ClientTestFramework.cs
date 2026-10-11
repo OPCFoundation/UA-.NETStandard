@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <see cref="ServerFixture"/> and <see cref="ReferenceServer"/> stay
         /// null, so only tests that do not use them can run this way.
         /// </summary>
-        public string ExternalServerUrl { get; set; }
+        public string ExternalServerUrl { get; set; } = null!;
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
         /// <summary>
@@ -147,17 +147,17 @@ namespace Opc.Ua.Client.TestFramework
         public ISubscriptionEngineFactory ClientFixtureSubscriptionEngineFactory { get; set; }
             = ClassicSubscriptionEngineFactory.Instance;
 
-        public ServerFixture<ReferenceServer> ServerFixture { get; set; }
-        public ClientFixture ClientFixture { get; set; }
-        public ReferenceServer ReferenceServer { get; set; }
+        public ServerFixture<ReferenceServer> ServerFixture { get; set; } = null!;
+        public ClientFixture ClientFixture { get; set; } = null!;
+        public ReferenceServer ReferenceServer { get; set; } = null!;
         public ArrayOf<EndpointDescription> Endpoints { get; set; }
         public ArrayOf<ReferenceDescription> ReferenceDescriptions { get; set; }
-        public ISession Session { get; protected set; }
-        public OperationLimits OperationLimits { get; private set; }
+        public ISession Session { get; protected set; } = null!;
+        public OperationLimits OperationLimits { get; private set; } = null!;
         public int SecurityTokenLifetime { get; set; } = 3_600_000;
         public string UriScheme { get; }
-        public string PkiRoot { get; set; }
-        public Uri ServerUrl { get; private set; }
+        public string PkiRoot { get; set; } = null!;
+        public Uri ServerUrl { get; private set; } = null!;
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; }
@@ -176,11 +176,11 @@ namespace Opc.Ua.Client.TestFramework
         /// override the default <c>opc.tcp</c> factories without touching
         /// any process-wide state.
         /// </summary>
-        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; } = null!;
 
         private readonly ILogger<ClientTestFramework> m_logger;
 
-        public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp, ITelemetryContext telemetry = null)
+        public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp, ITelemetryContext? telemetry = null)
         {
             Telemetry = telemetry ?? NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.TestFramework
                     .Where(name => !name.StartsWith("ECC_curve", StringComparison.Ordinal));
             }
 
-            return displayNames.Select(SecurityPolicies.Default.GetUri);
+            return displayNames.Select(name => SecurityPolicies.Default.GetUri(name)!);
         }
 
         private static IEnumerable<string> GetPolicyUrisForTests()
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client.TestFramework
                 !name.EndsWith("_ChaChaPoly", StringComparison.Ordinal));
 #endif
 
-            return displayNames.Select(SecurityPolicies.Default.GetUri);
+            return displayNames.Select(name => SecurityPolicies.Default.GetUri(name)!);
         }
 
         protected async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client.TestFramework
             // The parameters are read from the .runsettings file
             else if (SupportsExternalServerUrl)
             {
-                customUrl = TestContext.Parameters["ServerUrl"];
+                customUrl = TestContext.Parameters["ServerUrl"]!;
                 if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
                 {
                     m_logger.UsingExternalServerUrl(customUrl);
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.TestFramework
                 }
                 else
                 {
-                    customUrl = null;
+                    customUrl = null!;
                 }
             }
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ClientFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength = ClientFixture
                 .Config
                 .TransportQuotas
@@ -412,7 +412,7 @@ namespace Opc.Ua.Client.TestFramework
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = ServerFixture
                 .Config
                 .TransportQuotas
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client.TestFramework
                     };
             }
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -498,7 +498,7 @@ namespace Opc.Ua.Client.TestFramework
                     m_logger.LogError(e, "Error closing session during teardown.");
                 }
                 Session.Dispose();
-                Session = null;
+                Session = null!;
             }
             if (ServerFixture != null)
             {
@@ -560,7 +560,7 @@ namespace Opc.Ua.Client.TestFramework
             {
                 await Session.CloseAsync().ConfigureAwait(false);
                 Session.Dispose();
-                Session = null;
+                Session = null!;
             }
         }
 
@@ -773,8 +773,8 @@ namespace Opc.Ua.Client.TestFramework
         private static ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
-            string testSetParameter = TestContext.Parameters[param];
-            string[] testSetParameters = testSetParameter.Split('#');
+            string testSetParameter = TestContext.Parameters[param]!;
+            string[] testSetParameters = testSetParameter!.Split('#');
             if (testSetParameters != null)
             {
                 // parse the custom content
@@ -788,7 +788,7 @@ namespace Opc.Ua.Client.TestFramework
             return [];
         }
 
-        protected void SessionClosing(object sender, EventArgs e)
+        protected void SessionClosing(object? sender, EventArgs e)
         {
             if (sender is ISession session)
             {
@@ -818,17 +818,17 @@ namespace Opc.Ua.Client.TestFramework
                     {
                         TestContext.Out.WriteLine(
                             $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                        Interlocked.Increment(ref fastDataCounters[(int)s.Handle]);
+                        Interlocked.Increment(ref fastDataCounters[(int)s.Handle!]);
                     }
                 };
 
                 subscription.StateChanged += (s, e) =>
                     TestContext.Out
-                        .WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                        .WriteLine($"StateChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
 
                 subscription.PublishStatusChanged += (s, e) =>
                     TestContext.Out.WriteLine(
-                        $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                        $"PublishStatusChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
 
                 originSubscriptions.Add(subscription);
                 session.AddSubscription(subscription);

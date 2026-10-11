@@ -51,7 +51,7 @@ namespace Opc.Ua.SourceGeneration
         private Template(
             TemplateWriter writer,
             TemplateString templateString,
-            Template parent)
+            Template? parent)
         {
             m_replacements = [];
             m_templateString = templateString;
@@ -89,7 +89,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Adds a replacement value for a token.
         /// </summary>
-        public void AddReplacement(string token, string replacement)
+        public void AddReplacement(string token, string? replacement)
         {
             m_replacements[token] = replacement;
         }
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     case ParsedTemplateString.OpType.Token:
                         // check if a template substitution is required.
-                        if (!TryGetReplacement(op.Item, out object replacement) ||
+                        if (!TryGetReplacement(op.Item, out object? replacement) ||
                             replacement == null)
                         {
                             m_writer.TrimLineBreak(0);
@@ -136,7 +136,7 @@ namespace Opc.Ua.SourceGeneration
                             break;
                         }
                         written = false;
-                        var context = new TemplateContext(m_writer, op.Item, definition.TemplateString);
+                        var context = new TemplateContext(m_writer, op.Item, definition.TemplateString!);
                         m_writer.PushIndentChars(op.Offset);
                         bool writeNewLineBetweenTargets = false;
                         for (int j = 0; j < definition.Targets.Count; j++)
@@ -144,7 +144,7 @@ namespace Opc.Ua.SourceGeneration
                             context.Target = definition.Targets[j];
 
                             // get the template path name.
-                            TemplateString templateString = definition.Load(context);
+                            TemplateString? templateString = definition.Load(context);
                             // skip item if no template specified.
                             if (templateString == null)
                             {
@@ -200,7 +200,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Try get replacement and fall back to outer scope
         /// </summary>
-        private bool TryGetReplacement(string token, out object replacement)
+        private bool TryGetReplacement(string token, out object? replacement)
         {
             if (!m_replacements.TryGetValue(token, out replacement))
             {
@@ -215,8 +215,8 @@ namespace Opc.Ua.SourceGeneration
         private static readonly string s_buildVersion = CoreUtils.GetAssemblyBuildNumber();
 #endif
         private readonly TemplateString m_templateString;
-        private readonly Template m_outerTemplate;
+        private readonly Template? m_outerTemplate;
         private readonly TemplateWriter m_writer;
-        private readonly Dictionary<string, object> m_replacements;
+        private readonly Dictionary<string, object?> m_replacements;
     }
 }

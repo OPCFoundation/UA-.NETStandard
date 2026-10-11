@@ -66,7 +66,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockModelDesign = new Mock<IModelDesign>();
             m_mockTelemetry = new Mock<ITelemetryContext>();
             m_memoryStream = new MemoryStream();
-            m_capturedPath = null;
+            m_capturedPath = null!;
 
             m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Callback<string>(path => m_capturedPath = path)
@@ -83,13 +83,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new ModelDependencyGenerator(null));
+                () => new ModelDependencyGenerator(null!));
         }
 
         [Test]
         public void Emit_NoTargetNamespace_ReturnsEmptyAndDoesNotOpenFile()
         {
-            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns((Namespace)null);
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns((Namespace)null!);
             m_mockModelDesign.Setup(m => m.Namespaces).Returns([]);
 
             var generator = new ModelDependencyGenerator(BuildContext());
@@ -135,7 +135,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void Emit_NullVersionAndDate_RendersBareNullLiterals()
         {
-            ConfigureSelf(version: null, publicationDate: null);
+            ConfigureSelf(version: null!, publicationDate: null!);
 
             var generator = new ModelDependencyGenerator(BuildContext());
             generator.Emit();
@@ -258,7 +258,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             };
             m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
             m_mockModelDesign.Setup(m => m.Namespaces).Returns([target]);
-            m_mockModelDesign.Setup(m => m.TargetVersion).Returns((string)null);
+            m_mockModelDesign.Setup(m => m.TargetVersion).Returns((string)null!);
             m_mockModelDesign.Setup(m => m.TargetPublicationDate).Returns((DateTime?)null);
 
             var generator = new ModelDependencyGenerator(BuildContext());
@@ -456,7 +456,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
 
             ModelDependencyV1 decoded =
-                ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
+                ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload())!;
 
             Assert.That(decoded, Is.Not.Null);
             DependencyChild child = decoded.Nodes.Single().Children.Single();
@@ -483,13 +483,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             };
             m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
             m_mockModelDesign.Setup(m => m.Namespaces).Returns([target]);
-            m_mockModelDesign.Setup(m => m.TargetVersion).Returns((string)null);
+            m_mockModelDesign.Setup(m => m.TargetVersion).Returns((string)null!);
             m_mockModelDesign.Setup(m => m.TargetPublicationDate).Returns((DateTime?)null);
             return target;
         }
 
         private GeneratorContext BuildContext(
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
         {
             var context = new GeneratorContext
             {
@@ -521,7 +521,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
             Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
             string encodedPayload = output[(payloadStart + 1)..payloadEnd];
-            return ModelDependencyV1.FromBase64Payload(encodedPayload);
+            return ModelDependencyV1.FromBase64Payload(encodedPayload)!;
         }
     }
 }

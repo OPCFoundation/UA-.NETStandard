@@ -145,13 +145,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private void Cleanup()
         {
             m_manager?.Dispose();
-            m_manager = null;
+            m_manager = null!;
             m_leaf?.Dispose();
-            m_leaf = null;
+            m_leaf = null!;
             m_rootCa?.Dispose();
-            m_rootCa = null;
+            m_rootCa = null!;
             (m_telemetry as IDisposable)?.Dispose();
-            m_telemetry = null;
+            m_telemetry = null!;
 
             try
             {
@@ -166,10 +166,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        private ITelemetryContext m_telemetry;
-        private string m_trustedPath;
-        private CertificateManager m_manager;
-        private Certificate m_rootCa;
-        private Certificate m_leaf;
+        private ITelemetryContext m_telemetry = null!;
+        private string m_trustedPath = null!;
+        private CertificateManager m_manager = null!;
+        private Certificate m_rootCa = null!;
+        private Certificate m_leaf = null!;
     }
 }

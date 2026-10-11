@@ -132,7 +132,7 @@ namespace Opc.Ua.Lds.Server.Console
 
                     if (autoAccept)
                     {
-                        application.ApplicationConfiguration.SecurityConfiguration
+                        application.ApplicationConfiguration!.SecurityConfiguration
                             .AutoAcceptUntrustedCertificates = true;
                     }
 

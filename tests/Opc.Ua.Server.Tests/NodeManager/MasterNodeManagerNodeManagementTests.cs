@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase("")]
         [TestCase(null)]
-        public void InvalidPathBrowseNameReturnsOperationStatus(string name)
+        public void InvalidPathBrowseNameReturnsOperationStatus(string? name)
         {
             var factory = new DefaultNodeIdFactory();
             var namespaces = new NamespaceTable();
@@ -2255,7 +2255,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Dictionary<NodeId, Variant[]>>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null));
+                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata?)null));
             manager
                 .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                     It.IsAny<OperationContext>(),
@@ -2689,12 +2689,12 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<ushort>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((ushort namespaceIndex, CancellationToken _) =>
-                        new ValueTask<NamespaceMetadataState>(
-                            namespaceIndex == SourceNamespaceIndex
+                        new ValueTask<NamespaceMetadataState?>(
+                            (namespaceIndex == SourceNamespaceIndex
                                 ? m_sourceNamespaceMetadata
                                 : namespaceIndex == TargetNamespaceIndex
                                     ? m_targetNamespaceMetadata
-                                    : null));
+                                    : null)!));
 
                 var identity = new Mock<IUserIdentity>();
                 identity.Setup(user => user.GrantedRoleIds)
@@ -2934,7 +2934,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<Dictionary<NodeId, Variant[]>>(),
                         It.IsAny<bool>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(permissionMetadata));
+                    .Returns(new ValueTask<NodeMetadata?>(permissionMetadata));
             }
 
             private static Mock<IAsyncNodeManager> CreateNodeManager(
@@ -2969,7 +2969,7 @@ namespace Opc.Ua.Server.Tests
                         Dictionary<NodeId, Variant[]> _,
                         bool _,
                         CancellationToken _) =>
-                        new ValueTask<NodeMetadata>(metadata));
+                        new ValueTask<NodeMetadata?>(metadata));
                 manager
                     .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(),

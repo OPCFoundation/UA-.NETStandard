@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;

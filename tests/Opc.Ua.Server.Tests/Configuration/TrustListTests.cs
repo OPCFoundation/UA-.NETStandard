@@ -106,9 +106,9 @@ namespace Opc.Ua.Server.Tests
             issuers.Setup(store => store.EnumerateAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => new CertificateCollection());
             var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
-            resolver.Setup(instance => instance.OpenCertificateStore(m_trustedStore.StorePath, "ScopedTrusted", true))
+            resolver.Setup(instance => instance.OpenCertificateStore(m_trustedStore.StorePath!, "ScopedTrusted", true))
                 .Returns(trusted.Object);
-            resolver.Setup(instance => instance.OpenCertificateStore(m_issuerStore.StorePath, "ScopedIssuers", true))
+            resolver.Setup(instance => instance.OpenCertificateStore(m_issuerStore.StorePath!, "ScopedIssuers", true))
                 .Returns(issuers.Object);
             using (var trustList = new TrustList(node, m_trustedStore, m_issuerStore,
                 AllowAccess, AllowAccess, m_telemetry, null, 0, TrustList.DefaultMaxTrustListSizeSafetyCeiling,
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
                 ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
                 for (int repeat = 0; repeat < 2; repeat++)
                 {
-                    OpenWithMasksMethodStateResult result = await node.OpenWithMasks.OnCallAsync(
+                    OpenWithMasksMethodStateResult result = await node.OpenWithMasks!.OnCallAsync!(
                         context, node.OpenWithMasks, node.NodeId,
                         (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
                         CancellationToken.None).ConfigureAwait(false);
@@ -127,9 +127,9 @@ namespace Opc.Ua.Server.Tests
                 issuers.Verify(store => store.Dispose(), Times.Never);
             }
             resolver.Verify(instance => instance.OpenCertificateStore(
-                m_trustedStore.StorePath, "ScopedTrusted", true), Times.Once);
+                m_trustedStore.StorePath!, "ScopedTrusted", true), Times.Once);
             resolver.Verify(instance => instance.OpenCertificateStore(
-                m_issuerStore.StorePath, "ScopedIssuers", true), Times.Once);
+                m_issuerStore.StorePath!, "ScopedIssuers", true), Times.Once);
             trusted.Verify(store => store.Dispose(), Times.Once);
             issuers.Verify(store => store.Dispose(), Times.Once);
             trusted.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -151,9 +151,9 @@ namespace Opc.Ua.Server.Tests
             if (mask == TrustListMasks.IssuerCertificates)
             {
                 resolver.Setup(instance => instance.OpenCertificateStore(
-                    m_trustedStore.StorePath, m_trustedStore.StoreType, true)).Returns(trusted.Object);
+                    m_trustedStore.StorePath!, m_trustedStore.StoreType, true)).Returns(trusted.Object);
             }
-            resolver.Setup(instance => instance.OpenCertificateStore(identifier.StorePath, identifier.StoreType, true))
+            resolver.Setup(instance => instance.OpenCertificateStore(identifier.StorePath!, identifier.StoreType, true))
                 .Throws(failure);
             using var trustList = new TrustList(node, m_trustedStore, m_issuerStore,
                 AllowAccess, AllowAccess, m_telemetry, null, 0, TrustList.DefaultMaxTrustListSizeSafetyCeiling,
@@ -161,16 +161,16 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             IOException actual = Assert.ThrowsAsync<IOException>(async () =>
-                await node.OpenWithMasks.OnCallAsync(context, node.OpenWithMasks, node.NodeId,
+                await node.OpenWithMasks!.OnCallAsync!(context, node.OpenWithMasks, node.NodeId,
                     (uint)mask, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(actual, Is.SameAs(failure));
             resolver.Verify(instance => instance.OpenCertificateStore(
-                identifier.StorePath, identifier.StoreType, true), Times.Once);
+                identifier.StorePath!, identifier.StoreType, true), Times.Once);
             if (mask == TrustListMasks.IssuerCertificates)
             {
                 resolver.Verify(instance => instance.OpenCertificateStore(
-                    m_trustedStore.StorePath, m_trustedStore.StoreType, true), Times.Once);
+                    m_trustedStore.StorePath!, m_trustedStore.StoreType, true), Times.Once);
             }
             resolver.VerifyNoOtherCalls();
             Assert.That(Directory.Exists(m_basePath), Is.False);
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            ServiceResult result = node.Open.OnCall(
+            ServiceResult result = node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(fileHandle, Is.Not.Zero);
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
         [Test]
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            OpenMethodStateResult result = await node.Open.OnCallAsync(
+            OpenMethodStateResult result = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.FileHandle, Is.Not.Zero);
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
         [Test]
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests
 
             uint fileHandle = 0;
             Assert.That(
-                () => node.Open.OnCall(
+                () => node.Open!.OnCall!(
                     context,
                     node.Open,
                     node.NodeId,
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            ServiceResult result = node.Open.OnCall(
+            ServiceResult result = node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            ServiceResult result = node.Open.OnCall(
+            ServiceResult result = node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(fileHandle, Is.Not.Zero);
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
         [Test]
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests
 
             uint fileHandle = 0;
             Assert.That(
-                () => node.Open.OnCall(
+                () => node.Open!.OnCall!(
                     context,
                     node.Open,
                     node.NodeId,
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext contextB = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint handleA = 0;
-            node.Open.OnCall(contextA, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref handleA);
+            node.Open!.OnCall!(contextA, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref handleA);
 
             uint handleB = 0;
             ServiceResult secondOpenResult = node.Open.OnCall(
@@ -329,10 +329,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(secondOpenResult), Is.True);
             Assert.That(ServiceResult.IsGood(sameSessionOpenResult), Is.True);
             Assert.That(new[] { handleA, handleB, handleA2 }, Is.Unique);
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)3));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)3));
 
             ByteString dataA = default;
-            ServiceResult readA = node.Read.OnCall(
+            ServiceResult readA = node.Read!.OnCall!(
                 contextA, node.Read, node.NodeId, handleA, 1024 * 1024, ref dataA);
             ByteString dataB = default;
             ServiceResult readB = node.Read.OnCall(
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.Tests
                 readWithOtherSessionsHandle.StatusCode,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
 
-            ServiceResult close = node.Close.OnCall(contextA, node.Close, node.NodeId, handleA);
+            ServiceResult close = node.Close!.OnCall!(contextA, node.Close, node.NodeId, handleA);
             Assert.That(ServiceResult.IsGood(close), Is.True);
             Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)2));
 
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint writeHandle = 0;
-            ServiceResult firstOpen = node.Open.OnCall(
+            ServiceResult firstOpen = node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -397,10 +397,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(reopenRead.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
 
             // The original write handle survives.
-            ServiceResult write = node.Write.OnCall(
+            ServiceResult write = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
         /// <summary>
@@ -427,7 +427,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(trustList.ActivityTimeout, Is.EqualTo(60000));
 
             uint writeHandle = 0;
-            ServiceResult writeOpen = node.Open.OnCall(
+            ServiceResult writeOpen = node.Open!.OnCall!(
                 writer,
                 node.Open,
                 node.NodeId,
@@ -437,11 +437,11 @@ namespace Opc.Ua.Server.Tests
 
             // Every Method call on the handle restarts the timeout.
             timeProvider.Advance(TimeSpan.FromSeconds(50));
-            ServiceResult write = node.Write.OnCall(
+            ServiceResult write = node.Write!.OnCall!(
                 writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
             timeProvider.Advance(TimeSpan.FromSeconds(50));
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
 
             uint otherHandle = 0;
             ServiceResult blocked = node.Open.OnCall(
@@ -478,19 +478,19 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
             node.CreateOrReplaceActivityTimeout(systemContext, node);
-            node.ActivityTimeout.Value = 5000;
+            node.ActivityTimeout!.Value = 5000;
             TrustList trustList = CreateTrustList(node);
             SessionSystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
             Assert.That(trustList.ActivityTimeout, Is.EqualTo(5000));
 
             uint readHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
 
             trustList.ExpireForInactivity(readHandle);
             Assert.That(node.OpenCount.Value, Is.Zero);
             ByteString data = default;
-            ServiceResult read = node.Read.OnCall(
+            ServiceResult read = node.Read!.OnCall!(
                 context, node.Read, node.NodeId, readHandle, 16, ref data);
             Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -503,7 +503,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            ServiceResult result = node.OpenWithMasks.OnCall(
+            ServiceResult result = node.OpenWithMasks!.OnCall!(
                 context,
                 node.OpenWithMasks,
                 node.NodeId,
@@ -532,7 +532,7 @@ namespace Opc.Ua.Server.Tests
                 await issuerStore.AddAsync(issuerCert).ConfigureAwait(false);
             }
 
-            OpenWithMasksMethodStateResult openResult = await node.OpenWithMasks.OnCallAsync(
+            OpenWithMasksMethodStateResult openResult = await node.OpenWithMasks!.OnCallAsync!(
                 context,
                 node.OpenWithMasks,
                 node.NodeId,
@@ -540,7 +540,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(openResult.ServiceResult), Is.True);
 
-            ReadMethodStateResult readResult = await node.Read.OnCallAsync(
+            ReadMethodStateResult readResult = await node.Read!.OnCallAsync!(
                 context,
                 node.Read,
                 node.NodeId,
@@ -563,10 +563,10 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
             ByteString data = default;
-            ServiceResult result = node.Read.OnCall(
+            ServiceResult result = node.Read!.OnCall!(
                 context,
                 node.Read,
                 node.NodeId,
@@ -586,7 +586,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext otherContext = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 openingContext,
                 node.Open,
                 node.NodeId,
@@ -594,7 +594,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             ByteString data = default;
-            ServiceResult result = node.Read.OnCall(
+            ServiceResult result = node.Read!.OnCall!(
                 otherContext,
                 node.Read,
                 node.NodeId,
@@ -616,7 +616,7 @@ namespace Opc.Ua.Server.Tests
 
             ByteString data = default;
             Assert.That(
-                () => node.Read.OnCall(context, node.Read, node.NodeId, 1, 1024, ref data),
+                () => node.Read!.OnCall!(context, node.Read, node.NodeId, 1, 1024, ref data),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied));
@@ -630,13 +630,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
             // OPC 10000-20 §4.2.4: the length is an upper bound; the rest of
             // the file is returned even when the requested length exceeds the
             // size limit, and an empty ByteString marks the end of the file.
             ByteString data = default;
-            ServiceResult result = node.Read.OnCall(
+            ServiceResult result = node.Read!.OnCall!(
                 context,
                 node.Read,
                 node.NodeId,
@@ -668,14 +668,14 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            OpenMethodStateResult openResult = await node.Open.OnCallAsync(
+            OpenMethodStateResult openResult = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
                 (byte)OpenFileMode.Read,
                 CancellationToken.None).ConfigureAwait(false);
 
-            ReadMethodStateResult readResult = await node.Read.OnCallAsync(
+            ReadMethodStateResult readResult = await node.Read!.OnCallAsync!(
                 context,
                 node.Read,
                 node.NodeId,
@@ -695,7 +695,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -703,7 +703,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             var payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
-            ServiceResult result = node.Write.OnCall(
+            ServiceResult result = node.Write!.OnCall!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -720,7 +720,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            OpenMethodStateResult openResult = await node.Open.OnCallAsync(
+            OpenMethodStateResult openResult = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -728,7 +728,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             var payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
-            WriteMethodStateResult writeResult = await node.Write.OnCallAsync(
+            WriteMethodStateResult writeResult = await node.Write!.OnCallAsync!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -747,7 +747,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -755,7 +755,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             var payload = ByteString.From(new byte[] { 1, 2, 3 });
-            ServiceResult result = node.Write.OnCall(
+            ServiceResult result = node.Write!.OnCall!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -774,7 +774,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext otherContext = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 openingContext,
                 node.Open,
                 node.NodeId,
@@ -782,7 +782,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             var payload = ByteString.From(new byte[] { 1, 2, 3 });
-            ServiceResult result = node.Write.OnCall(
+            ServiceResult result = node.Write!.OnCall!(
                 otherContext,
                 node.Write,
                 node.NodeId,
@@ -801,7 +801,7 @@ namespace Opc.Ua.Server.Tests
 
             var payload = ByteString.From(new byte[] { 1 });
             Assert.That(
-                () => node.Write.OnCall(context, node.Write, node.NodeId, 1, payload),
+                () => node.Write!.OnCall!(context, node.Write, node.NodeId, 1, payload),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied));
@@ -815,7 +815,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -823,7 +823,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             var payload = ByteString.From(new byte[10]);
-            ServiceResult result = node.Write.OnCall(
+            ServiceResult result = node.Write!.OnCall!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -843,12 +843,12 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ServiceResult result = node.Close.OnCall(context, node.Close, node.NodeId, fileHandle);
+            ServiceResult result = node.Close!.OnCall!(context, node.Close, node.NodeId, fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(node.OpenCount.Value, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
         }
 
         [Test]
@@ -858,14 +858,14 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            OpenMethodStateResult openResult = await node.Open.OnCallAsync(
+            OpenMethodStateResult openResult = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
                 (byte)OpenFileMode.Read,
                 CancellationToken.None).ConfigureAwait(false);
 
-            CloseMethodStateResult closeResult = await node.Close.OnCallAsync(
+            CloseMethodStateResult closeResult = await node.Close!.OnCallAsync!(
                 context,
                 node.Close,
                 node.NodeId,
@@ -873,7 +873,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(closeResult.ServiceResult), Is.True);
-            Assert.That(node.OpenCount.Value, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
         }
 
         [Test]
@@ -884,9 +884,9 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ServiceResult result = node.Close.OnCall(context, node.Close, node.NodeId, fileHandle + 1);
+            ServiceResult result = node.Close!.OnCall!(context, node.Close, node.NodeId, fileHandle + 1);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -900,14 +900,14 @@ namespace Opc.Ua.Server.Tests
             ISystemContext otherContext = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 openingContext,
                 node.Open,
                 node.NodeId,
                 (byte)OpenFileMode.Read,
                 ref fileHandle);
 
-            ServiceResult result = node.Close.OnCall(otherContext, node.Close, node.NodeId, fileHandle);
+            ServiceResult result = node.Close!.OnCall!(otherContext, node.Close, node.NodeId, fileHandle);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
@@ -920,7 +920,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             Assert.That(
-                () => node.Close.OnCall(context, node.Close, node.NodeId, 1),
+                () => node.Close!.OnCall!(context, node.Close, node.NodeId, 1),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied));
@@ -936,7 +936,7 @@ namespace Opc.Ua.Server.Tests
             using Certificate trustedCert = CreateTestCertificate("CN=TrustList CloseAndUpdate Cert");
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -950,10 +950,10 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> trustedCertificates = new ByteString[] { trustedCert.RawData.ToByteString() };
             trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(trustedCertificates);
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+            node.Write!.OnCall!(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = true;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -962,7 +962,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(restartRequired, Is.False);
-            Assert.That(node.OpenCount.Value, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
 
             using ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry);
             using CertificateCollection found = await trustedStore
@@ -978,7 +978,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            OpenMethodStateResult openResult = await node.Open.OnCallAsync(
+            OpenMethodStateResult openResult = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -987,7 +987,7 @@ namespace Opc.Ua.Server.Tests
 
             var trustListData = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.None };
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            await node.Write.OnCallAsync(
+            await node.Write!.OnCallAsync!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -995,7 +995,7 @@ namespace Opc.Ua.Server.Tests
                 payload,
                 CancellationToken.None).ConfigureAwait(false);
 
-            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate!.OnCallAsync!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1022,7 +1022,7 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             bool restartRequired = false;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1048,10 +1048,10 @@ namespace Opc.Ua.Server.Tests
                 ref fileHandle);
 
             var payload = ByteString.From([0x01, 0x02, 0x03, 0x04, 0x05]);
-            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+            node.Write!.OnCall!(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = false;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Server.Tests
 
             bool restartRequired = false;
             Assert.That(
-                () => node.CloseAndUpdate.OnCall(
+                () => node.CloseAndUpdate!.OnCall!(
                     context,
                     node.CloseAndUpdate,
                     node.NodeId,
@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
             using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate Trusted");
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1115,7 +1115,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
             using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate Issuer");
 
-            AddCertificateMethodStateResult result = await node.AddCertificate.OnCallAsync(
+            AddCertificateMethodStateResult result = await node.AddCertificate!.OnCallAsync!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1179,9 +1179,9 @@ namespace Opc.Ua.Server.Tests
             using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate SessionOpen");
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1200,14 +1200,14 @@ namespace Opc.Ua.Server.Tests
             using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate WriteOpen");
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
                 (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Server.Tests
             using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate NoAccess");
 
             Assert.That(
-                () => node.AddCertificate.OnCall(
+                () => node.AddCertificate!.OnCall!(
                     context,
                     node.AddCertificate,
                     node.NodeId,
@@ -1250,7 +1250,7 @@ namespace Opc.Ua.Server.Tests
                 await trustedStore.AddAsync(cert).ConfigureAwait(false);
             }
 
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1279,7 +1279,7 @@ namespace Opc.Ua.Server.Tests
                 await issuerStore.AddAsync(cert).ConfigureAwait(false);
             }
 
-            RemoveCertificateMethodStateResult result = await node.RemoveCertificate.OnCallAsync(
+            RemoveCertificateMethodStateResult result = await node.RemoveCertificate!.OnCallAsync!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1303,7 +1303,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1320,7 +1320,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1338,9 +1338,9 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             Assert.That(
-                () => node.RemoveCertificate.OnCall(
+                () => node.RemoveCertificate!.OnCall!(
                     context,
                     node.RemoveCertificate,
                     node.NodeId,
@@ -1460,14 +1460,14 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
                 (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
                 ref fileHandle);
 
-            ServiceResult atLimit = node.Write.OnCall(
+            ServiceResult atLimit = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[16]));
             Assert.That(ServiceResult.IsGood(atLimit), Is.True);
 
@@ -1486,7 +1486,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1495,12 +1495,12 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                ServiceResult chunk = node.Write.OnCall(
+                ServiceResult chunk = node.Write!.OnCall!(
                     context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[2]));
                 Assert.That(ServiceResult.IsGood(chunk), Is.True);
             }
 
-            ServiceResult overLimit = node.Write.OnCall(
+            ServiceResult overLimit = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[1]));
             Assert.That(
                 overLimit.StatusCode,
@@ -1518,13 +1518,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
             var received = new List<byte>();
             while (true)
             {
                 ByteString data = default;
-                ServiceResult chunk = node.Read.OnCall(
+                ServiceResult chunk = node.Read!.OnCall!(
                     context, node.Read, node.NodeId, fileHandle, 4, ref data);
                 Assert.That(ServiceResult.IsGood(chunk), Is.True);
                 if (data.Length == 0)
@@ -1546,10 +1546,10 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
             ByteString data = default;
-            ServiceResult result = node.Read.OnCall(
+            ServiceResult result = node.Read!.OnCall!(
                 context, node.Read, node.NodeId, fileHandle, -1, ref data);
 
             Assert.That(
@@ -1577,14 +1577,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(payload.Length, Is.GreaterThan(100));
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
                 (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
                 ref fileHandle);
 
-            ServiceResult result = node.Write.OnCall(
+            ServiceResult result = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, payload);
 
             Assert.That(
@@ -1602,7 +1602,7 @@ namespace Opc.Ua.Server.Tests
             using Certificate trustedCert = CreateTestCertificate("CN=TrustList Ceiling Payload");
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1618,10 +1618,10 @@ namespace Opc.Ua.Server.Tests
             trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(
                 trustedCertificates);
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+            node.Write!.OnCall!(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = true;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
@@ -1644,7 +1644,7 @@ namespace Opc.Ua.Server.Tests
             ByteString rawCertificate = cert.RawData.ToByteString();
             Assert.That(rawCertificate.Length, Is.GreaterThan(100));
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context, node.AddCertificate, node.NodeId, rawCertificate, true);
 
             Assert.That(
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Server.Tests
             using Certificate trustedCert = CreateTestCertificate("CN=TrustList Notify Cert");
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1678,10 +1678,10 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> trustedCertificates = new ByteString[] { trustedCert.RawData.ToByteString() };
             trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(trustedCertificates);
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+            node.Write!.OnCall!(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = true;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -1711,11 +1711,11 @@ namespace Opc.Ua.Server.Tests
                 .CreateForRSA();
             X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(
                 caCert,
-                null,
-                null);
+                null!,
+                null!);
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -1733,10 +1733,10 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> trustedCrls = new ByteString[] { crl.RawData.ToByteString() };
             trustListData.TrustedCrls = trustListData.TrustedCrls.AddItems(trustedCrls);
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+            node.Write!.OnCall!(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = true;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -1760,7 +1760,7 @@ namespace Opc.Ua.Server.Tests
 
             using Certificate cert = CreateTestCertificate("CN=TrustList Notify Add Cert");
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1784,7 +1784,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             using Certificate cert = CreateTestCertificate("CN=TrustList Notify Remove Cert");
-            ServiceResult addResult = node.AddCertificate.OnCall(
+            ServiceResult addResult = node.AddCertificate!.OnCall!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -1793,7 +1793,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(addResult), Is.True);
             notifier.Notifications.Clear();
 
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -1816,7 +1816,7 @@ namespace Opc.Ua.Server.Tests
             public void RegisterTrustList(
                 TrustListIdentifier trustList,
                 string trustedStorePath,
-                string issuerStorePath = null)
+                string? issuerStorePath = null)
             {
                 throw new NotSupportedException();
             }
@@ -1856,7 +1856,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext reader = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint writeHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 writer,
                 node.Open,
                 node.NodeId,
@@ -1879,7 +1879,7 @@ namespace Opc.Ua.Server.Tests
                 ref secondWriteHandle);
             Assert.That(writeOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
 
-            ServiceResult write = node.Write.OnCall(
+            ServiceResult write = node.Write!.OnCall!(
                 writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(ServiceResult.IsGood(write), Is.True);
         }
@@ -1900,7 +1900,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext writer = CreateServerContext(sessionManager.Object, writerId);
 
             uint readHandle = 0;
-            ServiceResult readOpen = node.Open.OnCall(
+            ServiceResult readOpen = node.Open!.OnCall!(
                 reader, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
             Assert.That(ServiceResult.IsGood(readOpen), Is.True);
 
@@ -1916,7 +1916,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
 
             ByteString data = default;
-            ServiceResult read = node.Read.OnCall(
+            ServiceResult read = node.Read!.OnCall!(
                 reader, node.Read, node.NodeId, readHandle, 16, ref data);
             Assert.That(ServiceResult.IsGood(read), Is.True, read.ToString());
             Assert.That(data.Length, Is.GreaterThan(0));
@@ -1930,7 +1930,7 @@ namespace Opc.Ua.Server.Tests
                 (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref writeHandle);
             Assert.That(ServiceResult.IsGood(writeOpen), Is.True, writeOpen.ToString());
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
         [Test]
@@ -1949,7 +1949,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext other = CreateServerContext(sessionManager.Object, otherId);
 
             uint writeHandle = 0;
-            ServiceResult writeOpen = node.Open.OnCall(
+            ServiceResult writeOpen = node.Open!.OnCall!(
                 writer,
                 node.Open,
                 node.NodeId,
@@ -1967,7 +1967,7 @@ namespace Opc.Ua.Server.Tests
                 ref otherHandle);
             Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             using Certificate cert = CreateTestCertificate("CN=TrustList Abandoned Handle");
-            ServiceResult blockedAdd = node.AddCertificate.OnCall(
+            ServiceResult blockedAdd = node.AddCertificate!.OnCall!(
                 other, node.AddCertificate, node.NodeId, cert.RawData.ToByteString(), true);
             Assert.That(blockedAdd.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
@@ -1979,7 +1979,7 @@ namespace Opc.Ua.Server.Tests
             ServiceResult add = node.AddCertificate.OnCall(
                 other, node.AddCertificate, node.NodeId, cert.RawData.ToByteString(), true);
             Assert.That(ServiceResult.IsGood(add), Is.True, add.ToString());
-            Assert.That(node.OpenCount.Value, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
 
             node.Open.OnCall(
                 writer,
@@ -1997,7 +1997,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(otherHandle, Is.Not.Zero);
 
             // The stale handle of the closed Session is gone.
-            ServiceResult staleWrite = node.Write.OnCall(
+            ServiceResult staleWrite = node.Write!.OnCall!(
                 writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(ServiceResult.IsBad(staleWrite), Is.True);
         }
@@ -2010,15 +2010,15 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
-            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+            node.Open!.OnCall!(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ServiceResult write = node.Write.OnCall(
+            ServiceResult write = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(write.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
             // OPC 10000-12 §7.8.2.5: CloseAndUpdate only for a write open.
             bool restartRequired = false;
-            ServiceResult closeAndUpdate = node.CloseAndUpdate.OnCall(
+            ServiceResult closeAndUpdate = node.CloseAndUpdate!.OnCall!(
                 context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
             Assert.That(closeAndUpdate.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -2051,7 +2051,7 @@ namespace Opc.Ua.Server.Tests
 
             // OPC 10000-12 §7.8.2.7: a CA needed to validate another
             // certificate of the TrustList cannot be removed.
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context, node.RemoveCertificate, node.NodeId, caCert.Thumbprint, false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
 
@@ -2093,7 +2093,7 @@ namespace Opc.Ua.Server.Tests
 
             // OPC 10000-12 §7.8.2.7: the trusted root is needed to validate
             // the intermediate in the issuer list.
-            ServiceResult result = node.RemoveCertificate.OnCall(
+            ServiceResult result = node.RemoveCertificate!.OnCall!(
                 context, node.RemoveCertificate, node.NodeId, rootCa.Thumbprint, true);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
             using (ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry))
@@ -2135,7 +2135,7 @@ namespace Opc.Ua.Server.Tests
 
             // OPC 10000-12 §7.8.2.6: a CA-issued certificate whose issuer is
             // not in the TrustList is rejected with a validation error.
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context, node.AddCertificate, node.NodeId, leaf.RawData.ToByteString(), true);
             Assert.That(ServiceResult.IsBad(result), Is.True);
 
@@ -2180,7 +2180,7 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            ServiceResult result = node.AddCertificate.OnCall(
+            ServiceResult result = node.AddCertificate!.OnCall!(
                 context, node.AddCertificate, node.NodeId, leaf.RawData.ToByteString(), true);
             Assert.That(ServiceResult.IsBad(result), Is.True);
 
@@ -2292,19 +2292,19 @@ namespace Opc.Ua.Server.Tests
             TrustListDataType trustListData)
         {
             uint fileHandle = 0;
-            ServiceResult open = node.Open.OnCall(
+            ServiceResult open = node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
                 (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
             Assert.That(ServiceResult.IsGood(open), Is.True, open.ToString());
-            ServiceResult write = node.Write.OnCall(
+            ServiceResult write = node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, EncodeTrustListPayload(context, trustListData));
             Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
 
             bool restartRequired = false;
-            return node.CloseAndUpdate.OnCall(
+            return node.CloseAndUpdate!.OnCall!(
                 context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
         }
 
@@ -2324,19 +2324,19 @@ namespace Opc.Ua.Server.Tests
             };
 
             uint fileHandle = 0;
-            node.Open.OnCall(
+            node.Open!.OnCall!(
                 context,
                 node.Open,
                 node.NodeId,
                 (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
-            node.Write.OnCall(
+            node.Write!.OnCall!(
                 context, node.Write, node.NodeId, fileHandle, EncodeTrustListPayload(context, trustListData));
 
             // OPC 10000-12 §7.8.2.5: the new TrustList is validated before it
             // is applied; a leaf certificate is not a valid issuer.
             bool restartRequired = false;
-            ServiceResult result = node.CloseAndUpdate.OnCall(
+            ServiceResult result = node.CloseAndUpdate!.OnCall!(
                 context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
@@ -2434,7 +2434,7 @@ namespace Opc.Ua.Server.Tests
         private ServerSystemContext CreateServerContext(
             ISessionManager sessionManager,
             NodeId sessionId,
-            TimeProvider timeProvider = null)
+            TimeProvider? timeProvider = null)
         {
             var server = new Mock<IServerInternal>();
             if (timeProvider != null)

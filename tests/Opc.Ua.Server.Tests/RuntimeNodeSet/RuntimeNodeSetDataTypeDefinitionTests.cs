@@ -141,8 +141,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private async Task<StructureDefinition> ReadStructureAsync(NodeId dataTypeId)
         {
             IServerInternal server = m_server.CurrentInstance;
-            NodeState node = await server.NodeManager
-                .FindNodeInAddressSpaceAsync(dataTypeId).ConfigureAwait(false);
+            NodeState node = (await server.NodeManager
+                .FindNodeInAddressSpaceAsync(dataTypeId).ConfigureAwait(false))!;
             Assert.That(node, Is.InstanceOf<DataTypeState>(), $"DataType {dataTypeId} must exist.");
 
             Variant value = default;
@@ -154,13 +154,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 ref sourceTimestamp);
             Assert.That(ServiceResult.IsGood(result), Is.True, $"Read of {dataTypeId}: {result}");
             Assert.That(value.TryGetValue(out ExtensionObject extension), Is.True);
-            Assert.That(extension.TryGetValue(out StructureDefinition definition), Is.True);
-            return definition;
+            Assert.That(extension.TryGetValue(out StructureDefinition? definition), Is.True);
+            return definition!;
         }
 
         private static string FieldNames(StructureDefinition definition)
         {
-            return string.Join(",", definition.Fields.ToArray().Select(field => field.Name));
+            return string.Join(",", definition.Fields.ToArray()!.Select(field => field.Name));
         }
 
         private static RuntimeNodeSetOptions CreateOptions(string namespaceUri, string xml)

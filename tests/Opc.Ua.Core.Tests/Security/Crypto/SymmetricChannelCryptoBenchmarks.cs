@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             rng.GetBytes(m_signingKey);
             rng.GetBytes(m_iv);
 
-            m_hmac = m_policy.CreateSignatureHmac(m_signingKey);
+            m_hmac = m_policy.CreateSignatureHmac(m_signingKey)!;
 
             // Leave room for padding and the signature, as the channel does.
             m_buffer = new byte[PayloadSize + 512];
@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         public void Cleanup()
         {
             m_hmac?.Dispose();
-            m_hmac = null;
+            m_hmac = null!;
         }
 
         /// <summary>

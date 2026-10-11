@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Tests.State
         public void SuperTypeIdPropertySetterTriggersChangeMask()
         {
             var dt = new DataTypeState();
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             var superTypeId = new NodeId(500);
             dt.SuperTypeId = superTypeId;
@@ -90,7 +90,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dt.ChangeMasks & NodeStateChangeMasks.References,
                 Is.EqualTo(NodeStateChangeMasks.References));
 
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
             dt.SuperTypeId = superTypeId;
             Assert.That(dt.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Types.Tests.State
         public void IsAbstractPropertySetterTriggersChangeMask()
         {
             var dt = new DataTypeState();
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             dt.IsAbstract = true;
             Assert.That(dt.IsAbstract, Is.True);

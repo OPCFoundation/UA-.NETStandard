@@ -112,7 +112,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public void Write(string text)
+        public void Write(string? text)
         {
             WriteWhiteSpaceIfNeeded();
             m_writer.Write(text ?? string.Empty);
@@ -157,7 +157,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public void WriteLine(string text, params object[] args)
+        public void WriteLine(string text, params object?[] args)
         {
             WriteWhiteSpaceIfNeeded();
             // Always format invariantly: the sink is generated source code and

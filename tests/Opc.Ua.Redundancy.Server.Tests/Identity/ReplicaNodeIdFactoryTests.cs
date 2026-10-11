@@ -303,7 +303,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             Assert.That(services.GetRequiredService<IRebasableNodeIdFactory>(), Is.SameAs(identity));
             Assert.That(
                 services.GetServices<IStrongKeyspaceProvider>()
-                    .SelectMany(provider => provider.GetStrongKeyPrefixes().ToArray()),
+                    .SelectMany(provider => provider.GetStrongKeyPrefixes().ToArray()!),
                 Does.Contain(ReplicaIdentityStore.Key));
             Assert.That(services.GetServices<IServerPreStartupTask>().ToArray(),
                 Has.Some.InstanceOf<DistributedAddressSpaceStartupTask>());

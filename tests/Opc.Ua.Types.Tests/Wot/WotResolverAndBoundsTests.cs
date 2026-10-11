@@ -52,7 +52,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var context = new WotResolutionContext();
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out WotDiagnostic diagnostic), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out WotDiagnostic? diagnostic), Is.False);
             Assert.That(diagnostic!.Code, Is.EqualTo(WotDiagnosticCode.ResolverCycle));
         }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(context.TryEnter(WotResolutionKind.Context, "urn:shared", out _), Is.True);
             Assert.That(
-                context.TryEnter(WotResolutionKind.Schema, "urn:shared", out WotDiagnostic diagnostic),
+                context.TryEnter(WotResolutionKind.Schema, "urn:shared", out WotDiagnostic? diagnostic),
                 Is.True);
             Assert.That(diagnostic, Is.Null);
             Assert.That(context.Depth, Is.EqualTo(2));
@@ -80,7 +80,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var context = new WotResolutionContext(new WotResolverOptions { MaxDepth = 1 });
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic diagnostic), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic? diagnostic), Is.False);
             Assert.That(diagnostic!.Code, Is.EqualTo(WotDiagnosticCode.ResolverDepthExceeded));
         }
 
@@ -91,11 +91,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 new WotResolverOptions { MaxDocuments = 1, MaxDepth = 10, MaxDocumentBytes = 5 });
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryAddBytes("urn:a", 10, out WotDiagnostic byteLimit), Is.False);
+            Assert.That(context.TryAddBytes("urn:a", 10, out WotDiagnostic? byteLimit), Is.False);
             Assert.That(byteLimit!.Code, Is.EqualTo(WotDiagnosticCode.ResolverLimitExceeded));
 
             context.Leave("urn:a");
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic documentLimit), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic? documentLimit), Is.False);
             Assert.That(documentLimit!.Code, Is.EqualTo(WotDiagnosticCode.ResolverLimitExceeded));
         }
 
@@ -410,7 +410,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotResolutionContext context,
                 CancellationToken cancellationToken)
             {
-                WotResolverResult result = m_map.TryGetValue(reference, out string json)
+                WotResolverResult result = m_map.TryGetValue(reference, out string? json)
                     ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                     : WotResolverResult.NotFound;
                 return new ValueTask<WotResolverResult>(result);
@@ -433,7 +433,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 await Task.Yield();
                 cancellationToken.ThrowIfCancellationRequested();
-                WotResolverResult result = m_map.TryGetValue(reference, out string json)
+                WotResolverResult result = m_map.TryGetValue(reference, out string? json)
                     ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                     : WotResolverResult.NotFound;
                 return result;

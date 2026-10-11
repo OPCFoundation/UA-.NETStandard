@@ -40,7 +40,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Creates a description from a documentation element.
         /// </summary>
-        public static string GetDescription(this Documentation documentation)
+        public static string? GetDescription(this Documentation? documentation)
         {
             if (documentation == null || documentation.Text == null)
             {

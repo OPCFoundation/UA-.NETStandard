@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests
                     ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
                 AuthenticationResult disabled = await authenticator.AuthenticateAsync(context).ConfigureAwait(false);
                 Assert.That(disabled.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-                Assert.That(disabled.Error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(disabled.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
 
                 ServiceResult enabled = restarted.ModifyUser(
                     "bob", false, string.Empty, true, UserConfigurationMask.None, false, string.Empty, "admin");
@@ -861,7 +861,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase("failure")]
         public void DerivedVerificationKeyIsClearedForSuccessRejectionAndFailure(string outcome)
         {
-            byte[] observed = null;
+            byte[]? observed = null;
             var database = new LinqUserDatabase(key =>
             {
                 observed = key;
@@ -994,7 +994,7 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(state == "active" ? AuthenticationOutcome.Accepted : AuthenticationOutcome.Rejected));
             if (state != "active")
             {
-                Assert.That(result.Error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             CryptoUtils.ZeroMemory(handler.DecryptedPassword);
         }

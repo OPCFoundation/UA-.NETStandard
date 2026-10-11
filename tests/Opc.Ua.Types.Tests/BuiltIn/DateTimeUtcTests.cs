@@ -465,7 +465,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase("u")]
         [TestCase("U")]
         [TestCase("y")]
-        public void ToStringWithFormatShouldDelegateToDateTime(string format)
+        public void ToStringWithFormatShouldDelegateToDateTime(string? format)
         {
             // Arrange
             var dateTime = new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc);

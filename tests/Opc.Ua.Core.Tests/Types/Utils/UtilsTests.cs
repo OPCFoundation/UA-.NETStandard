@@ -120,8 +120,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(Utils.AreDomainsEqual(string.Empty, uri1.ToString()), Is.False);
             Assert.That(Utils.AreDomainsEqual(string.Empty, uri2.ToString()), Is.False);
 
-            Assert.That(Utils.AreDomainsEqual((Uri)null, null), Is.False);
-            Assert.That(Utils.AreDomainsEqual((string)null, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((Uri)null!, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((string)null!, null), Is.False);
             Assert.That(Utils.AreDomainsEqual(uri1, uri2), Is.False);
             Assert.That(Utils.AreDomainsEqual(uri1.ToString(), uri2.ToString()), Is.False);
         }

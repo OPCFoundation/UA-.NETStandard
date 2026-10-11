@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using var listener = new TcpTransportListener(telemetry);
             await listener.OpenAsync(
                 endpointUrl,
-                CreateListenerSettings(endpointUrl, configuration, budget: null),
+                CreateListenerSettings(endpointUrl, configuration, budget: null!),
                 new RespondingCallback(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -265,7 +265,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var certificateRegistry = new Mock<ICertificateRegistry>();
             certificateRegistry
                 .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
-                .Returns((CertificateEntry)null);
+                .Returns((CertificateEntry)null!);
 
             return new TransportListenerSettings
             {
@@ -301,7 +301,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return ex;
             }
 
-            return null;
+            return null!;
         }
 
         private static async Task<bool> WaitForAsync(Func<bool> condition)

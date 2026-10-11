@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: test code; the hand-rolled managed-subscription stubs are
 // IAsyncDisposable and their ownership is transferred to the manager under
 // test (it disposes them on DisposeAsync). CA2000 cannot see through that

@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         internal static Stream OpenStream(string resourceName)
         {
             Stream stream = typeof(CoverageTestRuntimeServer).Assembly
-                .GetManifestResourceStream(resourceName);
+                .GetManifestResourceStream(resourceName)!;
 
             if (stream is null)
             {

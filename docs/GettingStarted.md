@@ -54,8 +54,7 @@ bash where they differ.
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
-Route B was verified with package version `2.0.0-preview.5`. The packages are
-prereleases, so `dotnet add package` needs the `--prerelease` option.
+Route B was verified with package version `2.0.0`.
 
 ## Route A: Run the repository samples
 
@@ -193,7 +192,7 @@ folder. Run each application from its own project folder so that it finds that
 ```bash
 dotnet new console -n GettingStartedServer
 cd GettingStartedServer
-dotnet add package OPCFoundation.NetStandard.Opc.Ua.Server --prerelease
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.Server
 dotnet add package Microsoft.Extensions.Hosting
 ```
 
@@ -242,7 +241,7 @@ and create the client next to it:
 ```bash
 dotnet new console -n GettingStartedClient
 cd GettingStartedClient
-dotnet add package OPCFoundation.NetStandard.Opc.Ua.Client --prerelease
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.Client
 dotnet add package Microsoft.Extensions.Hosting
 ```
 
@@ -471,7 +470,7 @@ persistent, access-controlled location; see the
 | --- | --- | --- |
 | `BadSecurityChecksFailed` with `Could not verify security on OpenSecureChannel request` | The server does not trust the client certificate. | Move the client certificate from the server's rejected store to its trusted store. |
 | `BadCertificateUntrusted` with `Could not verify security on OpenSecureChannel response` | The client does not trust the server certificate. | Move the server certificate from the client's rejected store to its trusted store. |
-| `BadNotConnected` with `Could not connect to the remote endpoint`; with the `2.0.0-preview.5` packages, a `SocketException` such as `No connection could be made because the target machine actively refused it` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
+| `BadNotConnected` with `Could not connect to the remote endpoint` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
 | `No discovered endpoint matched the configured security policy and mode.` | The server does not offer the requested security mode and policy. | Choose a mode and policy that the server offers. See [Profiles](Profiles.md#security-profiles). |
 | The server does not start, and the port is in use | Another application uses the port. | Stop that application, or change the port in both the server endpoint URL and the client discovery URL. |
 | `A compatible .NET SDK was not found` (Route A) | The SDK version in `global.json` is not installed. | Install that SDK version. |

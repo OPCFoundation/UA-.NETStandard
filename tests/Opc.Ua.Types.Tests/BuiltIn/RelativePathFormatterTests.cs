@@ -57,7 +57,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var typeTable = new Mock<ITypeTable>();
 
-            var formatter = new RelativePathFormatter(null, typeTable.Object);
+            var formatter = new RelativePathFormatter(null!, typeTable.Object);
 
             Assert.That(formatter.Elements, Is.Not.Null);
             Assert.That(formatter.Elements, Is.Empty);
@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var typeTable = new Mock<ITypeTable>();
 
             Assert.That(
-                () => new RelativePathFormatter.Element(null, typeTable.Object),
+                () => new RelativePathFormatter.Element(null!, typeTable.Object),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("element"));
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
 
             Assert.That(
-                () => new RelativePathFormatter.Element(element, null),
+                () => new RelativePathFormatter.Element(element, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("typeTree"));
         }
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseNullStringReturnsEmptyFormatter()
         {
-            var result = RelativePathFormatter.Parse(null);
+            var result = RelativePathFormatter.Parse(null!);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Elements, Is.Empty);
@@ -747,7 +747,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEmptyWithNullReturnsTrue()
         {
-            Assert.That(RelativePathFormatter.IsEmpty(null), Is.True);
+            Assert.That(RelativePathFormatter.IsEmpty(null!), Is.True);
         }
 
         [Test]

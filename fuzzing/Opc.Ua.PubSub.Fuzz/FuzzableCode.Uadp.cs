@@ -64,7 +64,7 @@ namespace Opc.Ua.Fuzzing
             return FuzzOracles.MeasureAllocation(
                 nameof(UadpDecoder),
                 input.Length,
-                () => UadpDecoder.Decode(input, context));
+                () => UadpDecoder.Decode(input, context))!;
         }
 
         internal static void ExerciseUadpChunks(

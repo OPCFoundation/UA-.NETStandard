@@ -90,7 +90,7 @@ namespace Opc.Ua.Fuzzing
 
         internal static bool FuzzCertificateDecoderCore(byte[] input)
         {
-            Certificate certificate = null;
+            Certificate? certificate = null;
             try
             {
                 byte[] rawData;
@@ -181,7 +181,7 @@ namespace Opc.Ua.Fuzzing
                 }
 
                 // A status or crypto wrapper must not turn a programmer error into input rejection.
-                exception = exception.InnerException;
+                exception = exception.InnerException!;
             }
         }
     }

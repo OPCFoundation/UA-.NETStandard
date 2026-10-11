@@ -183,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            string path = store.GetPublicKeyFilePath("0000000000000000000000000000000000000000");
+            string? path = store.GetPublicKeyFilePath("0000000000000000000000000000000000000000");
             Assert.That(path, Is.Null);
         }
 
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            string path = store.GetPrivateKeyFilePath("0000000000000000000000000000000000000000");
+            string? path = store.GetPrivateKeyFilePath("0000000000000000000000000000000000000000");
             Assert.That(path, Is.Null);
         }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var publicKey = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
-            string path = store.GetPublicKeyFilePath(publicKey.Thumbprint);
+            string path = store.GetPublicKeyFilePath(publicKey.Thumbprint)!;
             Assert.That(path, Is.Not.Null);
             Assert.That(File.Exists(path), Is.True);
         }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             await store.AddAsync(cert, "password".ToCharArray()).ConfigureAwait(false);
 
-            string privateKeyPath = store.GetPrivateKeyFilePath(cert.Thumbprint);
+            string privateKeyPath = store.GetPrivateKeyFilePath(cert.Thumbprint)!;
             Assert.That(privateKeyPath, Is.Not.Null);
             Assert.That(File.Exists(privateKeyPath), Is.True);
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await store.AddAsync(publicOnly).ConfigureAwait(false);
             DirectoryInfo privateDirectory = Directory.CreateDirectory(Path.Combine(m_tempDir, "private"));
             var existingKey = new FileInfo(Path.Combine(privateDirectory.FullName,
-                Path.ChangeExtension(Path.GetFileName(store.GetPublicKeyFilePath(existing.Thumbprint)), ".pfx")));
+                Path.ChangeExtension(Path.GetFileName(store.GetPublicKeyFilePath(existing.Thumbprint)), ".pfx")!));
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -327,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var directorySecurity = new DirectorySecurity();
                 directorySecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                 directorySecurity.AddAccessRule(new FileSystemAccessRule(
-                    identity.User, FileSystemRights.FullControl,
+                    identity.User!, FileSystemRights.FullControl,
                     InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                     PropagationFlags.None, AccessControlType.Allow));
                 new DirectoryInfo(m_tempDir).SetAccessControl(directorySecurity);
@@ -365,7 +365,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using var identity = WindowsIdentity.GetCurrent();
                 SecurityIdentifier[] trusted =
                 [
-                    identity.User,
+                    identity.User!,
                     new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
                     new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null)
                 ];
@@ -391,15 +391,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             using var reopened = new DirectoryCertificateStore(m_telemetry);
             reopened.Open(m_tempDir);
-            using Certificate loaded = await reopened.LoadPrivateKeyAsync(
+            using Certificate loaded = (await reopened.LoadPrivateKeyAsync(
                 existing.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(loaded, Is.Not.Null);
-            using RSA privateKey = loaded.GetRSAPrivateKey();
-            using RSA publicKey = existing.GetRSAPublicKey();
+            using RSA privateKey = loaded.GetRSAPrivateKey()!;
+            using RSA publicKey = existing.GetRSAPublicKey()!;
             byte[] digest = new byte[32];
-            byte[] signature = privateKey.SignHash(digest, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            Assert.That(publicKey.VerifyHash(digest, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+            byte[] signature = privateKey!.SignHash(digest, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(publicKey!.VerifyHash(digest, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
                 Is.True);
         }
 
@@ -419,11 +419,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var security = new DirectorySecurity();
                 security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                 security.AddAccessRule(new FileSystemAccessRule(
-                    identity.User, FileSystemRights.ChangePermissions, AccessControlType.Deny));
+                    identity.User!, FileSystemRights.ChangePermissions, AccessControlType.Deny));
                 security.AddAccessRule(new FileSystemAccessRule(
                     new SecurityIdentifier("S-1-3-4"), FileSystemRights.ReadPermissions, AccessControlType.Allow));
                 security.AddAccessRule(new FileSystemAccessRule(
-                    identity.User, FileSystemRights.Modify,
+                    identity.User!, FileSystemRights.Modify,
                     InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                     PropagationFlags.None, AccessControlType.Allow));
                 if (unsafeAccess)
@@ -446,9 +446,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             await store.AddAsync(certificate).ConfigureAwait(false);
-            using Certificate loaded = await store.LoadPrivateKeyAsync(
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
                 certificate.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.HasPrivateKey, Is.True);
 #if NET8_0_OR_GREATER
@@ -456,7 +456,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(File.GetUnixFileMode(directory.FullName),
                     Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
-                Assert.That(File.GetUnixFileMode(store.GetPrivateKeyFilePath(certificate.Thumbprint)),
+                Assert.That(File.GetUnixFileMode(store.GetPrivateKeyFilePath(certificate.Thumbprint)!),
                     Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite));
             }
 #endif

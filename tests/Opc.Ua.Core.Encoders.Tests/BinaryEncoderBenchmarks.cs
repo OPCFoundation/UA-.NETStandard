@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             using var binaryEncoder = new BinaryEncoder(m_context);
             TestEncoding(binaryEncoder);
-            byte[] result = binaryEncoder.CloseAndReturnBuffer();
+            byte[] result = binaryEncoder.CloseAndReturnBuffer()!;
             Assert.That(result, Is.Not.Null);
         }
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             using var memoryStream = new MemoryStream(StreamBufferSize);
             using var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true);
             TestEncoding(binaryEncoder);
-            byte[] result = binaryEncoder.CloseAndReturnBuffer();
+            byte[] result = binaryEncoder.CloseAndReturnBuffer()!;
             Assert.That(result, Is.Not.Null);
         }
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 }
                 else
                 {
-                    byte[] result = binaryEncoder.CloseAndReturnBuffer();
+                    byte[] result = binaryEncoder.CloseAndReturnBuffer()!;
                     Assert.That(result, Is.Not.Null);
                 }
             }

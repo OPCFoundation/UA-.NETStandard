@@ -71,7 +71,7 @@ namespace Opc.Ua.InformationModel.Tests
             // wire-encoded as ExtensionObject. Both shapes are accepted: either
             // the wire ExtensionObject or a server that already decoded it.
             bool isExtensionObject = variant.TryGetValue(out ExtensionObject _);
-            bool isDecoded = variant.TryGetStructure(out ServerStatusDataType _);
+            bool isDecoded = variant.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType? _);
             Assert.That(isExtensionObject || isDecoded, Is.True,
                 "Server_ServerStatus value should not be null.");
             Assert.That(isExtensionObject || isDecoded, Is.True,
@@ -98,17 +98,17 @@ namespace Opc.Ua.InformationModel.Tests
                 StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
             Variant variant = response.Results[0].WrappedValue;
-            ServerStatusDataType serverStatus = null;
+            ServerStatusDataType? serverStatus = null;
 
             // Per spec ServerStatus is a ServerStatusDataType wire-encoded as
             // ExtensionObject; accept both the wire form and an already-decoded
             // structure.
-            if (variant.TryGetStructure(out ServerStatusDataType decoded))
+            if (variant.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType? decoded))
             {
                 serverStatus = decoded;
             }
             else if (variant.TryGetValue(out ExtensionObject extensionObject) &&
-                extensionObject.TryGetValue(out ServerStatusDataType fromWire))
+                extensionObject.TryGetValue(out ServerStatusDataType? fromWire))
             {
                 serverStatus = fromWire;
             }
@@ -502,7 +502,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.True,
                 "DataTypeDefinition value should be an ExtensionObject.");
             Assert.That(
-                extObj.TryGetValue(out IEncodeable encodeable),
+                extObj.TryGetValue(out IEncodeable? encodeable),
                 Is.True,
                 "DataTypeDefinition body should decode to an IEncodeable.");
             Assert.That(encodeable, Is.Not.Null,

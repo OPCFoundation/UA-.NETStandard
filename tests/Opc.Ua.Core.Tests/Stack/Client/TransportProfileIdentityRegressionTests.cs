@@ -98,9 +98,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void MissingProfileAndLegacyConstructorKeepDefaultBinaryIdentity()
         {
-            ConfiguredEndpoint implicitProfile = Endpoint(null);
+            ConfiguredEndpoint implicitProfile = Endpoint(null!);
             ConfiguredEndpoint explicitProfile = Endpoint(Profiles.HttpsBinaryTransport);
-            implicitProfile.Configuration.UseBinaryEncoding = explicitProfile.Configuration.UseBinaryEncoding;
+            implicitProfile.Configuration!.UseBinaryEncoding = explicitProfile.Configuration!.UseBinaryEncoding;
             ManagedChannelKey implicitKey = ManagedChannelKey.FromEndpoint(implicitProfile);
             ManagedChannelKey explicitKey = ManagedChannelKey.FromEndpoint(explicitProfile);
             Assert.That(implicitKey, Is.EqualTo(explicitKey));
@@ -117,9 +117,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void MissingProfileUsesTheConfiguredJsonEncoding()
         {
-            ConfiguredEndpoint implicitProfile = Endpoint(null);
+            ConfiguredEndpoint implicitProfile = Endpoint(null!);
             ConfiguredEndpoint explicitProfile = Endpoint(Profiles.HttpsJsonTransport);
-            implicitProfile.Configuration.UseBinaryEncoding = false;
+            implicitProfile.Configuration!.UseBinaryEncoding = false;
             Assert.That(ManagedChannelKey.FromEndpoint(implicitProfile),
                 Is.EqualTo(ManagedChannelKey.FromEndpoint(explicitProfile)));
         }
@@ -156,11 +156,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 _ => []
             };
             ArrayOf<EndpointDescription> result = server.Translate(profiles, alternate);
-            string[] expected = selection == "all" ? s_profiles : selection == "unknown" ? [] : profiles.ToArray();
-            Assert.That(result.ToArray().Select(endpoint => endpoint.TransportProfileUri), Is.EquivalentTo(expected));
+            string[] expected = (selection == "all" ? s_profiles : selection == "unknown" ? [] : profiles.ToArray())!;
+            Assert.That(result.ToArray()!.Select(endpoint => endpoint.TransportProfileUri), Is.EquivalentTo(expected!));
             Assert.That(result.Count, Is.EqualTo(expected.Length));
             string expectedUrl = alternate ? "https://public-host:7443/UA/app" : "https://localhost:5443/UA/app";
-            Assert.That(result.ToArray().Select(endpoint => endpoint.EndpointUrl), Is.All.EqualTo(expectedUrl));
+            Assert.That(result.ToArray()!.Select(endpoint => endpoint.EndpointUrl), Is.All.EqualTo(expectedUrl));
         }
 
         /// <summary>

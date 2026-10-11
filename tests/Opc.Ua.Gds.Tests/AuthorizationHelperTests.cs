@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Tests
         public void HasAuthorizationWithNullContextDoesNotThrow()
         {
             Assert.DoesNotThrow(() =>
-                AuthorizationHelper.HasAuthorization(null, AuthorizationHelper.DiscoveryAdmin));
+                AuthorizationHelper.HasAuthorization(null!, AuthorizationHelper.DiscoveryAdmin));
         }
 
         [Test]
@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Tests
         public void HasAuthenticatedSecureChannelThrowsForNullContext()
         {
             Assert.That(
-                () => AuthorizationHelper.HasAuthenticatedSecureChannel(null),
+                () => AuthorizationHelper.HasAuthenticatedSecureChannel(null!),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadSecurityModeInsufficient));

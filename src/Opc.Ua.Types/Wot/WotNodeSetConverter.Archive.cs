@@ -214,8 +214,8 @@ namespace Opc.Ua.Wot
                 }
                 if (collection == "events")
                 {
-                    if (!HasArchivedReference(
-                        root, index, aliases, "i=41", isForward: true, ResolveArchivedAlias(node.NodeId, aliases)))
+                    if (!GeneratesArchivedEvent(
+                        root, index, aliases, ResolveArchivedAlias(node.NodeId, aliases)))
                     {
                         ReportArchiveConflict(pointer, "GeneratesEvent Reference", diagnostics);
                     }
@@ -704,6 +704,56 @@ namespace Opc.Ua.Wot
                         "Reference", diagnostics);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets whether the archived root generates an EventType: through a
+        /// <c>GeneratesEvent</c> Reference of its own, or - because OPC 10000-3
+        /// §7.15 lets only a type state one - through its type definition or a
+        /// supertype of it.
+        /// </summary>
+        private static bool GeneratesArchivedEvent(
+            UANode root,
+            Dictionary<string, UANode?> nodes,
+            INodeSetAliasResolver aliases,
+            string eventTypeId)
+        {
+            if (HasArchivedReference(root, nodes, aliases, "i=41", isForward: true, eventTypeId))
+            {
+                return true;
+            }
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            string? typeId = ArchivedReferenceTarget(root, aliases, "i=40", isForward: true);
+            while (typeId is not null &&
+                visited.Add(typeId) &&
+                nodes.TryGetValue("id:" + typeId, out UANode? type) &&
+                type is UAType)
+            {
+                if (HasArchivedReference(type, nodes, aliases, "i=41", isForward: true, eventTypeId))
+                {
+                    return true;
+                }
+                typeId = ArchivedReferenceTarget(type, aliases, "i=45", isForward: false);
+            }
+            return false;
+        }
+
+        private static string? ArchivedReferenceTarget(
+            UANode node,
+            INodeSetAliasResolver aliases,
+            string referenceType,
+            bool isForward)
+        {
+            foreach (Reference reference in node.References ?? [])
+            {
+                if (reference.IsForward == isForward &&
+                    reference.Value is { Length: > 0 } &&
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) == referenceType)
+                {
+                    return ResolveArchivedAlias(reference.Value, aliases);
+                }
+            }
+            return null;
         }
 
         private static bool HasArchivedReference(

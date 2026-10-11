@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Scales.Tests
             ScaleSystemHandle minimal = await m_fixture.Manager.CreateScaleSystemAsync(
                 m_fixture.Name("Minimal"),
                 s => s.WithIdentification(ScalesNodeManagerTests.Identity("MIN")));
-            Assert.That(minimal.System.ProcessStateMessage!.Value.Text, Is.Empty);
+            Assert.That(minimal.System.ProcessStateMessage!.Value.Text, Is.Null);
             Assert.That(minimal.PackML, Is.Null);
         }
     }

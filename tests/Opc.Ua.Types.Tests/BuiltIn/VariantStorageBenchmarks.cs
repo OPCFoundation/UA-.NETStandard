@@ -43,7 +43,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     public class VariantStorageBenchmarks
     {
         [Params("QualifiedName", "NodeId", "ByteString", "LocalizedText", "RichText", "Guid")]
-        public string Kind { get; set; }
+        public string Kind { get; set; } = null!;
 
         [GlobalSetup]
         public void Setup()
@@ -114,8 +114,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteVariant(null, m_variant);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(buffer, m_context);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(buffer!, m_context);
             Variant decoded = decoder.ReadVariant(null);
             if (!decoded.Equals(m_variant))
             {
@@ -147,8 +147,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private readonly LocalizedText m_text = new("cached-payload");
         private readonly LocalizedText m_richText = new("en", "cached-payload");
         private readonly Uuid m_guid = new(new Guid("00112233-4455-6677-8899-aabbccddeeff"));
-        private object m_input;
+        private object m_input = null!;
         private Variant m_variant;
-        private ServiceMessageContext m_context;
+        private ServiceMessageContext m_context = null!;
     }
 }

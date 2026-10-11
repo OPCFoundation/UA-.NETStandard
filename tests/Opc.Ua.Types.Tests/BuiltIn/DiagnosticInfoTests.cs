@@ -87,7 +87,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(() => new DiagnosticInfo((DiagnosticInfo)null),
+            Assert.That(() => new DiagnosticInfo((DiagnosticInfo)null!),
                 Throws.TypeOf<ArgumentNullException>());
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Bad,
                 new LocalizedText("en", "Error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             // OperationSymbolicId=32, OperationLocalizedText=64: after >>5 they become ServiceSymbolicId=1, ServiceLocalizedText=2
@@ -178,7 +178,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = new ServiceResult(StatusCodes.Bad);
 
             Assert.That(
-                () => new DiagnosticInfo(result, DiagnosticsMasks.ServiceAll, true, null, s_logger),
+                () => new DiagnosticInfo(result, DiagnosticsMasks.ServiceAll, true, null!, s_logger),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -190,11 +190,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Bad,
                 LocalizedText.Null,
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             // Pre-populate with the strings that Initialize will look up
-            stringTable.Append(result.SymbolicId);
+            stringTable.Append(result.SymbolicId!);
             stringTable.Append("http://existing.org");
 
             int originalCount = stringTable.Count;
@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 new LocalizedText("de", "Fehler aufgetreten"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 new LocalizedText("en", "Existing error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             stringTable.Append("en");
@@ -258,7 +258,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 LocalizedText.Null,
                 "additional debug",
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.UserPermissionAdditionalInfo;
@@ -276,7 +276,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 LocalizedText.Null,
                 "should not appear",
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo; // Missing UserPermissionAdditionalInfo
@@ -308,7 +308,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.BadUnexpectedError,
                 new LocalizedText("en", "Inner error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://outer.org",

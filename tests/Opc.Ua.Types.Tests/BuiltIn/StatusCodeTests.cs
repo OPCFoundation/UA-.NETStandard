@@ -1030,14 +1030,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             StatusCode.Intern(customCodes);
 
-            string result = StatusCode.LookupSymbolicId(0x0FFA0000);
+            string? result = StatusCode.LookupSymbolicId(0x0FFA0000);
             Assert.That(result, Is.EqualTo("LookupTest"));
         }
 
         [Test]
         public void LookupSymbolicIdReturnsNullForUnknownCode()
         {
-            string result = StatusCode.LookupSymbolicId(0x12340000);
+            string? result = StatusCode.LookupSymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
 #pragma warning restore CS0618  // Type or member is obsolete
@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             StatusCode.Intern(customCodes);
 
-            byte[] result = StatusCode.LookupUtf8SymbolicId(0x0FFB0000);
+            byte[] result = StatusCode.LookupUtf8SymbolicId(0x0FFB0000)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(Encoding.UTF8.GetString(result), Is.EqualTo("Utf8LookupTest"));
         }
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LookupUtf8SymbolicIdReturnsNullForUnknownCode()
         {
-            byte[] result = StatusCode.LookupUtf8SymbolicId(0x12340000);
+            byte[]? result = StatusCode.LookupUtf8SymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
 

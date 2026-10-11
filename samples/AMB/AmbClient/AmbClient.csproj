@@ -6,7 +6,6 @@
     <PackageId>AmbClient</PackageId>
     <RootNamespace>AmbSample.Client</RootNamespace>
     <Description>Console client that discovers the manageable assets of a server with Opc.Ua.AMB.Client, prints a snapshot of each with identification, health, maintenance, documentation links, locations and structure, adds and removes a documentation link, and streams health alarms and maintenance activities, acknowledging cleared alarms.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

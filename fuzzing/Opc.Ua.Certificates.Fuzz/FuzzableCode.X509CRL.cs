@@ -226,7 +226,7 @@ namespace Opc.Ua.Fuzzing
             }
             catch (CryptographicException exception) when (IsExpectedCertificateInputException(exception))
             {
-                return null;
+                return null!;
             }
         }
     }

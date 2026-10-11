@@ -75,6 +75,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         private const int kBuilderStack = 256 * 1024 * 1024;
         private const int kUnboundedLimit = 1_000_000;
 
+        // Twice the deepest nesting of any codec and shape that fits a one
+        // megabyte stack before the stack check fires.
+        private const int kBeyondTheStackDepth = 5000;
+
         private static readonly Codec[] s_decoderCodecs =
             [Codec.Binary, Codec.Json, Codec.Xml, Codec.XmlParser];
         private static readonly Codec[] s_encoderCodecs = [Codec.Binary, Codec.Json, Codec.Xml];
@@ -86,6 +90,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             Shape.ExtensionObjectChain,
             Shape.EncodeableTree
         ];
+
+        // A thread can get more stack than it asks for: on Linux, glibc runs it
+        // on the cached stack of an exited thread up to four times the requested
+        // size, and the stack check measures the stack the thread got. A quarter
+        // megabyte request can therefore run on a one megabyte stack.
         private static readonly int[] s_stackSizes = [kOneMegabyte, kQuarterMegabyte];
 
         private static IEnumerable<TestCaseData> DecoderCases()
@@ -140,30 +149,51 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void DecodeWithUnboundedNestingLimitFailsBeforeTheStackOverflows(Codec codec, Shape shape)
         {
             // Without a usable nesting limit only the stack check stands between
-            // a deep message and a crash. The JSON encoder cannot write more than
-            // 1000 levels, which still overflowed a small stack before.
-            int depth = codec == Codec.Json ? 450 : 2000;
-            object input = EncodeOnLargeStack(codec, Build(shape, depth));
+            // a deep message and a crash. The JsonEncoder cannot write more than
+            // 1000 levels, so the JSON input is written by hand.
+            object input = codec == Codec.Json
+                ? CreateNestedJson(shape, kBeyondTheStackDepth)
+                : EncodeOnLargeStack(codec, Build(shape, kBeyondTheStackDepth));
 
-            ServiceResultException sre = RunOnThread(
-                kQuarterMegabyte,
-                () => Decode(codec, shape, input, CreateContext(kUnboundedLimit)));
+            foreach (int stackSize in s_stackSizes)
+            {
+                ServiceResultException sre = RunOnThread(
+                    stackSize,
+                    () => Decode(codec, shape, input, CreateContext(kUnboundedLimit)));
 
-            Assert.That(sre, Is.Not.Null);
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(sre, Is.Not.Null, $"Stack of {stackSize} bytes");
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
         }
 
         [TestCaseSource(nameof(EncoderCases))]
         public void EncodeWithUnboundedNestingLimitFailsBeforeTheStackOverflows(Codec codec, Shape shape)
         {
-            object graph = Build(shape, 2000);
+            object graph = Build(shape, kBeyondTheStackDepth);
 
-            ServiceResultException sre = RunOnThread(
-                kQuarterMegabyte,
-                () => Encode(codec, graph, CreateContext(kUnboundedLimit)));
+            foreach (int stackSize in s_stackSizes)
+            {
+                ServiceResultException sre = RunOnThread(
+                    stackSize,
+                    () => Encode(codec, graph, CreateContext(kUnboundedLimit)));
 
-            Assert.That(sre, Is.Not.Null);
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(sre, Is.Not.Null, $"Stack of {stackSize} bytes");
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+        }
+
+        [Test]
+        public void NestedJsonMatchesTheJsonEncoder([Values] Shape shape)
+        {
+            // The JSON inputs nested beyond the encoder's reach are written by
+            // hand. They must stay what the JsonEncoder writes, or the decoder
+            // tests stop exercising the encoding a peer sends.
+            foreach (int depth in new[] { 1, 2, 7 })
+            {
+                string encoded = (string)EncodeOnLargeStack(Codec.Json, Build(shape, depth));
+
+                Assert.That(CreateNestedJson(shape, depth), Is.EqualTo(encoded), $"Depth {depth}");
+            }
         }
 
         [TestCase(Codec.Xml)]
@@ -219,7 +249,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(sre, Is.Null);
             Assert.That(value.TryGetValue(out XmlElement element), Is.True);
             // The XmlParser writes the innermost element as an empty element.
-            Assert.That(CountElements(element.OuterXml), Is.EqualTo(10));
+            Assert.That(CountElements(element.OuterXml!), Is.EqualTo(10));
         }
 
         private static int CountElements(string xml)
@@ -255,8 +285,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// </summary>
         private static ServiceResultException RunOnThread(int stackSize, Action action)
         {
-            ServiceResultException sre = null;
-            Exception unexpected = null;
+            ServiceResultException? sre = null;
+            Exception? unexpected = null;
             var thread = new Thread(
                 () =>
                 {
@@ -277,7 +307,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             thread.Start();
             thread.Join();
             Assert.That(unexpected, Is.Null, unexpected?.ToString());
-            return sre;
+            return sre!;
         }
 
         private static ServiceMessageContext CreateContext(int? maxEncodingNestingLevels)
@@ -346,12 +376,56 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
+        /// Writes the JSON that the JsonEncoder writes for <see cref="Build"/>
+        /// at any depth. The encoder itself cannot nest deeper than 1000 JSON
+        /// levels.
+        /// </summary>
+        private static string CreateNestedJson(Shape shape, int depth)
+        {
+            const string int32 = "{\"UaType\":6,\"Value\":1}";
+            (string head, string open, string core, string close, string tail, int levels) = shape switch
+            {
+                Shape.VariantArray => ("{\"Value\":", "{\"UaType\":24,\"Value\":[", int32, "]}", "}", depth),
+                Shape.DataValue => ("{\"Value\":", "{\"UaType\":23,\"Value\":", int32, "}", "}", depth),
+                Shape.ExtensionObjectVariant => (
+                    "{\"Value\":",
+                    "{\"UaType\":22,\"Value\":{\"UaTypeId\":\"i=88901\",\"Value\":",
+                    int32,
+                    "}}",
+                    "}",
+                    depth),
+                Shape.ExtensionObjectChain => (
+                    "{\"Value\":{\"UaType\":22,\"Value\":",
+                    "{\"UaTypeId\":\"i=88911\",\"Child\":",
+                    "null",
+                    "}",
+                    "}}",
+                    depth + 1),
+                _ => ("{\"Value\":", "{\"Children\":[", "{\"Children\":null}", "]}", "}", depth)
+            };
+
+            var builder = new StringBuilder(
+                head.Length + core.Length + tail.Length + (levels * (open.Length + close.Length)));
+            builder.Append(head);
+            for (int ii = 0; ii < levels; ii++)
+            {
+                builder.Append(open);
+            }
+            builder.Append(core);
+            for (int ii = 0; ii < levels; ii++)
+            {
+                builder.Append(close);
+            }
+            return builder.Append(tail).ToString();
+        }
+
+        /// <summary>
         /// Encodes the input for a decoder test on a large stack with a limit
         /// that allows its depth.
         /// </summary>
         private static object EncodeOnLargeStack(Codec codec, object graph)
         {
-            object result = null;
+            object? result = null;
             ServiceMessageContext context = CreateContext(kUnboundedLimit);
 
             // the XmlEncoder applies MaxStringLength to XmlElement values.
@@ -360,7 +434,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 kBuilderStack,
                 () => result = Encode(codec, graph, context));
             Assert.That(sre, Is.Null, sre?.ToString());
-            return result;
+            return result!;
         }
 
         private static object Encode(Codec codec, object graph, ServiceMessageContext context)
@@ -371,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     using var encoder = new BinaryEncoder(context);
                     Write(encoder, graph);
-                    return encoder.CloseAndReturnBuffer();
+                    return encoder.CloseAndReturnBuffer()!;
                 }
                 case Codec.Json:
                 {
@@ -394,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                         context))
                     {
                         encoder.PushNamespace(Namespaces.OpcUaXsd);
-                        Write(encoder, graph, isRoot ? null : "Value");
+                        Write(encoder, graph, (isRoot ? null : "Value")!);
                         encoder.PopNamespace();
                         encoder.Close();
                     }
@@ -477,7 +551,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadVariant("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -509,7 +583,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Child = decoder.ReadExtensionObject("Child");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -541,7 +615,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Children = decoder.ReadEncodeableArray<Tree>("Children");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }

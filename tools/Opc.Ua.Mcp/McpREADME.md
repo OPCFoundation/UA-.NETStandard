@@ -5,29 +5,25 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 ## Run without installing (.NET 10 SDK)
 
 ```bash
-dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+dotnet tool exec OPCFoundation.NetStandard.Opc.Ua.Mcp
 
 # Short form
-dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+dnx OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 ## Install globally
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
-> **Profile availability in `2.0.0-preview.3`:** the public tool package
-> includes `core`, `services`, `administration`, `pubsub`, `diagnostics`,
-> `robotics`, and `full`, but not `vision`. Run the current source when you
-> need `vision` or a composed `vision,robotics` profile until a later preview
-> includes `Opc.Ua.Mcp.Vision`.
+The tool includes every profile, including `robotics`, `vision`, and the
+composed `vision,robotics` profile.
 
 ## Usage
 
 The examples below assume a global installation. For run-on-demand use,
-replace `opcua-mcp` with
-`dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*" --`.
+replace `opcua-mcp` with `dnx OPCFoundation.NetStandard.Opc.Ua.Mcp --`.
 
 ```bash
 # stdio transport (default) — for Claude Desktop, VS Code, Copilot
@@ -88,6 +84,9 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
+
+The Robotics and Vision libraries are preview packages; the other libraries are
+stable.
 
 ## Documentation
 

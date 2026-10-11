@@ -667,7 +667,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             bool running = true;
-            Exception workerError = null;
+            Exception? workerError = null;
 
             // The worker is a raw thread, so three things have to hold or it can
             // take the whole test host down with it:

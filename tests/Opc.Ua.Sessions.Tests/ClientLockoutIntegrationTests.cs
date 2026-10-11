@@ -82,7 +82,7 @@ namespace Opc.Ua.Sessions.Tests
 
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
 
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             m_serverFixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts = LockoutThreshold;
 

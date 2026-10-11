@@ -80,18 +80,18 @@ namespace Opc.Ua.Server.Tests
             double processingInterval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
+                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry)!;
 
             foreach (DataValue value in values)
             {
-                calculator.QueueRawValue(value);
+                calculator!.QueueRawValue(value);
             }
 
             var results = new List<DataValue>();
             bool hasData = true;
             while (hasData)
             {
-                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                bool _hasresult = calculator!.TryGetProcessedValue(true, out DataValue result);
                 if (_hasresult)
                 {
                     results.Add(result);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
             double processingInterval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
+                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry)!;
 
             // Reverse reads (endTime earlier than startTime) require the raw stream to be
             // queued latest-first; forward reads require earliest-first.
@@ -126,19 +126,19 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int index = ascendingValues.Count - 1; index >= 0; index--)
                 {
-                    calculator.QueueRawValue(ascendingValues[index]);
+                    calculator!.QueueRawValue(ascendingValues[index]);
                 }
             }
             else
             {
                 foreach (DataValue value in ascendingValues)
                 {
-                    calculator.QueueRawValue(value);
+                    calculator!.QueueRawValue(value);
                 }
             }
 
             var results = new List<DataValue>();
-            while (calculator.TryGetProcessedValue(true, out DataValue result))
+            while (calculator!.TryGetProcessedValue(true, out DataValue result))
             {
                 results.Add(result);
             }

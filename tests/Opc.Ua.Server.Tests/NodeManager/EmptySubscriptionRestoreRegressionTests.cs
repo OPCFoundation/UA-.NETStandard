@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var store = new Mock<ISubscriptionStore>();
                 store.Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new RestoreSubscriptionResult(true, [stored]));
-                Dictionary<uint, ArrayOf<uint>> restoredIds = null;
+                Dictionary<uint, ArrayOf<uint>>? restoredIds = null;
                 store.Setup(value => value.OnSubscriptionRestoreCompleteAsync(
                         It.IsAny<Dictionary<uint, ArrayOf<uint>>>(),
                         It.IsAny<CancellationToken>()))
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(persisted.MaxLifetimeCount, Is.EqualTo(stored.MaxLifetimeCount));
                     Assert.That(persisted.MonitoredItems, Is.Empty);
                     Assert.That(restoredIds, Contains.Key(41u));
-                    Assert.That(restoredIds[41], Is.Empty);
+                    Assert.That(restoredIds![41], Is.Empty);
                 });
             }
         }

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -75,7 +73,8 @@ namespace Opc.Ua.Server.Tests
                     MaxSessionCount = 100,
                     MaxRequestAge = 60_000,
                     MaxBrowseContinuationPoints = 10,
-                    MaxHistoryContinuationPoints = 10
+                    MaxHistoryContinuationPoints = 10,
+                    HttpsMutualTls = false
                 }
             };
         }
@@ -310,7 +309,10 @@ namespace Opc.Ua.Server.Tests
                         Interlocked.CompareExchange(ref highWater, now, seen) != seen)
                     {
                     }
-                    await Task.Yield();
+                    // Hold the lease across a real suspension so the thread is released and other callers
+                    // run while it is held. Task.Yield alone lets a runner with few cores serialize the
+                    // callers so that none of them ever sees the limit.
+                    await Task.Delay(1).ConfigureAwait(false);
                     Interlocked.Decrement(ref running);
                     lease!.Dispose();
                 }
@@ -627,7 +629,13 @@ namespace Opc.Ua.Server.Tests
 
         private static SecureChannelContext Channel(string id, IPAddress? peer = null)
         {
-            return new SecureChannelContext(id, endpointDescription: null, RequestEncoding.Binary, peerAddress: peer);
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            return new SecureChannelContext(id, endpoint, RequestEncoding.Binary, peerAddress: peer);
         }
 
         private static SecureChannelContext HttpsChannel()

@@ -236,9 +236,9 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet nodeSet = await ConvertResolvedAsync(original).ConfigureAwait(false);
             byte[] serialized = WotTestData.Serialize(nodeSet);
             using var stream = new System.IO.MemoryStream(serialized);
-            UANodeSet reread = UANodeSet.Read(stream);
+            UANodeSet reread = UANodeSet.Read(stream)!;
 
-            Assert.That(reread.Items, Is.Not.Null);
+            Assert.That(reread!.Items, Is.Not.Null);
             Assert.DoesNotThrow(() => WotNodeSetConverter.FromNodeSet(reread).Dispose());
         }
 

@@ -103,10 +103,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -208,14 +208,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet),
                         Is.True);
                     Assert.That(
-                        dictionary.TypeDictionary.TargetNamespace,
+                        dictionary.TypeDictionary!.TargetNamespace,
                         Is.EqualTo("http://opcfoundation.org/UA/"));
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
                     Assert.That(dictionary.DataTypes, Has.Count.GreaterThanOrEqualTo(10));
                     Assert.That(
-                        dictionary.TypeDictionary.TargetNamespace,
+                        dictionary.TypeDictionary!.TargetNamespace,
                         Is.EqualTo("http://test.org/UA/Data/"));
                 }
             }

@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable annotations
-
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -91,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Identity
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             AuthenticationResult result = await Authenticate(string.Empty, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -101,7 +99,7 @@ namespace Opc.Ua.Server.Tests.Identity
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             AuthenticationResult result = await Authenticate("!@#.!@#.!@#", key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -115,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Identity
             AuthenticationResult result = await Authenticate(header + "." + payload + "." + signature, key)
                 .ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -129,7 +127,7 @@ namespace Opc.Ua.Server.Tests.Identity
             AuthenticationResult result = await Authenticate(header + "." + payload + "." + signature, key)
                 .ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -151,7 +149,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 key).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -164,7 +162,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -186,7 +184,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -208,7 +206,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -228,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -254,14 +252,14 @@ namespace Opc.Ua.Server.Tests.Identity
         public async Task DelegateConstructorReturningNullRejects()
         {
             var authenticator = new JwtAuthenticator(
-                (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null));
+                (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null!));
             AuthenticationResult result = await authenticator
                 .AuthenticateAsync(CreateContext(
                     new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1])))
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -276,14 +274,14 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
         public void ConstructorRejectsNullKeyResolver()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => new JwtAuthenticator(null, Audience));
+                () => new JwtAuthenticator(null!, Audience));
             Assert.That(ex.ParamName, Is.EqualTo("keyResolver"));
         }
 
@@ -320,13 +318,13 @@ namespace Opc.Ua.Server.Tests.Identity
 
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            RSA publicKey = null;
+            RSA? publicKey = null;
             try
             {
                 publicKey = RSA.Create();
                 publicKey.ImportParameters(rsa.ExportParameters(false));
                 var key = new IssuerVerificationKey(keyId, publicKey, "RS256");
-                publicKey = null;
+                publicKey = null!;
                 return key;
             }
             finally
@@ -369,7 +367,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public string IssuerUri { get; }
 
             public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
-                string keyId,
+                string? keyId,
                 CancellationToken ct = default)
             {
                 return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);
@@ -389,7 +387,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public string IssuerUri { get; }
 
             public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
-                string keyId,
+                string? keyId,
                 CancellationToken ct = default)
             {
                 throw m_exception;

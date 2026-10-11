@@ -503,7 +503,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
             Assert.That(nodeSet.Extensions, Is.Not.Null.And.Not.Empty);
             SysXmlElement residue = nodeSet.Extensions!
-                .FirstOrDefault(e => string.Equals(e.LocalName, "WoTJsonResidue", StringComparison.Ordinal));
+                .FirstOrDefault(e => string.Equals(e.LocalName, "WoTJsonResidue", StringComparison.Ordinal))!;
             Assert.That(residue, Is.Not.Null);
             string xml = residue!.OuterXml;
             Assert.That(xml, Does.Contain("MyProp"));
@@ -936,7 +936,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static SysXmlElement CreateResidueMember(
             string pointer,
             string json,
-            string sha256Override = null)
+            string? sha256Override = null)
         {
             var doc = new SysXmlDocument { XmlResolver = null };
             SysXmlElement member = doc.CreateElement("uav", "Member", s_ns);
@@ -952,8 +952,8 @@ namespace Opc.Ua.Types.Tests.Wot
             string rel,
             string href,
             string extrasJson,
-            string refId = null,
-            string refName = null)
+            string? refId = null,
+            string? refName = null)
         {
             var doc = new SysXmlDocument { XmlResolver = null };
             SysXmlElement member = doc.CreateElement("uav", "Member", s_ns);

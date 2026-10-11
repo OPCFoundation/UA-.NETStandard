@@ -129,7 +129,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void Helper_NullValue_PopulatesEmptyTokens()
         {
             string output = RenderWithBrowseName(
-                null,
+                null!,
                 out List<LogEntry> entries);
 
             Assert.That(output, Does.Contain("raw="));
@@ -151,7 +151,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
                 "weird\"name",
-                logger: null);
+                logger: null!);
             Assert.DoesNotThrow(() => template.Render());
         }
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             public System.IDisposable BeginScope<TState>(TState state) where TState : notnull
             {
-                return null;
+                return null!;
             }
 
             public bool IsEnabled(LogLevel logLevel)
@@ -266,11 +266,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 LogLevel logLevel,
                 EventId eventId,
                 TState state,
-                System.Exception exception,
+                System.Exception? exception,
                 System.Func<TState, System.Exception, string> formatter)
             {
                 m_entries.Add(new LogEntry(
-                    logLevel, eventId, formatter(state, exception)));
+                    logLevel, eventId, formatter(state, exception!)));
             }
 
             private readonly List<LogEntry> m_entries;

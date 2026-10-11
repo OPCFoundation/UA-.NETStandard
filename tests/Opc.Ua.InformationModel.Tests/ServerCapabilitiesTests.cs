@@ -87,7 +87,7 @@ namespace Opc.Ua.InformationModel.Tests
             var unitNames = new System.Collections.Generic.List<string>();
             foreach (QualifiedName unit in units)
             {
-                unitNames.Add(unit.Name);
+                unitNames.Add(unit.Name!);
             }
 
             // Base units are always advertised; the Historical Access units are
@@ -171,7 +171,7 @@ namespace Opc.Ua.InformationModel.Tests
             DataValue result = await ReadNodeValueAsync(
                 VariableIds.Server_NamespaceArray).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string[] namespaces = result.GetValue<string[]>(default);
+            string[] namespaces = result.GetValue<string[]>(default!);
             Assert.That(namespaces, Is.Not.Empty);
             Assert.That(namespaces[0], Is.EqualTo(Namespaces.OpcUa));
         }
@@ -182,7 +182,7 @@ namespace Opc.Ua.InformationModel.Tests
             DataValue result = await ReadNodeValueAsync(
                 VariableIds.Server_ServerArray).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string[] serverArray = result.GetValue<string[]>(default);
+            string[] serverArray = result.GetValue<string[]>(default!);
             Assert.That(serverArray, Is.Not.Empty);
         }
 

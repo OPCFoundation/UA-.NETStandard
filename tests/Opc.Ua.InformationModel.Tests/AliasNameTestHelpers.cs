@@ -111,7 +111,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True,
                 $"Browse of {nodeId} failed: {response.Results[0].StatusCode}");
 
-            return response.Results[0].References.ToArray();
+            return response.Results[0].References.ToArray()!;
         }
 
         /// <summary>
@@ -257,7 +257,7 @@ namespace Opc.Ua.InformationModel.Tests
                     continue;
                 }
 
-                if (ext.TryGetValue(out AliasNameDataType typed,
+                if (ext.TryGetValue(out AliasNameDataType? typed,
                     session.MessageContext) &&
                     typed != null)
                 {
@@ -360,7 +360,7 @@ namespace Opc.Ua.InformationModel.Tests
             {
                 ExtensionObject ext = aliasArray.Span[i];
                 if (!ext.IsNull &&
-                    ext.TryGetValue(out AliasNameVerboseDataType typed, session.MessageContext) &&
+                    ext.TryGetValue(out AliasNameVerboseDataType? typed, session.MessageContext) &&
                     typed != null)
                 {
                     records.Add(typed);

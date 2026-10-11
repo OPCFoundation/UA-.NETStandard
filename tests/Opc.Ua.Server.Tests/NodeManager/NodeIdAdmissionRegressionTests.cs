@@ -521,7 +521,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Task completed = await Task.WhenAny(first, Task.Delay(TimeSpan.FromSeconds(5)))
                             .ConfigureAwait(false);
                         Assert.That(completed, Is.SameAs(first));
-                        OperationCanceledException error = null;
+                        OperationCanceledException? error = null;
                         try
                         {
                             await first.ConfigureAwait(false);
@@ -566,7 +566,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         value => value.AddReferencesAsync(
                             parent.NodeId, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
                         Times.Never);
-                    manager.RegistrationFailure = null;
+                    manager.RegistrationFailure = null!;
                     item.RequestedNewNodeId = manager.ForcedId;
                     (ServiceResult retried, NodeId retriedId) =
                         await manager.AddNodeAsync(context, item).ConfigureAwait(false);
@@ -683,7 +683,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets a failure thrown after the controlled behavior-registration barrier.
             /// </summary>
-            public Exception RegistrationFailure { get; set; }
+            public Exception RegistrationFailure { get; set; } = null!;
 
             /// <summary>
             /// Gets the number of nodes whose registration has completed.

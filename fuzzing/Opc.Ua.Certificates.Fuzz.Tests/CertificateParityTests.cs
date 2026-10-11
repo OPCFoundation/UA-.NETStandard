@@ -168,12 +168,12 @@ namespace Opc.Ua.Fuzzing
                 Assert.That(crl.RevokedCertificates[1].RevocationDate, Is.EqualTo(s_fixtureTime.AddDays(-2)));
                 Assert.That(crl.RevokedCertificates[0].CrlEntryExtensions, Has.Count.EqualTo(2));
                 Assert.That(crl.RevokedCertificates[1].CrlEntryExtensions, Is.Empty);
-                Assert.That(crl.RevokedCertificates[0].CrlEntryExtensions[1].Oid.Value, Is.EqualTo("1.2.3.4"));
+                Assert.That(crl.RevokedCertificates[0].CrlEntryExtensions[1].Oid!.Value, Is.EqualTo("1.2.3.4"));
                 Assert.That(crl.RevokedCertificates[0].CrlEntryExtensions[1].Critical, Is.True);
                 Assert.That(
                     crl.RevokedCertificates[0].CrlEntryExtensions[1].RawData,
                     Is.EqualTo(new byte[] { 4, 1, 42 }));
-                Assert.That(crl.CrlExtensions[1].Oid.Value, Is.EqualTo("1.2.3.5"));
+                Assert.That(crl.CrlExtensions[1].Oid!.Value, Is.EqualTo("1.2.3.5"));
                 Assert.That(crl.CrlExtensions[1].Critical, Is.True);
                 Assert.That(crl.CrlExtensions[1].RawData, Is.EqualTo(new byte[] { 2, 1, 7 }));
             }
@@ -403,12 +403,12 @@ namespace Opc.Ua.Fuzzing
         [Test]
         public void AflCallbacksRejectNullStreams()
         {
-            Assert.That(() => FuzzableCode.AflfuzzCertificateDecoder(null), Throws.ArgumentNullException);
-            Assert.That(() => FuzzableCode.AflfuzzCertificateChainDecoder(null), Throws.ArgumentNullException);
-            Assert.That(() => FuzzableCode.AflfuzzCertificateChainDecoderCustom(null), Throws.ArgumentNullException);
-            Assert.That(() => FuzzableCode.AflfuzzX509CRL(null), Throws.ArgumentNullException);
-            Assert.That(() => FuzzableCode.AflfuzzCRLEncoder(null), Throws.ArgumentNullException);
-            Assert.That(() => FuzzableCode.AflfuzzCRLEncoderIndempotent(null), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzCertificateDecoder(null!), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzCertificateChainDecoder(null!), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzCertificateChainDecoderCustom(null!), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzX509CRL(null!), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzCRLEncoder(null!), Throws.ArgumentNullException);
+            Assert.That(() => FuzzableCode.AflfuzzCRLEncoderIndempotent(null!), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -498,14 +498,14 @@ namespace Opc.Ua.Fuzzing
 
         private static NullReferenceException CaptureNullReferenceFailure()
         {
-            byte[] input = null;
-            return Assert.Throws<NullReferenceException>(() => _ = input.Length);
+            byte[]? input = null;
+            return Assert.Throws<NullReferenceException>(() => _ = input!.Length)!;
         }
 
         private static IndexOutOfRangeException CaptureIndexFailure()
         {
             byte[] input = [];
-            return Assert.Throws<IndexOutOfRangeException>(() => _ = input[0]);
+            return Assert.Throws<IndexOutOfRangeException>(() => _ = input[0])!;
         }
 
         private static void AssertBalancedCertificates(Action action)

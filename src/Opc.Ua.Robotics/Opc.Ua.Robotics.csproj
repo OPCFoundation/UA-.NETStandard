@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Robotics</PackageId>
     <RootNamespace>Opc.Ua.Robotics</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Server/client-independent OPC 40010 Robotics contracts and source-generated Robotics model over the OPC 10000-200 Industrial Automation and OPC 10000-100 DI base models, including model identifiers, typed states and proxies, model loaders, and focused topology read-projection contracts.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var typeSystem = new ComplexTypeSystem(new MockResolver(), telemetry);
 
             ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => typeSystem.RegisterDataTypeDefinitions(null));
+                () => typeSystem.RegisterDataTypeDefinitions(null!));
             Assert.That(exception.ParamName, Is.EqualTo("registry"));
         }
 
@@ -191,9 +191,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var factory = new DefaultComplexTypeFactory();
             var typeSystem = new ComplexTypeSystem(mockResolver, factory, telemetry);
 
-            IType loaded = await typeSystem
+            IType loaded = (await typeSystem
                 .LoadTypeAsync(structureNode.NodeId, false, true)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             var expectedId = NodeId.ToExpandedNodeId(
                 structureNode.NodeId,
@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             Assert.Multiple(() =>
             {
-                Assert.That(loaded.XmlName, Is.EqualTo(expectedName));
+                Assert.That(loaded!.XmlName, Is.EqualTo(expectedName));
                 Assert.That(factory.GetTypes(), Has.Count.EqualTo(1));
                 Assert.That(factory.GetTypes()[0].XmlName, Is.EqualTo(expectedName));
                 Assert.That(typeSystem.GetDefinedTypes(), Has.Count.EqualTo(1));

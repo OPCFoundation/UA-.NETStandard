@@ -72,9 +72,9 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// Adds, updates, or removes a server registration.
         /// </summary>
-        Task<RegistrationEntry> RegisterAsync(
+        Task<RegistrationEntry?> RegisterAsync(
             RegisteredServer server,
-            MdnsDiscoveryConfiguration mdnsConfig,
+            MdnsDiscoveryConfiguration? mdnsConfig,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Lds.Server
         /// Adds or refreshes an mDNS-observed peer record.
         /// </summary>
         void UpsertMulticastRecord(
-            string serverUri,
+            string? serverUri,
             string serverName,
             string discoveryUrl,
             IEnumerable<string> capabilities);

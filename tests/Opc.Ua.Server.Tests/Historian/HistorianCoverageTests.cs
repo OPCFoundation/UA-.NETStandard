@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Historian
             builder.RegisterForNode(nodeId);
 
             IHistorianProvider resolved =
-                ((IHistorianRegistryProvider)server).HistorianRegistry.Resolve(nodeId);
+                ((IHistorianRegistryProvider)server).HistorianRegistry.Resolve(nodeId)!;
             Assert.That(resolved, Is.SameAs(provider));
         }
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             IHistorianProvider resolved =
                 ((IHistorianRegistryProvider)server).HistorianRegistry.Resolve(
-                    new NodeId("unknown", 7));
+                    new NodeId("unknown", 7))!;
             Assert.That(resolved, Is.SameAs(provider));
         }
 

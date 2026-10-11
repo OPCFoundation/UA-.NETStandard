@@ -728,7 +728,7 @@ namespace Opc.Ua.Server.Tests
             // the real thing rather than a synthetic stand-in. Not finding
             // one within this many is itself a failure - it would mean the
             // identifiers are not spread over the space they claim to be.
-            ServiceResultException collision = null;
+            ServiceResultException? collision = null;
 
             for (int ii = 0; ii < kCollisionSearchLimit && collision is null; ii++)
             {

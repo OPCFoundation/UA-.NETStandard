@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Directory.CreateDirectory(root);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(isServer: true);
             var client = new ClientFixture(telemetry);
-            Stream configurationStream = null;
+            Stream? configurationStream = null;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
@@ -157,10 +157,10 @@ namespace Opc.Ua.Server.Tests.Hosting
                     ITransportWaitingConnection discoveryConnection =
                         await client.ReverseConnectManager.WaitForConnectionAsync(
                             expectedEndpoint, null, cancellation.Token).ConfigureAwait(false);
-                    EndpointDescription description = await CoreClientUtils.SelectEndpointAsync(
-                        client.Config, discoveryConnection, false, 10000, telemetry).ConfigureAwait(false);
+                    EndpointDescription description = (await CoreClientUtils.SelectEndpointAsync(
+                        client.Config, discoveryConnection, false, 10000, telemetry).ConfigureAwait(false))!;
                     var endpoint = new ConfiguredEndpoint(
-                        null, description, EndpointConfiguration.Create(client.Config));
+                        null, description!, EndpointConfiguration.Create(client.Config));
                     ITransportWaitingConnection sessionConnection =
                         await client.ReverseConnectManager.WaitForConnectionAsync(
                             expectedEndpoint, null, cancellation.Token).ConfigureAwait(false);

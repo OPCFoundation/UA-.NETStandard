@@ -13,7 +13,7 @@ You are a code-style enforcement specialist for the OPC UA .NET Standard reposit
 - **Build command:** `dotnet build UA.slnx -c Debug --nologo -v:m`
 - **TFMs:** Projects multi-target `net48;net8.0;net9.0;net10.0` (`Opc.Ua.Types` additionally `netstandard2.0` for the source generators). Fixes must compile on ALL TFMs.
 - **Config files:**
-  - `common.props` — `TreatWarningsAsErrors=true`, `CodeAnalysisTreatWarningsAsErrors=false`, `AnalysisMode=all`, `AnalysisLevel=preview`.
+  - `common.props` — `TreatWarningsAsErrors=true`, `CodeAnalysisTreatWarningsAsErrors=true`, `AnalysisMode=all`, `AnalysisLevel=preview`. Any CA rule reported at `warning` severity therefore fails the build, just like compiler warnings.
   - `.editorconfig` — Roslyn style rules + Roslynator analyzers. Several CA/RCS rules are promoted to `severity = error` (CA1014, CA1305, CA1307, CA2007, CA2016, CA2213, CA2000, RCS1166, NUnit4002, NUnit2046).
   - `Directory.Build.props` → imports `common.props` + `targets.props` + `version.props`.
 - **Analyzers:** Roslynator.Analyzers, Roslynator.Formatting.Analyzers, NUnit.Analyzers, plus built-in .NET analyzers.
@@ -309,7 +309,7 @@ dotnet_diagnostic.CAXXXX.severity = error
 Before promoting:
 1. Verify the rule has genuinely 0 hits: `dotnet build UA.slnx 2>&1 | Select-String "CAXXXX"`.
 2. Prefer rules that catch real bugs (CA2213, CA2016, RCS1166, CA1307) over stylistic ones (CA1861).
-3. Do NOT flip `CodeAnalysisTreatWarningsAsErrors=true` globally — too many rules are intentionally at lower severity.
+3. Keep `CodeAnalysisTreatWarningsAsErrors=true` in `common.props` — do NOT turn it off or downgrade rules to silence new hits. Rules that are intentionally not enforced stay at `suggestion`/`silent`/`none` in `.editorconfig`; raising one to `warning` makes it build-breaking, so clean up all hits first.
 
 ### New project checklist
 

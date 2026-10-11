@@ -87,14 +87,14 @@ namespace Opc.Ua.Server.Tests
                 new ExpandedNodeId(typeId),
                 UaSchemaFormat.JsonCompact,
                 UaSchemaScope.Type,
-                out IUaSchema schema);
+                out IUaSchema? schema);
 
             Assert.Multiple(() =>
             {
                 Assert.That(registered, Is.EqualTo(1));
-                Assert.That(registry.TryResolve(typeId, out UaTypeDescription description), Is.True);
+                Assert.That(registry.TryResolve(typeId, out UaTypeDescription? description), Is.True);
                 Assert.That(description, Is.Not.Null);
-                Assert.That(description.NamespaceUri, Is.EqualTo(namespaceUri));
+                Assert.That(description!.NamespaceUri, Is.EqualTo(namespaceUri));
                 Assert.That(resolved, Is.True);
                 Assert.That(schema, Is.Not.Null);
             });

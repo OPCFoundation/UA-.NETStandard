@@ -158,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             ReferenceNode node = CreateNode();
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(node, Is.Not.EqualTo((ReferenceNode)null));
+            Assert.That(node, Is.Not.EqualTo((ReferenceNode)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
         }
 
@@ -221,10 +221,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EqualityOperatorReturnsTrueForBothNull()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(a, Is.EqualTo((object)null));
+            Assert.That(a, Is.EqualTo((object)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -232,7 +232,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EqualityOperatorReturnsFalseForNullAndNonNull()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             object b = CreateNode();
             Assert.That(a, Is.Not.EqualTo(b));
         }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void InequalityOperatorReturnsTrueForNullAndNonNull()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             object b = CreateNode();
             Assert.That(a, Is.Not.EqualTo(b));
         }
@@ -248,10 +248,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void InequalityOperatorReturnsFalseForBothNull()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(a, Is.EqualTo((object)null));
+            Assert.That(a, Is.EqualTo((object)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void CompareToObjectWithNullReturnsPositive()
         {
             ReferenceNode node = CreateNode();
-            Assert.That(node.CompareTo((object)null), Is.GreaterThan(0));
+            Assert.That(node.CompareTo((object)null!), Is.GreaterThan(0));
         }
 
         [Test]
@@ -372,20 +372,20 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void LessThanOperatorReturnsTrueForNullLeftNonNullRight()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             ReferenceNode b = CreateNode();
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a < b, Is.True);
+            Assert.That(a! < b, Is.True);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void LessThanOperatorReturnsFalseForBothNull()
         {
-            ReferenceNode a = null;
-            ReferenceNode b = null;
+            ReferenceNode? a = null;
+            ReferenceNode? b = null;
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a < b, Is.False);
+            Assert.That(a! < b!, Is.False);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
@@ -402,10 +402,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void LessThanOrEqualOperatorReturnsTrueForNullLeft()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             ReferenceNode b = CreateNode();
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a <= b, Is.True);
+            Assert.That(a! <= b, Is.True);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
@@ -420,10 +420,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void GreaterThanOperatorReturnsFalseForNullLeft()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             ReferenceNode b = CreateNode();
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a > b, Is.False);
+            Assert.That(a! > b, Is.False);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
@@ -440,20 +440,20 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void GreaterThanOrEqualOperatorReturnsTrueForBothNull()
         {
-            ReferenceNode a = null;
-            ReferenceNode b = null;
+            ReferenceNode? a = null;
+            ReferenceNode? b = null;
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a >= b, Is.True);
+            Assert.That(a! >= b!, Is.True);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 
         [Test]
         public void GreaterThanOrEqualOperatorReturnsFalseForNullLeftNonNullRight()
         {
-            ReferenceNode a = null;
+            ReferenceNode? a = null;
             ReferenceNode b = CreateNode();
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-            Assert.That(a >= b, Is.False);
+            Assert.That(a! >= b, Is.False);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
 

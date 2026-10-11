@@ -228,7 +228,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
 
             var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription rd in response.Results[0].References)
                 {

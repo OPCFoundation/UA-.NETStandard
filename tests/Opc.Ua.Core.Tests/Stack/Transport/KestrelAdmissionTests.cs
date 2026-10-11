@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 #if HAS_KESTREL_TCP_LISTENER
 using System;
 using System.Collections.Concurrent;

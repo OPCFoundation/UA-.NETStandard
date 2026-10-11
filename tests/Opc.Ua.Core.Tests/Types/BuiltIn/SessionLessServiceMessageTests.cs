@@ -49,11 +49,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             var jObject = JsonNode.Parse(result);
             Assert.That(jObject, Is.Not.Null);
-            uint version = (uint)jObject["UriVersion"];
+            uint version = (uint)jObject["UriVersion"]!;
             Assert.That(version, Is.EqualTo(uriVersion));
-            JsonNode serverUrisToken = jObject["ServerUris"];
+            JsonNode serverUrisToken = jObject["ServerUris"]!;
             Assert.That(serverUrisToken, Is.Not.Null);
-            string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString());
+            string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString())!;
             Assert.That(serverUrisEncoded, Is.Not.Null);
             Assert.That(serverUrisEncoded, Has.Length.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
@@ -93,14 +93,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 result = jsonEncoder.CloseAndReturnText();
             }
 
-            JsonNode jObject = JsonNode.Parse(result);
+            JsonNode jObject = JsonNode.Parse(result)!;
             Assert.That(jObject, Is.Not.Null);
 
-            JsonNode localeIdsToken = jObject["LocaleIds"];
+            JsonNode localeIdsToken = jObject["LocaleIds"]!;
             Assert.That(localeIdsToken, Is.Not.Null);
 
             string[] localeIdsEncoded = JsonSerializer.Deserialize<string[]>(
-                localeIdsToken.ToJsonString());
+                localeIdsToken.ToJsonString())!;
             Assert.That(localeIdsEncoded, Is.EqualTo(locales));
         }
     }

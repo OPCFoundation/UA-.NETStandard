@@ -72,7 +72,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             using var reader = new StringReader("Sample text content");
             var resource = new TextReaderResource("TestResource", reader);
             // Act
-            long length = resource.GetLength(null);
+            long length = resource.GetLength(null!);
             // Assert
             Assert.That(length, Is.Zero);
         }

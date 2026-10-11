@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
             template.Render();
         }
 
-        private TemplateString LoadTemplate_Imports(ILoadContext context)
+        private TemplateString? LoadTemplate_Imports(ILoadContext context)
         {
             if (context.Target is not Namespace ns)
             {
@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_DataType(ILoadContext context)
+        private TemplateString? LoadTemplate_DataType(ILoadContext context)
         {
             if (context.Target is IModelDesign design)
             {
@@ -222,7 +222,7 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (basicType == BasicDataType.UserDefined)
             {
-                if (dataType.BaseTypeNode.SymbolicName.Name == "Union")
+                if (dataType.BaseTypeNode!.SymbolicName.Name == "Union")
                 {
                     return XmlSchemaTemplates.Union;
                 }
@@ -397,7 +397,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kEncodingMaskElement =
             "<xs:element name=\"EncodingMask\" type=\"xs:unsignedLong\" />";
 
-        private TemplateString LoadTemplate_XmlTypeFields(ILoadContext context)
+        private TemplateString? LoadTemplate_XmlTypeFields(ILoadContext context)
         {
             if (context.Target is string element)
             {
@@ -444,7 +444,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            basicType = field.DataTypeNode.BasicDataType;
+            basicType = field.DataTypeNode!.BasicDataType;
 
             if (basicType == BasicDataType.XmlElement &&
                 field.ValueRank == ValueRank.Scalar)
@@ -559,7 +559,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_XmlDocumentation(ILoadContext context)
+        private TemplateString? LoadTemplate_XmlDocumentation(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {
@@ -588,7 +588,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_XmlCollectionType(ILoadContext context)
+        private TemplateString? LoadTemplate_XmlCollectionType(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {

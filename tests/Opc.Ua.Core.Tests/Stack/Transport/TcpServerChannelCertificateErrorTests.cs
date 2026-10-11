@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 TcpServerChannel.TryGetReportableCertificateError(
                     new ServiceResultException(statusCode),
-                    out ServiceResultException reportable),
+                    out ServiceResultException? reportable),
                 Is.False);
             Assert.That(reportable, Is.Null);
 
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var error = new ServiceResultException(statusCode);
 
             Assert.That(
-                TcpServerChannel.TryGetReportableCertificateError(error, out ServiceResultException reportable),
+                TcpServerChannel.TryGetReportableCertificateError(error, out ServiceResultException? reportable),
                 Is.True);
             Assert.That(reportable, Is.SameAs(error));
 
@@ -122,9 +122,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         new ServiceResult(StatusCodes.BadCertificateUseNotAllowed))));
 
             Assert.That(
-                TcpServerChannel.TryGetReportableCertificateError(error, out ServiceResultException reportable),
+                TcpServerChannel.TryGetReportableCertificateError(error, out ServiceResultException? reportable),
                 Is.True);
-            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+            Assert.That(reportable!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
         }
 
         [TestCaseSource(nameof(s_maskedCodes))]

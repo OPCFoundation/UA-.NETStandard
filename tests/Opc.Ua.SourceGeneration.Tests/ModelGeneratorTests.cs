@@ -1683,7 +1683,7 @@ namespace Opc.Ua.SourceGeneration
             RunMixedModelGenerator(
                 LanguageVersion languageVersion,
                 string bindingSource,
-                MetadataReference additionalReference = null)
+                MetadataReference? additionalReference = null)
         {
             var generator = new ModelSourceGenerator();
 
@@ -1765,7 +1765,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static string BuildDemoModelWotEnvelopeJson(
             string nodeSetXml,
-            string title = null,
+            string? title = null,
             bool includeEnvelope = false)
         {
             using var nodeSetStream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
@@ -1917,7 +1917,7 @@ namespace Opc.Ua.SourceGeneration
             PropertyDeclarationSyntax propertyNode = properrtyNodes[0];
             LiteralExpressionSyntax stringLiteral = propertyNode.DescendantNodes()
                 .OfType<LiteralExpressionSyntax>()
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(stringLiteral, Is.Not.Null);
             // Verify that the getter contains the expected schema string
             var stringTokens = stringLiteral.ChildTokens().ToList();

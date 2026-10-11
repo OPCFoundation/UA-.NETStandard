@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         private AliasNameNodeManager CreateManager(
-            AliasNameNodeManagerOptions options = null)
+            AliasNameNodeManagerOptions? options = null)
         {
             return new AliasNameNodeManager(
                 m_mockServer.Object,
@@ -135,9 +135,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(category.LastChange, Is.Not.Null);
 
             Assert.That(externalReferences.TryGetValue(
-                ObjectIds.Aliases, out IList<IReference> refs), Is.True);
+                ObjectIds.Aliases, out IList<IReference>? refs), Is.True);
             bool hasOrganizes = false;
-            foreach (IReference r in refs)
+            foreach (IReference r in refs!)
             {
                 if (r.ReferenceTypeId.Equals(ReferenceTypeIds.Organizes) &&
                     r.TargetId.Equals(category.NodeId))

@@ -190,7 +190,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore(
@@ -261,14 +261,14 @@ namespace Opc.Ua.Sessions.Tests
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture
-                .CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false)
+                .CreateChannelAsync(sessionConfiguration!.ConfiguredEndpoint!, false)
                 .ConfigureAwait(false);
             Assert.That(channel2, Is.Not.Null);
 
             // prepare the inactive session with the new channel
             ISession session2 = ClientFixture.CreateSession(
                 channel2,
-                sessionConfiguration.ConfiguredEndpoint);
+                sessionConfiguration.ConfiguredEndpoint!);
 
             int session2ConfigChanged = 0;
             session2.SessionConfigurationChanged += (sender, e) => session2ConfigChanged++;
@@ -377,7 +377,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
 
                 // cannot read using a closed channel, validate the status code
-                if (endpoint.EndpointUrl.ToString()
+                if (endpoint.EndpointUrl!.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
                     // CA2025: Assert.ThrowsAsync awaits the lambda synchronously;

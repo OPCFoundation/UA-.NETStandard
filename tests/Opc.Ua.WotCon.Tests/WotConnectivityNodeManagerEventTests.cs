@@ -87,8 +87,10 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Without the GeneratesEvent reference and the notifier bit a client
-        /// cannot discover or subscribe to the event, so both are asserted.
+        /// The notifier bit is what lets a client subscribe to the asset. The
+        /// asset is an Object instance, so it must not be the source of a
+        /// GeneratesEvent reference (OPC 10000-3 §7.15 allows only
+        /// ObjectTypes, VariableTypes and Methods there).
         /// </summary>
         [Test]
         public async Task RebuildMakesTheAssetNotifyItsEventsAsync()
@@ -103,8 +105,12 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(
                 entry.Asset.ReferenceExists(Ua.ReferenceTypeIds.GeneratesEvent, false, eventTypeId),
-                Is.True,
-                "The asset must declare it generates the materialized event type.");
+                Is.False,
+                "An Object instance must not be the source of GeneratesEvent (OPC 10000-3 §7.15).");
+            Assert.That(
+                harness.Manager.FindPredefinedNode<NodeState>(eventTypeId),
+                Is.Not.Null,
+                "The materialized event type must be in the address space.");
             Assert.That(
                 entry.Asset.EventNotifier & EventNotifiers.SubscribeToEvents,
                 Is.EqualTo(EventNotifiers.SubscribeToEvents),
@@ -321,9 +327,9 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(entry.Events, Is.Empty);
             Assert.That(
-                entry.Asset.ReferenceExists(Ua.ReferenceTypeIds.GeneratesEvent, false, eventTypeId),
-                Is.False,
-                "A stale GeneratesEvent reference would advertise a type that no longer exists.");
+                harness.Manager.FindPredefinedNode<NodeState>(eventTypeId),
+                Is.Null,
+                "A stale EventType node would advertise a type the asset no longer raises.");
         }
 
         /// <summary>

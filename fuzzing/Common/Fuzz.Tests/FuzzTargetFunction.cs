@@ -44,7 +44,7 @@ namespace Opc.Ua.Fuzzing
 
         public MethodInfo MethodInfo { get; }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             string name = MethodInfo.Name;
             return $"{name}";

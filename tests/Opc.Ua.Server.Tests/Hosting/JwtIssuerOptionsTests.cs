@@ -104,8 +104,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 Kid = "kid-rsa",
                 Algorithm = "RS384",
-                RsaModulus = Base64UrlEncode(parameters.Modulus),
-                RsaExponent = Base64UrlEncode(parameters.Exponent)
+                RsaModulus = Base64UrlEncode(parameters.Modulus!),
+                RsaExponent = Base64UrlEncode(parameters.Exponent!)
             };
 
             using IssuerVerificationKey key = options.CreateVerificationKey();
@@ -185,8 +185,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                     {
                         Kid = "kid-rsa",
                         Algorithm = "RS256",
-                        RsaModulus = Base64UrlEncode(parameters.Modulus),
-                        RsaExponent = Base64UrlEncode(parameters.Exponent)
+                        RsaModulus = Base64UrlEncode(parameters.Modulus!),
+                        RsaExponent = Base64UrlEncode(parameters.Exponent!)
                     });
                 })
                 .AddDefaultIdentityAuthenticators(options =>
@@ -296,8 +296,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static byte[] EncodeRsaPublicKey(RSAParameters parameters)
         {
             return EncodeSequence(
-                EncodeInteger(parameters.Modulus),
-                EncodeInteger(parameters.Exponent));
+                EncodeInteger(parameters.Modulus!),
+                EncodeInteger(parameters.Exponent!));
         }
 
         private static byte[] EncodeInteger(byte[] value)

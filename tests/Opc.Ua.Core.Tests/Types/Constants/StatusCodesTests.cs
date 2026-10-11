@@ -60,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
 
             foreach (StatusCode id in statusCodeIds)
             {
-                string browseName = id.SymbolicId;
+                string browseName = id.SymbolicId!;
                 Assert.That(browseName, Is.Not.Null);
                 Assert.That(browseName, Is.Not.Empty);
             }
@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void StatusCode_SymbolicId_GoodStatusCode_ReturnsGood()
         {
-            string browseName = StatusCodes.Good.SymbolicId;
+            string browseName = StatusCodes.Good.SymbolicId!;
             Assert.That(browseName, Is.EqualTo("Good"));
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void StatusCode_SymbolicId_BadStatusCode_ReturnsBad()
         {
-            string browseName = StatusCodes.Bad.SymbolicId;
+            string browseName = StatusCodes.Bad.SymbolicId!;
             Assert.That(browseName, Is.EqualTo("Bad"));
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void StatusCode_SymbolicId_InvalidStatusCodeId_ReturnsEmptyString()
         {
-            string browseName = new StatusCode(0x12345678).SymbolicId;
+            string? browseName = new StatusCode(0x12345678).SymbolicId;
             Assert.That(browseName, Is.Null);
         }
     }

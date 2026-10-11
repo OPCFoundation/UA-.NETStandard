@@ -147,9 +147,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteEncodeableMatrix("Matrix", input);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
-            using var decoder = new XmlParser(xml, ctx);
+            using var decoder = new XmlParser(xml!, ctx);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
             MatrixOf<MatrixSample> output =
                 decoder.ReadEncodeableMatrix<MatrixSample>("Matrix");
@@ -175,9 +175,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteEncodeableMatrix("Matrix", input);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml!));
             using var reader = XmlReader.Create(
                 stream,
                 CoreUtils.DefaultXmlReaderSettings());
@@ -252,7 +252,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is MatrixSample other && other.Value == Value;
             }

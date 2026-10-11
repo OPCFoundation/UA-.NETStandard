@@ -60,7 +60,7 @@ namespace InlineMethodModel
         /// <summary>
         /// The manager created for the running server.
         /// </summary>
-        public InlineMethodNodeManager Manager { get; private set; }
+        public InlineMethodNodeManager Manager { get; private set; } = null!;
 
         /// <inheritdoc/>
         public override ValueTask<IAsyncNodeManager> CreateAsync(

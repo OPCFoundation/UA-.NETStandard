@@ -399,8 +399,8 @@ namespace Opc.Ua.Types.Tests.Wot
             string encoding = "base64",
             bool omitData = false,
             bool omitSha256 = false,
-            string sha256Override = null,
-            string dataOverride = null)
+            string? sha256Override = null,
+            string? dataOverride = null)
         {
             var nodeSet = new Opc.Ua.Export.UANodeSet
             {

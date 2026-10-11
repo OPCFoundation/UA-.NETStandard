@@ -112,7 +112,7 @@ namespace Opc.Ua.Features.Tests
             {
                 await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
-                m_session = null;
+                m_session = null!;
             }
             if (m_serverFixture != null)
             {
@@ -181,7 +181,7 @@ namespace Opc.Ua.Features.Tests
                 await resolver.ResolveAsync("Pump1_Status").ConfigureAwait(false);
             Assert.That(targets, Is.Not.Empty);
 
-            string reverse = await resolver.ResolveAliasNameAsync(targets[0]).ConfigureAwait(false);
+            string reverse = (await resolver.ResolveAliasNameAsync(targets[0]).ConfigureAwait(false))!;
             Assert.That(reverse, Is.EqualTo("Pump1_Status"));
         }
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.Features.Tests
                 Assert.That(info, Is.Not.Null);
                 Assert.That(info.BrowseName.IsNull, Is.False);
                 Assert.That(info.NodeId.IsNull, Is.False);
-                names.Add(info.BrowseName.Name);
+                names.Add(info.BrowseName.Name!);
                 nodeIds.Add(info.NodeId);
             }
 
@@ -243,7 +243,7 @@ namespace Opc.Ua.Features.Tests
                 client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
             {
                 Assert.That(info.NodeId.IsNull, Is.False);
-                names.Add(info.BrowseName.Name);
+                names.Add(info.BrowseName.Name!);
             }
 
             Assert.That(names, Does.Contain("Devices"),

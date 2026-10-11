@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteEncodeable("V", value, value.TypeId);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Contain(">5</A>"), xml);
@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void XmlNullScalarFieldIsWrittenLikeATypedField()
         {
             ServiceMessageContext context = CreateContext();
-            var value = new XmlFieldStructure { A = 5, S = null, Arr = [1, 2] };
+            var value = new XmlFieldStructure { A = 5, S = null!, Arr = [1, 2] };
 
             string xml;
             using (var encoder = new XmlEncoder(context))
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 encoder.PushNamespace(Namespaces.OpcUaXsd);
                 encoder.WriteEncodeable("V", value, value.TypeId);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Not.Contain("nil"), xml);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             using var encoder = new BinaryEncoder(context);
             value.Encode(encoder);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static ServiceMessageContext CreateContext()
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             [DataMember(Order = 2)]
             [StructureField(BuiltInType = (int)BuiltInType.DiagnosticInfo)]
-            public DiagnosticInfo Diagnostics { get; set; }
+            public DiagnosticInfo Diagnostics { get; set; } = null!;
 
             [DataMember(Order = 3)]
             [StructureField(BuiltInType = (int)BuiltInType.Int32)]
@@ -254,11 +254,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             [DataMember(Order = 2)]
             [StructureField(BuiltInType = (int)BuiltInType.String)]
-            public string S { get; set; }
+            public string S { get; set; } = null!;
 
             [DataMember(Order = 3)]
             [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = ValueRanks.OneDimension)]
-            public int[] Arr { get; set; }
+            public int[] Arr { get; set; } = null!;
         }
 
         /// <summary>
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             [DataMember(Order = 2)]
             [StructureField(BuiltInType = (int)BuiltInType.String)]
-            public string B { get; set; }
+            public string B { get; set; } = null!;
         }
 
         /// <summary>

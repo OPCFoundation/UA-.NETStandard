@@ -128,9 +128,9 @@ namespace Opc.Ua.Fuzzing
                     new Uuid("aabbccdd-1122-3344-5566-778899aabbcc"),
                     1);
                 Assert.That(
-                    context.MetaDataRegistry.TryGet(key, out DataSetMetaDataType metadata),
+                    context.MetaDataRegistry.TryGet(key, out DataSetMetaDataType? metadata),
                     Is.EqualTo(MetaDataMatchResult.Match));
-                Assert.That(metadata.Name, Is.EqualTo("RetainedFuzzDataSet"));
+                Assert.That(metadata!.Name, Is.EqualTo("RetainedFuzzDataSet"));
                 Assert.That(metadata.DataSetClassId, Is.EqualTo(key.DataSetClassId));
                 Assert.That(metadata.ConfigurationVersion.MajorVersion, Is.EqualTo(1));
                 Assert.That(metadata.ConfigurationVersion.MinorVersion, Is.EqualTo(2));

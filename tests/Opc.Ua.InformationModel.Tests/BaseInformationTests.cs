@@ -79,7 +79,7 @@ namespace Opc.Ua.InformationModel.Tests
             DataValue result = await ReadNodeValueAsync(
                 VariableIds.Server_NamespaceArray).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string[] namespaces = result.GetValue<string[]>(default);
+            string[] namespaces = result.GetValue<string[]>(default!);
             Assert.That(namespaces, Is.Not.Null);
             Assert.That(namespaces, Is.Not.Empty);
             Assert.That(namespaces[0], Is.EqualTo(Namespaces.OpcUa));
@@ -91,7 +91,7 @@ namespace Opc.Ua.InformationModel.Tests
             DataValue result = await ReadNodeValueAsync(
                 VariableIds.Server_ServerArray).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string[] serverArray = result.GetValue<string[]>(default);
+            string[] serverArray = result.GetValue<string[]>(default!);
             Assert.That(serverArray, Is.Not.Null);
             Assert.That(serverArray, Is.Not.Empty);
             Assert.That(serverArray[0], Is.Not.Empty);
@@ -209,7 +209,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             var methodNames = new System.Collections.Generic.HashSet<string>(
                 StringComparer.Ordinal);
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription r in response.Results[0].References)
                 {

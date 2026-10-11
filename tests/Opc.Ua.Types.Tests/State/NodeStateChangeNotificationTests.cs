@@ -160,8 +160,8 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState v = CreateVariable();
             var target = new BaseObjectState(null);
 
-            IFilterTarget syncTarget = null;
-            IFilterTarget asyncTarget = null;
+            IFilterTarget? syncTarget = null;
+            IFilterTarget? asyncTarget = null;
 
             v.OnReportEvent = (c, n, e) => syncTarget = e;
             v.OnReportEventAsync = (c, n, e, ct) =>
@@ -183,7 +183,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState v = CreateVariable();
             var target = new BaseObjectState(null);
 
-            IFilterTarget asyncTarget = null;
+            IFilterTarget? asyncTarget = null;
             v.OnReportEventAsync = (c, n, e, ct) =>
             {
                 asyncTarget = e;
@@ -243,7 +243,7 @@ namespace Opc.Ua.Types.Tests.State
             await RunLegacyCallerAsync(() =>
             {
                 int callerThread = Environment.CurrentManagedThreadId;
-                SynchronizationContext callerContext = SynchronizationContext.Current;
+                SynchronizationContext callerContext = SynchronizationContext.Current!;
                 node.OnReportEvent = (c, n, e) =>
                 {
                     Assert.That(c, Is.SameAs(context));
@@ -273,7 +273,7 @@ namespace Opc.Ua.Types.Tests.State
             await RunLegacyCallerAsync(() =>
             {
                 int callerThread = Environment.CurrentManagedThreadId;
-                SynchronizationContext callerContext = SynchronizationContext.Current;
+                SynchronizationContext callerContext = SynchronizationContext.Current!;
                 node.OnReportEvent = (c, n, e) =>
                 {
                     Assert.That(c, Is.SameAs(context));
@@ -361,12 +361,12 @@ namespace Opc.Ua.Types.Tests.State
             var calls = new List<string>();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Exception expectedException = outcome switch
+            Exception expectedException = (outcome switch
             {
                 "Fault" => new InvalidOperationException("Suspended sink failed."),
                 "Cancel" => new OperationCanceledException(new CancellationToken(canceled: true)),
                 _ => null
-            };
+            })!;
             int callerThread = 0;
             node.OnReportEvent = (c, n, e) => calls.Add("sync");
             inverse.OnReportEvent = (c, n, e) =>
@@ -593,8 +593,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             return Task.Factory.StartNew(() =>
             {
-                SynchronizationContext originalContext = SynchronizationContext.Current;
-                SynchronizationContext callerContext = hasCallerContext ? new SynchronizationContext() : null;
+                SynchronizationContext originalContext = SynchronizationContext.Current!;
+                SynchronizationContext callerContext = (hasCallerContext ? new SynchronizationContext() : null)!;
                 try
                 {
                     SynchronizationContext.SetSynchronizationContext(callerContext);

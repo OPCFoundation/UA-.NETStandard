@@ -31,8 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -114,7 +112,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(entry.HasActivatedUserIdentity, Is.True);
             Assert.That(
                 entry.OriginalClientChannelCertificate,
-                Is.EqualTo(context.ClientChannelCertificate.ToByteString()));
+                Is.EqualTo(context.ClientChannelCertificate));
 
             // Encrypted at rest: a protector with a different key fails closed.
             using var wrongKey = new AesCbcHmacRecordProtector(MakeKey(2));

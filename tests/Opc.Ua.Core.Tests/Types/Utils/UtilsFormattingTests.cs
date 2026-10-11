@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void FormatNullTextThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => Utils.Format(null));
+            Assert.Throws<ArgumentNullException>(() => Utils.Format(null!));
         }
 
         [Test]
@@ -179,14 +179,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsEqualObjectBothNullReturnsTrue()
         {
-            Assert.That(Utils.IsEqual((object)null, (object)null), Is.True);
+            Assert.That(Utils.IsEqual((object)null!, (object)null!), Is.True);
         }
 
         [Test]
         public void IsEqualObjectOneNullReturnsFalse()
         {
-            Assert.That(Utils.IsEqual((object)"a", (object)null), Is.False);
-            Assert.That(Utils.IsEqual((object)null, (object)"a"), Is.False);
+            Assert.That(Utils.IsEqual((object)"a", (object)null!), Is.False);
+            Assert.That(Utils.IsEqual((object)null!, (object)"a"), Is.False);
         }
 
         [Test]
@@ -224,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.That(
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-                Utils.IsEqual((IEnumerable<int>)null, (IEnumerable<int>)null),
+                Utils.IsEqual((IEnumerable<int>)null!, (IEnumerable<int>)null!),
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.True);
         }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.That(
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-                Utils.IsEqual([1], (IEnumerable<int>)null),
+                Utils.IsEqual([1], (IEnumerable<int>)null!),
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.False);
         }

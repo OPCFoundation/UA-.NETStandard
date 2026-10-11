@@ -180,7 +180,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using RSA privateKey = cert.GetRSAPrivateKey();
+            using RSA privateKey = cert.GetRSAPrivateKey()!;
 
             Assert.That(privateKey, Is.Not.Null);
         }
@@ -193,7 +193,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using RSA publicKey = cert.GetRSAPublicKey();
+            using RSA publicKey = cert.GetRSAPublicKey()!;
 
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.KeySize, Is.EqualTo(2048));
@@ -208,7 +208,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForRSA();
 
             using var cert = Certificate.FromRawData(built.RawData);
-            using RSA privateKey = cert.GetRSAPrivateKey();
+            using RSA? privateKey = cert.GetRSAPrivateKey();
 
             Assert.That(privateKey, Is.Null);
         }
@@ -272,8 +272,8 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(publicOnly.HasPrivateKey, Is.False);
 
-            using RSA rsa = built.GetRSAPrivateKey();
-            using Certificate withKey = publicOnly.CopyWithPrivateKey(rsa);
+            using RSA rsa = built.GetRSAPrivateKey()!;
+            using Certificate withKey = publicOnly.CopyWithPrivateKey(rsa!);
 
             Assert.That(withKey.HasPrivateKey, Is.True);
             Assert.That(withKey.Thumbprint, Is.EqualTo(publicOnly.Thumbprint));
@@ -321,8 +321,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             // to exercise BOTH Equals(Certificate) and Equals(object) overloads. Is.Not.Null
             // would only test reference-nullness and lose the overload coverage.
 #pragma warning disable NUnit4002
-            Assert.That(cert, Is.Not.EqualTo((Certificate)null));
-            Assert.That(cert, Is.Not.EqualTo((object)null));
+            Assert.That(cert, Is.Not.EqualTo((Certificate)null!));
+            Assert.That(cert, Is.Not.EqualTo((object)null!));
 #pragma warning restore NUnit4002
         }
 
@@ -490,7 +490,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void FromThrowsOnNull()
         {
             Assert.Throws<ArgumentNullException>(
-                () => CertificateCollection.From(null));
+                () => CertificateCollection.From(null!));
         }
 
         [Test]
@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void LeakTrackingMatchesExplicitEnvironmentSetting()
         {
             string setting = Environment.GetEnvironmentVariable(
-                "OPCUA_CERTIFICATE_LEAK_TRACKING");
+                "OPCUA_CERTIFICATE_LEAK_TRACKING")!;
             if (setting is not ("0" or "1"))
             {
                 Assert.Ignore("No explicit certificate leak tracking setting was provided.");
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void LeakTrackingReportsLiveCertificateOnlyWhenEnabled()
         {
             const string fixtureName = "Opc.Ua.Tests.LiveTrackingFixture";
-            string previousScope = Certificate.LeakTrackingScope;
+            string previousScope = Certificate.LeakTrackingScope!;
             Certificate.LeakTrackingScope = fixtureName;
             try
             {

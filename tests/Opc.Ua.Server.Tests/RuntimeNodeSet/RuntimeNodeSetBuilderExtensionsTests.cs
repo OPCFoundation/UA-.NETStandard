@@ -100,10 +100,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public void AddRuntimeNodeSetFilePathRejectsNullBuilder()
         {
-            IOpcUaServerBuilder builder = null;
+            IOpcUaServerBuilder? builder = null;
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet(m_testNodeSetFile),
+                () => builder!.AddRuntimeNodeSet(m_testNodeSetFile),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
         }
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             IOpcUaServerBuilder builder = CreateServerBuilder();
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet((string)null),
+                () => builder.AddRuntimeNodeSet((string)null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("filePath"));
         }
 
@@ -169,14 +169,14 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public void AddRuntimeNodeSetOptionsRejectsNullBuilder()
         {
-            IOpcUaServerBuilder builder = null;
+            IOpcUaServerBuilder? builder = null;
             var options = new RuntimeNodeSetOptions
             {
                 Sources = [MakeStreamSource()]
             };
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet(options),
+                () => builder!.AddRuntimeNodeSet(options),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
         }
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             IOpcUaServerBuilder builder = CreateServerBuilder();
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet((RuntimeNodeSetOptions)null),
+                () => builder.AddRuntimeNodeSet((RuntimeNodeSetOptions)null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("options"));
         }
 
@@ -220,10 +220,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public void AddRuntimeNodeSetActionRejectsNullBuilder()
         {
-            IOpcUaServerBuilder builder = null;
+            IOpcUaServerBuilder? builder = null;
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet(_ => { }),
+                () => builder!.AddRuntimeNodeSet(_ => { }),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("builder"));
         }
 
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             IOpcUaServerBuilder builder = CreateServerBuilder();
 
             Assert.That(
-                () => builder.AddRuntimeNodeSet((Action<RuntimeNodeSetOptions>)null),
+                () => builder.AddRuntimeNodeSet((Action<RuntimeNodeSetOptions>)null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configure"));
         }
 

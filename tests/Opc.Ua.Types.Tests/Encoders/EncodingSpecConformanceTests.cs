@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             string xml = EncodeXml(e => e.WriteInlineMatrixValue("M", value));
 
             System.Xml.XmlElement field = FindField(xml, "M");
-            Assert.That(field.FirstChild.LocalName, Is.EqualTo("Dimensions"), xml);
+            Assert.That(field.FirstChild!.LocalName, Is.EqualTo("Dimensions"), xml);
 
             Variant decoded = DecodeXml(xml, d => d.ReadVariantValue("M", type), useParser);
             MatrixOf<Variant> matrix = decoded.GetVariantMatrix();
@@ -177,7 +177,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteVariant(null, value);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             // Double | Array bit, ArrayLength 0, no ArrayDimensions.
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 structure.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
             Assert.That(buffer, Is.EqualTo(new byte[] { 0x00, 0x44, 0x33, 0x22, 0x11 }));
 
@@ -461,7 +461,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 xml,
                 d => d.ReadVariantValue("F", TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension)),
                 useParser);
-            Assert.That(decoded.GetEnumerationArray().ToArray().Select(e => e.Value), Is.EqualTo(s_oneZeroOne), xml);
+            Assert.That(decoded.GetEnumerationArray().ToArray()!.Select(e => e.Value), Is.EqualTo(s_oneZeroOne), xml);
 
             ArrayOf<EnumValue> values = new[] { new EnumValue(0, "Zero"), new EnumValue(1) }.ToArrayOf();
             xml = EncodeXml(e => e.WriteVariantValue("F", Variant.From(values)));
@@ -469,7 +469,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 xml,
                 d => d.ReadVariantValue("F", TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension)),
                 useParser);
-            Assert.That(decoded.GetEnumerationArray().ToArray().Select(e => e.Value), Is.EqualTo(s_zeroOne), xml);
+            Assert.That(decoded.GetEnumerationArray().ToArray()!.Select(e => e.Value), Is.EqualTo(s_zeroOne), xml);
         }
 
         /// <summary>
@@ -525,24 +525,24 @@ namespace Opc.Ua.Types.Tests.Encoders
                     ? Format(decoded)
                     : decoded.TypeInfo.BuiltInType switch
                     {
-                        BuiltInType.String => string.Join(",", decoded.GetStringArray().ToArray()),
-                        BuiltInType.Int32 => string.Join(",", decoded.GetInt32Array().ToArray()),
-                        _ => string.Join(",", decoded.GetEnumerationArray().ToArray().Select(e => e.Value))
+                        BuiltInType.String => string.Join(",", decoded.GetStringArray().ToArray()!),
+                        BuiltInType.Int32 => string.Join(",", decoded.GetInt32Array().ToArray()!),
+                        _ => string.Join(",", decoded.GetEnumerationArray().ToArray()!.Select(e => e.Value))
                     };
                 Assert.That(actual, Is.EqualTo(expected), xml);
             }
 
             static string Format(object value)
             {
-                return value switch
+                return (value switch
                 {
                     Variant v when v.TypeInfo.BuiltInType == BuiltInType.Enumeration =>
                         v.GetEnumeration().Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    Variant v => Format(v.Raw),
+                    Variant v => Format(v.Raw!),
                     EnumValue e => e.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     NodeId n => n.ToString(),
                     _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
-                };
+                })!;
             }
         }
 
@@ -609,7 +609,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 e.WriteInt32("B", 9);
             }));
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         /// <summary>
@@ -656,7 +656,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var document = new XmlDocument();
             document.LoadInnerXml(xml);
-            return document.DocumentElement.ChildNodes
+            return document.DocumentElement!.ChildNodes
                 .OfType<System.Xml.XmlElement>()
                 .Single(e => e.LocalName == name);
         }

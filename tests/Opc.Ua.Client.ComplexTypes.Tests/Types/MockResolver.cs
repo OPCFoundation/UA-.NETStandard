@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ExpandedNodeId binaryEncodingId = ExpandedNodeId.Null;
             ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
-            IList<NodeId> encodings = null;
+            IList<NodeId>? encodings = null;
 
             INode node = DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
             if (node is DataTypeNode dataTypeNode)
@@ -147,12 +147,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public Task<(
             ExpandedNodeId typeId,
             ExpandedNodeId encodingId,
-            DataTypeNode dataTypeNode
+            DataTypeNode? dataTypeNode
         )> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
-            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
+            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode? dataTypeNode)>(
                 (default, default, null));
         }
 
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (addRootNode)
             {
-                INode rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
+                INode rootNode = (await FindAsync(dataType, ct).ConfigureAwait(false))!;
                 if (rootNode is not DataTypeNode)
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
@@ -209,9 +209,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        public Task<INode?> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return Task.FromResult(DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
+            return Task.FromResult<INode?>(DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
         }
 
         /// <inheritdoc/>
@@ -232,12 +232,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
-                if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition _))
+                if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition? _))
                 {
                     return Task.FromResult(DataTypeIds.Enumeration);
                 }
                 if (dataTypeNode.DataTypeDefinition.TryGetValue(
-                    out StructureDefinition structureDefinition))
+                    out StructureDefinition? structureDefinition))
                 {
                     return Task.FromResult(structureDefinition.BaseDataType);
                 }
@@ -258,12 +258,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 return superType == ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
             }
             if (dataTypeNode.DataTypeDefinition.TryGetValue(
-                out StructureDefinition structureDefinition))
+                out StructureDefinition? structureDefinition))
             {
                 return structureDefinition.BaseDataType ==
                     ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
             }
-            if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition _))
+            if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition? _))
             {
                 var baseNodeId = ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
                 return baseNodeId == DataTypeIds.Enumeration;

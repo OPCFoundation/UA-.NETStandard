@@ -120,17 +120,17 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             // Diagnostic dump - helps when this test fails.
-            foreach (EndpointDescription ep in endpoints.ToArray())
+            foreach (EndpointDescription ep in endpoints.ToArray()!)
             {
                 TestContext.Out.WriteLine(
                     $"  endpoint: TransportProfileUri={ep.TransportProfileUri}, " +
                     $"SecurityMode={ep.SecurityMode}, Url={ep.EndpointUrl}");
             }
             EndpointDescription none = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
+                    ep.SecurityMode == MessageSecurityMode.None)!;
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured WSS endpoint - JSON sub-protocol requires SM None.");
         }
@@ -139,7 +139,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task AnonymousSessionOverWssBinaryOpensWithoutMutualTlsAsync()
         {
             EndpointDescription wss = m_server.GetEndpoints()
-                .ToArray()
+                .ToArray()!
                 .First(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);
@@ -152,7 +152,7 @@ namespace Opc.Ua.Sessions.Tests
             // endpoint URL) so the test actually exercises the intended
             // transport profile and security mode instead of whatever the
             // fixture's default discovery/selection would otherwise pick.
-            var endpoint = new ConfiguredEndpoint(null, wss);
+            var endpoint = new ConfiguredEndpoint(null!, wss);
             using ISession session = await m_clientFixture
                 .ConnectAsync(endpoint)
                 .ConfigureAwait(false);
@@ -174,7 +174,7 @@ namespace Opc.Ua.Sessions.Tests
             // endpoint description from the existing SM-None WSS endpoint so
             // the test still exercises the wire path end-to-end.
             EndpointDescription wssNone = m_server.GetEndpoints()
-                .ToArray()
+                .ToArray()!
                 .First(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);

@@ -304,7 +304,7 @@ namespace Opc.Ua.History.Tests
                 await ReadNodeValueAsync(euRangeId).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
 
-            Range range = result.GetValue<Range>(default);
+            Range range = result.GetValue<Range>(default!);
             Assert.That(range, Is.Not.Null, "EURange must not be null.");
             Assert.That(range.High, Is.GreaterThanOrEqualTo(range.Low),
                 "EURange High must be >= Low.");

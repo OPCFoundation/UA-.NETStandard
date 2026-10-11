@@ -122,7 +122,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"BaseStruct\""));
             Assert.That(bsd, Does.Contain("<opc:Field Name=\"Make\" TypeName=\"opc:CharArray\" />"));
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             // The design file's field set wins over the payload's: the
             // Details field exists only in the design file.
@@ -216,7 +216,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"DerivedStruct\""));
             // Fields inherited from the design-file grandparent, the payload
@@ -274,7 +274,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 targets: [modelEPath],
                 dependencies: [modelEPath],
                 referencedModels: CreateReferencedModels(
-                    ModelAUri, "Test.ModelA", "ModelA", payload));
+                    ModelAUri, "Test.ModelA", "ModelA", payload!));
 
             string dataTypes = generated.Keys
                 .Where(f => f.EndsWith("DataTypes.g.cs", System.StringComparison.Ordinal))
@@ -325,7 +325,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"HolderStruct\""));
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"SubVectorStruct\""));
@@ -342,7 +342,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Dependencies = [vectorPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false);
             var vector = model.Nodes
@@ -482,7 +482,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
             int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
             ModelDependencyV1 payload = ModelDependencyV1.FromBase64Payload(
-                output[(payloadStart + 1)..payloadEnd]);
+                output[(payloadStart + 1)..payloadEnd])!;
             Assert.That(payload, Is.Not.Null);
             return payload;
         }
@@ -568,7 +568,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Targets = [m_modelBPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false,
                 referencedDependencies: new Dictionary<string, ModelDependencyV1>
@@ -578,7 +578,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             DataTypeDesign derived = model.Nodes
                 .OfType<DataTypeDesign>()
-                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct");
+                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct")!;
             Assert.That(derived, Is.Not.Null);
 
             var baseStruct = derived.BaseTypeNode as DataTypeDesign;
@@ -617,13 +617,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Dependencies = [m_modelAPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false);
 
             DataTypeDesign derived = model.Nodes
                 .OfType<DataTypeDesign>()
-                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct");
+                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct")!;
             Assert.That(derived, Is.Not.Null);
 
             var baseStruct = derived.BaseTypeNode as DataTypeDesign;
@@ -640,8 +640,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // as well: it types a field of the inherited structure.
             DataTypeDesign status = baseStruct.Fields
                 .Single(f => f.Name == "Status")
-                .DataTypeNode;
-            Assert.That(status.BasicDataType, Is.EqualTo(BasicDataType.Enumeration));
+                .DataTypeNode!;
+            Assert.That(status!.BasicDataType, Is.EqualTo(BasicDataType.Enumeration));
             Assert.That(status.IsEnumeration, Is.True);
 
             // Without UseAllowSubtypes, a dependency structure field that
@@ -649,8 +649,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // ValidateParameters for target fields.
             DataTypeDesign details = baseStruct.Fields
                 .Single(f => f.Name == "Details")
-                .DataTypeNode;
-            Assert.That(details.SymbolicName.Name, Is.EqualTo("Structure"));
+                .DataTypeNode!;
+            Assert.That(details!.SymbolicName.Name, Is.EqualTo("Structure"));
         }
 
         private static bool ContainsOrdinal(string text, string value)
@@ -667,7 +667,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"DerivedStruct\""));
             // Inherited field from the dependency structure with its source type.
@@ -681,7 +681,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string xsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.xsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(xsd, Is.Not.Null, "No xml schema generated.");
             // The xs:extension base must reference the dependency structure,
             // not degrade to the BasicDataType enum default (xs:boolean).
@@ -691,7 +691,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string dataTypes = generated.Keys
                 .Where(f => f.EndsWith("DataTypes.g.cs", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(dataTypes, Is.Not.Null, "No data type code generated.");
             Assert.That(dataTypes, Does.Contain("class DerivedStruct"));
             Assert.That(dataTypes, Does.Contain("BaseStruct"));
@@ -700,7 +700,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Dictionary<string, string> Generate(
             IReadOnlyList<string> targets,
             IReadOnlyList<string> dependencies,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
@@ -720,15 +720,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     OmitEventRecords = true
                 },
                 useAllowSubtypes: false,
-                identifierFiles: null,
-                referencedModels: referencedModels,
-                nodeManagerBindings: null,
-                reportBindingDiagnostic: null,
-                sharedUsedBindings: null,
+                identifierFiles: null!,
+                referencedModels: referencedModels!,
+                nodeManagerBindings: null!,
+                reportBindingDiagnostic: null!,
+                sharedUsedBindings: null!,
                 bindingModelCount: 0,
-                reportFluentAccessorsOnlyDiagnostic: null,
-                referencedModelProviders: null,
-                referencedAccessorProviders: null);
+                reportFluentAccessorsOnlyDiagnostic: null!,
+                referencedModelProviders: null!,
+                referencedAccessorProviders: null!);
             return fileSystem.CreatedFiles
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }
@@ -750,7 +750,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     modelUri,
                     prefix,
                     "1.0.0",
-                    null,
+                    null!,
                     name,
                     payload.ToBase64Payload())
             };

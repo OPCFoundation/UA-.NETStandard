@@ -95,22 +95,22 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The NodeSet XML file declaring the sidecar.
         /// </summary>
-        public string NodeSetFilePath { get; init; }
+        public string? NodeSetFilePath { get; init; }
 
         /// <summary>
         /// The configured or resolved sidecar path.
         /// </summary>
-        public string IdentifierFilePath { get; init; }
+        public string? IdentifierFilePath { get; init; }
 
         /// <summary>
         /// The related symbolic name, if applicable.
         /// </summary>
-        public string SymbolicName { get; init; }
+        public string? SymbolicName { get; init; }
 
         /// <summary>
         /// The related value, if applicable.
         /// </summary>
-        public string Value { get; init; }
+        public string? Value { get; init; }
 
         /// <summary>
         /// Creates a missing-sidecar validation error.
@@ -145,7 +145,7 @@ namespace Opc.Ua.SourceGeneration
 
     internal static class NodesetIdentifierFileValidator
     {
-        public static string ResolvePath(
+        public static string? ResolvePath(
             string nodeSetFilePath,
             string identifierFilePath,
             IReadOnlyList<string> csvFiles)
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration
             // Lexical, not Path.GetFullPath: the inputs need not be file system
             // paths at all (in-memory AdditionalTexts).
             string normalizedAdjacent = NormalizePath(adjacentPath);
-            string directMatch = csvFiles.FirstOrDefault(path =>
+            string? directMatch = csvFiles.FirstOrDefault(path =>
                 string.Equals(NormalizePath(path), normalizedAdjacent, s_pathComparison));
             if (directMatch != null)
             {
@@ -287,7 +287,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (!names.Add(row.SymbolicName))
+                if (!names.Add(row.SymbolicName!))
                 {
                     errors.Add(CreateError(
                         NodesetIdentifierValidationErrorKind.DuplicateSymbolicName,
@@ -307,7 +307,7 @@ namespace Opc.Ua.SourceGeneration
                         row.NumericId.ToString(CultureInfo.InvariantCulture)));
                 }
 
-                if (!symbols.TryGetValue(row.SymbolicName, out NodesetImportedSymbol symbol))
+                if (!symbols.TryGetValue(row.SymbolicName!, out NodesetImportedSymbol symbol))
                 {
                     errors.Add(CreateError(
                         NodesetIdentifierValidationErrorKind.UnknownSymbol,
@@ -411,8 +411,8 @@ namespace Opc.Ua.SourceGeneration
             NodesetIdentifierValidationErrorKind kind,
             string nodeSetFilePath,
             string identifierFilePath,
-            string symbolicName,
-            string value)
+            string? symbolicName,
+            string? value)
         {
             return new NodesetIdentifierValidationError
             {
@@ -428,7 +428,7 @@ namespace Opc.Ua.SourceGeneration
         {
             public int LineNumber { get; init; }
 
-            public string SymbolicName { get; init; }
+            public string? SymbolicName { get; init; }
 
             public uint NumericId { get; init; }
 

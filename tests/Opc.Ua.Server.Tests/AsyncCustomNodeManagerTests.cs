@@ -322,7 +322,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             var acnm = (TestableAsyncCustomNodeManager)manager;
 
-            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
+            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null!);
         }
 
         [Test]
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("Lifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("Lifecycle", namespaceIndex),
@@ -488,7 +488,7 @@ namespace Opc.Ua.Server.Tests
                         eventId.Name == "PredefinedNodeLifecycleCompletedAtRegistration"),
                     It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
                 Times.Once);
 #pragma warning restore CA1873
         }
@@ -501,7 +501,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("RuntimeLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("RuntimeLifecycle", namespaceIndex),
@@ -529,7 +529,7 @@ namespace Opc.Ua.Server.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledLifecycle", namespaceIndex),
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledCreatedLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledCreatedLifecycle", namespaceIndex),
@@ -576,7 +576,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledLifecycleHelper", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledLifecycleHelper", namespaceIndex),
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires AsyncCustomNodeManager NodeId preparation");
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 BrowseName = new QualifiedName("AssignedBeforeLifecycle", manager.NamespaceIndexes[0]),
                 DisplayName = new LocalizedText("AssignedBeforeLifecycle")
@@ -623,13 +623,13 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var original = new LifecycleProbeState(null)
+            var original = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("BehaviourReplacement", namespaceIndex),
                 BrowseName = new QualifiedName("BehaviourReplacement", namespaceIndex),
                 DisplayName = new LocalizedText("BehaviourReplacement")
             };
-            var replacement = new LifecycleProbeState(null)
+            var replacement = new LifecycleProbeState(null!)
             {
                 NodeId = original.NodeId,
                 BrowseName = original.BrowseName,
@@ -662,13 +662,13 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var original = new LifecycleProbeState(null)
+            var original = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledBehaviourReplacement", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledBehaviourReplacement", namespaceIndex),
                 DisplayName = new LocalizedText("CanceledBehaviourReplacement")
             };
-            var replacement = new LifecycleProbeState(null)
+            var replacement = new LifecycleProbeState(null!)
             {
                 NodeId = original.NodeId,
                 BrowseName = original.BrowseName,
@@ -699,7 +699,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledSameInstance", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledSameInstance", namespaceIndex),
@@ -727,7 +727,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
             ConditionState condition = manager.SystemContext.CreateInstanceOfConditionType(
-                null,
+                null!,
                 new QualifiedName("Condition", namespaceIndex));
 
             Assert.That(condition.IsCreated, Is.False);
@@ -755,7 +755,7 @@ namespace Opc.Ua.Server.Tests
             ushort instanceNamespaceIndex = manager.NamespaceIndexes[0];
             ushort elementNamespaceIndex = manager.SystemContext.NamespaceUris
                 .GetIndexOrAppend(NamespaceFiniteStateMachineState.ElementsNamespaceUri);
-            var machine = new NamespaceFiniteStateMachineState(null)
+            var machine = new NamespaceFiniteStateMachineState(null!)
             {
                 NodeId = new NodeId("StateMachine", instanceNamespaceIndex),
                 BrowseName = new QualifiedName("StateMachine", instanceNamespaceIndex),
@@ -793,7 +793,7 @@ namespace Opc.Ua.Server.Tests
                 .AddState(2, "On")
                 .StateMachine
                 .Definition;
-            var machine = new FluentFiniteStateMachineState(null, definition)
+            var machine = new FluentFiniteStateMachineState(null!, definition)
             {
                 BrowseName = new QualifiedName("RuntimeMachine", manager.NamespaceIndexes[0]),
                 DisplayName = new LocalizedText("RuntimeMachine")
@@ -917,7 +917,7 @@ namespace Opc.Ua.Server.Tests
                 "Requires AsyncCustomNodeManager synchronous registration");
             var asyncManager = (TestableAsyncCustomNodeManager)manager;
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("SynchronousLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("SynchronousLifecycle", namespaceIndex),
@@ -939,7 +939,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("RemoveWithoutDelete", namespaceIndex),
                 BrowseName = new QualifiedName("RemoveWithoutDelete", namespaceIndex),
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(resultNodeId, Is.EqualTo(baseObject.NodeId));
-            NodeState storedNode = manager.Find(baseObject.NodeId);
+            NodeState storedNode = manager.Find(baseObject.NodeId)!;
             Assert.That(storedNode, Is.Not.Null);
             Assert.That(storedNode, Is.SameAs(baseObject));
             Assert.That(manager.PredefinedNodes.ContainsKey(baseObject.NodeId), Is.True);
@@ -1574,7 +1574,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeID, Is.Not.EqualTo(NodeId.Null));
             Assert.That(handle, Is.InstanceOf<NodeHandle>());
             var nodeHandle = handle as NodeHandle;
-            Assert.That(nodeHandle.NodeId, Is.EqualTo(baseObject.NodeId));
+            Assert.That(nodeHandle!.NodeId, Is.EqualTo(baseObject.NodeId));
             Assert.That(nodeHandle.Node, Is.SameAs(baseObject));
             Assert.That(nodeHandle.Validated, Is.True);
             object invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
@@ -1652,7 +1652,7 @@ namespace Opc.Ua.Server.Tests
             };
             var nodesToRead = new List<ReadValueId> { readValueId, readValueId2 };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             // Act
             await manager.ReadAsync(
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Server.Tests
             };
             var nodesToRead = new List<ReadValueId> { readValueId };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             DateTimeUtc beforeRead = DateTimeUtc.Now;
             await manager.ReadAsync(
@@ -1763,7 +1763,7 @@ namespace Opc.Ua.Server.Tests
                 }
             };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.ReadAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
@@ -1858,10 +1858,10 @@ namespace Opc.Ua.Server.Tests
 
             var references = new List<ReferenceDescription>();
 
-            ContinuationPoint result = await manager.BrowseAsync(
+            ContinuationPoint result = (await manager.BrowseAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
             Assert.That(references, Has.Count.EqualTo(1));
@@ -1938,7 +1938,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
-            AsyncOnlyBrowser browser = null;
+            AsyncOnlyBrowser? browser = null;
             NodeState parent = await AddAsyncBrowseParentAsync(
                 manager,
                 context,
@@ -1962,20 +1962,20 @@ namespace Opc.Ua.Server.Tests
             var operationContext = new OperationContext(
                 new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
 
-            ContinuationPoint firstResult = await manager.BrowseAsync(
+            ContinuationPoint firstResult = (await manager.BrowseAsync(
                 operationContext,
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(firstResult, Is.Not.Null, "second reference must be parked in a continuation point");
             Assert.That(references, Has.Count.EqualTo(1));
 
             // BrowseNext hands the node manager a fresh result list per call.
             var moreReferences = new List<ReferenceDescription>();
-            ContinuationPoint secondResult = await manager.BrowseAsync(
+            ContinuationPoint secondResult = (await manager.BrowseAsync(
                 operationContext,
                 firstResult,
-                moreReferences).ConfigureAwait(false);
+                moreReferences).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -1983,7 +1983,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(references.Concat(moreReferences).Select(r => r.NodeId), Is.EqualTo(
                     children.Select(c => new ExpandedNodeId(c.NodeId))));
                 Assert.That(browser, Is.Not.Null);
-                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser!.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
                 Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
             });
         }
@@ -2004,7 +2004,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
-            AsyncOnlyBrowser browser = null;
+            AsyncOnlyBrowser? browser = null;
             NodeState parent = await AddAsyncBrowseParentAsync(
                 manager,
                 context,
@@ -2034,7 +2034,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(targetIds, Is.EqualTo([new ExpandedNodeId(children[1].NodeId)]));
                 Assert.That(unresolved, Is.Empty);
                 Assert.That(browser, Is.Not.Null);
-                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser!.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
                 Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
             });
         }
@@ -2096,7 +2096,6 @@ namespace Opc.Ua.Server.Tests
             return parent;
         }
 
-#nullable enable
         /// <summary>
         /// A browser that produces its references only through
         /// <see cref="NodeBrowser.NextAsync"/>, after a genuine asynchronous hop,
@@ -2162,7 +2161,6 @@ namespace Opc.Ua.Server.Tests
                 m_pushBack = reference;
             }
         }
-#nullable restore
 
         /// <summary>
         /// Regression for issue #4061: when a node that has been cached (e.g.
@@ -2230,7 +2228,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddPredefinedNodeAsync(context, replacement).ConfigureAwait(false);
 
             NodeState cached = manager.LookupNodeInComponentCachePublic(
-                context, new NodeHandle { NodeId = original.NodeId });
+                context, new NodeHandle { NodeId = original.NodeId })!;
             Assert.That(
                 cached,
                 Is.SameAs(replacement),
@@ -2326,7 +2324,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(99))
             };
             var nodesToWrite = new List<WriteValue> { writeValue, writeValue2 };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             // Act
             await manager.WriteAsync(
@@ -2383,7 +2381,7 @@ namespace Opc.Ua.Server.Tests
                     Value = new DataValue(new Variant(99))
                 }
             };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2429,7 +2427,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(200.0)) // out of range (> 100)
             };
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2475,7 +2473,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(s_value))
             };
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2518,9 +2516,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var createErrors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -2546,7 +2544,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2638,9 +2636,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var createErrors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -2666,7 +2664,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2746,7 +2744,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int ii = 0; ii < monitoredItemCount; ii++)
             {
-                var createErrors = new List<ServiceResult> { null };
+                var createErrors = new List<ServiceResult> { null! };
                 await manager.CreateMonitoredItemsAsync(
                     CreateMonitoredItemsContext(),
                     1,
@@ -2762,14 +2760,14 @@ namespace Opc.Ua.Server.Tests
                         }
                     },
                     createErrors,
-                    new List<MonitoringFilterResult> { null },
-                    new List<IMonitoredItem> { null },
+                    new List<MonitoringFilterResult> { null! },
+                    new List<IMonitoredItem> { null! },
                     false,
                     new MonitoredItemIdFactory()).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
             }
 
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                 new List<WriteValue>
@@ -2793,8 +2791,8 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e =>
                     e is SemanticChangeEventState &&
-                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == variable.NodeId &&
-                    ((SemanticChangeEventState)e).Changes.Value[0].AffectedType == variable.TypeDefinitionId)),
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == variable.NodeId &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].AffectedType == variable.TypeDefinitionId)),
                 Times.Once);
 
             // rewriting the unchanged value does not change the semantics.
@@ -2855,7 +2853,7 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, owner).ConfigureAwait(false);
 
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                 new List<WriteValue>
@@ -2874,7 +2872,7 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e =>
                     e is SemanticChangeEventState &&
-                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == owner.NodeId)),
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == owner.NodeId)),
                 semanticChangeFlag ? Times.Once() : Times.Never());
         }
 
@@ -2910,8 +2908,8 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
 
-            var monitoredItems = new List<IMonitoredItem> { null };
-            var createErrors = new List<ServiceResult> { null };
+            var monitoredItems = new List<IMonitoredItem> { null! };
+            var createErrors = new List<ServiceResult> { null! };
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
                 1,
@@ -2927,7 +2925,7 @@ namespace Opc.Ua.Server.Tests
                     }
                 },
                 createErrors,
-                new List<MonitoringFilterResult> { null },
+                new List<MonitoringFilterResult> { null! },
                 monitoredItems,
                 false,
                 new MonitoredItemIdFactory()).ConfigureAwait(false);
@@ -2945,7 +2943,7 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e =>
                     e is SemanticChangeEventState &&
-                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == variable.NodeId)),
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == variable.NodeId)),
                 Times.Once);
 
             var notifications = new Queue<MonitoredItemNotification>();
@@ -3007,7 +3005,7 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e =>
                     e is SemanticChangeEventState &&
-                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == owner.NodeId)),
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == owner.NodeId)),
                 Times.Once);
         }
 
@@ -3048,7 +3046,7 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
 
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                 new List<WriteValue>
@@ -3069,8 +3067,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 (writeErrors[0]?.StatusCode ?? StatusCodes.Good).Code,
                 Is.EqualTo(expectedStatus));
-            Assert.That(variable.Value.TryGetStructure(out OptionSet stored), Is.True);
-            Assert.That(stored.Value.ToArray(), Is.EqualTo(new[] { expectedStoredValue }));
+            Assert.That(variable.Value.TryGetStructure<OptionSet>(out OptionSet? stored), Is.True);
+            Assert.That(stored!.Value.ToArray(), Is.EqualTo(new[] { expectedStoredValue }));
             Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x0F }),
                 "The ValidBits of the stored value describe the bits the Server supports.");
         }
@@ -3223,8 +3221,8 @@ namespace Opc.Ua.Server.Tests
                 new Variant(NewOptionSet(0x02, 0x00))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
-            Assert.That(variable.Value.TryGetStructure(out OptionSet stored), Is.True);
-            Assert.That(stored.Value.ToArray(), Is.EqualTo(new byte[] { 0x05 }));
+            Assert.That(variable.Value.TryGetStructure<OptionSet>(out OptionSet? stored), Is.True);
+            Assert.That(stored!.Value.ToArray(), Is.EqualTo(new byte[] { 0x05 }));
             Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x00 }),
                 "The stored all-zero ValidBits are preserved.");
         }
@@ -3310,9 +3308,9 @@ namespace Opc.Ua.Server.Tests
             ITestNodeManager manager,
             BaseDataVariableState variable,
             Variant value,
-            string indexRange = null)
+            string? indexRange = null)
         {
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                 new List<WriteValue>
@@ -3343,7 +3341,7 @@ namespace Opc.Ua.Server.Tests
             }
             else if (stored.TryGetValue(out ArrayOf<ExtensionObject> array))
             {
-                elements = array.ToArray();
+                elements = array.ToArray()!;
             }
             else
             {
@@ -3351,11 +3349,11 @@ namespace Opc.Ua.Server.Tests
                 elements = matrix.Span.ToArray();
             }
 
-            return elements
+            return elements!
                 .Select(e =>
                 {
-                    Assert.That(new Variant(e).TryGetStructure(out OptionSet optionSet), Is.True);
-                    return optionSet.Value.Span[0];
+                    Assert.That(new Variant(e).TryGetStructure<OptionSet>(out OptionSet? optionSet), Is.True);
+                    return optionSet!.Value.Span[0];
                 })
                 .ToArray();
         }
@@ -3467,9 +3465,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             // Act
             await manager.CreateMonitoredItemsAsync(
@@ -3533,9 +3531,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate, secondItemToCreate };
-            var errors = new List<ServiceResult> { null, null };
-            var filterErrors = new List<MonitoringFilterResult> { null, null };
-            var monitoredItems = new List<IMonitoredItem> { null, null };
+            var errors = new List<ServiceResult> { null!, null! };
+            var filterErrors = new List<MonitoringFilterResult> { null!, null! };
+            var monitoredItems = new List<IMonitoredItem> { null!, null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -3608,9 +3606,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                                                     1,
@@ -3633,12 +3631,12 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 500, QueueSize = 20 }
             };
             var itemsToModify = new List<MonitoredItemModifyRequest> { modifyRequest };
-            var modifyErrors = new List<ServiceResult> { null };
-            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
 
             // Act
             await manager.ModifyMonitoredItemsAsync(
-                 new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
+                 new OperationContext(new RequestHeader(), null!, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
                  TimestampsToReturn.Both,
                  monitoredItems,
                  itemsToModify,
@@ -3678,9 +3676,9 @@ namespace Opc.Ua.Server.Tests
                 MonitoringMode = MonitoringMode.Reporting,
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -3706,11 +3704,11 @@ namespace Opc.Ua.Server.Tests
                 MonitoredItemId = item.Id,
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = -1, QueueSize = 10 }
             };
-            var modifyErrors = new List<ServiceResult> { null };
-            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
 
             await manager.ModifyMonitoredItemsAsync(
-                new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
+                new OperationContext(new RequestHeader(), null!, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
                 TimestampsToReturn.Both,
                 monitoredItems,
                 new List<MonitoredItemModifyRequest> { modifyRequest },
@@ -3777,10 +3775,10 @@ namespace Opc.Ua.Server.Tests
                     QueueSize = 4
                 }
             };
-            var createErrors = new List<ServiceResult> { null };
+            var createErrors = new List<ServiceResult> { null! };
             var createFilterErrors =
-                new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+                new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
                 1,
@@ -3811,14 +3809,14 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var modifyErrors = new List<ServiceResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
             var modifyFilterErrors =
-                new List<MonitoringFilterResult> { null };
+                new List<MonitoringFilterResult> { null! };
 
             await manager.ModifyMonitoredItemsAsync(
                 new OperationContext(
                     new RequestHeader(),
-                    null,
+                    null!,
                     RequestType.ModifyMonitoredItems,
                     RequestLifetime.None,
                     m_mockSession.Object),
@@ -3890,9 +3888,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var createErrors = new List<ServiceResult> { null };
-            var createFilterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var createFilterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
                 1,
@@ -3933,12 +3931,12 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var modifyErrors = new List<ServiceResult> { null };
-            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
             await manager.ModifyMonitoredItemsAsync(
                 new OperationContext(
                     new RequestHeader(),
-                    null,
+                    null!,
                     RequestType.ModifyMonitoredItems,
                     RequestLifetime.None,
                     m_mockSession.Object),
@@ -4351,7 +4349,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 500,
                 20,
-                discardOldest: false);
+                discardOldest: false)!;
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(calculatorCount, Is.EqualTo(2));
@@ -5041,9 +5039,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                 1,
@@ -5061,10 +5059,10 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             var processedItems = new List<bool> { false };
-            var modeErrors = new List<ServiceResult> { null };
+            var modeErrors = new List<ServiceResult> { null! };
             await manager.SetMonitoringModeAsync(
                  new OperationContext(
-                     new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
+                     new RequestHeader(), null!, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
                  MonitoringMode.Reporting,
                  monitoredItems,
                  processedItems,
@@ -5105,9 +5103,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -5126,7 +5124,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             var processedItems = new List<bool> { false };
-            var deleteErrors = new List<ServiceResult> { null };
+            var deleteErrors = new List<ServiceResult> { null! };
             await manager.DeleteMonitoredItemsAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                 monitoredItems,
@@ -5196,8 +5194,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
@@ -5215,8 +5213,8 @@ namespace Opc.Ua.Server.Tests
                     InputArguments = []
                 }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
@@ -5291,8 +5289,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             // Act
@@ -5309,8 +5307,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { ObjectId = instance.NodeId, MethodId = typeMethod.NodeId, InputArguments = [] }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
@@ -5572,8 +5570,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { ObjectId = objectId, MethodId = methodId, InputArguments = [] }
             };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
 
@@ -5741,8 +5739,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             // Act
@@ -5759,8 +5757,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { ObjectId = instance.NodeId, MethodId = baseMethod.NodeId, InputArguments = [] }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
@@ -5795,8 +5793,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { NodeId = variable.NodeId }
             };
-            var results = new List<HistoryReadResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
 
             await manager.HistoryReadAsync(opContext, details, TimestampsToReturn.Source, false, nodesToRead, results, errors).ConfigureAwait(false);
@@ -5808,8 +5806,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { NodeId = variable.NodeId }
             };
-            var syncResults = new List<HistoryReadResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<HistoryReadResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.HistoryRead(opContext, details, TimestampsToReturn.Source, false, syncNodesToRead, syncResults, syncErrors);
 
@@ -5841,8 +5839,8 @@ namespace Opc.Ua.Server.Tests
                 UpdateValues = []
             };
             var nodesToUpdate = new List<HistoryUpdateDetails> { updateDetails };
-            var results = new List<HistoryUpdateResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<HistoryUpdateResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
 
             await manager.HistoryUpdateAsync(opContext, typeof(UpdateDataDetails), nodesToUpdate, results, errors).ConfigureAwait(false);
@@ -5859,8 +5857,8 @@ namespace Opc.Ua.Server.Tests
                     UpdateValues = []
                 }
             };
-            var syncResults = new List<HistoryUpdateResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<HistoryUpdateResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.HistoryUpdate(opContext, typeof(UpdateDataDetails), syncNodesToUpdate, syncResults, syncErrors);
 
@@ -5878,7 +5876,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = ObjectIds.Server,
                 Id = 1,
-                ManagerHandle = new NodeHandle(ObjectIds.Server, null)
+                ManagerHandle = new NodeHandle(ObjectIds.Server, null!)
             };
             var items = new List<IEventMonitoredItem> { monitoredItem };
             var context = new OperationContext(new RequestHeader(), null, RequestType.Unknown, RequestLifetime.None);
@@ -5964,7 +5962,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToRestore = new List<IStoredMonitoredItem> { storedItem };
-            var restoredItems = new List<IMonitoredItem> { null };
+            var restoredItems = new List<IMonitoredItem> { null! };
             IUserIdentity identity = new Mock<IUserIdentity>().Object;
 
             await manager.RestoreMonitoredItemsAsync(itemsToRestore, restoredItems, identity).ConfigureAwait(false);
@@ -6000,7 +5998,7 @@ namespace Opc.Ua.Server.Tests
 
             var monitoredItems = new List<IMonitoredItem> { monitoredItem };
             var processed = new List<bool> { false };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.TransferSubscriptions, RequestLifetime.None);
 
             await manager.TransferMonitoredItemsAsync(
@@ -6023,7 +6021,7 @@ namespace Opc.Ua.Server.Tests
                 Id = 2
             };
             var syncProcessed = new List<bool> { false };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncErrors = new List<ServiceResult> { null! };
             var syncItems = new List<IMonitoredItem> { secondItem };
 
             syncManager.TransferMonitoredItems(
@@ -6117,7 +6115,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncManager.IsNodeInView(context, view.NodeId, handle), Is.True);
 
             // Sub-classes customize view membership by overriding the protected virtual.
-            NodeState nodeSeenByOverride = null;
+            NodeState? nodeSeenByOverride = null;
             manager.IsNodeInViewOverride = (overrideContext, overrideViewId, overrideNode) =>
             {
                 Assert.That(overrideContext, Is.Not.Null);
@@ -6171,7 +6169,7 @@ namespace Opc.Ua.Server.Tests
             };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
 
-            NodeMetadata metadata = await manager.GetPermissionMetadataAsync(opContext, handle, BrowseResultMask.All, cache, true).ConfigureAwait(false);
+            NodeMetadata metadata = (await manager.GetPermissionMetadataAsync(opContext, handle, BrowseResultMask.All, cache, true).ConfigureAwait(false))!;
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
@@ -6182,7 +6180,7 @@ namespace Opc.Ua.Server.Tests
                 [node.NodeId] = []
             };
             var syncManager = (INodeManager3)manager.SyncNodeManager;
-            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache2, true);
+            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache2, true)!;
             Assert.That(syncMetadata, Is.Not.Null);
         }
 
@@ -6473,7 +6471,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(manager.RootNotifiers.ContainsKey(notifier.NodeId), Is.False);
             Assert.That(
-                manager.MonitoredNodes.TryGetValue(notifier.NodeId, out MonitoredNode2 monitoredNode) &&
+                manager.MonitoredNodes.TryGetValue(notifier.NodeId, out MonitoredNode2? monitoredNode) &&
                     monitoredNode.EventMonitoredItems.ContainsKey(monitoredItem.Id),
                 Is.False);
             Assert.That(notifier.AreEventsMonitored, Is.False);
@@ -6485,7 +6483,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void OnReportEventDelegatesToServerReportEvent()
         {
-            IFilterTarget capturedEvent = null;
+            IFilterTarget? capturedEvent = null;
             m_mockServer
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
@@ -6516,7 +6514,7 @@ namespace Opc.Ua.Server.Tests
             // Verifies that the callback wired by AddRootNotifierAsync routes events through to
             // IServerInternal - via ReportEvent for the synchronous manager and ReportEventAsync
             // for the asynchronous manager.
-            IFilterTarget capturedEvent = null;
+            IFilterTarget? capturedEvent = null;
             m_mockServer
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
@@ -6745,7 +6743,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = ObjectIds.RootFolder, // not in this manager's namespace
                 Id = 999,
-                ManagerHandle = new NodeHandle(ObjectIds.RootFolder, null)
+                ManagerHandle = new NodeHandle(ObjectIds.RootFolder, null!)
             };
 
             ServiceResult result = await manager.ConditionRefreshAsync(
@@ -7363,7 +7361,7 @@ namespace Opc.Ua.Server.Tests
             var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
-            NodeHandle result = manager.IsHandleInNamespacePublic(handle);
+            NodeHandle result = manager.IsHandleInNamespacePublic(handle)!;
 
             Assert.That(result, Is.SameAs(handle));
         }
@@ -7431,7 +7429,7 @@ namespace Opc.Ua.Server.Tests
 
             var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
 
-            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
+            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null!, node);
 
             Assert.That(result, Is.SameAs(node));
         }
@@ -7452,7 +7450,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.SameAs(node));
             // Lookup must now return the cached node
-            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(found, Is.SameAs(node));
         }
 
@@ -7475,12 +7473,12 @@ namespace Opc.Ua.Server.Tests
 
             // One remove should keep the entry alive (RefCount 2 → 1)
             manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
-            NodeState afterOneRemove = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState afterOneRemove = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(afterOneRemove, Is.SameAs(node));
 
             // Second remove takes RefCount to 0 → evicted
             manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
-            NodeState afterTwoRemoves = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? afterTwoRemoves = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
             Assert.That(afterTwoRemoves, Is.Null);
         }
 
@@ -7523,7 +7521,7 @@ namespace Opc.Ua.Server.Tests
             // First add returns the child node itself
             Assert.That(result, Is.SameAs(child));
             // Lookup via the component path handle finds the child
-            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(found, Is.SameAs(child));
         }
 
@@ -7570,7 +7568,7 @@ namespace Opc.Ua.Server.Tests
             var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
 
             Assert.That(result, Is.Null);
         }
@@ -7589,8 +7587,8 @@ namespace Opc.Ua.Server.Tests
             var knownHandle = new NodeHandle(knownNode.NodeId, knownNode);
             manager.AddNodeToComponentCachePublic(manager.SystemContext, knownHandle, knownNode);
 
-            var unknownHandle = new NodeHandle(new NodeId("Unknown", nsIdx), null);
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, unknownHandle);
+            var unknownHandle = new NodeHandle(new NodeId("Unknown", nsIdx), null!);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, unknownHandle);
 
             Assert.That(result, Is.Null);
         }
@@ -7614,7 +7612,7 @@ namespace Opc.Ua.Server.Tests
                 Validated = true
             };
 
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
 
             Assert.That(result, Is.Null);
         }
@@ -7641,7 +7639,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
 
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null);
+            var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null!);
 
             // Must not throw even when the cache has never seen this node
             Assert.DoesNotThrow(() =>
@@ -8943,9 +8941,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -9053,9 +9051,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -9171,9 +9169,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             Task createTask = manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -9793,7 +9791,7 @@ namespace Opc.Ua.Server.Tests
                                     new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
                                 };
                                 var values = new List<DataValue> { default };
-                                var errors = new List<ServiceResult> { null };
+                                var errors = new List<ServiceResult> { null! };
                                 await manager.ReadAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
                                     0, nodesToRead, values, errors).ConfigureAwait(false);
@@ -9809,7 +9807,7 @@ namespace Opc.Ua.Server.Tests
                                         Value = new DataValue(new Variant(rng.Next(1000)))
                                     }
                                 };
-                                var errors = new List<ServiceResult> { null };
+                                var errors = new List<ServiceResult> { null! };
                                 await manager.WriteAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                                     nodesToWrite, errors).ConfigureAwait(false);
@@ -9847,9 +9845,9 @@ namespace Opc.Ua.Server.Tests
                                     }
                                 };
                                 var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-                                var createErrors = new List<ServiceResult> { null };
-                                var filterErrors = new List<MonitoringFilterResult> { null };
-                                var createdItems = new List<IMonitoredItem> { null };
+                                var createErrors = new List<ServiceResult> { null! };
+                                var filterErrors = new List<MonitoringFilterResult> { null! };
+                                var createdItems = new List<IMonitoredItem> { null! };
                                 await manager.CreateMonitoredItemsAsync(
                                     CreateMonitoredItemsContext(),
                                     1, 1000, TimestampsToReturn.Both,
@@ -9878,12 +9876,12 @@ namespace Opc.Ua.Server.Tests
                                             }
                                         }
                                     };
-                                    var modifyErrors = new List<ServiceResult> { null };
-                                    var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+                                    var modifyErrors = new List<ServiceResult> { null! };
+                                    var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
                                     await manager.ModifyMonitoredItemsAsync(
                                         new OperationContext(
                                             new RequestHeader(),
-                                            null,
+                                            null!,
                                             RequestType.ModifyMonitoredItems,
                                             RequestLifetime.None,
                                             m_mockSession.Object),
@@ -9903,7 +9901,7 @@ namespace Opc.Ua.Server.Tests
                                     {
                                         var toDelete = new List<IMonitoredItem> { item };
                                         var processed = new List<bool> { false };
-                                        var deleteErrors = new List<ServiceResult> { null };
+                                        var deleteErrors = new List<ServiceResult> { null! };
                                         await manager.DeleteMonitoredItemsAsync(
                                             new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                                             toDelete, processed, deleteErrors).ConfigureAwait(false);
@@ -9922,10 +9920,10 @@ namespace Opc.Ua.Server.Tests
                                         : MonitoringMode.Sampling;
                                     var modeItems = new List<IMonitoredItem> { item };
                                     var processed = new List<bool> { false };
-                                    var modeErrors = new List<ServiceResult> { null };
+                                    var modeErrors = new List<ServiceResult> { null! };
                                     using var modeContext = new OperationContext(
                                         new RequestHeader(),
-                                        null,
+                                        null!,
                                         RequestType.SetMonitoringMode,
                                         RequestLifetime.None,
                                         m_mockSession.Object);
@@ -9953,7 +9951,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var toDelete = new List<IMonitoredItem> { item };
                 var processed = new List<bool> { false };
-                var errors = new List<ServiceResult> { null };
+                var errors = new List<ServiceResult> { null! };
                 await manager.DeleteMonitoredItemsAsync(
                     new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                     toDelete, processed, errors).ConfigureAwait(false);
@@ -10007,15 +10005,15 @@ namespace Opc.Ua.Server.Tests
 
         private OperationContext CreateMonitoredItemsContext()
         {
-            return new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
+            return new OperationContext(new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
         }
 
         private async Task<(BaseDataVariableState Variable, MonitoredItem MonitoredItem)>
             CreateMonitoredVariableAsync(
             ITestNodeManager manager,
             string identifier,
-            AggregateFilter aggregateFilter = null,
-            BaseDataVariableState variable = null)
+            AggregateFilter? aggregateFilter = null,
+            BaseDataVariableState? variable = null)
         {
             ServerSystemContext context = manager.SystemContext;
             ushort namespaceIndex = manager.NamespaceIndexes[0];
@@ -10049,9 +10047,9 @@ namespace Opc.Ua.Server.Tests
                         : new ExtensionObject(aggregateFilter)
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -10104,13 +10102,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemModifyRequest request,
             CancellationToken cancellationToken = default)
         {
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
 
             await manager.ModifyMonitoredItemsAsync(
                 new OperationContext(
                     new RequestHeader(),
-                    null,
+                    null!,
                     RequestType.ModifyMonitoredItems,
                     RequestLifetime.None,
                     m_mockSession.Object),
@@ -10262,7 +10260,7 @@ namespace Opc.Ua.Server.Tests
         private static Mock<IDataChangeMonitoredItem2>
             CreateInitialValueMonitoredItem(
                 List<DataValue> queued,
-                List<ServiceResult> queuedErrors = null,
+                List<ServiceResult>? queuedErrors = null,
                 NumericRange indexRange = default,
                 QualifiedName dataEncoding = default)
         {
@@ -10324,14 +10322,14 @@ namespace Opc.Ua.Server.Tests
                 .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Returns<NodeId, CancellationToken>((nodeId, _) =>
                 {
-                    NodeState nodeState = manager.Find(nodeId);
+                    NodeState? nodeState = manager.Find(nodeId);
                     if (nodeState == null)
                     {
-                        return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((null, null));
+                        return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((null, null));
                     }
 
                     var handle = new NodeHandle(nodeId, nodeState);
-                    return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((handle, manager));
+                    return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((handle, manager));
                 });
         }
 
@@ -10412,7 +10410,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the predefined nodes supplied when the address space is loaded.
         /// </summary>
-        public NodeStateCollection NodesToLoad { get; set; }
+        public NodeStateCollection? NodesToLoad { get; set; }
 
         /// <summary>
         /// Creates a testable asynchronous node manager with the supplied server, configuration, logger, and
@@ -10480,7 +10478,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the callback that supplies replacement behavior during predefined-node registration.
         /// </summary>
-        public Func<NodeState, NodeState> AddBehaviourCallback { get; set; } = null!;
+        public Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
 
         /// <summary>
         /// Gets or sets the asynchronous callback invoked when a sampled monitored item is modified.
@@ -10496,12 +10494,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the optional predicate overriding node membership in a view.
         /// </summary>
-        public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
         /// <summary>
         /// Gets the effective filter returned by the most recent monitoring-filter validation.
         /// </summary>
-        public MonitoringFilter LastValidatedFilter { get; private set; }
+        public MonitoringFilter LastValidatedFilter { get; private set; } = null!;
 
         internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
 
@@ -10648,7 +10646,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Assigns the namespace URI property so the fixture can exercise its setter.
         /// </summary>
-        public void SetNamespaceUrisPublic(IEnumerable<string> uris)
+        public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
         {
             NamespaceUris = uris!;
         }
@@ -10664,9 +10662,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Returns the supplied node handle when it belongs to a managed namespace.
         /// </summary>
-        public NodeHandle IsHandleInNamespacePublic(object managerHandle)
+        public NodeHandle IsHandleInNamespacePublic(object? managerHandle)
         {
-            return IsHandleInNamespace(managerHandle);
+            return IsHandleInNamespace(managerHandle!)!;
         }
 
         /// <summary>
@@ -10674,15 +10672,15 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public NodeState LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
-            return LookupNodeInComponentCache(context, handle);
+            return LookupNodeInComponentCache(context, handle)!;
         }
 
         /// <summary>
         /// Exposes component-cache reference removal for the supplied node handle.
         /// </summary>
-        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle handle)
+        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
         {
-            RemoveNodeFromComponentCache(context, handle);
+            RemoveNodeFromComponentCache(context, handle!);
         }
 
         /// <summary>
@@ -10860,7 +10858,7 @@ namespace Opc.Ua.Server.Tests
         public override void StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
         }
 
@@ -10882,17 +10880,17 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the node manager assigned to the event monitored item.
         /// </summary>
-        public IAsyncNodeManager NodeManager { get; set; }
+        public IAsyncNodeManager NodeManager { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the session assigned to the event monitored item.
         /// </summary>
-        public ISession Session { get; set; }
+        public ISession Session { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the effective user identity used by the event monitored item.
         /// </summary>
-        public IUserIdentity EffectiveIdentity { get; set; }
+        public IUserIdentity EffectiveIdentity { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the server-assigned monitored-item identifier.
@@ -10917,12 +10915,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the subscription callback associated with the event monitored item.
         /// </summary>
-        public ISubscription SubscriptionCallback { get; set; }
+        public ISubscription SubscriptionCallback { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the node-manager handle assigned to the event monitored item.
         /// </summary>
-        public object ManagerHandle { get; set; }
+        public object ManagerHandle { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the monitored-item type flags used by the scenario.
@@ -11134,7 +11132,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the textual index range for the monitored value.
         /// </summary>
-        public string IndexRange { get; set; }
+        public string IndexRange { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the parsed index range for the monitored value.
@@ -11154,7 +11152,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the last service error associated with the monitored value.
         /// </summary>
-        public ServiceResult LastError { get; set; }
+        public ServiceResult LastError { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the last recorded data value.
@@ -11174,12 +11172,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the effective monitoring filter used by the server.
         /// </summary>
-        public MonitoringFilter FilterToUse { get; set; }
+        public MonitoringFilter FilterToUse { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the original monitoring filter supplied by the client.
         /// </summary>
-        public MonitoringFilter OriginalFilter { get; set; }
+        public MonitoringFilter OriginalFilter { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the persisted notification queue size.
@@ -11219,19 +11217,18 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the data-change queue supplied during restoration.
         /// </summary>
-        public IDataChangeMonitoredItemQueue RestoredDataChangeQueue { get; set; }
+        public IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }
 
         /// <summary>
         /// Gets or sets the event queue supplied during restoration.
         /// </summary>
-        public IEventMonitoredItemQueue RestoredEventQueue { get; set; }
+        public IEventMonitoredItemQueue? RestoredEventQueue { get; set; }
     }
 
     /// <summary>
     /// Unified interface for both <see cref="TestableAsyncCustomNodeManager"/> and
     /// <see cref="TestableCustomNodeManager2Adapter"/> so that tests can run against either.
     /// </summary>
-#nullable enable
     internal interface ITestNodeManager : IAsyncNodeManager, IDisposable
     {
         /// <summary>
@@ -11269,7 +11266,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="nodeId">The identifier to look up.</param>
         /// <returns>The matching registered node.</returns>
-        NodeState Find(NodeId nodeId);
+        NodeState? Find(NodeId nodeId);
 
         /// <summary>
         /// Adds an instance under the specified parent and returns its node identifier.

@@ -115,9 +115,9 @@ namespace Opc.Ua.Client.Tests.AliasNames
             var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
 
-            string name = await resolver
+            string name = (await resolver
                 .ResolveAliasNameAsync(new ExpandedNodeId("V1", 2))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(name, Is.EqualTo("Speed"));
         }
 

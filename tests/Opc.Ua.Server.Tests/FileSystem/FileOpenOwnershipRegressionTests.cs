@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 harness.File, harness.Manager.SystemContext, existingWriter ? (byte)2 : (byte)1).ConfigureAwait(false);
             harness.Provider.Invocations.Clear();
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                harness.File.Open, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6]).ConfigureAwait(false);
+                harness.File.Open!, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6]).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             harness.Provider.Verify(value => value.OpenWriteAsync(
                 It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -81,13 +81,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 });
             Task<(ServiceResult Result, List<Variant> Output)> read = Task.Run(async () =>
                 await FileReadRegressionTests.CallAsync(
-                    harness.File.Open, harness.Manager.SystemContext, harness.File.NodeId, [(byte)1])
+                    harness.File.Open!, harness.Manager.SystemContext, harness.File.NodeId, [(byte)1])
                     .ConfigureAwait(false));
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                    harness.File.Open, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6])
+                    harness.File.Open!, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6])
                     .ConfigureAwait(false);
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 harness.Provider.Verify(value => value.OpenWriteAsync(
@@ -110,12 +110,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using var harness = new FileHarness();
             uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Manager.SystemContext, mode)
                 .ConfigureAwait(false);
-            Stream stream = harness.GetHandle().GetStream(harness.SessionId, id);
-            Assert.That(stream.CanRead && stream.CanWrite, Is.True);
-            MethodState method = mode == 1 ? harness.File.Write : harness.File.Read;
+            Stream stream = harness.GetHandle().GetStream(harness.SessionId, id)!;
+            Assert.That(stream!.CanRead && stream.CanWrite, Is.True);
+            MethodState method = (mode == 1 ? harness.File.Write : harness.File.Read)!;
             ArrayOf<Variant> arguments = mode == 1 ? [id, ByteString.From([99])] : [id, 1];
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                method, harness.Manager.SystemContext, harness.File.NodeId, arguments).ConfigureAwait(false);
+                method!, harness.Manager.SystemContext, harness.File.NodeId, arguments).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(stream.Position, Is.Zero);
         }
@@ -132,10 +132,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Manager.SystemContext)
                 .ConfigureAwait(false);
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                harness.File.SetPosition, harness.Manager.SystemContext, harness.File.NodeId, [id, requested])
+                harness.File.SetPosition!, harness.Manager.SystemContext, harness.File.NodeId, [id, requested])
                 .ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(harness.GetHandle().GetStream(harness.SessionId, id).Position,
+            Assert.That(harness.GetHandle().GetStream(harness.SessionId, id)!.Position,
                 Is.EqualTo(4));
         }
 
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// </summary>
             public FileHandle GetHandle()
             {
-                return Manager.GetOrCreateHandle(File.NodeId, File.ProviderPath);
+                return Manager.GetOrCreateHandle(File.NodeId, File.ProviderPath)!;
             }
 
             /// <summary>

@@ -117,9 +117,25 @@ and thumbprint/subject/application-URI rotation fallbacks of `LoadPrivateKeyAsyn
 
 Configuration validation, manager startup loading, the certificate-provider cache cold path and
 `ApplicationInstance` provisioning/reload/deletion use this capability when available. The existing-key
-GDS signing-request path and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
+GDS signing-request path, certificate push staging/commit/rollback, issuer import/compensation,
+rejected-store access and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
 can use the overload accepting `ICertificateStoreResolver`; existing constructors retain their behavior.
 Provider routing does not change trust acceptance, GDS access controls or transaction semantics.
+
+Application-certificate push validation uses the configured manager and the group's registered
+trust scope (the default application group uses `Peers`), including instance-scoped store providers.
+Per [OPC 10000-12, 7.10.5](https://reference.opcfoundation.org/specs/OPC-10000-12/7.10.5),
+the group's TrustList must already contain the issuers; the `IssuerCertificates` method argument
+is ignored for application-certificate groups. Suppressible errors are accepted for this operation
+only. A per-call `AcceptError` callback uses an isolated validation core, so it neither reuses nor
+populates the acceptance cache used for normal connection validation. Missing issuers and other
+non-suppressible errors still fail.
+
+Custom stores also need a durable `IPeekablePendingCertificateKeyStore` when regenerating CSR keys.
+Scoped store resolution alone does not make the default directory-backed pending-key store support
+arbitrary storage backends. Pending keys must survive until the matching certificate is uploaded,
+including from a different session, as required by
+[OPC 10000-12, 7.10.10](https://reference.opcfoundation.org/specs/OPC-10000-12/7.10.10).
 
 ### Validating Certificates
 

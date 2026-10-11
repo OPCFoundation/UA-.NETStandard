@@ -88,12 +88,12 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             }
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = ServerFixture
                 .Config
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
+            ServerFixture.Config.ServerConfiguration!.MinSessionTimeout = 1000;
             ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
@@ -361,7 +361,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 Assert.Ignore("Timing on mac OS causes issues");
             }
 
-            ISession transferSession = null;
+            ISession? transferSession = null;
             try
             {
                 transferSession = await TestSessionTransferInternalAsync(
@@ -406,7 +406,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             };
 
             subscription.StateChanged += (s, e) =>
-                TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                TestContext.Out.WriteLine($"StateChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
 
             Assert.That(Session.AddSubscription(subscription), Is.True);
             await subscription.CreateAsync().ConfigureAwait(false);
@@ -555,7 +555,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
             TestContext.Out.WriteLine("------- Dispose original session --------");
             Session.Dispose();
-            Session = null;
+            Session = null!;
 
             bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
             Assert.That(
@@ -765,7 +765,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                             }
                         }
 
-                        if (referenceDescription.BrowseName.Name.Equals(
+                        if (referenceDescription.BrowseName.Name!.Equals(
                                 "MonitoredItemCount",
                                 StringComparison.OrdinalIgnoreCase))
                         {

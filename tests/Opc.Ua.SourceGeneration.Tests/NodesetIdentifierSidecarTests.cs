@@ -98,7 +98,7 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("ids.csv", "Thing,not-a-number,Object\r\n", "MODELGEN029")]
         public void ExplicitSidecarReportsValidationFailures(
             string identifierName,
-            string identifierContent,
+            string? identifierContent,
             string expectedDiagnosticId)
         {
             string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");

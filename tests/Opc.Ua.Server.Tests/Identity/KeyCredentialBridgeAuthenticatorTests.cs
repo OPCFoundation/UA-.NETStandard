@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             Assert.That(first.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(replay.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(replay.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(replay.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server.Tests.Identity
             {
                 Assert.That(authenticator.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
                 Assert.That(authenticator.IssuedTokenProfileUri, Is.EqualTo("urn:test:profile"));
-                Assert.Throws<ArgumentNullException>(() => new KeyCredentialBridgeAuthenticator(null));
+                Assert.Throws<ArgumentNullException>(() => new KeyCredentialBridgeAuthenticator(null!));
             });
         }
 
@@ -228,7 +228,7 @@ namespace Opc.Ua.Server.Tests.Identity
                     Is.Not.EqualTo(proof));
                 Assert.Throws<ArgumentNullException>(() =>
                     KeyCredentialBridgeAuthenticator.CreateProof(
-                        null, CredentialId, "nonce", 1, "urn:test:server"));
+                        null!, CredentialId, "nonce", 1, "urn:test:server"));
             });
         }
 
@@ -241,8 +241,8 @@ namespace Opc.Ua.Server.Tests.Identity
             // always compiled for net8.0, so a compile-time #if would reflect the
             // TEST target framework, not the STACK's. Probe the actual compiled
             // target framework of the Opc.Ua.Server assembly under test instead.
-            string frameworkName = typeof(KeyCredentialBridgeAuthenticator).Assembly
-                .GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
+            string frameworkName = (typeof(KeyCredentialBridgeAuthenticator).Assembly
+                .GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName)!;
 
             // frameworkName looks like ".NETCoreApp,Version=v8.0",
             // ".NETStandard,Version=v2.1" or ".NETFramework,Version=v4.8".
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Identity
                     ? parts[^1].TrimStart('v', 'V')
                     : string.Empty;
                 stackIsNet8OrGreater =
-                    Version.TryParse(versionText, out Version version) && version.Major >= 8;
+                    Version.TryParse(versionText, out Version? version) && version.Major >= 8;
             }
 
             if (!stackIsNet8OrGreater)
@@ -268,14 +268,14 @@ namespace Opc.Ua.Server.Tests.Identity
             object attribute = typeof(KeyCredentialBridgeAuthenticator)
                 .GetCustomAttributes(false)
                 .SingleOrDefault(a => a.GetType().FullName ==
-                    "System.Diagnostics.CodeAnalysis.ExperimentalAttribute");
+                    "System.Diagnostics.CodeAnalysis.ExperimentalAttribute")!;
             Assert.That(attribute, Is.Not.Null);
         }
 
         private static async Task<InMemoryKeyCredentialStore> CreateStoreAsync(DateTime expiration)
         {
             var store = new InMemoryKeyCredentialStore();
-            var claims = new Dictionary<string, object>
+            var claims = new Dictionary<string, object?>
             {
                 ["iss"] = "urn:test:issuer",
                 ["sub"] = "subject-1",

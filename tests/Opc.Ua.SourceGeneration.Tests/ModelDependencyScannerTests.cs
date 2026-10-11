@@ -106,7 +106,7 @@ namespace Opc.Ua.SourceGeneration
         public void ScanReturnsEmptyWhenNullCompilation()
         {
             ImmutableArray<ModelDependencyReference> result =
-                ReferencedModelDependencyScanner.Scan(null);
+                ReferencedModelDependencyScanner.Scan(null!);
 
             Assert.That(result, Is.Empty);
         }
@@ -481,7 +481,7 @@ namespace Opc.Ua.SourceGeneration
                 "TransitiveReexport",
                 prefix: "DemoModel.Transitive",
                 version: "999.0",
-                payload: null);
+                payload: null!);
 
             (GeneratorRunResult normalResult, _, ImmutableArray<Diagnostic> normalDiagnostics) = RunFluentAccessorsOnly(
                 s_producerWithoutAccessors.Value,
@@ -602,7 +602,7 @@ namespace Opc.Ua.SourceGeneration
         public void FluentAccessorsOnlyRejectsMissingReferencedModel()
         {
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(producer: null, includeDiNodeSet: true);
+                RunFluentAccessorsOnly(producer: null!, includeDiNodeSet: true);
 
             Diagnostic[] modelDiagnostics =
                 [.. diagnostics.Where(d => d.Id == "MODELGEN014")];
@@ -667,10 +667,10 @@ namespace Opc.Ua.SourceGeneration
         private static (GeneratorRunResult Result, Compilation OutputCompilation,
             ImmutableArray<Diagnostic> Diagnostics) RunFluentAccessorsOnly(
                 CSharpCompilation producer,
-                string consumerPrefix = null,
+                string? consumerPrefix = null,
                 bool includeDiNodeSet = false,
-                IReadOnlyDictionary<string, string> optionOverrides = null,
-                IReadOnlyList<MetadataReference> additionalReferences = null,
+                IReadOnlyDictionary<string, string>? optionOverrides = null,
+                IReadOnlyList<MetadataReference>? additionalReferences = null,
                 bool fluentAccessorsOnly = true,
                 string assemblyName = "Consumer")
         {
@@ -1167,14 +1167,14 @@ namespace Opc.Ua.SourceGeneration
                 .ToList();
 
             DirectoryInfo match =
-                candidates.Find(d => string.Equals(
+                (candidates.Find(d => string.Equals(
                     d.Name, testTargetFramework, StringComparison.OrdinalIgnoreCase))
                 ?? candidates
                     .Select(d => new FileInfo(Path.Combine(d.FullName, "Opc.Ua.Server.dll")))
                     .Where(f => f.Exists)
                     .OrderByDescending(f => f.LastWriteTimeUtc)
                     .Select(f => f.Directory)
-                    .FirstOrDefault();
+                    .FirstOrDefault())!;
 
             if (match == null)
             {

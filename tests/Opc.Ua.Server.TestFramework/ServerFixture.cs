@@ -51,9 +51,9 @@ namespace Opc.Ua.Server.TestFramework
 #pragma warning restore CA1001
         where T : ServerBase
     {
-        public IApplicationInstance Application { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
-        public T Server { get; private set; }
+        public IApplicationInstance Application { get; private set; } = null!;
+        public ApplicationConfiguration Config { get; private set; } = null!;
+        public T Server { get; private set; } = null!;
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         // Keep room for the default 100 Sessions, one replacement channel and two protected startup floors.
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.TestFramework
         public bool DurableSubscriptionsEnabled { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public bool ProvisioningMode { get; set; }
-        public ActivityListener ActivityListener { get; private set; }
+        public ActivityListener ActivityListener { get; private set; } = null!;
 
         /// <summary>
         /// Optional <see cref="Bindings.ITransportBindingRegistry"/>
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.TestFramework
         /// Kestrel-TCP listener fixture - without touching the
         /// process-wide static state.
         /// </summary>
-        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; } = null!;
 
         public ServerFixture(
             Func<ITelemetryContext, T> factory,
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.TestFramework
             m_logger = m_telemetry.CreateLogger<ServerFixture<T>>();
         }
 
-        public async Task LoadConfigurationAsync(string pkiRoot = null)
+        public async Task LoadConfigurationAsync(string? pkiRoot = null)
         {
             Application = new ApplicationInstance(m_telemetry)
             {
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public Task<T> StartAsync(int port = 0)
         {
-            return StartAsync(null, port);
+            return StartAsync(null!, port);
         }
 
         /// <summary>
@@ -404,7 +404,7 @@ namespace Opc.Ua.Server.TestFramework
         /// <exception cref="InvalidOperationException"></exception>
         private async Task InternalStartServerAsync(int port)
         {
-            Config.ServerConfiguration.BaseAddresses
+            Config.ServerConfiguration!.BaseAddresses
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             // check the application certificate.
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server.TestFramework
         {
             // Cancel any in-progress startup (e.g., address space creation)
             m_startupCts?.Dispose();
-            m_startupCts = null;
+            m_startupCts = null!;
 
             // Watchdog around server / application teardown. Without it, a
             // stuck Server.StopAsync() or Application.DisposeAsync() blocks
@@ -556,11 +556,11 @@ namespace Opc.Ua.Server.TestFramework
                     "avoid pinning the dotnet test host past --blame-hang-timeout. " +
                     "References will be released to the runtime for finalization.");
                 DisposeCertificateManagers();
-                Server = null;
-                Application = null;
-                Config = null;
+                Server = null!;
+                Application = null!;
+                Config = null!;
                 ActivityListener?.Dispose();
-                ActivityListener = null;
+                ActivityListener = null!;
                 return;
             }
 
@@ -574,7 +574,7 @@ namespace Opc.Ua.Server.TestFramework
                     () => Server.Dispose(),
                     nameof(Server) + "." + nameof(Server.Dispose));
                 DisposeCertificateManagers();
-                Server = null;
+                Server = null!;
             }
             if (Application != null)
             {
@@ -587,12 +587,12 @@ namespace Opc.Ua.Server.TestFramework
                 finally
                 {
                     DisposeCertificateManagers();
-                    Application = null;
+                    Application = null!;
                 }
             }
-            Config = null;
+            Config = null!;
             ActivityListener?.Dispose();
-            ActivityListener = null;
+            ActivityListener = null!;
             await Task.Delay(100).ConfigureAwait(false);
         }
 
@@ -630,7 +630,7 @@ namespace Opc.Ua.Server.TestFramework
         {
             for (Exception current = exception;
                 current is not null;
-                current = current.InnerException)
+                current = current.InnerException!)
             {
                 if (current is SocketException socket &&
                     socket.SocketErrorCode == SocketError.AddressAlreadyInUse)
@@ -731,7 +731,7 @@ namespace Opc.Ua.Server.TestFramework
         private void RunSyncWithTeardownWatchdog(Action action, string operationName)
         {
             using var done = new ManualResetEventSlim(false);
-            Exception captured = null;
+            Exception? captured = null;
             var worker = new Thread(() =>
             {
                 try
@@ -784,7 +784,7 @@ namespace Opc.Ua.Server.TestFramework
             }
         }
 
-        private CancellationTokenSource m_startupCts;
+        private CancellationTokenSource m_startupCts = null!;
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

@@ -35,8 +35,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>

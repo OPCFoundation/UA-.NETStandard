@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate certificate = WindowsCngCertificateFactory.CreateRsaCertificate(
                 "CN=CngNonExportable", m_keyName);
 
-            using RSA privateKey = certificate.GetRSAPrivateKey();
+            using RSA privateKey = certificate.GetRSAPrivateKey()!;
             Assert.That(privateKey, Is.Not.Null);
 
             Assert.Multiple(() =>
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             byte[] dataToSign = [2, 4, 6, 8, 10, 12];
             byte[] signature = CryptoUtils.Sign(
-                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri);
+                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri)!;
 
             Assert.That(signature, Is.Not.Null.And.Not.Empty);
             Assert.That(
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
                 certificate, securityPolicyUri, secret);
             byte[] decrypted = SecurityPolicies.Default.Decrypt(
-                certificate, securityPolicyUri, encrypted);
+                certificate, securityPolicyUri, encrypted)!;
 
             Assert.That(decrypted, Is.EqualTo(secret));
         }

@@ -213,10 +213,10 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => registry.RegisterDefault(null),
+                    () => registry.RegisterDefault(null!),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
-                    () => registry.RegisterFor(CryptoPurpose.KeyAgreement, null),
+                    () => registry.RegisterFor(CryptoPurpose.KeyAgreement, null!),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
                     () => registry.RegisterFor(
@@ -280,10 +280,12 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [TestCase(SecurityPolicies.Basic256Sha256)]
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
+#if !NETFRAMEWORK
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         [TestCase(SecurityPolicies.ECC_nistP256)]
         [TestCase(SecurityPolicies.ECC_nistP384)]
         [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
-        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+#endif
         public void FipsOnlyPermitsApprovedPolicies(string securityPolicyUri)
         {
             Assert.That(
@@ -291,6 +293,30 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                     securityPolicyUri, CryptoCompliancePolicy.FipsOnly),
                 Is.True);
         }
+
+#if NETFRAMEWORK
+        /// <summary>
+        /// On .NET Framework the ECDH agreement and the AEAD ciphers run in
+        /// BouncyCastle, outside any validated module, so even the NIST ECC
+        /// policies and RSA_DH_AesGcm are withheld.
+        /// </summary>
+        [Test]
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
+        [TestCase(SecurityPolicies.ECC_nistP384_AesGcm)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        public void FipsOnlyWithholdsBouncyCastlePoliciesOnNetFramework(string securityPolicyUri)
+        {
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(
+                securityPolicyUri);
+            Assert.That(info?.IsFipsApproved, Is.True);
+            Assert.That(
+                CryptoCompliance.IsPolicyPermitted(
+                    securityPolicyUri, CryptoCompliancePolicy.FipsOnly),
+                Is.False);
+        }
+#endif
 
         [Test]
         [TestCase(SecurityPolicies.Basic128Rsa15)]
@@ -324,12 +350,18 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             ArrayOf<string> filtered = CryptoCompliance.FilterPolicies(
                 policies, CryptoCompliancePolicy.FipsOnly);
 
+#if NETFRAMEWORK
+            // The ECDH agreement is not validated on .NET Framework.
+            Assert.That(filtered.Count, Is.EqualTo(1));
+            Assert.That(filtered[0], Is.EqualTo(SecurityPolicies.Basic256Sha256));
+#else
             Assert.That(filtered.Count, Is.EqualTo(2));
             Assert.Multiple(() =>
             {
                 Assert.That(filtered[0], Is.EqualTo(SecurityPolicies.Basic256Sha256));
                 Assert.That(filtered[1], Is.EqualTo(SecurityPolicies.ECC_nistP256));
             });
+#endif
         }
 
         /// <summary>

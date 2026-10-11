@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AMB</PackageId>
     <RootNamespace>Opc.Ua.AMB</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Source-generated OPC 10000-110 Asset Management Basics (AMB) information model (root cause and maintenance event interfaces, the maintenance event state machine, the DocumentationLinks AddIn, the AMB condition classes, the asset discovery alias categories and the location entry points), including model identifiers, typed node states, client proxies, the AddOpcUaAMB model loader and the server/client-independent AMB contracts.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

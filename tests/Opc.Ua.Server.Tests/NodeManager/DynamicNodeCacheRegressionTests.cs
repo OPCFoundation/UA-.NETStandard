@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public NodeState Find(NodeHandle handle, IDictionary<NodeId, NodeState> cache)
             {
-                return FindNodeInCache(SystemContext, handle, cache);
+                return FindNodeInCache(SystemContext, handle, cache)!;
             }
 
             /// <summary>

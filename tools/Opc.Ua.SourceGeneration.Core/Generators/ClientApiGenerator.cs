@@ -238,7 +238,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes a synchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_SyncParameters(
+        private TemplateString? LoadTemplate_SyncParameters(
             ILoadContext context,
             bool isInterface)
         {
@@ -275,7 +275,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes an asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_AsyncParameters(
+        private TemplateString? LoadTemplate_AsyncParameters(
             ILoadContext context,
             bool isInterface)
         {
@@ -317,7 +317,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes a begin asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_BeginAsyncParameters(
+        private TemplateString? LoadTemplate_BeginAsyncParameters(
             ILoadContext context,
             bool isInterface)
         {
@@ -357,7 +357,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes an end asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_EndAsyncParameters(
+        private TemplateString? LoadTemplate_EndAsyncParameters(
             ILoadContext context,
             bool isInterface)
         {
@@ -395,7 +395,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Copies the request paramaters into the request object.
         /// </summary>
-        private TemplateString LoadTemplate_RequestParameters(ILoadContext context)
+        private TemplateString? LoadTemplate_RequestParameters(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {
@@ -420,7 +420,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Copies the response paramaters into the request object.
         /// </summary>
-        private TemplateString LoadTemplate_ResponseParameters(ILoadContext context)
+        private TemplateString? LoadTemplate_ResponseParameters(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {
@@ -452,12 +452,12 @@ namespace Opc.Ua.SourceGeneration
         /// Collects the parameters to write.
         /// </summary>
         private void CollectParameters(
-            DataTypeDesign dataType,
+            DataTypeDesign? dataType,
             bool output,
             List<string> types,
             List<string> names)
         {
-            Parameter[] fields = dataType?.Fields;
+            Parameter[]? fields = dataType?.Fields;
             if (fields != null)
             {
                 bool first = true;
@@ -471,13 +471,13 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    DataTypeDesign datatype = field.DataTypeNode;
-                    string typeName = datatype.GetDotNetTypeName(
+                    DataTypeDesign? datatype = field.DataTypeNode;
+                    string typeName = datatype!.GetDotNetTypeName(
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.Nullable,
-                        useMatrixTypeInsteadOfVariant: datatype.SupportsMatrixOf());
+                        useMatrixTypeInsteadOfVariant: datatype!.SupportsMatrixOf());
 
                     // prefix out parameters.
                     if (output)
@@ -526,7 +526,7 @@ namespace Opc.Ua.SourceGeneration
             if (serviceType.Response?.Fields != null &&
                 serviceType.Response.Fields.Length > 0)
             {
-                DataTypeDesign datatype = serviceType.Response.Fields[0].DataTypeNode;
+                DataTypeDesign? datatype = serviceType.Response.Fields[0].DataTypeNode;
                 if (datatype != null)
                 {
                     returnType = datatype.GetDotNetTypeName(

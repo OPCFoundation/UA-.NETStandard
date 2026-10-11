@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
@@ -52,5 +54,31 @@ namespace Opc.Ua.Redundancy.Server
         /// authenticator on its own.
         /// </remarks>
         public bool EnableFastReconnect { get; set; }
+
+        /// <summary>
+        /// Gets or sets how often the replica that owns a session checks it for client
+        /// activity to mirror. A session's liveness heartbeat is written at most once
+        /// per third of its timeout, and only while the client uses the session, so a
+        /// standby can tell a session in normal use from one that timed out
+        /// (OPC 10000-4 5.7.2.1). Defaults to one second; zero or a negative value
+        /// disables the heartbeat, after which a mirrored session expires its timeout
+        /// after its last activation.
+        /// </summary>
+        public TimeSpan LivenessInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets or sets how often the shared store is swept for the entries of timed-out
+        /// sessions and for orphaned consumed-nonce markers. Sessions of a replica that
+        /// crashed or was shut down are never closed there, so without the sweep their
+        /// records (with their nonces and client certificates) would stay in the store.
+        /// Defaults to five minutes; zero or a negative value disables the sweep.
+        /// </summary>
+        public TimeSpan SweepInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Gets or sets the minimum age of a consumed-nonce marker that no live session
+        /// entry references before the sweep removes it. Defaults to one hour.
+        /// </summary>
+        public TimeSpan NonceMarkerRetention { get; set; } = TimeSpan.FromHours(1);
     }
 }

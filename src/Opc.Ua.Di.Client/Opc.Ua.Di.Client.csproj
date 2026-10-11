@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Di.Client</PackageId>
     <RootNamespace>Opc.Ua.Di.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>OPC UA Device Integration (DI, OPC 10000-100) client class library</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

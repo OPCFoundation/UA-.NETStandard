@@ -190,7 +190,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void InvalidPatternsAreRejected(string pattern)
         {
             Assert.That(LikePattern.IsValid(pattern), Is.False);
-            Assert.That(LikePattern.TryParse(pattern, out LikePattern parsed), Is.False);
+            Assert.That(LikePattern.TryParse(pattern, out LikePattern? parsed), Is.False);
             Assert.That(parsed, Is.Null);
             Assert.That(LikePattern.IsMatch("A[", pattern), Is.False);
         }
@@ -198,8 +198,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ParsedPatternCanBeReused()
         {
-            Assert.That(LikePattern.TryParse("%Server", out LikePattern pattern), Is.True);
-            Assert.That(pattern.Pattern, Is.EqualTo("%Server"));
+            Assert.That(LikePattern.TryParse("%Server", out LikePattern? pattern), Is.True);
+            Assert.That(pattern!.Pattern, Is.EqualTo("%Server"));
             Assert.That(pattern.ToString(), Is.EqualTo("%Server"));
             Assert.That(pattern.IsMatch("ClientAndServer"), Is.True);
             Assert.That(pattern.IsMatch("ServerApplication"), Is.False);
@@ -221,10 +221,10 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase("", "%", true)]
         [TestCase("", "_", false)]
         [TestCase(null, "%", false)]
-        public void EvaluationTimeoutPreservesPatternSemantics(string target, string text, bool expected)
+        public void EvaluationTimeoutPreservesPatternSemantics(string? target, string text, bool expected)
         {
-            Assert.That(LikePattern.TryParse(text, out LikePattern pattern), Is.True);
-            Assert.That(pattern.IsMatch(target, TimeSpan.FromSeconds(5)), Is.EqualTo(expected));
+            Assert.That(LikePattern.TryParse(text, out LikePattern? pattern), Is.True);
+            Assert.That(pattern!.IsMatch(target, TimeSpan.FromSeconds(5)), Is.EqualTo(expected));
             Assert.That(pattern.IsMatch(target, Timeout.InfiniteTimeSpan), Is.EqualTo(expected));
             Assert.That(pattern.IsMatch(target), Is.EqualTo(expected));
         }
@@ -236,9 +236,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(-2)]
         public void InvalidEvaluationTimeoutIsRejected(int milliseconds)
         {
-            Assert.That(LikePattern.TryParse("%", out LikePattern pattern), Is.True);
+            Assert.That(LikePattern.TryParse("%", out LikePattern? pattern), Is.True);
             ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-                pattern.IsMatch("value", TimeSpan.FromMilliseconds(milliseconds)));
+                pattern!.IsMatch("value", TimeSpan.FromMilliseconds(milliseconds)));
             Assert.That(error.ParamName, Is.EqualTo("matchTimeout"));
         }
 
@@ -252,13 +252,13 @@ namespace Opc.Ua.Types.Tests.Utils
             string text = characterList ? "[" + new string('a', 200_000) + "]" : "%" + new string('a', 8192) + "b";
             string target = characterList ? "z" : new string('a', 32768);
             string matching = characterList ? "a" : new string('a', 8192) + "b";
-            Assert.That(LikePattern.TryParse(text, out LikePattern pattern), Is.True);
+            Assert.That(LikePattern.TryParse(text, out LikePattern? pattern), Is.True);
             var elapsed = Stopwatch.StartNew();
 
-            Assert.Throws<TimeoutException>(() => pattern.IsMatch(target, TimeSpan.FromMilliseconds(1)));
+            Assert.Throws<TimeoutException>(() => pattern!.IsMatch(target, TimeSpan.FromMilliseconds(1)));
 
             Assert.That(elapsed.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
-            Assert.That(pattern.IsMatch(matching, TimeSpan.FromSeconds(5)), Is.True);
+            Assert.That(pattern!.IsMatch(matching, TimeSpan.FromSeconds(5)), Is.True);
             Assert.That(pattern.IsMatch(matching), Is.True);
         }
     }

@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DisposeAsyncDisposesBaseResources()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
-            TestableStandardServer server = null;
+            TestableStandardServer? server = null;
 
             try
             {
@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CleanupAsync(fixture, server).ConfigureAwait(false);
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
             }
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ConcurrentDisposeAndDisposeAsyncBothCompleteAndReleaseOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
-            TestableStandardServer server = null;
+            TestableStandardServer? server = null;
 
             try
             {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CleanupAsync(fixture, server).ConfigureAwait(false);
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
             }
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DisposeAsyncThenDisposeIsSafeAndReleasesOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
-            TestableStandardServer server = null;
+            TestableStandardServer? server = null;
 
             try
             {
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CleanupAsync(fixture, server).ConfigureAwait(false);
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
             }
         }
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DisposeBlocksUntilShutdownCompletionAndReleasesOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
-            TestableStandardServer server = null;
+            TestableStandardServer? server = null;
 
             try
             {
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CleanupAsync(fixture, server).ConfigureAwait(false);
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
             }
         }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ConcurrentAndRepeatStopAsyncRunTeardownOnce()
         {
             ServerFixture<TestableStandardServer> fixture = CreateFixture();
-            TestableStandardServer server = null;
+            TestableStandardServer? server = null;
 
             try
             {
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CleanupAsync(fixture, server).ConfigureAwait(false);
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
             }
         }
 

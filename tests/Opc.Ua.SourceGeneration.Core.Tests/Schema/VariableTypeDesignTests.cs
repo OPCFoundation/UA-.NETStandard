@@ -133,7 +133,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("1,2,3", "4,5,6")]
         [TestCase(null, "1,2,3")]
         [TestCase("", "1,2,3")]
-        public void GetHashCode_DifferentArrayDimensions_ReturnsDifferentHashCode(string dim1, string dim2)
+        public void GetHashCode_DifferentArrayDimensions_ReturnsDifferentHashCode(string? dim1, string dim2)
         {
             // Arrange
             var design1 = new VariableTypeDesign { ArrayDimensions = dim1 };
@@ -153,7 +153,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase("1,2,3")]
-        public void GetHashCode_VariousArrayDimensions_ReturnsValidHashCode(string dimensions)
+        public void GetHashCode_VariousArrayDimensions_ReturnsValidHashCode(string? dimensions)
         {
             // Arrange
             var design = new VariableTypeDesign { ArrayDimensions = dimensions };
@@ -393,7 +393,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = variableTypeDesign.Equals(null);
+            bool result = variableTypeDesign.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -856,7 +856,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = instance.Equals((object)null);
+            bool result = instance.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert

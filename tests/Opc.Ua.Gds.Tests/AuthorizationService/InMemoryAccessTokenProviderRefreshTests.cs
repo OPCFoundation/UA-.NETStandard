@@ -290,8 +290,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private static async Task<AccessTokenResult> IssueTokenAsync(
             InMemoryAccessTokenProvider provider,
             string resourceId = Audience,
-            string[] scopes = null,
-            string[] roles = null)
+            string[]? scopes = null,
+            string[]? roles = null)
         {
             scopes ??= ["read", "write"];
             roles ??= ["operator"];
