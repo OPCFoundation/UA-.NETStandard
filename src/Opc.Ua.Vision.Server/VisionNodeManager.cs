@@ -103,7 +103,7 @@ namespace Opc.Ua.Vision.Server
                 SystemContext.NamespaceUris.GetIndex(MachineVisionModels.AssetNamespaceUri) < 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
-                    "Part 2 requires the Opc.Ua.MachineVision.Server package and AddVisionMachinery().");
+                    "Part 2 requires the Opc.Ua.MachineVision.Server package and AddMachineVision().");
             }
         }
 
@@ -368,8 +368,8 @@ namespace Opc.Ua.Vision.Server
             }
             if ((m_options.MachineVisionParts & MachineVisionParts.Control) != 0)
             {
-                MachineVision.OpcUaVisionMachineVisionExtensions
-                    .AddOpcUaVisionMachineVision(context.EncodeableFactory.Builder).Commit();
+                MachineVision.OpcUaMachineVisionExtensions
+                    .AddOpcUaMachineVision(context.EncodeableFactory.Builder).Commit();
             }
         }
 

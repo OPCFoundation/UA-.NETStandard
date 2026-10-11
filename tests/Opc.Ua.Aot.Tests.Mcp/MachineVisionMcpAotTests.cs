@@ -75,7 +75,7 @@ namespace Opc.Ua.Aot.Tests
                 logging => logging.SetMinimumLevel(LogLevel.Warning));
             var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.ControlNamespaceUri);
-            context.Factory.Builder.AddOpcUaVisionMachineVision().Commit();
+            context.Factory.Builder.AddOpcUaMachineVision().Commit();
             using var encoder = new JsonEncoder(context);
             encoder.WriteVariant("Result", Variant.FromStructure(new ResultDataType
             {

@@ -70,7 +70,7 @@ namespace Opc.Ua.Vision.Tests
                 .AddServer(options => options.ApplicationName = "MachineVisionRegistration")
                 .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
             Assert.Throws<InvalidOperationException>(() => builder.AddVision(
-                options => options.MachineVisionParts = MachineVisionParts.Assets).AddVisionMachinery());
+                options => options.MachineVisionParts = MachineVisionParts.Assets).AddMachineVision());
         }
 
         [Test]

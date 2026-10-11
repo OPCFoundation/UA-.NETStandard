@@ -112,8 +112,8 @@ namespace Opc.Ua.Vision.Tests
             nodes.AddOpcUaIA(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaVisionPerception(context);
-            nodes.AddOpcUaVisionMachineVision(context);
-            nodes.AddOpcUaVisionMachineVisionAMCM(context);
+            Assert.That(nodes.AddOpcUaMachineVision(context), Is.SameAs(nodes));
+            Assert.That(nodes.AddOpcUaMachineVisionAMCM(context), Is.SameAs(nodes));
 
             VisionSystemState control = context.CreateInstanceOfVisionSystemType();
             VisionSystemAssetState asset = context.CreateInstanceOfVisionSystemAssetType();
@@ -126,6 +126,68 @@ namespace Opc.Ua.Vision.Tests
                     Is.Not.EqualTo(asset.TypeDefinitionId.NamespaceIndex));
                 Assert.That(context.NamespaceUris.GetIndex(MachineVisionModels.ControlNamespaceUri), Is.GreaterThan(0));
                 Assert.That(context.NamespaceUris.GetIndex(MachineVisionModels.AssetNamespaceUri), Is.GreaterThan(0));
+            });
+        }
+
+        /// <summary>
+        /// The short loader names register both encodeable and node state factories without changing CLR namespaces.
+        /// </summary>
+        [Test]
+        public void ModelLoaderNamesRegisterTypedFactories()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var message = ServiceMessageContext.CreateEmpty(telemetry);
+            IEncodeableFactoryBuilder encodeables = message.Factory.Builder;
+            Assert.That(encodeables.AddOpcUaMachineVision(), Is.SameAs(encodeables));
+            Assert.That(encodeables.AddOpcUaMachineVisionAMCM(), Is.SameAs(encodeables));
+            encodeables.Commit();
+            Assert.That(message.Factory.ContainsEncodeableType(MachineVision.DataTypeIds.ResultDataType), Is.True);
+            Assert.That(message.Factory.ContainsEncodeableType(
+                MachineVision.AMCM.DataTypeIds.SEMI_E10SystemStateInfoDataType), Is.True);
+
+            var context = new SystemContext(telemetry) { NamespaceUris = message.NamespaceUris };
+            context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.ControlNamespaceUri);
+            context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.AssetNamespaceUri);
+            var factory = new NodeStateFactory();
+            Assert.That(factory.AddOpcUaMachineVision(), Is.SameAs(factory));
+            Assert.That(factory.AddOpcUaMachineVisionAMCM(), Is.SameAs(factory));
+            Assert.That(factory.CreateInstance(
+                context, null, NodeClass.Object, new QualifiedName("Control"), ReferenceTypeIds.HasComponent,
+                ExpandedNodeId.ToNodeId(MachineVision.ObjectTypeIds.VisionSystemType, context.NamespaceUris)),
+                Is.TypeOf<VisionSystemState>());
+            Assert.That(factory.CreateInstance(
+                context, null, NodeClass.Object, new QualifiedName("Asset"), ReferenceTypeIds.HasComponent,
+                ExpandedNodeId.ToNodeId(
+                    MachineVision.AMCM.ObjectTypeIds.VisionSystemAssetType, context.NamespaceUris)),
+                Is.TypeOf<VisionSystemAssetState>());
+        }
+
+        /// <summary>
+        /// Both models reject missing loader arguments at their public entry points.
+        /// </summary>
+        [Test]
+        public void ModelLoaderNamesRejectNullArguments()
+        {
+            var context = new SystemContext(NUnitTelemetryContext.Create());
+            var nodes = new NodeStateCollection();
+            Assert.Multiple(() =>
+            {
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((NodeStateCollection)null!).AddOpcUaMachineVision(context))!.ParamName, Is.EqualTo("nodes"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((NodeStateCollection)null!).AddOpcUaMachineVisionAMCM(context))!.ParamName, Is.EqualTo("nodes"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    nodes.AddOpcUaMachineVision(null!))!.ParamName, Is.EqualTo("context"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    nodes.AddOpcUaMachineVisionAMCM(null!))!.ParamName, Is.EqualTo("context"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((IEncodeableFactoryBuilder)null!).AddOpcUaMachineVision())!.ParamName, Is.EqualTo("builder"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((IEncodeableFactoryBuilder)null!).AddOpcUaMachineVisionAMCM())!.ParamName, Is.EqualTo("builder"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((INodeStateFactoryBuilder)null!).AddOpcUaMachineVision())!.ParamName, Is.EqualTo("builder"));
+                Assert.That(Assert.Throws<ArgumentNullException>(() =>
+                    ((INodeStateFactoryBuilder)null!).AddOpcUaMachineVisionAMCM())!.ParamName, Is.EqualTo("builder"));
             });
         }
 

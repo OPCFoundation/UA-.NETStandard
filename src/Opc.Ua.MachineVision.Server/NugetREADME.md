@@ -4,7 +4,7 @@ OPC 40100-2 asset builders, identification, maintenance/health information,
 condition-monitoring updates, and optical/data relationships. Builders live
 in `Opc.Ua.Vision.Server` and reuse its shared context and resource ownership.
 
-For a standalone Vision manager, call `AddVision(...).AddVisionMachinery()`.
+For a standalone Vision manager, call `AddVision(...).AddMachineVision()`.
 For an existing Machinery owner, call `AddVisionToMachinery()` and configure
 instances through `ConfigureVisionFor<MachineryNodeManager>`.
 Add multiple uniquely named systems/assets within that owner rather than

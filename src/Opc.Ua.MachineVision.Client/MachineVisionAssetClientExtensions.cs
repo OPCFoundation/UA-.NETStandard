@@ -211,8 +211,8 @@ namespace Opc.Ua.Vision.Client
         {
             if (!factory.ContainsEncodeableType(Amcm.DataTypeIds.SEMI_E10SystemStateInfoDataType))
             {
-                Amcm.OpcUaVisionMachineVisionAMCMExtensions
-                    .AddOpcUaVisionMachineVisionAMCM(factory.Builder).Commit();
+                Amcm.OpcUaMachineVisionAMCMExtensions
+                    .AddOpcUaMachineVisionAMCM(factory.Builder).Commit();
             }
         }
     }

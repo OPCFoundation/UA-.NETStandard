@@ -11,9 +11,9 @@ the `AddOpcUaVisionPerception` model loader. The generated `ObjectTypeIds`,
 `ReferenceTypeIds` and `DataTypeIds` classes are the source of truth for the
 model.
 
-Part 1 types use `Opc.Ua.Vision.MachineVision` and `AddOpcUaVisionMachineVision`.
+Part 1 types use `Opc.Ua.Vision.MachineVision` and `AddOpcUaMachineVision`.
 Part 2 types use `Opc.Ua.Vision.MachineVision.AMCM` and
-`AddOpcUaVisionMachineVisionAMCM` from the Machinery package. Both models retain
+`AddOpcUaMachineVisionAMCM` from `Opc.Ua.MachineVision`. Both models retain
 their official wire identities. Part 1 requires UA core; Part 2 requires
 DI/Machinery without a model dependency on Part 1.
 

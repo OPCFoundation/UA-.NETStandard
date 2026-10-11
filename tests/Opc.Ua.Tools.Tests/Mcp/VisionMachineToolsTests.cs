@@ -785,7 +785,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Provider = Services(McpToolProfile.Vision).BuildServiceProvider();
                 Manager = Provider.GetRequiredService<OpcUaSessionManager>();
                 Context = ServiceMessageContext.Create(Manager.Telemetry);
-                Context.Factory.Builder.AddOpcUaVisionMachineVision().Commit();
+                Context.Factory.Builder.AddOpcUaMachineVision().Commit();
                 if (control)
                 {
                     Context.NamespaceUris.GetIndexOrAppend(MachineVisionModels.ControlNamespaceUri);

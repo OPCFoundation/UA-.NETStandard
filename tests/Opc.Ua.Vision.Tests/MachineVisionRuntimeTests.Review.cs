@@ -50,7 +50,7 @@ namespace Opc.Ua.Vision.Tests
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(
                 options => options.ApplicationName = "VisionModuleTests").AddVision();
-            builder.AddVisionMachinery().AddVisionMachinery();
+            builder.AddMachineVision().AddMachineVision();
             using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(provider.GetRequiredService<IOptions<VisionServerOptions>>().Value.MachineVisionParts,
                 Is.EqualTo(MachineVisionParts.Assets));
@@ -67,12 +67,12 @@ namespace Opc.Ua.Vision.Tests
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(
                 options => options.ApplicationName = "VisionModuleTests");
-            Assert.Throws<System.InvalidOperationException>(() => builder.AddVisionMachinery());
+            Assert.Throws<System.InvalidOperationException>(() => builder.AddMachineVision());
             builder.AddVision();
             services.AddSingleton(new DiAddressSpaceOwnership("OtherOwner"));
-            Assert.Throws<System.InvalidOperationException>(() => builder.AddVisionMachinery());
+            Assert.Throws<System.InvalidOperationException>(() => builder.AddMachineVision());
             Assert.Throws<System.ArgumentNullException>(() =>
-                OpcUaServerVisionMachineryExtensions.AddVisionMachinery(null!));
+                OpcUaServerVisionMachineryExtensions.AddMachineVision(null!));
             Assert.Throws<System.ArgumentNullException>(() =>
                 OpcUaServerVisionMachineryExtensions.AddVisionToMachinery(null!));
         }

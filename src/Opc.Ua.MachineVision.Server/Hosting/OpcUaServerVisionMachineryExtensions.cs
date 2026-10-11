@@ -53,7 +53,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException"></exception>
-        public static IOpcUaServerBuilder AddVisionMachinery(this IOpcUaServerBuilder builder)
+        public static IOpcUaServerBuilder AddMachineVision(this IOpcUaServerBuilder builder)
         {
             if (builder == null)
             {
@@ -77,7 +77,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             if (!visionRegistered)
             {
-                throw new InvalidOperationException("Register AddVision before AddVisionMachinery.");
+                throw new InvalidOperationException("Register AddVision before AddMachineVision.");
             }
             if (!ownsDi)
             {
@@ -142,8 +142,8 @@ namespace Opc.Ua.Vision.Server
             nodes.AddOpcUaDi(context);
             nodes.AddOpcUaIA(context);
             nodes.AddOpcUaMachinery(context);
-            nodes.AddOpcUaVisionMachineVisionAMCM(context);
-            context.EncodeableFactory.Builder.AddOpcUaVisionMachineVisionAMCM().Commit();
+            nodes.AddOpcUaMachineVisionAMCM(context);
+            context.EncodeableFactory.Builder.AddOpcUaMachineVisionAMCM().Commit();
         }
     }
 
@@ -194,8 +194,8 @@ namespace Opc.Ua.Vision.Server
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
                     "Part 2 assets require MachineryParts.BuildingBlocks on the owning manager.");
             }
-            nodes.AddOpcUaVisionMachineVisionAMCM(context);
-            context.EncodeableFactory.Builder.AddOpcUaVisionMachineVisionAMCM().Commit();
+            nodes.AddOpcUaMachineVisionAMCM(context);
+            context.EncodeableFactory.Builder.AddOpcUaMachineVisionAMCM().Commit();
         }
 
         private readonly VisionServerOptions m_options;

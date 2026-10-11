@@ -424,8 +424,8 @@ namespace Opc.Ua.Vision.Client
             }
             if (!factory.ContainsEncodeableType(MachineVision.DataTypeIds.ResultDataType))
             {
-                MachineVision.OpcUaVisionMachineVisionExtensions
-                    .AddOpcUaVisionMachineVision(factory.Builder).Commit();
+                MachineVision.OpcUaMachineVisionExtensions
+                    .AddOpcUaMachineVision(factory.Builder).Commit();
             }
         }
     }

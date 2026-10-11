@@ -35,8 +35,8 @@ a model's specification status are separate: the Perception model is provisional
 | Model | CLR namespace | Wire namespace | Loader |
 | --- | --- | --- | --- |
 | Perception model | `Opc.Ua.Vision.Perception` | `http://opcfoundation.org/UA/Vision/` | `AddOpcUaVisionPerception` |
-| OPC 40100-1, specification 1.0 | `Opc.Ua.Vision.MachineVision` | `http://opcfoundation.org/UA/MachineVision` | `AddOpcUaVisionMachineVision` |
-| OPC 40100-2, specification 1.00.0 | `Opc.Ua.Vision.MachineVision.AMCM` | `http://opcfoundation.org/UA/MachineVision/AMCM/` | `AddOpcUaVisionMachineVisionAMCM` |
+| OPC 40100-1, specification 1.0 | `Opc.Ua.Vision.MachineVision` | `http://opcfoundation.org/UA/MachineVision` | `AddOpcUaMachineVision` |
+| OPC 40100-2, specification 1.00.0 | `Opc.Ua.Vision.MachineVision.AMCM` | `http://opcfoundation.org/UA/MachineVision/AMCM/` | `AddOpcUaMachineVisionAMCM` |
 
 Namespace URIs are exact identifiers: Part 1 has **no trailing slash**. Part 2 has one.
 Part 1 depends on UA core only. Part 2 depends on UA core, Device Integration,
@@ -64,7 +64,7 @@ come from those model producers rather than hand-maintained copies.
 
 `VisionServerOptions.MachineVisionParts` defaults to `None`. Select `Control`,
 `Assets`, or `All` independently. Part 2 builders require
-`Opc.Ua.MachineVision.Server` and the `AddVisionMachinery()` registration for a
+`Opc.Ua.MachineVision.Server` and the `AddMachineVision()` registration for a
 standalone manager. This example assumes an application implementation of
 `IMachineVisionOperationsProvider` has been registered with DI:
 
@@ -79,7 +79,7 @@ builder.Services.AddSingleton<IMachineVisionOperationsProvider, CameraOperations
 builder.Services.AddOpcUa()
     .AddServer(options => options.EndpointUrls.Add("opc.tcp://localhost:62550/MachineVision"))
     .AddVision(options => options.MachineVisionParts = MachineVisionParts.All)
-    .AddVisionMachinery()
+    .AddMachineVision()
     .ConfigureVision(async (context, ct) =>
     {
         MachineVisionSystemHandle system = await context.AddMachineVisionSystemAsync(
@@ -832,7 +832,7 @@ hosting surface:
 | `ConfigureVision(Func<IVisionBuildContext, CancellationToken, ValueTask>)` | Async configurator, run on server start against the standalone `VisionNodeManager` |
 | `ConfigureVision(Action<IVisionBuildContext>)` | Sync configurator overload |
 | `ConfigureVisionFor<TNodeManager>(...)` | Configurator targeting `VisionNodeManager` or the stock `MachineryNodeManager` |
-| `AddVisionMachinery()` | Registers Part 2 models/builders with a standalone Vision owner |
+| `AddMachineVision()` | Registers Part 2 models/builders with a standalone Vision owner |
 | `AddVisionToMachinery(...)` | Loads the selected Vision models into a Machinery owner; selects both released parts by default |
 | `ConfigureVisionOnMachinery<TNodeManager>(...)` | Configures an application-owned DI/Machinery manager that loads the Vision models |
 

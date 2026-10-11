@@ -126,7 +126,7 @@ namespace Opc.Ua.Vision.Server
             nodes.AddOpcUaVisionPerception(context);
             if ((Parts & MachineVisionParts.Control) != 0)
             {
-                nodes.AddOpcUaVisionMachineVision(context);
+                nodes.AddOpcUaMachineVision(context);
             }
         }
     }

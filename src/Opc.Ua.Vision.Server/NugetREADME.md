@@ -20,7 +20,7 @@ particular camera, scene or model.
 
 - `AddVision()` — registers the stock `VisionNodeManager` and factory in the
   Generic Host pipeline. Its default wire model requires only UA core;
-  Part 2 hosts additionally call `AddVisionMachinery()` from the Machinery server package.
+  Part 2 hosts additionally call `AddMachineVision()` from `Opc.Ua.MachineVision.Server`.
 - `ConfigureVision(...)` / `ConfigureVisionFor<TNodeManager>(...)` — fluent
   configurator that runs on server start.
 - `VisionNodeManager` / `VisionNodeManagerFactory` — standalone node

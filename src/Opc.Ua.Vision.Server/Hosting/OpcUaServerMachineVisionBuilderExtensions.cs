@@ -212,8 +212,8 @@ namespace Opc.Ua.Vision.Server
             context.EncodeableFactory.Builder.AddOpcUaVisionPerception().Commit();
             if ((m_options.MachineVisionParts & MachineVisionParts.Control) != 0)
             {
-                nodes.AddOpcUaVisionMachineVision(context);
-                context.EncodeableFactory.Builder.AddOpcUaVisionMachineVision().Commit();
+                nodes.AddOpcUaMachineVision(context);
+                context.EncodeableFactory.Builder.AddOpcUaMachineVision().Commit();
             }
         }
 
