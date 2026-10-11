@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Vision.Machinery.Server</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).MachineVision.Server</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Vision.Machinery.Server</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.MachineVision.Server</PackageId>
     <RootNamespace>Opc.Ua.Vision.Server</RootNamespace>
     <Description>OPC 40100-2 Machine Vision asset management and condition monitoring, with generated fluent accessors, transactional telemetry updates and shared DI/Machinery hosting.</Description>
     <IsPackable>true</IsPackable>
@@ -14,7 +14,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Opc.Ua.Vision.Machinery\Opc.Ua.Vision.Machinery.csproj" />
+    <ProjectReference Include="..\Opc.Ua.MachineVision\Opc.Ua.MachineVision.csproj" />
     <ProjectReference Include="..\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -24,7 +24,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Vision.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="..\Opc.Ua.Vision.Machinery\Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml">
+    <AdditionalFiles Include="..\Opc.Ua.MachineVision\Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/MachineVision/AMCM/</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>MachineVisionAmcm</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>Opc.Ua.Vision.MachineVision.AMCM</ModelSourceGeneratorPrefix>

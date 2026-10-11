@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Vision.Machinery.Client</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).MachineVision.Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Vision.Machinery.Client</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.MachineVision.Client</PackageId>
     <RootNamespace>Opc.Ua.Vision.Client</RootNamespace>
     <Description>Typed OPC 40100-2 Machine Vision asset discovery, identification, condition-monitoring snapshots and relationship clients.</Description>
     <IsPackable>true</IsPackable>
@@ -14,7 +14,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Opc.Ua.Vision.Machinery\Opc.Ua.Vision.Machinery.csproj" />
+    <ProjectReference Include="..\Opc.Ua.MachineVision\Opc.Ua.MachineVision.csproj" />
     <ProjectReference Include="..\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
     <InternalsVisibleTo Include="Opc.Ua.Vision.Tests" />
   </ItemGroup>

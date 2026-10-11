@@ -1703,12 +1703,12 @@ namespace Opc.Ua.Tools.Tests
             "OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug",
             "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
             "OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server",
-            "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server.Debug",
             "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision",
             "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug"
         ];

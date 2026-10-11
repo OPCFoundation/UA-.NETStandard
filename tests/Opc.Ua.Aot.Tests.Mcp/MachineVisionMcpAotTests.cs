@@ -61,7 +61,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(() => VisionMachineTools.DownloadResultAsync(null!, "i=1", "result", maximumBytes: 0))
                 .Throws<ArgumentOutOfRangeException>();
             await Assert.That(typeof(MachineVisionAssetClientExtensions).Assembly.GetName().Name)
-                .IsEqualTo("Opc.Ua.Vision.Machinery.Client");
+                .IsEqualTo("Opc.Ua.MachineVision.Client");
             await Assert.That(typeof(VisionPose3DDataType).Namespace)
                 .IsEqualTo("Opc.Ua.Vision.Perception");
             await Assert.That(JsonSerializer.IsReflectionEnabledByDefault).IsFalse();

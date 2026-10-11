@@ -2,7 +2,7 @@
 
 Server/client-independent models for **OPC 40100-1** control/management and the
 **Perception model** for capture, inference, media, results, and coordinate frames.
-Part 2 asset management/condition monitoring is in `Opc.Ua.Vision.Machinery`.
+Part 2 asset management/condition monitoring is in `Opc.Ua.MachineVision`.
 
 The Perception NodeSet is **source-generated** in `Opc.Ua.Vision.Perception` over the base OPC UA
 namespace (no DI, Machinery or Robotics dependency), exposing generated
@@ -51,7 +51,7 @@ The Perception DataTypes follow §5.12 of their specification:
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | Hosting a Vision server: `AddVision`, `ConfigureVision`, provider abstractions, fluent topology builders, facet derivation |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | `VisionClient` discovery, sensors, media, inference, results, `VisionFrameGraph` pose composition, `VisionFeedbackClient` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery` | Part 2 asset models, with corresponding `.Client` and `.Server` modules |
+| `OPCFoundation.NetStandard.Opc.Ua.MachineVision` | Part 2 asset models, with corresponding `.Client` and `.Server` modules |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | Rendering a simulated sensor's camera view offscreen from an OpenUSD stage |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools for perception agents, including `vision_get_frame` returning an MCP `ImageContentBlock` |
 

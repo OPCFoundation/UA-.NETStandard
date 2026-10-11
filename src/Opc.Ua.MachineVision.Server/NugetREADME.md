@@ -1,4 +1,4 @@
-# OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server
+# OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 
 OPC 40100-2 asset builders, identification, maintenance/health information,
 condition-monitoring updates, and optical/data relationships. Builders live

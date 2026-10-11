@@ -112,18 +112,19 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(typeof(VisionPose3DDataType).Namespace, Is.EqualTo("Opc.Ua.Vision.Perception"));
             Assert.That(typeof(VisionPose3DDataType).Assembly.GetName().Name, Is.EqualTo("Opc.Ua.Vision"));
             Assert.That(typeof(VisionSystemState).Assembly.GetName().Name, Is.EqualTo("Opc.Ua.Vision"));
+            Assert.That(typeof(Amcm.VisionSystemAssetState).Namespace, Is.EqualTo("Opc.Ua.Vision.MachineVision.AMCM"));
             Assert.That(typeof(Amcm.VisionSystemAssetState).Assembly.GetName().Name,
-                Is.EqualTo("Opc.Ua.Vision.Machinery"));
+                Is.EqualTo("Opc.Ua.MachineVision"));
             Assert.That(typeof(MachineVisionAssetBuilder).Assembly.GetName().Name,
-                Is.EqualTo("Opc.Ua.Vision.Machinery.Server"));
+                Is.EqualTo("Opc.Ua.MachineVision.Server"));
             Assert.That(typeof(MachineVisionAssetClientExtensions).Assembly.GetName().Name,
-                Is.EqualTo("Opc.Ua.Vision.Machinery.Client"));
+                Is.EqualTo("Opc.Ua.MachineVision.Client"));
             Assert.That(typeof(VisionPose3DDataType).Assembly.GetReferencedAssemblies().Select(a => a.Name),
-                Has.None.EqualTo("Opc.Ua.Vision.Machinery"));
+                Has.None.EqualTo("Opc.Ua.MachineVision"));
             Assert.That(typeof(VisionClient).Assembly.GetReferencedAssemblies().Select(a => a.Name),
-                Has.None.EqualTo("Opc.Ua.Vision.Machinery.Client"));
+                Has.None.EqualTo("Opc.Ua.MachineVision.Client"));
             Assert.That(typeof(MachineVisionSystemHandle).Assembly.GetReferencedAssemblies().Select(a => a.Name),
-                Has.None.EqualTo("Opc.Ua.Vision.Machinery.Server"));
+                Has.None.EqualTo("Opc.Ua.MachineVision.Server"));
             Assert.That(Perception.Namespaces.Vision, Is.EqualTo("http://opcfoundation.org/UA/Vision/"));
         }
 

@@ -63,17 +63,20 @@ namespace Opc.Ua.Tools.Tests
             string[] actual =
             [
                 .. lines.Select(line => line.Trim()).Where(id =>
-                    id is "OPCFoundation.NetStandard.Opc.Ua.Vision" or "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" ||
-                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Vision.", StringComparison.Ordinal))
+                    id is "OPCFoundation.NetStandard.Opc.Ua.Vision" or
+                        "OPCFoundation.NetStandard.Opc.Ua.MachineVision" or
+                        "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Vision.", StringComparison.Ordinal) ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.MachineVision.", StringComparison.Ordinal))
             ];
             string[] expected =
             [
                 "OPCFoundation.NetStandard.Opc.Ua.Vision",
                 "OPCFoundation.NetStandard.Opc.Ua.Vision.Client",
                 "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
-                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery",
-                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client",
-                "OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.MachineVision",
+                "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server",
                 "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
                 "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision"
             ];
@@ -477,12 +480,12 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", PreviewFamilyVersion),
@@ -530,9 +533,9 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug", "2.0.0"),
-                ("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client.Debug", "2.0.0"),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0"),
                 ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug", PreviewFamilyVersion)
             ];
@@ -556,12 +559,12 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug")]
         [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Server")]
         [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Debug")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client.Debug")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server")]
-        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client.Debug")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server")]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server.Debug")]
         [TestCase("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision")]
         [TestCase("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug")]
         public async Task RejectsForcedPreviewForPromotedVisionAtStableRootAsync(string packageId)

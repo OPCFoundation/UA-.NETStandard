@@ -71,9 +71,11 @@ two source/package adjustments:
   Replace `AddOpcUaVision` with `AddOpcUaVisionPerception`. The wire namespace
   `http://opcfoundation.org/UA/Vision/` and its NodeIds do not change. Rebuild
   consumers; a CLR namespace move cannot be represented by a type forwarder.
-- Part 2 models are in `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery`.
-  Asset builders require `.Vision.Machinery.Server`; asset discovery, snapshots,
-  and relationship extensions require `.Vision.Machinery.Client`. The generated
+- Part 2 models are in `OPCFoundation.NetStandard.Opc.Ua.MachineVision`.
+  Asset builders require `.MachineVision.Server`; asset discovery, snapshots,
+  and relationship extensions require `.MachineVision.Client`. Replace earlier
+  `Opc.Ua.Vision.Machinery` package references and their `.Client`/`.Server`
+  counterparts with these names, and rebuild consumers. The generated
   AMCM namespace remains `Opc.Ua.Vision.MachineVision.AMCM`. The asset builder and
   extension namespaces remain `Opc.Ua.Vision.Server` and `Opc.Ua.Vision.Client`.
 

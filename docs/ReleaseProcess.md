@@ -45,8 +45,9 @@ without any other context.
   `version.targets` (build-time) and `Test-PreviewPackageId` in
   `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
-  The Vision model, client, server, and Vision MCP packages follow the root
-  version instead. This does not remove the prerelease suffix from development
+  The Vision and MachineVision model/client/server packages and the Vision MCP
+  package follow the root version instead. This does not remove the prerelease
+  suffix from development
   builds or authorize a release outside the procedures below.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,

@@ -89,8 +89,9 @@ released. The XRegistry, WoT Connectivity, Robotics,
 Redundancy, Positioning, OpenUSD, and AI package families, the Vision.OpenUsd
 renderer, and the Robotics MCP extension remain
 preview packages when the root version is promoted to a stable version, and
-keep their own `-preview.N` versions on nuget.org. The Vision model, client,
-server, and MCP packages follow the root version without a preview-only override;
+keep their own `-preview.N` versions on nuget.org. The Vision and MachineVision
+model/client/server packages and the Vision MCP package follow the root version
+without a preview-only override;
 development builds still inherit the root prerelease version. See
 [docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
 versions are released.

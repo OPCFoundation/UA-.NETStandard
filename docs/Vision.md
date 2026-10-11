@@ -6,7 +6,7 @@ sensors, inference, media, and coordinate frames. Applications can use the model
 independently or combine them on one OPC UA server.
 
 Part 1 and Perception contracts are in `Opc.Ua.Vision`; Part 2 contracts are in
-`Opc.Ua.Vision.Machinery`. Each has client and server packages. One
+`Opc.Ua.MachineVision`. Each has client and server packages. One
 `Opc.Ua.Mcp.Vision` package exposes tools for all three models. The generated
 Perception types live in `Opc.Ua.Vision.Perception` and use the wire namespace
 `http://opcfoundation.org/UA/Vision/`.
@@ -45,7 +45,7 @@ one released model does not load the other.
 
 Licensed, release-pinned NodeSets and identifier tables are under
 [`src/Opc.Ua.Vision/Model`](../src/Opc.Ua.Vision/Model) for Part 1 and
-[`src/Opc.Ua.Vision.Machinery/Model`](../src/Opc.Ua.Vision.Machinery/Model) for Part 2.
+[`src/Opc.Ua.MachineVision/Model`](../src/Opc.Ua.MachineVision/Model) for Part 2.
 Repository-compatible identifier guards are derived with
 `tools/nodesets/derive-identifier-table.py`.
 
@@ -64,7 +64,7 @@ come from those model producers rather than hand-maintained copies.
 
 `VisionServerOptions.MachineVisionParts` defaults to `None`. Select `Control`,
 `Assets`, or `All` independently. Part 2 builders require
-`Opc.Ua.Vision.Machinery.Server` and the `AddVisionMachinery()` registration for a
+`Opc.Ua.MachineVision.Server` and the `AddVisionMachinery()` registration for a
 standalone manager. This example assumes an application implementation of
 `IMachineVisionOperationsProvider` has been registered with DI:
 
@@ -586,20 +586,20 @@ released Machine Vision models.
 | `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Perception and OPC 40100-1 models, node states, typed proxies, and distinct model loaders | `Opc.Ua.Core` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | `VisionNodeManager`, `IVisionBuildContext`, Perception and Part 1 providers and builders, facet derivation, standalone or Machinery-composed hosting | `Opc.Ua.Vision`, `Opc.Ua.Server`, `Opc.Ua.Machinery.Server` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | `VisionClient` discovery, `VisionSensorClient`, `VisionPipelineClient`, `VisionResultReader`, `VisionMediaClient`, `VisionFrameGraph`, `VisionFeedbackClient`, `session.Vision(...)` extension, `AddVisionClient()` DI | `Opc.Ua.Vision`, `Opc.Ua.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery` | OPC 40100-2 asset models and generated proxies in `Opc.Ua.Vision.MachineVision.AMCM` | `Opc.Ua.Core`, `Opc.Ua.Di`, `Opc.Ua.Machinery` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server` | Asset builders, information add-ins, conformance, runtime updates, and Part 2 hosting registration | `Opc.Ua.Vision.Server`, `Opc.Ua.Vision.Machinery`, `Opc.Ua.Machinery.Server` |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client` | Part 2 asset discovery, snapshots, and relationship extensions in `Opc.Ua.Vision.Client` | `Opc.Ua.Vision.Client`, `Opc.Ua.Vision.Machinery` |
+| `OPCFoundation.NetStandard.Opc.Ua.MachineVision` | OPC 40100-2 asset models and generated proxies in `Opc.Ua.Vision.MachineVision.AMCM` | `Opc.Ua.Core`, `Opc.Ua.Di`, `Opc.Ua.Machinery` |
+| `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server` | Asset builders, information add-ins, conformance, runtime updates, and Part 2 hosting registration | `Opc.Ua.Vision.Server`, `Opc.Ua.MachineVision`, `Opc.Ua.Machinery.Server` |
+| `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client` | Part 2 asset discovery, snapshots, and relationship extensions in `Opc.Ua.Vision.Client` | `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Types`, native OpenUSD renderer payload (optional per-RID) |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 39 MCP tools: Perception plus Machine Vision control/asset workflows, with the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.Vision.Machinery.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 39 MCP tools: Perception plus Machine Vision control/asset workflows, with the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision.Client` |
 
 ```mermaid
 graph TD
     Model["Opc.Ua.Vision<br/>source-generated model"]
     Server["Opc.Ua.Vision.Server<br/>VisionNodeManager + builders"]
     Client["Opc.Ua.Vision.Client<br/>typed discovery and readers"]
-    Assets["Opc.Ua.Vision.Machinery<br/>Part 2 model"]
-    AssetServer["Opc.Ua.Vision.Machinery.Server"]
-    AssetClient["Opc.Ua.Vision.Machinery.Client"]
+    Assets["Opc.Ua.MachineVision<br/>Part 2 model"]
+    AssetServer["Opc.Ua.MachineVision.Server"]
+    AssetClient["Opc.Ua.MachineVision.Client"]
     OpenUsd["Opc.Ua.Vision.OpenUsd<br/>scene-camera capture provider"]
     Mcp["Opc.Ua.Mcp.Vision<br/>agent tools"]
     Media["IVisionMediaProvider"]

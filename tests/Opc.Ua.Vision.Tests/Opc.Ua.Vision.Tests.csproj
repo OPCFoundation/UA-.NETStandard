@@ -30,13 +30,13 @@
   <ItemGroup>
     <None Include="..\..\src\Opc.Ua.Vision\Model\Opc.Ua.MachineVision.NodeSet2.xml"
           Link="Model\Opc.Ua.MachineVision.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\src\Opc.Ua.Vision.Machinery\Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml"
+    <None Include="..\..\src\Opc.Ua.MachineVision\Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml"
           Link="Model\Opc.Ua.MachineVision.AMCM.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Machinery.Client\Opc.Ua.Vision.Machinery.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Machinery.Server\Opc.Ua.Vision.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.OpenUsd\Opc.Ua.Vision.OpenUsd.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == 'net9.0' or '$(TargetFramework)' == 'net8.0'" />

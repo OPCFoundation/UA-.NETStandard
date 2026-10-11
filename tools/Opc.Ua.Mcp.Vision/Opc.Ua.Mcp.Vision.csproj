@@ -30,7 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Machinery.Client\Opc.Ua.Vision.Machinery.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

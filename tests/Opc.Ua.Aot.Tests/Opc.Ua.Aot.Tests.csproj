@@ -54,8 +54,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Machinery.Client\Opc.Ua.Vision.Machinery.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Machinery.Server\Opc.Ua.Vision.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Pkcs11\Opc.Ua.Security.Pkcs11.csproj" />

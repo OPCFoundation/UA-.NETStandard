@@ -48,6 +48,9 @@ OPCFoundation.NetStandard.Opc.Ua.Machinery.Jobs
 OPCFoundation.NetStandard.Opc.Ua.Machinery.ProcessValues
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Result
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Server
+OPCFoundation.NetStandard.Opc.Ua.MachineVision
+OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client
+OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics
@@ -99,9 +102,6 @@ OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Stack
 OPCFoundation.NetStandard.Opc.Ua.Types
 OPCFoundation.NetStandard.Opc.Ua.Vision
 OPCFoundation.NetStandard.Opc.Ua.Vision.Client
-OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery
-OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client
-OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Server
 OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd
 OPCFoundation.NetStandard.Opc.Ua.Vision.Server
 OPCFoundation.NetStandard.Opc.Ua.WotCon

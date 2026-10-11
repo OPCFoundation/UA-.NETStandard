@@ -5,7 +5,7 @@ Client-side helpers for **OPC 40100-1** and the **Perception model**.
 `vision.MachineVision()` provides independent released-model discovery, typed
 control/management proxies, recipe/configuration upload, and result-download workflows.
 Part 2 asset snapshots and relationships are extensions from
-`Opc.Ua.Vision.Machinery.Client`. Released-model operations do not require the
+`Opc.Ua.MachineVision.Client`. Released-model operations do not require the
 Perception namespace; sensor/pipeline discovery uses the Perception model.
 See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#typed-clients).
 

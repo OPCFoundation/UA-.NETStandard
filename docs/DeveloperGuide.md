@@ -391,8 +391,9 @@ families (`N` a committed, manually curated number in `preview-version.props`
 that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
 same policy applies to the Robotics MCP extension, the Vision.OpenUsd renderer,
-and the OpenUSD connector tools. The Vision model, client, server, and MCP packages
-follow the root version without a forced-preview override; development versions
+and the OpenUSD connector tools. The Vision and MachineVision model/client/server
+packages and the Vision MCP package follow the root version without a
+forced-preview override; development versions
 remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so

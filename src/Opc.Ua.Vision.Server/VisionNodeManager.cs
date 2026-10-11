@@ -103,7 +103,7 @@ namespace Opc.Ua.Vision.Server
                 SystemContext.NamespaceUris.GetIndex(MachineVisionModels.AssetNamespaceUri) < 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
-                    "Part 2 requires the Opc.Ua.Vision.Machinery.Server package and AddVisionMachinery().");
+                    "Part 2 requires the Opc.Ua.MachineVision.Server package and AddVisionMachinery().");
             }
         }
 

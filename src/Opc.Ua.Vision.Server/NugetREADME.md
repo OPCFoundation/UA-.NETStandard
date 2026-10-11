@@ -6,7 +6,7 @@ Released support is opt-in through `VisionServerOptions.MachineVisionParts`.
 `MachineVisionSystemHandle` binds control, steps, conditions, recipes/configurations,
 results, and file transfer to an injectable `IMachineVisionOperationsProvider`
 and bounded or persistent `IMachineVisionStore`.
-`Opc.Ua.Vision.Machinery.Server` supplies `MachineVisionAssetBuilder` for Part 2
+`Opc.Ua.MachineVision.Server` supplies `MachineVisionAssetBuilder` for Part 2
 inventory/health and `AddVisionToMachinery` for single-owner composition.
 See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md).
 

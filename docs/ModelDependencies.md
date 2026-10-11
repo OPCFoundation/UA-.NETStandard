@@ -58,7 +58,7 @@ attributes on referenced assemblies and uses them to:
 ## Attribute shape
 
 `Opc.Ua.Vision` produces the Perception and Part 1 [Machine Vision](Vision.md)
-models with separate CLR namespaces and loaders. `Opc.Ua.Vision.Machinery`
+models with separate CLR namespaces and loaders. `Opc.Ua.MachineVision`
 produces the Part 2 AMCM model, which consumes DI and Machinery independently
 of Part 1. Recursive optional instance
 declarations, such as AMCM SEMI E10 `SubStates`, keep their type information without

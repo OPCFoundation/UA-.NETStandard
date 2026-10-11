@@ -170,9 +170,9 @@
     <Project Path="src/Opc.Ua.Vision/Opc.Ua.Vision.csproj" />
     <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
-    <Project Path="src/Opc.Ua.Vision.Machinery/Opc.Ua.Vision.Machinery.csproj" />
-    <Project Path="src/Opc.Ua.Vision.Machinery.Client/Opc.Ua.Vision.Machinery.Client.csproj" />
-    <Project Path="src/Opc.Ua.Vision.Machinery.Server/Opc.Ua.Vision.Machinery.Server.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision/Opc.Ua.MachineVision.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Client/Opc.Ua.MachineVision.Client.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Server/Opc.Ua.MachineVision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />

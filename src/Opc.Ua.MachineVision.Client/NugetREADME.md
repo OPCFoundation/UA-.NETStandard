@@ -1,4 +1,4 @@
-# OPCFoundation.NetStandard.Opc.Ua.Vision.Machinery.Client
+# OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client
 
 Typed OPC 40100-2 asset operations for a connected Machine Vision session.
 Provides system-asset discovery, bounded inventory/health snapshots, generated

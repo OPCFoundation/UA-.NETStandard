@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Vision.Machinery</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).MachineVision</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Vision.Machinery</PackageId>
-    <RootNamespace>Opc.Ua.Vision.Machinery</RootNamespace>
+    <PackageId>$(PackagePrefix).Opc.Ua.MachineVision</PackageId>
+    <RootNamespace>Opc.Ua.MachineVision</RootNamespace>
     <Description>Source-generated OPC 40100-2 Machine Vision asset management and condition monitoring models, independent of the Part 1 control and Perception models.</Description>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <IsPackable>true</IsPackable>
