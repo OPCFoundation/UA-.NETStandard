@@ -668,6 +668,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 #endif
 
+        [Test]
+        public async Task ASecondConcurrentReceiveIsRejectedAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // The staged bytes belong to one reader; a second receive on the
+                // same stream fails instead of interleaving with the first.
+                Task<ArraySegment<byte>> first = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+                Assert.That(
+                    async () => await client.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false),
+                    Throws.InvalidOperationException);
+
+                byte[] chunk = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 24);
+                await SendAllAsync(serverSocket, chunk, 0, chunk.Length).ConfigureAwait(false);
+                AssertChunk(await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), chunk);
+            }
+        }
+
         private static async Task SendAllAsync(Socket socket, byte[] data, int offset, int count)
         {
             while (count > 0)

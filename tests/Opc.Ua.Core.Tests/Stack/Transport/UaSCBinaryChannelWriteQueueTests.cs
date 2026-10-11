@@ -233,6 +233,38 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.HasPendingWrites, Is.False);
         }
 
+        /// <summary>
+        /// An unexpected exception from a coalesced send is reported as an internal
+        /// error for every write in it, chunks and buffer collections alike.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task AnUnexpectedErrorInACoalescedSendIsReportedForEveryWriteAsync()
+        {
+            var transport = new RecordingTransport
+            {
+                CanCoalesceChunks = true,
+                FailIndex = 2,
+                FailUnexpectedly = true
+            };
+            using var channel = new WriteProbeChannel(m_telemetry, transport);
+
+            channel.Write(0, useCollection: false);
+            await transport.FirstSendStarted.Task.ConfigureAwait(false);
+            for (int ii = 1; ii < 5; ii++)
+            {
+                channel.Write(ii, useCollection: ii % 2 == 0);
+            }
+            transport.ReleaseFirstSend.SetResult(true);
+            await channel.WaitForCompletionsAsync(5).ConfigureAwait(false);
+
+            Assert.That(channel.Failed, Is.EquivalentTo(s_failedUnexpectedly));
+            Assert.That(channel.FailedCodes, Is.All.EqualTo((StatusCode)StatusCodes.BadTcpInternalError));
+            Assert.That(channel.BytesReported, Is.EqualTo(sizeof(int)));
+            Assert.That(channel.HasPendingWrites, Is.False);
+        }
+
+        private static readonly int[] s_failedUnexpectedly = [1, 2, 3, 4];
         private static readonly int[] s_sentAroundTheFailedBatch = [0, 6];
         private static readonly int[] s_failedBatch = [1, 2, 3, 4, 5];
         private static readonly int[] s_sentAroundTheFailure = [0, 1, 2, 4, 5];
@@ -284,6 +316,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int BytesReported => Volatile.Read(ref m_bytesReported);
 
+            public ConcurrentQueue<StatusCode> FailedCodes { get; } = new();
+
             public void Write(int index, bool useCollection)
             {
                 byte[] buffer = BufferManager.TakeBuffer(sizeof(int), "WriteProbeChannel");
@@ -316,6 +350,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 base.HandleWriteComplete(buffers, state, bytesWritten, result);
                 Interlocked.Add(ref m_bytesReported, bytesWritten);
+                if (ServiceResult.IsBad(result))
+                {
+                    FailedCodes.Enqueue(result.StatusCode);
+                }
                 (ServiceResult.IsGood(result) ? Completed : Failed).Enqueue((int)state!);
             }
 
@@ -331,6 +369,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public bool BlockFirstSend { get; set; } = true;
 
             public bool CanCoalesceChunks { get; set; }
+
+            public bool FailUnexpectedly { get; set; }
 
             public int SendCalls => Volatile.Read(ref m_sendCalls);
 
@@ -429,6 +469,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                     if (Array.IndexOf(indexes, FailIndex) >= 0)
                     {
+                        if (FailUnexpectedly)
+                        {
+                            throw new InvalidOperationException("send failed");
+                        }
                         throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "send failed");
                     }
 
