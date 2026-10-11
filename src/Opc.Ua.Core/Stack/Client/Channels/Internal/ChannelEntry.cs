@@ -769,6 +769,24 @@ namespace Opc.Ua
             return WaitForReadyCoreAsync(gate.Task, ct);
         }
 
+        /// <summary>
+        /// Wait until the initial open installed the first transport. Unlike
+        /// <see cref="WaitForReadyAsync"/> this does not wait for a reconnect
+        /// cycle, so a participant can call it from inside that cycle.
+        /// </summary>
+        internal Task WaitForInitialOpenAsync(CancellationToken ct)
+        {
+            lock (m_lock)
+            {
+                if (m_underlying != null ||
+                    m_state is not (ChannelState.Disconnected or ChannelState.TransportConnecting))
+                {
+                    return Task.CompletedTask;
+                }
+            }
+            return WaitForReadyAsync(ct);
+        }
+
         public ValueTask DisposeAsync()
         {
             return DisposeAsync(ChannelCloseReason.Faulted);

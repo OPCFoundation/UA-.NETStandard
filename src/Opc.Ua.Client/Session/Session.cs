@@ -1414,6 +1414,10 @@ namespace Opc.Ua.Client
 
             if (TransportChannel is ManagedTransportChannelLease lease)
             {
+                // A session attaching to a shared channel that another caller
+                // is still opening has no installed transport to read the
+                // certificate from yet.
+                await lease.Entry.WaitForInitialOpenAsync(ct).ConfigureAwait(false);
                 using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
                 CertificateEntry? replacement = BuildInstanceCertificateEntry(
                     certificates.Certificate,
