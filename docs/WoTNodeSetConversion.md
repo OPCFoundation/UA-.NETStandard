@@ -555,6 +555,8 @@ accumulate during affordance synthesis and publish at the stage boundary;
 payload type capture still resolves against the complete in-progress table.
 These details keep large affordance and namespace collections from triggering
 quadratic lookup or array-copy work without reducing conversion limits.
+The .NET 8 target uses the centrally pinned `System.Text.Json` package for the
+public raw-buffer API; it does not inspect private runtime layouts.
 
 ## DataType definitions (Section 6.11)
 
