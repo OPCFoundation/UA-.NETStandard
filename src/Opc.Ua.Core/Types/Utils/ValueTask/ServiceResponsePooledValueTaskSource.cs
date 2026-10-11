@@ -77,12 +77,8 @@ namespace Opc.Ua
             ObjectPool<ServiceResponsePooledValueTaskSource> pool)
         {
             ServiceResponsePooledValueTaskSource source = pool.Get();
-            int lease = source.m_lease + 1;
-            if (lease == 0)
-            {
-                lease = 1;
-            }
-            source.m_lease = lease;
+            // Leases never repeat: a source is retired before its lease would wrap.
+            int lease = ++source.m_lease;
             source.m_resultRetrieved = 0;
             Volatile.Write(ref source.m_pendingLease, lease);
             return source;
@@ -107,7 +103,10 @@ namespace Opc.Ua
             if (Interlocked.CompareExchange(ref m_resultRetrieved, 1, 0) == 0)
             {
                 m_source.Reset();
-                m_pool.Return(this);
+                if (m_lease != int.MaxValue)
+                {
+                    m_pool.Return(this);
+                }
             }
         }
 

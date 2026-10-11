@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -38,7 +39,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [TestFixture]
     [Category("Utils")]
     [Parallelizable]
-    public class ServiceResponsePooledValueTaskSourceTests
+    public sealed class ServiceResponsePooledValueTaskSourceTests
     {
         [Test]
         public async Task SecondCompletionOfSameRentalIsIgnoredAsync()
@@ -81,6 +82,31 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var expected = new ActivateSessionResponse();
             Assert.That(second.TrySetResult(second.Lease, expected), Is.True);
             Assert.That(await secondTask.ConfigureAwait(false), Is.SameAs(expected));
+        }
+
+        /// <summary>
+        /// A source whose lease reached int.MaxValue is not pooled again, so leases never repeat.
+        /// </summary>
+        [Test]
+        public async Task SourceIsRetiredBeforeLeaseWrapsAsync()
+        {
+            ObjectPool<ServiceResponsePooledValueTaskSource> pool =
+                ServiceResponsePooledValueTaskSource.CreatePool(1);
+            ServiceResponsePooledValueTaskSource source = ServiceResponsePooledValueTaskSource.Create(pool);
+            ValueTask<IServiceResponse> task = source.Task;
+            Assert.That(source.TrySetResult(source.Lease, new ReadResponse()), Is.True);
+            await task.ConfigureAwait(false);
+
+            typeof(ServiceResponsePooledValueTaskSource)
+                .GetField("m_lease", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(source, int.MaxValue - 1);
+            Assert.That(ServiceResponsePooledValueTaskSource.Create(pool), Is.SameAs(source));
+            Assert.That(source.Lease, Is.EqualTo(int.MaxValue));
+            task = source.Task;
+            Assert.That(source.TrySetResult(source.Lease, new ReadResponse()), Is.True);
+            await task.ConfigureAwait(false);
+
+            Assert.That(ServiceResponsePooledValueTaskSource.Create(pool), Is.Not.SameAs(source));
         }
     }
 }
