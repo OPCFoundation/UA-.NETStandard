@@ -1,6 +1,6 @@
 # WoT design and provider contracts
 
-This page describes the registry's ownership, conversion inputs, publication,
+This page describes the registry's ownership, publication,
 and recovery contracts. Start with [WoT Connectivity usage](WoTConnectivity.md)
 for hosting/client examples and [bindings and conversion](WotBindings.md) for
 document authoring and transports. These contracts do not establish Full-profile,
@@ -10,7 +10,6 @@ distributed HA, or full JSON Schema conformance.
 
 - [Ownership and publication](#ownership-and-publication)
 - [Provider requirements](#provider-requirements)
-- [Conversion providers](#conversion-providers)
 - [Dependency capture and observations](#dependency-capture-and-observations)
 - [Version leases](#version-leases)
 - [Prepared registry store](#prepared-registry-store)
@@ -133,54 +132,6 @@ observations use `PrepareReadImagesAsync` without replacing source/View
 registrations or emitting lifecycle model-change events.
 Supported custom View owners implement `IWotCanonicalViewReadImage` so native
 operations obtain digest/token facts from their captured routing image.
-
-## Conversion providers
-
-`IWotDocumentConverter` supplies document-to-NodeSet conversion. The default
-`WotNodeSetDocumentConverter` uses captured sibling documents before loaded
-AddressSpace types. The coordinator passes exact original bytes and contextual
-declarations, not a fresh default lookup or arbitrary Web resolver.
-See [type binding](WotBindings.md#resolving-a-type-binding-the-local-context).
-
-`IWotNodeSetContributor` runs after conversion and before runtime Variables are
-created. It can add controller-specific Structure DataTypes obtained from a
-symbol table, for example for field-path mappings. Types already expressed in a
-native `uav:nodes` projection do not need this interface.
-Both contributor and converter are injectable.
-
-`IWotNodeSetResolver.TryResolveAsync(namespaceUri, ct)` returns a NodeSet2 Stream
-or null when it declines. No catalogue implementation is supplied. Configure a
-trusted model repository/folder/provider yourself. Required models absent from
-both the converted document and server resolve recursively and load before
-their consumers; unresolved namespaces remain diagnostics.
-An embedded `uav:nodeSet` needs no external model fetch.
-
-### DataType declaration inputs
-
-Stored definitions can be referenced by graph identity, qualified name, or
-portable NodeId. Lookup uses the carrying element's original context. Graph
-identities need not resemble document locations; ambiguous owners fail.
-`uav:dataTypeDefinition`, `uav:fieldDataTypeDefinition`, typed links, and
-`uav:dataTypeSubtypeOf` contribute dependencies. Recursive fields are legal;
-inheritance cycles are not. An acyclic base/derived pair in one document does
-not create a Resource-level cycle.
-Opaque metadata and literal instance values are not definition indexes.
-
-`IWotCapturedDataTypeDefinitions` on the captured Thing resolver supplies complete
-`WotDataTypeDefinitionSource` values. `ReadDataTypeDefinitions` returns borrowed
-full definitions, omitting reference-only occurrences.
-`IWotDocumentConversionContext` on the content argument carries the per-unit
-emission decision through converters/decorators: forward that argument unchanged.
-The capture parses each required definition document once per depth limit.
-Converters neither dispose borrowed documents nor retain them after capture.
-
-Active owners emit their own declarations. Resolution-only definitions are
-emitted once by an active readable source; native/archive restoration does not
-consume that assignment. Consumers sharing emitted declarations stay in one
-unit to avoid duplicate type ownership. `ProjectedSeparately` describes emission
-ownership, not permission to execute a disabled Resource.
-Generated NodeSets declare the namespaces their Nodes own; merely referring to
-a namespace does not claim it.
 
 ## Dependency capture and observations
 

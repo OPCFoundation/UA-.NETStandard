@@ -5,8 +5,8 @@
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.6.0" PublicationDate="2026-09-05T00:00:00Z">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.7.0" PublicationDate="2026-09-12T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
