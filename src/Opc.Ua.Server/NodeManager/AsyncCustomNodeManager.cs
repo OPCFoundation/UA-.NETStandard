@@ -10602,13 +10602,24 @@ namespace Opc.Ua.Server
             NodeState target,
             CancellationToken cancellationToken = default)
         {
+            ushort namespaceIndex = target.NodeId.NamespaceIndex;
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            {
+                return (
+                    cached.DefaultAccessRestrictions,
+                    cached.DefaultRolePermissions,
+                    cached.DefaultUserRolePermissions);
+            }
+
             AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
             ArrayOf<RolePermissionType> defaultRolePermissions = default;
             ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
 
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
             NamespaceMetadataState? namespaceMetadataState = await
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
                 .ConfigureAwait(false);
 
             if (namespaceMetadataState != null)
@@ -10665,6 +10676,12 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
+                namespaceIndex,
+                defaultAccessRestrictions,
+                defaultRolePermissions,
+                defaultUserRolePermissions));
 
             return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
         }

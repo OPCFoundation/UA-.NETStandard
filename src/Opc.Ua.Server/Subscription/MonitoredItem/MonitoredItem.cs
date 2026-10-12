@@ -354,8 +354,10 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = MonitoringMode == MonitoringMode.Reporting;
             }
 
-            m_isDeleted = storedMonitoredItem.IsDeleted;
-            m_isDetached = storedMonitoredItem.IsDetached;
+            lock (m_lock)
+            {
+                SetDetachState(storedMonitoredItem.IsDetached, storedMonitoredItem.IsDeleted);
+            }
         }
 
         /// <summary>
@@ -392,6 +394,36 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
+
+        /// <summary>
+        /// Whether any live monitored item in the process is detached or marked deleted.
+        /// </summary>
+        /// <remarks>
+        /// Every node a NodeManager adds asks the subscriptions for detached items to
+        /// reattach, and a scan reads every monitored item of every subscription. Creating a
+        /// subscription adds its diagnostics nodes, so with many monitored items the scans made
+        /// subscription creation quadratic. Recovery is skipped while this is <c>false</c>. The
+        /// count is process-wide, so items of another server instance only cost a scan.
+        /// </remarks>
+        internal static bool HasRecoverableItems => Interlocked.Read(ref s_recoverableCount) > 0;
+
+        /// <summary>
+        /// Sets the detached and deleted flags and keeps <see cref="HasRecoverableItems"/>
+        /// in step. The caller holds <c>m_lock</c>.
+        /// </summary>
+        private void SetDetachState(bool isDetached, bool isDeleted)
+        {
+            m_isDetached = isDetached;
+            m_isDeleted = isDeleted;
+
+            // a disposed item cannot be attached again, so it no longer counts.
+            bool recoverable = (isDetached || isDeleted) && !m_isDisposed;
+            if (recoverable != m_countedAsRecoverable)
+            {
+                m_countedAsRecoverable = recoverable;
+                Interlocked.Add(ref s_recoverableCount, recoverable ? 1 : -1);
+            }
+        }
 
         /// <inheritdoc/>
         bool IDetachableMonitoredItem.IsDetached
@@ -610,7 +642,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isDeleted = true;
+                SetDetachState(m_isDetached, isDeleted: true);
                 QueueNodeIdUnknown();
             }
         }
@@ -620,7 +652,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isDetached = true;
+                SetDetachState(isDetached: true, m_isDeleted);
             }
         }
 
@@ -638,7 +670,7 @@ namespace Opc.Ua.Server
             {
                 NodeManager = owner;
                 ManagerHandle = DetachedHandle;
-                m_isDetached = true;
+                SetDetachState(isDetached: true, m_isDeleted);
             }
         }
 
@@ -673,10 +705,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (!m_isDeleted)
-                {
-                    m_isDeleted = true;
-                }
+                SetDetachState(m_isDetached, isDeleted: true);
 
                 QueueNodeIdUnknown();
             }
@@ -689,8 +718,7 @@ namespace Opc.Ua.Server
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
-                m_isDetached = false;
-                m_isDeleted = false;
+                SetDetachState(isDetached: false, isDeleted: false);
             }
         }
 
@@ -2678,6 +2706,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
+                SetDetachState(m_isDetached, m_isDeleted);
 
                 // A NodeManager reload may be handing this item to its replacement right now.
                 // Tearing the queues down underneath it would leave the replacement sampling a
@@ -2753,6 +2782,8 @@ namespace Opc.Ua.Server
         private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;
         private bool m_isDeleted;
+        private bool m_countedAsRecoverable;
+        private static long s_recoverableCount;
     }
 
     /// <summary>
