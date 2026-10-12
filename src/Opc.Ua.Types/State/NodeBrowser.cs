@@ -73,25 +73,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Optional contract for the complete dependencies of a resumable Browse operation.
-    /// </summary>
-    /// <remarks>
-    /// Implementations report every local target whose owner can be needed by any remaining page,
-    /// including targets used for metadata, permissions, or filtering. The issuing owner is retained
-    /// separately. An empty successful result promises that no other owner is needed. A lazy browser
-    /// must not report only the targets it has discovered so far. The query must not advance the browser.
-    /// </remarks>
-    public interface IBrowseContinuationDependencies
-    {
-        /// <summary>
-        /// Returns the complete remaining dependency set, or false when it cannot be determined.
-        /// </summary>
-        /// <param name="targetIds">The complete remaining dependency targets when determined.</param>
-        /// <returns><c>true</c> if the dependency set is complete; <c>false</c> if it cannot be determined.</returns>
-        bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds);
-    }
-
-    /// <summary>
     /// An object which browses the references for a node.
     /// </summary>
     /// <remarks>
@@ -122,7 +103,7 @@ namespace Opc.Ua
     /// <see cref="Next"/> only ever sees the in-memory references.
     /// </para>
     /// </remarks>
-    public class NodeBrowser : INodeBrowser, IBrowseContinuationDependencies
+    public class NodeBrowser : INodeBrowser
     {
         /// <summary>
         /// Creates a new browser object with a set of filters.
@@ -225,23 +206,6 @@ namespace Opc.Ua
         public virtual void Push(IReference reference)
         {
             m_pushBack = reference;
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Only the standard browser is known to be bounded by its stored references. Derived browsers
-        /// must override this method to promise a complete set, including their own lazy dependencies.
-        /// </remarks>
-        public virtual bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
-        {
-            if (GetType() != typeof(NodeBrowser))
-            {
-                targetIds = default;
-                return false;
-            }
-
-            targetIds = GetRemainingReferenceTargets();
-            return true;
         }
 
         /// <summary>
@@ -364,25 +328,6 @@ namespace Opc.Ua
         /// Indicates that the browser can return duplicate references during browse.
         /// </summary>
         public bool CanProduceDuplicateReferences => m_seenReferences == null;
-
-        /// <summary>
-        /// Copies the remaining stored targets, including the pushed-back reference, without advancing.
-        /// Derived browsers must also account for targets they produce outside this stored set.
-        /// </summary>
-        /// <returns>The remaining stored reference targets.</returns>
-        protected ArrayOf<ExpandedNodeId> GetRemainingReferenceTargets()
-        {
-            var targets = new HashSet<ExpandedNodeId>();
-            if (m_pushBack != null)
-            {
-                targets.Add(m_pushBack.TargetId);
-            }
-            for (int index = m_index; index < m_references.Count; index++)
-            {
-                targets.Add(m_references[index].TargetId);
-            }
-            return [.. targets];
-        }
 
         /// <summary>
         /// Ensure unique references are added.
