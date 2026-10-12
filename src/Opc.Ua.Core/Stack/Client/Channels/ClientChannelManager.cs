@@ -114,7 +114,16 @@ namespace Opc.Ua
         /// </summary>
         public static ITransportBindingRegistry DefaultChannelBindings => GetDefaultBindingsLazy();
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Opens a transport and transfers the supplied certificate handles to it, releasing them on failure.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint.</param>
+        /// <param name="context">The service message context.</param>
+        /// <param name="clientCertificate">The client certificate handle whose ownership is transferred.</param>
+        /// <param name="clientCertificateChain">The certificate chain whose ownership is transferred.</param>
+        /// <param name="connection">An optional reverse-connect waiting connection.</param>
+        /// <param name="ct">The cancellation token supplied by the caller.</param>
+        /// <returns>The opened transport channel.</returns>
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
@@ -123,7 +132,24 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            ThrowIfDisposed();
+            try
+            {
+                ThrowIfDisposed();
+                if (endpoint is null)
+                {
+                    throw new ArgumentNullException(nameof(endpoint));
+                }
+                if (context is null)
+                {
+                    throw new ArgumentNullException(nameof(context));
+                }
+            }
+            catch
+            {
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
+                throw;
+            }
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel;
@@ -1335,6 +1361,34 @@ namespace Opc.Ua
         ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
+        }
+
+        /// <summary>
+        /// Opens a transport using handles also retained by the entry until transport closure.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint.</param>
+        /// <param name="context">The service message context.</param>
+        /// <param name="clientCertificate">The entry-owned client certificate handle.</param>
+        /// <param name="clientCertificateChain">The entry-owned certificate chain.</param>
+        /// <param name="connection">An optional reverse-connect waiting connection.</param>
+        /// <param name="ct">The cancellation token supplied by the entry.</param>
+        /// <returns>The opened transport channel.</returns>
+        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
+            ConfiguredEndpoint endpoint,
+            IServiceMessageContext context,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
+        {
+            // Share the entry's idempotently disposed handles; non-adopting transports need no additional references.
+            return CreateChannelAsync(
+                endpoint,
+                context,
+                clientCertificate,
+                clientCertificateChain,
+                connection,
+                ct);
         }
 
         /// <inheritdoc/>
