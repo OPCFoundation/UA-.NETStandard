@@ -50,6 +50,38 @@ namespace Opc.Ua.Client.Tests
     public sealed class BrowserTests
     {
         /// <summary>
+        /// Streaming discovery must send the configured page bound rather than requesting an unbounded first page.
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(64u)]
+        public async Task BrowseStreamHonorsConfiguredReferenceLimitAsync(uint maximumReferences)
+        {
+            using SessionMock session = SessionMock.Create();
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results = [new BrowseResult { References = [CreateReferenceDescription("Bounded")] }],
+                    DiagnosticInfos = []
+                }));
+            var browser = new Browser(session) { MaxReferencesReturned = maximumReferences };
+            int pages = 0;
+
+            await foreach (BrowseResult page in browser.BrowseStreamAsync(null, null,
+                [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }]).ConfigureAwait(false))
+            {
+                Assert.That(page.References.Count, Is.EqualTo(1));
+                pages++;
+            }
+
+            Assert.That(pages, Is.EqualTo(1));
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.Is<BrowseRequest>(request => request.RequestedMaxReferencesPerNode == maximumReferences),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// When the server returns a default (null) ContinuationPoint,
         /// BrowseNext must not be called.
         /// </summary>

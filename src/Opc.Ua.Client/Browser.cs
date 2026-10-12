@@ -670,7 +670,7 @@ namespace Opc.Ua.Client
                     "Cannot browse if not connected to a server.");
 
             BrowseResponse first = await session.BrowseAsync(
-                requestHeader, view, 0, nodesToBrowse, ct).ConfigureAwait(false);
+                requestHeader, view, MaxReferencesReturned, nodesToBrowse, ct).ConfigureAwait(false);
             ClientBase.ValidateResponse(first.Results, nodesToBrowse);
             ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
 
