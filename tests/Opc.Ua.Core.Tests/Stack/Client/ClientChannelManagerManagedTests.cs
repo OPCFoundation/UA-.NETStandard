@@ -1150,6 +1150,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 Assert.That(entry.State, Is.EqualTo(ChannelState.Closed));
                 Assert.That(entry.InitialOpenFaulted, Is.True);
+                Assert.That(
+                    async () => await entry.WaitForTransportAsync(default).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadSecureChannelClosed));
             });
 
             createCount = 0;
