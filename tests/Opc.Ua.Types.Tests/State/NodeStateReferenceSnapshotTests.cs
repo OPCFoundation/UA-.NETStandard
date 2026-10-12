@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.State
         [TestCase(true)]
         public void PreparedReferencesKeepEveryReaderOnTheSelectedImage(bool publish)
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             node.AddReference(ReferenceTypeIds.HasComponent, true, new NodeId(300));
             NodeState.ReferenceSnapshot? selected = null;
@@ -92,6 +92,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Verifies that pending and retired reference images reject every mutation.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("Add")]
         [TestCase("AddIfMissing")]
         [TestCase("AddMany")]
@@ -103,7 +104,7 @@ namespace Opc.Ua.Types.Tests.State
         [TestCase("Initialize")]
         public void PendingAndRetiredReferenceImagesRejectEveryMutation(string operation)
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             SystemContext context = CreateContext();
             NodeState.ReferenceSnapshot? selected = null;
@@ -161,7 +162,7 @@ namespace Opc.Ua.Types.Tests.State
                     case "Xml":
                         using (var stream = new MemoryStream())
                         {
-                            var source = CreateNode();
+                            BaseObjectState source = CreateNode();
                             source.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(400));
                             if (operation == "Binary")
                             {
@@ -192,7 +193,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AbortedReferenceReservationReleasesWritesAndRejectsStalePublication()
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             NodeState.ReferenceSnapshot? selected = null;
             NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             using NodeState.ReferenceUpdate stale = node.PrepareReferences(
@@ -217,7 +218,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReferenceNotificationsArePostpublicationAndFailuresDoNotSkipOtherChanges()
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             NodeState.ReferenceSnapshot? selected = null;
             NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
@@ -258,8 +259,8 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReferenceImagesOwnTheirKeysPreserveInternalTargetsAndReleaseOwnership()
         {
-            var node = CreateNode();
-            var target = CreateNode();
+            BaseObjectState node = CreateNode();
+            BaseObjectState target = CreateNode();
             target.NodeId = new NodeId(200);
             node.AddReferences([new NodeStateReference(ReferenceTypeIds.Organizes, false, target)]);
             NodeState.ReferenceSnapshot? selected = null;
@@ -295,7 +296,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void InvalidPreparedReferenceDoesNotAcquireOwnershipOrChangeTheNode()
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             Assert.Throws<ArgumentException>(() => node.PrepareReferences(
                 _ => null, [new NodeStateReference(NodeId.Null, false, new NodeId(100))], []));
             var references = new List<IReference>();
@@ -311,8 +312,8 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void MissingReferenceMutationsPreserveEmptyNodeIdentity()
         {
-            var node = CreateNode();
-            var unchanged = CreateNode();
+            BaseObjectState node = CreateNode();
+            BaseObjectState unchanged = CreateNode();
             Assert.That(node.RemoveReference(ReferenceTypeIds.Organizes, false, new NodeId(100)), Is.False);
             Assert.That(node.RemoveReferences(ReferenceTypeIds.Organizes, false), Is.False);
             node.UpdateReferenceTargets(CreateContext(), []);
@@ -325,7 +326,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneOfSelectedReferenceImageHasIndependentStorageAndOwnership()
         {
-            var node = CreateNode();
+            BaseObjectState node = CreateNode();
             NodeState.ReferenceSnapshot? selected = null;
             NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             using NodeState.ReferenceUpdate update = node.PrepareReferences(
@@ -377,10 +378,10 @@ namespace Opc.Ua.Types.Tests.State
             var references = new List<IReference>();
             node.GetReferences(context, references);
             Assert.That(references.Select(reference => reference.TargetId),
-                Is.EquivalentTo(new ExpandedNodeId[] { expected, new(300) }));
+                Is.EquivalentTo([expected, new ExpandedNodeId(300)]));
             references.Clear();
             node.GetReferences(context, references, ReferenceTypeIds.Organizes, false);
-            Assert.That(references.Select(reference => reference.TargetId), Is.EqualTo(new[] { expected }));
+            Assert.That(references.Select(reference => reference.TargetId), Is.EqualTo([expected]));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, expected), Is.True);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false,
                 new NodeId(target == 100 ? 200u : 100u)), Is.False);
@@ -393,23 +394,23 @@ namespace Opc.Ua.Types.Tests.State
             var hierarchy = new List<NodeStateHierarchyReference>();
             node.GetHierarchyReferences(context, "Owner", [], hierarchy);
             Assert.That(hierarchy.Select(reference => reference.TargetId),
-                Is.EquivalentTo(new ExpandedNodeId[] { expected, new(300) }));
+                Is.EquivalentTo([expected, new ExpandedNodeId(300)]));
             var copy = (BaseObjectState)node.Clone();
             Assert.That(copy.ReferenceExists(ReferenceTypeIds.Organizes, false, expected), Is.True);
             Assert.That(node.DeepEquals(copy), Is.True);
-            var initialized = CreateNode();
+            BaseObjectState initialized = CreateNode();
             initialized.Create(context, node);
             Assert.That(initialized.ReferenceExists(ReferenceTypeIds.Organizes, false, expected), Is.True);
             using var binary = new MemoryStream();
             node.SaveAsBinary(context, binary);
             binary.Position = 0;
-            var fromBinary = CreateNode();
+            BaseObjectState fromBinary = CreateNode();
             fromBinary.LoadAsBinary(context, binary);
             Assert.That(fromBinary.ReferenceExists(ReferenceTypeIds.Organizes, false, expected), Is.True);
             using var xml = new MemoryStream();
             node.SaveAsXml(context, xml);
             using var input = new MemoryStream(xml.ToArray());
-            var fromXml = CreateNode();
+            BaseObjectState fromXml = CreateNode();
             fromXml.LoadFromXml(context, input);
             Assert.That(fromXml.ReferenceExists(ReferenceTypeIds.Organizes, false, expected), Is.True);
         }

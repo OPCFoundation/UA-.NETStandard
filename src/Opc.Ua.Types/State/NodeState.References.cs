@@ -55,6 +55,8 @@ namespace Opc.Ua
         /// <param name="selector">The owner's serving-image selector.</param>
         /// <param name="additions">The references to add.</param>
         /// <param name="removals">The references to remove.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal ReferenceUpdate PrepareReferences(
             Func<NodeState, ReferenceSnapshot?> selector,
             ArrayOf<IReference> additions,
@@ -102,6 +104,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="selector">The owner's serving-image selector.</param>
         /// <param name="image">The reference snapshot.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         internal void ReleaseReferenceView(
             Func<NodeState, ReferenceSnapshot?> selector,
             ReferenceSnapshot? image)
@@ -198,6 +201,7 @@ namespace Opc.Ua
             /// <summary>
             /// Rejects writes to a reserved or retired image.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal void EnsureMutable()
             {
                 if (PublicationPending || Retired)
@@ -256,6 +260,7 @@ namespace Opc.Ua
             /// <summary>
             /// Reserves the unchanged source so no serving mutation can invalidate preparation.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal void Reserve()
             {
                 lock (m_owner.m_referencesLock)
@@ -278,6 +283,7 @@ namespace Opc.Ua
             /// <summary>
             /// Retires the source after its replacement has been selected.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             internal void Complete()
             {
                 lock (m_owner.m_referencesLock)
@@ -295,6 +301,7 @@ namespace Opc.Ua
             /// Releases notifications once after publication, reporting each observer failure.
             /// </summary>
             /// <param name="reportFailure">The callback for reporting observer failures.</param>
+            /// <exception cref="InvalidOperationException"></exception>
             internal void Notify(Action<Exception> reportFailure)
             {
                 lock (m_owner.m_referencesLock)

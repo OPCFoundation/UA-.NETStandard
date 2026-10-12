@@ -54,14 +54,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             using var client = new SessionClient(channel.Object, telemetry);
             await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await Assert.ThatAsync(
-                async () => await ((ISessionBindingProvider)client).CreateBindingAsync().ConfigureAwait(false),
+                async () => await client.CreateBindingAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadSecureChannelClosed)).ConfigureAwait(false);
             using var cancelled = new CancellationTokenSource();
-            cancelled.Cancel();
+            await cancelled.CancelAsync().ConfigureAwait(false);
             await Assert.ThatAsync(
-                async () => await ((ISessionBindingProvider)client).CreateBindingAsync(cancelled.Token)
+                async () => await client.CreateBindingAsync(cancelled.Token)
                     .ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Server = new ApplicationDescription { ApplicationUri = "urn:original" },
                 UserIdentityTokens = [new UserTokenPolicy { PolicyId = "original" }]
             };
-            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            var configuration = EndpointConfiguration.Create();
             int originalTimeout = configuration.OperationTimeout;
             var source = new Mock<ITransportChannel>();
             source.SetupGet(value => value.EndpointDescription).Returns(endpoint);

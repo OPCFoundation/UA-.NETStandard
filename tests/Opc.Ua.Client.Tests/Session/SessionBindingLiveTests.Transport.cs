@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.Tests
                             await binding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                             break;
                         case "cancel":
-                            requestCancellation.Cancel();
+                            await requestCancellation.CancelAsync().ConfigureAwait(false);
                             break;
                         default:
                             Assert.Fail("Unknown in-flight mutation.");

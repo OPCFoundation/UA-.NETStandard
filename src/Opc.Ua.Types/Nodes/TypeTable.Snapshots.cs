@@ -51,6 +51,8 @@ namespace Opc.Ua
         /// Acquires publication ownership and selects the serving type image.
         /// </summary>
         /// <param name="selector">The current image selector.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal void SetViewSelector(Func<TypeTable?> selector)
         {
             if (selector is null)
@@ -151,6 +153,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="source">The type table.</param>
         /// <param name="revision">The revision observed during capture.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         internal Publication BeginPublication(TypeTable source, long revision)
         {
             if (CurrentView is { } view)
@@ -192,6 +195,7 @@ namespace Opc.Ua
             /// <summary>
             /// Permanently retires the reserved source image.
             /// </summary>
+            /// <exception cref="ObjectDisposedException"></exception>
             public void Complete()
             {
                 TypeTable current = m_owner ?? throw new ObjectDisposedException(nameof(Publication));

@@ -65,6 +65,8 @@ namespace Opc.Ua
         /// Acquires publication ownership and selects the serving registration image.
         /// </summary>
         /// <param name="selector">The current image selector.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal ViewOwner SetViewSelector(Func<EncodeableFactory?> selector)
         {
             if (selector is null)
@@ -102,6 +104,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="source">The encodeable factory.</param>
         /// <param name="revision">The revision observed during capture.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         internal Publication BeginPublication(EncodeableFactory source, long revision)
         {
             if (CurrentView is { } view)
@@ -146,6 +149,7 @@ namespace Opc.Ua
             /// Releases ownership after transferring the selected registrations back to the factory.
             /// </summary>
             /// <param name="image">The encodeable factory.</param>
+            /// <exception cref="InvalidOperationException"></exception>
             public void Release(EncodeableFactory image)
             {
                 EncodeableFactory? current = Volatile.Read(ref m_owner);
@@ -189,6 +193,7 @@ namespace Opc.Ua
             /// <summary>
             /// Permanently retires the reserved source image.
             /// </summary>
+            /// <exception cref="ObjectDisposedException"></exception>
             public void Complete()
             {
                 EncodeableFactory current = m_owner ?? throw new ObjectDisposedException(nameof(Publication));

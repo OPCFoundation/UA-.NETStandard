@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StringTable table = CreateTable(namespaces);
             ArrayOf<string> before = table.GetSnapshot(out long version);
             var inspectLive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task live = Task.Run(async () =>
+            var live = Task.Run(async () =>
             {
                 await inspectLive.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.That(table.ToArrayOf(), Is.EqualTo(before));
@@ -77,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.Count, Is.EqualTo(3));
             }
 
-            Assert.That(table.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, "urn:base", "urn:live" }));
+            Assert.That(table.ToArray(), Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:live"]));
             Assert.That(table.GetIndex("urn:private"), Is.EqualTo(-1));
             Assert.That(table.Version, Is.EqualTo(version + 1));
         }
@@ -105,7 +105,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.GetString(4), Is.Null);
                 Assert.That(table.Count, Is.EqualTo(4));
                 Assert.That(table.ToArray(),
-                    Is.EqualTo(new[] { Namespaces.OpcUa, "urn:updated", "urn:appended", "urn:inserted" }));
+                    Is.EqualTo([Namespaces.OpcUa, "urn:updated", "urn:appended", "urn:inserted"]));
                 Assert.That(table.GetSnapshot(out long privateVersion), Is.EqualTo(table.ToArrayOf()));
                 Assert.That(privateVersion, Is.EqualTo(version + 3));
                 var source = new StringTable([Namespaces.OpcUa, "urn:mapped"]);
@@ -133,18 +133,16 @@ namespace Opc.Ua.Types.Tests.Utils
             using (table.UsePrivateCopy())
             {
                 table.Append("urn:outer");
-                using (IDisposable inner = table.UsePrivateCopy())
-                {
-                    table.Append("urn:inner");
-                    await Task.Yield();
-                    Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
-                    Assert.That(table.GetString(3), Is.EqualTo("urn:inner"));
-                    inner.Dispose();
-                    inner.Dispose();
-                    Assert.That(table.GetIndex("urn:inner"), Is.EqualTo(-1));
-                    Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
-                    Assert.That(table.Version, Is.EqualTo(version + 1));
-                }
+                using IDisposable inner = table.UsePrivateCopy();
+                table.Append("urn:inner");
+                await Task.Yield();
+                Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
+                Assert.That(table.GetString(3), Is.EqualTo("urn:inner"));
+                inner.Dispose();
+                inner.Dispose();
+                Assert.That(table.GetIndex("urn:inner"), Is.EqualTo(-1));
+                Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
+                Assert.That(table.Version, Is.EqualTo(version + 1));
             }
 
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));
@@ -218,11 +216,11 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(source.Version, Is.EqualTo(sourceVersion));
             if (update)
             {
-                Assert.That(destination.ToArrayOf(), Is.EqualTo(new[]
-                {
+                Assert.That(destination.ToArrayOf(), Is.EqualTo(
+                [
                     "urn:target-local", "urn:remote",
                     preserveLocal ? "urn:target-local" : "urn:source-local", "urn:missing"
-                }));
+                ]));
                 Assert.That(destination.Version, Is.EqualTo(destinationVersion + 2));
             }
             else
@@ -247,7 +245,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 destination.CreateMapping(source, update, preserveLocalServerIndex: true),
                 Is.EqualTo(new ushort[] { 0, update ? (ushort)1 : ushort.MaxValue }));
             Assert.That(destination.ToArrayOf(),
-                Is.EqualTo(update ? new[] { string.Empty, "urn:remote" } : Array.Empty<string>()));
+                Is.EqualTo(update ? [string.Empty, "urn:remote"] : Array.Empty<string>()));
             Assert.That(destination.Version, Is.EqualTo(version + (update ? 2 : 0)));
         }
 
@@ -264,7 +262,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var destination = new StringTable();
             long version = destination.Version;
             Assert.That(destination.CreateMapping(source, true, preserveLocalServerIndex: true),
-                Is.EqualTo(localOnly ? new ushort[] { 0 } : Array.Empty<ushort>()));
+                Is.EqualTo(localOnly ? [0] : Array.Empty<ushort>()));
             Assert.That(destination.Count, Is.Zero);
             Assert.That(destination.Version, Is.EqualTo(version));
         }

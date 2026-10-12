@@ -191,6 +191,7 @@ namespace Opc.Ua
         /// <summary>
         /// Rejects a disposed or invalidated binding before it is used.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal void ThrowIfInvalid()
         {
             if (!IsCurrent)

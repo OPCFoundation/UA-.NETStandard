@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests
             {
                 var provider = (ISessionBindingProvider)session;
                 using var cancelled = new CancellationTokenSource();
-                cancelled.Cancel();
+                await cancelled.CancelAsync().ConfigureAwait(false);
                 await Assert.ThatAsync(async () => await provider.CreateBindingAsync(cancelled.Token)
                         .ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);

@@ -4067,8 +4067,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?
-                .HasSession(secureChannelId) ?? false;
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?.HasSession(secureChannelId)
+                ?? false;
         }
 
         /// <inheritdoc/>

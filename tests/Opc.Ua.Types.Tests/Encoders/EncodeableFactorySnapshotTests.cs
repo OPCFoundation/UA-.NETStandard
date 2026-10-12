@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(factory.TryGetEnumeratedType(s_enumId, out _), Is.False);
                 Assert.That(factory.TryGetType(structure.XmlName, out _), Is.False);
                 Assert.That(factory.TryGetType(enumeration.XmlName, out _), Is.False);
-                Assert.That(snapshot.KnownTypeIds, Is.EquivalentTo(new[] { s_structureId, s_enumId }));
+                Assert.That(snapshot.KnownTypeIds, Is.EquivalentTo([s_structureId, s_enumId]));
                 Assert.That(snapshot.TryGetEncodeableType(s_structureId, out IEncodeableType? stored), Is.True);
                 Assert.That(stored, Is.SameAs(structure));
                 Assert.That(snapshot.TryGetEnumeratedType(s_enumId, out IEnumeratedType? storedEnum), Is.True);

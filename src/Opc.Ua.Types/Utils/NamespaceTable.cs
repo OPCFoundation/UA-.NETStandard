@@ -479,10 +479,7 @@ namespace Opc.Ua
             public void Dispose()
             {
                 AsyncLocal<StringTable?>? current = Interlocked.Exchange(ref m_slot, null);
-                if (current is not null)
-                {
-                    current.Value = previous;
-                }
+                current?.Value = previous;
             }
 
             private AsyncLocal<StringTable?>? m_slot = slot;
@@ -548,7 +545,7 @@ namespace Opc.Ua
             base.Update(namespaceUris);
 
             // check that first entry is the UA namespace.
-            if (GetString(0) != Types.Namespaces.OpcUa)
+            if (GetString(0) != Namespaces.OpcUa)
             {
                 throw new ArgumentException(
                     "The first namespace in the table must be the OPC-UA namespace.");

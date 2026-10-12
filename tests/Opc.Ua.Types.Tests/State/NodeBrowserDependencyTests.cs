@@ -42,6 +42,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Verifies that stored dependencies include pushback without advancing or repeating consumed targets.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public void StoredDependenciesIncludePushbackWithoutAdvancingOrRepeatingConsumedTargets()
         {
@@ -58,7 +59,7 @@ namespace Opc.Ua.Types.Tests.State
             browser.Push(pushed);
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> first), Is.True);
             Assert.That(first.ToArray(),
-                Is.EquivalentTo(new[] { new ExpandedNodeId(200u, 2), new ExpandedNodeId(300u, 3) }));
+                Is.EquivalentTo([new ExpandedNodeId(200u, 2), new ExpandedNodeId(300u, 3)]));
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> second), Is.True);
             Assert.That(second, Is.EqualTo(first));
             Assert.That(browser.Next(), Is.SameAs(pushed));
@@ -85,6 +86,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Verifies that derived browser cannot inherit an incomplete dependency promise.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public void DerivedBrowserCannotInheritAnIncompleteDependencyPromise()
         {
@@ -101,17 +103,18 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Verifies that explicit derived contract combines stored and future lazy targets.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public void ExplicitDerivedContractCombinesStoredAndFutureLazyTargets()
         {
             using var browser = new DeclaredBrowser();
             browser.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(100u, 1));
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> dependencies), Is.True);
-            Assert.That(dependencies.ToArray(), Is.EquivalentTo(new[]
-            {
+            Assert.That(dependencies.ToArray(), Is.EquivalentTo(
+            [
                 new ExpandedNodeId(100u, 1),
                 new ExpandedNodeId(900u, 9)
-            }));
+            ]));
             IReference reference = browser.Next() ??
                 throw new AssertionException("The derived dependency query must preserve the stored reference.");
             Assert.That(reference.TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)));
