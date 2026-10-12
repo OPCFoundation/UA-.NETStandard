@@ -6395,6 +6395,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns any references with the specified reference type and direction.
         /// </summary>
+        /// <param name="context">The context for accessing the node.</param>
+        /// <param name="references">The destination for matching references.</param>
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">The inverse flag supplied by the caller.</param>
         public virtual void GetReferences(

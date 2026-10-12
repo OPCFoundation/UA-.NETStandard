@@ -435,6 +435,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <param name="expectedTypeId">The expected type identifier.</param>
+        /// <param name="value">The value whose encoding is checked.</param>
         public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
             if (CurrentView is { } view)

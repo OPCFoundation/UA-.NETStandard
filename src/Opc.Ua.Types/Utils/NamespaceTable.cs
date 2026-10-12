@@ -395,9 +395,9 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (preserveLocalServerIndex && Count == 0)
+                    if (preserveLocalServerIndex)
                     {
-                        Append(string.Empty);
+                        EnsureLocalServerSlot();
                     }
                     index = Append(uri);
                 }
@@ -419,6 +419,26 @@ namespace Opc.Ua
             StringTable? previous = slot.Value;
             slot.Value = copy;
             return new PrivateScope(slot, previous);
+        }
+
+        /// <summary>
+        /// Reserves a local-only slot without relaxing public URI validation or replacing live entries.
+        /// </summary>
+        private void EnsureLocalServerSlot()
+        {
+            if (m_privateView?.Value is { } view)
+            {
+                view.EnsureLocalServerSlot();
+                return;
+            }
+            lock (m_syncRoot)
+            {
+                if (m_strings.Count == 0)
+                {
+                    m_strings.Add(string.Empty);
+                    Interlocked.Increment(ref m_version);
+                }
+            }
         }
 
         private int GetIndex(string value, int startIndex)

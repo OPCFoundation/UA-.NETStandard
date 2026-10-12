@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var source = new Mock<ITransportChannel>();
             source.SetupGet(value => value.EndpointDescription).Returns(endpoint);
             source.SetupGet(value => value.EndpointConfiguration).Returns(configuration);
-            source.SetupGet(value => value.MessageContext).Returns(new ServiceMessageContext(telemetry));
+            source.SetupGet(value => value.MessageContext).Returns(ServiceMessageContext.Create(telemetry));
             source.SetupGet(value => value.ChannelThumbprint).Returns([]);
             source.SetupGet(value => value.ClientChannelCertificate).Returns([]);
             source.SetupGet(value => value.ServerChannelCertificate).Returns([]);

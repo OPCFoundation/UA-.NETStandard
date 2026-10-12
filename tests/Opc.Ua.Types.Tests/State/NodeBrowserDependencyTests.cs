@@ -132,6 +132,7 @@ namespace Opc.Ua.Types.Tests.State
             CreateContext(), null, ReferenceTypeIds.HasComponent, false,
             BrowseDirection.Forward, default, null, false)
         {
+            /// <inheritdoc/>
             /// <param name="targetIds">The target IDs.</param>
             public override bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
             {

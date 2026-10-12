@@ -129,6 +129,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <param name="xmlName">The XML name.</param>
+        /// <param name="type">The registered type, when found.</param>
         public bool TryGetType(
             XmlQualifiedName xmlName,
             [NotNullWhen(true)] out IType? type)

@@ -232,6 +232,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Copies encoding limits and retains independent namespace and server mappings.
+        /// </summary>
         /// <param name="source">The service message context.</param>
         /// <param name="namespaces">The namespace table.</param>
         /// <param name="servers">The string table.</param>

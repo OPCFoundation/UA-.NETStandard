@@ -259,7 +259,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(true)]
         public void MappingWithoutRemoteServerUrisLeavesEmptyDestinationUnchanged(bool localOnly)
         {
-            var source = new StringTable(localOnly ? new[] { "urn:source-local" } : Array.Empty<string>());
+            string[] sourceUris = localOnly ? ["urn:source-local"] : [];
+            var source = new StringTable(sourceUris);
             var destination = new StringTable();
             long version = destination.Version;
             Assert.That(destination.CreateMapping(source, true, preserveLocalServerIndex: true),

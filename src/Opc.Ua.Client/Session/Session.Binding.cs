@@ -42,7 +42,10 @@ namespace Opc.Ua.Client
             return CreateBindingAsync(static () => true, ct);
         }
 
-        /// <param name="ownerCurrent">The owner current.</param>
+        /// <summary>
+        /// Captures session dispatch with an additional managed-owner validity check.
+        /// </summary>
+        /// <param name="ownerCurrent">The additional owner-validity check.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         internal ValueTask<ISessionClient> CreateBindingAsync(Func<bool> ownerCurrent, CancellationToken ct)
         {

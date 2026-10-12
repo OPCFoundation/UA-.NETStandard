@@ -204,6 +204,7 @@ namespace Opc.Ua.Client.Tests
 
             public int Connections => Volatile.Read(ref m_connections);
 
+            /// <inheritdoc/>
             /// <param name="uriScheme">The URI scheme.</param>
             /// <param name="telemetry">The telemetry context.</param>
             public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
@@ -213,6 +214,7 @@ namespace Opc.Ua.Client.Tests
                     : null;
             }
 
+            /// <inheritdoc/>
             /// <param name="bufferManager">The buffer manager.</param>
             /// <param name="receiveBufferSize">The receive buffer size.</param>
             /// <param name="telemetry">The telemetry context.</param>
@@ -298,6 +300,8 @@ namespace Opc.Ua.Client.Tests
             /// </summary>
             public string Implementation => m_inner.Implementation;
 
+            /// <inheritdoc/>
+            /// <param name="url">The connection endpoint.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
@@ -312,6 +316,7 @@ namespace Opc.Ua.Client.Tests
             /// <summary>
             /// Delegates <c>SendChunkAsync</c> to the <c>IUaSCByteTransport</c> test collaborator.
             /// </summary>
+            /// <param name="chunk">The encoded chunk to send.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
@@ -328,6 +333,7 @@ namespace Opc.Ua.Client.Tests
                 return m_inner.SendChunkAsync(buffers, ct);
             }
 
+            /// <inheritdoc/>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
             {
@@ -371,6 +377,9 @@ namespace Opc.Ua.Client.Tests
             /// </summary>
             public Task Entered => m_entered.Task;
 
+            /// <summary>
+            /// Signals arrival and awaits the bounded test-controlled release.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async Task WaitAsync(CancellationToken ct)
             {

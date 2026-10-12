@@ -169,6 +169,7 @@ namespace Opc.Ua
 
         private ReferenceSnapshot? m_referenceSnapshot;
         private Func<NodeState, ReferenceSnapshot?>? m_referenceSelector;
+
         /// <summary>An empty read view that is never mutated or reserved.</summary>
         private static readonly ReferenceSnapshot s_emptyReferenceSnapshot = new();
 
@@ -208,6 +209,7 @@ namespace Opc.Ua
 
             internal ReferenceDictionary<object?>? References;
             internal long Revision;
+
             /// <summary>
             /// The publication pending used by <c>ReferenceSnapshot</c>.
             /// </summary>

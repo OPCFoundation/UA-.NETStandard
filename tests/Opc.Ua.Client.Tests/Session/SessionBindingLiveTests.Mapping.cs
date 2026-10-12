@@ -436,7 +436,10 @@ namespace Opc.Ua.Client.Tests
         private sealed class BorrowedBindingSessionClient(ITransportChannel channel, ITelemetryContext telemetry)
             : SessionClient(channel, telemetry)
         {
-            /// <param name="ownerCurrent">The owner current.</param>
+            /// <summary>
+            /// Captures the borrowed channel with an additional owner-validity check.
+            /// </summary>
+            /// <param name="ownerCurrent">The owner-validity check.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ISessionClient> CreateBindingWithOwnerValidationAsync(
                 Func<bool> ownerCurrent,
