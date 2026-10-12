@@ -386,7 +386,13 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("samples\\WotCon\\AggregationClient\\Documents\\SamplePump.NodeSet2.xml")]
         public async Task RepositorySourceSurvivesSerializedLinkedPartitionsAsync(string relativePath)
         {
-            DirectoryInfo directory = new(TestContext.CurrentContext.TestDirectory);
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrEmpty(configuredRoot) && !File.Exists(Path.Combine(configuredRoot, "UA.slnx")))
+            {
+                throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+            }
+            DirectoryInfo directory = new(string.IsNullOrEmpty(configuredRoot)
+                ? TestContext.CurrentContext.TestDirectory : configuredRoot);
             while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
                 directory = directory.Parent!;

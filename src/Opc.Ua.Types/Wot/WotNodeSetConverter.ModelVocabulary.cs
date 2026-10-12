@@ -67,31 +67,28 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            string defaultLocale = GetDocumentLocale(document);
-
             // Type-level terms (WoT Binding Sections 6.1, 6.4, 6.7, 6.8).
             ValidateBooleanTerm(root, "uav:isComposite", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:includeInherited", string.Empty, diagnostics);
             ValidateBooleanTerm(root, "uav:additionalProperties", string.Empty, diagnostics);
             ValidateAbsoluteIriTerm(root, "uav:semanticId", string.Empty, diagnostics);
-            ValidateLocalizedText(root, string.Empty, defaultLocale, diagnostics);
+            ValidateLocalizedText(document, root, string.Empty, diagnostics);
             ValidateContains(document, root, diagnostics);
             ValidateContainedIn(document, root, diagnostics);
 
             // Property-level terms (WoT Binding Sections 6.4, 6.5, 6.7).
             ValidateAffordanceModelVocabulary(
-                document, document.Properties, "properties", defaultLocale, diagnostics);
+                document, document.Properties, "properties", diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Actions, "actions", defaultLocale, diagnostics);
+                document, document.Actions, "actions", diagnostics);
             ValidateAffordanceModelVocabulary(
-                document, document.Events, "events", defaultLocale, diagnostics);
+                document, document.Events, "events", diagnostics);
         }
 
         private static void ValidateAffordanceModelVocabulary(
             WotDocument document,
             IReadOnlyDictionary<string, JsonElement> affordances,
             string section,
-            string defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
             foreach (KeyValuePair<string, JsonElement> affordance in affordances)
@@ -108,7 +105,7 @@ namespace Opc.Ua.Wot
                 ValidateEngineeringUnits(node, parentPointer, diagnostics);
                 ValidateRanges(node, parentPointer, diagnostics);
                 ValidateValueRank(node, parentPointer, diagnostics);
-                ValidateLocalizedText(node, parentPointer, defaultLocale, diagnostics);
+                ValidateLocalizedText(document, node, parentPointer, diagnostics);
                 ValidateAbsoluteIriTerm(node, "uav:semanticId", parentPointer, diagnostics);
             }
         }
@@ -215,7 +212,7 @@ namespace Opc.Ua.Wot
         /// affordance itself names the value the unit belongs to rather than
         /// the unit.
         /// </remarks>
-        private static void ValidateUnitProperty(
+        internal static void ValidateUnitProperty(
             WotDocument document,
             JsonElement element,
             string affordanceName,
@@ -232,10 +229,14 @@ namespace Opc.Ua.Wot
                 : null;
             string? token = declared is not null &&
                 declared.StartsWith(UnitPointerPrefix, StringComparison.Ordinal)
-                ? declared.Substring(UnitPointerPrefix.Length)
+                ? declared[UnitPointerPrefix.Length..]
                 : null;
+            string? target = token?
+                .Replace("~1", "/", StringComparison.Ordinal)
+                .Replace("~0", "~", StringComparison.Ordinal);
             if (token is null or { Length: 0 } ||
-                token.Contains('/', StringComparison.Ordinal))
+                token.Contains('/', StringComparison.Ordinal) ||
+                !string.Equals(token, EscapePointerToken(target!), StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -246,9 +247,6 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
                 return;
             }
-            string target = token!
-                .Replace("~1", "/", StringComparison.Ordinal)
-                .Replace("~0", "~", StringComparison.Ordinal);
             if (string.Equals(target, affordanceName, StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -260,7 +258,7 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
                 return;
             }
-            if (!document.Properties.TryGetValue(target, out JsonElement sibling) ||
+            if (!document.Properties.TryGetValue(target!, out JsonElement sibling) ||
                 sibling.ValueKind != JsonValueKind.Object ||
                 !string.Equals(
                     GetElementString(sibling, "type"), "string", StringComparison.Ordinal))

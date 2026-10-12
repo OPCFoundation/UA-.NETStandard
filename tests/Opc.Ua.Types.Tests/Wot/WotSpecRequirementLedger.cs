@@ -148,6 +148,21 @@ namespace Opc.Ua.SpecTraceability
         }
 
         /// <summary>
+        /// Gets the explicitly declared target frameworks for one evidence reference.
+        /// An absent entry is applicable to every target of its owning test assembly.
+        /// </summary>
+        public static IReadOnlyList<string> ReadTargetFrameworks(Assembly assembly, string test)
+        {
+            using JsonDocument document = JsonDocument.Parse(Read(assembly));
+            if (!document.RootElement.TryGetProperty("testTargetFrameworks", out JsonElement targets) ||
+                !targets.TryGetProperty(test, out JsonElement frameworks))
+            {
+                return [];
+            }
+            return frameworks.EnumerateArray().Select(value => value.GetString()!).ToArray();
+        }
+
+        /// <summary>
         /// Reads the header the whole-ledger invariants are checked against.
         /// </summary>
         public static (string Commit, string Repository, string Revision, int PendingCount)

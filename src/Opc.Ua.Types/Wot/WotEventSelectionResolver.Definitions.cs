@@ -86,43 +86,19 @@ namespace Opc.Ua.Wot
         private const string ThingIdMember = "id";
 
         /// <summary>
-        /// A resolved definition together with the document that declares it.
-        /// </summary>
-        private readonly struct ResolvedDefinition
-        {
-            public ResolvedDefinition(JsonElement definition, WotDocument owner)
-            {
-                Definition = definition;
-                Owner = owner;
-                Found = true;
-            }
-
-            /// <summary> The definition object. </summary>
-            public JsonElement Definition { get; }
-
-            /// <summary> The document that declares it. </summary>
-            public WotDocument? Owner { get; }
-
-            /// <summary> Whether anything was resolved at all. </summary>
-            public bool Found { get; }
-        }
-
-        /// <summary>
         /// One definition a document declares, and where it was found.
         /// </summary>
         private readonly struct DefinitionCandidate
         {
-            public DefinitionCandidate(
-                string origin,
-                string pointer,
-                JsonElement element,
-                WotDocument owner)
+            public DefinitionCandidate(WotDocument document, string origin, string pointer, JsonElement element)
             {
+                Document = document;
                 Origin = origin;
                 Pointer = pointer;
                 Element = element;
-                Owner = owner;
             }
+
+            public WotDocument Document { get; }
 
             /// <summary>
             /// The document URI the definition came from, empty for the
@@ -140,13 +116,6 @@ namespace Opc.Ua.Wot
             /// The definition object.
             /// </summary>
             public JsonElement Element { get; }
-
-            /// <summary>
-            /// The document that declares the definition. A chained reference
-            /// the definition carries is written in this document's context,
-            /// not in the context of the document that started the chain.
-            /// </summary>
-            public WotDocument Owner { get; }
 
             /// <summary>
             /// The reference a diagnostic names this candidate by: the
@@ -188,7 +157,7 @@ namespace Opc.Ua.Wot
                 AddCandidate(
                     document,
                     ReadLogicalId(root),
-                    new DefinitionCandidate(origin, string.Empty, root, document),
+                    new DefinitionCandidate(document, origin, string.Empty, root),
                     index);
             }
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
@@ -206,10 +175,10 @@ namespace Opc.Ua.Wot
                     document,
                     logicalId,
                     new DefinitionCandidate(
+                        document,
                         origin,
                         "/events/" + EscapePointerToken(affordance.Key),
-                        affordance.Value,
-                        document),
+                        affordance.Value),
                     index);
             }
         }
@@ -263,7 +232,7 @@ namespace Opc.Ua.Wot
             // is precisely what expanding in the writer's own context prevents.
             // A declared '@id' that is not an identifier at all - a bare name -
             // indexes nothing, because nothing decides what it names.
-            if (TryExpandLogicalId(document, logicalId!, out string expanded))
+            if (TryExpandLogicalId(document, logicalId!, out string expanded, candidate.Element))
             {
                 AddUnique(index, expanded, candidate);
             }
@@ -307,7 +276,7 @@ namespace Opc.Ua.Wot
         /// make the same document mean different things to different readers.
         /// </remarks>
         internal static bool TryExpandLogicalId(
-            WotDocument document, string value, out string expanded)
+            WotDocument document, string value, out string expanded, JsonElement carryingNode = default)
         {
             expanded = string.Empty;
             if (value.Length == 0)
@@ -333,14 +302,16 @@ namespace Opc.Ua.Wot
                 expanded = value;
                 return true;
             }
-            string prefix = value.Substring(0, colon);
-            string? namespaceUri = ResolvePrefix(document, prefix);
+            string prefix = value[..colon];
+            string? namespaceUri = document.TryGetContextPrefix(prefix, out string resolved, carryingNode)
+                ? resolved
+                : null;
             if (namespaceUri is null)
             {
                 expanded = value;
                 return true;
             }
-            string local = value.Substring(colon + 1);
+            string local = value[(colon + 1)..];
             expanded = namespaceUri + local;
             return true;
         }
@@ -363,10 +334,11 @@ namespace Opc.Ua.Wot
         {
             IndexDefinitions(document, string.Empty, scope.Definitions);
 
-            var locations = new List<string>();
+            var locations = new List<(JsonElement Carrier, string Reference)>();
             CollectReferencedLocations(document, locations);
-            foreach (string location in locations)
+            foreach ((JsonElement carrier, string reference) in locations)
             {
+                string location = ResolveLocationReference(document, carrier, string.Empty, reference);
                 if (!WotEventSelectClauses.TrySplitEventTypeReference(
                         location, out string documentUri, out _) ||
                     documentUri.Length == 0)
@@ -388,7 +360,7 @@ namespace Opc.Ua.Wot
         /// location rather than a logical identifier.
         /// </summary>
         private static void CollectReferencedLocations(
-            WotDocument document, List<string> locations)
+            WotDocument document, List<(JsonElement Carrier, string Reference)> locations)
         {
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
             {
@@ -413,7 +385,7 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static void AddLocation(JsonElement node, List<string> locations)
+        private static void AddLocation(JsonElement node, List<(JsonElement Carrier, string Reference)> locations)
         {
             if (!node.TryGetProperty(
                     WotEventSelectClauses.TypeDefinitionReferenceTerm,
@@ -423,11 +395,11 @@ namespace Opc.Ua.Wot
                 return;
             }
             string value = reference.GetString()!;
-            if (!NamesDocumentLocation(value) || locations.Contains(value))
+            if (!NamesDocumentLocation(value))
             {
                 return;
             }
-            locations.Add(value);
+            locations.Add((node, value));
         }
 
         /// <summary>
@@ -439,11 +411,12 @@ namespace Opc.Ua.Wot
         /// such as <c>evt:highTemperatureAlarm</c> has none of these and names
         /// a definition by identity, which is exactly the distinction that
         /// keeps this resolver from trying to fetch an identifier as if it were
-        /// a file.
+        /// a file. An absolute IRI's non-pointer fragment belongs to its logical
+        /// identity, not to a document location.
         /// </remarks>
         private static bool NamesDocumentLocation(string reference)
         {
-            if (reference.Length == 0)
+            if (reference.Length == 0 || WotEventSelectClauses.IsLogicalFragmentReference(reference))
             {
                 return false;
             }
@@ -477,8 +450,10 @@ namespace Opc.Ua.Wot
         /// held documents, then the configured resolvers, then the well-known
         /// catalog.
         /// </summary>
-        private async ValueTask<ResolvedDefinition> ResolveReferenceTargetAsync(
+        private async ValueTask<DefinitionCandidate?> ResolveReferenceTargetAsync(
             WotDocument document,
+            JsonElement carryingNode,
+            string origin,
             string reference,
             string where,
             ResolutionScope scope,
@@ -486,39 +461,47 @@ namespace Opc.Ua.Wot
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
 
+            if (reference.StartsWith("#/", StringComparison.Ordinal) &&
+                WotEventSelectClauses.IsEventTypeReference(reference) &&
+                WotDocument.TryEvaluatePointer(document.RootElement, reference[1..], out JsonElement local) &&
+                local.ValueKind == JsonValueKind.Object)
+            {
+                return new DefinitionCandidate(document, origin, reference[1..], local);
+            }
+
             // Held documents, by logical identifier, expanded in the active
             // context of the node that wrote the reference.
             if (TryLookupHeld(
-                    document,
-                    reference,
-                    where,
-                    scope,
-                    out JsonElement held,
-                    out WotDocument? heldOwner,
-                    out bool ambiguous))
+                    document, reference, where, scope, out DefinitionCandidate held, out bool ambiguous, carryingNode))
             {
-                return new ResolvedDefinition(held, heldOwner ?? document);
+                return held;
             }
             if (ambiguous)
             {
                 return default;
             }
 
-            // Held documents and configured resolvers, by location. The attempt
-            // is made for any reference that splits, because a document set may
-            // name its documents with bare tokens; the failure it produces is
-            // held back until the well-known catalog has also been consulted,
-            // so a well-known identifier is not reported as a missing file.
+            // A logical identifier is the complete provider request. Only a
+            // location is split into a document URI and a JSON Pointer.
             bool located = false;
-            JsonElement target = default;
-            WotDocument? locatedIn = null;
+            DefinitionCandidate locationTarget = default;
             string? unresolvedDocument = null;
             bool pointerMissed = false;
-            if (WotEventSelectClauses.TrySplitEventTypeReference(
-                reference, out string documentUri, out string pointer))
+            bool logicalLookup = TryExpandLogicalId(document, reference, out string logicalIdentity, carryingNode) &&
+                !NamesDocumentLocation(reference);
+            string documentUri = logicalIdentity;
+            string pointer = string.Empty;
+            bool validReference = logicalLookup;
+            if (!logicalLookup)
             {
-                // TrySplitEventTypeReference rejects a fragment-only reference,
-                // so a reference that splits always names a document.
+                validReference = WotEventSelectClauses.TrySplitEventTypeReference(reference, out _, out _) &&
+                    WotEventSelectClauses.TrySplitEventTypeReference(
+                        ResolveLocationReference(document, carryingNode, origin, reference),
+                        out documentUri,
+                        out pointer);
+            }
+            if (validReference)
+            {
                 WotDocument? resolved = await LoadAsync(
                         documentUri, scope, cancellationToken)
                     .ConfigureAwait(false);
@@ -540,23 +523,30 @@ namespace Opc.Ua.Wot
                             reference,
                             where,
                             scope,
-                            out JsonElement identified,
-                            out WotDocument? identifiedOwner,
-                            out bool nowAmbiguous))
+                            out DefinitionCandidate identified,
+                            out bool nowAmbiguous,
+                            carryingNode))
                     {
-                        return new ResolvedDefinition(
-                            identified, identifiedOwner ?? resolved);
+                        return identified;
                     }
                     if (nowAmbiguous)
                     {
                         return default;
                     }
+                    if (logicalLookup)
+                    {
+                        AddError(diagnostics,
+                            "The resolver result does not identify the requested logical EventType " +
+                            $"'{logicalIdentity}'; " +
+                            "a different document root or sibling definition cannot substitute for it.", where);
+                        return null;
+                    }
                     if (WotDocument.TryEvaluatePointer(
-                            resolved.RootElement, pointer, out target) &&
+                            resolved.RootElement, pointer, out JsonElement target) &&
                         target.ValueKind == JsonValueKind.Object)
                     {
                         located = true;
-                        locatedIn = resolved;
+                        locationTarget = new DefinitionCandidate(resolved, documentUri, pointer, target);
                     }
                     else
                     {
@@ -575,16 +565,14 @@ namespace Opc.Ua.Wot
             }
             if (located)
             {
-                return new ResolvedDefinition(target, locatedIn ?? document);
+                return locationTarget;
             }
 
             // The well-known catalog, last: a definition this library carries
             // shall never shadow one an author shipped.
-            if (TryLookupWellKnown(document, reference, out JsonElement builtIn))
+            if (TryLookupWellKnown(document, reference, out JsonElement builtIn, carryingNode))
             {
-                // A well-known definition carries no chained reference, so the
-                // context it would be expanded in does not matter.
-                return new ResolvedDefinition(builtIn, document);
+                return new DefinitionCandidate(document, string.Empty, string.Empty, builtIn);
             }
 
             if (pointerMissed)
@@ -635,16 +623,15 @@ namespace Opc.Ua.Wot
             string reference,
             string where,
             ResolutionScope scope,
-            out JsonElement definition,
-            out WotDocument? owner,
-            out bool ambiguous)
+            out DefinitionCandidate definition,
+            out bool ambiguous,
+            JsonElement carryingNode = default)
         {
             definition = default;
-            owner = null;
             ambiguous = false;
 
             var matches = new List<DefinitionCandidate>();
-            if (TryExpandLogicalId(document, reference, out string expanded))
+            if (TryExpandLogicalId(document, reference, out string expanded, carryingNode))
             {
                 Collect(scope.Definitions, expanded, matches);
             }
@@ -665,8 +652,7 @@ namespace Opc.Ua.Wot
                 ambiguous = true;
                 return false;
             }
-            definition = matches[0].Element;
-            owner = matches[0].Owner;
+            definition = matches[0];
             return true;
         }
 
@@ -697,13 +683,13 @@ namespace Opc.Ua.Wot
         /// library carries for the OPC UA base types.
         /// </summary>
         private static bool TryLookupWellKnown(
-            WotDocument document, string reference, out JsonElement definition)
+            WotDocument document, string reference, out JsonElement definition, JsonElement carryingNode = default)
         {
             definition = default;
             // The raw form is compared as well as the expansion: two of the
             // aliases are ExpandedNodeId spellings, which are not identifiers
             // at all and expand to nothing.
-            TryExpandLogicalId(document, reference, out string expanded);
+            TryExpandLogicalId(document, reference, out string expanded, carryingNode);
             foreach (string alias in s_baseEventTypeAliases)
             {
                 if (string.Equals(reference, alias, StringComparison.Ordinal) ||
@@ -715,6 +701,123 @@ namespace Opc.Ua.Wot
             }
             return false;
         }
+
+        private static string ResolveLocationReference(
+            WotDocument document,
+            JsonElement carryingNode,
+            string origin,
+            string reference)
+        {
+            if (reference.StartsWith('#') ||
+                (!reference.StartsWith('/') && Uri.TryCreate(reference, UriKind.Absolute, out _)))
+            {
+                return reference;
+            }
+            string basis = origin;
+            // A fetched TD's endpoint base cannot replace its document location.
+            if ((origin.Length == 0 || document.Kind == WotDocumentKind.ThingModel) &&
+                document.RootElement.TryGetProperty("base", out JsonElement documentBase) &&
+                documentBase.ValueKind == JsonValueKind.String)
+            {
+                basis = ResolveLocation(basis, documentBase.GetString()!);
+            }
+            string documentBasis = basis;
+            foreach (JsonElement context in document.GetActiveContexts(carryingNode))
+            {
+                ApplyContext(context);
+            }
+            return ResolveLocation(basis, reference);
+
+            void ApplyContext(JsonElement context)
+            {
+                if (context.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement entry in context.EnumerateArray())
+                    {
+                        ApplyContext(entry);
+                    }
+                }
+                else if (context.ValueKind == JsonValueKind.Null)
+                {
+                    basis = documentBasis;
+                }
+                else if (WotDocument.TryGetContextPrefix(context, "@base", out string scopedBase))
+                {
+                    basis = ResolveLocation(basis, scopedBase);
+                }
+            }
+        }
+
+        private static string ResolveLocation(string basis, string reference)
+        {
+            if (!reference.StartsWith('/') && Uri.TryCreate(reference, UriKind.Absolute, out Uri? absolute))
+            {
+                return absolute.AbsoluteUri;
+            }
+            if (Uri.TryCreate(basis, UriKind.Absolute, out Uri? baseUri) &&
+                Uri.TryCreate(reference, UriKind.Relative, out Uri? relativeUri) &&
+                Uri.TryCreate(baseUri, relativeUri, out Uri? resolved))
+            {
+                return resolved.AbsoluteUri;
+            }
+
+            int baseSuffix = basis.IndexOfAny(s_uriSuffixDelimiters);
+            string basePath = baseSuffix < 0 ? basis : basis[..baseSuffix];
+            int suffixStart = reference.IndexOfAny(s_uriSuffixDelimiters);
+            string suffix = suffixStart < 0 ? string.Empty : reference[suffixStart..];
+            string path = suffixStart < 0 ? reference : reference[..suffixStart];
+            if (path.Length == 0)
+            {
+                int baseFragment = basis.IndexOf('#', StringComparison.Ordinal);
+                string inherited = baseFragment < 0 ? basis : basis[..baseFragment];
+                return (reference.StartsWith('?') ? basePath : inherited) + suffix;
+            }
+            int directoryEnd = basePath.LastIndexOf('/');
+            if (!reference.StartsWith('/') && directoryEnd < 0)
+            {
+                return reference;
+            }
+            path = path.StartsWith('/') ? path : basePath[..(directoryEnd + 1)] + path;
+
+            // Relative document-set locations have no absolute URI to borrow.
+            // Preserve unresolved leading parents instead of inventing an absolute base.
+            bool rooted = path.StartsWith('/');
+            bool dotPrefix = path.StartsWith("./", StringComparison.Ordinal);
+            var segments = new List<string>();
+            foreach (string segment in path.Split('/'))
+            {
+                if (segment == ".")
+                {
+                    continue;
+                }
+                if (segment == "..")
+                {
+                    if (segments.Count > 0 &&
+                        segments[^1] != ".." &&
+                        (segments.Count > 1 || segments[0].Length != 0))
+                    {
+                        segments.RemoveAt(segments.Count - 1);
+                    }
+                    else if (!rooted)
+                    {
+                        segments.Add(segment);
+                    }
+                    continue;
+                }
+                segments.Add(segment);
+            }
+            if (path.EndsWith("/.", StringComparison.Ordinal) ||
+                path.EndsWith("/..", StringComparison.Ordinal))
+            {
+                segments.Add(string.Empty);
+            }
+            string normalized = string.Join("/", segments);
+            return (dotPrefix && !normalized.StartsWith("../", StringComparison.Ordinal) ? "./" : string.Empty) +
+                normalized +
+                suffix;
+        }
+
+        private static readonly char[] s_uriSuffixDelimiters = ['?', '#'];
 
         /// <summary>
         /// The identifiers the well-known <c>BaseEventType</c> definition

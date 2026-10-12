@@ -263,6 +263,11 @@ namespace Opc.Ua
         public bool UseReversibleEncoding => true;
 
         /// <summary>
+        /// Preserves explicit null and whitespace String values during lossless value rewriting.
+        /// </summary>
+        internal bool PreserveStringValues { get; set; }
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         public void PushNamespace(string namespaceUri)
@@ -429,7 +434,7 @@ namespace Opc.Ua
 
         private void WriteString(string? fieldName, string? value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value == null, true, isArrayElement))
+            if (BeginField(fieldName, value == null, true, isArrayElement || PreserveStringValues))
             {
                 // check the length.
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
@@ -2247,6 +2252,16 @@ namespace Opc.Ua
                             extensionObject));
                 }
             }
+        }
+
+        /// <summary>
+        /// Maps NodeSet tables with their implicit local server at index zero.
+        /// </summary>
+        internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        {
+            SetMappingTables(namespaceUris, null);
+            m_serverMappings = serverUris.CreateMapping(
+                Context.ServerUris, false, preserveLocalServerIndex: true);
         }
 
         /// <summary>

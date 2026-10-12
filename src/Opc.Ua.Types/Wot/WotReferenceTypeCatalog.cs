@@ -139,32 +139,35 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Records what the local context answered for a compact model name.
         /// </summary>
-        /// <param name="modelName">The compact model name used as the key.</param>
+        /// <param name="namespaceUri">The resolved namespace of the name.</param>
+        /// <param name="name">The local model name.</param>
         /// <param name="answer">The answer, resolved or not.</param>
-        public void Add(string modelName, WotReferenceTypeAnswer answer)
+        public void Add(string namespaceUri, string name, WotReferenceTypeAnswer answer)
         {
-            m_entries[modelName] = answer;
+            m_entries[(namespaceUri, name)] = answer;
         }
 
         /// <summary>
         /// Gets what the local context answered for a compact model name.
         /// </summary>
-        /// <param name="modelName">The compact model name.</param>
+        /// <param name="namespaceUri">The resolved namespace of the name.</param>
+        /// <param name="name">The local model name.</param>
         /// <param name="answer">The answer.</param>
         /// <returns><c>true</c> when the name was looked up.</returns>
-        public bool TryGet(string modelName, out WotReferenceTypeAnswer answer)
+        public bool TryGet(string namespaceUri, string name, out WotReferenceTypeAnswer answer)
         {
-            return m_entries.TryGetValue(modelName, out answer);
+            return m_entries.TryGetValue((namespaceUri, name), out answer);
         }
 
         /// <summary>
         /// Gets whether the catalog already holds an answer, resolved or not.
         /// </summary>
-        /// <param name="modelName">The compact model name.</param>
+        /// <param name="namespaceUri">The resolved namespace of the name.</param>
+        /// <param name="name">The local model name.</param>
         /// <returns><c>true</c> when the name was already looked up.</returns>
-        public bool Contains(string modelName)
+        public bool Contains(string namespaceUri, string name)
         {
-            return m_entries.ContainsKey(modelName);
+            return m_entries.ContainsKey((namespaceUri, name));
         }
 
         /// <summary>
@@ -179,10 +182,10 @@ namespace Opc.Ua.Wot
         /// ReferenceType, is a document error.
         /// </remarks>
         /// <param name="expandedNodeId">The portable ExpandedNodeId.</param>
-        /// <param name="nodeClass">The NodeClass, or <c>null</c>.</param>
-        public void AddIdentity(string expandedNodeId, WotExpectedNodeClass? nodeClass)
+        /// <param name="node">The resolved node facts, or <c>null</c>.</param>
+        public void AddIdentity(string expandedNodeId, WotResolvedNode? node)
         {
-            m_identities[expandedNodeId] = nodeClass;
+            m_identities[WotNodeSetConverter.NormalizeExpandedNodeId(expandedNodeId)] = node;
         }
 
         /// <summary>
@@ -192,7 +195,7 @@ namespace Opc.Ua.Wot
         /// <returns><c>true</c> when it was.</returns>
         public bool ContainsIdentity(string expandedNodeId)
         {
-            return m_identities.ContainsKey(expandedNodeId);
+            return m_identities.ContainsKey(WotNodeSetConverter.NormalizeExpandedNodeId(expandedNodeId));
         }
 
         /// <summary>
@@ -207,15 +210,41 @@ namespace Opc.Ua.Wot
         public bool NamesNonReferenceType(string expandedNodeId)
         {
             return m_identities.TryGetValue(
-                expandedNodeId, out WotExpectedNodeClass? nodeClass) &&
-                nodeClass is not null &&
-                nodeClass != WotExpectedNodeClass.ReferenceType;
+                WotNodeSetConverter.NormalizeExpandedNodeId(expandedNodeId), out WotResolvedNode? node) &&
+                node is not null &&
+                node.Value.NodeClass != WotExpectedNodeClass.ReferenceType;
         }
 
-        private readonly Dictionary<string, WotReferenceTypeAnswer> m_entries =
-            new(StringComparer.Ordinal);
+        public bool IsAbstract(string nodeId)
+        {
+            return m_identities.TryGetValue(
+                WotNodeSetConverter.NormalizeExpandedNodeId(nodeId), out WotResolvedNode? node) &&
+                node?.IsAbstract == true;
+        }
 
-        private readonly Dictionary<string, WotExpectedNodeClass?> m_identities =
+        public bool IsHasComponentSubtype(string nodeId)
+        {
+            if (!m_identities.TryGetValue(
+                WotNodeSetConverter.NormalizeExpandedNodeId(nodeId), out WotResolvedNode? node) ||
+                node is null || node.Value.IsAbstract)
+            {
+                return false;
+            }
+            foreach (string ancestor in node.Value.SupertypeNodeIds)
+            {
+                string identity = WotNodeSetConverter.NormalizeExpandedNodeId(ancestor);
+                if (identity == WotVocabulary.HasComponent ||
+                    WotVocabulary.TryGetHasComponentSubtype(identity, out _))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private readonly Dictionary<(string NamespaceUri, string Name), WotReferenceTypeAnswer> m_entries = [];
+
+        private readonly Dictionary<string, WotResolvedNode?> m_identities =
             new(StringComparer.Ordinal);
     }
 }

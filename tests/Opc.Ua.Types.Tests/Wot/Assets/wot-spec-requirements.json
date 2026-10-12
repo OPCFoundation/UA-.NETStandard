@@ -26,13 +26,17 @@
     "",
     "Every named test is resolved by reflection in the assembly it names, and has",
     "to be something NUnit will actually run. Re-pin the source commit when the",
-    "specification lands a new revision."
+    "specification lands a new revision.",
+    "",
+    "The referenced fixtures are behavioral evidence, not a Full profile claim.",
+    "Explicit gaps distinguish deferred validation, excluded policy evidence,",
+    "optional capability evidence and deployment/HA obligations from executed tests."
   ],
   "schemaVersion": 1,
   "pinnedTo": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "branch": "copilot/wot-binding-final-clarifications",
-    "commit": "82620d9e313f35386dfc7477f7875cd47d2fd268",
+    "branch": "copilot/wot-alignment-remediation",
+    "commit": "db08f850e8801863006208b40f4bd3614febea8b",
     "bindingRevision": "1.1",
     "ledgers": [
       "source/wot-specs/WoT-Binding/tools/requirements.json",
@@ -40,11 +44,132 @@
     ],
     "statementInventory": {
       "path": "wot-spec-statements.json",
-      "sha256": "64ff05332c14ad6732edf6d97b509e3fc8d1a32c032b73110306d96cb4e6ba21"
+      "sha256": "b7c8205054f68e7f9bf6451f870da59aecd0908eef05904a5999b49b0539eaf5"
     }
   },
-  "pendingStackTestCount": 97,
+  "pendingStackTestCount": 259,
   "requirements": [
+    {
+      "specId": "sec-affordances#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-affordances",
+      "applicability": "runtime",
+      "statementHash": "sha256:636608db53d032f559a2a09e64f9ce235df749e11009b87e70d53daf895f2eab",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotPropertyMapperTests"
+      ]
+    },
+    {
+      "specId": "sec-applied-atomicity-observation#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-applied-atomicity-observation",
+      "applicability": "runtime",
+      "statementHash": "sha256:1ffcfaaf422e4893830d98e93c2603477ebb0ef1d3f549c5615e69d415e2840d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-applied-atomicity-observation#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-applied-atomicity-observation",
+      "applicability": "runtime",
+      "statementHash": "sha256:0915ac5427d0bcdaeec7c2289aff0714b16fa3020c114ecbbdbc9bc9afa6610e",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-applied-atomicity-observation#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-applied-atomicity-observation",
+      "applicability": "runtime",
+      "statementHash": "sha256:9f0554689b77e921179dce3e3dea520eaf8d659926536ee14a091ae5d3411bcd",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:e406f885f2000e2804f81e22b318de8d268ce84431e025393896e1d21fc8940d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.RefreshAllSucceedsForValidUploadedResource"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:1d56975a6d2850546b6be7e05465f700bee9e938575d29245a546a6418aa24a7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "The stock registry advertises and exercises EventDriven automatic refresh. Periodic and implementation-defined Scheduled modes are not claimed by this evidence."
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:e766f47a0427e1c159b09ccbc7e0391e727ea015102534406d6667c15522b9d8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotRefreshArgumentsTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotRefreshArgumentsExtendedTests"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:370bbafadbf70dc75ad16b7e1dcf42a9bfefe8da99a1df26ae6af515ffcbe21b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:336d4f176a1e506a322b365c0b80aec9416e2bc1f341be590b8779265ea6970b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:f160de568aae202c9832984f90a648ffe6289987df3a02169128106bd7de8c6c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-automatic-and-explicit-refresh-idempotence#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "applicability": "runtime",
+      "statementHash": "sha256:b3d5e0ecc9278834ca8e6f9596f60c96af14e95355d41f6a010fd3701bf694f9",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
     {
       "specId": "sec-binding-an-existing-type#001",
       "specification": "WoT Binding",
@@ -146,61 +271,305 @@
       ]
     },
     {
-      "specId": "sec-uri-base-and-href-rules#001",
-      "specification": "WoT Binding",
-      "clause": "sec-uri-base-and-href-rules",
+      "specId": "sec-business-event-identity-modes#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
       "applicability": "runtime",
-      "statementHash": "sha256:1010698485cad8059c85583926eabf787ae53b5929088bfe0cc7a7ee8a250b44",
-      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "statementHash": "sha256:950479fa7349f106eed0d7bf8534e8d65c2fedc160faa099c282e4d841722907",
+      "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Bindings.Tests.WotAffordanceFormTests.EscapePointerTokenEscapesBothSpecialChars"
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
     {
-      "specId": "sec-uri-base-and-href-rules#002",
-      "specification": "WoT Binding",
-      "clause": "sec-uri-base-and-href-rules",
+      "specId": "sec-business-event-identity-modes#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
       "applicability": "runtime",
-      "statementHash": "sha256:9e0203ac45a1b07ded2bfe34586f9d680fee5601c87ac6c5d9ac3a59940a2947",
-      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "statementHash": "sha256:a3cca75e8f69095581a41f124a3f2f0103647c3d844c61691a82c89c79f834aa",
+      "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
     {
-      "specId": "sec-uri-base-and-href-rules#003",
-      "specification": "WoT Binding",
-      "clause": "sec-uri-base-and-href-rules",
+      "specId": "sec-business-event-identity-modes#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
       "applicability": "runtime",
-      "statementHash": "sha256:7aeef4573ac8706d6ba87c27dc9fe6decfa8ffc7c4ab053684019371b330ed3d",
-      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "statementHash": "sha256:bb072e5ed458af86069546820d775fbecf26419582064c5d3d9e4a3ea394f3ed",
+      "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests.OpcUaPlannerExtractsNodeIdFromQueryString",
-        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests.WritePropertyWithReadbackRoundTripsThroughPortableNodeIdAsync"
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
     {
-      "specId": "sec-uri-base-and-href-rules#004",
-      "specification": "WoT Binding",
-      "clause": "sec-uri-base-and-href-rules",
+      "specId": "sec-business-event-identity-modes#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
       "applicability": "runtime",
-      "statementHash": "sha256:9379a364033044a8b14052cd20f28aa3f35644845f5a55b9b9a40631f88243df",
-      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "statementHash": "sha256:9a90d19d3aa60993ba1fa2cd40cf3a6c622489052ea1d910d40a195c0e454939",
+      "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests.OpcUaPlannerExtractsNodeIdFromHrefPath",
-        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests.OpcUaPlannerCompilesValidFormWithHref"
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
     {
-      "specId": "sec-service-mappings-read-write-observe-call#001",
-      "specification": "WoT Binding",
-      "clause": "sec-service-mappings-read-write-observe-call",
+      "specId": "sec-business-event-identity-modes#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
       "applicability": "runtime",
-      "statementHash": "sha256:a36ee6c17370d8d75c5588342ca9f409b0a7822c984ba7ddcd8676c726671e47",
-      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "statementHash": "sha256:7ad5256c6a5a5b61a45d893a2bb8a6c5e2b1590309cdc6bb0905d5addfc764d9",
+      "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.ExtractFormWithContentType",
-        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests.HttpPlannerAcceptsSafeContentType"
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-business-event-identity-modes#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
+      "applicability": "runtime",
+      "statementHash": "sha256:29131b054767a2aede6510c6b306ce332f10b8b4a785b70cb3d260ae048e2873",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-business-event-identity-modes#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
+      "applicability": "runtime",
+      "statementHash": "sha256:64d713dc04fa4fa397ca94ea4b1c0d14d29f411cbb70b08955414d151a4262e8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-business-event-identity-modes#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-business-event-identity-modes",
+      "applicability": "runtime",
+      "statementHash": "sha256:4ec4b17c9316f1ca4160640c153ef2714b0777fa374506f90dfd6131459f9061",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "applicability": "runtime",
+      "statementHash": "sha256:580edbb134abce6109048ddb6c1c6d51043b3baa59968bfc7b332986ff5eef32",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "applicability": "runtime",
+      "statementHash": "sha256:197af69ae085fbda2cd8f96dbb77e3dfa17f9619efbd6b3e5afe3ccaaea2d215",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "applicability": "runtime",
+      "statementHash": "sha256:12e0d1562dfc42eeba04b6126815216dd1c810381c17b29bcb8057ff35953bbb",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "applicability": "runtime",
+      "statementHash": "sha256:3d6879a768be65b3a2f25db10427bd6f630497ccb30aa423476d8f3b3ba554ed",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-concurrency-and-generation-behaviour#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-concurrency-and-generation-behaviour",
+      "applicability": "runtime",
+      "statementHash": "sha256:98e25dbad912a6ec541ea3c0a5afeedd9a8932db94605cc2d64b3dc7d40b5614",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:86d35f65f286c214b0d21b73e3552ac6b434fc009eb8f9ba0cd4f70ca4635186",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:24eced28e9fdcab2f42833c02cd91b0efe919e0f3cf10aec13e849f0408b26c6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:7eda79afeed5869c615813f2fa43df9971adf71d5de5c87b76926454cb550e87",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:1ac99c27858ad5ae9fb7c97cf4eb9e9ce9036dd7c15f3d53b689bab6b2cd978f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:7f97b8eee46fe8b1c5272271b08b069ba9119dcbd71c4ddd54efff1c499750ef",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-action-correlation#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-action-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:e53913c5ae630319750caddfa01fff4389ae227eb89428b8876fac6e53473712",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-aggregation-facets#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-aggregation-facets",
+      "applicability": "runtime",
+      "statementHash": "sha256:78934200d1ffd0453d02f5d81c58ba02dc7458f38f91e64408492dcae462860b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-aggregation-facets#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-aggregation-facets",
+      "applicability": "runtime",
+      "statementHash": "sha256:1b618babeb757d8c537e8355707cf4e22c2edfc81203d305963e16bb6a7b86c1",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-aggregation-facets#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-aggregation-facets",
+      "applicability": "runtime",
+      "statementHash": "sha256:0ec69fc99a4b7f2cb0d4baa90093cf1efe65a0433fb8aa279aa5b7c3f25db32f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-aggregation-facets#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-aggregation-facets",
+      "applicability": "runtime",
+      "statementHash": "sha256:fec1f7ae1abe84744d0ffa5bef292a5446867ede01f067b8e48e82c99f0bb9ab",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-condition-aggregation-facets#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-condition-aggregation-facets",
+      "applicability": "runtime",
+      "statementHash": "sha256:186e03cb1920bb37c671f3ac4f53f96ec30ec70c090bac26a5464f9803860da6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
     {
@@ -276,229 +645,1044 @@
       ]
     },
     {
-      "specId": "sec-synthesis-from-an-authored-td-or-tm#001",
-      "specification": "WoT Binding",
-      "clause": "sec-synthesis-from-an-authored-td-or-tm",
-      "applicability": "converter",
-      "statementHash": "sha256:afaae079849fa3680abba1ec15fd9078d0f443f1dcaef80adc861017c75027f1",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.MaterializedDataTypeDefinitionsAreNotAlsoResidue",
-        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.TheGeneratedOverrideIsNotAlsoResidue"
-      ]
-    },
-    {
-      "specId": "sec-synthesis-from-an-authored-td-or-tm#002",
-      "specification": "WoT Binding",
-      "clause": "sec-synthesis-from-an-authored-td-or-tm",
-      "applicability": "converter",
-      "statementHash": "sha256:51129c6357e1488edf4dca2928e25822e20ec453147c29e29eba9927a289a7f8",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotJsonResidueTests"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#001",
+      "specId": "sec-dependency-snapshots-and-target-pins#001",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:5b483662f3f0acebaaa5ce71ced9b7c667943c8c82e5c6683ee69e6ce3d94e75",
+      "statementHash": "sha256:aed2ef973d6f287d204f8ec4e177ceb7e828d1b35f8e50375d56bd0514bc79ab",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.SnapshotWotNodeResolverTests",
-        "Opc.Ua.WotCon.Tests.Materialization.AddressSpaceWotNodeResolverTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#002",
+      "specId": "sec-dependency-snapshots-and-target-pins#002",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:354b9204a7f02428b75676a96f6faa3f1ff548fbc0a4f9323fe1e1890b397609",
+      "statementHash": "sha256:2dfd741642e6aabb5049fcc49998b879c611eeb95a42432316f78a32b465110f",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ProjectionConversionFailureRaisesLoadFailure",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.LoadFailureEventIsRaisedForMissingDependency"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#003",
+      "specId": "sec-dependency-snapshots-and-target-pins#003",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:f4ff8e09d227ffe5554fc5337c08c43a6acbc4e12c2f327ca957d8742895339b",
+      "statementHash": "sha256:45d770c01b9937e100afa327e62d8797c59ead38f58bb8d9e1a8d3281ae743e5",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.SnapshotWotNodeResolverTests.DoesNotOfferAReferenceTypeSiblingAsATypeBindingTargetAsync",
-        "Opc.Ua.WotCon.Tests.Materialization.WotTargetVariableResolverTests.MapToTypeAmbiguousThrowsBadBrowseNameDuplicated"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#004",
+      "specId": "sec-dependency-snapshots-and-target-pins#004",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:650dd423ab33e9da5d8e9fff1ebd0d69b63edd677a802089b2b9fc4b7dec5eda",
+      "statementHash": "sha256:eac5d1b19e19fb5e693e82c05c4dfa8b3ba074810dfbfdacc81a31dd0e63bfba",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphTests.BuildClosuresSharedModelYieldsSingleClosureTmFirst",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.TmBeforeTdCreatesSingleClosureTmOrderedFirst"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#005",
+      "specId": "sec-dependency-snapshots-and-target-pins#005",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:3ceb750de28e349a0a90c6f76b44d4000e211520821789f85d19253dd3dcf656",
+      "statementHash": "sha256:0c58707f4f9a9cdd9edeb7f1e97288298799bbd4f02210a75793c742772e2d44",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Samples.WotCompanionModelMaterializationTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#006",
+      "specId": "sec-dependency-snapshots-and-target-pins#006",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:593cf4b9881cf1c711e9cf661e36a872c0b228d255ed4dcb0896433093c06183",
+      "statementHash": "sha256:c8de951dc71ee8d6eda78414a91a32b145adda93fdba8c4dcf08caf298ebb875",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.BuildClosuresDependenciesAreRecorded",
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.BuildClosuresDiamondPatternYieldsSingleClosure"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#007",
+      "specId": "sec-dependency-snapshots-and-target-pins#007",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:6d8141f51bf646a3f3be98c8d5940666a727e07def05aeb7f2e8c5a5247ca5e4",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotEventTypeReferenceResolutionTests.ADifferentlyBoundPrefixNamesADifferentDefinitionAsync",
-        "Opc.Ua.Types.Tests.Wot.WotSpecVectorTests.IdentifierExpansionMatchesTheVectors"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#008",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:27adef85d7e30b4ff147ae51d0e2c22cc9ce3be4191cf93ee414c4fd00c18928",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.DataTypeExampleMaterializesEveryDefinition"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#009",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:8dcb08bf262b020dfae3e313beeb34ba43962da5803556d3e8445f43c0935973",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#010",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:ea352e250dbabdf4b61e071ccb0ed66af5238a26695b67b6c6739c8226394568",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#011",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:81a22fc36b3d7f96012fdc737a7b03c7588c07468471d8e5300494476d1a550f",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.VariableNamingADefinitionCarriesThatDataType",
-        "Opc.Ua.Types.Tests.Wot.WotSynthesisTests.SchemaInfersCanonicalDataType"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#012",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:76aa9d857dcbcced36fb2b34726189fa9ddb9b8c9259e1d76f1bc55b8bb15162",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSynthesisTests.ExplicitDataTypeAnnotationOutranksInference",
-        "Opc.Ua.Types.Tests.Wot.WotSynthesisTests.SchemaInfersCanonicalDataType"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#013",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:144997c2872c77164c5b8dbeab8b45da71e30712e9f81204809fe97842ad3f20",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.DataTypesSurviveTheRoundTripReadably",
-        "Opc.Ua.Types.Tests.Wot.WotNodeSetImportTests.DataTypeDefinitionNodeSetCanBeImported"
-      ]
-    },
-    {
-      "specId": "sec-projection-mapping#014",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
-      "applicability": "runtime",
-      "statementHash": "sha256:999288774a656ef1e2901527bdbef82d8c780419532fd48b5e966cfb20ffe6d1",
+      "statementHash": "sha256:c6c36500b679c89f2dcfbeca0dfb349ceee2c829a234cdd1f8a7c191a7e20496",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.SnapshotWotNodeResolverTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-projection-mapping#015",
+      "specId": "sec-dependency-snapshots-and-target-pins#008",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-dependency-snapshots-and-target-pins",
       "applicability": "runtime",
-      "statementHash": "sha256:729a14a3cefd4c392400d5ce021f3b8b245bb62f3a8e6f52b7552cff34c008e6",
+      "statementHash": "sha256:cfdcac253992795670a8c499ccbe94cf71337db347b2449c77470838d92e8eb6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-dependency-snapshots-and-target-pins#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-dependency-snapshots-and-target-pins",
+      "applicability": "runtime",
+      "statementHash": "sha256:ae1704335eab625f654acae6fa5c1cd0ded8653468245994afed0706882385f6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-dependency-snapshots-and-target-pins#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-dependency-snapshots-and-target-pins",
+      "applicability": "runtime",
+      "statementHash": "sha256:cbbca156027f7707f45db71e3b063c70656116daf43285bf7cc81ae2fc52ee09",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-dependency-snapshots-and-target-pins#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-dependency-snapshots-and-target-pins",
+      "applicability": "runtime",
+      "statementHash": "sha256:478d924f8a69164fbcde7a1c91b23cf67e638b0530b8ebb4e1e537074f3b60fd",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Group/Version authorization and disclosure-policy internals are excluded from this review; public snapshot tests do not certify the full policy."
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:96d10f5dd348723b35b73c01318bc7debe02880b6a17c763d7aef86732f04f53",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:ed1a87b9c243830ed8593ca79e9f4f4349822d006ad89a40e16a0f31e38e48f6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:af802c82ec1d5472c6021f7e06d4093290695e911282be8d71db63bd370701bf",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:5890b63829502fce6972412b326d3b5097cd01329757a87a5255357b6b55219c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:b0f09794d7aea2fa3066a654f6b1a894b914056cadcfabc81a3decbd4f8d69df",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:165af48b786735f1c017555310258fdeae78334709a0a6708ef94839915962c5",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:19b649b313129807e057d275d190c9076a428320febacc5a5701f4411f3fc5ff",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:e8647fd08df7a015d8419f06f75c4999e95bba68c36ca3e222eb9c1392224d9c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:5c58d215a56722877e11d153cef3a53e08d6138618111f62907f091119e2691e",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:b9cb26228991fa721ee14c07979b24335add1e0f3541de554566760aff335648",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:81914174d2934307b0b528d24b677f6d3334559e4b21dde2ff7d61ad4a71e5d8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:3b9759ed166f059237c3f51882b3858af149cee722f7806b06a4c1cbbcc78337",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-document-identifiers-and-names#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-document-identifiers-and-names",
+      "applicability": "runtime",
+      "statementHash": "sha256:218b7b4f547ea5ce24f64bfaaab4808eec58a4b2fabc9e8250a8de85ab1c3141",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-documents-wotdocumenttype-thingdescriptionfiletype-thingmodelfiletype#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-documents-wotdocumenttype-thingdescriptionfiletype-thingmodelfiletype",
+      "applicability": "runtime",
+      "statementHash": "sha256:fac32fdfb18176056ed8ca13553496fc863d19c32a28230fbdabe477c5b7d8e5",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:f2e1a445d9f198387182c863cb893ad6be8120484247483368cdb9dbb4a6a92f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:83e63d5cdf5d2ac9453dc88f073f2db290406012b832e11e562c8cd28e4fac44",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:d64858c43988868c6b0ce4d0f3b4a6b35172cff77829eaf99876b48be8c97108",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:56b306f98c49d343898442d0df6204e9001739b46ba9a245d6b37a958d485da7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:c7f3a7924d6e1596acc13b00eb0e036c04e8e3c195451daa6c727d8edf76b84a",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:513be259d8a0ffa4647cb0ce69dd85d735b02b7d0fef2a051bee26ded4272b05",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:1966cbb346af2396604e9385bfd3d3f45c10112186d9ed86f18ac389d3d0c0b3",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-occurrence-domains#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-occurrence-domains",
+      "applicability": "runtime",
+      "statementHash": "sha256:eb53fc3af6b4c5a44c251a75451b073c67729887fc588e413bbf66e25c0695ad",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:7f414e7b00bf773a3cafe37b81a3a040983000cad89d2f471469d78d74f3d50d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:ed48b8d049371ae0bee0b4cc8f2c6c2d29c99717c4392fd3f1b47b3c5d402a6c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:d38246d7db76a5bdc36eddbebd33ff7b978f294f62558899c7c5584f494a64a7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:23e26c19eb3642f52cebc8119793c212811db3bfcf2d80525f5c562e26441aa4",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:66aebd1da681d19d31531179d621a785c39180f19045dba59a8381b2eedf0d7e",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:2fa4bb1fe12c5cdafdb146956a9754b8d604d50b7550a57c32d6282abba58248",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:28ce8aa8c417a2993e01294998b24dd4bc7ae47e8b5e49bb2fc1878256d35e50",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:8176229965818c8143ba8f4d05ee6c61f9dc6bf72d6b51dba8c6bf9d5f1a7470",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:15797d04ae9f21f4eb26952e51b62cbf999b6a0fabc4f6ad5b4ac6ed18d3bbfd",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:ee87cdafbee78e73d0922f84d6f08c1134034e292e85307323915ca70553c7a1",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-publication-lifetime#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-publication-lifetime",
+      "applicability": "runtime",
+      "statementHash": "sha256:5375e1d7ffc225f11bb127a1712bde19c882ee7749114b890949dfe5ec5b2488",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:e52d089535f3d543ee8665a17314a8c13bd05568943784141f9b4fd6fa14c8e8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:76fce2e45c4ba7eb5c045d78903f1ac6429793511892d63b64ec2f14b971e1ee",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:c5ca0a89e0890579939aa622975a74e392bb75a8ee4f69c48c8512038406a391",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:4d5e3819c123ccd902804ecd222dd399026d95e04745229c0dcd6d3985f11a04",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:520e065364ac3735643ef1f6834ff8007476cc5aea607f085498f95844f0c708",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-event-typed-identity-admission#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-event-typed-identity-admission",
+      "applicability": "runtime",
+      "statementHash": "sha256:50456d79fa5e58e266e828375ce1a10c071af69e0a6bce610e8fe174b4331e53",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:58467f712a58140d1ec21ffbd022efb1cec5104178cae865420b7fa5730f2344",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:21953adb8feedc5d81210e6f6293fd062de33fd9ac15e42fa29f8cbbd4059945",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:9f3750c2d771f35e5e70311d7ecd6c6bcdacbe145f46583d2a4f01196ca2e529",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:8d4d21604165734ead6deeccb9fd94954fb55d7641174946d513c91bc737c072",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:22bfc6d08f869f08599d175843d7e9f4b96bc5aa54450426c0c3acc704e366df",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:57958f1c54c70a6746a62ea513f13888139ee334603ce49f0f5c80c3171fb4be",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:c37ad900fd4cadb7e422557203a7a33228a52ba4d79d32d0591782e0ee213bf2",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Optional Core SemanticChange behavior is not certified by the current WoT evidence."
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:89521c683722813cc9e72cb864bd1ad2f702018e5d45d8a76bfacecf5eee8343",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Full conformance is not claimed: deferred full-schema/compatibility checks and optional semantic-change evidence remain explicit."
+    },
+    {
+      "specId": "sec-events-and-change-notifications-normative#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-change-notifications-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:8e49e89492426f4e944e36896861ff64ee2e34ed9d830c2e654bb76e7ab3353a",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-events-and-the-notifier-chain#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-events-and-the-notifier-chain",
+      "applicability": "runtime",
+      "statementHash": "sha256:089a00997687879fa8e398aa3c3261bf809f861c22e45436c34ca811a3385955",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:1babe34b16b9ae6f0e18a8ab56613d2d78b584f5f92ae40a70dd9deef8190e20",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:4ce4653d0f40673e6fc625f98736c8def051483d42294ae38021c25268e31ab0",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:4fc9b76b58956c660d2b75ef4e8c0df8bc32e5515c18f6df3c554ee207efd4db",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:be078e120a953b0cf07d9bff977e659c1118f752c718f9c209a994212b68ec62",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:38829490f82f65bfb0b24614a9fd2ee5bc663a543784f04fdce47b84e6aea678",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:d1dbfe86d98024f375c06d88328232ee2e6039b45d5338e73a85b8abb460c8a7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:9488ad9f6cc506b1a6a4816c110667ef39aaeef2b3d18b38b5a76be3384e07ff",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:f47a688e1cb6f12ac1e8d8959a87e961b88e01e760d1a0e6367ae7a5c3bf6c4b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-federated-origin-identity#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-federated-origin-identity",
+      "applicability": "runtime",
+      "statementHash": "sha256:4ef8b97a21d00be1abbacd27c5ea174e99ef8853cbb1feb7c508b06a4c99458e",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+      ]
+    },
+    {
+      "specId": "sec-identity-and-the-root#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-identity-and-the-root",
+      "applicability": "runtime",
+      "statementHash": "sha256:074571cff7649c7f66f4cb25bd36eab2d12bb4e52e9e35ea50d51622f1246261",
       "assembly": "Opc.Ua.Types.Tests",
       "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.AConversionReportsACompatibleSchemaAndKeepsItsDataTypeAsync",
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.AConversionReportsAnIncompatibleSchemaWithoutApplyingItAsync",
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.AConversionReportsAnUnresolvedSchemaAsync",
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.AConversionReportsAmbiguousProvidersAsync",
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.AConversionWithNoProviderReportsTheReferenceAsCarriedAsync",
-        "Opc.Ua.Types.Tests.Wot.WotExternalSchemaTests.SchemaBytesCountAgainstTheSharedByteBudgetAsync"
+        "Opc.Ua.Types.Tests.Wot.WotSynthesisTests.EveryTypeDefinitionRootsItsOwnDocument"
       ]
     },
     {
-      "specId": "sec-projection-mapping#016",
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#001",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
       "applicability": "runtime",
-      "statementHash": "sha256:b82db9364e108ed01613d4f7246ef9825d88f39bdf8341420a000f1fb5884370",
+      "statementHash": "sha256:d95ca230d9b49f1422a6eadaf68a91c297b5ba150e713b7d30894e261aa507f1",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests.AStoredInstancePopulatesTheDeclarationOfAStoredModelAsync",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests.AClosedStoredInstanceRejectsAnUndeclaredMemberAsync",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests.TheSnapshotResolverReportsStoredDeclarationsAsync"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
       ]
     },
     {
-      "specId": "sec-projection-mapping#017",
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#002",
       "specification": "WoT Connectivity",
-      "clause": "sec-projection-mapping",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
       "applicability": "runtime",
-      "statementHash": "sha256:f4f6eed4a94fe555ca75cc90ba3dc66b832a89d0bd3f568d95d5f242a47257a9",
+      "statementHash": "sha256:00422e64f0f5b5686983210348e90ac5a02e3040addbfa4f3d35b05d6dcc82f1",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializedNodeIndexTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "applicability": "runtime",
+      "statementHash": "sha256:abd48ac582f6804e73a9ea4ac93360934f3e1a692bba3c47d5fcca9ba4d4830f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "applicability": "runtime",
+      "statementHash": "sha256:8f9c271170f1d65c8bc6ae9e81f9b02be48a413d72dccae888503254868d3f94",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload"
+      ]
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "applicability": "runtime",
+      "statementHash": "sha256:2ad4c19c0e73a8e40733f2f4d11900f8c5af64532fbc7a9fef5e260a9f717e34",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
+      ]
+    },
+    {
+      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "applicability": "runtime",
+      "statementHash": "sha256:caed02c87ad56a3af2b7c057ef7d07a313e7c8f2fd3b6d2ca58f242bedff9205",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ValidationFailureEventIsRaisedForInvalidContent"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:11b45a78d34c3a50f6fbeabbf12f1186f84618372cb0628727cb306e5578f0d8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:cabf48d7a9f79885b8991e9380e6d6c0434b0f9c2f811918302a5a068191d8ce",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:64fa4e86acea480737b793478b879a3a9b1dc38291040828e3eb877eee920443",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:569bff4440c3b86d377eb572d4caf6fc184f851cd6098ebab0d6e0e020a0262b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:18a6d421971ec6403df090459df82a8264efc62f7562add8bb441ab99746175a",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:d444972a4525429e991a74ccec62eb12c159feefe0082bf7c14c9c2eca47511d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-model-change-events-and-nodeversion-correlation#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-model-change-events-and-nodeversion-correlation",
+      "applicability": "runtime",
+      "statementHash": "sha256:3d6bfb91768b134bd67002f1b282766994a99efee7c054a5ae46815187d38aeb",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "applicability": "runtime",
+      "statementHash": "sha256:22f2410e78d45e2c9710e3d0e8166292d41c9d46a1f1b839198c212468d9caf6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "applicability": "runtime",
+      "statementHash": "sha256:5eac15518aa5414d757ffe53f46c7ea00896c6fb9efa87ba836ab8d62cd94f38",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-outcomes-errors-and-implementer-responsibilities#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
+      "applicability": "runtime",
+      "statementHash": "sha256:e5ffd403239a7cf423965bd670d4d8f7755aed2b5dfda8ba4edfd3fbef568ba7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
@@ -569,70 +1753,812 @@
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#001",
+      "specId": "sec-projection-documents#001",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:d95ca230d9b49f1422a6eadaf68a91c297b5ba150e713b7d30894e261aa507f1",
+      "statementHash": "sha256:91c9d4a7e5b9d89e22de69f4c145808bfe0383c0596cc1db283d3f3faf5e6f9a",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#002",
+      "specId": "sec-projection-documents#002",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:19f03aa042b7b2d2fca2895dfd39c351ee547aad429c9ef7abd2d728c3ae3eff",
+      "statementHash": "sha256:6d0ac5e4da6d1820c9e54d3c4a028333b48fb8be868af7ce3794ded924ebf926",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.RefreshEmitsValidationFailureEventWhenConverterFails",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateInvalidDocumentReportsFailure"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#003",
+      "specId": "sec-projection-documents#003",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:28fc7ee61352dfe392232a043ebc7d778003423717f204d6944e952beeae8cdc",
+      "statementHash": "sha256:7576e246caedf6c0801661e55da0614541faafae7463c420d0f94995f1e4b5c5",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#004",
+      "specId": "sec-projection-documents#004",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:8f9c271170f1d65c8bc6ae9e81f9b02be48a413d72dccae888503254868d3f94",
-      "assembly": "Opc.Ua.WotCon.Tests",
+      "statementHash": "sha256:dab6b2cad9edcb91f72641a55e3f8a5c398bf7b38b972fc6adb825a1263fd509",
+      "assembly": "Opc.Ua.Types.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload"
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#005",
+      "specId": "sec-projection-documents#005",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:2ad4c19c0e73a8e40733f2f4d11900f8c5af64532fbc7a9fef5e260a9f717e34",
-      "assembly": "Opc.Ua.WotCon.Tests",
+      "statementHash": "sha256:3a517a406ff5f985bdd5901cffd4665b160e440a251182122720fd1ef7a99bdb",
+      "assembly": "Opc.Ua.Types.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
       ]
     },
     {
-      "specId": "sec-invalid-documents-and-desired-versus-active-divergence#006",
+      "specId": "sec-projection-documents#006",
       "specification": "WoT Connectivity",
-      "clause": "sec-invalid-documents-and-desired-versus-active-divergence",
+      "clause": "sec-projection-documents",
       "applicability": "runtime",
-      "statementHash": "sha256:caed02c87ad56a3af2b7c057ef7d07a313e7c8f2fd3b6d2ca58f242bedff9205",
+      "statementHash": "sha256:b4db3034b07fea5036d7849da0af074d46892f2a426056eb17bee1198f1eb847",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Full TD/TM JSON Schema validation is explicitly deferred; syntax, admission and projection checks are not full format-validation evidence."
+    },
+    {
+      "specId": "sec-projection-documents#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:1b5ec7d52954446fdb9a04b98198d0d5469a84309a9d8679951818bab5e5f0b9",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:09a8c4971f01a5f2b7dcebbd53f4c6a0fdae0264268810975a5b4b163eb23fc1",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:0156624dc322218fcdde0903bdd7663150ad253fe223b32bfee0430d2b753936",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Explicit projection compatibility/admission is tested, but the combined requirement also requires full legacy TD validation, which is deferred."
+    },
+    {
+      "specId": "sec-projection-documents#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:26155a0ea9c89e4b7e0e9ffd4d073c31b1264890cfb5d32ba23c642cbdf66a9d",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ValidationFailureEventIsRaisedForInvalidContent"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:00043f83fdc19eadd7e0b4d82ae413f9743bd346982699b7d8445cb352181835",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:8d0976958b2650337a58165ab544e251af0d82d08080e6e6999428b7dd6ee2f4",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:746d8526cfeb08a533ff3b555c8f8a9ed068cff44a1084c9d6cddee34842f5c8",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#014",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:4498bfb5a540d54688322ae24bb104000dea675d729cf522575bb0f55611be37",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#015",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:095d45c7dab25d1bb3f4c2dbb0f6781c36cb4ae7636c474b24f7f68532fc67d4",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#016",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:562faaf0b43549ae1ec9969e94f8e629353903dd17d36278d6194e0995b28e61",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#017",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:8dcc15270e03647b4076a233f8444b89c271c2ce2bec59e85bd19c8e77def3fe",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#018",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:210e83355fa7846445c9c4c9f7720ff6b261118205d8bd35e84298b13dd5fdc2",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#019",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:84c3a782bf6b2ea2844de169a865dc0f966461c1c42858a3247f7a7a94d47e6a",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#020",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:4663cd6965e788e82c8637b25a7a2fafee2cf76a64641154982f277200c86169",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Complete local restart recovery is tested. Publication-state replication between independent HA replicas is not exercised or claimed by these local runtime witnesses."
+    },
+    {
+      "specId": "sec-projection-documents#021",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:6167f5926017061022377640d35805f5fc87c63edb6745fc3002b6896f18f6c5",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#022",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:ba86bf19497dbc6e1ca562c8f43f427f297a3341480bac19b0ef747f6b268c3f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#023",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:90078595d67993bbad6f97cdd97437e53ee9e7efdfd1a4b195b1b58d05009bd7",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#024",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:47a57422be80abaeb4963615c9d75f088618d6ed9fb0a975dac4ae072a08c092",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-documents#025",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-documents",
+      "applicability": "runtime",
+      "statementHash": "sha256:75c08051060433f5739ff5063bf423a861fc9a948253a4332fdc34f522269b0c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:e1cfa21da38e3159f5e73f4a1f1023bf82ccc6c4ec19e38684d41103e2af30f1",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:9286c5afc3926f203f18c01138304f31da73c2c7a0f57f3110c1cd5997383305",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:a754fa0f18cc21b27368450e74aa314a9f2bebec30bc7b90e4cd0832cc6490fe",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:958b73fad3ed922e681b54a99d39ac720635b145dac3da191d9745759537940c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:ad78f777bdbe11594d05c99d5572b49714ada6b2b2934d49d8e7a87436354cd4",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:c4735f9f8690613ca64c0c99501729bca94b5e594eff1616bb18f125ef4e8644",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:8eecd366906bd7e2d31a048e74985c19c366c714f000b043bb48e378d103aabb",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:5b483662f3f0acebaaa5ce71ced9b7c667943c8c82e5c6683ee69e6ce3d94e75",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:354b9204a7f02428b75676a96f6faa3f1ff548fbc0a4f9323fe1e1890b397609",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:f4ff8e09d227ffe5554fc5337c08c43a6acbc4e12c2f327ca957d8742895339b",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:650dd423ab33e9da5d8e9fff1ebd0d69b63edd677a802089b2b9fc4b7dec5eda",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:3ceb750de28e349a0a90c6f76b44d4000e211520821789f85d19253dd3dcf656",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:593cf4b9881cf1c711e9cf661e36a872c0b228d255ed4dcb0896433093c06183",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#014",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:6d8141f51bf646a3f3be98c8d5940666a727e07def05aeb7f2e8c5a5247ca5e4",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#015",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:513323b46af9c339fc1b7d8c76cd5e00db52a900837ddde0acc182361b1ebdc3",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#016",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:e71aee1338c66a2822adb40dfb48d2ac197ff5b8828711172be96e8f716ba3d8",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#017",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:9f39ce97ddbbae4acbb52adfecf115b0c2d3ccd9d84c1d85925ad450bb9b3baf",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#018",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:ea352e250dbabdf4b61e071ccb0ed66af5238a26695b67b6c6739c8226394568",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#019",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:8bc2628942fd7e69a7bf8cc36b61c8ee9fce3eac0d1f6c89f2e52de077ccba4a",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#020",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:81a22fc36b3d7f96012fdc737a7b03c7588c07468471d8e5300494476d1a550f",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#021",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:76aa9d857dcbcced36fb2b34726189fa9ddb9b8c9259e1d76f1bc55b8bb15162",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#022",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:144997c2872c77164c5b8dbeab8b45da71e30712e9f81204809fe97842ad3f20",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#023",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:999288774a656ef1e2901527bdbef82d8c780419532fd48b5e966cfb20ffe6d1",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#024",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:729a14a3cefd4c392400d5ce021f3b8b245bb62f3a8e6f52b7552cff34c008e6",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeClosureTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeEncodingTests",
+        "Opc.Ua.Types.Tests.Wot.WotDataTypeAuthorityTests",
+        "Opc.Ua.Types.Tests.Wot.WotNestedOnlyDataTypeTests",
+        "Opc.Ua.Types.Tests.Wot.WotCapturedDataTypeDefinitionTests"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#025",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:b82db9364e108ed01613d4f7246ef9825d88f39bdf8341420a000f1fb5884370",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-projection-mapping#026",
+      "specification": "WoT Connectivity",
+      "clause": "sec-projection-mapping",
+      "applicability": "runtime",
+      "statementHash": "sha256:f4f6eed4a94fe555ca75cc90ba3dc66b832a89d0bd3f568d95d5f242a47257a9",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+      ]
+    },
+    {
+      "specId": "sec-references#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-references",
+      "applicability": "runtime",
+      "statementHash": "sha256:5cd9e2ba67d9914002240594a6880233da128c53dc7634beb4d0ddf37515a09e",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotModellingRuleAndReferenceTests.ANameDisagreeingWithItsRefIdIsReported",
+        "Opc.Ua.Types.Tests.Wot.WotModellingRuleAndReferenceTests.ARefIdWithoutAResolvableNameStaysForward"
+      ]
+    },
+    {
+      "specId": "sec-security-normative#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:38d055f56091046117ffd75374a943030a0a1817224c84641d42f3be9572aca3",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ExternalWebDependencyIsNotResolvedOutsideRegistry",
+        "Opc.Ua.WotCon.Tests.AssetRegistrySsrfTests"
+      ]
+    },
+    {
+      "specId": "sec-security-normative#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:2c627d33646ad5b442aee60d8d5ed9299d3f2d5efaa939dc11388014085daeab",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Management-access policy implementation is excluded from review; lowered-security test hosts are not conformance evidence for production access policy."
+    },
+    {
+      "specId": "sec-security-normative#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:a348e4984839b5c28f03df07e6fe01e9a803395130b1846d54879d24729abe7f",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Secure/read-only deployment channel policy requires host-specific evidence beyond the loopback test configuration."
+    },
+    {
+      "specId": "sec-security-normative#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:cf2c2b825905e079c884c819ba68762dcaae670235be9c796b72575e3ac4525d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Group read-authorization policy internals are excluded; per-deployment disclosure configuration is not certified."
+    },
+    {
+      "specId": "sec-security-normative#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:f698ecb058924f155b04c850250b61861fb2648a661724e32c8c287c2e79378c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Operator deployment policy is not established by implementation unit tests."
+    },
+    {
+      "specId": "sec-security-normative#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:95ad02a8bbb0c8d7f438a2f6b654d3da339e634a8505b536ccc7a054212f2f8d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Legacy management access-policy internals are excluded from review; no security conformance claim is inferred from test-host access overrides."
+    },
+    {
+      "specId": "sec-security-normative#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-security-normative",
+      "applicability": "runtime",
+      "statementHash": "sha256:dce128eb1cf21eed942bcde1ea433d4973cf8fcbc0c2e185aee87bc4e35f6e80",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Endpoint trust/bounds controls are exercised, but the combined requirement includes deferred full-format validation of generated legacy TD input."
+    },
+    {
+      "specId": "sec-semantic-change-events-optional#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-semantic-change-events-optional",
+      "applicability": "runtime",
+      "statementHash": "sha256:7050f48a91854c5c28b628ba7f87d6a7100b90805aab61c79aca843ab9661769",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "The optional WOTC-SemanticChange conformance unit is not certified by the retained WoT evidence; no Full profile claim is made."
+    },
+    {
+      "specId": "sec-semantic-change-events-optional#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-semantic-change-events-optional",
+      "applicability": "runtime",
+      "statementHash": "sha256:f54d6daa9477850c861176b42ba4f6337f2319ed98bd63ae414fc2dcb37a0cef",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "The optional WOTC-SemanticChange conformance unit and its complete negative event matrix are not certified by the retained WoT evidence."
+    },
+    {
+      "specId": "sec-service-mappings-read-write-observe-call#001",
+      "specification": "WoT Binding",
+      "clause": "sec-service-mappings-read-write-observe-call",
+      "applicability": "runtime",
+      "statementHash": "sha256:a36ee6c17370d8d75c5588342ca9f409b0a7822c984ba7ddcd8676c726671e47",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.ExtractFormWithContentType",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests.HttpPlannerAcceptsSafeContentType"
       ]
     },
     {
@@ -652,11 +2578,10 @@
       "specification": "WoT Connectivity",
       "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:70f431771cba293f03ab527f864bbd2e7bc1bd79248b4ddcc08fd5a7f1136a54",
+      "statementHash": "sha256:5e876145155d99bafd2a2472792ea8973bc1996c9139285a9be5bd66cc046c70",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesImmediateReloadWhenConfigured"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
@@ -664,91 +2589,587 @@
       "specification": "WoT Connectivity",
       "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:13edbf68cb8a7c5df1c9e5eb0090aa2c619b5ee02359988955fb3d93985d69fd",
+      "statementHash": "sha256:0c62e7c0944f6994ce18c3ba2418c062cb1f70d42b3e790b787d3cd58e4e0020",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RemoveAllAsyncRetiresPreviouslyProjectedClosures",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchCleanupWarningTracksCommittedReplacement"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#001",
+      "specId": "sec-shadow-prepare-switch-and-retirement#004",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:e406f885f2000e2804f81e22b318de8d268ce84431e025393896e1d21fc8940d",
+      "statementHash": "sha256:519af174ff51f4b83dafec5b3a690c6dd4f2d61387a83ca4e2032165bcd8fd24",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.RefreshAllSucceedsForValidUploadedResource"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#002",
+      "specId": "sec-shadow-prepare-switch-and-retirement#005",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:9c5098612ef035a2c836872b94303414d2109e262a7ae688af109b3e99755c4a",
+      "statementHash": "sha256:aff2ed5a7281daa254e5a397ed057705ee5b2434877716e0e3875bf9aab35cbf",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.ShadowReloadCalledWhenResourceContentChanges"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#003",
+      "specId": "sec-shadow-prepare-switch-and-retirement#006",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:e766f47a0427e1c159b09ccbc7e0391e727ea015102534406d6667c15522b9d8",
-      "assembly": "Opc.Ua.WotCon.Tests",
+      "statementHash": "sha256:a4c043ebefca70e04177abd5c22f7fda38a203a1cc152d26134d924117bcec78",
+      "assembly": "Opc.Ua.Server.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotRefreshArgumentsTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotRefreshArgumentsExtendedTests"
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#004",
+      "specId": "sec-shadow-prepare-switch-and-retirement#007",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:54aea2950f2e6b5df8afaaa9415d3f3eab40e670d03b3ca36ed165638d591fd8",
-      "assembly": "Opc.Ua.WotCon.Tests",
+      "statementHash": "sha256:f93d8cb6796eaa1f844059a2bed0ed64071eea0632a76d4975aef9e43426ec05",
+      "assembly": "Opc.Ua.Server.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent"
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#005",
+      "specId": "sec-shadow-prepare-switch-and-retirement#008",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:ddb5e4a2ab49e716779004a4671f78f8903271d947631fb84a3f2d3afe728348",
-      "assembly": "Opc.Ua.WotCon.Tests",
+      "statementHash": "sha256:90d5af0e498fe317c6136b098723ec320e1a295efe10af8223d823c403b8ce14",
+      "assembly": "Opc.Ua.Server.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ForceRefreshReprocessesUnchangedContent"
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
       ]
     },
     {
-      "specId": "sec-automatic-and-explicit-refresh-idempotence#006",
+      "specId": "sec-shadow-prepare-switch-and-retirement#009",
       "specification": "WoT Connectivity",
-      "clause": "sec-automatic-and-explicit-refresh-idempotence",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
       "applicability": "runtime",
-      "statementHash": "sha256:6cedb255ee22cc1b1f931f8e2b58348b71dd9527b7c2714e0dd50737ed083558",
+      "statementHash": "sha256:d24ea04c7c086f52707f4057b66d01f7e56679babb55b447c12fb31edb90c2ad",
+      "assembly": "Opc.Ua.Server.Tests",
+      "tests": [
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
+      ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:b5d6794255133742df3f0ed7459f58fafd0f5e0511393c8f160e13b1036c76e6",
+      "assembly": "Opc.Ua.Server.Tests",
+      "tests": [
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
+      ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:a7e889f4a9985cd19f11d744d6d239fe3918464bb2b302dd0f5e1390337d824c",
+      "assembly": "Opc.Ua.Server.Tests",
+      "tests": [
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
+      ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:76563aae7e2c869c3d465f66a5534d0184d4ecdac11db03e9cbed13780b053e2",
+      "assembly": "Opc.Ua.Server.Tests",
+      "tests": [
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
+      ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:3765bf71c90f0cc70db460244932902be9a70498d3ac7a2ac51f5040caf4f5d0",
+      "assembly": "Opc.Ua.Server.Tests",
+      "tests": [
+        "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests"
+      ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#014",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:dc705ceb489d0977a39e144ba9b6b4d28c28c7d9d567b7c1626786a4f206cf3b",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryModelTests.ComputeProducesSameDigestForSameContent",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryModelTests.ComputeProducesDifferentDigestsForDifferentContent"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
+    },
+    {
+      "specId": "sec-shadow-prepare-switch-and-retirement#015",
+      "specification": "WoT Connectivity",
+      "clause": "sec-shadow-prepare-switch-and-retirement",
+      "applicability": "runtime",
+      "statementHash": "sha256:b18b3d21f064624b8377e3a4e1db18a129fa18eceff33facc44e72723165fb12",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+      ]
+    },
+    {
+      "specId": "sec-signature#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-signature",
+      "applicability": "runtime",
+      "statementHash": "sha256:54a0985ed55f0e65530649405034fb366bc4b7a47f34c7ea967e43b3d930e791",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.RefreshExpectedGenerationMismatchIsRejected",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunsDoNotAdvanceExpectedGeneration"
+      ]
+    },
+    {
+      "specId": "sec-synthesis-from-an-authored-td-or-tm#001",
+      "specification": "WoT Binding",
+      "clause": "sec-synthesis-from-an-authored-td-or-tm",
+      "applicability": "converter",
+      "statementHash": "sha256:afaae079849fa3680abba1ec15fd9078d0f443f1dcaef80adc861017c75027f1",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.MaterializedDataTypeDefinitionsAreNotAlsoResidue",
+        "Opc.Ua.Types.Tests.Wot.WotDocumentContextTests.TheGeneratedOverrideIsNotAlsoResidue"
+      ]
+    },
+    {
+      "specId": "sec-synthesis-from-an-authored-td-or-tm#002",
+      "specification": "WoT Binding",
+      "clause": "sec-synthesis-from-an-authored-td-or-tm",
+      "applicability": "converter",
+      "statementHash": "sha256:51129c6357e1488edf4dca2928e25822e20ec453147c29e29eba9927a289a7f8",
+      "assembly": "Opc.Ua.Types.Tests",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotJsonResidueTests"
+      ]
+    },
+    {
+      "specId": "sec-type-binding#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-type-binding",
+      "applicability": "runtime",
+      "statementHash": "sha256:e3f4087b587a768c1cc5dcc2401058070c2f1030f51319cb81bc580072f5a292",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ProjectionConversionFailureRaisesLoadFailure",
+        "Opc.Ua.WotCon.Tests.Materialization.SnapshotWotNodeResolverTests.DoesNotOfferAReferenceTypeSiblingAsATypeBindingTargetAsync"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:242fb790c61b2588531f0d308d66f13ded3cbf18367d630537ce7cfdf65cb23a",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#002",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:77953bd8efbb5a732c515669e5895a54c8320cd5dc087c255eb010f92efb4a9c",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#003",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:3080704fa3c51fc65c8cf0f58fbddb768fecb19771fe9faf446108444a96e8d4",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#004",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:4eea6bd9f8949607e16264e81a4b4b80e27530257871527eb090e13e6812ae10",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#005",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:8587d7f9b9af0ba29ce37ab8ddb06caab559ab51a306982206e179d828c1cbf6",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#006",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:9afd5bc5356271d8a296082497f7bd2567c6e26890d1925371c6bb8d45a91a01",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#007",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:70215dadbcb5181932b50dae830072fde5a3835e413b9c390b2abf072a3f3857",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#008",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:44f28d3fe59dc50add5c4ef31df6ec059ca1f31c2e1f44cf8f2489c5e1e3d5ee",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#009",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:7c73b389845f2cf8a0588ae4bf1df0d49a286684f9a2a9edd7f7feb52b4fc2b2",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#010",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:eb12e1de20979f347907d56522f827d7bee50e9df8b3649d249ef233d0dd8743",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#011",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:d22c866f083dd1d9f09c17969383dd0fc2922ee6fde1c204cf1d0c82991d8296",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#012",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:e61d7c4bc4253d6b71efe8b74643c9032741f0eee8a1f3cdbde0adf622f8acbf",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#013",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:a93c157862c810d4201a43b5b54b11e740f6089ce1ffeea41301ba07bd72cf42",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#014",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:51f23d17ae24a8a785b7fffbf5904ababbe45cab24ceba8286d3a6c70cab19f2",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#015",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:3d96306aefc997e4f60c9bdae29e007e35b54389be6c5d38ae0b0ad6caa0ad5d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#016",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:b2cff7c540c940267cac46665f6bb662457ca9722ff92f8b219d13388e600ced",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#017",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:a65629deea7b61534088928a2787bcefdfa879c54952f6644b1296492dfcd719",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#018",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:1a0aa34da0e6c8c956b372a511f661828f5f45a50f86408d531dcb955f2713bc",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-typed-provisioning-behavior#019",
+      "specification": "WoT Connectivity",
+      "clause": "sec-typed-provisioning-behavior",
+      "applicability": "runtime",
+      "statementHash": "sha256:7aa24a96f2ec0ceec132ba9d3d289fa6370d9d48389bec1929a543d8a8545a9d",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
+        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#001",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:a591d72771577fc5fc4b64cc98f6f335f7dd2fcee2dcae908cd8bb79bce827ce",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#002",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:2573cbcef159806a85fb85bff0256b898a1668e36cf0d4b1b2e0a6d233a195b8",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#003",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:e75cb8a233c0e1c87de49a749c75ac80085ca45eb1ca6e68a20a27db658d1fa8",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#004",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:2d5f26e5b17bf0d0c4542cb2dad5e0fb173fc0047a36fea4d131a730865b136c",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#005",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:ff34f1a29630dd00a5e0098393628627a9165458701f7b7942e42a9579dd5417",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#006",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:6a418cadfb0e79dc9fab1f50108d92809b0a440e4eb088c508dca70926cb68d5",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#007",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:8e67f4bb7afe01f211ff0974b21a94f25d9532e7646f0784b1f20b178e14e0b4",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#008",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:e3a923bd8442d096ba556bc94939385cce40cba9bfffa195308e1dc936140a68",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#009",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:8d1e2a12a3123a6202499df1e38d9ecc2a14aa0199347443142d79fc52e523fa",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-uri-base-and-href-rules#010",
+      "specification": "WoT Binding",
+      "clause": "sec-uri-base-and-href-rules",
+      "applicability": "runtime",
+      "statementHash": "sha256:e42f820182ce3f0421fa3b883c97f1a6391dce45e64f8d087d586a0bba3f7e8b",
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests",
+        "Opc.Ua.WotCon.Bindings.Tests.BindingPlannerTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExecutorTests"
+      ]
+    },
+    {
+      "specId": "sec-validation-planning-and-apply-algorithm#001",
+      "specification": "WoT Connectivity",
+      "clause": "sec-validation-planning-and-apply-algorithm",
+      "applicability": "runtime",
+      "statementHash": "sha256:d23eb465a4a6cb0558c73c127589fcedaa8ca77b4993c9be90ddba894ce58dc1",
+      "assembly": "Opc.Ua.WotCon.Tests",
+      "tests": [],
+      "gap": "Publication planning, capture, units and recovery are exercised, but the complete algorithm includes deferred full-format and compatibility-policy validation."
     },
     {
       "specId": "sec-version-switch-unload-delete-and-federation#001",
       "specification": "WoT Connectivity",
       "clause": "sec-version-switch-unload-delete-and-federation",
       "applicability": "runtime",
-      "statementHash": "sha256:9a56e3419447d23c5d74f41bc11b861039ae5a56b7d1afdc0553e8de535e93f4",
+      "statementHash": "sha256:fcb680eaa5bf96ab1c9e3b6dd6f1d61158ce94b837320bcbbb4ba87f884d8e6c",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload"
+        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
       ]
     },
     {
@@ -783,11 +3204,10 @@
       "specification": "WoT Connectivity",
       "clause": "sec-version-switch-unload-delete-and-federation",
       "applicability": "runtime",
-      "statementHash": "sha256:4b215e5af55b3790e43904da1022f85a83fe9515a06c69436d645129aa114595",
+      "statementHash": "sha256:11f7e6c3d442b10639489d16cce7b2497d3b912fc32e674e01a1cacb94f17269",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DeleteRetiresProjection",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.DeleteGroupRemovesGroupAndResources"
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
       ]
     },
     {
@@ -795,10 +3215,10 @@
       "specification": "WoT Connectivity",
       "clause": "sec-version-switch-unload-delete-and-federation",
       "applicability": "runtime",
-      "statementHash": "sha256:8c1d95acf09753e4d46add060b9b826cd899afe4b58ec6bb12546d4b661b0757",
+      "statementHash": "sha256:1f074d77d011f8d4bc3313d1f6fa80e87b08c5b9dec7becf8d81843324bf6e77",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolveByRegistryUriFindsResource"
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
       ]
     },
     {
@@ -806,10 +3226,10 @@
       "specification": "WoT Connectivity",
       "clause": "sec-version-switch-unload-delete-and-federation",
       "applicability": "runtime",
-      "statementHash": "sha256:cd7cf75dde8f829d26e524cc2bf774a4c33d246361dfe5992974806522240308",
+      "statementHash": "sha256:d016c9823919778addc91d7e4726f0cb8b73b5a15ca1e5388dbb4d55f042597e",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ExternalWebDependencyIsNotResolvedOutsideRegistry"
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
       ]
     },
     {
@@ -817,381 +3237,18 @@
       "specification": "WoT Connectivity",
       "clause": "sec-version-switch-unload-delete-and-federation",
       "applicability": "runtime",
-      "statementHash": "sha256:a6b7b7111f3d88a8e0b98fa70fe978f641180b3cb1e536c1dd12a1800a78b684",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolveByXidFindsResource",
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolvePrefersTmOverTd"
-      ]
-    },
-    {
-      "specId": "sec-version-switch-unload-delete-and-federation#008",
-      "specification": "WoT Connectivity",
-      "clause": "sec-version-switch-unload-delete-and-federation",
-      "applicability": "runtime",
       "statementHash": "sha256:121074b1f667cb0e1d7c3f1ed89ae3a6d78027d5c98c47383792db83358615c7",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.BuildClosuresDiagnosticsIncludesMissingDependencyMessage",
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphTests.BuildClosuresMissingDependencyIsFlagged"
-      ]
-    },
-    {
-      "specId": "sec-document-identifiers-and-names#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-document-identifiers-and-names",
-      "applicability": "runtime",
-      "statementHash": "sha256:e647d11cb2aadd5cef0e140ba323c07c766be33d9a91ab646315c693f687b3f3",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncSlugifiesSpaces",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncSlugifiesUppercase"
-      ]
-    },
-    {
-      "specId": "sec-document-identifiers-and-names#002",
-      "specification": "WoT Connectivity",
-      "clause": "sec-document-identifiers-and-names",
-      "applicability": "runtime",
-      "statementHash": "sha256:81914174d2934307b0b528d24b677f6d3334559e4b21dde2ff7d61ad4a71e5d8",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncWithNameSetsDisplayName"
-      ]
-    },
-    {
-      "specId": "sec-document-identifiers-and-names#003",
-      "specification": "WoT Connectivity",
-      "clause": "sec-document-identifiers-and-names",
-      "applicability": "runtime",
-      "statementHash": "sha256:3b9759ed166f059237c3f51882b3858af149cee722f7806b06a4c1cbbcc78337",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncWithNameSetsDisplayName"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:adbf37a70d2aeae2421a6eeb1fe847d37fb9573e1170f19641aef99a8b4335ab",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.ViewOrganizesTheSourceNodesAndDefinesNoAffordanceNode",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionDocumentMaterializesAViewAndCreatesNoAffordanceSource"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#002",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:f1caf791938009167cbce087f687f30ecda281e77c5c9ce440457830bd0b3b4e",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.OrganizingLinksProduceObjectsWithOnlyTheOutermostAView",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.RefreshingAProjectionLeavesExactlyOneAppliedView"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#003",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:8c08c44268a4e155864994fc6a5ab7d3a8f7667cf8acf57c1b947f68ff05b495",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionViewRootNodeIdIsDistinctFromTheResourceNode",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionViewIsRemovedWhenTheProjectionResourceIsDeleted"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#004",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:1c62ff5f3f553f5f67dc4fb1ee32a9f820749ff21cd68ae0705d9bdb6f967c1e",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.ViewVersionMatchesTheSpecifiedAlgorithm",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.ViewVersionIsStableAcrossAnUnchangedBuildAndChangesOnMembershipChange",
-        "Opc.Ua.WotCon.Tests.Materialization.WotViewVersionOrderingTests"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#005",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:47a57422be80abaeb4963615c9d75f088618d6ed9fb0a975dac4ae072a08c092",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.OutOfAddressSpaceSourceIsOmittedButBuildStillSucceeds",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.OutOfAddressSpaceSelectionIsOmittedAndReportedButStaysActive"
-      ]
-    },
-    {
-      "specId": "sec-projection-documents#006",
-      "specification": "WoT Connectivity",
-      "clause": "sec-projection-documents",
-      "applicability": "runtime",
-      "statementHash": "sha256:75c08051060433f5739ff5063bf423a861fc9a948253a4332fdc34f522269b0c",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.PredictiveMaintenanceProjectionResolvesToThePublishedViewAsync",
-        "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests.ResolvedViewCarriesProvenanceForEverySelectionAsync"
-      ]
-    },
-    {
-      "specId": "sec-signature#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-signature",
-      "applicability": "runtime",
-      "statementHash": "sha256:54a0985ed55f0e65530649405034fb366bc4b7a47f34c7ea967e43b3d930e791",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.RefreshExpectedGenerationMismatchIsRejected",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunsDoNotAdvanceExpectedGeneration"
-      ]
-    },
-    {
-      "specId": "sec-validation-planning-and-apply-algorithm#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-validation-planning-and-apply-algorithm",
-      "applicability": "runtime",
-      "statementHash": "sha256:d23eb465a4a6cb0558c73c127589fcedaa8ca77b4993c9be90ddba894ce58dc1",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests"
-      ]
-    },
-    {
-      "specId": "sec-concurrency-and-generation-behaviour#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-concurrency-and-generation-behaviour",
-      "applicability": "runtime",
-      "statementHash": "sha256:911d968db44a1be4c661fe5af965819e8ebde4d11137c8dcc4ffbf86a6a00cb5",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.ConcurrentRefreshReturnsBadServerTooBusy",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RefreshGenerationIncrements"
-      ]
-    },
-    {
-      "specId": "sec-outcomes-errors-and-implementer-responsibilities#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
-      "applicability": "runtime",
-      "statementHash": "sha256:2a2bdb17a47fa1ae96f854d432e9c0c7a1f00bab181ee441774ea42f728de70d",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunDoesNotCommit",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunRetirementDoesNotTearDownProjection",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateValidDocumentReportsSuccess"
-      ]
-    },
-    {
-      "specId": "sec-outcomes-errors-and-implementer-responsibilities#002",
-      "specification": "WoT Connectivity",
-      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
-      "applicability": "runtime",
-      "statementHash": "sha256:71456f7114ac432c0c3a9d72e4d8f48b73a34530e5c9e9789a317823f8f121d1",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DetailedResultsCarryNodeCountAndDigest",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.FailedNodeIdCanCarryConcreteNodeId"
-      ]
-    },
-    {
-      "specId": "sec-outcomes-errors-and-implementer-responsibilities#003",
-      "specification": "WoT Connectivity",
-      "clause": "sec-outcomes-errors-and-implementer-responsibilities",
-      "applicability": "runtime",
-      "statementHash": "sha256:554d88ab0ae9107f44dec3eb1e470efc9fbb658d5f68b44d1482fdf9e9f1faf4",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.IndependentClosuresPartialSuccess",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.TwoIndependentClosuresProjectAsTwoSeparateRegistrations"
-      ]
-    },
-    {
-      "specId": "sec-events-and-change-notifications-normative#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-events-and-change-notifications-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:23160627b31878d5abfbdc2c629c5073fdd5f51a9d81d1b18f8becbfc9ef3086",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ValidationFailureEventIsRaisedForInvalidContent",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.LoadFailureEventIsRaisedForMissingDependency",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RefreshCompletedEventIsRaisedAfterRefresh"
-      ]
-    },
-    {
-      "specId": "sec-events-and-change-notifications-normative#002",
-      "specification": "WoT Connectivity",
-      "clause": "sec-events-and-change-notifications-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:7f9edc38e52902fbf122636b656b0cde27e3313d175ea24d0f3f9d181ace2072",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain",
-        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain",
-        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain"
-      ]
-    },
-    {
-      "specId": "sec-events-and-change-notifications-normative#003",
-      "specification": "WoT Connectivity",
-      "clause": "sec-events-and-change-notifications-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:08f5b56a7f8f9d6f5294d6037153d99f6a9de22139fe24a3cae056e05e852498",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ResourceEventIsRaisedAfterSuccessfulProjection"
-      ]
-    },
-    {
-      "specId": "sec-events-and-change-notifications-normative#004",
-      "specification": "WoT Connectivity",
-      "clause": "sec-events-and-change-notifications-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:d4bc0173eb1dc1482ac88ebe174cdca2f546590b92174f99615bdf4902465c04",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent",
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunDoesNotCommit"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:38d055f56091046117ffd75374a943030a0a1817224c84641d42f3be9572aca3",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ExternalWebDependencyIsNotResolvedOutsideRegistry",
-        "Opc.Ua.WotCon.Tests.AssetRegistrySsrfTests"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#002",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:2c627d33646ad5b442aee60d8d5ed9299d3f2d5efaa939dc11388014085daeab",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.SecurityAdminSignAndEncryptSucceeds",
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.NonAdminUserReturnsBadUserAccessDenied",
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.SignOnlySecurityModeReturnsBadUserAccessDenied"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#003",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:a348e4984839b5c28f03df07e6fe01e9a803395130b1846d54879d24729abe7f",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.LoweredMinimumSecurityModeAcceptsStrongerChannels",
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.AllowAnonymousPolicyAcceptsAnonymousWhenSecure"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#004",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:cf2c2b825905e079c884c819ba68762dcaae670235be9c796b72575e3ac4525d",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.CustomRoleAllowsCustomRoleDeniesOthers"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#005",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:f698ecb058924f155b04c850250b61861fb2648a661724e32c8c287c2e79378c",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.CustomRoleAllowsCustomRoleDeniesOthers"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#006",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:95ad02a8bbb0c8d7f438a2f6b654d3da339e634a8505b536ccc7a054212f2f8d",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotManagementAccessPolicyTests.UploadPathRefusesAnUnauthorisedWriteAndCloseAndUpdate"
-      ]
-    },
-    {
-      "specId": "sec-security-normative#007",
-      "specification": "WoT Connectivity",
-      "clause": "sec-security-normative",
-      "applicability": "runtime",
-      "statementHash": "sha256:dce128eb1cf21eed942bcde1ea433d4973cf8fcbc0c2e185aee87bc4e35f6e80",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.AssetRegistrySsrfTests",
-        "Opc.Ua.WotCon.Tests.AssetEndpointValidatorTests"
-      ]
-    },
-    {
-      "specId": "sec-identity-and-the-root#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-identity-and-the-root",
-      "applicability": "runtime",
-      "statementHash": "sha256:074571cff7649c7f66f4cb25bd36eab2d12bb4e52e9e35ea50d51622f1246261",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotSynthesisTests.EveryTypeDefinitionRootsItsOwnDocument"
-      ]
-    },
-    {
-      "specId": "sec-type-binding#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-type-binding",
-      "applicability": "runtime",
-      "statementHash": "sha256:e3f4087b587a768c1cc5dcc2401058070c2f1030f51319cb81bc580072f5a292",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ProjectionConversionFailureRaisesLoadFailure",
-        "Opc.Ua.WotCon.Tests.Materialization.SnapshotWotNodeResolverTests.DoesNotOfferAReferenceTypeSiblingAsATypeBindingTargetAsync"
-      ]
-    },
-    {
-      "specId": "sec-affordances#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-affordances",
-      "applicability": "runtime",
-      "statementHash": "sha256:636608db53d032f559a2a09e64f9ce235df749e11009b87e70d53daf895f2eab",
-      "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotPropertyMapperTests"
-      ]
-    },
-    {
-      "specId": "sec-references#001",
-      "specification": "WoT Connectivity",
-      "clause": "sec-references",
-      "applicability": "runtime",
-      "statementHash": "sha256:5cd9e2ba67d9914002240594a6880233da128c53dc7634beb4d0ddf37515a09e",
-      "assembly": "Opc.Ua.Types.Tests",
-      "tests": [
-        "Opc.Ua.Types.Tests.Wot.WotModellingRuleAndReferenceTests.ANameDisagreeingWithItsRefIdIsReported",
-        "Opc.Ua.Types.Tests.Wot.WotModellingRuleAndReferenceTests.ARefIdWithoutAResolvableNameStaysForward"
+        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
       ]
     }
-  ]
+  ],
+  "testTargetFrameworks": {
+    "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests": [
+      "net8.0",
+      "net9.0",
+      "net10.0"
+    ]
+  }
 }

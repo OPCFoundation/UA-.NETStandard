@@ -85,6 +85,24 @@ namespace Opc.Ua.Wot
     }
 
     /// <summary>
+    /// Selects how a set of WoT documents is imported into one NodeSet.
+    /// </summary>
+    public enum WotDocumentSetMode
+    {
+        /// <summary>
+        /// Reconstruct partitions exported from one NodeSet, requiring their
+        /// namespace tables and authoritative headers to agree.
+        /// </summary>
+        PartitionReconstruction,
+
+        /// <summary>
+        /// Import independently authored readable models using a deterministic
+        /// namespace URI union. Native and archive authority is not rebased.
+        /// </summary>
+        IndependentReadableModels
+    }
+
+    /// <summary>
     /// Resource limits and behavioural switches used while reading and
     /// writing WoT documents, preservation envelopes and NodeSet2 payloads.
     /// </summary>
@@ -96,12 +114,34 @@ namespace Opc.Ua.Wot
     public sealed class WotNodeSetConverterOptions
     {
         /// <summary>
+        /// Gets or sets the provider of actual bulk projection-host forms.
+        /// An omitted provider does not permit source forms to be reused.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the preservation-envelope policy. The default uses
         /// readable mapping plus structured fallback and emits an opaque envelope
         /// only when required.
         /// </summary>
         public WotNodeSetPreservationMode PreservationMode { get; set; } =
             WotNodeSetPreservationMode.WhenRequired;
+
+        /// <summary>
+        /// Gets or sets the document-set import algorithm. The default
+        /// reconstructs one exported partition set; independent readable-model
+        /// import must be selected explicitly and is never a retry strategy.
+        /// </summary>
+        public WotDocumentSetMode DocumentSetMode { get; set; } = WotDocumentSetMode.PartitionReconstruction;
+
+        /// <summary>
+        /// Gets or sets the codec context for understood structured XML values
+        /// during independent-model import. Its registered types, namespace
+        /// interpretation, telemetry and encoding limits are used without
+        /// modifying the context. When omitted, the built-in Argument codec is
+        /// available. Unresolved opaque ExtensionObjects cannot be rebased.
+        /// </summary>
+        public IServiceMessageContext? ValueEncodingContext { get; set; }
 
         /// <summary>
         /// Gets or sets whether session-local identifiers are tolerated instead
@@ -208,6 +248,12 @@ namespace Opc.Ua.Wot
         public int MaxResolverDepth { get; set; } = 16;
 
         /// <summary>
+        /// Gets or sets explicitly selected legacy projection-plan compatibility.
+        /// Modern plans declare their result kind; draft compatibility is never enabled implicitly.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum number of external documents (contexts,
         /// schemas and referenced TD/TM documents combined) resolved for a
         /// single top-level conversion.
@@ -234,6 +280,14 @@ namespace Opc.Ua.Wot
         /// </exception>
         public void Validate()
         {
+            if (DocumentSetMode is not (
+                WotDocumentSetMode.PartitionReconstruction or WotDocumentSetMode.IndependentReadableModels))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(DocumentSetMode),
+                    DocumentSetMode,
+                    "The document-set mode is not defined.");
+            }
             if (PreservationMode is not (
                 WotNodeSetPreservationMode.WhenRequired or
                 WotNodeSetPreservationMode.Always or
@@ -251,6 +305,13 @@ namespace Opc.Ua.Wot
                     nameof(ConformanceMode),
                     ConformanceMode,
                     "The conformance mode is not defined.");
+            }
+            if (ProjectionCompatibilityMode is not (
+                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ProjectionCompatibilityMode), ProjectionCompatibilityMode,
+                    "The projection compatibility mode is not defined.");
             }
             foreach (string claim in RequiredConformance)
             {
@@ -321,6 +382,17 @@ namespace Opc.Ua.Wot
                 MaxXmlDepth = MaxXmlDepth,
                 AliasResolver = WotNodeSetAliases.Instance
             };
+        }
+
+        /// <summary>
+        /// Keeps export verification independent of the import algorithm while
+        /// retaining every other conversion option and provider.
+        /// </summary>
+        internal WotNodeSetConverterOptions ForPartitionReconstruction()
+        {
+            var copy = (WotNodeSetConverterOptions)MemberwiseClone();
+            copy.DocumentSetMode = WotDocumentSetMode.PartitionReconstruction;
+            return copy;
         }
 
         private static void EnsurePositive(int value, string name)

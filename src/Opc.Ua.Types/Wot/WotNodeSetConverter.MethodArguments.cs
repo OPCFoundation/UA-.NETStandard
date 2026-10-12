@@ -109,7 +109,7 @@ namespace Opc.Ua.Wot
             string? DataType,
             int ValueRank,
             string? ArrayDimensions,
-            Opc.Ua.Export.LocalizedText[]? Description);
+            Export.LocalizedText[]? Description);
 
         /// <summary>
         /// The arguments a Method holds, in declaration order.
@@ -148,6 +148,61 @@ namespace Opc.Ua.Wot
             IReadOnlyList<string> Members);
 
         /// <summary>
+        /// Resolves an action's input or output DataSchema into native argument
+        /// positions without performing transport I/O or materializing Nodes.
+        /// </summary>
+        /// <param name="action">The resolved action affordance.</param>
+        /// <param name="member">Either <c>input</c> or <c>output</c>.</param>
+        /// <returns>The immutable layout and any argument-mapping diagnostic.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static WotConversionResult<WotMethodArgumentLayout> GetMethodArgumentLayout(
+            JsonElement action,
+            string member)
+        {
+            if (member is not (InputMember or OutputMember))
+            {
+                throw new ArgumentOutOfRangeException(nameof(member));
+            }
+            WotArgumentShape shape = action.ValueKind == JsonValueKind.Object
+                ? AnalyzeArgumentSchema(action, member)
+                : new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+            if (shape.Kind is WotArgumentShapeKind.Invalid or WotArgumentShapeKind.AmbiguousOrder)
+            {
+                return new WotConversionResult<WotMethodArgumentLayout>(
+                    null,
+                    [
+                        new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            shape.Kind == WotArgumentShapeKind.AmbiguousOrder
+                                ? WotDiagnosticCode.MethodArgumentOrderAmbiguous
+                                : WotDiagnosticCode.MethodArgumentSchemaInvalid,
+                            $"The action's {member} schema does not declare an unambiguous native argument layout.",
+                            WotLocation.FromPointer("/" + member))
+                    ]);
+            }
+            action.TryGetProperty(member, out JsonElement schema);
+            WotMethodArgumentLayoutKind kind = shape.Kind switch
+            {
+                WotArgumentShapeKind.Single => WotMethodArgumentLayoutKind.Single,
+                WotArgumentShapeKind.Members => WotMethodArgumentLayoutKind.Named,
+                _ => WotMethodArgumentLayoutKind.None
+            };
+            return new WotConversionResult<WotMethodArgumentLayout>(
+                new WotMethodArgumentLayout(kind, schema, [.. shape.Members],
+                    member == InputMember ? DefaultInputArgumentName : DefaultOutputArgumentName), []);
+        }
+
+        /// <summary>
+        /// Names the one argument a bare DataSchema denotes.
+        /// </summary>
+        internal static string ReadArgumentName(JsonElement schema, string defaultName)
+        {
+            return LocalName(GetElementString(schema, "uav:browseName")) ??
+                SanitizeName(GetElementString(schema, "title")) ??
+                defaultName;
+        }
+
+        /// <summary>
         /// Gets whether the converter maps an action member onto Argument
         /// values, which is what decides whether preservation must also carry
         /// it.
@@ -180,7 +235,8 @@ namespace Opc.Ua.Wot
         private static Dictionary<string, WotMethodArguments> CollectMethodArguments(
             List<UAMethod> actions,
             Dictionary<string, UANode> index,
-            HashSet<string> represented)
+            HashSet<string> represented,
+            WotReferenceTypeNames? referenceTypeNames = null)
         {
             var collected = new Dictionary<string, WotMethodArguments>(StringComparer.Ordinal);
             foreach (UAMethod method in actions)
@@ -190,9 +246,9 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 List<WotMethodArgument>? input = ReadArgumentVariable(
-                    method, index, InputArgumentsBrowseName, represented);
+                    method, index, InputArgumentsBrowseName, represented, referenceTypeNames);
                 List<WotMethodArgument>? output = ReadArgumentVariable(
-                    method, index, OutputArgumentsBrowseName, represented);
+                    method, index, OutputArgumentsBrowseName, represented, referenceTypeNames);
                 if (input is null && output is null)
                 {
                     continue;
@@ -210,9 +266,12 @@ namespace Opc.Ua.Wot
             UAMethod method,
             Dictionary<string, UANode> index,
             string browseName,
-            HashSet<string> represented)
+            HashSet<string> represented,
+            WotReferenceTypeNames? referenceTypeNames)
         {
-            foreach (Reference reference in method.References ?? [])
+            ArrayOf<Reference> references = referenceTypeNames?.GetReferences(method) ??
+                new ArrayOf<Reference>(method.References ?? []);
+            foreach (Reference reference in references)
             {
                 if (!reference.IsForward ||
                     reference.Value is null ||
@@ -360,7 +419,7 @@ namespace Opc.Ua.Wot
         /// Reads an <c>Argument</c>'s Description text, keeping the locale it
         /// states (WoT Binding Section 9.1.1).
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadArgumentDescription(
+        private static Export.LocalizedText[]? ReadArgumentDescription(
             System.Xml.XmlElement? description)
         {
             if (description is null)
@@ -375,7 +434,7 @@ namespace Opc.Ua.Wot
             System.Xml.XmlElement? locale = FindChild(description, "Locale");
             return
             [
-                new Opc.Ua.Export.LocalizedText
+                new Export.LocalizedText
                 {
                     Locale = locale?.InnerText ?? string.Empty,
                     Value = text.InnerText
@@ -421,6 +480,7 @@ namespace Opc.Ua.Wot
             writer.WritePropertyName(member);
             writer.WriteStartObject();
             writer.WriteString("type", "object");
+            writer.WriteString("uav:argumentLayout", "named");
 
             writer.WritePropertyName("uav:fieldOrder");
             writer.WriteStartArray();
@@ -467,7 +527,8 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
-            WriteArgumentJsonType(writer, argument.DataType);
+            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank);
+            WriteLocalizedTextContext(writer, null, argument.Description, defaultLocale);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
                 writer,
@@ -490,28 +551,29 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private static void WriteArgumentJsonType(Utf8JsonWriter writer, string? dataType)
         {
+            WriteOptional(writer, "type", MapReadableScalarType(dataType));
             switch (dataType)
             {
                 case WotVocabulary.ByteString:
-                    writer.WriteString("type", "string");
                     writer.WriteString("contentEncoding", WotVocabulary.Base64Encoding);
                     return;
                 case "i=13":
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "date-time");
                     return;
                 case "i=14":
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "uuid");
                     return;
                 case WotVocabulary.UriString:
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "uri");
                     return;
-                default:
-                    WriteOptional(writer, "type", MapDataTypeToJson(dataType));
-                    return;
             }
+        }
+
+        private static string? MapReadableScalarType(string? dataType)
+        {
+            return dataType is WotVocabulary.ByteString or "i=13" or "i=14" or WotVocabulary.UriString
+                ? "string"
+                : MapDataTypeToJson(dataType);
         }
 
         /// <summary>
@@ -528,16 +590,17 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> methodReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext dataTypes)
         {
             SynthesizeArgumentVariable(
                 document, nodeSet, action, InputMember, InputArgumentsBrowseName,
                 DefaultInputArgumentName, affordanceKey, methodNodeId, methodLocal,
-                rootLocal, items, methodReferences, diagnostics);
+                rootLocal, items, methodReferences, diagnostics, dataTypes);
             SynthesizeArgumentVariable(
                 document, nodeSet, action, OutputMember, OutputArgumentsBrowseName,
                 DefaultOutputArgumentName, affordanceKey, methodNodeId, methodLocal,
-                rootLocal, items, methodReferences, diagnostics);
+                rootLocal, items, methodReferences, diagnostics, dataTypes);
         }
 
         /// <summary>
@@ -557,7 +620,8 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> methodReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext dataTypes)
         {
             WotArgumentShape shape = AnalyzeArgumentSchema(action, member);
             string pointer = "/actions/" + EscapeJsonPointerToken(affordanceKey) + "/" + member;
@@ -593,7 +657,7 @@ namespace Opc.Ua.Wot
             {
                 arguments.Add(ReadArgument(
                     document, schema, ReadArgumentName(schema, defaultName),
-                    nodeSet, diagnostics));
+                    nodeSet, diagnostics, dataTypes));
             }
             else
             {
@@ -601,12 +665,12 @@ namespace Opc.Ua.Wot
                 foreach (string name in shape.Members)
                 {
                     arguments.Add(ReadArgument(
-                        document, properties.GetProperty(name), name, nodeSet, diagnostics));
+                        document, properties.GetProperty(name), name, nodeSet, diagnostics, dataTypes));
                 }
             }
 
             string nodeId = GenerateBaseChildNodeId(
-                nodeSet, rootLocal, methodLocal, browseName);
+                document, nodeSet, rootLocal, methodLocal, action, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,
@@ -673,6 +737,34 @@ namespace Opc.Ua.Wot
             {
                 return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
             }
+            if (schema.TryGetProperty("uav:argumentLayout", out JsonElement layout))
+            {
+                if (layout.ValueKind != JsonValueKind.String ||
+                    layout.GetString() is not ("single" or "named"))
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+                }
+                if (layout.GetString() == "single")
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Single, []);
+                }
+                if (NamesDataType(schema) ||
+                    GetElementString(schema, "type") != "object" ||
+                    !schema.TryGetProperty("properties", out JsonElement namedProperties) ||
+                    namedProperties.ValueKind != JsonValueKind.Object ||
+                    !schema.TryGetProperty("uav:fieldOrder", out JsonElement namedOrder))
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+                }
+                if (!TryReadArgumentNames(schema, namedProperties, out List<string> names))
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+                }
+                WotArgumentShape named = AnalyzeFieldOrder(namedOrder, namedProperties, names);
+                return named.Kind == WotArgumentShapeKind.Members && named.Members.Count == 0
+                    ? new WotArgumentShape(WotArgumentShapeKind.None, [])
+                    : named;
+            }
             if (NamesDataType(schema))
             {
                 return new WotArgumentShape(WotArgumentShapeKind.Single, []);
@@ -692,10 +784,9 @@ namespace Opc.Ua.Wot
                     []);
             }
 
-            var declared = new List<string>();
-            foreach (JsonProperty property in properties.EnumerateObject())
+            if (!TryReadArgumentNames(schema, properties, out List<string> declared))
             {
-                declared.Add(property.Name);
+                return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
             }
             if (declared.Count == 0)
             {
@@ -714,6 +805,39 @@ namespace Opc.Ua.Wot
                 return new WotArgumentShape(WotArgumentShapeKind.Members, conditionOrder);
             }
             return new WotArgumentShape(WotArgumentShapeKind.AmbiguousOrder, declared);
+        }
+
+        private static bool TryReadArgumentNames(
+            JsonElement schema, JsonElement properties, out List<string> names)
+        {
+            names = [];
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in properties.EnumerateObject())
+            {
+                if (property.Name.Length == 0 || property.Value.ValueKind != JsonValueKind.Object ||
+                    !declared.Add(property.Name))
+                {
+                    return false;
+                }
+                names.Add(property.Name);
+            }
+            if (schema.TryGetProperty("required", out JsonElement required))
+            {
+                if (required.ValueKind != JsonValueKind.Array)
+                {
+                    return false;
+                }
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement entry in required.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.String ||
+                        entry.GetString() is not { } name || !declared.Contains(name) || !seen.Add(name))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -765,16 +889,6 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Names the one argument a bare DataSchema denotes.
-        /// </summary>
-        private static string ReadArgumentName(JsonElement schema, string defaultName)
-        {
-            return LocalName(GetElementString(schema, "uav:browseName")) ??
-                SanitizeName(GetElementString(schema, "title")) ??
-                defaultName;
-        }
-
-        /// <summary>
         /// Reads one argument from the DataSchema that declares it.
         /// </summary>
         /// <remarks>
@@ -788,14 +902,15 @@ namespace Opc.Ua.Wot
             JsonElement schema,
             string name,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext? dataTypes)
         {
             return new WotMethodArgument(
                 name,
-                MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
+                MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ReadArrayDimensions(schema, name, diagnostics),
-                ReadDescription(schema, GetDeclaredLocale(document)));
+                ReadDescription(document, schema));
         }
 
         /// <summary>

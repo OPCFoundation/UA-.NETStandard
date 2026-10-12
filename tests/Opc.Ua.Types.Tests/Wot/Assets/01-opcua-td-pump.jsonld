@@ -45,7 +45,7 @@
       "observable": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPumpSpeed",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"]
         }
@@ -62,7 +62,7 @@
       "observable": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DSpeedSetpoint",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "writeproperty", "observeproperty"]
         }
@@ -79,7 +79,7 @@
       "observable": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DDischargePressure",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"]
         }
@@ -96,7 +96,7 @@
       "observable": true,
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DMotorTemperature",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"]
         }
@@ -111,7 +111,7 @@
       "uav:browsePath": "/Objects/pump:Pump/pump:Reset",
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Reset",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DReset",
           "contentType": "application/octet-stream",
           "op": ["invokeaction"]
         }
@@ -124,7 +124,7 @@
       "uav:browsePath": "/Objects/pump:Pump/pump:Start",
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Start",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DStart",
           "contentType": "application/octet-stream",
           "op": ["invokeaction"]
         }
@@ -137,7 +137,7 @@
       "uav:browsePath": "/Objects/pump:Pump/pump:Stop",
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Stop",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DStop",
           "contentType": "application/octet-stream",
           "op": ["invokeaction"]
         }
@@ -167,7 +167,7 @@
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump",
           "contentType": "application/octet-stream",
           "op": ["subscribeevent"]
         }
@@ -193,7 +193,7 @@
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump",
           "contentType": "application/octet-stream",
           "op": ["subscribeevent"]
         }

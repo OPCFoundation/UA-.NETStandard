@@ -42,6 +42,38 @@ namespace Opc.Ua.Types.Tests.Wot
     [TestFixture]
     public sealed class WotTypeBindingTests
     {
+        [TestCase("i=68")]
+        [TestCase("nsu=http://opcfoundation.org/UA/;i=68")]
+        [TestCase("nsu=http%3A%2F%2Fopcfoundation.org%2FUA%2F;i=68")]
+        public void APortablePropertyTypeBindingIsNotReplaced(string typeId)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:binding;i=1",
+                  "properties": {
+                    "Value": {
+                      "type": "number",
+                      "links": [{ "rel": "ua:HasTypeDefinition", "href": "{{typeId}}" }]
+                    }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.References!.Single(r => r.ReferenceType == "HasTypeDefinition").Value,
+                    Is.EqualTo("i=68"));
+                Assert.That(variable.References!.Any(r => !r.IsForward && r.ReferenceType == "HasProperty"), Is.True);
+            });
+        }
+
         /// <summary>
         /// The definitive form still resolves through the Section 5.1.5 local
         /// context. A caller that supplies none cannot resolve it, so Section
