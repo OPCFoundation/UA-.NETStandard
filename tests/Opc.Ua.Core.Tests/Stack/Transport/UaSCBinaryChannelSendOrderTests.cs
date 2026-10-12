@@ -142,11 +142,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
         }
 
-        [TestCase(SecurityPolicies.Basic256Sha256)]
-        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
-        [TestCase(SecurityPolicies.ECC_nistP256)]
-        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
-        public async Task TokenRenewalDuringConcurrentSendsKeepsMessagesVerifiableAsync(string policyUri)
+        [TestCase(SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt)]
+        [TestCase(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, MessageSecurityMode.SignAndEncrypt)]
+        [TestCase(SecurityPolicies.ECC_nistP256, MessageSecurityMode.SignAndEncrypt)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm, MessageSecurityMode.SignAndEncrypt)]
+        public async Task TokenRenewalDuringConcurrentSendsKeepsMessagesVerifiableAsync(
+            string policyUri,
+            MessageSecurityMode mode)
         {
             SecurityPolicyInfo? policy = SecurityPolicies.Default.GetInfo(policyUri);
             if (policy == null)
@@ -160,8 +163,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             const int renewals = 12;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var pool = new CountingPool();
-            using SealProbe writer = SealProbe.Create(policyUri, telemetry, pool);
-            using SealProbe reader = SealProbe.Create(policyUri, telemetry, new CountingPool());
+            using SealProbe writer = SealProbe.Create(policyUri, mode, telemetry, pool);
+            using SealProbe reader = SealProbe.Create(policyUri, mode, telemetry, new CountingPool());
             var transport = new RecordingTransport(asyncSendEvery: 2);
             writer.SetTransport(transport);
 
@@ -689,6 +692,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 BufferManager buffers,
                 ChannelQuotas quotas,
                 string policyUri,
+                MessageSecurityMode mode,
                 ITelemetryContext telemetry)
                 : base(
                     "send-order",
@@ -696,7 +700,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     quotas,
                     (Certificate?)null,
                     null,
-                    MessageSecurityMode.SignAndEncrypt,
+                    mode,
                     policyUri,
                     telemetry)
             {
@@ -706,7 +710,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public BufferManager Buffers { get; }
 
-            public static SealProbe Create(string policyUri, ITelemetryContext telemetry, CountingPool pool)
+            public static SealProbe Create(
+                string policyUri,
+                MessageSecurityMode mode,
+                ITelemetryContext telemetry,
+                CountingPool pool)
             {
                 var quotas = new ChannelQuotas(ServiceMessageContext.Create(telemetry))
                 {
@@ -714,7 +722,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     MaxMessageSize = 4 * 1024 * 1024
                 };
                 var buffers = new BufferManager("send-order", quotas.MaxBufferSize, telemetry, pool);
-                return new SealProbe(buffers, quotas, policyUri, telemetry);
+                return new SealProbe(buffers, quotas, policyUri, mode, telemetry);
             }
 
             /// <summary>
