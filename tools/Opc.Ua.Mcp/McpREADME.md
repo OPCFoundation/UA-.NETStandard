@@ -109,8 +109,8 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management and document processing |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content operations |
 
-The Robotics and Vision libraries are preview-only packages. The seven
-industrial companion libraries follow the root release channel and are stable
+The Robotics library remains preview-only. Vision, the industrial companion,
+WoT and xRegistry MCP libraries follow the root release channel and are stable
 when the root release is stable.
 
 ## Documentation

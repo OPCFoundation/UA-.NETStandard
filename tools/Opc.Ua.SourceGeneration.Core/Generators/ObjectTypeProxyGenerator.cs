@@ -324,7 +324,9 @@ namespace Opc.Ua.SourceGeneration
         /// shadowing). Method names are emitted as
         /// <c>{methodSymbolicName}Async</c>.
         /// </summary>
-        private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
+        private HashSet<string> CollectInheritedMethodNames(
+            ObjectTypeDesign objectType,
+            bool includeSignature = false)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
             ObjectTypeDesign? parent = GetEmittedBaseType(objectType);
@@ -335,12 +337,31 @@ namespace Opc.Ua.SourceGeneration
                     string? name = method.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
-                        names.Add(name + "Async");
+                        names.Add(includeSignature ? GetMethodSignature(method) : name + "Async");
                     }
                 }
                 parent = GetEmittedBaseType(parent);
             }
             return names;
+        }
+
+        /// <summary>
+        /// Identifies C# method hiding by input types, not just by the OPC UA
+        /// method name. A narrowed generate-options argument creates an overload.
+        /// </summary>
+        private string GetMethodSignature(MethodDesign method)
+        {
+            MethodDesign effective = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
+            Parameter[] inputs = MethodDesignArgumentResolver.ResolveMethodInputs(effective);
+            return method.SymbolicName.Name + "(" + string.Join(
+                ",",
+                Array.ConvertAll(inputs, input => input.DataTypeNode!.GetMethodArgumentTypeAsCode(
+                    input.ValueRank,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    input.IsOptional))) + ")";
         }
 
         /// <summary>
@@ -386,6 +407,7 @@ namespace Opc.Ua.SourceGeneration
             // Stash inherited method names so LoadTemplate_Method can
             // emit the C# 'new' modifier on shadowed methods.
             m_inheritedMethodNames = CollectInheritedMethodNames(objectType);
+            m_inheritedMethodSignatures = CollectInheritedMethodNames(objectType, includeSignature: true);
             // And inherited Object child names so the Object accessor
             // emitter does the same.
             m_inheritedObjectChildNames = CollectInheritedObjectChildNames(objectType);
@@ -650,8 +672,8 @@ namespace Opc.Ua.SourceGeneration
             string returnTypeAnnotation = GetReturnTypeAnnotation(
                 outputs, targetNamespace, namespaces);
 
-            bool isShadow = m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(methodName + "Async");
+            bool isShadow = m_inheritedMethodSignatures != null &&
+                m_inheritedMethodSignatures.Contains(GetMethodSignature(method));
 
             // XML doc and signature
             context.Out.WriteLine();
@@ -1052,6 +1074,7 @@ namespace Opc.Ua.SourceGeneration
         private readonly IGeneratorContext m_context;
         private readonly Microsoft.Extensions.Logging.ILogger m_logger;
         private HashSet<string>? m_inheritedMethodNames;
+        private HashSet<string>? m_inheritedMethodSignatures;
         private HashSet<string>? m_inheritedAccessorNames;
         private HashSet<string>? m_inheritedObjectChildNames;
     }

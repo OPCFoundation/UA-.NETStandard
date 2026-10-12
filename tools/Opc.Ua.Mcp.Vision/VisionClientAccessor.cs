@@ -46,8 +46,31 @@ namespace Opc.Ua.Mcp
         /// Initializes the accessor.
         /// </summary>
         public VisionClientAccessor(OpcUaSessionManager sessionManager)
+            : this(sessionManager, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the accessor with an injectable workflow clock.
+        /// </summary>
+        public VisionClientAccessor(OpcUaSessionManager sessionManager, TimeProvider timeProvider)
         {
             m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        }
+
+        /// <summary>
+        /// Gets the clock used by bounded workflows.
+        /// </summary>
+        public TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Opens the released-model interface on a named session using the configured clock.
+        /// </summary>
+        public MachineVisionClient CreateMachineVisionClient(string? sessionName = null)
+        {
+            return new MachineVisionClient(m_sessionManager.GetSessionOrThrow(sessionName),
+                m_sessionManager.Telemetry, TimeProvider);
         }
 
         /// <summary>

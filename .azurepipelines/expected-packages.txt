@@ -48,6 +48,9 @@ OPCFoundation.NetStandard.Opc.Ua.Machinery.Jobs
 OPCFoundation.NetStandard.Opc.Ua.Machinery.ProcessValues
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Result
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Server
+OPCFoundation.NetStandard.Opc.Ua.MachineVision
+OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client
+OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core

@@ -34,8 +34,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI.Inference;
-using Opc.Ua.AI.Server;
-using Opc.Ua.ISA95.Server;
 using Opc.Ua.ISA95.Server.Providers;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -166,7 +164,7 @@ foreach (string fixture in analysis.FixtureNames)
 {
     InspectionAnalysis result = analysis.AnalyzeByName(fixture);
     Console.WriteLine(FormattableString.Invariant($"{fixture}: {result.Verdict}"));
-    foreach (Opc.Ua.Vision.VisionCharacteristicDataType characteristic in result.Characteristics)
+    foreach (Opc.Ua.Vision.Perception.VisionCharacteristicDataType characteristic in result.Characteristics)
     {
         double low = characteristic.Actual - characteristic.Uncertainty;
         double high = characteristic.Actual + characteristic.Uncertainty;

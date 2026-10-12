@@ -322,6 +322,17 @@ Tests live under `tests/Opc.Ua.Client.Tests/FileSystem/`.
 
 ## Server-side file bindings
 
+`IFileTypeBinder` / `FileTypeBinder` binds an already-created `FileState` to
+bounded in-memory content and an optional asynchronous commit callback, without
+a separate file-system node manager. It shares `FileHandle` ownership/mode rules
+and the existing response-size calculation. Bindings allow at most 64 open
+handles, one writer, and independent reader snapshots. Temporary writers commit
+through `CommitAsync`; `commitOnClose` selects the ordinary FileType close lifecycle.
+Application commit callbacks run without holding the binding's operation gate, so
+publication can refresh other file bindings. Disposal cancels and drains an active
+commit before releasing its handles. [Machine Vision](Vision.md) uses this
+surface for its specialized transfers and recipe files.
+
 Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
 move, and copy. A NodeId from another namespace, an invalid encoded type,

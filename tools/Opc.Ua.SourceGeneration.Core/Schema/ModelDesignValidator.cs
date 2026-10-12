@@ -5834,8 +5834,13 @@ namespace Opc.Ua.Schema.Model
             string basePath,
             Dictionary<string, InstanceDesign> nodes,
             int depth,
-            bool fromInstance)
+            bool fromInstance,
+            HashSet<XmlQualifiedName> typePath)
         {
+            if (!typePath.Add(type.SymbolicId))
+            {
+                throw new InvalidOperationException($"Cyclic base type: {type.SymbolicId}.");
+            }
             if (type.BaseTypeNode != null)
             {
                 SetOverriddenNodes(
@@ -5843,7 +5848,8 @@ namespace Opc.Ua.Schema.Model
                     basePath,
                     nodes,
                     depth + 1,
-                    fromInstance);
+                    fromInstance,
+                    typePath);
             }
 
             if (type.Children != null && type.Children.Items != null)
@@ -5866,7 +5872,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1);
+                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1, typePath);
 
                     if (nodes.TryGetValue(browsePath, out InstanceDesign? overriddenInstance))
                     {
@@ -5920,13 +5926,15 @@ namespace Opc.Ua.Schema.Model
                     nodes[browsePath] = instance;
                 }
             }
+            typePath.Remove(type.SymbolicId);
         }
 
         private void SetOverriddenNodes(
             InstanceDesign parent,
             string basePath,
             Dictionary<string, InstanceDesign> nodes,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath)
         {
             if (depth > MaxRecursionDepth)
             {
@@ -5934,14 +5942,15 @@ namespace Opc.Ua.Schema.Model
                     $"{parent.SymbolicId.Name} max recursion exceeded. Check model.");
             }
 
-            if (parent.TypeDefinitionNode != null)
+            if (parent.TypeDefinitionNode != null && ShouldExpandType(parent, typePath))
             {
                 SetOverriddenNodes(
                     parent.TypeDefinitionNode,
                     basePath,
                     nodes,
                     depth + 1,
-                    true);
+                    true,
+                    typePath);
             }
 
             if (parent.Children != null && parent.Children.Items != null)
@@ -5964,7 +5973,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1);
+                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1, typePath);
 
                     if (nodes.TryGetValue(browsePath, out InstanceDesign? overriddenInstance))
                     {
@@ -6010,15 +6019,92 @@ namespace Opc.Ua.Schema.Model
             }
 
             var nodes = new Dictionary<string, InstanceDesign>();
+            var typePath = new HashSet<XmlQualifiedName>();
             switch (node)
             {
                 case TypeDesign type:
-                    SetOverriddenNodes(type, string.Empty, nodes, depth + 1, false);
+                    SetOverriddenNodes(type, string.Empty, nodes, depth + 1, false, typePath);
                     break;
                 case InstanceDesign instance:
-                    SetOverriddenNodes(instance, string.Empty, nodes, depth + 1);
+                    SetOverriddenNodes(instance, string.Empty, nodes, depth + 1, typePath);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Stops implicit expansion at a recursive optional declaration while retaining
+        /// its explicitly declared children. Mandatory recursion has no finite instance.
+        /// </summary>
+        private static bool ShouldExpandType(
+            InstanceDesign instance,
+            HashSet<XmlQualifiedName> typePath)
+        {
+            if (instance.TypeDefinitionNode == null)
+            {
+                return false;
+            }
+            if (!typePath.Contains(instance.TypeDefinitionNode.SymbolicId))
+            {
+                return !IsOptionalExpansion(instance) ||
+                    !HasMandatoryPathToType(instance.TypeDefinitionNode, typePath);
+            }
+            if (IsOptionalExpansion(instance))
+            {
+                return false;
+            }
+            throw new InvalidOperationException(
+                $"Recursive mandatory instance '{instance.SymbolicId}' has no finite expansion.");
+        }
+
+        private static bool IsOptionalExpansion(InstanceDesign instance)
+        {
+            return instance.ModellingRule is ModellingRule.Optional or
+                ModellingRule.OptionalPlaceholder or ModellingRule.MandatoryPlaceholder;
+        }
+
+        /// <summary>
+        /// Finds a mandatory return path before entering an optional edge, so a finite
+        /// A-optional-B-mandatory-A cycle is cut at the optional declaration, not at required A children.
+        /// </summary>
+        private static bool HasMandatoryPathToType(TypeDesign root, HashSet<XmlQualifiedName> targets)
+        {
+            var pending = new Queue<NodeDesign>();
+            var visited = new HashSet<XmlQualifiedName>();
+            pending.Enqueue(root);
+            while (pending.Count != 0)
+            {
+                NodeDesign node = pending.Dequeue();
+                if (!visited.Add(node.SymbolicId))
+                {
+                    continue;
+                }
+                if (node is TypeDesign type)
+                {
+                    if (targets.Contains(type.SymbolicId))
+                    {
+                        return true;
+                    }
+                    if (type.BaseTypeNode != null)
+                    {
+                        pending.Enqueue(type.BaseTypeNode);
+                    }
+                }
+                if (node is InstanceDesign { TypeDefinitionNode: { } definition })
+                {
+                    pending.Enqueue(definition);
+                }
+                if (node.Children?.Items != null)
+                {
+                    foreach (InstanceDesign child in node.Children.Items)
+                    {
+                        if (!IsOptionalExpansion(child))
+                        {
+                            pending.Enqueue(child);
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         private void TranslateReferences(
@@ -6237,7 +6323,8 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyReference> references,
             bool suppressInverseHierarchicalAtTypeLevel,
             bool inherited,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6253,6 +6340,10 @@ namespace Opc.Ua.Schema.Model
                     $"{basePath} max recursion exceeded. Check model.");
             }
 
+            if (!typePath.Add(type.SymbolicId))
+            {
+                throw new InvalidOperationException($"Cyclic base type: {type.SymbolicId}.");
+            }
             if (type.BaseTypeNode != null &&
                 type is VariableTypeDesign or ObjectTypeDesign)
             {
@@ -6263,7 +6354,8 @@ namespace Opc.Ua.Schema.Model
                     references,
                     true,
                     true,
-                    depth + 1);
+                    depth + 1,
+                    typePath);
             }
 
             TranslateReferences(
@@ -6327,9 +6419,11 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath);
                 }
             }
+            typePath.Remove(type.SymbolicId);
         }
 
         /// <summary>
@@ -6342,7 +6436,8 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyNode> nodes,
             List<HierarchyReference> references,
             bool inherited,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6358,7 +6453,7 @@ namespace Opc.Ua.Schema.Model
                     $"{basePath} max recursion exceeded. Check model.");
             }
 
-            if (parent.TypeDefinitionNode != null)
+            if (parent.TypeDefinitionNode != null && ShouldExpandType(parent, typePath))
             {
                 BuildInstanceHierarchy(
                     parent.TypeDefinitionNode,
@@ -6367,7 +6462,8 @@ namespace Opc.Ua.Schema.Model
                     references,
                     true,
                     inherited,
-                    depth + 1);
+                    depth + 1,
+                    typePath);
             }
 
             if (parent.TypeDefinition != null && parent is MethodDesign method)
@@ -6386,7 +6482,8 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath);
                 }
             }
 
@@ -6468,7 +6565,8 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath);
                 }
             }
         }
@@ -6499,7 +6597,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         false,
                         false,
-                        depth + 1);
+                        depth + 1,
+                        []);
                     break;
                 case InstanceDesign instance:
                     BuildInstanceHierarchy(
@@ -6508,7 +6607,8 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         false,
-                        depth + 1);
+                        depth + 1,
+                        []);
                     break;
             }
         }

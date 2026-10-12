@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -66,6 +67,46 @@ namespace Opc.Ua.Core.Tests.Stack.State
         protected void OneTimeTearDown()
         {
             (m_context as IDisposable)?.Dispose();
+        }
+
+        [TestCase(true, true, true, true)]
+        [TestCase(false, true, true, false)]
+        [TestCase(false, false, true, true)]
+        [TestCase(true, true, false, false)]
+        public async Task AdditionalRetentionPreservesStandardAndDisabledRulesAsync(
+            bool additionalRetain, bool acknowledged, bool enabled, bool expectedRetain)
+        {
+            var condition = new AcknowledgeableConditionState(null);
+            condition.Create(m_context, new NodeId(1u), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, !enabled);
+            condition.SetAcknowledgedState(m_context, acknowledged);
+            int evaluated = 0;
+            condition.RetainStateProvider = current =>
+            {
+                Assert.That(current, Is.SameAs(condition));
+                evaluated++;
+                return additionalRetain;
+            };
+            MethodState method = enabled ? condition.Enable! : condition.Disable!;
+            ServiceResult result = await method.CallAsync(m_context, condition.NodeId, [], [], [])
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(condition.Retain!.Value, Is.EqualTo(expectedRetain));
+            Assert.That(evaluated, enabled ? Is.GreaterThan(0) : Is.Zero);
+        }
+
+        [Test]
+        public void BranchPreservesAdditionalRetentionProvider()
+        {
+            var condition = new AcknowledgeableConditionState(null);
+            condition.Create(m_context, new NodeId(1u), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.RetainStateProvider = current => !current.BranchId!.Value.IsNull;
+            ConditionState? branch = condition.CreateBranch(m_context, new NodeId(2u));
+            Assert.That(branch, Is.Not.Null);
+            Assert.That(branch!.RetainStateProvider, Is.SameAs(condition.RetainStateProvider));
+            Assert.That(branch.RetainStateProvider!(branch), Is.True);
+            Assert.That(condition.RetainStateProvider(condition), Is.False);
         }
 
         /// <summary>

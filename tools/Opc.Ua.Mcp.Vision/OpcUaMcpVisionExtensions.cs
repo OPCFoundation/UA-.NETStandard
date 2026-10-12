@@ -29,7 +29,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -46,6 +46,7 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(services);
 
+            services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<VisionClientAccessor>();
             return services;
         }
@@ -78,7 +79,8 @@ namespace Opc.Ua.Mcp
                         .WithTools<VisionSeeingTools>()
                         .WithTools<VisionInferenceTools>()
                         .WithTools<VisionFeedbackTools>()
-                        .WithTools<VisionGeometryTools>();
+                        .WithTools<VisionGeometryTools>()
+                        .WithTools<VisionMachineTools>();
 
                     if (toolProfile == McpToolProfile.Vision)
                     {
@@ -126,7 +128,7 @@ namespace Opc.Ua.Mcp
         /// wants the Vision tools alongside the tools of another bounded
         /// profile - <see cref="McpToolProfile.Robotics"/>, for a vision-guided
         /// pick-and-place agent, for example. It never registers
-        /// <see cref="Tools.ConnectionTools"/> directly; the
+        /// <see cref="ConnectionTools"/> directly; the
         /// <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c> owns
         /// that registration and deduplicates it across every package that
         /// contributes to the same MCP server.
@@ -157,7 +159,8 @@ namespace Opc.Ua.Mcp
                 .WithTools<VisionSeeingTools>()
                 .WithTools<VisionInferenceTools>()
                 .WithTools<VisionFeedbackTools>()
-                .WithTools<VisionGeometryTools>();
+                .WithTools<VisionGeometryTools>()
+                .WithTools<VisionMachineTools>();
         }
     }
 }

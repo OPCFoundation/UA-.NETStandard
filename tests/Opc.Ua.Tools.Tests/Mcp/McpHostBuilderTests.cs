@@ -305,7 +305,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             IMcpServerBuilder builder = services.AddMcpServer();
             McpHostBuilder.ConfigureMcpTools(
                 builder,
-                new McpToolProfileSet(new[] { McpToolProfile.Vision, McpToolProfile.Robotics }),
+                new McpToolProfileSet([McpToolProfile.Vision, McpToolProfile.Robotics]),
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -370,8 +370,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("pubsub", 18)]
         [TestCase("diagnostics", 10)]
         [TestCase("robotics", 42)]
-        [TestCase("vision", 26)]
-        [TestCase("full", 173)]
+        [TestCase("vision", 43)]
+        [TestCase("full", 190)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);

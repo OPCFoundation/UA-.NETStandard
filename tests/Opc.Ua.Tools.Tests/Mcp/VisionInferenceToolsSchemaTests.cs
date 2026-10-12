@@ -108,15 +108,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
             JsonElement schema = tool.ProtocolTool.InputSchema;
 
             Assert.That(schema.TryGetProperty("properties", out JsonElement props), Is.True);
-            string[] topLevelProperties = props.EnumerateObject()
-                .Select(property => property.Name)
-                .ToArray();
+            string[] topLevelProperties = [.. props.EnumerateObject().Select(property => property.Name)];
             Assert.That(topLevelProperties, Is.EqualTo(s_requestParameter),
                 "vision_run_inference must expose no legacy top-level scalar inputs.");
 
             Assert.That(schema.TryGetProperty("required", out JsonElement required), Is.True);
-            string[] requiredFields = required.EnumerateArray()
-                .Select(e => e.GetString()!).ToArray();
+            string[] requiredFields = [.. required.EnumerateArray().Select(e => e.GetString()!)];
             Assert.That(requiredFields, Is.EqualTo(s_requestParameter));
         }
 
@@ -131,9 +128,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(request.GetProperty("type").GetString(), Is.EqualTo("object"));
 
             JsonElement requestProperties = request.GetProperty("properties");
-            string[] propertyNames = requestProperties.EnumerateObject()
-                .Select(property => property.Name)
-                .ToArray();
+            string[] propertyNames = [.. requestProperties.EnumerateObject().Select(property => property.Name)];
             Assert.That(propertyNames, Is.EquivalentTo(s_requestFields));
             Assert.That(
                 request.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ToArray(),
@@ -272,7 +267,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         ClassId = 1,
                         Confidence = 0.9,
                         HasPose = true,
-                        Pose = new Vision.VisionPose3DDataType
+                        Pose = new Vision.Perception.VisionPose3DDataType
                         {
                             FrameId = "world"
                         }
@@ -280,16 +275,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 }.ToArrayOf()
             };
 
-            VisionInferenceRunResult result = VisionInferenceRunResult.FromServiceResult(
+            var result = VisionInferenceRunResult.FromServiceResult(
                 new VisionInferenceResult
-            {
-                ResultId = "r1",
-                RequestedPipelineNodeId = new NodeId(1u, 2),
-                ResultNodeId = new NodeId(2u, 2),
-                Resolved = true,
-                ResultKind = VisionResultKind.Detection,
-                DetectionSummary = summary
-            });
+                {
+                    ResultId = "r1",
+                    RequestedPipelineNodeId = new NodeId(1u, 2),
+                    ResultNodeId = new NodeId(2u, 2),
+                    Resolved = true,
+                    ResultKind = VisionResultKind.Detection,
+                    DetectionSummary = summary
+                });
 
             Assert.Multiple(() =>
             {
@@ -328,7 +323,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
 
             string json = JsonSerializer.Serialize(result);
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
 
             Assert.Multiple(() =>
             {
@@ -347,7 +342,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             var summary = new VisionInspectionSummary
             {
-                Evaluation = Vision.VisionResultEvaluationEnum.Ok,
+                Evaluation = Vision.Perception.VisionResultEvaluationEnum.Ok,
                 PartId = "P1",
                 RecipeId = "R1",
                 TotalCharacteristics = 1,
@@ -356,28 +351,28 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     new()
                     {
                         Name = "dim",
-                        Status = Vision.VisionToleranceStatusEnum.InTolerance,
+                        Status = Vision.Perception.VisionToleranceStatusEnum.InTolerance,
                         Deviation = 0.01
                     }
                 }.ToArrayOf()
             };
 
-            VisionInferenceRunResult result = VisionInferenceRunResult.FromServiceResult(
+            var result = VisionInferenceRunResult.FromServiceResult(
                 new VisionInferenceResult
-            {
-                ResultId = "r2",
-                RequestedPipelineNodeId = new NodeId(1u, 2),
-                ResultNodeId = new NodeId(2u, 2),
-                Resolved = true,
-                ResultKind = VisionResultKind.Inspection,
-                InspectionSummary = summary
-            });
+                {
+                    ResultId = "r2",
+                    RequestedPipelineNodeId = new NodeId(1u, 2),
+                    ResultNodeId = new NodeId(2u, 2),
+                    Resolved = true,
+                    ResultKind = VisionResultKind.Inspection,
+                    InspectionSummary = summary
+                });
 
             Assert.Multiple(() =>
             {
                 Assert.That(result.Inspection, Is.Not.Null);
                 Assert.That(result.Inspection!.Evaluation,
-                    Is.EqualTo(Vision.VisionResultEvaluationEnum.Ok));
+                    Is.EqualTo(Vision.Perception.VisionResultEvaluationEnum.Ok));
                 Assert.That(result.Inspection.Items[0].Name, Is.EqualTo("dim"));
             });
         }
@@ -393,16 +388,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 MaskFormat = "Mono8"
             };
 
-            VisionInferenceRunResult result = VisionInferenceRunResult.FromServiceResult(
+            var result = VisionInferenceRunResult.FromServiceResult(
                 new VisionInferenceResult
-            {
-                ResultId = "r3",
-                RequestedPipelineNodeId = new NodeId(1u, 2),
-                ResultNodeId = new NodeId(2u, 2),
-                Resolved = true,
-                ResultKind = VisionResultKind.Segmentation,
-                SegmentationSummary = summary
-            });
+                {
+                    ResultId = "r3",
+                    RequestedPipelineNodeId = new NodeId(1u, 2),
+                    ResultNodeId = new NodeId(2u, 2),
+                    Resolved = true,
+                    ResultKind = VisionResultKind.Segmentation,
+                    SegmentationSummary = summary
+                });
 
             Assert.Multiple(() =>
             {
@@ -502,10 +497,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .WithOpcUaVisionTools(profile);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            return provider
+            return [.. provider
                 .GetServices<McpServerTool>()
-                .Select(t => t.ProtocolTool.Name)
-                .ToHashSet();
+                .Select(t => t.ProtocolTool.Name)];
         }
 
         private static McpServerTool? ResolveTool(string toolName)
@@ -532,7 +526,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .WithOpcUaVisionTools(McpToolProfile.Vision);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            McpServerTool[] tools = provider.GetServices<McpServerTool>().ToArray();
+            McpServerTool[] tools = [.. provider.GetServices<McpServerTool>()];
             var listToolsResult = new ListToolsResult
             {
                 Tools = [.. tools.Select(tool => tool.ProtocolTool)]

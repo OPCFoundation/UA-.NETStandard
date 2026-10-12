@@ -31,7 +31,7 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.Mcp.Tools;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {

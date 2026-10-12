@@ -36,7 +36,11 @@ unambiguous BrowseName/DisplayName:
 }
 ```
 
-## Tools (22)
+This package follows the repository root version, without a forced-preview override.
+Development builds still use the root prerelease version. The optional
+`Opc.Ua.Vision.OpenUsd` renderer remains preview-only.
+
+## Tools (39)
 
 - **Discovery (4)** — `vision_list_sensors`, `vision_list_pipelines`,
   `vision_list_frames`, `vision_list_calibrations`.
@@ -53,6 +57,27 @@ unambiguous BrowseName/DisplayName:
   `vision_submit_image_reference`.
 - **Geometry (3)** — `vision_read_frame`, `vision_compose_pose`,
   `vision_compose_transform`.
+- **Released Machine Vision (17)** — `vision_machine_list`,
+  `vision_machine_read_state`, `vision_machine_command`, `vision_machine_read_asset`,
+  `vision_machine_recipes`, `vision_machine_configurations`, `vision_machine_results`,
+  `vision_machine_report_safety`, `vision_machine_file`, `vision_machine_recipe_object`,
+  `vision_machine_condition`, `vision_machine_capabilities`,
+  `vision_machine_relationships`, `vision_machine_observe`,
+  `vision_machine_upload_recipe`, `vision_machine_upload_configuration`,
+  `vision_machine_download_result`. See the
+  [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#mcp)
+  for OPC 40100-1/-2 behavior and payload bounds.
+
+Capability discovery reports optional interfaces on the actual selected system.
+Status detail is opt-in (`includeDetails: true`). One-shot observation defaults to
+5 seconds/50 notifications, caps requests at 60 seconds/100 notifications, and
+always disposes its own subscription. Conditions retain the exact identifiers
+needed for explicit acknowledgement and confirmation.
+
+The complete-file tools accept at most 1 MiB of decoded content and never prepare,
+activate, or start acquisition implicitly. Larger files use the existing chunked
+tool; its `ReadCompletion` and `WaitForCompletion` operations inspect a returned
+commit state machine. A completion wait is capped at 60 seconds.
 
 Server refusals are returned honestly with the exact `StatusCode` and message;
 the MCP layer does not retry and never acquires command authority as a side

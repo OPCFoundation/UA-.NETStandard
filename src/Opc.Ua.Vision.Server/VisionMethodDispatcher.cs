@@ -30,7 +30,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -49,62 +49,26 @@ namespace Opc.Ua.Vision.Server
 
         public void AttachMediaMethods(NodeId sensorNodeId, VisionMediaManagementState media)
         {
-            if (media.GetStreamEndpoint != null)
-            {
-                media.GetStreamEndpoint.OnCallAsync = CreateGetStreamEndpointHandler(sensorNodeId);
-            }
-            if (media.ReleaseStreamEndpoint != null)
-            {
-                media.ReleaseStreamEndpoint.OnCallAsync = CreateReleaseStreamEndpointHandler(sensorNodeId);
-            }
-            if (media.ConfigureStreamEndpoint != null)
-            {
-                media.ConfigureStreamEndpoint.OnCallAsync = CreateConfigureStreamEndpointHandler(sensorNodeId);
-            }
-            if (media.SelectEndpoint != null)
-            {
-                media.SelectEndpoint.OnCallAsync = CreateSelectEndpointHandler(sensorNodeId);
-            }
-            if (media.GetClip != null)
-            {
-                media.GetClip.OnCallAsync = CreateGetClipHandler(sensorNodeId);
-            }
+            media.GetStreamEndpoint?.OnCallAsync = CreateGetStreamEndpointHandler(sensorNodeId);
+            media.ReleaseStreamEndpoint?.OnCallAsync = CreateReleaseStreamEndpointHandler(sensorNodeId);
+            media.ConfigureStreamEndpoint?.OnCallAsync = CreateConfigureStreamEndpointHandler(sensorNodeId);
+            media.SelectEndpoint?.OnCallAsync = CreateSelectEndpointHandler(sensorNodeId);
+            media.GetClip?.OnCallAsync = CreateGetClipHandler(sensorNodeId);
         }
 
         public void AttachPipelineMethods(NodeId pipelineNodeId, InferencePipelineState pipeline)
         {
-            if (pipeline.RunInference != null)
-            {
-                pipeline.RunInference.OnCallAsync = CreateRunInferenceHandler(pipelineNodeId);
-            }
-            if (pipeline.StartContinuous != null)
-            {
-                pipeline.StartContinuous.OnCallMethod2Async = CreateStartContinuousHandler(pipelineNodeId);
-            }
-            if (pipeline.Stop != null)
-            {
-                pipeline.Stop.OnCallMethod2Async = CreateStopHandler(pipelineNodeId);
-            }
+            pipeline.RunInference?.OnCallAsync = CreateRunInferenceHandler(pipelineNodeId);
+            pipeline.StartContinuous?.OnCallMethod2Async = CreateStartContinuousHandler(pipelineNodeId);
+            pipeline.Stop?.OnCallMethod2Async = CreateStopHandler(pipelineNodeId);
         }
 
         public void AttachFeedbackMethods(NodeId pipelineNodeId, VisionFeedbackState feedback)
         {
-            if (feedback.SubmitDetections != null)
-            {
-                feedback.SubmitDetections.OnCallAsync = CreateSubmitDetectionsHandler(pipelineNodeId);
-            }
-            if (feedback.SubmitInspectionResult != null)
-            {
-                feedback.SubmitInspectionResult.OnCallAsync = CreateSubmitInspectionHandler(pipelineNodeId);
-            }
-            if (feedback.SubmitCorrection != null)
-            {
-                feedback.SubmitCorrection.OnCallAsync = CreateSubmitCorrectionHandler(pipelineNodeId);
-            }
-            if (feedback.SubmitImageReference != null)
-            {
-                feedback.SubmitImageReference.OnCallAsync = CreateSubmitImageReferenceHandler(pipelineNodeId);
-            }
+            feedback.SubmitDetections?.OnCallAsync = CreateSubmitDetectionsHandler(pipelineNodeId);
+            feedback.SubmitInspectionResult?.OnCallAsync = CreateSubmitInspectionHandler(pipelineNodeId);
+            feedback.SubmitCorrection?.OnCallAsync = CreateSubmitCorrectionHandler(pipelineNodeId);
+            feedback.SubmitImageReference?.OnCallAsync = CreateSubmitImageReferenceHandler(pipelineNodeId);
         }
 
         private GetStreamEndpointMethodStateMethodAsyncCallHandler CreateGetStreamEndpointHandler(NodeId sensorNodeId)

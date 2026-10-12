@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Vision.Perception;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -513,7 +514,7 @@ namespace Opc.Ua.Vision.Client
                     "Invalid expectedKind value.");
             }
 
-            if (maxItems < 0 || maxItems > 100)
+            if (maxItems is < 0 or > 100)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(maxItems),
@@ -556,15 +557,15 @@ namespace Opc.Ua.Vision.Client
             }
 
             NodeId detectionType = m_operations.VisionNamespaceType(
-                ObjectTypes.DetectionResultType);
+                Perception.ObjectTypes.DetectionResultType);
             NodeId inspectionType = m_operations.VisionNamespaceType(
-                ObjectTypes.InspectionResultType);
+                Perception.ObjectTypes.InspectionResultType);
             NodeId segmentationType = m_operations.VisionNamespaceType(
-                ObjectTypes.SegmentationResultType);
+                Perception.ObjectTypes.SegmentationResultType);
 
             ArrayOf<ReferenceDescription> refs = await m_operations.BrowseAsync(
                 resultNodeId,
-                Opc.Ua.ReferenceTypeIds.HasTypeDefinition,
+                ReferenceTypeIds.HasTypeDefinition,
                 BrowseDirection.Forward,
                 (uint)NodeClass.ObjectType,
                 cancellationToken).ConfigureAwait(false);
@@ -581,7 +582,7 @@ namespace Opc.Ua.Vision.Client
                     $"expected exactly one. First: '{refs[0].NodeId}', second: '{refs[1].NodeId}'.");
             }
 
-            NodeId typeDef = ExpandedNodeId.ToNodeId(
+            var typeDef = ExpandedNodeId.ToNodeId(
                 refs[0].NodeId, m_operations.Session.NamespaceUris);
             if (typeDef.IsNull)
             {
