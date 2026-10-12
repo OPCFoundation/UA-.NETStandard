@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.XRegistry.Server
 {
     /// <summary>
@@ -41,6 +43,11 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets or sets whether native xRegistry change events are emitted.
         /// </summary>
         public bool EventsEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the clock used for a common timestamp within each event batch.
+        /// </summary>
+        public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 
         /// <summary>
         /// Gets or sets the stable absolute URL used as the xRegistry event <c>SourceUrl</c>.
@@ -205,6 +212,7 @@ namespace Opc.Ua.XRegistry.Server
         /// </exception>
         public void Validate()
         {
+            TimeProvider.ThrowIfNull(nameof(TimeProvider));
             if (!EventsEnabled)
             {
                 return;

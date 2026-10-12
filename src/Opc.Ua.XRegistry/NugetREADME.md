@@ -18,6 +18,9 @@ This package contains:
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
   replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+- `Protocol.IXRegistryEndpoint` — lossless, caller-contextual registry requests and outcomes,
+  collection-aware escaped addressing, and bounded reflection-free envelopes for bridge
+  transactions and state. The envelopes are not the xRegistry HTTP wire format.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

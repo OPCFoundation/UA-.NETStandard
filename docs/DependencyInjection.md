@@ -145,6 +145,12 @@ Server features marked **Hosted? = yes** register an `IHostedService` so
 the .NET Generic Host (`Host.CreateApplicationBuilder(args)`) owns their
 lifetime, certificate setup, and Ctrl+C / SIGTERM handling.
 
+See [xRegistry bridge composition](XRegistry.md#dependency-injection-and-embedding)
+for its package registrations, ownership and lifecycle requirements.
+
+See the [transaction provider](XRegistry.md#optional-transactional-provider)
+and [caller lease configuration](XRegistry.md#credentials-and-deployment).
+
 ## Root: `services.AddOpcUa()`
 
 `services.AddOpcUa()` is the only entry point. It does three things:

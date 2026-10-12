@@ -160,6 +160,18 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional presence information for a logical Resource with no accessible Version, such as a dangling xref.
+    /// Consumers must not manufacture a Version from the logical placeholder.
+    /// </summary>
+    public interface IXRegistryProjectionResourcePresence
+    {
+        /// <summary>
+        /// Whether this projection entry describes an accessible Version.
+        /// </summary>
+        bool HasVersion { get; }
+    }
+
+    /// <summary>
     /// Owns the FileType behavior attached to a projected resource node.
     /// </summary>
     public interface IXRegistryProjectedResourceFile : IDisposable
@@ -275,26 +287,44 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public sealed record XRegistryProjectionGeneration(
         IXRegistryProjectionSnapshot Projection,
-        XRegistryProjectionEventSnapshot? Events);
+        XRegistryProjectionEventSnapshot? Events)
+    {
+        /// <summary>
+        /// Whether the provider's Registry epoch is also its projection ordering
+        /// sequence. Set false for bindings whose Registry epoch only tracks the
+        /// Registry entity and cannot order descendant-only changes.
+        /// </summary>
+        public bool RegistryEpochOrdersProjection { get; init; } = true;
+    }
 
     /// <summary>
     /// Supplies Resource Meta independently from the projected Version properties.
     /// </summary>
     public interface IXRegistryProjectionResourceMeta
     {
-        /// <summary>Gets the logical Resource Meta epoch.</summary>
+        /// <summary>
+        /// Gets the logical Resource Meta epoch.
+        /// </summary>
         long MetaEpoch { get; }
 
-        /// <summary>Gets the logical Resource Meta labels.</summary>
+        /// <summary>
+        /// Gets the logical Resource Meta labels.
+        /// </summary>
         ImmutableSortedDictionary<string, string> MetaLabels { get; }
 
-        /// <summary>Gets the logical Resource Meta creation time.</summary>
+        /// <summary>
+        /// Gets the logical Resource Meta creation time.
+        /// </summary>
         DateTime MetaCreatedAt { get; }
 
-        /// <summary>Gets the logical Resource Meta modification time.</summary>
+        /// <summary>
+        /// Gets the logical Resource Meta modification time.
+        /// </summary>
         DateTime MetaModifiedAt { get; }
 
-        /// <summary>Gets whether this Version is the committed default Version.</summary>
+        /// <summary>
+        /// Gets whether this Version is the committed default Version.
+        /// </summary>
         bool IsDefaultVersion { get; }
     }
 
@@ -312,7 +342,29 @@ namespace Opc.Ua.XRegistry.Server
         string Xid,
         uint Epoch,
         ImmutableSortedDictionary<string, string> Labels,
-        ImmutableArray<XRegistryProjectionEventGroup> Groups);
+        ImmutableArray<XRegistryProjectionEventGroup> Groups)
+    {
+        /// <summary>
+        /// Gets canonical entity attributes when the source can provide them.
+        /// </summary>
+        public ImmutableSortedDictionary<string, string> Attributes { get; init; } =
+            ImmutableSortedDictionary<string, string>.Empty;
+
+        /// <summary>
+        /// Gets the canonical effective model for change notification.
+        /// </summary>
+        public string? Model { get; init; }
+
+        /// <summary>
+        /// Gets the source model when the endpoint exposes that aspect.
+        /// </summary>
+        public string? ModelSource { get; init; }
+
+        /// <summary>
+        /// Gets canonical capabilities for change notification.
+        /// </summary>
+        public string? Capabilities { get; init; }
+    }
 
     /// <summary>
     /// Immutable event-relevant group snapshot.
@@ -325,10 +377,25 @@ namespace Opc.Ua.XRegistry.Server
         bool Deprecated,
         ImmutableArray<XRegistryProjectionEventResource> Resources)
     {
-        /// <summary>Gets the materialized group node used as the event source.</summary>
+        /// <summary>
+        /// Gets the model-defined collection name when it differs between groups.
+        /// </summary>
+        public string? CollectionName { get; init; }
+
+        /// <summary>
+        /// Gets canonical entity attributes when available from the source.
+        /// </summary>
+        public ImmutableSortedDictionary<string, string> Attributes { get; init; } =
+            ImmutableSortedDictionary<string, string>.Empty;
+
+        /// <summary>
+        /// Gets the materialized group node used as the event source.
+        /// </summary>
         public NodeId SourceNodeId { get; init; }
 
-        /// <summary>Gets the source name retained for deleted events.</summary>
+        /// <summary>
+        /// Gets the source name retained for deleted events.
+        /// </summary>
         public string? SourceName { get; init; }
 
         /// <summary>
@@ -352,10 +419,19 @@ namespace Opc.Ua.XRegistry.Server
         string? DefaultVersionId,
         ImmutableArray<XRegistryProjectionEventVersion> Versions)
     {
-        /// <summary>Gets the default Version file used as the Resource event source.</summary>
+        /// <summary>
+        /// Gets the model-defined resource collection name.
+        /// </summary>
+        public string? CollectionName { get; init; }
+
+        /// <summary>
+        /// Gets the default Version file used as the Resource event source.
+        /// </summary>
         public NodeId SourceNodeId { get; init; }
 
-        /// <summary>Gets the source name retained for deleted events.</summary>
+        /// <summary>
+        /// Gets the source name retained for deleted events.
+        /// </summary>
         public string? SourceName { get; init; }
 
         /// <summary>
@@ -368,10 +444,14 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         public string? Description { get; init; }
 
-        /// <summary>Gets the Resource Meta creation time.</summary>
+        /// <summary>
+        /// Gets the Resource Meta creation time.
+        /// </summary>
         public DateTime MetaCreatedAt { get; init; }
 
-        /// <summary>Gets the Resource Meta modification time.</summary>
+        /// <summary>
+        /// Gets the Resource Meta modification time.
+        /// </summary>
         public DateTime MetaModifiedAt { get; init; }
 
         /// <summary>
@@ -390,20 +470,36 @@ namespace Opc.Ua.XRegistry.Server
         uint Epoch,
         ImmutableSortedDictionary<string, string> Attributes)
     {
-        /// <summary>Gets the materialized Version file used as the event source.</summary>
+        /// <summary>
+        /// Whether Attributes is complete enough to report a Changed list. An
+        /// inventory lacking document fingerprints can omit this optional detail.
+        /// </summary>
+        public bool CompleteAttributeInventory { get; init; } = true;
+
+        /// <summary>
+        /// Gets the materialized Version file used as the event source.
+        /// </summary>
         public NodeId SourceNodeId { get; init; }
 
-        /// <summary>Gets the source name retained for deleted events.</summary>
+        /// <summary>
+        /// Gets the source name retained for deleted events.
+        /// </summary>
         public string? SourceName { get; init; }
 
-        /// <summary>Gets the Version labels.</summary>
+        /// <summary>
+        /// Gets the Version labels.
+        /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; init; } =
             ImmutableSortedDictionary<string, string>.Empty;
 
-        /// <summary>Gets the Version creation time.</summary>
+        /// <summary>
+        /// Gets the Version creation time.
+        /// </summary>
         public DateTime CreatedAt { get; init; }
 
-        /// <summary>Gets the Version modification time.</summary>
+        /// <summary>
+        /// Gets the Version modification time.
+        /// </summary>
         public DateTime ModifiedAt { get; init; }
     }
 
@@ -552,14 +648,18 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public interface IXRegistryVersionedProjectionStrategy : IXRegistryProjectionStrategy
     {
-        /// <summary>Creates an explicit or server-assigned Version.</summary>
+        /// <summary>
+        /// Creates an explicit or server-assigned Version.
+        /// </summary>
         ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
             string groupId,
             string resourceId,
             string versionId,
             CancellationToken ct);
 
-        /// <summary>Gets or creates an explicit or server-assigned Version.</summary>
+        /// <summary>
+        /// Gets or creates an explicit or server-assigned Version.
+        /// </summary>
         ValueTask<(IXRegistryProjectionResource Resource, bool Created)> GetOrCreateResourceAsync(
             string groupId,
             string resourceId,
@@ -578,7 +678,9 @@ namespace Opc.Ua.XRegistry.Server
             long? epoch,
             CancellationToken ct);
 
-        /// <summary>Adds or replaces a Version label.</summary>
+        /// <summary>
+        /// Adds or replaces a Version label.
+        /// </summary>
         ValueTask<ServiceResult> AddVersionLabelAsync(
             string groupId,
             string resourceId,
@@ -588,7 +690,9 @@ namespace Opc.Ua.XRegistry.Server
             long? epoch,
             CancellationToken ct);
 
-        /// <summary>Removes a Version label.</summary>
+        /// <summary>
+        /// Removes a Version label.
+        /// </summary>
         ValueTask<ServiceResult> RemoveVersionLabelAsync(
             string groupId,
             string resourceId,
@@ -597,7 +701,9 @@ namespace Opc.Ua.XRegistry.Server
             long? epoch,
             CancellationToken ct);
 
-        /// <summary>Adds or replaces a Resource Meta label.</summary>
+        /// <summary>
+        /// Adds or replaces a Resource Meta label.
+        /// </summary>
         ValueTask<ServiceResult> AddResourceMetaLabelAsync(
             string groupId,
             string resourceId,
@@ -606,7 +712,9 @@ namespace Opc.Ua.XRegistry.Server
             long? epoch,
             CancellationToken ct);
 
-        /// <summary>Removes a Resource Meta label.</summary>
+        /// <summary>
+        /// Removes a Resource Meta label.
+        /// </summary>
         ValueTask<ServiceResult> RemoveResourceMetaLabelAsync(
             string groupId,
             string resourceId,
@@ -658,8 +766,8 @@ namespace Opc.Ua.XRegistry.Server
             ModelNamespaceIndex = modelNamespaceIndex;
             AddNodeAsync = addNodeAsync ?? throw new ArgumentNullException(nameof(addNodeAsync));
             DeleteNodeAsync = deleteNodeAsync ?? throw new ArgumentNullException(nameof(deleteNodeAsync));
-            CheckManagementAccess = checkManagementAccess ??
-                throw new ArgumentNullException(nameof(checkManagementAccess));
+            CheckManagementAccess = checkManagementAccess
+                ?? throw new ArgumentNullException(nameof(checkManagementAccess));
             EventOptions = eventOptions;
             EventOptions?.Validate();
         }
