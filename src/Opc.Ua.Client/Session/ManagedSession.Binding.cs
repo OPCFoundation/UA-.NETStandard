@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A managed session that wraps a unmanaged <see cref="Session"/>
+    /// A managed session that wraps an unmanaged <see cref="Session"/>
     /// and automatically handles connection lifecycle, reconnection
     /// with configurable policy, and server redundancy failover.
     /// </summary>

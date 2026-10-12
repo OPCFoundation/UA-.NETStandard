@@ -343,7 +343,7 @@ namespace Opc.Ua.Bindings
                 }
                 return new TransportChannelBinding(
                     this,
-                    () => !m_disposed && ReferenceEquals(m_channel, channel),
+                    () => !Volatile.Read(ref m_disposed) && ReferenceEquals(Volatile.Read(ref m_channel), channel),
                     (request, valid, token) => SendBoundRequestAsync(channel, request, valid, token));
             }
             finally
@@ -363,7 +363,9 @@ namespace Opc.Ua.Bindings
             try
             {
                 ct.ThrowIfCancellationRequested();
-                if (m_disposed || !ReferenceEquals(m_channel, captured) || !valid())
+                if (Volatile.Read(ref m_disposed) ||
+                    !ReferenceEquals(Volatile.Read(ref m_channel), captured) ||
+                    !valid())
                 {
                     throw TransportChannelBinding.InvalidBinding();
                 }

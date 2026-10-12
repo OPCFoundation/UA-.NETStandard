@@ -56,7 +56,7 @@ namespace Opc.Ua
         {
             get
             {
-                EncodeableFactory? view = m_viewSelector?.Invoke();
+                EncodeableFactory? view = Volatile.Read(ref m_viewSelector)?.Invoke();
                 return ReferenceEquals(view, this) ? null : view;
             }
         }
@@ -73,11 +73,15 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(selector));
             }
-            if (Interlocked.CompareExchange(ref m_viewSelector, selector, null) is not null)
+            lock (m_publicationGate)
             {
-                throw new InvalidOperationException("The encodeable factory already has a publication owner.");
+                if (m_viewSelector is not null)
+                {
+                    throw new InvalidOperationException("The encodeable factory already has a publication owner.");
+                }
+                Volatile.Write(ref m_viewSelector, selector);
+                return new ViewOwner(this, selector);
             }
-            return new ViewOwner(this, selector);
         }
 
         /// <summary>
@@ -87,12 +91,12 @@ namespace Opc.Ua
         /// <param name="revision">The captured source revision.</param>
         internal EncodeableFactory CaptureSnapshot(out EncodeableFactory source, out long revision)
         {
-            if (CurrentView is { } view)
-            {
-                return view.CaptureSnapshot(out source, out revision);
-            }
             lock (m_publicationGate)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.CaptureSnapshot(out source, out revision);
+                }
                 source = this;
                 revision = m_revision;
                 return new EncodeableFactory(this);
@@ -107,12 +111,12 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal Publication BeginPublication(EncodeableFactory source, long revision)
         {
-            if (CurrentView is { } view)
-            {
-                return view.BeginPublication(source, revision);
-            }
             lock (m_publicationGate)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.BeginPublication(source, revision);
+                }
                 if (!ReferenceEquals(source, this) || revision != m_revision)
                 {
                     throw new InvalidOperationException("Serving factory registrations changed after preparation.");
@@ -157,9 +161,9 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                lock (image.m_publicationGate)
+                lock (current.m_publicationGate)
                 {
-                    lock (current.m_publicationGate)
+                    lock (image.m_publicationGate)
                     {
                         if (m_owner is null)
                         {

@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Nodes
@@ -150,6 +151,33 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_typeTable.IsCurrentSnapshot(owner, revision), Is.True);
             selected = next;
             Assert.That(m_typeTable.IsCurrentSnapshot(owner, revision), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that installing an image during node preparation routes the final mutation to that image.
+        /// </summary>
+        [Test]
+        public void SelectorInstalledDuringNodePreparationReceivesMutation()
+        {
+            TypeTable selected = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId addedId = new(6000);
+            Mock<ILocalNode> node = CreateMockNode(addedId, NodeClass.ObjectType);
+            bool installed = false;
+            node.SetupGet(value => value.NodeClass).Returns(() =>
+            {
+                if (!installed)
+                {
+                    installed = true;
+                    m_typeTable.SetViewSelector(() => selected);
+                }
+                return NodeClass.ObjectType;
+            });
+
+            m_typeTable.Add(node.Object);
+
+            Assert.That(selected.IsKnown(addedId), Is.True);
+            Assert.That(m_typeTable.IsKnown(addedId), Is.True);
+            Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.False);
         }
 
         /// <summary>

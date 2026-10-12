@@ -250,9 +250,6 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Gets the next for <c>ReferenceUpdate</c>.
-            /// </summary>
-            /// <summary>
             /// Gets the prepared image to select at publication.
             /// </summary>
             internal ReferenceSnapshot Next { get; }

@@ -42,7 +42,7 @@ namespace Opc.Ua
         {
             get
             {
-                TypeTable? view = m_viewSelector?.Invoke();
+                TypeTable? view = Volatile.Read(ref m_viewSelector)?.Invoke();
                 return ReferenceEquals(view, this) ? null : view;
             }
         }
@@ -59,9 +59,13 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(selector));
             }
-            if (Interlocked.CompareExchange(ref m_viewSelector, selector, null) is not null)
+            lock (m_lock)
             {
-                throw new InvalidOperationException("The type table already has a publication owner.");
+                if (m_viewSelector is not null)
+                {
+                    throw new InvalidOperationException("The type table already has a publication owner.");
+                }
+                Volatile.Write(ref m_viewSelector, selector);
             }
         }
 
@@ -72,12 +76,12 @@ namespace Opc.Ua
         /// <param name="revision">The captured source revision.</param>
         internal TypeTable CaptureSnapshot(out TypeTable source, out long revision)
         {
-            if (CurrentView is { } view)
-            {
-                return view.CaptureSnapshot(out source, out revision);
-            }
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.CaptureSnapshot(out source, out revision);
+                }
                 source = this;
                 revision = m_revision;
                 var snapshot = new TypeTable(m_namespaceUris);
@@ -138,12 +142,12 @@ namespace Opc.Ua
         /// <param name="revision">The revision observed during capture.</param>
         internal bool IsCurrentSnapshot(TypeTable source, long revision)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsCurrentSnapshot(source, revision);
-            }
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.IsCurrentSnapshot(source, revision);
+                }
                 return ReferenceEquals(source, this) && revision == m_revision;
             }
         }
@@ -156,12 +160,12 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal Publication BeginPublication(TypeTable source, long revision)
         {
-            if (CurrentView is { } view)
-            {
-                return view.BeginPublication(source, revision);
-            }
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.BeginPublication(source, revision);
+                }
                 if (!ReferenceEquals(source, this) || revision != m_revision)
                 {
                     throw new InvalidOperationException("Serving types changed after the batch was prepared.");

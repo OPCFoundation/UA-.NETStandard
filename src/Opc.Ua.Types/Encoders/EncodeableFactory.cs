@@ -377,14 +377,17 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                EncodeableFactory factory = m_factory.CurrentView ?? m_factory;
-                lock (factory.m_publicationGate)
+                lock (m_factory.m_publicationGate)
                 {
-                    factory.EnsureMutable();
-                    CompareExchange(ref factory.m_encodeableTypes, m_encodeableTypes);
-                    CompareExchange(ref factory.m_enumeratedTypes, m_enumeratedTypes);
-                    CompareExchange(ref factory.m_xmlNameToType, m_xmlNameToType);
-                    factory.m_revision++;
+                    EncodeableFactory factory = m_factory.CurrentView ?? m_factory;
+                    lock (factory.m_publicationGate)
+                    {
+                        factory.EnsureMutable();
+                        CompareExchange(ref factory.m_encodeableTypes, m_encodeableTypes);
+                        CompareExchange(ref factory.m_enumeratedTypes, m_enumeratedTypes);
+                        CompareExchange(ref factory.m_xmlNameToType, m_xmlNameToType);
+                        factory.m_revision++;
+                    }
                 }
             }
 

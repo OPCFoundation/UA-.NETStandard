@@ -547,13 +547,13 @@ namespace Opc.Ua
         /// </summary>
         public void Clear()
         {
-            if (CurrentView is { } view)
-            {
-                view.Clear();
-                return;
-            }
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Clear();
+                    return;
+                }
                 EnsureMutable();
                 m_revision++;
                 m_nodes.Clear();
@@ -569,11 +569,6 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Add(ILocalNode node)
         {
-            if (CurrentView is { } view)
-            {
-                view.Add(node);
-                return;
-            }
             // ignore null.
             if (node == null || node.NodeId.IsNull)
             {
@@ -613,6 +608,11 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Add(node);
+                    return;
+                }
                 EnsureMutable();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
@@ -726,10 +726,6 @@ namespace Opc.Ua
         /// <param name="encodingId">The encoding identifier.</param>
         public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.AddEncoding(dataTypeId, encodingId);
-            }
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId.IsNull)
@@ -739,6 +735,10 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.AddEncoding(dataTypeId, encodingId);
+                }
                 if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo? typeInfo))
                 {
                     return false;
@@ -782,13 +782,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void AddSubtype(NodeId subTypeId, NodeId superTypeId, QualifiedName browseName)
         {
-            if (CurrentView is { } view)
-            {
-                view.AddSubtype(subTypeId, superTypeId, browseName);
-                return;
-            }
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.AddSubtype(subTypeId, superTypeId, browseName);
+                    return;
+                }
                 EnsureMutable();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
@@ -847,11 +847,6 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public void Remove(ExpandedNodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                view.Remove(typeId);
-                return;
-            }
             if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return;
@@ -866,6 +861,11 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Remove(typeId);
+                    return;
+                }
                 // remove type.
 
                 if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
