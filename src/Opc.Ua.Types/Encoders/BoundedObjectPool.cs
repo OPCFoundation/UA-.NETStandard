@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 
 namespace Opc.Ua
@@ -35,11 +36,11 @@ namespace Opc.Ua
     /// <summary>
     /// <para>
     /// Bounded lock-free object pool with a single "first item" fast
-    /// slot and a shared array of additional slots reclaimed via
-    /// <see cref="Interlocked.CompareExchange{T}(ref T, T, T)"/>. Modeled
-    /// on the design of <c>Microsoft.Extensions.ObjectPool.DefaultObjectPool</c>
-    /// but hand-rolled here to avoid taking a new public package reference
-    /// on the OPC UA core types assembly.
+    /// slot and a shared queue of additional instances. Get and Return
+    /// are O(1): renting from an empty pool or returning to a full one
+    /// does not scan the retained instances, and threads that return
+    /// whole batches (for example the notifications of a sent Publish
+    /// response) do not serialize on a lock.
     /// </para>
     /// <para>
     /// The pool never blocks. A <see cref="Get"/> miss falls through to
@@ -53,15 +54,17 @@ namespace Opc.Ua
     internal sealed class BoundedObjectPool<T> where T : class, new()
     {
         private T? m_firstItem;
-        private readonly T?[] m_items;
+        private ConcurrentQueue<T>? m_items;
+        private int m_count;
         private readonly Func<T> m_factory;
 
         /// <summary>
         /// Create a new pool that retains up to <paramref name="maximumRetained"/>
         /// instances. One slot is reserved as a fast first-item slot
         /// accessed via <see cref="Interlocked.CompareExchange{T}(ref T, T, T)"/>;
-        /// the remainder live on a shared slot array. Get and Return
-        /// hit the fast slot first.
+        /// the remainder live on a shared queue that is created on the
+        /// first return that needs it. Get and Return hit the fast slot
+        /// first.
         /// </summary>
         /// <param name="maximumRetained">Upper bound on instances held by
         /// the pool. Must be positive.</param>
@@ -77,9 +80,6 @@ namespace Opc.Ua
             }
             MaximumRetained = maximumRetained;
             m_factory = factory ?? (() => new T());
-            // Subtract one for the first-item slot. If the cap is 1 we
-            // keep an empty shared array and rely on the fast slot alone.
-            m_items = new T?[maximumRetained - 1];
         }
 
         /// <summary>
@@ -102,15 +102,13 @@ namespace Opc.Ua
                 return item;
             }
 
-            T?[] items = m_items;
-            for (int i = 0; i < items.Length; i++)
+            ConcurrentQueue<T>? items = Volatile.Read(ref m_items);
+            if (items != null &&
+                Volatile.Read(ref m_count) > 0 &&
+                items.TryDequeue(out item))
             {
-                item = items[i];
-                if (item is not null &&
-                    Interlocked.CompareExchange(ref items[i], null, item) == item)
-                {
-                    return item;
-                }
+                Interlocked.Decrement(ref m_count);
+                return item;
             }
 
             return m_factory();
@@ -135,17 +133,27 @@ namespace Opc.Ua
                 return;
             }
 
-            T?[] items = m_items;
-            for (int i = 0; i < items.Length; i++)
+            // the fast slot is one of the retained instances.
+            int maximum = MaximumRetained - 1;
+            if (Volatile.Read(ref m_count) >= maximum)
             {
-                if (items[i] is null &&
-                    Interlocked.CompareExchange(ref items[i], instance, null) is null)
-                {
-                    return;
-                }
+                // Pool is full; let the instance be collected.
+                return;
             }
 
-            // Pool is full; let the instance be collected.
+            if (Interlocked.Increment(ref m_count) > maximum)
+            {
+                Interlocked.Decrement(ref m_count);
+                return;
+            }
+
+            ConcurrentQueue<T>? items = Volatile.Read(ref m_items);
+            if (items == null)
+            {
+                Interlocked.CompareExchange(ref m_items, new ConcurrentQueue<T>(), null);
+                items = m_items!;
+            }
+            items.Enqueue(instance);
         }
     }
 }
