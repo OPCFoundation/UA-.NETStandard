@@ -170,13 +170,6 @@ namespace Opc.Ua.XRegistry.Server
                 ct);
         }
 
-        private XRegistryProjectionGeneration CaptureProjectionGeneration()
-        {
-            return m_generationProvider is null
-                ? new XRegistryProjectionGeneration(m_strategy.Current, null)
-                : m_generationProvider.CaptureProjectionGeneration();
-        }
-
         private ValueTask ReconcileCurrentProjectionAsync(CancellationToken ct)
         {
             return ReconcileCoreAsync(
@@ -201,7 +194,10 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                XRegistryProjectionGeneration generation = suppliedGeneration ?? CaptureProjectionGeneration();
+                XRegistryProjectionGeneration generation = suppliedGeneration ??
+                    (m_generationProvider is null
+                        ? new XRegistryProjectionGeneration(m_strategy.Current, null)
+                        : m_generationProvider.CaptureProjectionGeneration());
                 IXRegistryProjectionSnapshot snapshot = generation.Projection;
                 XRegistryProjectionEventSnapshot? eventSnapshot = generation.Events;
                 if (emitEvents &&
