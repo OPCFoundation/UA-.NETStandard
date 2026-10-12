@@ -204,6 +204,8 @@ The master node manager builds a routing table keyed by namespace index. During 
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
 
+Read and Write call `ReadAsync`/`WriteAsync` only on the managers that appear in the route of a requested namespace, in dispatch order, so a request does not pay for managers that cannot own any of its nodes. If any valid node is in a namespace without a route, every manager is called as before. A manager that processes nodes outside the namespaces it registers must register them with `RegisterNamespaceManager` to keep receiving those Reads and Writes.
+
 The master node manager also merges references across managers. Each manager receives the shared `externalReferences` table while `CreateAddressSpaceAsync` runs. After all managers have created their nodes and historical-access advertisement has been reconciled, the master calls `AddReferencesAsync(externalReferences, ...)` on every manager. `MasterNodeManager.CreateExternalReference` is the helper most custom managers use to put a cross-manager reference in that table. The target manager then materialises the reference on the node it owns, so a node owned by one manager can be browseable from a parent, folder, metadata object, or notifier owned by another manager. Attaching a child only in the source manager is not enough when the source and target owners differ.
 
 At runtime, the same reference handling is used for lifecycle-managed managers. A prepared manager builds its address space while hidden from client routing, the master adds its external references during commit, and rollback/removal removes the cross-manager references that were added for that generation.
@@ -386,6 +388,18 @@ change-triggered monitoring or opt into sampling groups. Both manager bases
 support filter validation, event subscriptions, condition refresh, and role checks.
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
+
+A sampling group checks the Read permission of an item through
+`ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
+verdict until one of its inputs changes: the Session or its effective identity
+(ActivateSession with another user, or granted roles refreshed after a role
+change), the item's node handle, the `RolePermissions` or `UserRolePermissions`
+of any `NodeState`, or the default permissions of a namespace. A revoked
+permission therefore yields `BadUserAccessDenied` within one or two sampling
+cycles, as before. Each item
+is also revalidated at least once per second, which bounds the delay for
+permissions a node manager computes without such a change, for example through
+`OnReadRolePermissions`.
 
 #### Sampling interval revision
 

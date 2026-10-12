@@ -323,6 +323,18 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Reports a stage's aggregate capacity including protected floors, so the request queue can
+    /// size its physical bound to match the provider's envelope.
+    /// </summary>
+    internal interface IResourceIsolationCapacitySource
+    {
+        /// <summary>
+        /// Gets the aggregate capacity of a stage, including every reserved floor.
+        /// </summary>
+        long GetStageCapacity(ResourceIsolationStage stage);
+    }
+
+    /// <summary>
     /// Optional capability exposed by server transport callbacks.
     /// </summary>
     public interface IResourceIsolationProviderSource
