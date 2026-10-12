@@ -1711,17 +1711,27 @@ namespace Opc.Ua.Bindings
                 PendingWrite write = batch[ii];
                 if (write.Unsealed is EncodedSymmetricMessage message)
                 {
+                    // A message queued for a transport the channel no longer uses (a
+                    // reconnect replaced it, or the channel closed) is not numbered:
+                    // after a reconnect the peer continues from the OpenSecureChannel
+                    // response on the new transport and would see a gap. It is
+                    // dropped like a write to the closed transport.
+                    ChannelToken? token = CurrentToken;
+                    if (token == null || !ReferenceEquals(write.Transport, m_transport))
+                    {
+                        message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                        ReportWriteComplete(
+                            null,
+                            write.State,
+                            0,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecureChannelClosed,
+                                "The channel was closed before the message was sent."));
+                        continue;
+                    }
+
                     try
                     {
-                        ChannelToken? token = CurrentToken;
-                        if (token == null)
-                        {
-                            message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecureChannelClosed,
-                                "The channel was closed before the message was sent.");
-                        }
-
                         // returns the chunks to the pool when it fails.
                         BufferCollection sealedChunks = SealSymmetricMessage(message, token);
                         write = new PendingWrite(write.Transport, default, null, sealedChunks, write.State);

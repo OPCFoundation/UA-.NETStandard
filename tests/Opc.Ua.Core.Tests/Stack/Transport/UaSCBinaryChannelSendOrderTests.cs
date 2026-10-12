@@ -288,6 +288,42 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ResponsesQueuedForAReplacedTransportAreNotNumberedAsync()
+        {
+            // A reconnect replaces the transport and answers on the new one with an
+            // OpenSecureChannel response numbered under the send order lock. Responses
+            // still queued for the dropped transport must not take numbers after it:
+            // the client would see a gap on the new transport.
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool);
+            var dropped = new RecordingTransport(asyncSendEvery: 1);
+            dropped.HoldSends();
+            channel.SetTransport(dropped);
+
+            await channel.SendResponseAsync(1, CreateResponse(null, 0)).ConfigureAwait(false);
+            await dropped.FirstSendStarted.ConfigureAwait(false);
+            for (uint requestId = 2; requestId <= 10; requestId++)
+            {
+                await channel.SendResponseAsync(requestId, CreateResponse(null, requestId % 3 == 0 ? 20000 : 0)).ConfigureAwait(false);
+            }
+
+            var replacement = new RecordingTransport(asyncSendEvery: 2);
+            channel.SetTransport(replacement);
+            channel.QueueNumberedMessageForTest(1000);
+            dropped.ReleaseSends();
+
+            for (uint requestId = 11; requestId <= 20; requestId++)
+            {
+                await channel.SendResponseAsync(requestId, CreateResponse(null, requestId % 3 == 0 ? 20000 : 0)).ConfigureAwait(false);
+            }
+
+            List<WireChunk> chunks = await replacement.WaitForFinalChunksAsync(11).ConfigureAwait(false);
+            AssertWireOrder(chunks, Enumerable.Range(11, 10).Select(id => (uint)id).Prepend(1000u));
+            Assert.That(chunks[0].RequestId, Is.EqualTo(1000u));
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task ReceiveBackpressureEngagesAndReleasesAsync()
         {
             // OPC UA servers stop reading while more than 100 responses wait to be
