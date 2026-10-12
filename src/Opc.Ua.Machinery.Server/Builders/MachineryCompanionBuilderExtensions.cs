@@ -34,6 +34,7 @@ using Opc.Ua.Machinery.Jobs;
 using Opc.Ua.Machinery.ProcessValues;
 using Opc.Ua.Machinery.Result;
 using Opc.Ua.Machinery.Server.Results;
+using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Machinery.Server.Builders
 {
@@ -42,6 +43,46 @@ namespace Opc.Ua.Machinery.Server.Builders
     /// </summary>
     public static class MachineryCompanionBuilderExtensions
     {
+        /// <summary>
+        /// Prepares Machinery bindings for a root whose registration belongs to another companion builder.
+        /// </summary>
+        /// <remarks>
+        /// Enlist the returned participant with the registration owner. The callback runs during preparation,
+        /// before publication. Do not call the callback builder's BuildAsync: the owner registers the tree once.
+        /// Disposal before commitment releases this participant without deleting the root.
+        /// </remarks>
+        /// <typeparam name="TState">The externally staged state type.</typeparam>
+        /// <param name="context">The Machinery context on the same node manager and instance namespace.</param>
+        /// <param name="machine">The exact unregistered root instance.</param>
+        /// <param name="configure">Configures shared Machinery bindings without publishing.</param>
+        /// <returns>A single-use registration participant.</returns>
+        public static ICompanionRegistrationParticipant BindMachine<TState>(
+            this IMachineryBuildContext context,
+            TState machine,
+            Action<IMachineBuilder<TState>> configure)
+            where TState : BaseObjectState
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (machine == null)
+            {
+                throw new ArgumentNullException(nameof(machine));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (context is not MachineryBuildContext implementation)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The Machinery context does not support externally staged bindings.");
+            }
+            return implementation.BindMachine(machine, configure);
+        }
+
         /// <summary>
         /// Configures an existing machine or component nameplate at its companion-declared location.
         /// </summary>
@@ -71,6 +112,52 @@ namespace Opc.Ua.Machinery.Server.Builders
                 throw new ArgumentNullException(nameof(configure));
             }
             return builder.GetMachineBuilder().BindIdentification(identification, configure);
+        }
+
+        /// <summary>
+        /// Enlists a binding after node publication and before this machine's successful commitment.
+        /// </summary>
+        /// <remarks>
+        /// A returned resource is disposed on rollback and owned by the machine on success.
+        /// A callback that throws before returning must release any resources it allocated itself.
+        /// </remarks>
+        /// <typeparam name="TState">The machine's generated state type.</typeparam>
+        /// <param name="builder">The unregistered machine builder.</param>
+        /// <param name="bind">Creates the binding and returns its lifetime resource.</param>
+        /// <returns>The same machine builder.</returns>
+        public static IMachineBuilder<TState> WithRegistrationBinding<TState>(
+            this IMachineBuilder<TState> builder,
+            Func<TState, ISystemContext, CancellationToken, ValueTask<IAsyncDisposable>> bind)
+            where TState : BaseObjectState
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (bind == null)
+            {
+                throw new ArgumentNullException(nameof(bind));
+            }
+            return builder.GetMachineBuilder().WithRegistrationBinding(bind);
+        }
+
+        /// <summary>
+        /// Abandons an unregistered machine after a configuration failure.
+        /// </summary>
+        /// <remarks>
+        /// Only valid before BuildAsync starts. Releases staged resources and reservations,
+        /// never deletes an indexed tree, and makes the abandoned builder unusable.
+        /// </remarks>
+        /// <typeparam name="TState">The machine's generated state type.</typeparam>
+        /// <param name="builder">The machine builder to abandon.</param>
+        public static ValueTask AbortAsync<TState>(this IMachineBuilder<TState> builder)
+            where TState : BaseObjectState
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            return builder.GetMachineBuilder().AbortAsync();
         }
 
         /// <summary>

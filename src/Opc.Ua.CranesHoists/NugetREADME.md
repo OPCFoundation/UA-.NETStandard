@@ -14,6 +14,9 @@ Its wire namespace is `http://opcfoundation.org/UA/CranesHoists/`.
   and `AddOpcUaCranesHoists` model/factory registration overloads.
 - Real CLR inheritance from the existing Robotics and DI models, with
   Machinery identification nodes; dependency models are not regenerated.
+- Shared equipment-provider, authorization, acquisition, snapshot and bounded
+  observation contracts. `CraneSignal` is an SDK selector for existing standard
+  variables, not an additional OPC UA enum DataType or command protocol.
 
 Load the dependencies before the crane model using an application's
 `ISystemContext`:
@@ -45,11 +48,13 @@ indexes used in the published XML.
 ## Present scope
 
 This is the shared model/contracts package, not a crane controller or a safety
-system. Server/client runtime, instance builders, equipment providers, live
-snapshots, authorized speed-limit configuration and MCP workflows are separate
-implementation work. Loading the model does not advertise a conformance profile
-or prove runtime support for a conformance unit. No crane-motion commands or
-safety bypass operations are introduced.
+system. The separate `OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Server` and
+`OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Client` preview packages provide
+native instance builders, equipment-provider bindings, live snapshots, bounded
+observations and explicitly authorized standard speed-limit requests.
+Loading the model alone does not advertise a conformance profile or prove
+runtime support for a conformance unit. No crane-motion commands or safety
+bypass operations are introduced. MCP integration is a separate adapter.
 
 The official XML and documentation CSV are pinned without semantic edits.
 `Model\provenance.json` records source hashes and dependencies; the local

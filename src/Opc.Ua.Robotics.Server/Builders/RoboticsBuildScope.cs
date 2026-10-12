@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Robotics.Server.Builders
 {
@@ -126,9 +127,32 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         internal bool IsRegistered { get; private set; }
 
-        internal void Abort()
+        internal async ValueTask AbortAsync()
         {
+            await DisposeParticipantsAsync().ConfigureAwait(false);
             ReleaseReservations();
+        }
+
+        /// <summary>
+        /// Enlists a binding for this exact root and owner before registration.
+        /// </summary>
+        internal void Enlist(ICompanionRegistrationParticipant participant)
+        {
+            EnsureMutable();
+            if (!ReferenceEquals(participant.Root, Root) ||
+                !ReferenceEquals(participant.Manager, BuildContext.Manager))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "A registration participant must bind this root on the same manager.");
+            }
+            if (m_participants.Contains(participant))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The registration participant is already enlisted.");
+            }
+            m_participants.Add(participant);
         }
 
         internal static void EnsureContextMutable(IRoboticsBuildContext buildContext)
@@ -207,11 +231,16 @@ namespace Opc.Ua.Robotics.Server.Builders
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                for (int ii = 0; ii < m_participants.Count; ii++)
+                {
+                    await m_participants[ii].PrepareAsync(cancellationToken).ConfigureAwait(false);
+                }
                 Validate();
 
                 VerifyNodeIds();
                 ApplySemanticReferences();
 
+                m_publicationStarted = true;
                 BuildContext.DeviceSet.AddChild(Root);
                 await BuildContext.Manager
                     .AddPredefinedNodeAsync(Root, cancellationToken)
@@ -224,6 +253,15 @@ namespace Opc.Ua.Robotics.Server.Builders
                     await PostRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
                 }
 
+                for (int ii = 0; ii < m_participants.Count; ii++)
+                {
+                    await m_participants[ii].BindAsync(cancellationToken).ConfigureAwait(false);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                for (int ii = 0; ii < m_participants.Count; ii++)
+                {
+                    m_participants[ii].Commit();
+                }
                 IsRegistered = true;
             }
             catch
@@ -234,6 +272,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             finally
             {
+                await DisposeParticipantsAsync().ConfigureAwait(false);
                 ReleaseReservations();
                 m_registering = false;
             }
@@ -463,6 +502,7 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private async ValueTask RollbackRegistrationAsync()
         {
+            await DisposeParticipantsAsync().ConfigureAwait(false);
             for (int ii = RegisteredResources.Count - 1; ii >= 0; ii--)
             {
                 try
@@ -479,8 +519,8 @@ namespace Opc.Ua.Robotics.Server.Builders
 
             try
             {
-                if (!Root.NodeId.IsNull &&
-                    BuildContext.Manager.FindPredefinedNode(Root.NodeId) != null)
+                if (m_publicationStarted && !Root.NodeId.IsNull &&
+                    ReferenceEquals(BuildContext.Manager.FindPredefinedNode(Root.NodeId), Root))
                 {
                     await BuildContext.Manager.DeleteNodeAsync(
                         BuildContext.Manager.SystemContext,
@@ -490,8 +530,30 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             finally
             {
-                BuildContext.DeviceSet.RemoveChild(Root);
+                if (m_publicationStarted)
+                {
+                    BuildContext.DeviceSet.RemoveChild(Root);
+                }
             }
+        }
+
+        /// <summary>
+        /// Unwinds enlisted participants in reverse order even when preparation did not complete.
+        /// </summary>
+        private async ValueTask DisposeParticipantsAsync()
+        {
+            for (int ii = m_participants.Count - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await m_participants[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Continue unwinding without masking the registration failure.
+                }
+            }
+            m_participants.Clear();
         }
 
         private void ApplySemanticReferences()
@@ -575,5 +637,7 @@ namespace Opc.Ua.Robotics.Server.Builders
             public RoboticsNodeBuilder Target { get; }
         }
 
+        private readonly List<ICompanionRegistrationParticipant> m_participants = [];
+        private bool m_publicationStarted;
     }
 }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Robotics.Server.Builders
 {
@@ -36,6 +37,39 @@ namespace Opc.Ua.Robotics.Server.Builders
     /// </summary>
     public static class RoboticsCompanionBuilderExtensions
     {
+        /// <summary>
+        /// Enlists companion bindings in this system's single registration and rollback.
+        /// </summary>
+        /// <remarks>
+        /// Ownership of the participant transfers on success. The caller retains an unenlisted
+        /// participant if this method throws. Participants are prepared before topology validation,
+        /// bound after publication, and committed only after every binding has succeeded.
+        /// </remarks>
+        /// <param name="builder">The owning system builder.</param>
+        /// <param name="participant">A single-use binding for the same root and manager.</param>
+        /// <returns>The owning system builder.</returns>
+        public static IMotionDeviceSystemBuilder WithRegistrationParticipant(
+            this IMotionDeviceSystemBuilder builder,
+            ICompanionRegistrationParticipant participant)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (participant == null)
+            {
+                throw new ArgumentNullException(nameof(participant));
+            }
+            if (builder is not MotionDeviceSystemBuilder implementation)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The system builder does not support registration participants.");
+            }
+            implementation.Scope.Enlist(participant);
+            return builder;
+        }
+
         /// <summary>
         /// Adds a derived motion device while preserving standard topology validation and lifetime.
         /// </summary>

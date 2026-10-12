@@ -265,6 +265,18 @@ namespace Opc.Ua.Machinery.Server
             return MachineBuilder.Adopt(this, machine, resolved);
         }
 
+        /// <summary>
+        /// Enlists shared bindings without changing an externally owned root's identity.
+        /// </summary>
+        /// <typeparam name="TState">The externally staged root type.</typeparam>
+        internal ICompanionRegistrationParticipant BindMachine<TState>(
+            TState machine,
+            Action<IMachineBuilder<TState>> configure)
+            where TState : BaseObjectState
+        {
+            return new MachineRegistrationParticipant<TState>(this, machine, configure);
+        }
+
         public T GetRequiredService<T>() where T : notnull
         {
             if (m_postSetupContext == null)

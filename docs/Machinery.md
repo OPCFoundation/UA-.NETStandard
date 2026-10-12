@@ -253,6 +253,50 @@ at that same node. Required identification values are validated before the
 existing nameplate is changed; machine and component requirements remain
 distinct.
 
+### Bindings on an externally registered root
+
+When Robotics owns a companion root under `DeviceSet`, do not also call
+`AddMachine(root).BuildAsync()`: that adopts the root as a Machinery-owned
+machine. Instead enlist shared bindings in the Robotics registration:
+
+```csharp
+system.WithRegistrationParticipant(machineryContext.BindMachine(
+    craneState,
+    machine => machine.WithIdentification(craneState.Identification!, identity =>
+    {
+        identity.Manufacturer = new LocalizedText("Example manufacturer");
+        identity.SerialNumber = "CR-1";
+        identity.ProductInstanceUri = "urn:example:crane:CR-1";
+    })));
+```
+
+`system` is the builder supplied to `AddMotionDeviceSystemAsync<TState>`.
+Both contexts must use the same node manager and application namespace.
+The binding callback runs before publication and reuses the normal Machinery
+writer; it must not call `BuildAsync` or change the root's identity.
+Robotics validates and registers the entire subtree once. Machinery adds
+`Machines` organizing references without changing the root's `DeviceSet`
+parent or `HasComponent` reference. Facets commit only after every participant
+has bound successfully. Failure or cancellation releases the participant's
+references, resources and reservations, while only the registration owner
+removes its own attempted tree.
+
+The DI-level `ICompanionRegistrationParticipant` is single-use. Its
+`PrepareAsync` and `BindAsync` phases may fail; `Commit` must not perform I/O
+or throw. The owner disposes participants in reverse order on every path.
+Committed Machinery bindings use the existing node-attachment lifetime,
+including on an existing Robotics manager: deleting the root or stopping the
+manager releases its bindings without a second owner or manager-wide registry.
+
+For either an ordinary machine builder or an enlisted one,
+`WithRegistrationBinding(async (state, context, cancellationToken) => resource)`
+defers an asynchronous binding until after indexing. The returned
+`IAsyncDisposable` is owned by the transaction: a later failure disposes it,
+and success transfers it to the existing machine lifetime. If configuration
+throws before an ordinary `BuildAsync` is called, await `builder.AbortAsync()`
+to release the unused name and allocations. Aborting cannot remove a
+registered machine and permanently closes that builder.
+
 ## Builder reference
 
 ### OPC 40001-1 building blocks

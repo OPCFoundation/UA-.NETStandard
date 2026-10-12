@@ -425,6 +425,32 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
+        /// Registers a deferred binding whose returned resource belongs to this machine transaction.
+        /// </summary>
+        internal IMachineBuilder<TState> WithRegistrationBinding(
+            Func<TState, ISystemContext, CancellationToken, ValueTask<IAsyncDisposable>> bind)
+        {
+            Scope.EnsureMutable();
+            Scope.PostRegistrationActions.Add(async cancellationToken =>
+            {
+                IAsyncDisposable resource = await bind(State, Scope.Context, cancellationToken).ConfigureAwait(false);
+                Scope.RegisteredResources.Add(resource ??
+                    throw new InvalidOperationException("A registration binding must return its lifetime resource."));
+                cancellationToken.ThrowIfCancellationRequested();
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Abandons authoring before registration without deleting a published tree.
+        /// </summary>
+        internal ValueTask AbortAsync()
+        {
+            Scope.EnsureMutable();
+            return Scope.AbortExternalAsync();
+        }
+
+        /// <summary>
         /// Binds an existing companion process value under its original parent.
         /// </summary>
         internal IMachineBuilder<TState> BindProcessValue(

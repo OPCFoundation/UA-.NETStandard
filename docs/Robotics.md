@@ -198,6 +198,17 @@ await host.Build().RunAsync();
 `AddOpcUaDi()`; both register the shared `DiAddressSpaceOwnership` marker and the
 second call throws with the name of the conflicting extension.
 
+Derived motion-device systems can enlist companion bindings with
+`system.WithRegistrationParticipant(participant)`. For example,
+`machineryContext.BindMachine(craneState, configure)` reuses Machinery
+identification and building blocks without adopting or registering the root a
+second time. See [externally registered Machinery bindings](Machinery.md#bindings-on-an-externally-registered-root).
+Participants must refer to the exact staged root and its manager. The Robotics
+scope prepares them before validation, registers the complete tree once, binds
+them afterward, and commits only after all fallible work succeeds. Cancellation,
+including cancellation after registration, unwinds uncommitted participants
+and the attempted tree without deleting an existing conflicting node.
+
 The two address-space shapes are separate but composable. OPC 40010 Robotics
 instances live below the DI `DeviceSet`; Robot Intent lives below
 `Server/RobotIntent` and exposes the command surface a client or MCP agent uses.

@@ -186,9 +186,9 @@ namespace Opc.Ua.Robotics.Server.Builders
             }
             finally
             {
-                if (!registrationSucceeded)
+                if (!registrationSucceeded && scope != null)
                 {
-                    scope?.Abort();
+                    await scope.AbortAsync().ConfigureAwait(false);
                 }
             }
         }
