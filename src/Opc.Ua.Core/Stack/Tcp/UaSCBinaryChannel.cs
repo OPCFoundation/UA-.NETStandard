@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1491,6 +1492,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private async Task RunWritesAsync()
         {
+            List<PendingWrite> batch = m_writeBatch;
             while (true)
             {
                 PendingWrite write;
@@ -1502,11 +1504,34 @@ namespace Opc.Ua.Bindings
                         return;
                     }
                     write = m_writeQueue.Dequeue();
+
+                    // Writes queued behind this one for the same transport go out
+                    // with it in one vectored send, when the transport is a stream.
+                    if (m_writeQueue.Count > 0 &&
+                        write.Transport is IUaSCChunkCoalescing coalescing &&
+                        coalescing.CanCoalesceChunks)
+                    {
+                        batch.Add(write);
+                        while (m_writeQueue.Count > 0 &&
+                            batch.Count < kMaxCoalescedWrites &&
+                            ReferenceEquals(m_writeQueue.Peek().Transport, write.Transport))
+                        {
+                            batch.Add(m_writeQueue.Dequeue());
+                        }
+                    }
                 }
 
-                Task pending = write.Buffers != null
-                    ? WriteBuffersAsync(write.Transport, write.Buffers, write.State)
-                    : WriteSingleChunkAsync(write.Transport, write.Chunk, write.BackingBuffer!, write.State);
+                Task pending;
+                if (batch.Count > 0)
+                {
+                    pending = WriteCoalescedAsync(write.Transport, batch);
+                }
+                else
+                {
+                    pending = write.Buffers != null
+                        ? WriteBuffersAsync(write.Transport, write.Buffers, write.State)
+                        : WriteSingleChunkAsync(write.Transport, write.Chunk, write.BackingBuffer!, write.State);
+                }
                 if (pending.IsCompleted)
                 {
                     // Observe a fault that escaped the write's own error handling, so
@@ -1663,6 +1688,88 @@ namespace Opc.Ua.Bindings
                     // Best-effort: a double-return throws but should not mask the write result.
                 }
                 ReportWriteComplete(null, state, sent, result);
+            }
+        }
+
+        /// <summary>
+        /// Sends several queued writes in one vectored send, then reports each
+        /// of them in order: with its own size when the send succeeded, and with
+        /// the error for all of them when it failed, since the bytes that reached
+        /// the transport cannot be attributed to a write.
+        /// </summary>
+        /// <param name="transport">The transport all writes in the batch target.</param>
+        /// <param name="batch">The writes, in queue order. Cleared on return.</param>
+        private async Task WriteCoalescedAsync(
+            IUaSCByteTransport transport,
+            List<PendingWrite> batch)
+        {
+            BufferCollection gathered = m_writeBatchBuffers;
+            ServiceResult result = ServiceResult.Good;
+            try
+            {
+                foreach (PendingWrite write in batch)
+                {
+                    if (write.Buffers != null)
+                    {
+                        gathered.AddRange(write.Buffers);
+                    }
+                    else
+                    {
+                        gathered.Add(GetSegment(write.Chunk));
+                    }
+                }
+                await transport.SendChunkAsync(gathered, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+            {
+                result = sre.Result;
+            }
+            catch (Exception ex)
+            {
+                result = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadTcpInternalError,
+                    "Unexpected error during write operation.");
+            }
+            finally
+            {
+                gathered.Clear();
+                bool good = ServiceResult.IsGood(result);
+                foreach (PendingWrite write in batch)
+                {
+                    int sent;
+                    if (write.Buffers != null)
+                    {
+                        sent = good ? write.Buffers.TotalSize : 0;
+                    }
+                    else
+                    {
+                        sent = good ? write.Chunk.Length : 0;
+                        try
+                        {
+                            if (write.BackingBuffer != null)
+                            {
+                                BufferManager.ReturnBuffer(write.BackingBuffer, "WriteChunkAsync");
+                            }
+                        }
+                        catch
+                        {
+                            // Best-effort, as in WriteSingleChunkAsync.
+                        }
+                    }
+                    ReportWriteComplete(write.Buffers, write.State, sent, result);
+                }
+                batch.Clear();
+            }
+
+            static ArraySegment<byte> GetSegment(ReadOnlyMemory<byte> chunk)
+            {
+                if (!MemoryMarshal.TryGetArray(chunk, out ArraySegment<byte> segment))
+                {
+                    // BeginWriteMessage always wraps an array.
+                    throw new InvalidOperationException("The chunk does not wrap an array.");
+                }
+                return segment;
             }
         }
 
@@ -2168,6 +2275,18 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_writeQueueLock = new();
         private readonly Queue<PendingWrite> m_writeQueue = new();
         private bool m_writerRunning;
+
+        /// <summary>
+        /// The most writes sent together in one vectored send.
+        /// </summary>
+        private const int kMaxCoalescedWrites = 16;
+
+        /// <summary>
+        /// The writes and the gathered segments of the current coalesced send,
+        /// used only by the single running writer.
+        /// </summary>
+        private readonly List<PendingWrite> m_writeBatch = [];
+        private readonly BufferCollection m_writeBatchBuffers = [];
         private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;

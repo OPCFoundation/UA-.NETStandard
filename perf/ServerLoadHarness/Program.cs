@@ -47,6 +47,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -301,25 +302,41 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             // classic: Session from the default session factory (classic subscription engine).
             // managed: ManagedSession with the default V2 subscription engine.
+            // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "classic");
-            ConfiguredEndpoint? managedEndpoint = clientKind == "managed"
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
+            var channelManager = new ClientChannelManager(client.Config, telemetry);
+            await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             var sessions = new ISession[sessionCount];
             var connectTime = Stopwatch.StartNew();
+            // Shared sessions connect one at a time by default: concurrent creation
+            // on one ClientChannelManager fails with BadSecureChannelClosed.
+            int connectParallel = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32;
             await Parallel.ForAsync(
                 0,
                 sessionCount,
-                new ParallelOptions { MaxDegreeOfParallelism = 32 },
-                async (i, ct) => sessions[i] = managedEndpoint != null
-                    ? await new ManagedSessionBuilder(client.Config, telemetry)
-                        .UseEndpoint(managedEndpoint)
+                new ParallelOptions { MaxDegreeOfParallelism = connectParallel },
+                async (i, ct) => sessions[i] = clientKind switch
+                {
+                    "managed" => await new ManagedSessionBuilder(client.Config, telemetry)
+                        .UseEndpoint(endpointForBuilder!)
                         .WithSessionTimeout(TimeSpan.FromSeconds(60))
                         .ConnectAsync(ct)
-                        .ConfigureAwait(false)
-                    : await client
+                        .ConfigureAwait(false),
+                    "shared" => await Session.CreateAsync(
+                            channelManager,
+                            client.Config,
+                            endpointForBuilder!,
+                            updateBeforeConnect: false,
+                            sessionName: "PerfShared",
+                            ct: ct)
+                        .ConfigureAwait(false),
+                    _ => await client
                         .ConnectAsync(new Uri(url), policy, selected)
-                        .ConfigureAwait(false))
+                        .ConfigureAwait(false)
+                })
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));

@@ -231,6 +231,32 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// A scheduler that completes the request and then throws must not complete it twice (#4729).
+        /// </summary>
+        [Test]
+        public async Task ProcessAsync_ScheduleCompletesThenThrows_KeepsFirstCompletionAsync()
+        {
+            using var server = new TestServer();
+            var expected = new ReadResponse();
+            server.OnScheduleIncomingRequest = (r) =>
+            {
+                r.OperationCompleted(expected, ServiceResult.Good);
+                throw new ObjectDisposedException("queue");
+            };
+
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader() };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            IServiceResponse response = await TestEndpointBase.ProcessAsyncLocal(incoming).ConfigureAwait(false);
+
+            Assert.That(response, Is.SameAs(expected));
+            Assert.DoesNotThrow(() => TestEndpointBase.OperationCompletedLocal(
+                incoming, null!, new ServiceResult(StatusCodes.BadServerHalted)));
+        }
+
         [Test]
         public async Task CallAsync_FindsServiceAndInvokesItAsync()
         {
