@@ -1,0 +1,2428 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
+    <Uri>http://opcfoundation.org/UA/SchemaRegistry/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/SchemaRegistry/" Version="0.9.0" PublicationDate="2026-10-09T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.06" PublicationDate="2025-11-08T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.10.0" PublicationDate="2026-09-29T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="Argument">i=296</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+  <UAObjectType NodeId="ns=2;i=62000" BrowseName="2:SchemaRegistryType">
+    <DisplayName>SchemaRegistryType</DisplayName>
+    <Description>The in-server Schema Registry root - an xRegistry RegistryType (a FolderType) whose group folders hold schema files. Adds SchemaId-based resolution (GetSchema and the Opaque SchemaId NodeId fast path). Exposed as a well-known object under the Server object; a server does not have to support PubSub to be a schema registry.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <Category>SREG-StructureMaterialization</Category>
+    <Category>SREG-XRegistryApi</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63000</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=62500</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=62501</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62670</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=2;i=62001" BrowseName="2:SchemaGroupType">
+    <DisplayName>SchemaGroupType</DisplayName>
+    <Description>An xRegistry GroupType keyed by an OPC UA namespace URI; a folder of schema files for the DataTypes and PublishedDataSets of that namespace.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <Category>SREG-Identity</Category>
+    <Category>SREG-StructureMaterialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63001</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62504</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=62505</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=2;i=62002" BrowseName="2:SchemaFileType">
+    <DisplayName>SchemaFileType</DisplayName>
+    <Description>An xRegistry ResourceType used for both a stable logical schema Resource and each exact schema Version. The logical Resource delegates its file and Version-view metadata to the selected default Version; each Version file holds one concrete schema document (Avro, Apache Arrow or JSON Schema). Adds the OPC UA schema-decoding metadata used by a consumer that resolves a schema from an on-wire fingerprint.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <Category>SREG-Identity</Category>
+    <Category>SREG-SchemaVersioning</Category>
+    <Category>SREG-TtlMirror</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63002</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62506</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62507</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62508</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62509</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62510</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62511</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62512</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62513</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62514</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62515</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62519</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=62526</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62671</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=62500" BrowseName="2:&lt;SchemaGroup&gt;" ParentNodeId="ns=2;i=62000">
+    <DisplayName>&lt;SchemaGroup&gt;</DisplayName>
+    <Description>A schema group folder (per OPC UA namespace) held by the registry.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=62001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=62000</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=2;i=62501" BrowseName="2:GetSchema" ParentNodeId="ns=2;i=62000">
+    <DisplayName>GetSchema</DisplayName>
+    <Description>Return the schema document and metadata for a raw on-wire SchemaId fingerprint (the method form of the Opaque SchemaId NodeId fast path). An unresolved SchemaId returns the Method Call StatusCode Bad_NotFound rather than an empty result.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=62000</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62502</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62503</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62502" BrowseName="InputArguments" ParentNodeId="ns=2;i=62501" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62501</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>SchemaId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=15</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Raw on-wire SchemaId fingerprint bytes.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62503" BrowseName="OutputArguments" ParentNodeId="ns=2;i=62501" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62501</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Document</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=15</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Schema document bytes.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Format</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>xRegistry format string.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ContentType</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Schema document media type.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62504" BrowseName="2:NamespaceUri" ParentNodeId="ns=2;i=62001" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceUri</DisplayName>
+    <Description>The OPC UA namespace URI represented by this schema group (the xRegistry group key). It is the group's source identity: the GroupId is the symbolic identifier constructed from it, and Name is this URI verbatim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62001</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=2;i=62505" BrowseName="2:&lt;Schema&gt;" ParentNodeId="ns=2;i=62001">
+    <DisplayName>&lt;Schema&gt;</DisplayName>
+    <Description>A schema file (one DataType/DataSet in one format) held by this group.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=62002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=62001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=2;i=62506" BrowseName="2:SchemaId" ParentNodeId="ns=2;i=62002" DataType="ByteString" ValueRank="-1">
+    <DisplayName>SchemaId</DisplayName>
+    <Description>Raw on-wire SchemaId fingerprint bytes, computed by the schema format's fingerprint provider (per-format and pluggable; defined for every format including JSON Schema). The schema file is additionally addressable by an Opaque NodeId whose identifier bytes are exactly this value.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62507" BrowseName="2:SchemaIdAlg" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>SchemaIdAlg</DisplayName>
+    <Description>SchemaId algorithm name identifying the (canonicalization, hash) used, such as CRC-64-AVRO (Avro), SHA-256/ApacheArrow (Arrow) or SHA-256/JCS (JSON Schema).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62508" BrowseName="2:DataTypeEncoding" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>DataTypeEncoding</DisplayName>
+    <Description>The OPC UA DataTypeEncoding name, for example Default Avro or Default Arrow.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62509" BrowseName="2:Compatibility" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>Compatibility</DisplayName>
+    <Description>xRegistry compatibility mode the schema's versions adhere to, such as NONE, BACKWARD, FORWARD or FULL. This is Resource-level metadata: it is identical across all versions of one schema, and a change that would break it starts a new schema rather than a new version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62510" BrowseName="2:IsDefault" ParentNodeId="ns=2;i=62002" DataType="Boolean" ValueRank="-1">
+    <DisplayName>IsDefault</DisplayName>
+    <Description>xRegistry isdefault: true for the schema's default version - the one served when no explicit version is selected. The default is usually the latest version but MAY be pinned to an earlier one (sticky default).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62511" BrowseName="2:Ancestor" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>Ancestor</DisplayName>
+    <Description>xRegistry ancestor: the versionid of the version this one derives from, establishing the version lineage. The root version's ancestor is its own VersionId.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62512" BrowseName="2:ModelVersion" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>ModelVersion</DisplayName>
+    <Description>OPC UA NodeSet model version label (opcua.modelversion).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62513" BrowseName="2:ConfigurationVersion" ParentNodeId="ns=2;i=62002" DataType="i=14593" ValueRank="-1">
+    <DisplayName>ConfigurationVersion</DisplayName>
+    <Description>PubSub DataSet schema profile only: the Part 14 ConfigurationVersion (opcua.configurationversion) when the schema describes a DataSet. Omitted for a non-PubSub schema registry.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62514" BrowseName="2:ExpiryTime" ParentNodeId="ns=2;i=62002" DataType="DateTime" ValueRank="-1">
+    <DisplayName>ExpiryTime</DisplayName>
+    <Description>Optional UTC expiry time for mirror/cache mode.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62515" BrowseName="2:Ttl" ParentNodeId="ns=2;i=62002" DataType="Duration" ValueRank="-1">
+    <DisplayName>Ttl</DisplayName>
+    <Description>Optional time-to-live for mirror/cache mode.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=2;i=62100" BrowseName="2:SchemaRegistry" ParentNodeId="i=2253">
+    <DisplayName>SchemaRegistry</DisplayName>
+    <Description>Server-wide in-server Schema Registry, a well-known component of the Server object. A server that supports PubSub may additionally reference this object from PublishSubscribe.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=62000</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2253</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=62516</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=2;i=62516" BrowseName="2:GetSchema" ParentNodeId="ns=2;i=62100" MethodDeclarationId="ns=2;i=62501">
+    <DisplayName>GetSchema</DisplayName>
+    <Description>Return the schema document and metadata for a raw on-wire SchemaId fingerprint. The functional method on the well-known SchemaRegistry object; an unresolved SchemaId returns the Method Call StatusCode Bad_NotFound.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=62100</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62517</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62518</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62517" BrowseName="InputArguments" ParentNodeId="ns=2;i=62516" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Category>SREG-SchemaDownload</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62516</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>SchemaId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=15</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Raw on-wire SchemaId fingerprint bytes.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62518" BrowseName="OutputArguments" ParentNodeId="ns=2;i=62516" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <Category>SREG-SchemaDownload</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62516</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Document</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=15</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Schema document bytes.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Format</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>xRegistry format string.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ContentType</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Schema document media type.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62519" BrowseName="2:SchemaName" ParentNodeId="ns=2;i=62002" DataType="String" ValueRank="-1">
+    <DisplayName>SchemaName</DisplayName>
+    <Description>The name of the subject this schema describes - the DataType BrowseName for a reference DataType schema, or the DataSetName for a PubSub DataSet schema. Together with Format it is the schema's source identity: the ResourceId is the symbolic identifier constructed from the pair, and it is invariant across the schema's versions. It is not the SchemaId, which fingerprints one version's document bytes.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=2;i=62520" BrowseName="2:http://opcfoundation.org/UA/SchemaRegistry/" ParentNodeId="i=11715">
+    <DisplayName>http://opcfoundation.org/UA/SchemaRegistry/</DisplayName>
+    <Description>Metadata for this namespace, as OPC 10000-5 requires a Server to publish it.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62521</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62522</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62523</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=62524</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=2;i=62521" BrowseName="2:NamespaceUri" ParentNodeId="ns=2;i=62520" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
+    </References>
+    <Value>
+      <uax:String>http://opcfoundation.org/UA/SchemaRegistry/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62522" BrowseName="2:NamespaceVersion" ParentNodeId="ns=2;i=62520" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
+    </References>
+    <Value>
+      <uax:String>0.9.0</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62523" BrowseName="2:NamespacePublicationDate" ParentNodeId="ns=2;i=62520" DataType="DateTime" ValueRank="-1">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
+    </References>
+    <Value>
+      <uax:DateTime>2026-10-09T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62524" BrowseName="2:IsNamespaceSubset" ParentNodeId="ns=2;i=62520" DataType="Boolean" ValueRank="-1">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
+    </References>
+    <Value>
+      <uax:Boolean>false</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=2;i=62003" BrowseName="2:SchemaVersionsType">
+    <DisplayName>SchemaVersionsType</DisplayName>
+    <Description>The typed Versions folder of a logical schema Resource. Every child is a SchemaFileType exact Version.</Description>
+    <Category>SREG-SchemaDownload</Category>
+    <Category>SREG-SchemaVersioning</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63025</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=62525</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=62525" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=62003">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>One exact schema Version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=62002</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=62003</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62526" BrowseName="2:Versions" ParentNodeId="ns=2;i=62002">
+    <DisplayName>Versions</DisplayName>
+    <Description>Overrides the inherited Versions component on a logical SchemaFileType so every exact Version is also a SchemaFileType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=62003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=62002</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62200" BrowseName="2:SchemaContentDataType" IsAbstract="true">
+    <DisplayName>SchemaContentDataType</DisplayName>
+    <Description>Abstract format-specific schema content. Does not change the source document bytes.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="SchemaContentDataType">
+      <Field Name="Format" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=2;i=62201" BrowseName="2:JsonSchemaNodeDataType" IsAbstract="true">
+    <DisplayName>JsonSchemaNodeDataType</DisplayName>
+    <Description>JSON Schema boolean or object node; subtypes retain keyword semantics.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+    </References>
+    <Definition Name="JsonSchemaNodeDataType" />
+  </UADataType>
+  <UADataType NodeId="ns=2;i=62202" BrowseName="2:JsonSchemaBooleanDataType">
+    <DisplayName>JsonSchemaBooleanDataType</DisplayName>
+    <Description>A JSON Schema boolean schema, not an empty object or a missing schema.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62201</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62600</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62601</Reference>
+    </References>
+    <Definition Name="JsonSchemaBooleanDataType">
+      <Field Name="Value" DataType="i=1">
+        <Description>Authored value; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62600" BrowseName="Default Binary" ParentNodeId="ns=2;i=62202">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62202</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62601" BrowseName="Default JSON" ParentNodeId="ns=2;i=62202">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62202</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62203" BrowseName="2:JsonSchemaNodeMapEntryDataType">
+    <DisplayName>JsonSchemaNodeMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62602</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62603</Reference>
+    </References>
+    <Definition Name="JsonSchemaNodeMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62602" BrowseName="Default Binary" ParentNodeId="ns=2;i=62203">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62203</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62603" BrowseName="Default JSON" ParentNodeId="ns=2;i=62203">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62203</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62204" BrowseName="2:JsonSchemaNodeMapDataType">
+    <DisplayName>JsonSchemaNodeMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62604</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62605</Reference>
+    </References>
+    <Definition Name="JsonSchemaNodeMapDataType">
+      <Field Name="Entries" DataType="ns=2;i=62203" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62604" BrowseName="Default Binary" ParentNodeId="ns=2;i=62204">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62204</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62605" BrowseName="Default JSON" ParentNodeId="ns=2;i=62204">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62204</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62205" BrowseName="2:JsonSchemaStringArrayMapEntryDataType">
+    <DisplayName>JsonSchemaStringArrayMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62606</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62607</Reference>
+    </References>
+    <Definition Name="JsonSchemaStringArrayMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62606" BrowseName="Default Binary" ParentNodeId="ns=2;i=62205">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62205</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62607" BrowseName="Default JSON" ParentNodeId="ns=2;i=62205">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62205</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62206" BrowseName="2:JsonSchemaStringArrayMapDataType">
+    <DisplayName>JsonSchemaStringArrayMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62608</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62609</Reference>
+    </References>
+    <Definition Name="JsonSchemaStringArrayMapDataType">
+      <Field Name="Entries" DataType="ns=2;i=62205" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62608" BrowseName="Default Binary" ParentNodeId="ns=2;i=62206">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62206</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62609" BrowseName="Default JSON" ParentNodeId="ns=2;i=62206">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62206</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62207" BrowseName="2:JsonSchemaObjectDataType">
+    <DisplayName>JsonSchemaObjectDataType</DisplayName>
+    <Description>JSON Schema 2020-12 standard keywords; unknown vocabularies stay in AdditionalFields.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62201</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62610</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62611</Reference>
+    </References>
+    <Definition Name="JsonSchemaObjectDataType">
+      <Field Name="Schema" DataType="i=12">
+        <Description>Authored $schema; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Id" DataType="i=12">
+        <Description>Authored $id; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Ref" DataType="i=12">
+        <Description>Authored $ref; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Anchor" DataType="i=12">
+        <Description>Authored $anchor; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="DynamicRef" DataType="i=12">
+        <Description>Authored $dynamicRef; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="DynamicAnchor" DataType="i=12">
+        <Description>Authored $dynamicAnchor; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Title" DataType="i=12">
+        <Description>Authored title; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=12">
+        <Description>Authored description; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Comment" DataType="i=12">
+        <Description>Authored $comment; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Format" DataType="i=12">
+        <Description>Authored format; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Pattern" DataType="i=12">
+        <Description>Authored pattern; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ContentEncoding" DataType="i=12">
+        <Description>Authored contentEncoding; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ContentMediaType" DataType="i=12">
+        <Description>Authored contentMediaType; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ReadOnly" DataType="i=1">
+        <Description>Authored readOnly; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="WriteOnly" DataType="i=1">
+        <Description>Authored writeOnly; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Deprecated" DataType="i=1">
+        <Description>Authored deprecated; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="UniqueItems" DataType="i=1">
+        <Description>Authored uniqueItems; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Type" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored type; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Const" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored const; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Default" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored default; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Minimum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minimum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Maximum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maximum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ExclusiveMinimum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored exclusiveMinimum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ExclusiveMaximum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored exclusiveMaximum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MultipleOf" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored multipleOf; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MinLength" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minLength; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MaxLength" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maxLength; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MinItems" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minItems; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MaxItems" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maxItems; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MinContains" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minContains; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MaxContains" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maxContains; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MinProperties" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minProperties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MaxProperties" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maxProperties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Enum" DataType="ns=1;i=67000" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored enum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Examples" DataType="ns=1;i=67000" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored examples; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Required" DataType="i=12" ValueRank="1">
+        <Description>Authored required; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Vocabulary" DataType="ns=1;i=67007" AllowSubTypes="true">
+        <Description>Authored $vocabulary; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="DependentRequired" DataType="ns=2;i=62206" AllowSubTypes="true">
+        <Description>Authored dependentRequired; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Defs" DataType="ns=2;i=62204" AllowSubTypes="true">
+        <Description>Authored $defs; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Properties" DataType="ns=2;i=62204" AllowSubTypes="true">
+        <Description>Authored properties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="PatternProperties" DataType="ns=2;i=62204" AllowSubTypes="true">
+        <Description>Authored patternProperties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="DependentSchemas" DataType="ns=2;i=62204" AllowSubTypes="true">
+        <Description>Authored dependentSchemas; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Items" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored items; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Contains" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored contains; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="AdditionalProperties" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored additionalProperties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="UnevaluatedItems" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored unevaluatedItems; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="UnevaluatedProperties" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored unevaluatedProperties; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="PropertyNames" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored propertyNames; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Not" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored not; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="If" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored if; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Then" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored then; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Else" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored else; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ContentSchema" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description>Authored contentSchema; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="AllOf" DataType="ns=2;i=62201" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored allOf; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="AnyOf" DataType="ns=2;i=62201" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored anyOf; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="OneOf" DataType="ns=2;i=62201" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored oneOf; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="PrefixItems" DataType="ns=2;i=62201" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored prefixItems; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62610" BrowseName="Default Binary" ParentNodeId="ns=2;i=62207">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62207</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62611" BrowseName="Default JSON" ParentNodeId="ns=2;i=62207">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62207</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62208" BrowseName="2:JsonSchemaContentDataType">
+    <DisplayName>JsonSchemaContentDataType</DisplayName>
+    <Description>A complete JSON Schema 2020-12 document.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62200</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62612</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62613</Reference>
+    </References>
+    <Definition Name="JsonSchemaContentDataType">
+      <Field Name="Root" DataType="ns=2;i=62201" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62612" BrowseName="Default Binary" ParentNodeId="ns=2;i=62208">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62208</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62613" BrowseName="Default JSON" ParentNodeId="ns=2;i=62208">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62208</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62209" BrowseName="2:AvroSchemaNodeDataType" IsAbstract="true">
+    <DisplayName>AvroSchemaNodeDataType</DisplayName>
+    <Description>Avro schema node. 0 is a name/primitive String, 1 a union, 2 an object declaration.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="AvroSchemaNodeDataType">
+      <Field Name="Kind" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=2;i=62210" BrowseName="2:AvroNameDataType">
+    <DisplayName>AvroNameDataType</DisplayName>
+    <Description>An Avro primitive or named reference; references are not expanded recursively.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62209</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62614</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62615</Reference>
+    </References>
+    <Definition Name="AvroNameDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62614" BrowseName="Default Binary" ParentNodeId="ns=2;i=62210">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62210</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62615" BrowseName="Default JSON" ParentNodeId="ns=2;i=62210">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62210</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62211" BrowseName="2:AvroUnionDataType">
+    <DisplayName>AvroUnionDataType</DisplayName>
+    <Description>Ordered Avro union branches.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62209</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62616</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62617</Reference>
+    </References>
+    <Definition Name="AvroUnionDataType">
+      <Field Name="Branches" DataType="ns=2;i=62209" ValueRank="1" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62616" BrowseName="Default Binary" ParentNodeId="ns=2;i=62211">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62211</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62617" BrowseName="Default JSON" ParentNodeId="ns=2;i=62211">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62211</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62212" BrowseName="2:AvroFieldDataType">
+    <DisplayName>AvroFieldDataType</DisplayName>
+    <Description>Avro field; explicit null default differs from no default.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62618</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62619</Reference>
+    </References>
+    <Definition Name="AvroFieldDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description>Authored name; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Type" DataType="ns=2;i=62209" AllowSubTypes="true">
+        <Description>Authored type; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Doc" DataType="i=12">
+        <Description>Authored doc; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Default" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored default; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Order" DataType="i=12">
+        <Description>Authored order; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Aliases" DataType="i=12" ValueRank="1">
+        <Description>Authored aliases; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62618" BrowseName="Default Binary" ParentNodeId="ns=2;i=62212">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62212</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62619" BrowseName="Default JSON" ParentNodeId="ns=2;i=62212">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62212</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62213" BrowseName="2:AvroDeclarationDataType">
+    <DisplayName>AvroDeclarationDataType</DisplayName>
+    <Description>Named, collection or logical Avro type declaration.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62620</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62621</Reference>
+    </References>
+    <Definition Name="AvroDeclarationDataType">
+      <Field Name="Type" DataType="ns=2;i=62209" AllowSubTypes="true">
+        <Description>Authored type; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Name" DataType="i=12">
+        <Description>Authored name; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Namespace" DataType="i=12">
+        <Description>Authored namespace; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Doc" DataType="i=12">
+        <Description>Authored doc; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Aliases" DataType="i=12" ValueRank="1">
+        <Description>Authored aliases; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Fields" DataType="ns=2;i=62212" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored fields; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Symbols" DataType="i=12" ValueRank="1">
+        <Description>Authored symbols; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Items" DataType="ns=2;i=62209" AllowSubTypes="true">
+        <Description>Authored items; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Values" DataType="ns=2;i=62209" AllowSubTypes="true">
+        <Description>Authored values; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Size" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored size; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="LogicalType" DataType="i=12">
+        <Description>Authored logicalType; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Precision" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored precision; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Scale" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored scale; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Default" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored default; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62620" BrowseName="Default Binary" ParentNodeId="ns=2;i=62213">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62213</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62621" BrowseName="Default JSON" ParentNodeId="ns=2;i=62213">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62213</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62214" BrowseName="2:AvroObjectDataType">
+    <DisplayName>AvroObjectDataType</DisplayName>
+    <Description>An Avro schema object, including custom properties.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62209</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62622</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62623</Reference>
+    </References>
+    <Definition Name="AvroObjectDataType">
+      <Field Name="Declaration" DataType="ns=2;i=62213" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62622" BrowseName="Default Binary" ParentNodeId="ns=2;i=62214">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62214</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62623" BrowseName="Default JSON" ParentNodeId="ns=2;i=62214">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62214</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62215" BrowseName="2:AvroSchemaContentDataType">
+    <DisplayName>AvroSchemaContentDataType</DisplayName>
+    <Description>Complete Avro 1.11 schema, preserving named references and union order.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62200</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62624</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62625</Reference>
+    </References>
+    <Definition Name="AvroSchemaContentDataType">
+      <Field Name="Root" DataType="ns=2;i=62209" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62624" BrowseName="Default Binary" ParentNodeId="ns=2;i=62215">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62215</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62625" BrowseName="Default JSON" ParentNodeId="ns=2;i=62215">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62215</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62216" BrowseName="2:ArrowKeyValueDataType">
+    <DisplayName>ArrowKeyValueDataType</DisplayName>
+    <Description>Binary Arrow metadata. Entries preserve order and repeated keys.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62626</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62627</Reference>
+    </References>
+    <Definition Name="ArrowKeyValueDataType">
+      <Field Name="Key" DataType="i=15">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="i=15">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62626" BrowseName="Default Binary" ParentNodeId="ns=2;i=62216">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62216</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62627" BrowseName="Default JSON" ParentNodeId="ns=2;i=62216">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62216</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62217" BrowseName="2:ArrowTypeDataType" IsAbstract="true">
+    <DisplayName>ArrowTypeDataType</DisplayName>
+    <Description>Abstract Arrow type. Each concrete family exposes its native type parameters.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="ArrowTypeDataType">
+      <Field Name="Kind" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=2;i=62218" BrowseName="2:ArrowPrimitiveTypeDataType">
+    <DisplayName>ArrowPrimitiveTypeDataType</DisplayName>
+    <Description>A parameter-free Arrow physical type by its canonical name.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62628</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62629</Reference>
+    </References>
+    <Definition Name="ArrowPrimitiveTypeDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62628" BrowseName="Default Binary" ParentNodeId="ns=2;i=62218">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62218</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62629" BrowseName="Default JSON" ParentNodeId="ns=2;i=62218">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62218</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62219" BrowseName="2:ArrowTemporalTypeDataType">
+    <DisplayName>ArrowTemporalTypeDataType</DisplayName>
+    <Description>Timestamp, time or duration parameters without a textual schema.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62630</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62631</Reference>
+    </References>
+    <Definition Name="ArrowTemporalTypeDataType">
+      <Field Name="Unit" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Timezone" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="HasTimezone" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62630" BrowseName="Default Binary" ParentNodeId="ns=2;i=62219">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62219</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62631" BrowseName="Default JSON" ParentNodeId="ns=2;i=62219">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62219</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62220" BrowseName="2:ArrowDecimalTypeDataType">
+    <DisplayName>ArrowDecimalTypeDataType</DisplayName>
+    <Description>Exact Arrow decimal parameters.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62632</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62633</Reference>
+    </References>
+    <Definition Name="ArrowDecimalTypeDataType">
+      <Field Name="Precision" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Scale" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="BitWidth" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62632" BrowseName="Default Binary" ParentNodeId="ns=2;i=62220">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62220</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62633" BrowseName="Default JSON" ParentNodeId="ns=2;i=62220">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62220</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62221" BrowseName="2:ArrowFixedBinaryTypeDataType">
+    <DisplayName>ArrowFixedBinaryTypeDataType</DisplayName>
+    <Description>Fixed-size binary width.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62634</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62635</Reference>
+    </References>
+    <Definition Name="ArrowFixedBinaryTypeDataType">
+      <Field Name="Width" DataType="i=6">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62634" BrowseName="Default Binary" ParentNodeId="ns=2;i=62221">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62221</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62635" BrowseName="Default JSON" ParentNodeId="ns=2;i=62221">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62221</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62222" BrowseName="2:ArrowFieldDataType">
+    <DisplayName>ArrowFieldDataType</DisplayName>
+    <Description>Arrow field, including exact metadata and nullability.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62636</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62637</Reference>
+    </References>
+    <Definition Name="ArrowFieldDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Nullable" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Type" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Metadata" DataType="ns=2;i=62216" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62636" BrowseName="Default Binary" ParentNodeId="ns=2;i=62222">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62222</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62637" BrowseName="Default JSON" ParentNodeId="ns=2;i=62222">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62222</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62223" BrowseName="2:ArrowListTypeDataType">
+    <DisplayName>ArrowListTypeDataType</DisplayName>
+    <Description>List, large list, fixed-size list or list-view element.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62638</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62639</Reference>
+    </References>
+    <Definition Name="ArrowListTypeDataType">
+      <Field Name="Size" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="Child" DataType="ns=2;i=62222">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62638" BrowseName="Default Binary" ParentNodeId="ns=2;i=62223">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62223</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62639" BrowseName="Default JSON" ParentNodeId="ns=2;i=62223">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62223</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62224" BrowseName="2:ArrowStructTypeDataType">
+    <DisplayName>ArrowStructTypeDataType</DisplayName>
+    <Description>Ordered Arrow Structure fields.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62640</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62641</Reference>
+    </References>
+    <Definition Name="ArrowStructTypeDataType">
+      <Field Name="Fields" DataType="ns=2;i=62222" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62640" BrowseName="Default Binary" ParentNodeId="ns=2;i=62224">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62224</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62641" BrowseName="Default JSON" ParentNodeId="ns=2;i=62224">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62224</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62225" BrowseName="2:ArrowMapTypeDataType">
+    <DisplayName>ArrowMapTypeDataType</DisplayName>
+    <Description>Map key/value fields, preserving their metadata.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62642</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62643</Reference>
+    </References>
+    <Definition Name="ArrowMapTypeDataType">
+      <Field Name="KeysSorted" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Key" DataType="ns=2;i=62222">
+        <Description />
+      </Field>
+      <Field Name="Item" DataType="ns=2;i=62222">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62642" BrowseName="Default Binary" ParentNodeId="ns=2;i=62225">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62225</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62643" BrowseName="Default JSON" ParentNodeId="ns=2;i=62225">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62225</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62226" BrowseName="2:ArrowUnionTypeDataType">
+    <DisplayName>ArrowUnionTypeDataType</DisplayName>
+    <Description>Dense or sparse union with stable ordered type codes.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62644</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62645</Reference>
+    </References>
+    <Definition Name="ArrowUnionTypeDataType">
+      <Field Name="Mode" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="TypeCodes" DataType="i=6" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Fields" DataType="ns=2;i=62222" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62644" BrowseName="Default Binary" ParentNodeId="ns=2;i=62226">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62226</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62645" BrowseName="Default JSON" ParentNodeId="ns=2;i=62226">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62226</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62227" BrowseName="2:ArrowDictionaryTypeDataType">
+    <DisplayName>ArrowDictionaryTypeDataType</DisplayName>
+    <Description>Dictionary index/value types, not dictionary data.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62646</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62647</Reference>
+    </References>
+    <Definition Name="ArrowDictionaryTypeDataType">
+      <Field Name="IndexType" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="ValueType" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Ordered" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62646" BrowseName="Default Binary" ParentNodeId="ns=2;i=62227">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62227</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62647" BrowseName="Default JSON" ParentNodeId="ns=2;i=62227">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62227</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62228" BrowseName="2:ArrowRunEndTypeDataType">
+    <DisplayName>ArrowRunEndTypeDataType</DisplayName>
+    <Description>Run-end encoded type parameters.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62648</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62649</Reference>
+    </References>
+    <Definition Name="ArrowRunEndTypeDataType">
+      <Field Name="RunEndType" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="ValueType" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62648" BrowseName="Default Binary" ParentNodeId="ns=2;i=62228">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62228</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62649" BrowseName="Default JSON" ParentNodeId="ns=2;i=62228">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62228</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62229" BrowseName="2:ArrowExtensionTypeDataType">
+    <DisplayName>ArrowExtensionTypeDataType</DisplayName>
+    <Description>Arrow extension identity, binary metadata and native storage type.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62650</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62651</Reference>
+    </References>
+    <Definition Name="ArrowExtensionTypeDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Metadata" DataType="i=15">
+        <Description />
+      </Field>
+      <Field Name="StorageType" DataType="ns=2;i=62217" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62650" BrowseName="Default Binary" ParentNodeId="ns=2;i=62229">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62229</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62651" BrowseName="Default JSON" ParentNodeId="ns=2;i=62229">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62229</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62230" BrowseName="2:ArrowSchemaContentDataType">
+    <DisplayName>ArrowSchemaContentDataType</DisplayName>
+    <Description>Complete Arrow schema content; record-batch data is not a schema.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62200</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62652</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62653</Reference>
+    </References>
+    <Definition Name="ArrowSchemaContentDataType">
+      <Field Name="Fields" DataType="ns=2;i=62222" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Metadata" DataType="ns=2;i=62216" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62652" BrowseName="Default Binary" ParentNodeId="ns=2;i=62230">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62230</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62653" BrowseName="Default JSON" ParentNodeId="ns=2;i=62230">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62230</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62231" BrowseName="2:ExtensionSchemaContentDataType">
+    <DisplayName>ExtensionSchemaContentDataType</DisplayName>
+    <Description>Uninterpreted JSON-compatible schema format, preserved natively.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62200</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62654</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62655</Reference>
+    </References>
+    <Definition Name="ExtensionSchemaContentDataType">
+      <Field Name="Root" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62654" BrowseName="Default Binary" ParentNodeId="ns=2;i=62231">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62231</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62655" BrowseName="Default JSON" ParentNodeId="ns=2;i=62231">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62231</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62232" BrowseName="2:SchemaReferenceDataType">
+    <DisplayName>SchemaReferenceDataType</DisplayName>
+    <Description>Explicit origin, schema entity, format and selected-object identity; never a fragment guess.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62656</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62657</Reference>
+    </References>
+    <Definition Name="SchemaReferenceDataType">
+      <Field Name="Entity" DataType="ns=1;i=67018">
+        <Description />
+      </Field>
+      <Field Name="EntityUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="SelectedObjectUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Selector" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Format" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="SchemaIdAlg" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="SchemaId" DataType="i=15">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62656" BrowseName="Default Binary" ParentNodeId="ns=2;i=62232">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62232</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62657" BrowseName="Default JSON" ParentNodeId="ns=2;i=62232">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62232</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62233" BrowseName="2:SchemaDocumentDataType">
+    <DisplayName>SchemaDocumentDataType</DisplayName>
+    <Description>One exact schema document revision and its native content.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62658</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62659</Reference>
+    </References>
+    <Definition Name="SchemaDocumentDataType">
+      <Field Name="Reference" DataType="ns=2;i=62232">
+        <Description />
+      </Field>
+      <Field Name="Epoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Content" DataType="ns=2;i=62200" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="HasConfigurationVersion" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="ConfigurationVersion" DataType="i=14593">
+        <Description />
+      </Field>
+      <Field Name="SelectedContent" DataType="i=22" AllowSubTypes="true">
+        <Description>The format-owned node selected by Reference.Selector inside the complete Content: a JSON Schema node, Avro declaration or Arrow field. Null without a selection; its references remain relative to Content.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62658" BrowseName="Default Binary" ParentNodeId="ns=2;i=62233">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62233</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62659" BrowseName="Default JSON" ParentNodeId="ns=2;i=62233">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62233</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62234" BrowseName="2:TypedSchemaReadResultDataType">
+    <DisplayName>TypedSchemaReadResultDataType</DisplayName>
+    <Description>Typed schema read outcome. Failure has no document.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62660</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62661</Reference>
+    </References>
+    <Definition Name="TypedSchemaReadResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="Document" DataType="ns=2;i=62233" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62660" BrowseName="Default Binary" ParentNodeId="ns=2;i=62234">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62234</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62661" BrowseName="Default JSON" ParentNodeId="ns=2;i=62234">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62234</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62235" BrowseName="2:TypedSchemaWriteRequestDataType">
+    <DisplayName>TypedSchemaWriteRequestDataType</DisplayName>
+    <Description>Typed schema registration/update with explicit identity and format.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62662</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62663</Reference>
+    </References>
+    <Definition Name="TypedSchemaWriteRequestDataType">
+      <Field Name="Reference" DataType="ns=2;i=62232">
+        <Description />
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Content" DataType="ns=2;i=62200" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62662" BrowseName="Default Binary" ParentNodeId="ns=2;i=62235">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62235</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62663" BrowseName="Default JSON" ParentNodeId="ns=2;i=62235">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62235</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=2;i=62400" BrowseName="2:NativeSchemaAccessType">
+    <DisplayName>NativeSchemaAccessType</DisplayName>
+    <Description>Native schema selection and registration. Schema document bytes remain available through FileType.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62664</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62667</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62687</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=2;i=62664" BrowseName="2:ReadSchema" ParentNodeId="ns=2;i=62400">
+    <DisplayName>ReadSchema</DisplayName>
+    <Description>Read the authorized native content of a schema without changing its bytes or fingerprint.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62665</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62666</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62665" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62664">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62664</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Reference</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62232</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Exact origin, entity/Version, format and object selection.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62666" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62664">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62664</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62234</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Typed content or explicit diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=2;i=62667" BrowseName="2:WriteSchema" ParentNodeId="ns=2;i=62400">
+    <DisplayName>WriteSchema</DisplayName>
+    <Description>Validate, serialize and atomically register native schema content; preserve existing Version semantics.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62668</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62669</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62668" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62667">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62667</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62235</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Native content and expected schema epoch.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62669" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62667">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62667</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62234</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Committed native schema or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=2;i=62670" BrowseName="2:TypedSchemas" ParentNodeId="ns=2;i=62000">
+    <DisplayName>TypedSchemas</DisplayName>
+    <Description>Conditionally Mandatory for SREG-NativeSchema.</Description>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62000</Reference>
+      <Reference ReferenceType="i=40">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=2;i=62671" BrowseName="2:NativeContent" DataType="ns=2;i=62233" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=2;i=62002">
+    <DisplayName>NativeContent</DisplayName>
+    <Description>Revision-bound native schema content; conditionally Mandatory for SREG-NativeSchema.</Description>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62002</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UADataType NodeId="ns=2;i=62300" BrowseName="2:ArrowIpcTypeDataType">
+    <DisplayName>ArrowIpcTypeDataType</DisplayName>
+    <Description>IPC physical type parameters. Kind is the Arrow union tag name. Inactive parameters use zero/empty values.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62217</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62672</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62673</Reference>
+    </References>
+    <Definition Name="ArrowIpcTypeDataType">
+      <Field Name="Code" DataType="i=7">
+        <Description>Arrow Type union tag from the pinned Schema.fbs.</Description>
+      </Field>
+      <Field Name="BitWidth" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="ByteWidth" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="IsSigned" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Precision" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="Scale" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="Unit" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="Timezone" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="HasTimezone" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Mode" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="TypeIds" DataType="i=6" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="HasTypeIds" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="ListSize" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="KeysSorted" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62672" BrowseName="Default Binary" ParentNodeId="ns=2;i=62300">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62300</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62673" BrowseName="Default JSON" ParentNodeId="ns=2;i=62300">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62300</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62301" BrowseName="2:ArrowIpcDictionaryDataType">
+    <DisplayName>ArrowIpcDictionaryDataType</DisplayName>
+    <Description>Dictionary identity and exact index-type presence. An absent index type means signed Int32.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62674</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62675</Reference>
+    </References>
+    <Definition Name="ArrowIpcDictionaryDataType">
+      <Field Name="Id" DataType="i=8">
+        <Description />
+      </Field>
+      <Field Name="HasIndexType" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="IndexBitWidth" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="IndexIsSigned" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Ordered" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="DictionaryKind" DataType="i=6">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62674" BrowseName="Default Binary" ParentNodeId="ns=2;i=62301">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62301</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62675" BrowseName="Default JSON" ParentNodeId="ns=2;i=62301">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62301</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62302" BrowseName="2:ArrowIpcFieldDataType">
+    <DisplayName>ArrowIpcFieldDataType</DisplayName>
+    <Description>One IPC field, including the physical Map/RunEnd children. An absent name differs from an empty name.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62676</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62677</Reference>
+    </References>
+    <Definition Name="ArrowIpcFieldDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="HasName" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Nullable" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Type" DataType="ns=2;i=62300" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Dictionary" DataType="ns=2;i=62301" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Children" DataType="ns=2;i=62302" ValueRank="1" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Metadata" DataType="ns=2;i=62216" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62676" BrowseName="Default Binary" ParentNodeId="ns=2;i=62302">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62302</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62677" BrowseName="Default JSON" ParentNodeId="ns=2;i=62302">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62302</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62303" BrowseName="2:ArrowIpcSchemaContentDataType">
+    <DisplayName>ArrowIpcSchemaContentDataType</DisplayName>
+    <Description>Complete Arrow IPC Schema message metadata, independent of extension registration and host byte order.</Description>
+    <Category>SREG-NativeSchema</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=2;i=62200</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62678</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62679</Reference>
+    </References>
+    <Definition Name="ArrowIpcSchemaContentDataType">
+      <Field Name="MetadataVersion" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Endianness" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Features" DataType="i=8" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Fields" DataType="ns=2;i=62302" ValueRank="1" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="Metadata" DataType="ns=2;i=62216" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="MessageMetadata" DataType="ns=2;i=62216" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62678" BrowseName="Default Binary" ParentNodeId="ns=2;i=62303">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62303</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62679" BrowseName="Default JSON" ParentNodeId="ns=2;i=62303">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62303</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62310" BrowseName="2:SchemaRegistrationDataType">
+    <DisplayName>SchemaRegistrationDataType</DisplayName>
+    <Description>Explicit source identities and exact Version admission. Default selection is requested explicitly.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62680</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62681</Reference>
+    </References>
+    <Definition Name="SchemaRegistrationDataType">
+      <Field Name="NamespaceUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="SchemaName" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Format" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="VersionId" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="EntityUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="ResourceUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MakeDefault" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62680" BrowseName="Default Binary" ParentNodeId="ns=2;i=62310">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62310</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62681" BrowseName="Default JSON" ParentNodeId="ns=2;i=62310">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62310</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62311" BrowseName="2:TypedSchemaRegistrationRequestDataType">
+    <DisplayName>TypedSchemaRegistrationRequestDataType</DisplayName>
+    <Description>Native content admission with independently authored namespace and schema subject identities.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62682</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62683</Reference>
+    </References>
+    <Definition Name="TypedSchemaRegistrationRequestDataType">
+      <Field Name="Registration" DataType="ns=2;i=62310">
+        <Description />
+      </Field>
+      <Field Name="Content" DataType="ns=2;i=62200" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62682" BrowseName="Default Binary" ParentNodeId="ns=2;i=62311">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62311</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62683" BrowseName="Default JSON" ParentNodeId="ns=2;i=62311">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62311</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=2;i=62684" BrowseName="2:RegisterSchema" ParentNodeId="ns=2;i=62400">
+    <DisplayName>RegisterSchema</DisplayName>
+    <Description>Register a native schema without reversing its symbolic identifier.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62685</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62686</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62685" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62684">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62311</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Explicit namespace, schema subject, Version and native content.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62686" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62684">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62234</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Committed exact Version or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=2;i=62687" BrowseName="2:BeginSchemaUpload" ParentNodeId="ns=2;i=62400">
+    <DisplayName>BeginSchemaUpload</DisplayName>
+    <Description>Stage raw schema bytes without changing a committed Version before Close.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62688</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62689</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62688" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62687">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62687</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Registration</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62310</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Explicit source identity, format and exact Version admission.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62689" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="2" ParentNodeId="ns=2;i=62687">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62687</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>UploadFile</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Session-owned temporary FileType staging node.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>FileHandle</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Write handle; Close validates and atomically commits the staged document.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+</UANodeSet>

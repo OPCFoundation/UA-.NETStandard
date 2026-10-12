@@ -1,5 +1,10 @@
 # Opc.Ua.XRegistry.Client
 
+`RegistrySnapshotClient` opens Session-bound native snapshot leases, exposes bounded subtree
+parts and reconstructs String/ByteString leaves without JSON or schema-document parsing.
+Supply the server's advertised SnapshotLimits; dispose the lease asynchronously to release
+the snapshot and its continuation points.
+
 The generic **xRegistry** registry client for OPC UA, built entirely on the **source-generated
 ObjectType proxies**. It talks to a registry hosted in an OPC UA server address space:
 

@@ -41,6 +41,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.AI.Client\Opc.Ua.AI.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.SchemaRegistry.Formats\Opc.Ua.SchemaRegistry.Formats.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.EndpointRegistry\Opc.Ua.EndpointRegistry.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
@@ -83,6 +85,9 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Opc.Ua.SchemaRegistry.Tests\Assets\*.ipc"
+          Link="RegistryFixtures\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Quickstarts.ReferenceServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

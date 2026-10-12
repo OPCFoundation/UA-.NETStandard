@@ -77,8 +77,54 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers atomic complete-state storage for native registry generations.
+        /// Existing registrations are retained and no registry host is activated.
+        /// </summary>
+        public static IServiceCollection AddXRegistryStateStore(
+            this IServiceCollection services,
+            int maxStateBytes = 16 * 1024 * 1024)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (maxStateBytes < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxStateBytes));
+            }
+            services.TryAddSingleton<IRegistryStateStore>(_ => new MemoryRegistryStateStore(maxStateBytes));
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a single-writer local-file complete-state provider.
+        /// Shared document files alone do not provide distributed metadata coordination.
+        /// </summary>
+        public static IServiceCollection AddXRegistryFileStateStore(
+            this IServiceCollection services,
+            string directory,
+            int maxStateBytes = 16 * 1024 * 1024)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                throw new ArgumentException("A registry state directory is required.", nameof(directory));
+            }
+            if (maxStateBytes < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxStateBytes));
+            }
+            services.TryAddSingleton<IRegistryStateStore>(_ => new FileRegistryStateStore(directory, maxStateBytes));
+            return services;
+        }
+
+        /// <summary>
         /// Registers a file-backed <see cref="IXRegistryResourceStore"/> so resource documents
-        /// outlive the server process and a shared volume can back a distributed deployment.
+        /// outlive the server process. Sharing these bytes does not coordinate registry metadata
+        /// or concurrent registry commits; those require an appropriate complete-state provider.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="rootPath">The directory that holds the resource documents.</param>

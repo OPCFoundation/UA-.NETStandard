@@ -1,0 +1,1708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "documentation": {
+      "type": "string"
+    },
+    "self": {
+      "type": "string"
+    },
+    "xid": {
+      "type": "string"
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdat": {
+      "type": "string"
+    },
+    "modifiedat": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "registryid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "specversion": {
+      "const": "1.0-rc4"
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "usage": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "subscriber",
+                "consumer",
+                "producer"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "channel": {
+            "type": "string"
+          },
+          "deprecated": {
+            "type": "object",
+            "properties": {
+              "effective": {
+                "type": "string"
+              },
+              "removal": {
+                "type": "string"
+              },
+              "alternative": {
+                "type": "string"
+              },
+              "docs": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": {}
+          },
+          "envelope": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "messagegroups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "self": {
+            "type": "string"
+          },
+          "xid": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdat": {
+            "type": "string"
+          },
+          "modifiedat": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "endpointid": {
+            "type": "string",
+            "minLength": 1
+          },
+          "messages": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "urn:opcfoundation:EndpointRegistry:0.2.0:message"
+            }
+          },
+          "messagescount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "messagesurl": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {},
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "envelope"
+              ],
+              "properties": {
+                "envelope": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Cc][Ll][Oo][Uu][Dd][Ee][Vv][Ee][Nn][Tt][Ss]/1\\.0$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "envelopeoptions": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "binary",
+                        "structured"
+                      ]
+                    },
+                    "format": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Aa][Mm][Qq][Pp]/1\\.0$"
+                    },
+                    {
+                      "pattern": "^[Aa][Mm][Qq][Pp]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "node": {
+                      "type": "string"
+                    },
+                    "durable": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "link-properties": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "connection-properties": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "distribution-mode": {
+                      "type": "string",
+                      "enum": [
+                        "move",
+                        "copy"
+                      ],
+                      "default": "move"
+                    },
+                    "connection-capabilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "node-capabilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "source-filters": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "dynamic": {
+                      "type": "boolean"
+                    },
+                    "terminus-durability": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "configuration",
+                        "unsettled-state"
+                      ]
+                    },
+                    "expiry-policy": {
+                      "type": "string",
+                      "enum": [
+                        "link-detach",
+                        "session-end",
+                        "connection-close",
+                        "never"
+                      ]
+                    },
+                    "timeout": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sender-settle-mode": {
+                      "type": "string",
+                      "enum": [
+                        "unsettled",
+                        "settled",
+                        "mixed"
+                      ]
+                    },
+                    "receiver-settle-mode": {
+                      "type": "string",
+                      "enum": [
+                        "first",
+                        "second"
+                      ]
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Mm][Qq][Tt][Tt]/5\\.0$"
+                    },
+                    {
+                      "pattern": "^[Mm][Qq][Tt][Tt]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "topic": {
+                      "type": "string"
+                    },
+                    "qos": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "enum": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "default": 0
+                    },
+                    "retain": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "topicfilter": {
+                      "type": "string"
+                    },
+                    "cleanstart": {
+                      "type": "boolean"
+                    },
+                    "sessionexpiryinterval": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sharedsubscriptiongroup": {
+                      "type": "string"
+                    },
+                    "nolocal": {
+                      "type": "boolean"
+                    },
+                    "retainaspublished": {
+                      "type": "boolean"
+                    },
+                    "retainhandling": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "enum": [
+                        0,
+                        1,
+                        2
+                      ]
+                    },
+                    "willtopic": {
+                      "type": "string"
+                    },
+                    "willmessage": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Mm][Qq][Tt][Tt]/3\\.1\\.1$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "topic": {
+                      "type": "string"
+                    },
+                    "qos": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "enum": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "default": 0
+                    },
+                    "retain": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "cleansession": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "topicfilter": {
+                      "type": "string"
+                    },
+                    "willtopic": {
+                      "type": "string"
+                    },
+                    "willmessage": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Hh][Tt][Tt][Pp]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "method": {
+                      "type": "string",
+                      "default": "POST"
+                    },
+                    "headers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true,
+                        "required": [
+                          "name"
+                        ]
+                      }
+                    },
+                    "query": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "apikeyname": {
+                      "type": "string"
+                    },
+                    "apikeyin": {
+                      "type": "string",
+                      "default": "header"
+                    },
+                    "plainscheme": {
+                      "type": "string",
+                      "default": "basic"
+                    },
+                    "plainusernamefield": {
+                      "type": "string"
+                    },
+                    "plainpasswordfield": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Kk][Aa][Ff][Kk][Aa]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "bootstrap.servers": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "security.protocol": {
+                            "type": "string",
+                            "default": "PLAINTEXT"
+                          },
+                          "sasl.mechanism": {
+                            "type": "string",
+                            "default": "PLAIN"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "topic": {
+                      "type": "string"
+                    },
+                    "acks": {
+                      "type": "integer",
+                      "default": 1
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "partition": {
+                      "type": "integer"
+                    },
+                    "consumergroup": {
+                      "type": "string"
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "keyserializer": {
+                      "type": "string",
+                      "default": "org.apache.kafka.common.serialization.StringSerializer"
+                    },
+                    "valueserializer": {
+                      "type": "string",
+                      "default": "org.apache.kafka.common.serialization.StringSerializer"
+                    },
+                    "autooffsetreset": {
+                      "type": "string",
+                      "enum": [
+                        "earliest",
+                        "latest",
+                        "none"
+                      ]
+                    },
+                    "enableautocommit": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Nn][Aa][Tt][Ss]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "subjectfilter": {
+                      "type": "string"
+                    },
+                    "queuegroup": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Ss][Rr][Tt]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "streamid": {
+                      "type": "string"
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Ww][Ee][Bb][Rr][Tt][Cc]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "signaling": {
+                      "type": "string",
+                      "enum": [
+                        "WHIP/RFC9725",
+                        "WHEP/draft-ietf-wish-whep-03",
+                        "external"
+                      ]
+                    },
+                    "signalingreference": {
+                      "type": "string"
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "srtp"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {},
+                  "required": [
+                    "signaling"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Tt][Ss][Pp]/1\\.0$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "rtp",
+                        "rtp-mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Tt][Ss][Pp]/2\\.0$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Tt][Pp]/2$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "sessiondescription": {
+                      "type": "string"
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "rtp",
+                        "rtp-mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Mm][Pp][Ee][Gg][Tt][Ss]\\-[Uu][Dd][Pp]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Tt][Mm][Pp]/1\\.0$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "application": {
+                      "type": "string"
+                    },
+                    "streamname": {
+                      "type": "string"
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "flv"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {},
+                  "required": [
+                    "application",
+                    "streamname"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Hh][Ll][Ss]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Dd][Aa][Ss][Hh]$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Ii][Ss][Tt]\\-[Ss][Ii][Mm][Pp][Ll][Ee]/2020$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "rtp-mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "protocol"
+              ],
+              "properties": {
+                "protocol": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[Rr][Ii][Ss][Tt]\\-[Mm][Aa][Ii][Nn]/2024$"
+                    }
+                  ]
+                }
+              }
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "protocoloptions": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "authorization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "mechanism": {
+                            "type": "string"
+                          },
+                          "resourceuri": {
+                            "type": "string"
+                          },
+                          "authorityuri": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "deployed": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "streamformat": {
+                      "type": "string",
+                      "enum": [
+                        "rtp-mpegts"
+                      ]
+                    },
+                    "videocodec": {
+                      "type": "string"
+                    },
+                    "audiocodec": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        ],
+        "required": [
+          "usage"
+        ]
+      }
+    },
+    "messagegroups": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "urn:opcfoundation:EndpointRegistry:0.2.0:messagegroup"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "registryid"
+  ]
+}

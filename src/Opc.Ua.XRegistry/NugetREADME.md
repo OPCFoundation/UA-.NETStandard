@@ -18,6 +18,10 @@ This package contains:
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
   replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+- The additive native value/document and snapshot contracts. `RegistryValues` converts
+  JSON compatibility documents to exact native values and compares committed value forms
+  without aliasing `1`, `1.0`, or signed zero. Importing these declarations does not claim
+  that a running registry implements the corresponding new facets.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

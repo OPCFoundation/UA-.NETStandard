@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Server
     /// <see cref="IServerInternal.NamespaceUris"/> but contains no
     /// predefined nodes.
     /// </remarks>
-    public sealed class PubSubNodeManager : AsyncCustomNodeManager
+    public sealed partial class PubSubNodeManager : AsyncCustomNodeManager, IPubSubConfigurationObserver
     {
         /// <summary>
         /// Vendor namespace URI registered by the PubSub server
@@ -230,7 +230,14 @@ namespace Opc.Ua.PubSub.Server
             BindMethods(diagnosticsNodeManager);
             RegisterActionMethodHandlers();
             m_diagnosticsNodeManager = diagnosticsNodeManager;
-            m_application.ConfigurationChanged += OnConfigurationChanged;
+            if (m_application is IPubSubConfigurationLifecycle lifecycle)
+            {
+                lifecycle.AddConfigurationObserver(this);
+            }
+            else
+            {
+                m_application.ConfigurationChanged += OnConfigurationChanged;
+            }
             await RebuildConfigurationAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
 
             if (m_application is PubSubApplication concrete &&
@@ -267,6 +274,11 @@ namespace Opc.Ua.PubSub.Server
                 m_statusBinding?.Dispose();
                 m_statusBinding = null;
                 m_application.ConfigurationChanged -= OnConfigurationChanged;
+                if (m_application is IPubSubConfigurationLifecycle lifecycle)
+                {
+                    lifecycle.RemoveConfigurationObserver(this);
+                }
+                m_viewGate.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -368,6 +380,21 @@ namespace Opc.Ua.PubSub.Server
         private async ValueTask RebuildConfigurationAddressSpaceAsync(
             CancellationToken cancellationToken)
         {
+            await m_viewGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await RetireConfigurationViewAsync().ConfigureAwait(false);
+                await RebuildConfigurationCoreAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_viewGate.Release();
+            }
+        }
+
+        private async ValueTask RebuildConfigurationCoreAsync(
+            CancellationToken cancellationToken)
+        {
             IDiagnosticsNodeManager? diagnosticsNodeManager = m_diagnosticsNodeManager;
             if (diagnosticsNodeManager is null)
             {
@@ -400,6 +427,7 @@ namespace Opc.Ua.PubSub.Server
             }
 
             var newRoots = new List<NodeState>();
+            var targets = new List<PubSubAddressSpaceTarget>();
             if (!configuration.Connections.IsNull)
             {
                 foreach (PubSubConnectionDataType connection in configuration.Connections)
@@ -426,6 +454,8 @@ namespace Opc.Ua.PubSub.Server
                             BindWriterGroupMethods(writerGroupNode);
                             AddStatusObject(writerGroupNode);
                             AddConfigurationVersion(writerGroupNode, m_application.ConfigurationVersion);
+                            targets.Add(new PubSubAddressSpaceTarget(writerGroupNode, connection, writerGroup, null, null,
+                                Server.NamespaceUris));
 
                             if (!writerGroup.DataSetWriters.IsNull)
                             {
@@ -441,6 +471,8 @@ namespace Opc.Ua.PubSub.Server
                                         new NodeId(15298u));
                                     AddStatusObject(writerNode);
                                     AddConfigurationVersion(writerNode, m_application.ConfigurationVersion);
+                                    targets.Add(new PubSubAddressSpaceTarget(writerNode, connection, writerGroup, writer, null,
+                                        Server.NamespaceUris));
                                 }
                             }
                         }
@@ -473,6 +505,8 @@ namespace Opc.Ua.PubSub.Server
                                         new NodeId(15306u));
                                     AddStatusObject(readerNode);
                                     AddConfigurationVersion(readerNode, m_application.ConfigurationVersion);
+                                    targets.Add(new PubSubAddressSpaceTarget(readerNode, connection, null, null, reader,
+                                        Server.NamespaceUris));
                                 }
                             }
                         }
@@ -534,6 +568,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 m_dynamicRoots.AddRange(newRoots);
             }
+            await ActivateConfigurationViewAsync(configuration, targets.ToArray()).ConfigureAwait(false);
         }
 
         private async ValueTask RebuildSecurityGroupAddressSpaceAsync(CancellationToken cancellationToken)

@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- OPC UA xRegistry abstract companion namespace. Draft NodeIds (final IDs assigned by the OPC Foundation). -->
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.6.0" PublicationDate="2026-09-05T00:00:00Z">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.10.0" PublicationDate="2026-09-29T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.06" PublicationDate="2025-11-08T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
@@ -32,7 +31,7 @@
   </Aliases>
   <UAObjectType NodeId="ns=1;i=63000" BrowseName="1:RegistryType">
     <DisplayName>RegistryType</DisplayName>
-    <Description>The abstract xRegistry root, expressed as a FolderType that organizes its Group objects. It creates groups through the CreateGroup Method; a group is removed with its own Delete Method. The physical backing may be a file-system directory, but the type is a plain organizing folder. Domain registries subtype this.</Description>
+    <Description>The abstract xRegistry root, expressed as a FolderType that organizes its Group objects. It creates groups through optional registration Methods; a group is removed with its own Delete Method when supported. The XREG-Registry server baseline requires readable SpecVersion and the authoritative raw Capabilities FileType, not merely a downloadable resource file. The physical backing may be a file-system directory, but the type is a plain organizing folder. Domain registries subtype this.</Description>
     <Category>XREG-Registry</Category>
     <Category>XREG-Events</Category>
     <References>
@@ -60,11 +59,14 @@
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63009</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63010</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63600</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=63603</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67589</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63001" BrowseName="1:GroupType">
     <DisplayName>GroupType</DisplayName>
-    <Description>An abstract xRegistry group, expressed as a FolderType that organizes stable logical Resource objects. It creates a Resource together with its first Version, and creates later Versions, through the CreateResource Method. It is removed with its own Delete Method. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
+    <Description>An abstract xRegistry group, expressed as a FolderType that organizes stable logical Resource objects. When registration is supported it creates a Resource together with its first Version, and creates later Versions, through CreateResource. Delete is also conditional on that facet. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
     <Category>XREG-Group</Category>
     <Category>XREG-Identity</Category>
     <Category>XREG-Events</Category>
@@ -88,6 +90,11 @@
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63014</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63015</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63604</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=63620</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63621</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63622</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63623</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63002" BrowseName="1:ResourceType">
@@ -127,6 +134,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63587</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63588</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=63590</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63593</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63003" BrowseName="1:AttributesType">
@@ -167,7 +175,64 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63501</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Value</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute value.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Key</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Attribute (or label) name.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Value</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Attribute value.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ExpectedEpoch</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63503" BrowseName="1:RemoveAttribute" ParentNodeId="ns=1;i=63003">
     <DisplayName>RemoveAttribute</DisplayName>
@@ -186,18 +251,85 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63503</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Key</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Attribute (or label) name.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Key</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Attribute (or label) name.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ExpectedEpoch</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Expected current applicable change counter (Epoch or MetaEpoch) for optimistic concurrency; 0 disables the check.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UADataType NodeId="ns=1;i=63004" BrowseName="1:RegistryCapabilitiesDataType">
     <DisplayName>RegistryCapabilitiesDataType</DisplayName>
-    <Description>The typed form of the xRegistry capabilities document (xRegistry /capabilities), whose fields have a fixed schema in the xRegistry core specification. Read as a single Variant value from RegistryType.CapabilitiesInfo, in addition to the raw JSON exposed by the Capabilities FileType. Additional/vendor capability keys that are not among these fixed fields remain available through the Capabilities FileType JSON.</Description>
+    <Description>An explicitly partial, application-supplied convenience view with a frozen nine-field layout. It is not the canonical xRegistry capabilities schema. A successful CapabilitiesInfo read requires truthful values for every field in the same revision and authorization view; otherwise omit it or report unavailable. Never infer StickyVersions or EnforceCompatibility from supported formats or version modes. The Capabilities FileType remains authoritative; CapabilitiesSnapshot maps all ten standard source fields.</Description>
     <Category>XREG-Capabilities</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=63505</Reference>
       <Reference ReferenceType="HasEncoding">ns=1;i=63506</Reference>
     </References>
-    <Definition Name="RegistryCapabilitiesDataType"><Field Name="Flags" DataType="i=12" ValueRank="1"><Description>The request flags the registry supports (e.g. doc, epoch, filter, inline, sort).</Description></Field><Field Name="Mutable" DataType="i=12" ValueRank="1"><Description>Which parts of the registry are mutable (e.g. capabilities, model, entities).</Description></Field><Field Name="Pagination" DataType="i=1"><Description>Whether the registry supports pagination of collections.</Description></Field><Field Name="ShortSelf" DataType="i=1"><Description>Whether the registry offers a shortself alias for entity self URLs.</Description></Field><Field Name="SpecVersions" DataType="i=12" ValueRank="1"><Description>The xRegistry specification versions the registry supports.</Description></Field><Field Name="StickyVersions" DataType="i=1"><Description>Whether the registry keeps the default version sticky across updates.</Description></Field><Field Name="EnforceCompatibility" DataType="i=1"><Description>Whether the registry enforces version compatibility on updates.</Description></Field><Field Name="Apis" DataType="i=12" ValueRank="1"><Description>The additional API endpoints the registry offers (e.g. /export).</Description></Field><Field Name="Schemas" DataType="i=12" ValueRank="1"><Description>The schema formats the registry can validate against (schema-domain registries).</Description></Field></Definition>
+    <Definition Name="RegistryCapabilitiesDataType">
+      <Field Name="Flags" DataType="i=12" ValueRank="1">
+        <Description>The request flags the registry supports (e.g. doc, epoch, filter, inline, sort).</Description>
+      </Field>
+      <Field Name="Mutable" DataType="i=12" ValueRank="1">
+        <Description>Which parts of the registry are mutable (e.g. capabilities, model, entities).</Description>
+      </Field>
+      <Field Name="Pagination" DataType="i=1">
+        <Description>Whether the registry supports pagination of collections.</Description>
+      </Field>
+      <Field Name="ShortSelf" DataType="i=1">
+        <Description>Whether the registry offers a shortself alias for entity self URLs.</Description>
+      </Field>
+      <Field Name="SpecVersions" DataType="i=12" ValueRank="1">
+        <Description>The xRegistry specification versions the registry supports.</Description>
+      </Field>
+      <Field Name="StickyVersions" DataType="i=1">
+        <Description>Whether the registry keeps the default version sticky across updates.</Description>
+      </Field>
+      <Field Name="EnforceCompatibility" DataType="i=1">
+        <Description>Whether the registry enforces version compatibility on updates.</Description>
+      </Field>
+      <Field Name="Apis" DataType="i=12" ValueRank="1">
+        <Description>The additional API endpoints the registry offers (e.g. /export).</Description>
+      </Field>
+      <Field Name="Schemas" DataType="i=12" ValueRank="1">
+        <Description>The schema formats the registry can validate against (schema-domain registries).</Description>
+      </Field>
+    </Definition>
   </UADataType>
   <UAObject NodeId="ns=1;i=63505" BrowseName="Default Binary" ParentNodeId="ns=1;i=63004">
     <DisplayName>Default Binary</DisplayName>
@@ -224,7 +356,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63508" BrowseName="1:SpecVersion" ParentNodeId="ns=1;i=63000" DataType="String" ValueRank="-1">
     <DisplayName>SpecVersion</DisplayName>
-    <Description>The xRegistry specification version this registry conforms to.</Description>
+    <Description>The xRegistry specification version. Readable and conditionally Mandatory for the XREG-Registry server baseline.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -233,7 +365,7 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=63509" BrowseName="1:Capabilities" ParentNodeId="ns=1;i=63000">
     <DisplayName>Capabilities</DisplayName>
-    <Description>The registry capabilities document (xRegistry /capabilities): a FileType whose content is the capabilities JSON, read with the inherited Open/Read/Close Methods (so an arbitrarily large document is not bounded by MaxStringLength).</Description>
+    <Description>The registry capabilities document (xRegistry /capabilities): a FileType whose content is the capabilities JSON, read with the inherited Open/Read/Close Methods (so an arbitrarily large document is not bounded by MaxStringLength). Readable and conditionally Mandatory for XREG-Registry. The raw document is authoritative for its committed revision and authorization view; canonical typed reporting is a separate optional facet.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=11575</Reference>
@@ -251,7 +383,7 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=63511" BrowseName="1:CapabilitiesInfo" ParentNodeId="ns=1;i=63000" DataType="ns=1;i=63004" ValueRank="-1">
     <DisplayName>CapabilitiesInfo</DisplayName>
-    <Description>The typed form of the registry capabilities (RegistryCapabilitiesDataType), read as a single Variant value, in addition to the raw JSON of the Capabilities FileType.</Description>
+    <Description>Optional partial application-supplied RegistryCapabilitiesDataType convenience value, not a canonical schema mapping. Return success only with truthful complete field values for this capability revision and authorization view; otherwise omit or report unavailable. No fabricated default values.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -357,7 +489,28 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63521</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The groupid of the group to create.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>GroupId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The groupid of the group to create.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63523" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63521" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
@@ -366,7 +519,28 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63521</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created group Object.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>GroupNodeId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>NodeId of the created group Object.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63524" BrowseName="1:GetOrCreateGroup" ParentNodeId="ns=1;i=63000">
     <DisplayName>GetOrCreateGroup</DisplayName>
@@ -386,7 +560,28 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63524</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The groupid to get or create.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>GroupId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The groupid to get or create.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63526" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63524" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
@@ -395,11 +590,50 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63524</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created group Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the group was created, false if it already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>GroupNodeId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>NodeId of the existing or newly created group Object.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Created</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=1</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>True if the group was created, false if it already existed.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63527" BrowseName="1:GroupId" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1">
     <DisplayName>GroupId</DisplayName>
-    <Description>xRegistry groupid: the symbolic identifier of this group, constructed from the group's source identity (the group key) by the reverse-authority construction of the specification. Group identifiers are globally unique for federation.</Description>
+    <Description>xRegistry groupid: the durable symbolic identifier of this group within its registry, allocated from the group's exact source authority. It is not globally unique; federation identity also includes the trusted origin registry.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -505,7 +739,64 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63537</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The resourceid of the resource.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the version to create; empty to let the server assign the next versionid per the registry model.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestFileOpen</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>If true, the new resource file is opened for writing and a FileHandle is returned.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ResourceId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The resourceid of the resource.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>VersionId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The versionid of the version to create; empty to let the server assign the next versionid per the registry model.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>RequestFileOpen</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=1</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>If true, the new resource file is opened for writing and a FileHandle is returned.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63539" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63537" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
@@ -514,7 +805,64 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63537</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created Version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid assigned to the created version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ResourceNodeId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>NodeId of the created Version Object.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>AssignedVersionId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The versionid assigned to the created version.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>FileHandle</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Write handle when RequestFileOpen is true; otherwise 0.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63540" BrowseName="1:GetOrCreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>GetOrCreateResource</DisplayName>
@@ -534,7 +882,64 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63540</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The resourceid to get or create.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to get or create; empty selects or creates the default version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestFileOpen</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>If true, the resource file is opened for writing and a FileHandle is returned.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ResourceId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The resourceid to get or create.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>VersionId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The versionid to get or create; empty selects or creates the default version.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>RequestFileOpen</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=1</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>If true, the resource file is opened for writing and a FileHandle is returned.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63542" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63540" DataType="Argument" ValueRank="1" ArrayDimensions="4">
     <DisplayName>OutputArguments</DisplayName>
@@ -543,7 +948,82 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63540</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created Version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the returned version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the exact Version was created (with its logical Resource when new); false if that Version already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ResourceNodeId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>NodeId of the existing or newly created Version Object.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>AssignedVersionId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=12</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>The versionid of the returned version.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>FileHandle</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Write handle when RequestFileOpen is true; otherwise 0.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Created</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=1</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>True if the exact Version was created (with its logical Resource when new); false if that Version already existed.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63543" BrowseName="1:Delete" ParentNodeId="ns=1;i=63001">
     <DisplayName>Delete</DisplayName>
@@ -562,7 +1042,28 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63543</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the group for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ExpectedEpoch</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Expected current Epoch of the group for optimistic concurrency; 0 disables the check.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63545" BrowseName="1:ResourceId" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>ResourceId</DisplayName>
@@ -602,7 +1103,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63549" BrowseName="1:ExternalReference" ParentNodeId="ns=1;i=63002" DataType="ExpandedNodeId" ValueRank="-1">
     <DisplayName>ExternalReference</DisplayName>
-    <Description>Federation link: an ExpandedNodeId identifying this resource in another (possibly remote) registry - the ServerUri identifies the hosting registry endpoint, the NamespaceUri and Identifier identify the group and resource. Present when the document is served by reference (xRegistry &lt;RESOURCE&gt;url).</Description>
+    <Description>Federation target identity, not a transport locator. On a logical proxy this identifies the remote logical Resource Object of FileType or a subtype, never a content-digest Variable. ServerIndex resolves through ServerArray to the logical ApplicationUri; NamespaceUri and Identifier identify the remote Node. An exact Version reference retains its explicit Version role and the logical owner's OriginRegistry.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -611,7 +1112,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63550" BrowseName="1:ResourceUrl" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>ResourceUrl</DisplayName>
-    <Description>Federation link (string form): the URL from which the document can be obtained (xRegistry &lt;RESOURCE&gt;url), for example an opc.tcp endpoint plus browse path, or an HTTP URL.</Description>
+    <Description>An authorized discoverable transport locator (xRegistry &lt;RESOURCE&gt;url), for example an OPC UA endpoint or HTTP resource URL. It is not the logical ApplicationUri, registry identity or authority to fetch; endpoint relocation does not change OriginRegistry or the remote Resource identity.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -707,7 +1208,28 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63559</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected MetaEpoch for a logical Resource or Epoch for a Version; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ExpectedEpoch</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Expected MetaEpoch for a logical Resource or Epoch for a Version; 0 disables the check.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=63561" BrowseName="1:http://opcfoundation.org/UA/xRegistry/" ParentNodeId="i=11715">
     <DisplayName>http://opcfoundation.org/UA/xRegistry/</DisplayName>
@@ -727,7 +1249,9 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:String>http://opcfoundation.org/UA/xRegistry/</uax:String></Value>
+    <Value>
+      <uax:String>http://opcfoundation.org/UA/xRegistry/</uax:String>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63563" BrowseName="1:NamespaceVersion" ParentNodeId="ns=1;i=63561" DataType="String" ValueRank="-1">
     <DisplayName>NamespaceVersion</DisplayName>
@@ -735,7 +1259,9 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:String>0.6.0</uax:String></Value>
+    <Value>
+      <uax:String>0.10.0</uax:String>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63564" BrowseName="1:NamespacePublicationDate" ParentNodeId="ns=1;i=63561" DataType="DateTime" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
@@ -743,7 +1269,9 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:DateTime>2026-09-05T00:00:00Z</uax:DateTime></Value>
+    <Value>
+      <uax:DateTime>2026-09-29T00:00:00Z</uax:DateTime>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63565" BrowseName="1:IsNamespaceSubset" ParentNodeId="ns=1;i=63561" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
@@ -751,7 +1279,9 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63561</Reference>
     </References>
-    <Value><uax:Boolean>false</uax:Boolean></Value>
+    <Value>
+      <uax:Boolean>false</uax:Boolean>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63566" BrowseName="1:EventSourceUrl" ParentNodeId="ns=1;i=63000" DataType="UriString" ValueRank="-1">
     <DisplayName>EventSourceUrl</DisplayName>
@@ -1166,4 +1696,2722 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63002</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="ns=1;i=63026" BrowseName="1:RegistryOriginDataType">
+    <DisplayName>RegistryOriginDataType</DisplayName>
+    <Description>Immutable origin-registry authority. Exactly one form is selected: a configured/verified stable OriginUri, or a trusted logical ApplicationUri plus portable registry-root NodeId. URI identity is compared exactly; a change creates a different source, not a transparent reconnect.</Description>
+    <Category>XREG-Federation</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63591</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63592</Reference>
+    </References>
+    <Definition Name="RegistryOriginDataType">
+      <Field Name="OriginUri" DataType="i=23751">
+        <Description>A non-empty configured/verified stable origin URI, with the other fields empty/null; otherwise empty and the complete ServerUri/RegistryNodeId pair is authoritative.</Description>
+      </Field>
+      <Field Name="ServerUri" DataType="i=23751">
+        <Description>The trusted logical ApplicationUri for the paired form, not an endpoint URL. Empty in the stable OriginUri form.</Description>
+      </Field>
+      <Field Name="RegistryNodeId" DataType="i=18">
+        <Description>The portable registry-root NodeId for the paired form, in ServerUri's application; null in the stable OriginUri form. A session-local namespace/server index is not durable identity.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63591" BrowseName="Default Binary" ParentNodeId="ns=1;i=63026">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63026</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63592" BrowseName="Default JSON" ParentNodeId="ns=1;i=63026">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63026</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63593" BrowseName="1:OriginRegistry" ParentNodeId="ns=1;i=63002" DataType="ns=1;i=63026" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>OriginRegistry</DisplayName>
+    <Description>The immutable trusted origin registry of this local logical proxy or mirror. Conditionally Mandatory when the corrected XREG-Federation contract is supported. Resource-scoped with ExternalReference, not delegated through the selected default Version. Exact mirrored Versions use their logical owner's origin; ordinary local Resources and Versions do not instantiate a redundant copy.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63002</Reference>
+    </References>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=63027" BrowseName="1:RegistryAvailableCapabilityDataType">
+    <DisplayName>RegistryAvailableCapabilityDataType</DisplayName>
+    <Description>One canonical available map entry. Additional nested extension attributes remain in the authoritative raw Capabilities document, not in invented typed fields.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63594</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63595</Reference>
+    </References>
+    <Definition Name="RegistryAvailableCapabilityDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description>The exact available map key; deterministic entries use ordinal String ordering.</Description>
+      </Field>
+      <Field Name="Mutable" DataType="i=1">
+        <Description>The entry's explicit mutable Boolean, without inference or default substitution.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63594" BrowseName="Default Binary" ParentNodeId="ns=1;i=63027">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63027</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63595" BrowseName="Default JSON" ParentNodeId="ns=1;i=63027">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63027</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=63028" BrowseName="1:RegistryCompatibilityCapabilityDataType">
+    <DisplayName>RegistryCompatibilityCapabilityDataType</DisplayName>
+    <Description>One canonical compatibilities map entry; format support is not an enforcement-enabled Boolean.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63596</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63597</Reference>
+    </References>
+    <Definition Name="RegistryCompatibilityCapabilityDataType">
+      <Field Name="Format" DataType="i=12">
+        <Description>The exact compatibilities map key; deterministic entries use ordinal String ordering.</Description>
+      </Field>
+      <Field Name="Rules" DataType="i=12" ValueRank="1">
+        <Description>The exact rules array for this format, preserving spelling, values and order.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63596" BrowseName="Default Binary" ParentNodeId="ns=1;i=63028">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63028</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63597" BrowseName="Default JSON" ParentNodeId="ns=1;i=63028">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63028</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=63029" BrowseName="1:RegistryCapabilitiesSnapshotDataType">
+    <DisplayName>RegistryCapabilitiesSnapshotDataType</DisplayName>
+    <Description>Canonical standard-field StructureWithOptionalFields in source-schema field order. The raw Capabilities FileType and this snapshot represent the same committed revision and authorization view. Only map entries are sorted; values and array order are preserved. Unknown and nested extension content stays in the raw bytes.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63598</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63599</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesSnapshotDataType">
+      <Field Name="Available" DataType="ns=1;i=63027" ValueRank="1">
+        <Description>The required available map, including entities; retain every explicit Mutable value.</Description>
+      </Field>
+      <Field Name="Compatibilities" DataType="ns=1;i=63028" ValueRank="1" IsOptional="true">
+        <Description>Present only when compatibilities exists in the raw document.</Description>
+      </Field>
+      <Field Name="Flags" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The flags array, present only when the source key exists.</Description>
+      </Field>
+      <Field Name="Formats" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The formats array; it does not imply compatibility enforcement.</Description>
+      </Field>
+      <Field Name="Ignores" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The ignores array, distinct from flags and mutable.</Description>
+      </Field>
+      <Field Name="Mutable" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The mutable array, distinct from each available entry's Mutable Boolean.</Description>
+      </Field>
+      <Field Name="Pagination" DataType="i=1" IsOptional="true">
+        <Description>Explicit pagination; absence is not replaced by false.</Description>
+      </Field>
+      <Field Name="ShortSelf" DataType="i=1" IsOptional="true">
+        <Description>Explicit shortself; absence is not replaced by false.</Description>
+      </Field>
+      <Field Name="SpecVersions" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The specversions array, without inventing absent values.</Description>
+      </Field>
+      <Field Name="VersionModes" DataType="i=12" ValueRank="1" IsOptional="true">
+        <Description>The versionmodes array; it does not imply sticky default selection.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63598" BrowseName="Default Binary" ParentNodeId="ns=1;i=63029">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63029</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63599" BrowseName="Default JSON" ParentNodeId="ns=1;i=63029">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63029</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63600" BrowseName="1:CapabilitiesSnapshot" ParentNodeId="ns=1;i=63000" DataType="ns=1;i=63029" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>CapabilitiesSnapshot</DisplayName>
+    <Description>Read-only canonical standard-field snapshot, conditionally Mandatory for XREG-Capabilities. Optional-field presence mirrors the raw Capabilities document, with the same committed revision and authorization view. Unavailable or oversized typed values fail explicitly; the authoritative raw FileType remains readable.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63000</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=63030" BrowseName="1:GroupCollectionType">
+    <DisplayName>GroupCollectionType</DisplayName>
+    <Description>A collection view that organizes Groups of one model collection. It is not an xRegistry entity and has no Xid, epoch or registry identity.</Description>
+    <Category>XREG-Collections</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63601</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=63602</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=63601" BrowseName="1:CollectionName" ParentNodeId="ns=1;i=63030" DataType="String" ValueRank="-1">
+    <DisplayName>CollectionName</DisplayName>
+    <Description>The exact plural model collection name. Group identity includes this name.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63030</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=63602" BrowseName="1:&lt;Group&gt;" ParentNodeId="ns=1;i=63030">
+    <DisplayName>&lt;Group&gt;</DisplayName>
+    <Description>A Group in this named collection, with BrowseName equal to GroupId.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63001</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=63030</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63603" BrowseName="1:&lt;GroupCollection&gt;" ParentNodeId="ns=1;i=63000">
+    <DisplayName>&lt;GroupCollection&gt;</DisplayName>
+    <Description>An optional named collection view. Existing direct single-collection layouts remain valid.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63030</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=63000</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63604" BrowseName="1:CollectionName" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1">
+    <DisplayName>CollectionName</DisplayName>
+    <Description>Exact plural collection name, conditionally Mandatory for XREG-Collections. Equal GroupIds in different collections identify different Groups.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63001</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=63031" BrowseName="1:MetadataResourceType">
+    <DisplayName>MetadataResourceType</DisplayName>
+    <Description>An opt-in metadata-only, single-retained-version Resource. It is not a FileType and has no Resource document. Metadata exports the complete admitted Resource JSON; it is a representation, not a message payload. ResourceType and its document registration Methods are unchanged.</Description>
+    <Category>XREG-MetadataResource</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63605</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63606</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63607</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63608</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63609</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63610</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63611</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63612</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63613</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=63614</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63615</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63616</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=63617</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=63618</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=63605" BrowseName="1:ResourceId" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>ResourceId</DisplayName>
+    <Description>The stable Resource identifier within its collection-qualified Group.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63606" BrowseName="1:HasDocument" ParentNodeId="ns=1;i=63031" DataType="Boolean" ValueRank="-1">
+    <DisplayName>HasDocument</DisplayName>
+    <Description>Always false. This Resource has no upstream document.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+    <Value>
+      <uax:Boolean>false</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63607" BrowseName="1:MaxVersions" ParentNodeId="ns=1;i=63031" DataType="UInt32" ValueRank="-1">
+    <DisplayName>MaxVersions</DisplayName>
+    <Description>Always 1. The model retains one metadata Version, not a history.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+    <Value>
+      <uax:UInt32>1</uax:UInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63608" BrowseName="1:VersionId" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>VersionId</DisplayName>
+    <Description>The identifier of the sole retained metadata Version when supplied. Never fabricate a history.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63609" BrowseName="1:Xid" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>Xid</DisplayName>
+    <Description>xRegistry relative identifier (xid): the entity's stable path within the registry, independent of the hosting endpoint.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63610" BrowseName="1:Epoch" ParentNodeId="ns=1;i=63031" DataType="UInt32" ValueRank="-1">
+    <DisplayName>Epoch</DisplayName>
+    <Description>xRegistry epoch: a counter that increments on every change to the entity.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63611" BrowseName="1:Name" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>Name</DisplayName>
+    <Description>Human-readable name of the entity, and the source of its DisplayName. Where the entity's source identity is itself readable - a namespace URI, an authored asset identifier - Name is that identity verbatim, so a Client that shows only an identifier and a name still shows something a human recognizes.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63612" BrowseName="1:Description" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>Description</DisplayName>
+    <Description>Human-readable description of the entity.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63613" BrowseName="1:Documentation" ParentNodeId="ns=1;i=63031" DataType="String" ValueRank="-1">
+    <DisplayName>Documentation</DisplayName>
+    <Description>URL to human-readable documentation for the entity.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=63614" BrowseName="1:Labels" ParentNodeId="ns=1;i=63031">
+    <DisplayName>Labels</DisplayName>
+    <Description>The entity's extensible xRegistry labels/attributes, exposed as an AttributesType container: each label is a browsable PropertyType Variable, added and removed with the container's AddAttribute/RemoveAttribute Methods. Deleted together with the entity.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63615" BrowseName="1:CreatedAt" ParentNodeId="ns=1;i=63031" DataType="DateTime" ValueRank="-1">
+    <DisplayName>CreatedAt</DisplayName>
+    <Description>UTC timestamp when the entity was created.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63616" BrowseName="1:ModifiedAt" ParentNodeId="ns=1;i=63031" DataType="DateTime" ValueRank="-1">
+    <DisplayName>ModifiedAt</DisplayName>
+    <Description>UTC timestamp when the entity was last modified.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=63617" BrowseName="1:Metadata" ParentNodeId="ns=1;i=63031">
+    <DisplayName>Metadata</DisplayName>
+    <Description>Read-only JSON metadata representation. Open pins bytes, revision and authorization view. This file is not a Resource document and exposes no Message payload.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11575</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63031</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=63618" BrowseName="1:Delete" ParentNodeId="ns=1;i=63031">
+    <DisplayName>Delete</DisplayName>
+    <Description>Delete this metadata Resource atomically. A non-zero ExpectedEpoch must equal Epoch; otherwise return Bad_InvalidState without change. This does not terminate a native session.</Description>
+    <Category>XREG-MetadataResource</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63031</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63619</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=63619" BrowseName="InputArguments" ParentNodeId="ns=1;i=63618" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63618</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>ExpectedEpoch</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Expected metadata epoch; 0 disables the comparison.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=63620" BrowseName="1:&lt;MetadataResource&gt;" ParentNodeId="ns=1;i=63001">
+    <DisplayName>&lt;MetadataResource&gt;</DisplayName>
+    <Description>An opt-in metadata Resource. It does not satisfy the document Resource placeholder.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=63031</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=63001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63621" BrowseName="1:OriginRegistry" ParentNodeId="ns=1;i=63001" DataType="ns=1;i=63026" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>OriginRegistry</DisplayName>
+    <Description>Immutable trusted source authority of a federated Group. A metadata claim alone establishes no trust.</Description>
+    <Category>XREG-GroupFederation</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63622" BrowseName="1:ExternalReference" ParentNodeId="ns=1;i=63001" DataType="ExpandedNodeId" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>ExternalReference</DisplayName>
+    <Description>Remote Group identity, not a FileType target or a locator. Resolve indexes through authenticated provider observations and verify registry ownership and type.</Description>
+    <Category>XREG-GroupFederation</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63623" BrowseName="1:GroupUrl" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>GroupUrl</DisplayName>
+    <Description>Authorized current Group provider locator. Relocation does not change source identity.</Description>
+    <Category>XREG-GroupFederation</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63001</Reference>
+    </References>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=67000" BrowseName="1:RegistryValueDataType" IsAbstract="true">
+    <DisplayName>RegistryValueDataType</DisplayName>
+    <Description>Abstract exact value. Kind identifies null, Boolean, String, number, array or object.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="RegistryValueDataType">
+      <Field Name="Kind" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=67001" BrowseName="1:RegistryNullValueDataType">
+    <DisplayName>RegistryNullValueDataType</DisplayName>
+    <Description>Explicit null (Kind 0), distinct from an absent member.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67500</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67501</Reference>
+    </References>
+    <Definition Name="RegistryNullValueDataType" />
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67500" BrowseName="Default Binary" ParentNodeId="ns=1;i=67001">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67001</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67501" BrowseName="Default JSON" ParentNodeId="ns=1;i=67001">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67001</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67002" BrowseName="1:RegistryBooleanValueDataType">
+    <DisplayName>RegistryBooleanValueDataType</DisplayName>
+    <Description>Exact Boolean (Kind 1).</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67502</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67503</Reference>
+    </References>
+    <Definition Name="RegistryBooleanValueDataType">
+      <Field Name="Value" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67502" BrowseName="Default Binary" ParentNodeId="ns=1;i=67002">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67002</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67503" BrowseName="Default JSON" ParentNodeId="ns=1;i=67002">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67002</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67003" BrowseName="1:RegistryStringValueDataType">
+    <DisplayName>RegistryStringValueDataType</DisplayName>
+    <Description>Exact Unicode String (Kind 2).</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67504</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67505</Reference>
+    </References>
+    <Definition Name="RegistryStringValueDataType">
+      <Field Name="Value" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67504" BrowseName="Default Binary" ParentNodeId="ns=1;i=67003">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67003</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67505" BrowseName="Default JSON" ParentNodeId="ns=1;i=67003">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67003</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67004" BrowseName="1:RegistryNumberValueDataType">
+    <DisplayName>RegistryNumberValueDataType</DisplayName>
+    <Description>Exact finite decimal value (Kind 3); no floating-point rounding.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67506</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67507</Reference>
+    </References>
+    <Definition Name="RegistryNumberValueDataType">
+      <Field Name="Coefficient" DataType="i=15">
+        <Description>Minimal big-endian two's-complement integer, not text.</Description>
+      </Field>
+      <Field Name="Exponent" DataType="i=8">
+        <Description>Value is Coefficient multiplied by ten to this exponent.</Description>
+      </Field>
+      <Field Name="IsInteger" DataType="i=1">
+        <Description>Distinguishes integral source values from decimal representations.</Description>
+      </Field>
+      <Field Name="NegativeZero" DataType="i=1">
+        <Description>Preserves an authored negative decimal zero.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67506" BrowseName="Default Binary" ParentNodeId="ns=1;i=67004">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67004</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67507" BrowseName="Default JSON" ParentNodeId="ns=1;i=67004">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67004</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67005" BrowseName="1:RegistryArrayValueDataType">
+    <DisplayName>RegistryArrayValueDataType</DisplayName>
+    <Description>Ordered heterogeneous values (Kind 4). Empty is not null.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67508</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67509</Reference>
+    </References>
+    <Definition Name="RegistryArrayValueDataType">
+      <Field Name="Items" DataType="ns=1;i=67000" ValueRank="1" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67508" BrowseName="Default Binary" ParentNodeId="ns=1;i=67005">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67005</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67509" BrowseName="Default JSON" ParentNodeId="ns=1;i=67005">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67005</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67006" BrowseName="1:RegistryMemberDataType">
+    <DisplayName>RegistryMemberDataType</DisplayName>
+    <Description>One exact member name and value. Duplicate member names are invalid.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67510</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67511</Reference>
+    </References>
+    <Definition Name="RegistryMemberDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67510" BrowseName="Default Binary" ParentNodeId="ns=1;i=67006">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67006</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67511" BrowseName="Default JSON" ParentNodeId="ns=1;i=67006">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67006</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67007" BrowseName="1:RegistryObjectValueDataType">
+    <DisplayName>RegistryObjectValueDataType</DisplayName>
+    <Description>Complete ordered object members (Kind 5), including unknown values.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67000</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67512</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67513</Reference>
+    </References>
+    <Definition Name="RegistryObjectValueDataType">
+      <Field Name="Members" DataType="ns=1;i=67006" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67512" BrowseName="Default Binary" ParentNodeId="ns=1;i=67007">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67007</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67513" BrowseName="Default JSON" ParentNodeId="ns=1;i=67007">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67007</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67008" BrowseName="1:RegistryRecordDataType" IsAbstract="true">
+    <DisplayName>RegistryRecordDataType</DisplayName>
+    <Description>Base for extensible named document records. Every field has an explicit presence state.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="RegistryRecordDataType">
+      <Field Name="PresentFields" DataType="i=12" ValueRank="1">
+        <Description>Names of authored native fields. Absent fields have canonical unused wire values.</Description>
+      </Field>
+      <Field Name="AdditionalFields" DataType="ns=1;i=67006" ValueRank="1">
+        <Description>Unknown source members only; a known member cannot appear here.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=67009" BrowseName="1:RegistryDiagnosticDataType">
+    <DisplayName>RegistryDiagnosticDataType</DisplayName>
+    <Description>Typed diagnostic; Path is a sequence of exact member names, not encoded JSON.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67514</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67515</Reference>
+    </References>
+    <Definition Name="RegistryDiagnosticDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="Code" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Path" DataType="i=12" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Detail" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67514" BrowseName="Default Binary" ParentNodeId="ns=1;i=67009">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67009</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67515" BrowseName="Default JSON" ParentNodeId="ns=1;i=67009">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67009</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67010" BrowseName="1:RegistryPathElementDataType">
+    <DisplayName>RegistryPathElementDataType</DisplayName>
+    <Description>One typed path step. The unused selector has its zero/empty value.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67516</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67517</Reference>
+    </References>
+    <Definition Name="RegistryPathElementDataType">
+      <Field Name="Kind" DataType="i=7">
+        <Description>0 selects a member; 1 selects an array item.</Description>
+      </Field>
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Index" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67516" BrowseName="Default Binary" ParentNodeId="ns=1;i=67010">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67010</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67517" BrowseName="Default JSON" ParentNodeId="ns=1;i=67010">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67010</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67011" BrowseName="1:RegistryChangeDataType">
+    <DisplayName>RegistryChangeDataType</DisplayName>
+    <Description>Set(null) and Remove are distinct operations. No JSON patch parsing is required.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67518</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67519</Reference>
+    </References>
+    <Definition Name="RegistryChangeDataType">
+      <Field Name="Operation" DataType="i=7">
+        <Description>0 sets a value; 1 removes it.</Description>
+      </Field>
+      <Field Name="Path" DataType="ns=1;i=67010" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67518" BrowseName="Default Binary" ParentNodeId="ns=1;i=67011">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67011</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67519" BrowseName="Default JSON" ParentNodeId="ns=1;i=67011">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67011</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67012" BrowseName="1:RegistryDocumentPageDataType">
+    <DisplayName>RegistryDocumentPageDataType</DisplayName>
+    <Description>A bounded native document page, never an embedded JSON fragment.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67520</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67521</Reference>
+    </References>
+    <Definition Name="RegistryDocumentPageDataType">
+      <Field Name="Epoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Root" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="ContinuationPoint" DataType="i=15">
+        <Description>Opaque revision- and authorization-bound token.</Description>
+      </Field>
+      <Field Name="Complete" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67520" BrowseName="Default Binary" ParentNodeId="ns=1;i=67012">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67012</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67521" BrowseName="Default JSON" ParentNodeId="ns=1;i=67012">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67012</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67013" BrowseName="1:RegistryMutationResultDataType">
+    <DisplayName>RegistryMutationResultDataType</DisplayName>
+    <Description>Atomic mutation outcome. Failure publishes no partial state.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67522</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67523</Reference>
+    </References>
+    <Definition Name="RegistryMutationResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="Epoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Target" DataType="i=18">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67522" BrowseName="Default Binary" ParentNodeId="ns=1;i=67013">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67013</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67523" BrowseName="Default JSON" ParentNodeId="ns=1;i=67013">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67013</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67014" BrowseName="1:RegistryReadRequestDataType">
+    <DisplayName>RegistryReadRequestDataType</DisplayName>
+    <Description>Native read request. No JSON selector or control document.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67524</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67525</Reference>
+    </References>
+    <Definition Name="RegistryReadRequestDataType">
+      <Field Name="TargetXid" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="DocumentKind" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="View" DataType="i=7">
+        <Description>0 selects the complete generic value; 1 selects named domain fields.</Description>
+      </Field>
+      <Field Name="MaxItems" DataType="i=7">
+        <Description>Positive maximum top-level members/items per page.</Description>
+      </Field>
+      <Field Name="ContinuationPoint" DataType="i=15">
+        <Description>Empty starts a new immutable read.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67524" BrowseName="Default Binary" ParentNodeId="ns=1;i=67014">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67014</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67525" BrowseName="Default JSON" ParentNodeId="ns=1;i=67014">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67014</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67015" BrowseName="1:RegistryReadResultDataType">
+    <DisplayName>RegistryReadResultDataType</DisplayName>
+    <Description>Revision-bound native document or explicit failure diagnostics.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67526</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67527</Reference>
+    </References>
+    <Definition Name="RegistryReadResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="Epoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Document" DataType="i=22">
+        <Description>Native domain Structure or complete generic value.</Description>
+      </Field>
+      <Field Name="ContinuationPoint" DataType="i=15">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67526" BrowseName="Default Binary" ParentNodeId="ns=1;i=67015">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67015</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67527" BrowseName="Default JSON" ParentNodeId="ns=1;i=67015">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67015</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67016" BrowseName="1:RegistryWriteRequestDataType">
+    <DisplayName>RegistryWriteRequestDataType</DisplayName>
+    <Description>Complete native registration or replacement.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67528</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67529</Reference>
+    </References>
+    <Definition Name="RegistryWriteRequestDataType">
+      <Field Name="TargetXid" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Definition" DataType="ns=1;i=67008" AllowSubTypes="true">
+        <Description />
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67528" BrowseName="Default Binary" ParentNodeId="ns=1;i=67016">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67016</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67529" BrowseName="Default JSON" ParentNodeId="ns=1;i=67016">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67016</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67017" BrowseName="1:RegistryChangeRequestDataType">
+    <DisplayName>RegistryChangeRequestDataType</DisplayName>
+    <Description>Atomic typed Set/Remove changes to one entity.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67530</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67531</Reference>
+    </References>
+    <Definition Name="RegistryChangeRequestDataType">
+      <Field Name="TargetXid" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Changes" DataType="ns=1;i=67011" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67530" BrowseName="Default Binary" ParentNodeId="ns=1;i=67017">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67017</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67531" BrowseName="Default JSON" ParentNodeId="ns=1;i=67017">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67017</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67018" BrowseName="1:RegistryEntityReferenceDataType">
+    <DisplayName>RegistryEntityReferenceDataType</DisplayName>
+    <Description>Origin-scoped portable entity selection. A claim does not establish trust.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67532</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67533</Reference>
+    </References>
+    <Definition Name="RegistryEntityReferenceDataType">
+      <Field Name="LocalNode" DataType="i=18">
+        <Description />
+      </Field>
+      <Field Name="OriginUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="ApplicationUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="RegistryNode" DataType="i=18">
+        <Description />
+      </Field>
+      <Field Name="Xid" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Role" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Locator" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="HasNativeTarget" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="NativeTarget" DataType="i=18">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67532" BrowseName="Default Binary" ParentNodeId="ns=1;i=67018">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67018</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67533" BrowseName="Default JSON" ParentNodeId="ns=1;i=67018">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67018</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67200" BrowseName="1:RegistryMetadataLabelsEntryDataType">
+    <DisplayName>RegistryMetadataLabelsEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67534</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67535</Reference>
+    </References>
+    <Definition Name="RegistryMetadataLabelsEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="i=12">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67534" BrowseName="Default Binary" ParentNodeId="ns=1;i=67200">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67200</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67535" BrowseName="Default JSON" ParentNodeId="ns=1;i=67200">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67200</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67201" BrowseName="1:RegistryMetadataLabelsDataType">
+    <DisplayName>RegistryMetadataLabelsDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67536</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67537</Reference>
+    </References>
+    <Definition Name="RegistryMetadataLabelsDataType">
+      <Field Name="Entries" DataType="ns=1;i=67200" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67536" BrowseName="Default Binary" ParentNodeId="ns=1;i=67201">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67201</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67537" BrowseName="Default JSON" ParentNodeId="ns=1;i=67201">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67201</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67202" BrowseName="1:RegistryMetadataDataType">
+    <DisplayName>RegistryMetadataDataType</DisplayName>
+    <Description>Complete native /registry record. AdditionalFields retains unknown metadata.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67538</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67539</Reference>
+    </References>
+    <Definition Name="RegistryMetadataDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description>Authored name. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=12">
+        <Description>Authored description. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Documentation" DataType="i=12">
+        <Description>Authored documentation. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Self" DataType="i=12">
+        <Description>Authored self. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Xid" DataType="i=12">
+        <Description>Authored xid. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="CreatedAt" DataType="i=12">
+        <Description>Authored createdat. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="ModifiedAt" DataType="i=12">
+        <Description>Authored modifiedat. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Deprecated" DataType="i=12">
+        <Description>Authored deprecated. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Epoch" DataType="ns=1;i=67004" AllowSubTypes="true">
+        <Description>Authored epoch. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Labels" DataType="ns=1;i=67201" AllowSubTypes="true">
+        <Description>Authored labels. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="RegistryId" DataType="i=12">
+        <Description>Authored registryid. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="SpecVersion" DataType="i=12">
+        <Description>Authored specversion. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67538" BrowseName="Default Binary" ParentNodeId="ns=1;i=67202">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67202</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67539" BrowseName="Default JSON" ParentNodeId="ns=1;i=67202">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67202</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67203" BrowseName="1:RegistryCapabilitiesDocumentAvailableDataTypeValue">
+    <DisplayName>RegistryCapabilitiesDocumentAvailableDataTypeValue</DisplayName>
+    <Description>Complete native /capabilities/available/* record. AdditionalFields retains unknown metadata.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67540</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67541</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentAvailableDataTypeValue">
+      <Field Name="Mutable" DataType="i=1">
+        <Description>Authored mutable. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67540" BrowseName="Default Binary" ParentNodeId="ns=1;i=67203">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67203</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67541" BrowseName="Default JSON" ParentNodeId="ns=1;i=67203">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67203</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67204" BrowseName="1:RegistryCapabilitiesDocumentAvailableEntryDataType">
+    <DisplayName>RegistryCapabilitiesDocumentAvailableEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67542</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67543</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentAvailableEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67203" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67542" BrowseName="Default Binary" ParentNodeId="ns=1;i=67204">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67204</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67543" BrowseName="Default JSON" ParentNodeId="ns=1;i=67204">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67204</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67205" BrowseName="1:RegistryCapabilitiesDocumentAvailableDataType">
+    <DisplayName>RegistryCapabilitiesDocumentAvailableDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67544</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67545</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentAvailableDataType">
+      <Field Name="Entries" DataType="ns=1;i=67204" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67544" BrowseName="Default Binary" ParentNodeId="ns=1;i=67205">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67205</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67545" BrowseName="Default JSON" ParentNodeId="ns=1;i=67205">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67205</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67206" BrowseName="1:RegistryCapabilitiesDocumentCompatibilitiesEntryDataType">
+    <DisplayName>RegistryCapabilitiesDocumentCompatibilitiesEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67546</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67547</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentCompatibilitiesEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67005" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67546" BrowseName="Default Binary" ParentNodeId="ns=1;i=67206">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67206</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67547" BrowseName="Default JSON" ParentNodeId="ns=1;i=67206">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67206</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67207" BrowseName="1:RegistryCapabilitiesDocumentCompatibilitiesDataType">
+    <DisplayName>RegistryCapabilitiesDocumentCompatibilitiesDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67548</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67549</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentCompatibilitiesDataType">
+      <Field Name="Entries" DataType="ns=1;i=67206" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67548" BrowseName="Default Binary" ParentNodeId="ns=1;i=67207">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67207</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67549" BrowseName="Default JSON" ParentNodeId="ns=1;i=67207">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67207</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67208" BrowseName="1:RegistryCapabilitiesDocumentDataType">
+    <DisplayName>RegistryCapabilitiesDocumentDataType</DisplayName>
+    <Description>Complete native /capabilities record. AdditionalFields retains unknown metadata.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67550</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67551</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesDocumentDataType">
+      <Field Name="Available" DataType="ns=1;i=67205" AllowSubTypes="true">
+        <Description>Authored available. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Compatibilities" DataType="ns=1;i=67207" AllowSubTypes="true">
+        <Description>Authored compatibilities. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Flags" DataType="i=12" ValueRank="1">
+        <Description>Authored flags. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Formats" DataType="i=12" ValueRank="1">
+        <Description>Authored formats. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Ignores" DataType="i=12" ValueRank="1">
+        <Description>Authored ignores. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Mutable" DataType="i=12" ValueRank="1">
+        <Description>Authored mutable. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="SpecVersions" DataType="i=12" ValueRank="1">
+        <Description>Authored specversions. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="VersionModes" DataType="i=12" ValueRank="1">
+        <Description>Authored versionmodes. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="Pagination" DataType="i=1">
+        <Description>Authored pagination. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+      <Field Name="ShortSelf" DataType="i=1">
+        <Description>Authored shortself. PresentFields distinguishes absence from a stored value.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67550" BrowseName="Default Binary" ParentNodeId="ns=1;i=67208">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67208</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67551" BrowseName="Default JSON" ParentNodeId="ns=1;i=67208">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67208</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67209" BrowseName="1:RegistryAttributeMapEntryDataType">
+    <DisplayName>RegistryAttributeMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67552</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67553</Reference>
+    </References>
+    <Definition Name="RegistryAttributeMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67217" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67552" BrowseName="Default Binary" ParentNodeId="ns=1;i=67209">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67209</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67553" BrowseName="Default JSON" ParentNodeId="ns=1;i=67209">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67209</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67210" BrowseName="1:RegistryAttributeMapDataType">
+    <DisplayName>RegistryAttributeMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67554</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67555</Reference>
+    </References>
+    <Definition Name="RegistryAttributeMapDataType">
+      <Field Name="Entries" DataType="ns=1;i=67209" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67554" BrowseName="Default Binary" ParentNodeId="ns=1;i=67210">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67210</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67555" BrowseName="Default JSON" ParentNodeId="ns=1;i=67210">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67210</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67211" BrowseName="1:RegistryConditionMapEntryDataType">
+    <DisplayName>RegistryConditionMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67556</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67557</Reference>
+    </References>
+    <Definition Name="RegistryConditionMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67218" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67556" BrowseName="Default Binary" ParentNodeId="ns=1;i=67211">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67211</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67557" BrowseName="Default JSON" ParentNodeId="ns=1;i=67211">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67211</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67212" BrowseName="1:RegistryConditionMapDataType">
+    <DisplayName>RegistryConditionMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67558</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67559</Reference>
+    </References>
+    <Definition Name="RegistryConditionMapDataType">
+      <Field Name="Entries" DataType="ns=1;i=67211" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67558" BrowseName="Default Binary" ParentNodeId="ns=1;i=67212">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67212</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67559" BrowseName="Default JSON" ParentNodeId="ns=1;i=67212">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67212</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67213" BrowseName="1:RegistryGroupModelMapEntryDataType">
+    <DisplayName>RegistryGroupModelMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67560</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67561</Reference>
+    </References>
+    <Definition Name="RegistryGroupModelMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67220" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67560" BrowseName="Default Binary" ParentNodeId="ns=1;i=67213">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67213</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67561" BrowseName="Default JSON" ParentNodeId="ns=1;i=67213">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67213</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67214" BrowseName="1:RegistryGroupModelMapDataType">
+    <DisplayName>RegistryGroupModelMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67562</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67563</Reference>
+    </References>
+    <Definition Name="RegistryGroupModelMapDataType">
+      <Field Name="Entries" DataType="ns=1;i=67213" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67562" BrowseName="Default Binary" ParentNodeId="ns=1;i=67214">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67214</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67563" BrowseName="Default JSON" ParentNodeId="ns=1;i=67214">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67214</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67215" BrowseName="1:RegistryResourceModelMapEntryDataType">
+    <DisplayName>RegistryResourceModelMapEntryDataType</DisplayName>
+    <Description>One named map entry. Names are unique and retain their exact spelling.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67564</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67565</Reference>
+    </References>
+    <Definition Name="RegistryResourceModelMapEntryDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="ns=1;i=67219" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67564" BrowseName="Default Binary" ParentNodeId="ns=1;i=67215">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67215</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67565" BrowseName="Default JSON" ParentNodeId="ns=1;i=67215">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67215</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67216" BrowseName="1:RegistryResourceModelMapDataType">
+    <DisplayName>RegistryResourceModelMapDataType</DisplayName>
+    <Description>Ordered, complete map entries.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67566</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67567</Reference>
+    </References>
+    <Definition Name="RegistryResourceModelMapDataType">
+      <Field Name="Entries" DataType="ns=1;i=67215" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67566" BrowseName="Default Binary" ParentNodeId="ns=1;i=67216">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67216</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67567" BrowseName="Default JSON" ParentNodeId="ns=1;i=67216">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67216</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67217" BrowseName="1:RegistryAttributeDefinitionDataType">
+    <DisplayName>RegistryAttributeDefinitionDataType</DisplayName>
+    <Description>Recursive xRegistry attribute definition with native constraints, defaults and include references.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67568</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67569</Reference>
+    </References>
+    <Definition Name="RegistryAttributeDefinitionDataType">
+      <Field Name="Name" DataType="i=12">
+        <Description>Authored name; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Type" DataType="i=12">
+        <Description>Authored type; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=12">
+        <Description>Authored description; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Required" DataType="i=1">
+        <Description>Authored required; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Default" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored default; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Enum" DataType="ns=1;i=67000" ValueRank="1" AllowSubTypes="true">
+        <Description>Authored enum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Attributes" DataType="ns=1;i=67210" AllowSubTypes="true">
+        <Description>Authored attributes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Item" DataType="ns=1;i=67217" AllowSubTypes="true">
+        <Description>Authored item; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="IfValues" DataType="ns=1;i=67212" AllowSubTypes="true">
+        <Description>Authored ifvalues; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Target" DataType="i=12">
+        <Description>Authored target; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="NameCharset" DataType="i=12">
+        <Description>Authored namecharset; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Minimum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored minimum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Maximum" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maximum; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Include" DataType="i=12">
+        <Description>Authored $include; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Includes" DataType="i=12" ValueRank="1">
+        <Description>Authored $includes; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67568" BrowseName="Default Binary" ParentNodeId="ns=1;i=67217">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67217</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67569" BrowseName="Default JSON" ParentNodeId="ns=1;i=67217">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67217</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67218" BrowseName="1:RegistryConditionDataType">
+    <DisplayName>RegistryConditionDataType</DisplayName>
+    <Description>One conditional attribute branch.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67570</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67571</Reference>
+    </References>
+    <Definition Name="RegistryConditionDataType">
+      <Field Name="SiblingAttributes" DataType="ns=1;i=67210" AllowSubTypes="true">
+        <Description>Authored siblingattributes; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67570" BrowseName="Default Binary" ParentNodeId="ns=1;i=67218">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67218</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67571" BrowseName="Default JSON" ParentNodeId="ns=1;i=67218">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67218</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67219" BrowseName="1:RegistryResourceModelDataType">
+    <DisplayName>RegistryResourceModelDataType</DisplayName>
+    <Description>Resource collection model, including document and Version limits.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67572</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67573</Reference>
+    </References>
+    <Definition Name="RegistryResourceModelDataType">
+      <Field Name="Singular" DataType="i=12">
+        <Description>Authored singular; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Plural" DataType="i=12">
+        <Description>Authored plural; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ModelVersion" DataType="i=12">
+        <Description>Authored modelversion; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ModelCompatibleWith" DataType="i=12">
+        <Description>Authored modelcompatiblewith; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=12">
+        <Description>Authored description; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Include" DataType="i=12">
+        <Description>Authored $include; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Includes" DataType="i=12" ValueRank="1">
+        <Description>Authored $includes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Attributes" DataType="ns=1;i=67210" AllowSubTypes="true">
+        <Description>Authored attributes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="HasDocument" DataType="i=1">
+        <Description>Authored hasdocument; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="MaxVersions" DataType="ns=1;i=67000" AllowSubTypes="true">
+        <Description>Authored maxversions; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67572" BrowseName="Default Binary" ParentNodeId="ns=1;i=67219">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67219</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67573" BrowseName="Default JSON" ParentNodeId="ns=1;i=67219">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67219</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67220" BrowseName="1:RegistryGroupModelDataType">
+    <DisplayName>RegistryGroupModelDataType</DisplayName>
+    <Description>Group collection model and explicit resource imports.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67574</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67575</Reference>
+    </References>
+    <Definition Name="RegistryGroupModelDataType">
+      <Field Name="Singular" DataType="i=12">
+        <Description>Authored singular; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Plural" DataType="i=12">
+        <Description>Authored plural; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ModelVersion" DataType="i=12">
+        <Description>Authored modelversion; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ModelCompatibleWith" DataType="i=12">
+        <Description>Authored modelcompatiblewith; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=12">
+        <Description>Authored description; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Include" DataType="i=12">
+        <Description>Authored $include; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Includes" DataType="i=12" ValueRank="1">
+        <Description>Authored $includes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Attributes" DataType="ns=1;i=67210" AllowSubTypes="true">
+        <Description>Authored attributes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Resources" DataType="ns=1;i=67216" AllowSubTypes="true">
+        <Description>Authored resources; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ImportResources" DataType="i=12" ValueRank="1">
+        <Description>Authored ximportresources; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67574" BrowseName="Default Binary" ParentNodeId="ns=1;i=67220">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67220</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67575" BrowseName="Default JSON" ParentNodeId="ns=1;i=67220">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67220</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67221" BrowseName="1:RegistryModelDocumentDataType">
+    <DisplayName>RegistryModelDocumentDataType</DisplayName>
+    <Description>Complete authored or explicitly composed xRegistry model document.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67576</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67577</Reference>
+    </References>
+    <Definition Name="RegistryModelDocumentDataType">
+      <Field Name="Schema" DataType="i=12">
+        <Description>Authored $schema; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="ModelVersion" DataType="i=12">
+        <Description>Authored modelversion; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Include" DataType="i=12">
+        <Description>Authored $include; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Includes" DataType="i=12" ValueRank="1">
+        <Description>Authored $includes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Attributes" DataType="ns=1;i=67210" AllowSubTypes="true">
+        <Description>Authored attributes; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Groups" DataType="ns=1;i=67214" AllowSubTypes="true">
+        <Description>Authored groups; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67576" BrowseName="Default Binary" ParentNodeId="ns=1;i=67221">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67221</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67577" BrowseName="Default JSON" ParentNodeId="ns=1;i=67221">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67221</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67222" BrowseName="1:RegistryExtensionDefinitionDataType">
+    <DisplayName>RegistryExtensionDefinitionDataType</DisplayName>
+    <Description>Native extension applicability, model, defaults and declared semantics.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=67008</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67578</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67579</Reference>
+    </References>
+    <Definition Name="RegistryExtensionDefinitionDataType">
+      <Field Name="Identity" DataType="i=12">
+        <Description>Authored identity; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Version" DataType="i=12">
+        <Description>Authored version; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Selectors" DataType="i=12" ValueRank="1">
+        <Description>Authored selectors; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="OptionModel" DataType="ns=1;i=67217" AllowSubTypes="true">
+        <Description>Authored optionModel; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="SemanticRules" DataType="i=12" ValueRank="1">
+        <Description>Authored semanticRules; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Defaults" DataType="ns=1;i=67007" AllowSubTypes="true">
+        <Description>Authored defaults; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="NativeDependencies" DataType="i=12" ValueRank="1">
+        <Description>Authored nativeDependencies; PresentFields preserves absence.</Description>
+      </Field>
+      <Field Name="Claims" DataType="i=12" ValueRank="1">
+        <Description>Authored claims; PresentFields preserves absence.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67578" BrowseName="Default Binary" ParentNodeId="ns=1;i=67222">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67222</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67579" BrowseName="Default JSON" ParentNodeId="ns=1;i=67222">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67222</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=67100" BrowseName="1:NativeRegistryAccessType">
+    <DisplayName>NativeRegistryAccessType</DisplayName>
+    <Description>Complete typed registry document access. All operations use the owning registry's authorization.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67580</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67583</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67586</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67604</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67607</Reference>
+      <Reference ReferenceType="i=47">ns=1;i=67610</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67613</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=67580" BrowseName="1:ReadDocument" ParentNodeId="ns=1;i=67100">
+    <DisplayName>ReadDocument</DisplayName>
+    <Description>Read a native document without fetching referenced providers.</Description>
+    <Category>XREG-NativeDocuments</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67581</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67582</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67581" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67580">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67580</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67014</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Native selection and bounded-read request.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67582" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67580">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67580</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67015</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Same-revision native document page or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=67583" BrowseName="1:WriteDocument" ParentNodeId="ns=1;i=67100">
+    <DisplayName>WriteDocument</DisplayName>
+    <Description>Register or replace supported metadata. Never apply live transport configuration.</Description>
+    <Category>XREG-NativeWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67584</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67585</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67584" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67583">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67583</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67016</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Complete native entity and expected epoch.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67585" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67583">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67583</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67013</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Atomic write result.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=67586" BrowseName="1:ApplyChanges" ParentNodeId="ns=1;i=67100">
+    <DisplayName>ApplyChanges</DisplayName>
+    <Description>Apply native changes through the same validation and commit path as compatibility writes.</Description>
+    <Category>XREG-NativeWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67587</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67588</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67587" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67586">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67586</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67017</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Typed changes; Set(null) differs from Remove.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67588" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67586">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67586</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67013</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Atomic change result.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=67589" BrowseName="1:TypedAccess" ParentNodeId="ns=1;i=63000">
+    <DisplayName>TypedAccess</DisplayName>
+    <Description>Conditionally Mandatory for XREG-NativeDocuments.</Description>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=63000</Reference>
+      <Reference ReferenceType="i=40">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67300" BrowseName="1:RegistrySnapshotOpenRequestDataType">
+    <DisplayName>RegistrySnapshotOpenRequestDataType</DisplayName>
+    <Description>Open one immutable native document view without fetching any referenced provider.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67590</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67591</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotOpenRequestDataType">
+      <Field Name="TargetXid" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="DocumentKind" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="View" DataType="i=7">
+        <Description>0 is the generic native view; 1 is the named native view.</Description>
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description>Expected target epoch; zero disables only this comparison.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67590" BrowseName="Default Binary" ParentNodeId="ns=1;i=67300">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67300</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67591" BrowseName="Default JSON" ParentNodeId="ns=1;i=67300">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67300</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67301" BrowseName="1:RegistrySnapshotOpenResultDataType">
+    <DisplayName>RegistrySnapshotOpenResultDataType</DisplayName>
+    <Description>One pinned target revision and its enclosing registry revision. A failed open returns an empty handle.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67592</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67593</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotOpenResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="SnapshotId" DataType="i=15">
+        <Description>Opaque handle bound to this Session and authorization view.</Description>
+      </Field>
+      <Field Name="TargetEpoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="RegistryEpoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67592" BrowseName="Default Binary" ParentNodeId="ns=1;i=67301">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67301</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67593" BrowseName="Default JSON" ParentNodeId="ns=1;i=67301">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67301</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67302" BrowseName="1:RegistrySnapshotReadRequestDataType">
+    <DisplayName>RegistrySnapshotReadRequestDataType</DisplayName>
+    <Description>Select a subtree or a leaf range from a pinned native view using the existing typed path grammar.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67594</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67595</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotReadRequestDataType">
+      <Field Name="SnapshotId" DataType="i=15">
+        <Description />
+      </Field>
+      <Field Name="Path" DataType="ns=1;i=67010" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Offset" DataType="i=9">
+        <Description>Child index, Unicode scalar index or byte offset, according to Kind.</Description>
+      </Field>
+      <Field Name="MaxItems" DataType="i=7">
+        <Description>Positive bound on child entries or leaf elements.</Description>
+      </Field>
+      <Field Name="MaxBytes" DataType="i=7">
+        <Description>Positive bound on the Binary-encoded result body.</Description>
+      </Field>
+      <Field Name="ContinuationPoint" DataType="i=15">
+        <Description>Empty starts a selection; a non-empty token is single-use.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67594" BrowseName="Default Binary" ParentNodeId="ns=1;i=67302">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67302</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67595" BrowseName="Default JSON" ParentNodeId="ns=1;i=67302">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67302</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67303" BrowseName="1:RegistrySnapshotEntryDataType">
+    <DisplayName>RegistrySnapshotEntryDataType</DisplayName>
+    <Description>Describe an immediate child without embedding its descendants. Append Selector to the request Path.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67596</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67597</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotEntryDataType">
+      <Field Name="Selector" DataType="ns=1;i=67010">
+        <Description />
+      </Field>
+      <Field Name="DataTypeId" DataType="i=18">
+        <Description />
+      </Field>
+      <Field Name="ValueRank" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="Kind" DataType="i=7">
+        <Description>0 scalar, 1 String, 2 ByteString, 3 array, 4 Structure, 5 null.</Description>
+      </Field>
+      <Field Name="Length" DataType="i=9">
+        <Description>Elements in the units defined by Kind; zero for null.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67596" BrowseName="Default Binary" ParentNodeId="ns=1;i=67303">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67303</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67597" BrowseName="Default JSON" ParentNodeId="ns=1;i=67303">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67303</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67304" BrowseName="1:RegistrySnapshotReadResultDataType">
+    <DisplayName>RegistrySnapshotReadResultDataType</DisplayName>
+    <Description>Bounded native subtree description or leaf data. A container is never disguised as a partial domain record.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67598</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67599</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotReadResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="DataTypeId" DataType="i=18">
+        <Description />
+      </Field>
+      <Field Name="ValueRank" DataType="i=6">
+        <Description />
+      </Field>
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="Kind" DataType="i=7">
+        <Description>0 scalar, 1 String, 2 ByteString, 3 array, 4 Structure, 5 null.</Description>
+      </Field>
+      <Field Name="TotalLength" DataType="i=9">
+        <Description />
+      </Field>
+      <Field Name="Offset" DataType="i=9">
+        <Description />
+      </Field>
+      <Field Name="Complete" DataType="i=1">
+        <Description />
+      </Field>
+      <Field Name="Value" DataType="i=24">
+        <Description>A native scalar or String/ByteString chunk; null for containers.</Description>
+      </Field>
+      <Field Name="Entries" DataType="ns=1;i=67303" ValueRank="1">
+        <Description />
+      </Field>
+      <Field Name="ContinuationPoint" DataType="i=15">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67598" BrowseName="Default Binary" ParentNodeId="ns=1;i=67304">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67304</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67599" BrowseName="Default JSON" ParentNodeId="ns=1;i=67304">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67304</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67305" BrowseName="1:RegistrySnapshotLimitsDataType">
+    <DisplayName>RegistrySnapshotLimitsDataType</DisplayName>
+    <Description>Advertised native snapshot bounds. They do not override stricter negotiated transport or encoding limits.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67600</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67601</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotLimitsDataType">
+      <Field Name="MaxSnapshotsPerSession" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MaxContinuationPointsPerSession" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MaxSnapshotBytes" DataType="i=9">
+        <Description />
+      </Field>
+      <Field Name="MaxDepth" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MaxReadItems" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MaxReadBytes" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="SnapshotTimeout" DataType="i=11">
+        <Description>Finite positive inactivity timeout in milliseconds.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67600" BrowseName="Default Binary" ParentNodeId="ns=1;i=67305">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67305</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67601" BrowseName="Default JSON" ParentNodeId="ns=1;i=67305">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67305</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=67306" BrowseName="1:RegistrySnapshotCloseResultDataType">
+    <DisplayName>RegistrySnapshotCloseResultDataType</DisplayName>
+    <Description>Snapshot close outcome. Closing releases its continuation points and retained document generation.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67602</Reference>
+      <Reference ReferenceType="i=38">ns=1;i=67603</Reference>
+    </References>
+    <Definition Name="RegistrySnapshotCloseResultDataType">
+      <Field Name="StatusCode" DataType="i=19">
+        <Description />
+      </Field>
+      <Field Name="Issues" DataType="ns=1;i=67009" ValueRank="1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=67602" BrowseName="Default Binary" ParentNodeId="ns=1;i=67306">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67306</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=67603" BrowseName="Default JSON" ParentNodeId="ns=1;i=67306">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=1;i=67306</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=67604" BrowseName="1:OpenDocument" ParentNodeId="ns=1;i=67100">
+    <DisplayName>OpenDocument</DisplayName>
+    <Description>Pin a complete native view and its target and registry revisions.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67605</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67606</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67605" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67604">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67604</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67300</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Target, native view and expected target epoch.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67606" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67604">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67604</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67301</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Session-bound immutable snapshot handle or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=67607" BrowseName="1:ReadDocumentPart" ParentNodeId="ns=1;i=67100">
+    <DisplayName>ReadDocumentPart</DisplayName>
+    <Description>Read a native subtree without requiring JSON parsing or embedding oversized descendants.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67608</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67609</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67608" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67607">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67607</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67302</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Snapshot, typed subtree path and positive range/encoding bounds.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67609" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67607">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67607</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67304</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Immediate native children or a bounded leaf range.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=67610" BrowseName="1:CloseDocument" ParentNodeId="ns=1;i=67100">
+    <DisplayName>CloseDocument</DisplayName>
+    <Description>Release a native snapshot and all continuation points allocated from it.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67611</Reference>
+      <Reference ReferenceType="i=46">ns=1;i=67612</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=67611" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67610">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67610</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>SnapshotId</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=15</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Snapshot handle created by this Session.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67612" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=1;i=67610">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67610</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=1;i=67306</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Close outcome or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67613" BrowseName="1:SnapshotLimits" DataType="ns=1;i=67305" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=1;i=67100">
+    <DisplayName>SnapshotLimits</DisplayName>
+    <Description>Conditionally Mandatory for XREG-NativeSnapshots.</Description>
+    <Category>XREG-NativeSnapshots</Category>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=67100</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+    </References>
+  </UAVariable>
 </UANodeSet>

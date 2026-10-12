@@ -55,11 +55,24 @@ namespace Opc.Ua.XRegistry.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             XRegistryServerOptions options)
+            : this(server, configuration, options,
+                [(options ?? new XRegistryServerOptions()).RegistryNamespaceUri])
+        {
+        }
+
+        /// <summary>
+        /// Creates a domain fast-path manager that also owns its dependency model namespaces.
+        /// </summary>
+        protected XRegistryFastPathNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            XRegistryServerOptions options,
+            ArrayOf<string> namespaceUris)
             : base(
                 server,
                 configuration,
                 server.Telemetry.CreateLogger<XRegistryFastPathNodeManager>(),
-                (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
+                [.. namespaceUris])
         {
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
@@ -68,6 +81,56 @@ namespace Opc.Ua.XRegistry.Server
             m_seedDocument = opts.SeedDocument;
             m_seedFormat = opts.SeedFormat;
             m_seedBrowseName = opts.SeedBrowseName;
+        }
+
+        /// <summary>
+        /// Gets whether content reads are resolved from the domain's current committed generation.
+        /// Existing seed-only managers retain their original behaviour.
+        /// </summary>
+        protected virtual bool HasDynamicContentLookup => false;
+
+        /// <summary>
+        /// Resolves a content id in the calling Session's authorized view.
+        /// </summary>
+        protected virtual ServiceResult ReadDynamicContent(
+            ISystemContext context, ByteString contentId, out ByteString document)
+        {
+            document = default;
+            return StatusCodes.BadNodeIdUnknown;
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!HasDynamicContentLookup || !IsNodeIdInNamespace(nodeId) ||
+                !nodeId.TryGetValue(out ByteString contentId))
+            {
+                return base.GetManagerHandleAsync(context, nodeId, cache, cancellationToken);
+            }
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("ContentLookup", nodeId.NamespaceIndex),
+                DisplayName = new LocalizedText("Content lookup"),
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = Ua.DataTypeIds.ByteString,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = Variant.From(ByteString.Empty)
+            };
+            variable.OnSimpleReadValue = (ISystemContext caller, NodeState _, ref Variant value) =>
+            {
+                ServiceResult result = ReadDynamicContent(caller, contentId, out ByteString bytes);
+                value = ServiceResult.IsGood(result) ? Variant.From(bytes) : Variant.Null;
+                return result;
+            };
+            return new ValueTask<NodeHandle>(new NodeHandle { NodeId = nodeId, Node = variable, Validated = true });
         }
 
         /// <summary>
