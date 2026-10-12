@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
@@ -46,6 +47,12 @@ namespace Opc.Ua
     /// default plan adds protected floors on top of the configured queue size. Every queued entry
     /// holds a provider lease, so matching capacity envelopes preserve protected slots even when
     /// the shared partition is full.
+    /// Admission and dispatch take no lock. Each owner has a lock-free FIFO, and the weighted
+    /// round robin runs over a lock-free ready queue of turn tokens: an owner holds one token per
+    /// queued request, up to its weight per turn, and queues for its next turn behind the other
+    /// owners when the last token of a turn is taken. A request is claimed exactly once, by
+    /// selection, cancellation or stop. The count bound is reserved atomically. Only a head that
+    /// failed execution admission and the retirement of an empty owner FIFO use the owner's gate.
     /// </remarks>
     internal sealed class FairRequestQueue : IDisposable
     {
@@ -84,8 +91,8 @@ namespace Opc.Ua
         /// Gets the number of requests still waiting for execution admission.
         /// </summary>
         /// <remarks>
-        /// Read without the queue gate: the count is only mutated under the gate and
-        /// callers use it as a snapshot (worker growth heuristics, diagnostics).
+        /// The count is changed atomically and callers use it as a snapshot (worker growth
+        /// heuristics, diagnostics).
         /// </remarks>
         internal int Count => Volatile.Read(ref m_count);
 
@@ -97,12 +104,16 @@ namespace Opc.Ua
         {
             get
             {
-                lock (m_gate)
-                {
-                    return m_owners.Count;
-                }
+                // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
+                return m_owners.Count;
             }
         }
+
+        /// <summary>
+        /// Gets the number of turn tokens in the ready queue, including stale tokens of retired
+        /// owner FIFOs that the next dequeue pass discards.
+        /// </summary>
+        internal int ReadyTokenCount => Volatile.Read(ref m_readyCount);
 
         /// <summary>
         /// Gets the number of reader wake signals issued, excluding coalesced duplicate signals.
@@ -130,7 +141,7 @@ namespace Opc.Ua
             }
             // Fail fast without the gate; both conditions are re-checked under the
             // gate before the entry is published.
-            if (Volatile.Read(ref m_stopped))
+            if (Volatile.Read(ref m_stopped) != 0)
             {
                 error = StatusCodes.BadServerHalted;
                 return false;
@@ -175,37 +186,43 @@ namespace Opc.Ua
                 parkedLease = null;
                 Entry entry = admission.Entry;
                 entry.RegisterCancellation();
-                lock (m_gate)
+
+                if (IsStopped())
                 {
-                    if (m_stopped)
+                    error = StatusCodes.BadServerHalted;
+                    return false;
+                }
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    error = StatusCodes.BadRequestCancelledByClient;
+                    return false;
+                }
+                // Reserve the queue slot before linking: the count never exceeds the bound,
+                // also while admissions of different owners run concurrently.
+                if (Interlocked.Increment(ref m_count) > m_maxQueuedRequests)
+                {
+                    Interlocked.Decrement(ref m_count);
+                    error = StatusCodes.BadServerTooBusy;
+                    return false;
+                }
+                error = Link(entry, version: null);
+                if (StatusCode.IsBad(error))
+                {
+                    Interlocked.Decrement(ref m_count);
+                    return false;
+                }
+                if (IsStopped())
+                {
+                    // Stopped after linking: either this admission takes the entry back,
+                    // or the stop already completed it and the queue owned it.
+                    if (TryUnlink(entry))
                     {
                         error = StatusCodes.BadServerHalted;
                         return false;
                     }
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        error = StatusCodes.BadRequestCancelledByClient;
-                        return false;
-                    }
-                    if (m_count >= m_maxQueuedRequests)
-                    {
-                        error = StatusCodes.BadServerTooBusy;
-                        return false;
-                    }
-                    string schedulingKey = m_useFairScheduling ? owner.Key : string.Empty;
-                    if (!m_owners.TryGetValue(schedulingKey, out OwnerQueue? ownerQueue))
-                    {
-                        ownerQueue = new OwnerQueue(m_useFairScheduling ? owner.Weight : 1);
-                        ownerQueue.RoundNode = m_round.AddLast(ownerQueue);
-                        m_owners.Add(schedulingKey, ownerQueue);
-                    }
-                    entry.OwnerQueue = ownerQueue;
-                    entry.Sequence = ++m_sequence;
-                    entry.Node = ownerQueue.Requests.AddLast(entry);
-                    m_count++;
-                    admission.TransferToQueue();
-                    Changed();
                 }
+                admission.TransferToQueue();
+                Changed();
                 Pulse();
                 error = StatusCodes.Good;
                 return true;
@@ -221,13 +238,13 @@ namespace Opc.Ua
         /// <summary>
         /// Makes at most one attempt per currently eligible scheduling FIFO per capacity version.
         /// A blocked global FIFO head cannot be overtaken by another owner.
-        /// Provider calls and completions are deliberately outside the queue gate.
+        /// Provider calls and completions are deliberately outside the owner gates.
         /// </summary>
         /// <remarks>
-        /// The selected head is unlinked under the gate, so a dispatch that is admitted needs no
-        /// second gate entry, and in weighted mode several workers select at once. A head whose
-        /// execution admission fails returns to the front of its owner's FIFO. In global FIFO
-        /// mode one worker selects at a time, so the blocked head keeps its place.
+        /// The selected head is unlinked under its owner's gate, so a dispatch that is admitted
+        /// needs no second gate entry, and in weighted mode several workers select at once. A head
+        /// whose execution admission fails returns to the front of its owner's FIFO. In global
+        /// FIFO mode one worker selects at a time, so the blocked head keeps its place.
         /// </remarks>
         public bool TryDequeue([NotNullWhen(true)] out Entry? result)
         {
@@ -274,7 +291,7 @@ namespace Opc.Ua
                     EndSelection();
                     Pulse();
                     candidate.ReleaseQueueLease();
-                    if (Volatile.Read(ref m_stopped))
+                    if (Volatile.Read(ref m_stopped) != 0)
                     {
                         // stopped while selecting: the request was no longer linked for Dispose
                         candidate.Dispose();
@@ -304,24 +321,9 @@ namespace Opc.Ua
 
                 // Execution capacity is exhausted: the head returns to the front of its FIFO and
                 // the owner is not retried before capacity or membership changes.
-                StatusCode terminal = StatusCodes.Good;
-                lock (m_gate)
-                {
-                    m_selecting = false;
-                    if (m_stopped)
-                    {
-                        terminal = StatusCodes.BadServerHalted;
-                    }
-                    else if (candidate.CancellationToken.IsCancellationRequested)
-                    {
-                        // the cancellation callback found the request unlinked
-                        terminal = StatusCodes.BadRequestCancelledByClient;
-                    }
-                    else
-                    {
-                        Relink(candidate, version);
-                    }
-                }
+                StatusCode terminal = Relink(candidate, version);
+                // global FIFO: the next selection starts only once the head is back in place
+                EndFifoSelection();
                 if (StatusCode.IsBad(terminal))
                 {
                     candidate.Dispose();
@@ -344,7 +346,7 @@ namespace Opc.Ua
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (Volatile.Read(ref m_stopped))
+                if (Volatile.Read(ref m_stopped) != 0)
                 {
                     throw new OperationCanceledException(cancellationToken);
                 }
@@ -372,29 +374,26 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            List<Entry> pending = [];
-            lock (m_gate)
+            if (Interlocked.Exchange(ref m_stopped, 1) != 0)
             {
-                if (m_stopped)
-                {
-                    return;
-                }
-                m_stopped = true;
-                foreach (OwnerQueue owner in m_round)
-                {
-                    foreach (Entry entry in owner.Requests)
-                    {
-                        entry.Node = null;
-                        entry.OwnerQueue = null;
-                        pending.Add(entry);
-                    }
-                    owner.Requests.Clear();
-                }
-                m_round.Clear();
-                m_owners.Clear();
-                m_count = 0;
-                Changed();
+                return;
             }
+            // An admission or relink that links after this point sees the stop and takes its
+            // entry back; every entry linked before it is drained here.
+            List<Entry> pending = [];
+            foreach (KeyValuePair<string, OwnerQueue> item in m_owners)
+            {
+                OwnerQueue owner = item.Value;
+                while (TryTake(owner, out Entry? entry))
+                {
+                    pending.Add(entry);
+                }
+            }
+            while (m_ready.TryDequeue(out _))
+            {
+                Interlocked.Decrement(ref m_readyCount);
+            }
+            Changed();
             m_signals.Writer.TryComplete();
             m_provider.CapacityAvailable -= OnCapacityAvailable;
             foreach (Entry entry in pending)
@@ -455,151 +454,380 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Selects and unlinks one eligible owner head. In global FIFO mode concurrent selection is
+        /// Selects and claims one eligible owner head. In global FIFO mode concurrent selection is
         /// excluded, so the head cannot be overtaken while its admission is attempted.
         /// The first call of a dequeue pass (<paramref name="attempts"/> negative) snapshots the
-        /// number of scheduling FIFOs under the same gate acquisition; each call consumes one attempt.
+        /// number of turn tokens in the ready queue; each token taken consumes one attempt, so a
+        /// pass visits every owner that was ready when it started at most once per token.
         /// </summary>
+        /// <remarks>
+        /// No lock is taken: the ready queue and the owner FIFOs are lock-free. A token of an
+        /// owner that already failed admission at the current capacity version goes back to the
+        /// end of the ready queue untried.
+        /// </remarks>
         private bool TrySelect(ref int attempts, [NotNullWhen(true)] out Entry? entry, out long version)
         {
-            lock (m_gate)
+            version = Volatile.Read(ref m_version);
+            entry = null;
+            if (attempts < 0)
             {
-                version = Volatile.Read(ref m_version);
-                if (attempts < 0)
-                {
-                    attempts = m_owners.Count;
-                }
-                if (attempts-- > 0 && !m_stopped && (m_useFairScheduling || !m_selecting))
-                {
-                    int remaining = m_round.Count;
-                    while (remaining-- > 0 && m_round.First != null)
-                    {
-                        OwnerQueue owner = m_round.First.Value;
-                        if (owner.LastAttempt != version)
-                        {
-                            entry = owner.Requests.First!.Value;
-                            Unlink(entry);
-                            m_selecting = true;
-                            return true;
-                        }
-                        Rotate(owner);
-                    }
-                }
-                entry = null;
+                attempts = Volatile.Read(ref m_readyCount);
+            }
+            if (attempts <= 0 || IsStopped())
+            {
                 return false;
             }
+            if (!m_useFairScheduling && Interlocked.CompareExchange(ref m_selecting, 1, 0) != 0)
+            {
+                return false;
+            }
+            while (attempts > 0 && m_ready.TryDequeue(out OwnerQueue? owner))
+            {
+                attempts--;
+                Interlocked.Decrement(ref m_readyCount);
+                // A token of a retired FIFO is stale: its requests were selected,
+                // cancelled or moved to the owner's next FIFO.
+                if (Volatile.Read(ref owner.Retired) != 0)
+                {
+                    continue;
+                }
+                if (Volatile.Read(ref owner.LastAttempt) == version)
+                {
+                    PushTurn(owner);
+                    continue;
+                }
+                // The turn is accounted before the head is claimed, so the owner's next turn
+                // is queued in token order.
+                TakeTurnToken(owner);
+                if (TryTake(owner, out entry))
+                {
+                    return true;
+                }
+                // A request being linked is counted before it is visible; keep a turn for it.
+                if (Volatile.Read(ref owner.Retired) == 0 && Volatile.Read(ref owner.Queued) > 0)
+                {
+                    GrowTurn(owner);
+                }
+            }
+            EndFifoSelection();
+            return false;
         }
 
         /// <summary>
-        /// Unlinks a selected head under the queue gate and consumes one turn of its owner.
-        /// The version is not changed: a head that fails admission is relinked and its owner
-        /// must not be retried before capacity changes.
+        /// Links an admitted or relinked request into its owner's FIFO in admission order and
+        /// grants the owner turn tokens for it. <paramref name="version"/> is the capacity version
+        /// a relinked head failed admission at, or null for a new admission.
         /// </summary>
-        private void Unlink(Entry entry)
-        {
-            OwnerQueue owner = entry.OwnerQueue!;
-            owner.Requests.Remove(entry.Node!);
-            entry.Node = null;
-            entry.OwnerQueue = null;
-            m_count--;
-            if (owner.Requests.Count == 0)
-            {
-                m_round.Remove(owner.RoundNode!);
-                m_owners.Remove(m_useFairScheduling ? entry.Owner.Key : string.Empty);
-            }
-            else if (--owner.Remaining == 0)
-            {
-                Rotate(owner);
-            }
-        }
-
-        /// <summary>
-        /// Returns a head whose execution admission failed to the front of its owner's FIFO
-        /// under the queue gate, and marks the owner as attempted at <paramref name="version"/>.
-        /// </summary>
-        private void Relink(Entry entry, long version)
+        /// <returns>Good, or the status that ends a request that cannot be linked.</returns>
+        private StatusCode Link(Entry entry, long? version)
         {
             string schedulingKey = m_useFairScheduling ? entry.Owner.Key : string.Empty;
-            if (!m_owners.TryGetValue(schedulingKey, out OwnerQueue? owner))
+            var spinner = new SpinWait();
+            while (true)
             {
-                owner = new OwnerQueue(m_useFairScheduling ? entry.Owner.Weight : 1);
-                owner.RoundNode = m_round.AddLast(owner);
-                m_owners.Add(schedulingKey, owner);
+                if (!m_owners.TryGetValue(schedulingKey, out OwnerQueue? owner))
+                {
+                    owner = m_owners.GetOrAdd(
+                        schedulingKey,
+                        new OwnerQueue(schedulingKey, m_useFairScheduling ? entry.Owner.Weight : 1));
+                }
+                // Counting the request first pins the FIFO: a retired FIFO cannot be counted,
+                // so this admission moves on to the owner's next FIFO.
+                if (!TryCount(owner))
+                {
+                    spinner.SpinOnce();
+                    continue;
+                }
+                StatusCode status = IsStopped()
+                    ? StatusCodes.BadServerHalted
+                    : entry.CancellationToken.IsCancellationRequested
+                        ? StatusCodes.BadRequestCancelledByClient
+                        : StatusCodes.Good;
+                if (StatusCode.IsBad(status))
+                {
+                    // the cancellation callback found the request unlinked
+                    ReleaseCount(owner);
+                    return status;
+                }
+                entry.OwnerQueue = owner;
+                Volatile.Write(ref entry.State, Entry.Linked);
+                if (version == null)
+                {
+                    entry.Sequence = Interlocked.Increment(ref m_sequence);
+                    owner.Enqueue(entry);
+                }
+                else
+                {
+                    owner.Return(entry);
+                    Volatile.Write(ref owner.LastAttempt, version.Value);
+                }
+                GrowTurn(owner);
+                return StatusCodes.Good;
             }
-            entry.OwnerQueue = owner;
-            // concurrent selections of one owner may fail in any order; keep admission order
-            LinkedListNode<Entry>? next = owner.Requests.First;
-            while (next != null && next.Value.Sequence < entry.Sequence)
-            {
-                next = next.Next;
-            }
-            entry.Node = next == null ? owner.Requests.AddLast(entry) : owner.Requests.AddBefore(next, entry);
-            m_count++;
-            owner.LastAttempt = version;
-            Rotate(owner);
         }
 
         /// <summary>
-        /// Ends a selection that removed its head for good, outside the queue gate.
+        /// Returns a head whose execution admission failed to the front of its owner's FIFO, and
+        /// marks the owner as attempted at <paramref name="version"/>.
         /// </summary>
-        private void EndSelection()
+        /// <returns>Good, or the status that ends the request instead.</returns>
+        private StatusCode Relink(Entry entry, long version)
         {
-            Changed();
-            Volatile.Write(ref m_selecting, false);
+            Interlocked.Increment(ref m_count);
+            StatusCode status = Link(entry, version);
+            if (StatusCode.IsBad(status))
+            {
+                Interlocked.Decrement(ref m_count);
+                return status;
+            }
+            if (IsStopped() && TryUnlink(entry))
+            {
+                return StatusCodes.BadServerHalted;
+            }
+            return StatusCodes.Good;
         }
 
         /// <summary>
-        /// Removes a linked request while the caller holds the queue gate.
+        /// Grants a token for a request just linked: it starts a turn, or grows the current
+        /// turn with the backlog up to the owner's weight.
         /// </summary>
-        private bool Remove(Entry entry, bool consumeTurn = false)
+        private void GrowTurn(OwnerQueue owner)
         {
-            if (entry.Node == null)
+            while (true)
+            {
+                long turn = Volatile.Read(ref owner.Turn);
+                int tokens = TurnTokens(turn);
+                int granted = TurnGranted(turn);
+                long next;
+                if (tokens == 0)
+                {
+                    next = MakeTurn(1, 1);
+                }
+                else if (granted < owner.Weight && tokens < Volatile.Read(ref owner.Queued))
+                {
+                    next = MakeTurn(tokens + 1, granted + 1);
+                }
+                else
+                {
+                    return;
+                }
+                if (Interlocked.CompareExchange(ref owner.Turn, next, turn) == turn)
+                {
+                    PushTurn(owner);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Accounts a token taken from the ready queue. The last token of a turn grants the
+        /// next turn at once, one token per request left behind it, up to the owner's weight.
+        /// </summary>
+        private void TakeTurnToken(OwnerQueue owner)
+        {
+            while (true)
+            {
+                long turn = Volatile.Read(ref owner.Turn);
+                int tokens = TurnTokens(turn);
+                if (tokens <= 0)
+                {
+                    return;
+                }
+                int grant = 0;
+                long next;
+                if (tokens > 1)
+                {
+                    next = MakeTurn(tokens - 1, TurnGranted(turn));
+                }
+                else
+                {
+                    // a request linked concurrently either counts here or grows the turn itself
+                    grant = Math.Min(owner.Weight, Math.Max(Volatile.Read(ref owner.Queued) - 1, 0));
+                    next = MakeTurn(grant, grant);
+                }
+                if (Interlocked.CompareExchange(ref owner.Turn, next, turn) == turn)
+                {
+                    for (int ii = 0; ii < grant; ii++)
+                    {
+                        PushTurn(owner);
+                    }
+                    return;
+                }
+            }
+        }
+
+        private static long MakeTurn(int tokens, int granted)
+        {
+            return ((long)tokens << 32) | (uint)granted;
+        }
+
+        private static int TurnTokens(long turn)
+        {
+            return (int)(turn >> 32);
+        }
+
+        private static int TurnGranted(long turn)
+        {
+            return (int)turn;
+        }
+
+        /// <summary>
+        /// Appends one turn token of an owner to the ready queue.
+        /// </summary>
+        private void PushTurn(OwnerQueue owner)
+        {
+            Interlocked.Increment(ref m_readyCount);
+            m_ready.Enqueue(owner);
+        }
+
+        /// <summary>
+        /// Claims the oldest linked request of an owner: returned heads first, then the FIFO.
+        /// Entries claimed elsewhere (cancelled or taken back) are dropped on the way.
+        /// </summary>
+        private bool TryTake(OwnerQueue owner, [NotNullWhen(true)] out Entry? entry)
+        {
+            if (owner.TryTakeReturned(out entry) || owner.TryTakeQueued(out entry))
+            {
+                Unlinked(owner);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Claims a request if it is still linked in an owner FIFO; it is removed lazily.
+        /// </summary>
+        /// <returns>True when this call claimed it.</returns>
+        private bool TryUnlink(Entry entry)
+        {
+            if (!entry.TryClaim())
             {
                 return false;
             }
-            OwnerQueue owner = entry.OwnerQueue!;
-            owner.Requests.Remove(entry.Node);
-            entry.Node = null;
-            entry.OwnerQueue = null;
-            m_count--;
-            if (owner.Requests.Count == 0)
-            {
-                m_round.Remove(owner.RoundNode!);
-                m_owners.Remove(m_useFairScheduling ? entry.Owner.Key : string.Empty);
-            }
-            else if (consumeTurn && --owner.Remaining == 0)
-            {
-                Rotate(owner);
-            }
-            Changed();
+            Unlinked(entry.OwnerQueue!);
             return true;
         }
 
         /// <summary>
-        /// Advances an owner to the next weighted round under the queue gate.
+        /// Accounts a claimed request.
         /// </summary>
-        private void Rotate(OwnerQueue owner)
+        private void Unlinked(OwnerQueue owner)
         {
-            m_round.Remove(owner.RoundNode!);
-            m_round.AddLast(owner.RoundNode!);
-            owner.Remaining = owner.Weight;
+            Interlocked.Decrement(ref m_count);
+            ReleaseCount(owner);
         }
 
         /// <summary>
-        /// Removes cancelled queued work before completing it outside the queue gate.
+        /// Drops one request count of an owner, retiring the FIFO when none is left.
+        /// </summary>
+        private void ReleaseCount(OwnerQueue owner)
+        {
+            if (Interlocked.Decrement(ref owner.Queued) == 0)
+            {
+                TryRetire(owner);
+            }
+        }
+
+        /// <summary>
+        /// Counts a request being linked into an owner FIFO, unless the FIFO is retired.
+        /// </summary>
+        private static bool TryCount(OwnerQueue owner)
+        {
+            while (true)
+            {
+                int queued = Volatile.Read(ref owner.Queued);
+                if (queued < 0)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref owner.Queued, queued + 1, queued) == queued)
+                {
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes an owner FIFO that no request counts any more, so idle owners keep no queue
+        /// state. Retirement is one atomic step from a zero count, so a FIFO is never revived:
+        /// its remaining tokens are stale and a later request of the owner starts a new FIFO.
+        /// A request counted concurrently keeps the FIFO alive.
+        /// </summary>
+        private void TryRetire(OwnerQueue owner)
+        {
+            if (Interlocked.CompareExchange(ref owner.Queued, OwnerQueue.RetiredCount, 0) != 0)
+            {
+                return;
+            }
+            Volatile.Write(ref owner.Retired, 1);
+            ((ICollection<KeyValuePair<string, OwnerQueue>>)m_owners).Remove(
+                new KeyValuePair<string, OwnerQueue>(owner.Key, owner));
+        }
+
+        /// <summary>
+        /// Ends a selection that removed its head for good.
+        /// </summary>
+        private void EndSelection()
+        {
+            Changed();
+            EndFifoSelection();
+        }
+
+        /// <summary>
+        /// Lets the next global FIFO selection start. Weighted mode never sets the flag, and
+        /// skipping the write keeps the line out of every worker's dispatch.
+        /// </summary>
+        private void EndFifoSelection()
+        {
+            if (!m_useFairScheduling)
+            {
+                Volatile.Write(ref m_selecting, 0);
+            }
+        }
+
+        /// <summary>
+        /// Whether the queue has stopped. A full fence orders it after a preceding link, so a
+        /// request linked concurrently with the stop is either drained or taken back.
+        /// </summary>
+        private bool IsStopped()
+        {
+            return Interlocked.CompareExchange(ref m_stopped, 0, 0) != 0;
+        }
+
+        /// <summary>
+        /// Removes cancelled queued work before completing it outside the owner's gate.
         /// </summary>
         private void Cancel(Entry entry)
         {
-            bool removed;
-            lock (m_gate)
+            if (!TryUnlink(entry))
             {
-                removed = Remove(entry);
+                return;
             }
-            if (removed)
+            Changed();
+            Pulse();
+            if (Volatile.Read(ref m_count) == 0)
             {
-                Pulse();
-                entry.Dispose();
-                m_complete(entry.Request, StatusCodes.BadRequestCancelledByClient);
+                DiscardStaleTurns();
+            }
+            entry.Dispose();
+            m_complete(entry.Request, StatusCodes.BadRequestCancelledByClient);
+        }
+
+        /// <summary>
+        /// Drops the tokens of retired owners from the ready queue once no request is queued, so
+        /// cancelled requests leave no scheduling state behind when no worker passes.
+        /// </summary>
+        private void DiscardStaleTurns()
+        {
+            int tokens = Volatile.Read(ref m_readyCount);
+            while (tokens-- > 0 && m_ready.TryDequeue(out OwnerQueue? owner))
+            {
+                Interlocked.Decrement(ref m_readyCount);
+                if (Volatile.Read(ref owner.Retired) == 0)
+                {
+                    // a concurrent admission's token
+                    PushTurn(owner);
+                }
             }
         }
 
@@ -634,7 +862,7 @@ namespace Opc.Ua
         /// </remarks>
         private void Pulse()
         {
-            if (Volatile.Read(ref m_count) > 0 && !Volatile.Read(ref m_stopped) &&
+            if (Volatile.Read(ref m_count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
                 Volatile.Read(ref m_signalPending) == 0 &&
                 Interlocked.Exchange(ref m_signalPending, 1) == 0 &&
                 m_signals.Writer.TryWrite(true))
@@ -646,7 +874,7 @@ namespace Opc.Ua
         /// <summary>
         /// Owns the admission leases for one request through queueing, execution and parking.
         /// </summary>
-        internal sealed class Entry : IDisposable
+        internal sealed class Entry : QueueNode, IDisposable
         {
             /// <summary>
             /// Takes ownership of a request's acquired admission leases.
@@ -685,19 +913,37 @@ namespace Opc.Ua
             public CancellationToken CancellationToken { get; }
 
             /// <summary>
-            /// Gets or sets the owning FIFO while linked under the queue gate.
+            /// Gets or sets the owning FIFO while linked; written under that FIFO's gate.
             /// </summary>
-            internal OwnerQueue? OwnerQueue { get; set; }
+            internal OwnerQueue? OwnerQueue
+            {
+                get => Volatile.Read(ref m_ownerQueue);
+                set => Volatile.Write(ref m_ownerQueue, value);
+            }
 
             /// <summary>
-            /// Gets or sets the admission order, assigned under the queue gate.
+            /// Gets or sets the admission order, assigned when first linked.
             /// </summary>
             internal long Sequence { get; set; }
 
             /// <summary>
-            /// Gets or sets the FIFO node; null means no longer queued.
+            /// <see cref="Linked"/> while queued; claimed exactly once by selection,
+            /// cancellation or stop with <see cref="TryClaim"/>.
             /// </summary>
-            internal LinkedListNode<Entry>? Node { get; set; }
+            internal int State;
+
+            /// <summary>
+            /// The value of <see cref="State"/> while the entry is linked in an owner FIFO.
+            /// </summary>
+            internal const int Linked = 1;
+
+            /// <summary>
+            /// Claims a linked entry; only one claimant succeeds per link.
+            /// </summary>
+            internal bool TryClaim()
+            {
+                return Interlocked.CompareExchange(ref State, 0, Linked) == Linked;
+            }
 
             /// <summary>
             /// Checks whether dispatch may use the existing classification.
@@ -793,6 +1039,11 @@ namespace Opc.Ua
             private readonly Lock m_registrationGate = new();
 
             /// <summary>
+            /// The owning FIFO while linked.
+            /// </summary>
+            private OwnerQueue? m_ownerQueue;
+
+            /// <summary>
             /// Retained queue-slot lease.
             /// </summary>
             private IDisposable? m_queueLease;
@@ -824,35 +1075,209 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Tracks a scheduling FIFO and its weighted turn under the queue gate.
-        /// Global FIFO mode shares one instance across all resource-accounting owners.
+        /// A node of an owner's intrusive lock-free FIFO; queued entries are the nodes.
         /// </summary>
-        internal sealed class OwnerQueue(int weight)
+        internal class QueueNode
         {
             /// <summary>
-            /// Gets the owner's configured scheduling weight.
+            /// The next node, published with a compare-and-swap.
             /// </summary>
-            public int Weight { get; } = weight;
+            internal QueueNode? Next;
+        }
+
+        /// <summary>
+        /// A scheduling FIFO and its weighted turn. Global FIFO mode shares one instance across
+        /// all resource-accounting owners.
+        /// </summary>
+        /// <remarks>
+        /// Admissions append to a lock-free FIFO (Michael and Scott, with the entries themselves
+        /// as nodes, so queueing allocates nothing). A head whose execution admission failed is
+        /// older than every request still in the FIFO; it goes to a small sorted list under
+        /// <see cref="Gate"/> that is served first. Entries claimed elsewhere (cancelled or
+        /// taken back on stop) stay in place and are dropped when they reach the head.
+        /// A turn is a set of tokens in the queue's ready queue: one per queued request, up to
+        /// the owner's weight. Each token taken dispatches one request, and the owner queues for
+        /// its next turn when the last token of the turn is taken.
+        /// </remarks>
+        internal sealed class OwnerQueue
+        {
+            /// <summary>
+            /// Creates an empty FIFO for a scheduling key.
+            /// </summary>
+            public OwnerQueue(string key, int weight)
+            {
+                Key = key;
+                Weight = weight;
+                m_head = m_tail = new QueueNode();
+            }
 
             /// <summary>
-            /// Gets or sets successful dispatches remaining in this turn.
+            /// The scheduling key the FIFO is registered under.
             /// </summary>
-            public int Remaining { get; set; } = weight;
+            public string Key { get; }
 
             /// <summary>
-            /// Gets or sets the capacity version of the last unsuccessful admission.
+            /// The owner's configured scheduling weight.
             /// </summary>
-            public long LastAttempt { get; set; } = -1;
+            public int Weight { get; }
 
             /// <summary>
-            /// Gets queued requests in admission order.
+            /// Protects the returned heads.
             /// </summary>
-            public LinkedList<Entry> Requests { get; } = [];
+            public Lock Gate { get; } = new();
 
             /// <summary>
-            /// Gets or sets this owner's node in the scheduling round.
+            /// The current turn, changed atomically: the tokens still in the ready queue (high
+            /// 32 bits) and the tokens granted in the turn, at most the weight (low 32 bits).
             /// </summary>
-            public LinkedListNode<OwnerQueue>? RoundNode { get; set; }
+            public long Turn;
+
+            /// <summary>
+            /// Linked requests plus admissions about to link, changed atomically. While it is
+            /// not zero the FIFO is not retired; <see cref="RetiredCount"/> once retired.
+            /// </summary>
+            public int Queued;
+
+            /// <summary>
+            /// The value of <see cref="Queued"/> of a retired FIFO, which no admission can count.
+            /// </summary>
+            public const int RetiredCount = int.MinValue / 2;
+
+            /// <summary>
+            /// The capacity version of the last unsuccessful admission.
+            /// </summary>
+            public long LastAttempt = -1;
+
+            /// <summary>
+            /// 1 once the FIFO is retired for good; its tokens are stale.
+            /// </summary>
+            public int Retired;
+
+            /// <summary>
+            /// Appends a newly admitted entry.
+            /// </summary>
+            public void Enqueue(Entry entry)
+            {
+                entry.Next = null;
+                while (true)
+                {
+                    QueueNode tail = Volatile.Read(ref m_tail);
+                    QueueNode? next = Volatile.Read(ref tail.Next);
+                    if (!ReferenceEquals(tail, Volatile.Read(ref m_tail)))
+                    {
+                        continue;
+                    }
+                    if (next != null)
+                    {
+                        // help a lagging tail along
+                        Interlocked.CompareExchange(ref m_tail, next, tail);
+                        continue;
+                    }
+                    if (Interlocked.CompareExchange(ref tail.Next, entry, null) == null)
+                    {
+                        Interlocked.CompareExchange(ref m_tail, entry, tail);
+                        return;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Puts a head whose admission failed back in front of the FIFO, in admission order.
+            /// </summary>
+            public void Return(Entry entry)
+            {
+                lock (Gate)
+                {
+                    m_returned ??= [];
+                    int index = m_returned.Count;
+                    while (index > 0 && m_returned[index - 1].Sequence > entry.Sequence)
+                    {
+                        index--;
+                    }
+                    m_returned.Insert(index, entry);
+                    Volatile.Write(ref m_returnedCount, m_returned.Count);
+                }
+            }
+
+            /// <summary>
+            /// Claims the oldest linked returned head, if any.
+            /// </summary>
+            public bool TryTakeReturned([NotNullWhen(true)] out Entry? entry)
+            {
+                entry = null;
+                if (Volatile.Read(ref m_returnedCount) == 0)
+                {
+                    return false;
+                }
+                lock (Gate)
+                {
+                    while (m_returned!.Count > 0)
+                    {
+                        Entry candidate = m_returned[0];
+                        m_returned.RemoveAt(0);
+                        if (candidate.TryClaim())
+                        {
+                            entry = candidate;
+                            break;
+                        }
+                    }
+                    Volatile.Write(ref m_returnedCount, m_returned.Count);
+                }
+                return entry != null;
+            }
+
+            /// <summary>
+            /// Claims the oldest linked entry of the FIFO, if any.
+            /// </summary>
+            public bool TryTakeQueued([NotNullWhen(true)] out Entry? entry)
+            {
+                while (TryDequeue(out entry))
+                {
+                    if (entry.TryClaim())
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// Removes the head node; the removed entry becomes the new sentinel.
+            /// </summary>
+            private bool TryDequeue([NotNullWhen(true)] out Entry? entry)
+            {
+                while (true)
+                {
+                    QueueNode head = Volatile.Read(ref m_head);
+                    QueueNode tail = Volatile.Read(ref m_tail);
+                    QueueNode? next = Volatile.Read(ref head.Next);
+                    if (!ReferenceEquals(head, Volatile.Read(ref m_head)))
+                    {
+                        continue;
+                    }
+                    if (next == null)
+                    {
+                        entry = null;
+                        return false;
+                    }
+                    if (ReferenceEquals(head, tail))
+                    {
+                        // help a lagging tail along
+                        Interlocked.CompareExchange(ref m_tail, next, tail);
+                        continue;
+                    }
+                    if (ReferenceEquals(Interlocked.CompareExchange(ref m_head, next, head), head))
+                    {
+                        entry = (Entry)next;
+                        return true;
+                    }
+                }
+            }
+
+            private QueueNode m_head;
+            private QueueNode m_tail;
+            private List<Entry>? m_returned;
+            private int m_returnedCount;
         }
 
         /// <summary>
@@ -937,20 +1362,20 @@ namespace Opc.Ua
         private readonly Action<IEndpointIncomingRequest, StatusCode> m_complete;
 
         /// <summary>
-        /// Protects queue membership and weighted selection state.
-        /// </summary>
-        private readonly Lock m_gate = new();
-
-        /// <summary>
         /// Scheduling FIFOs retained while nonempty, keyed by owner in weighted mode
         /// or by the empty string for global FIFO mode.
         /// </summary>
-        private readonly Dictionary<string, OwnerQueue> m_owners = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, OwnerQueue> m_owners = new(StringComparer.Ordinal);
 
         /// <summary>
-        /// Current weighted scheduling round.
+        /// Turn tokens in round-robin order; a token of a retired FIFO is skipped.
         /// </summary>
-        private readonly LinkedList<OwnerQueue> m_round = [];
+        private readonly ConcurrentQueue<OwnerQueue> m_ready = new();
+
+        /// <summary>
+        /// Number of tokens in <see cref="m_ready"/>, at least the number dequeuable.
+        /// </summary>
+        private int m_readyCount;
 
         /// <summary>
         /// Single coalesced wake token; a successful dispatch passes it to another waiter.
@@ -983,14 +1408,14 @@ namespace Opc.Ua
         private long m_sequence;
 
         /// <summary>
-        /// Whether a selected head is undergoing provider admission outside the gate; only global
-        /// FIFO mode waits for it, weighted mode selects concurrently.
+        /// 1 while a selected head is undergoing provider admission; only global FIFO mode
+        /// waits for it, weighted mode selects concurrently.
         /// </summary>
-        private bool m_selecting;
+        private int m_selecting;
 
         /// <summary>
-        /// Whether admissions and dispatch have stopped.
+        /// 1 once admissions and dispatch have stopped.
         /// </summary>
-        private bool m_stopped;
+        private int m_stopped;
     }
 }
