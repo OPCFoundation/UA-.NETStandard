@@ -93,6 +93,56 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes a lifetime that is cancelled by either token or once
+        /// <paramref name="timeout"/> elapses, with a single token source for all three.
+        /// </summary>
+        /// <remarks>
+        /// Equivalent to passing both tokens and the token of a separate timeout source to
+        /// <see cref="RequestLifetime(CancellationToken[])"/>, without the token array, the
+        /// timeout source and its registration. Tokens that cannot be cancelled are not linked.
+        /// </remarks>
+        /// <param name="timeout">The time after which the request is cancelled, or
+        /// <see cref="TimeSpan.Zero"/> or <see cref="Timeout.InfiniteTimeSpan"/> for none.</param>
+        /// <param name="first">A token that cancels the request.</param>
+        /// <param name="second">Another token that cancels the request.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
+        /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
+        public RequestLifetime(TimeSpan timeout, CancellationToken first, CancellationToken second)
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            if (!first.CanBeCanceled || first == second)
+            {
+                first = second;
+                second = default;
+            }
+            if (!first.CanBeCanceled)
+            {
+                m_cts = new CancellationTokenSource();
+            }
+            else if (!second.CanBeCanceled)
+            {
+#if NET
+                m_cts = CancellationTokenSource.CreateLinkedTokenSource(first);
+#else
+                m_cts = CancellationTokenSource.CreateLinkedTokenSource(first, second);
+#endif
+            }
+            else
+            {
+                m_cts = CancellationTokenSource.CreateLinkedTokenSource(first, second);
+            }
+            if (timeout > TimeSpan.Zero)
+            {
+                m_cts.CancelAfter(timeout);
+            }
+            CancellationToken = m_cts.Token;
+            m_statusCode = StatusCodes.Good;
+        }
+
+        /// <summary>
         /// Attempts to cancel the request and assigns the corresponding status code.
         /// </summary>
         /// <remarks>

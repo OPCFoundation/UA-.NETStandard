@@ -440,7 +440,11 @@ namespace Opc.Ua
                             return;
                         }
                     }
-                    using CancellationTokenSource? linked = queued.CancellationToken.CanBeCanceled ?
+                    // An endpoint request links the token it was scheduled with into its own
+                    // request lifetime; linking it here as well would cost a second token source.
+                    using CancellationTokenSource? linked = queued.CancellationToken.CanBeCanceled &&
+                        !(request is ILinksScheduledCancellation scheduled &&
+                            scheduled.ScheduledCancellationToken == queued.CancellationToken) ?
                         CancellationTokenSource.CreateLinkedTokenSource(ct, queued.CancellationToken) : null;
                     await m_server.ProcessRequestAsync(request, linked?.Token ?? ct).ConfigureAwait(false);
                 }

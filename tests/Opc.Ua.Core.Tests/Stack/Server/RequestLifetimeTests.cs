@@ -30,6 +30,7 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System;
 using System.Threading;
 using NUnit.Framework;
 
@@ -164,5 +165,91 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.False);
         }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void TimeoutConstructorIsCancelledByEitherToken(int cancelled)
+        {
+            using var first = new CancellationTokenSource();
+            using var second = new CancellationTokenSource();
+            using var lifetime = new RequestLifetime(TimeSpan.Zero, first.Token, second.Token);
+
+            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.False);
+            (cancelled == 0 ? first : second).Cancel();
+
+            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void TimeoutConstructorIsCancelledWhenTheTimeoutElapses()
+        {
+            using var lifetime = new RequestLifetime(
+                TimeSpan.FromMilliseconds(20), CancellationToken.None, CancellationToken.None);
+
+            Assert.That(
+                lifetime.CancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(10)), Is.True);
+            Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void TimeoutConstructorWithoutTimeoutOrTokensIsOnlyCancelledExplicitly()
+        {
+            using var first = new CancellationTokenSource();
+            using var lifetime = new RequestLifetime(Timeout.InfiniteTimeSpan, first.Token, first.Token);
+            using var unlinked = new RequestLifetime(TimeSpan.Zero, default, default);
+
+            Assert.That(lifetime.CancellationToken.WaitHandle.WaitOne(50), Is.False);
+            first.Cancel();
+            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+
+            Assert.That(unlinked.CancellationToken.CanBeCanceled, Is.True);
+            Assert.That(unlinked.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);
+            Assert.That(unlinked.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
+        public void TimeoutConstructorRejectsNegativeTimeouts()
+        {
+            Assert.That(
+                () => new RequestLifetime(TimeSpan.FromMilliseconds(-2), default, default),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+#if NET
+        /// <summary>
+        /// One token source replaces the token array, the timeout source and its registration
+        /// that the params constructor needs for the same three inputs.
+        /// </summary>
+        [Test]
+        public void TimeoutConstructorAllocatesLessThanLinkingATimeoutSource()
+        {
+            using var request = new CancellationTokenSource();
+            using var transport = new CancellationTokenSource();
+            var timeout = TimeSpan.FromMinutes(5);
+            for (int ii = 0; ii < 2; ii++)
+            {
+                using var warm = new RequestLifetime(timeout, request.Token, transport.Token);
+                using var warmTimeout = new CancellationTokenSource(timeout);
+                using var warmOld = new RequestLifetime(request.Token, transport.Token, warmTimeout.Token);
+            }
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            using (var timeoutSource = new CancellationTokenSource(timeout))
+            using (new RequestLifetime(request.Token, transport.Token, timeoutSource.Token))
+            {
+            }
+            long linked = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            before = GC.GetAllocatedBytesForCurrentThread();
+            using (new RequestLifetime(timeout, request.Token, transport.Token))
+            {
+            }
+            long single = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            TestContext.Out.WriteLine($"params + timeout source: {linked} B, timeout constructor: {single} B");
+            Assert.That(single, Is.LessThan(linked));
+        }
+#endif
     }
 }
