@@ -295,9 +295,13 @@ The direct recipe FileType uses commit-on-close. These are **OPC 40100-1 protoco
 not replacements with the different OPC 40001-101 result protocol.
 
 File bindings reuse the stack's session-bound file-handle implementation, with independent
-reader positions, one writer, bounded files, and owned cleanup. The default per-system
-limits are 64 metadata handles, a five-minute metadata retention bound, eight temporary
-transfers, 16 MiB per transferred file, and a two-minute transfer inactivity timeout.
+reader positions, one writer, bounded files, and owned cleanup. Closing or expiring a
+session releases its handles without committing an abandoned writer; other sessions'
+readers remain open. Removing a recipe disposes its file binding and pending write
+before removing the published nodes, releasing the retained content and streams.
+The default per-system limits are 64 metadata handles, a five-minute metadata retention
+bound, eight temporary transfers, 16 MiB per transferred file, and a two-minute transfer
+inactivity timeout.
 Client metadata timeouts are retention hints, not request deadlines. Pagination accepts
 zero MaxResults for all remaining results; a nonzero MaxResults requires a StartIndex
 that is a multiple of that page size.
@@ -548,11 +552,12 @@ from Part 2 table 74.
 | Failed-call diagnostics | Bound methods and MethodState validation observer | `MissingControlArgumentsPublishFailureDiagnosticAsync` |
 | Recipe preparation and file commit/abort | Management, Documents, Transfers, `IFileTypeBinder` | `RecipeTransferCommitsContentThenPreparationEnablesReadyAsync`, `ClosingAnUncommittedRecipeTransferDiscardsItsBytesAsync` |
 | Result version filters | Management and generated result proxy | `ResultFilterHonorsExternalRecipeVersionAsync` |
-| Session-owned readers/writer | Shared FileType binding | `SharedFileBindingIsolatesReadersAndCommitsOneWriterAsync` |
+| Session-owned readers/writer | Shared FileType binding | `SharedFileBindingIsolatesReadersAndCommitsOneWriterAsync`, `SharedFileBindingReleasesClosedSessionHandlesAsync` |
+| Recipe file retirement | Documents and shared FileType binding | `RemovingRecipesReleasesTheirPublishedFileBindingsAsync`, `RemovingRecipeCancelsPendingFileCommitWithoutDeadlockingAsync` |
 | Bounded and persistent storage | Memory and file-system stores | `MemoryStoreClonesMetadataAndRefusesCapacityOverflowWithoutEvictionAsync`, `FileSystemStoreSurvivesRestartAndRecoversAnInterruptedReplacementAsync` |
 | Part 2 categories, identity, and health | Asset and declared-member builders | `AssetBuilderPublishesEveryComponentCategoryAndLiveHealthAsync` |
 | Component sharing and root identity | Reference-based adoption and root-name reservation | `AssetsCanShareAComponentWithoutReparentingOrReplacingItAsync`, `TwoStagedAssetsCannotPublishTheSameRootNameAsync` |
-| Machinery, both models, and TCP workflows | Hosting adapter and typed clients | `MachineVisionRuntimeTests.Integration.cs` |
+| Standalone/Machinery ownership, both models, and TCP workflows | Hosting adapters and typed clients | `CompositionSupportsBothPartsAndSessionFileCleanupOverTcpAsync` |
 | MCP registration and bounds | `VisionMachineTools`, profile extensions | `VisionMachineToolsTests`, `McpToolProfileCompositionTests` |
 
 The source generator also has regressions for recursive optional declarations, a

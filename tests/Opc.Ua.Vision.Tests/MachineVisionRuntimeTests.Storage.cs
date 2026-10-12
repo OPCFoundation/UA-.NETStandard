@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.Server;
@@ -294,6 +295,187 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(file.Size!.Value, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Session closure releases only its handles and never commits an abandoned writer.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedFileBindingReleasesClosedSessionHandlesAsync(bool writer)
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            var sessions = new Mock<ISessionManager>();
+            ServerSystemContext context = CreateFileBindingContext(fixture, sessions.Object);
+            var file = new FileState(null);
+            file.Create(context, new NodeId("session-file", fixture.Manager.NamespaceIndex),
+                new QualifiedName("SessionFile", fixture.Manager.NamespaceIndex),
+                new LocalizedText("SessionFile"), true);
+            bool committed = false;
+            await using IFileTypeBinding binding = new FileTypeBinder().Bind(
+                file, context, ByteString.From(new byte[] { 10, 20 }),
+                (_, _) =>
+                {
+                    committed = true;
+                    return default;
+                },
+                commitOnClose: true);
+            NodeId owner = new(1u);
+            NodeId other = new(2u);
+            uint first = await binding.OpenAsync(owner, writer ? (byte)6 : (byte)1).ConfigureAwait(false);
+            uint second = 0;
+            if (writer)
+            {
+                await InvokeAsync(SessionContext(fixture, owner), file, file.Write!,
+                    [Variant.From(first), Variant.From(ByteString.From(new byte[] { 99 }))]).ConfigureAwait(false);
+            }
+            else
+            {
+                second = await binding.OpenAsync(other, 1).ConfigureAwait(false);
+            }
+
+            var closedSession = new Mock<Opc.Ua.Server.ISession>();
+            closedSession.SetupGet(session => session.Id).Returns(owner);
+            sessions.Raise(manager => manager.SessionClosing += null!,
+                closedSession.Object, SessionEventReason.Closing);
+
+            Assert.That(file.OpenCount!.Value, Is.EqualTo(writer ? 0 : 1));
+            Assert.That(committed, Is.False, "Session cleanup must discard an uncommitted write.");
+            ServiceResult stale = await file.Read!.CallAsync(SessionContext(fixture, owner), file.NodeId,
+                [Variant.From(first), Variant.From(1)], [], []).ConfigureAwait(false);
+            Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            if (writer)
+            {
+                second = await binding.OpenAsync(other, 1).ConfigureAwait(false);
+            }
+            ArrayOf<Variant> response = await InvokeAsync(SessionContext(fixture, other), file, file.Read!,
+                [Variant.From(second), Variant.From(2)]).ConfigureAwait(false);
+            Assert.That(response[0].TryGetValue(out ByteString bytes), Is.True);
+            Assert.That(bytes.ToArray(), Is.EqualTo(new byte[] { 10, 20 }));
+            await binding.CloseAsync(other, second).ConfigureAwait(false);
+            await binding.DisposeAsync().ConfigureAwait(false);
+            sessions.VerifyRemove(manager => manager.SessionClosing -= It.IsAny<SessionEventHandler>(), Times.Once);
+        }
+
+        /// <summary>
+        /// Removing a recipe releases its direct file binding rather than retaining every retired payload and stream.
+        /// </summary>
+        [Test]
+        public async Task RemovingRecipesReleasesTheirPublishedFileBindingsAsync()
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync(MachineVisionParts.Control).ConfigureAwait(false);
+            var store = new InMemoryMachineVisionStore(1, 4);
+            MachineVisionSystemHandle system = await fixture.CreateBuildContext().AddMachineVisionSystemAsync(
+                "Removal", Provider().Object, store: store).ConfigureAwait(false);
+            RecipeManagementState recipes = system.State.RecipeManagement!;
+            for (int iteration = 0; iteration < 3; iteration++)
+            {
+                var externalId = new RecipeIdExternalDataType { Id = "replaceable" };
+                ArrayOf<Variant> added = await CallAsync(fixture, recipes, recipes.AddRecipe!,
+                    [Variant.FromStructure(externalId), Variant.FromStructure(new ProductIdDataType())])
+                    .ConfigureAwait(false);
+                Assert.That(added[1].TryGetValue(out NodeId recipeId), Is.True);
+                RecipeState recipe = fixture.Manager.FindPredefinedNode<RecipeState>(recipeId)!;
+                FileState file = recipe.Handle!;
+                ArrayOf<Variant> opened = await CallAsync(fixture, file, file.Open!, [Variant.From((byte)6)])
+                    .ConfigureAwait(false);
+                Assert.That(opened[0].TryGetValue(out uint writer), Is.True);
+                await CallAsync(fixture, file, file.Write!,
+                    [Variant.From(writer), Variant.From(ByteString.From(new byte[] { 1, 2 }))]).ConfigureAwait(false);
+                await CallAsync(fixture, file, file.Close!, [Variant.From(writer)]).ConfigureAwait(false);
+                opened = await CallAsync(fixture, file, file.Open!, [Variant.From((byte)1)]).ConfigureAwait(false);
+                Assert.That(opened[0].TryGetValue(out uint reader), Is.True);
+                PropertyState<ushort> openCount = file.OpenCount!;
+                MethodState read = file.Read!;
+                Assert.That(openCount.Value, Is.EqualTo(1));
+
+                await CallAsync(fixture, recipes, recipes.RemoveRecipe!, [Variant.FromStructure(externalId)])
+                    .ConfigureAwait(false);
+
+                Assert.That(await store.ListAsync(MachineVisionDocumentKind.Recipe).ConfigureAwait(false), Is.Empty);
+                Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(recipeId), Is.Null);
+                Assert.That(openCount.Value, Is.Zero, "Retired recipe files must release their open streams.");
+                ServiceResult retired = await read.CallAsync(
+                    SessionContext(fixture, new NodeId(1u)), file.NodeId,
+                    [Variant.From(reader), Variant.From(1)], [], []).ConfigureAwait(false);
+                Assert.That(retired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            }
+        }
+
+        /// <summary>
+        /// Removing a recipe cancels a commit waiting for the runtime gate without resurrecting the stored recipe.
+        /// </summary>
+        [Test]
+        public async Task RemovingRecipeCancelsPendingFileCommitWithoutDeadlockingAsync()
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync(MachineVisionParts.Control).ConfigureAwait(false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            CancellationToken ct = deadline.Token;
+            var backing = new InMemoryMachineVisionStore();
+            var deleting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDelete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var store = new Mock<IMachineVisionStore>(MockBehavior.Strict);
+            store.Setup(instance => instance.ReadAsync(It.IsAny<MachineVisionDocumentKind>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((MachineVisionDocumentKind kind, string id, CancellationToken token) =>
+                    backing.ReadAsync(kind, id, token));
+            store.Setup(instance => instance.ListAsync(
+                It.IsAny<MachineVisionDocumentKind>(), It.IsAny<CancellationToken>()))
+                .Returns((MachineVisionDocumentKind kind, CancellationToken token) => backing.ListAsync(kind, token));
+            store.Setup(instance => instance.WriteAsync(
+                It.IsAny<MachineVisionDocument>(), It.IsAny<CancellationToken>()))
+                .Returns((MachineVisionDocument document, CancellationToken token) =>
+                    backing.WriteAsync(document, token));
+            store.Setup(instance => instance.DeleteAsync(It.IsAny<MachineVisionDocumentKind>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(async (MachineVisionDocumentKind kind, string id, CancellationToken token) =>
+                {
+                    deleting.TrySetResult(true);
+                    await releaseDelete.Task.WaitAsync(token).ConfigureAwait(false);
+                    return await backing.DeleteAsync(kind, id, token).ConfigureAwait(false);
+                });
+            MachineVisionSystemHandle system = await fixture.CreateBuildContext().AddMachineVisionSystemAsync(
+                "Removal", Provider().Object, store: store.Object, cancellationToken: ct).ConfigureAwait(false);
+            RecipeManagementState recipes = system.State.RecipeManagement!;
+            var external = new RecipeIdExternalDataType { Id = "pending" };
+            ArrayOf<Variant> added = await CallAsync(fixture, recipes, recipes.AddRecipe!,
+                [Variant.FromStructure(external), Variant.FromStructure(new ProductIdDataType())])
+                .ConfigureAwait(false);
+            Assert.That(added[1].TryGetValue(out NodeId recipeId), Is.True);
+            FileState file = fixture.Manager.FindPredefinedNode<RecipeState>(recipeId)!.Handle!;
+            PropertyState<ushort> openCount = file.OpenCount!;
+            ArrayOf<Variant> opened = await CallAsync(fixture, file, file.Open!, [Variant.From((byte)6)])
+                .ConfigureAwait(false);
+            Assert.That(opened[0].TryGetValue(out uint writer), Is.True);
+            await CallAsync(fixture, file, file.Write!,
+                [Variant.From(writer), Variant.From(ByteString.From(new byte[] { 9 }))]).ConfigureAwait(false);
+            Task<ServiceResult> removal = recipes.RemoveRecipe!.CallAsync(
+                SessionContext(fixture, new NodeId(1u)), recipes.NodeId,
+                [Variant.FromStructure(external)], [], [], ct).AsTask();
+            try
+            {
+                await deleting.Task.WaitAsync(ct).ConfigureAwait(false);
+                Task<ServiceResult> commit = file.Close!.CallAsync(
+                    SessionContext(fixture, new NodeId(1u)), file.NodeId, [Variant.From(writer)], [], [], ct).AsTask();
+                Assert.That(commit.IsCompleted, Is.False, "The commit must be queued behind recipe removal.");
+                releaseDelete.TrySetResult(true);
+                ServiceResult[] results = await Task.WhenAll(removal, commit).WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(openCount.Value, Is.Zero);
+                Assert.That(await backing.ListAsync(MachineVisionDocumentKind.Recipe, ct).ConfigureAwait(false),
+                    Is.Empty);
+                store.Verify(instance => instance.WriteAsync(
+                    It.IsAny<MachineVisionDocument>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                releaseDelete.TrySetResult(true);
+                await removal.WaitAsync(ct).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task FileCommitCanRefreshItsPublishedContentWithoutDeadlockingAsync()
         {
@@ -401,7 +583,8 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(File.Exists(stored), Is.True);
                 Assert.That(File.Exists(stored + ".previous"), Is.False);
                 Assert.That(File.Exists(pending), Is.False, "An interrupted pending write must not accumulate.");
-                Assert.That(File.Exists(oldPending), Is.False, "Recover files created by the earlier unique-name format.");
+                Assert.That(File.Exists(oldPending), Is.False,
+                    "Recover files created by the earlier unique-name format.");
                 Assert.That((await second.ListAsync(MachineVisionDocumentKind.Result).ConfigureAwait(false)).Count,
                     Is.EqualTo(1));
                 string interruptedFirstWrite = Path.Combine(Path.GetDirectoryName(stored)!,
@@ -419,6 +602,24 @@ namespace Opc.Ua.Vision.Tests
             {
                 Directory.Delete(directory, true);
             }
+        }
+
+        /// <summary>
+        /// Preserves the real model context while making session-close notifications controllable.
+        /// </summary>
+        private static ServerSystemContext CreateFileBindingContext(
+            VisionServerFixture fixture, ISessionManager sessions)
+        {
+            IServerInternal original = fixture.Server.CurrentInstance;
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.Telemetry).Returns(original.Telemetry);
+            server.SetupGet(value => value.NamespaceUris).Returns(original.NamespaceUris);
+            server.SetupGet(value => value.ServerUris).Returns(original.ServerUris);
+            server.SetupGet(value => value.TypeTree).Returns(original.TypeTree);
+            server.SetupGet(value => value.Factory).Returns(original.Factory);
+            server.SetupGet(value => value.MessageContext).Returns(original.MessageContext);
+            server.SetupGet(value => value.SessionManager).Returns(sessions);
+            return new ServerSystemContext(server.Object) { NodeIdFactory = fixture.Manager.NodeIdFactory };
         }
 
         private static SessionSystemContext SessionContext(VisionServerFixture fixture, NodeId session)

@@ -73,10 +73,11 @@ namespace Opc.Ua.Vision.Tests
                 options => options.MachineVisionParts = MachineVisionParts.Assets).AddMachineVision());
         }
 
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [Category("Integration")]
         [NonParallelizable]
-        public async Task MachineryCompositionSupportsBothPartsOverTcpAsync()
+        public async Task CompositionSupportsBothPartsAndSessionFileCleanupOverTcpAsync(bool machineryOwner)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             CancellationToken ct = deadline.Token;
@@ -91,7 +92,7 @@ namespace Opc.Ua.Vision.Tests
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             MachineVisionSystemHandle? runtime = null;
             MachineVisionAssetHandle? asset = null;
-            builder.Services.AddOpcUa()
+            IOpcUaServerBuilder serverBuilder = builder.Services.AddOpcUa()
                 .AddServer(options =>
                 {
                     options.ApplicationName = "MachineVisionWireServer";
@@ -100,18 +101,31 @@ namespace Opc.Ua.Vision.Tests
                     options.AutoAcceptUntrustedCertificates = true;
                     options.IncludeUnsecurePolicyNone = true;
                     options.EndpointUrls.Add(url);
-                })
-                .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
-                .AddVisionToMachinery()
-                .ConfigureVisionFor<MachineryNodeManager>(async (vision, token) =>
-                {
-                    runtime = await vision.AddMachineVisionSystemAsync(
-                        "Inspection", Provider().Object, cancellationToken: token).ConfigureAwait(false);
-                    asset = await vision.AddMachineVisionAsset("InspectionAsset")
-                        .WithIdentification(Identification("wire", "urn:opcfoundation:tests:machinevision:wire"))
-                        .RepresentsSameSystem(runtime.State)
-                        .BuildAsync(token).ConfigureAwait(false);
                 });
+            if (machineryOwner)
+            {
+                serverBuilder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+                    .AddVisionToMachinery()
+                    .ConfigureVisionFor<MachineryNodeManager>(ConfigureAsync);
+            }
+            else
+            {
+                serverBuilder.AddVision(options =>
+                    options.MachineVisionParts = MachineVisionParts.Control | MachineVisionParts.Assets)
+                    .AddMachineVision()
+                    .ConfigureVision(ConfigureAsync);
+            }
+
+            async ValueTask ConfigureAsync(IVisionBuildContext vision, CancellationToken token)
+            {
+                runtime = await vision.AddMachineVisionSystemAsync(
+                    "Inspection", Provider().Object, cancellationToken: token).ConfigureAwait(false);
+                asset = await vision.AddMachineVisionAsset("InspectionAsset")
+                    .WithIdentification(Identification("wire", "urn:opcfoundation:tests:machinevision:wire"))
+                    .RepresentsSameSystem(runtime.State)
+                    .BuildAsync(token).ConfigureAwait(false);
+            }
+
             using IHost server = builder.Build();
             try
             {
@@ -259,6 +273,21 @@ namespace Opc.Ua.Vision.Tests
                     Assert.That(ExpandedNodeId.ToNodeId(relations.References[0].NodeId, session.NamespaceUris),
                         Is.EqualTo(runtime.State.NodeId));
 
+                    (RecipeIdInternalDataType _, NodeId recipeNodeId, NodeId _, bool _, int recipeError) =
+                        await recipes.AddRecipeAsync(new RecipeIdExternalDataType { Id = "session-file" },
+                            new ProductIdDataType(), ct).ConfigureAwait(false);
+                    Assert.That(recipeError, Is.Zero);
+                    var recipeProxy = new RecipeTypeClient(session, recipeNodeId, visionClient.Telemetry);
+                    FileTypeClient file = await recipeProxy.GetHandleAsync(visionClient.Telemetry, ct)
+                        .ConfigureAwait(false) ?? throw new InvalidOperationException("The recipe file is missing.");
+                    uint writer = await file.OpenAsync(6, ct).ConfigureAwait(false);
+                    await file.WriteAsync(writer, ByteString.From(new byte[] { 1, 2, 3 }), ct).ConfigureAwait(false);
+                    await file.CloseAsync(writer, ct).ConfigureAwait(false);
+                    writer = await file.OpenAsync(6, ct).ConfigureAwait(false);
+                    await file.WriteAsync(writer, ByteString.From(new byte[] { 9 }), ct).ConfigureAwait(false);
+                    NodeId closedSessionId = session.SessionId;
+                    ConfiguredEndpoint endpoint = session.ConfiguredEndpoint;
+
                     await runtime.ReportErrorAsync("wire-observation", new LocalizedText("Camera unavailable"),
                         true, persistent: true, cancellationToken: ct).ConfigureAwait(false);
                     Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? subscriptions), Is.True);
@@ -283,6 +312,24 @@ namespace Opc.Ua.Vision.Tests
                         .ConfigureAwait(false);
                     await session.DefaultStreaming.DisposeAsync().ConfigureAwait(false);
                     await session.CloseAsync(ct).ConfigureAwait(false);
+                    await using ManagedSession replacement = await serviceProvider
+                        .GetRequiredService<IManagedSessionFactory>().ConnectAsync(endpoint, ct).ConfigureAwait(false);
+                    Assert.That(replacement.SessionId, Is.Not.EqualTo(closedSessionId));
+                    var survivingFile = new FileTypeClient(replacement, file.ObjectId, visionClient.Telemetry);
+                    uint reader = await survivingFile.OpenAsync(1, ct).ConfigureAwait(false);
+                    ByteString preserved = await survivingFile.ReadAsync(reader, 3, ct).ConfigureAwait(false);
+                    Assert.That(preserved.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }),
+                        "Closing the session must release the writer without committing its abandoned bytes.");
+                    await survivingFile.CloseAsync(reader, ct).ConfigureAwait(false);
+                    writer = await survivingFile.OpenAsync(6, ct).ConfigureAwait(false);
+                    await survivingFile.WriteAsync(writer, ByteString.From(new byte[] { 4, 5 }), ct)
+                        .ConfigureAwait(false);
+                    await survivingFile.CloseAsync(writer, ct).ConfigureAwait(false);
+                    reader = await survivingFile.OpenAsync(1, ct).ConfigureAwait(false);
+                    ByteString replaced = await survivingFile.ReadAsync(reader, 2, ct).ConfigureAwait(false);
+                    Assert.That(replaced.ToArray(), Is.EqualTo(new byte[] { 4, 5 }));
+                    await survivingFile.CloseAsync(reader, ct).ConfigureAwait(false);
+                    await replacement.CloseAsync(ct).ConfigureAwait(false);
                 }
             }
             finally

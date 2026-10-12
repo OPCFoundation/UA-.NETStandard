@@ -39,6 +39,10 @@ namespace Opc.Ua.Server.FileSystem
     /// A bounded FileType binding using the same session and open-mode ownership
     /// implementation as the file-system node manager.
     /// </summary>
+    /// <remarks>
+    /// Disposal cancels pending commit callbacks before awaiting their completion, then releases all streams.
+    /// A callback may be waiting for its owner's operation to finish, so cancellation must precede the wait.
+    /// </remarks>
     public interface IFileTypeBinding : IAsyncDisposable
     {
         /// <summary>
@@ -135,6 +139,7 @@ namespace Opc.Ua.Server.FileSystem
                 m_commitOnClose = commitOnClose;
                 m_owner = owner;
                 m_maximumBytes = maximumBytes;
+                m_sessionClosingHandler = OnSessionClosing;
                 File.CreateOrReplaceWritable(context, null).Value = commit != null;
                 File.CreateOrReplaceUserWritable(context, null).Value = commit != null;
                 File.CreateOrReplaceSize(context, null).Value = (ulong)content.Span.Length;
@@ -247,6 +252,13 @@ namespace Opc.Ua.Server.FileSystem
                 try
                 {
                     ValidateOwner(session);
+                    // The session manager is initialized after the address space, so attach on the first open.
+                    if (m_sessions == null &&
+                        m_context is ServerSystemContext { Server.SessionManager: { } sessions })
+                    {
+                        m_sessions = sessions;
+                        m_sessions.SessionClosing += m_sessionClosingHandler;
+                    }
                     if (m_handles.OpenCount >= 64)
                     {
                         throw Error(StatusCodes.BadTooManyOperations, "The file handle limit was reached.");
@@ -257,7 +269,7 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         throw new ServiceResultException(result);
                     }
-                    File.OpenCount!.Value = m_handles.OpenCount;
+                    UpdateOpenCount();
                     return handle;
                 }
                 finally
@@ -298,6 +310,11 @@ namespace Opc.Ua.Server.FileSystem
                         await m_commit(content, lifetime.Token).ConfigureAwait(false);
                         committed = true;
                     }
+                    catch (OperationCanceledException) when (
+                        m_lifetime.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                    {
+                        throw Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                    }
                     finally
                     {
                         await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -308,7 +325,7 @@ namespace Opc.Ua.Server.FileSystem
                                 m_provider.Content = content;
                                 m_handles.Close(session, handle);
                                 File.Size!.Value = (ulong)content.Span.Length;
-                                File.OpenCount!.Value = m_handles.OpenCount;
+                                UpdateOpenCount();
                             }
                         }
                         finally
@@ -349,7 +366,7 @@ namespace Opc.Ua.Server.FileSystem
                         {
                             throw Error(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                         }
-                        File.OpenCount!.Value = m_handles.OpenCount;
+                        UpdateOpenCount();
                         return;
                     }
                 }
@@ -371,6 +388,11 @@ namespace Opc.Ua.Server.FileSystem
                 await m_gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
+                    if (m_sessions != null)
+                    {
+                        m_sessions.SessionClosing -= m_sessionClosingHandler;
+                        m_sessions = null;
+                    }
                     commit = m_commitCompletion?.Task;
                 }
                 finally
@@ -384,10 +406,11 @@ namespace Opc.Ua.Server.FileSystem
                 await m_gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    if (!m_disposed)
+                    m_handles.Dispose();
+                    m_provider.Content = default;
+                    File.Size!.Value = 0;
+                    lock (m_openCountLock)
                     {
-                        m_disposed = true;
-                        m_handles.Dispose();
                         File.OpenCount!.Value = 0;
                     }
                 }
@@ -426,7 +449,35 @@ namespace Opc.Ua.Server.FileSystem
                     throw Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
                 }
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, m_lifetime.Token);
-                await m_gate.WaitAsync(linked.Token).ConfigureAwait(false);
+                try
+                {
+                    await m_gate.WaitAsync(linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    m_lifetime.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    throw Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                }
+            }
+
+            private void OnSessionClosing(ISession session, SessionEventReason reason)
+            {
+                lock (m_openCountLock)
+                {
+                    if (Volatile.Read(ref m_disposeStarted) == 0)
+                    {
+                        m_handles.CloseSession(session.Id);
+                        File.OpenCount!.Value = m_handles.OpenCount;
+                    }
+                }
+            }
+
+            private void UpdateOpenCount()
+            {
+                lock (m_openCountLock)
+                {
+                    File.OpenCount!.Value = m_handles.OpenCount;
+                }
             }
 
             private Stream RequireStream(NodeId session, uint handle, byte mode)
@@ -447,7 +498,7 @@ namespace Opc.Ua.Server.FileSystem
 
             private void ValidateOwner(NodeId session)
             {
-                if (m_disposed || Volatile.Read(ref m_disposeStarted) != 0)
+                if (Volatile.Read(ref m_disposeStarted) != 0)
                 {
                     throw Error(StatusCodes.BadInvalidState, "The file binding was disposed.");
                 }
@@ -492,10 +543,12 @@ namespace Opc.Ua.Server.FileSystem
             private readonly NodeId m_owner;
             private readonly int m_maximumBytes;
             private readonly SemaphoreSlim m_gate = new(1, 1);
+            private readonly Lock m_openCountLock = new();
             private readonly CancellationTokenSource m_lifetime = new();
+            private readonly SessionEventHandler m_sessionClosingHandler;
+            private ISessionManager? m_sessions;
             private TaskCompletionSource<bool>? m_commitCompletion;
             private int m_disposeStarted;
-            private bool m_disposed;
         }
 
         private static ServiceResultException Error(StatusCode status, string message)

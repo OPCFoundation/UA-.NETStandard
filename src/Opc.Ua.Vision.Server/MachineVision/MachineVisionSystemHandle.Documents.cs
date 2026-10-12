@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Vision.MachineVision;
 using Mv = Opc.Ua.Vision.MachineVision;
 
@@ -213,6 +214,13 @@ namespace Opc.Ua.Vision.Server
             {
                 if (!present.Contains(pair.Key))
                 {
+                    if (pair.Key.Kind == MachineVisionDocumentKind.Recipe &&
+                        m_recipeFiles.TryGetValue(pair.Key.Id, out IFileTypeBinding? file))
+                    {
+                        // Binding disposal cancels a commit queued behind this operation before waiting for it.
+                        await file.DisposeAsync().ConfigureAwait(false);
+                        m_recipeFiles.Remove(pair.Key.Id);
+                    }
                     pair.Value.Parent?.RemoveChild(pair.Value);
                     await m_context.Manager.DeleteNodeAsync(
                         m_context.Manager.SystemContext, pair.Value.NodeId, ct).ConfigureAwait(false);
