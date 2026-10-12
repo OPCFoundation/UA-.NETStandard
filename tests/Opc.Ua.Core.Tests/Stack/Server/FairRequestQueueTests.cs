@@ -1272,6 +1272,83 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// A turn granted just before its owner is retired, or before the queue stops, and
+        /// published after their cleanup ran, is dropped instead of retaining the retired owner.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TurnPublishedAfterRetirementOrStopIsDiscarded(bool stop)
+        {
+            var provider = new TestProvider();
+            NodeId a = provider.AddOwner("A");
+            FairRequestQueue queue = CreateQueue(provider);
+            using var cancellation = new CancellationTokenSource();
+            var request = new TestRequest(a, 1);
+            int hooked = 0;
+            queue.BeforePublishTurn = () =>
+            {
+                // the turn is granted; retire the owner (or stop) before its token is published
+                if (Interlocked.Increment(ref hooked) == 1)
+                {
+                    if (stop)
+                    {
+                        queue.Dispose();
+                    }
+                    else
+                    {
+                        cancellation.Cancel();
+                    }
+                }
+            };
+
+            Assert.That(queue.TryEnqueue(request, cancellation.Token, out _), Is.True);
+
+            Assert.That(hooked, Is.GreaterThanOrEqualTo(1));
+            Assert.That(request.CompletionCount, Is.EqualTo(1));
+            Assert.That(request.Status, Is.EqualTo(
+                stop ? StatusCodes.BadServerHalted : StatusCodes.BadRequestCancelledByClient));
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+            queue.Dispose();
+        }
+
+        /// <summary>
+        /// A selector whose turn grant races the cancellation of the owner's last request leaves
+        /// no turn token behind once the queue is empty.
+        /// </summary>
+        [Test]
+        public void TurnGrantedBySelectionRacingCancellationIsDiscarded()
+        {
+            var provider = new TestProvider();
+            NodeId a = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            using var cancellation = new CancellationTokenSource();
+            Enqueue(queue, new TestRequest(a, 1));
+            var cancelled = new TestRequest(a, 2);
+            Enqueue(queue, cancelled, cancellation.Token);
+            int hooked = 0;
+            queue.BeforePublishTurn = () =>
+            {
+                // the selector took the last token and granted the next turn for request 2
+                if (Interlocked.Increment(ref hooked) == 1)
+                {
+                    cancellation.Cancel();
+                }
+            };
+
+            using FairRequestQueue.Entry first = Dequeue(queue);
+
+            Assert.That(first.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(1));
+            Assert.That(cancelled.CompletionCount, Is.EqualTo(1));
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(queue.TryDequeue(out _), Is.False);
+        }
+
+        /// <summary>
         /// Two backlogged owners with weights 1 and 3 are served about 1:3 while several
         /// workers dequeue concurrently.
         /// </summary>

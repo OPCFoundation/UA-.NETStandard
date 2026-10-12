@@ -676,9 +676,30 @@ namespace Opc.Ua
         /// </summary>
         private void PushTurn(OwnerQueue owner)
         {
+            BeforePublishTurn?.Invoke();
+            EnqueueTurn(owner);
+            // The turn may have been granted just before the owner was retired or the queue
+            // stopped, and their cleanup may already have run. The enqueue is a full fence, so
+            // either that cleanup saw this token or this check sees the retirement or the stop.
+            if (Volatile.Read(ref owner.Retired) != 0 || Volatile.Read(ref m_stopped) != 0)
+            {
+                DiscardStaleTurns();
+            }
+        }
+
+        /// <summary>
+        /// Appends one turn token to the ready queue without checking for a stale owner.
+        /// </summary>
+        private void EnqueueTurn(OwnerQueue owner)
+        {
             Interlocked.Increment(ref m_readyCount);
             m_ready.Enqueue(owner);
         }
+
+        /// <summary>
+        /// Test hook run before a turn token is published.
+        /// </summary>
+        internal Action? BeforePublishTurn { get; set; }
 
         /// <summary>
         /// Claims the oldest linked request of an owner: returned heads first, then the FIFO.
@@ -759,9 +780,14 @@ namespace Opc.Ua
             {
                 return;
             }
-            Volatile.Write(ref owner.Retired, 1);
+            Interlocked.Exchange(ref owner.Retired, 1);
             ((ICollection<KeyValuePair<string, OwnerQueue>>)m_owners).Remove(
                 new KeyValuePair<string, OwnerQueue>(owner.Key, owner));
+            if (Volatile.Read(ref m_count) == 0)
+            {
+                // nothing is queued: no dispatch pass will come to drop the stale tokens
+                DiscardStaleTurns();
+            }
         }
 
         /// <summary>
@@ -805,10 +831,6 @@ namespace Opc.Ua
             }
             Changed();
             Pulse();
-            if (Volatile.Read(ref m_count) == 0)
-            {
-                DiscardStaleTurns();
-            }
             entry.Dispose();
             m_complete(entry.Request, StatusCodes.BadRequestCancelledByClient);
         }
@@ -819,14 +841,15 @@ namespace Opc.Ua
         /// </summary>
         private void DiscardStaleTurns()
         {
+            bool stopped = Volatile.Read(ref m_stopped) != 0;
             int tokens = Volatile.Read(ref m_readyCount);
             while (tokens-- > 0 && m_ready.TryDequeue(out OwnerQueue? owner))
             {
                 Interlocked.Decrement(ref m_readyCount);
-                if (Volatile.Read(ref owner.Retired) == 0)
+                if (!stopped && Volatile.Read(ref owner.Retired) == 0)
                 {
                     // a concurrent admission's token
-                    PushTurn(owner);
+                    EnqueueTurn(owner);
                 }
             }
         }
