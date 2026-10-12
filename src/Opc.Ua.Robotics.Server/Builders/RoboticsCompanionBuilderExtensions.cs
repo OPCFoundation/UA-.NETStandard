@@ -54,8 +54,14 @@ namespace Opc.Ua.Robotics.Server.Builders
             Action<IMotionDeviceBuilder>? configure = null)
             where TState : MotionDeviceState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(createDevice);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createDevice == null)
+            {
+                throw new ArgumentNullException(nameof(createDevice));
+            }
             if (builder is not MotionDeviceSystemBuilder implementation)
             {
                 throw ServiceResultException.Create(
@@ -83,8 +89,14 @@ namespace Opc.Ua.Robotics.Server.Builders
             Action<IAxisBuilder>? configure = null)
             where TState : AxisState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(createAxis);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createAxis == null)
+            {
+                throw new ArgumentNullException(nameof(createAxis));
+            }
             if (builder is not MotionDeviceBuilder implementation)
             {
                 throw ServiceResultException.Create(
@@ -112,8 +124,14 @@ namespace Opc.Ua.Robotics.Server.Builders
             Action<IMotorBuilder>? configure = null)
             where TState : MotorState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(createMotor);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createMotor == null)
+            {
+                throw new ArgumentNullException(nameof(createMotor));
+            }
             if (builder is not PowerTrainBuilder implementation)
             {
                 throw ServiceResultException.Create(

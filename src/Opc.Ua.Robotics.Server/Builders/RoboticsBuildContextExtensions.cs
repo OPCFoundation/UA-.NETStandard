@@ -121,9 +121,18 @@ namespace Opc.Ua.Robotics.Server.Builders
             CancellationToken cancellationToken = default)
             where TState : MotionDeviceSystemState
         {
-            ArgumentNullException.ThrowIfNull(buildContext);
-            ArgumentNullException.ThrowIfNull(createSystem);
-            ArgumentNullException.ThrowIfNull(configure);
+            if (buildContext == null)
+            {
+                throw new ArgumentNullException(nameof(buildContext));
+            }
+            if (createSystem == null)
+            {
+                throw new ArgumentNullException(nameof(createSystem));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             using IDisposable lease = RoboticsBuildScope.AcquireBuildLease(buildContext);
             QualifiedName normalized = RoboticsBuilderUtilities.NormalizeBrowseName(buildContext, browseName);
             return await AddMotionDeviceSystemCoreAsync(

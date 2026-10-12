@@ -58,9 +58,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             Action<MachineryIdentificationData> configure)
             where TState : BaseObjectState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(identification);
-            ArgumentNullException.ThrowIfNull(configure);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (identification == null)
+            {
+                throw new ArgumentNullException(nameof(identification));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             return builder.GetMachineBuilder().BindIdentification(identification, configure);
         }
 
@@ -82,7 +91,10 @@ namespace Opc.Ua.Machinery.Server.Builders
             in DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(handle);
+            if (handle == null)
+            {
+                throw new ArgumentNullException(nameof(handle));
+            }
             if (handle is not ProcessValueBuilder implementation)
             {
                 throw ServiceResultException.Create(
@@ -113,9 +125,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             Action<IProcessValueBuilder> configure)
             where TState : BaseObjectState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(processValue);
-            ArgumentNullException.ThrowIfNull(configure);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (processValue == null)
+            {
+                throw new ArgumentNullException(nameof(processValue));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             return builder.GetMachineBuilder().BindProcessValue(processValue, configure);
         }
 
@@ -141,9 +162,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             Action<IJobManagementBuilder> configure)
             where TState : BaseObjectState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(management);
-            ArgumentNullException.ThrowIfNull(configure);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (management == null)
+            {
+                throw new ArgumentNullException(nameof(management));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             return builder.GetMachineBuilder().BindJobManagement(management, configure);
         }
 
@@ -170,9 +200,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             Action<IResultManagementBuilder> configure)
             where TState : BaseObjectState
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(management);
-            ArgumentNullException.ThrowIfNull(configure);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (management == null)
+            {
+                throw new ArgumentNullException(nameof(management));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             return builder.GetMachineBuilder().BindResultManagement(management, configure);
         }
 
@@ -190,8 +229,14 @@ namespace Opc.Ua.Machinery.Server.Builders
             int publishedResults,
             Func<ISystemContext, NodeState, QualifiedName, ResultState> createResult)
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(createResult);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createResult == null)
+            {
+                throw new ArgumentNullException(nameof(createResult));
+            }
             return builder.GetResultBuilder().WithResultsFolder(publishedResults, createResult);
         }
 
@@ -214,8 +259,14 @@ namespace Opc.Ua.Machinery.Server.Builders
             NodeId eventTypeId,
             Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(createEvent);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createEvent == null)
+            {
+                throw new ArgumentNullException(nameof(createEvent));
+            }
             return builder.GetResultBuilder().WithResultReadyEvents(eventTypeId, createEvent);
         }
 
