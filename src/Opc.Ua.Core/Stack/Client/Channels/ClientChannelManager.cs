@@ -124,6 +124,11 @@ namespace Opc.Ua
         /// <param name="connection">An optional reverse-connect waiting connection.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         /// <returns>The opened transport channel.</returns>
+        /// <remarks>
+        /// Managed entries also retain the supplied handles until transport closure. The entry and transport
+        /// share these idempotently disposed handles, not the manager's reusable handles, so transports that do
+        /// not adopt the settings do not leave additional certificate references behind.
+        /// </remarks>
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
@@ -1361,34 +1366,6 @@ namespace Opc.Ua
         ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
-        }
-
-        /// <summary>
-        /// Opens a transport using handles also retained by the entry until transport closure.
-        /// </summary>
-        /// <param name="endpoint">The configured endpoint.</param>
-        /// <param name="context">The service message context.</param>
-        /// <param name="clientCertificate">The entry-owned client certificate handle.</param>
-        /// <param name="clientCertificateChain">The entry-owned certificate chain.</param>
-        /// <param name="connection">An optional reverse-connect waiting connection.</param>
-        /// <param name="ct">The cancellation token supplied by the entry.</param>
-        /// <returns>The opened transport channel.</returns>
-        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
-            ConfiguredEndpoint endpoint,
-            IServiceMessageContext context,
-            Certificate? clientCertificate,
-            CertificateCollection? clientCertificateChain,
-            ITransportWaitingConnection? connection,
-            CancellationToken ct)
-        {
-            // Share the entry's idempotently disposed handles; non-adopting transports need no additional references.
-            return CreateChannelAsync(
-                endpoint,
-                context,
-                clientCertificate,
-                clientCertificateChain,
-                connection,
-                ct);
         }
 
         /// <inheritdoc/>
