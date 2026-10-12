@@ -176,7 +176,8 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         [TestCase(65536, 1024)]
         [TestCase(131072, 512)]
         [TestCase(1024 * 1024, 64)]
-        [TestCase(16 * 1024 * 1024, 16)]
+        [TestCase(16 * 1024 * 1024, 4)]
+        [TestCase(128 * 1024 * 1024, 1)]
         public void DefaultBoundKeepsAtMost64MiBInTheLargestBucket(int maxArrayLength, int expected)
         {
             Assert.That(BoundedArrayPool.GetDefaultMaxArraysPerBucket(maxArrayLength), Is.EqualTo(expected));
@@ -193,15 +194,17 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         }
 
         /// <summary>
-        /// The default buffer manager reuses the chunk buffers of a deep pipeline instead of
-        /// allocating one per response once more buffers are in flight than processors.
+        /// A buffer manager over the bounded pool reuses every chunk buffer of a deep pipeline
+        /// instead of allocating one per response once more buffers are in flight than processors.
+        /// The pool is the default one's configuration but private to the test, so parallel tests
+        /// sharing the process-wide pool cannot take its arrays.
         /// </summary>
-#if NET
         [Test]
         public void FastBufferManagerReusesBuffersOfADeepPipeline()
         {
-            var manager = new FastBufferManager("pipeline", 65535, NUnitTelemetryContext.Create());
-            var first = new List<byte[]>();
+            var pool = new BoundedArrayPool(65536, BoundedArrayPool.GetDefaultMaxArraysPerBucket(65536));
+            var manager = new FastBufferManager("pipeline", 65535, NUnitTelemetryContext.Create(), pool);
+            var first = new HashSet<byte[]>();
             for (int ii = 0; ii < 200; ii++)
             {
                 first.Add(manager.TakeBuffer(65535, "pipeline"));
@@ -210,23 +213,13 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             {
                 manager.ReturnBuffer(buffer, "pipeline");
             }
+            Assert.That(pool.GetRetainedCount(65536), Is.EqualTo(200));
 
-            // Other tests share the process-wide pool, so count allocated bytes rather than
-            // identities: the second pass takes retained arrays instead of allocating.
-            var second = new List<byte[]>(200);
-            long before = GC.GetAllocatedBytesForCurrentThread();
             for (int ii = 0; ii < 200; ii++)
             {
-                second.Add(manager.TakeBuffer(65535, "pipeline"));
+                Assert.That(first, Does.Contain(manager.TakeBuffer(65535, "pipeline")));
             }
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            foreach (byte[] buffer in second)
-            {
-                manager.ReturnBuffer(buffer, "pipeline");
-            }
-
-            Assert.That(allocated, Is.LessThan(10L * 65536));
+            Assert.That(pool.GetRetainedCount(65536), Is.Zero);
         }
-#endif
     }
 }

@@ -107,7 +107,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Retains up to 64 MiB in the largest bucket, between 16 and 1024 arrays: 1024 arrays
+        /// Retains at most 64 MiB in the largest bucket, at most 1024 and at least one array: 1024 arrays
         /// for the default 64 KiB transport buffer, enough for about a thousand responses in
         /// flight (for example 10 channels with 100 outstanding requests each).
         /// </summary>
@@ -115,7 +115,7 @@ namespace Opc.Ua.Bindings
         internal static int GetDefaultMaxArraysPerBucket(int maxArrayLength)
         {
             long arrays = kMaxRetainedBytesPerBucket / maxArrayLength;
-            return (int)Math.Min(kMaxArraysPerBucket, Math.Max(kMinArraysPerBucket, arrays));
+            return (int)Math.Min(kMaxArraysPerBucket, Math.Max(1, arrays));
         }
 
         /// <summary>
@@ -223,7 +223,6 @@ namespace Opc.Ua.Bindings
         }
 
         private const int kMinimumArrayLength = 16;
-        private const int kMinArraysPerBucket = 16;
         private const int kMaxArraysPerBucket = 1024;
         private const long kMaxRetainedBytesPerBucket = 64L * 1024 * 1024;
         private static readonly ConcurrentDictionary<int, BoundedArrayPool> s_pools = new();
