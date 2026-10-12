@@ -56,6 +56,7 @@ namespace Opc.Ua
         private T? m_firstItem;
         private ConcurrentQueue<T>? m_items;
         private int m_count;
+        private int m_maximumRetained;
         private readonly Func<T> m_factory;
 
         /// <summary>
@@ -78,7 +79,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(maximumRetained));
             }
-            MaximumRetained = maximumRetained;
+            m_maximumRetained = maximumRetained;
             m_factory = factory ?? (() => new T());
         }
 
@@ -86,7 +87,28 @@ namespace Opc.Ua
         /// Maximum number of instances retained by the pool, including
         /// the fast first-item slot.
         /// </summary>
-        public int MaximumRetained { get; }
+        public int MaximumRetained => Volatile.Read(ref m_maximumRetained);
+
+        /// <summary>
+        /// Raises the maximum number of retained instances to at least
+        /// <paramref name="maximumRetained"/>. The bound never shrinks,
+        /// so concurrent callers that size the pool for their own load
+        /// cannot undo each other.
+        /// </summary>
+        /// <param name="maximumRetained">The minimum bound.</param>
+        public void EnsureMaximumRetained(int maximumRetained)
+        {
+            int current = Volatile.Read(ref m_maximumRetained);
+            while (current < maximumRetained)
+            {
+                int previous = Interlocked.CompareExchange(ref m_maximumRetained, maximumRetained, current);
+                if (previous == current)
+                {
+                    return;
+                }
+                current = previous;
+            }
+        }
 
         /// <summary>
         /// Rent an instance from the pool. Returns a recycled instance

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -1010,6 +1011,38 @@ namespace Opc.Ua.Server
             }
             m_readyCandidates.Clear();
             m_signalingItemCount = 0;
+            CountPooledItems(-m_pooledItemCount);
+        }
+
+        /// <summary>
+        /// Adds the monitored items of this subscription to the process-wide count that sizes
+        /// the notification pools, and raises the pool bounds when the count grew.
+        /// </summary>
+        /// <remarks>
+        /// The activator pools are process-wide and retain 1024 instances by default. A
+        /// notification is recycled after its message was sent and acknowledged, so about two
+        /// publishing cycles of notifications are in flight; with more items than the bound
+        /// most notifications would be allocated again. The bound follows twice the number of
+        /// monitored items of all subscriptions in the process, capped at
+        /// <see cref="kMaxPooledNotifications"/>, and is never lowered.
+        /// </remarks>
+        private void CountPooledItems(int delta)
+        {
+            if (delta == 0)
+            {
+                return;
+            }
+
+            m_pooledItemCount += delta;
+            long total = Interlocked.Add(ref s_pooledItemCount, delta);
+            if (delta > 0)
+            {
+                int bound = (int)Math.Min(
+                    kMaxPooledNotifications,
+                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
+                MonitoredItemNotificationActivator.Instance.EnsureMaximumRetained(bound);
+                EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
+            }
         }
 
         /// <summary>
@@ -1018,6 +1051,7 @@ namespace Opc.Ua.Server
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void OnMonitoredItemAdded(IMonitoredItem monitoredItem)
         {
+            CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
                 m_signalingItemCount++;
@@ -1917,7 +1951,9 @@ namespace Opc.Ua.Server
             // the collections are reused by every Publish of the subscription (under m_lock);
             // the constructed messages copy what they keep.
             List<NotificationMessage> messages = m_publishMessages;
+            List<MonitoredItemNotification[]?> rentedItemArrays = m_publishRentedItemArrays;
             messages.Clear();
+            rentedItemArrays.Clear();
 
             if (m_publishingEnabled)
             {
@@ -2021,10 +2057,12 @@ namespace Opc.Ua.Server
                             events,
                             datachanges,
                             datachangeDiagnostics,
-                            out int notificationCount);
+                            out int notificationCount,
+                            out MonitoredItemNotification[]? rentedItems);
 
                         // add to list of messages to send.
                         messages.Add(message);
+                        rentedItemArrays.Add(rentedItems);
 
                         lock (m_diagnosticsLock)
                         {
@@ -2051,10 +2089,12 @@ namespace Opc.Ua.Server
                         events,
                         datachanges,
                         datachangeDiagnostics,
-                        out int notificationCount);
+                        out int notificationCount,
+                        out MonitoredItemNotification[]? rentedItems);
 
                     // add to list of messages to send.
                     messages.Add(message);
+                    rentedItemArrays.Add(rentedItems);
 
                     lock (m_diagnosticsLock)
                     {
@@ -2116,9 +2156,11 @@ namespace Opc.Ua.Server
                 availableSequenceNumberList,
                 out moreNotifications,
                 out uint discardedMessageCount,
-                out NotificationMessageLease newLease);
+                out NotificationMessageLease newLease,
+                rentedItemArrays);
             lease = newLease;
             messages.Clear();
+            rentedItemArrays.Clear();
             moreNotifications |= m_itemsToPublish.Count > 0;
 
             if (discardedMessageCount > 0)
@@ -2162,9 +2204,11 @@ namespace Opc.Ua.Server
             Queue<EventFieldList> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
-            out int notificationCount)
+            out int notificationCount,
+            out MonitoredItemNotification[]? rentedItems)
         {
             notificationCount = 0;
+            rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -2203,26 +2247,31 @@ namespace Opc.Ua.Server
             // add datachanges (space permitting).
             if (dataChangeCount > 0)
             {
-                var dataChangeList = new MonitoredItemNotification[dataChangeCount];
+                // the array is rented and returned with the payload of the message
+                // (NotificationMessageLease); the message sees an exact-length slice.
+                MonitoredItemNotification[] dataChangeList =
+                    ArrayPool<MonitoredItemNotification>.Shared.Rent(dataChangeCount);
+                rentedItems = dataChangeList;
 
                 // the diagnostics list is only sent when one of the notifications has one,
                 // which is rare, so it is only allocated then.
                 DiagnosticInfo[]? diagnosticInfos = null;
-                for (int ii = 0; ii < dataChangeList.Length; ii++)
+                for (int ii = 0; ii < dataChangeCount; ii++)
                 {
                     dataChangeList[ii] = datachanges.Dequeue();
 
                     DiagnosticInfo diagnosticInfo = datachangeDiagnostics.Dequeue();
                     if (diagnosticInfo != null)
                     {
-                        diagnosticInfos ??= new DiagnosticInfo[dataChangeList.Length];
+                        diagnosticInfos ??= new DiagnosticInfo[dataChangeCount];
                         diagnosticInfos[ii] = diagnosticInfo;
                     }
                 }
                 notificationCount += dataChangeCount;
 
                 var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
-                notification.MonitoredItems = dataChangeList;
+                notification.MonitoredItems = new ArrayOf<MonitoredItemNotification>(
+                    dataChangeList.AsMemory(0, dataChangeCount));
                 notification.DiagnosticInfos = diagnosticInfos.ToArrayOf();
                 notificationData[dataIndex] = new ExtensionObject(notification);
             }
@@ -3148,6 +3197,10 @@ namespace Opc.Ua.Server
                     {
                         m_signalingItemCount--;
                     }
+                    if (m_pooledItemCount > 0)
+                    {
+                        CountPooledItems(-1);
+                    }
                     countChange?.Decrement();
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
@@ -4002,6 +4055,7 @@ namespace Opc.Ua.Server
         private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
         private readonly List<NotificationMessage> m_publishMessages = [];
+        private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
         private readonly Queue<EventFieldList> m_publishEvents = new();
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
@@ -4013,6 +4067,9 @@ namespace Opc.Ua.Server
         private List<IMonitoredItem> m_readyIntakeSpare = [];
         private readonly List<IMonitoredItem> m_readyCandidates = [];
         private int m_signalingItemCount;
+        private int m_pooledItemCount;
+        private static long s_pooledItemCount;
+        private const int kMaxPooledNotifications = 65536;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;

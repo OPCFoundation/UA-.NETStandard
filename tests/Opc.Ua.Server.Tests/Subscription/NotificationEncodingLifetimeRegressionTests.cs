@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -292,6 +293,96 @@ namespace Opc.Ua.Server.Tests
             queue.Clear();
             Assert.That(message.ReuseCount, Is.EqualTo(1));
             Assert.That(lease.References, Is.Zero);
+        }
+
+        /// <summary>
+        /// The rented array that holds the data change notifications of a message is returned
+        /// to its pool with the payload, after the acknowledgement and the send completion,
+        /// and the message encodes only its slice of it.
+        /// </summary>
+        [Test]
+        public void RentedNotificationArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
+        {
+            var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
+            MonitoredItemNotification[] rented = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(3);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                rented[ii] = new MonitoredItemNotification { ClientHandle = (uint)ii + 1, Value = new DataValue(ii) };
+            }
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [new ExtensionObject(new DataChangeNotification
+                {
+                    MonitoredItems = new ArrayOf<MonitoredItemNotification>(rented.AsMemory(0, 3))
+                })]
+            };
+
+            MonitoredItemNotification[] originals = rented.Take(3).ToArray();
+            NotificationMessage sent = queue.Enqueue(
+                [message], [], out _, out _, out NotificationMessageLease lease, [rented]);
+            var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
+            PublishResponse decoded = Encode(response);
+            Assert.That(
+                decoded.NotificationMessage.NotificationData[0].TryGetValue(out DataChangeNotification? data),
+                Is.True);
+            Assert.That(data!.MonitoredItems.Count, Is.EqualTo(3));
+            Assert.That(data.MonitoredItems[2].ClientHandle, Is.EqualTo(3u));
+
+            if (acknowledgeFirst)
+            {
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+                Assert.That(rented[0], Is.SameAs(originals[0]), "still being sent");
+                ((IPooledEncodeable)response).Reuse();
+            }
+            else
+            {
+                ((IPooledEncodeable)response).Reuse();
+                Assert.That(rented[0], Is.SameAs(originals[0]), "still retained for republish");
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+            }
+
+            // returned with clearArray, so it no longer references the recycled notifications
+            // (another test may have rented it again since).
+            for (int ii = 0; ii < originals.Length; ii++)
+            {
+                Assert.That(rented[ii], Is.Not.SameAs(originals[ii]));
+            }
+        }
+
+        /// <summary>
+        /// Messages dropped unsent on queue overflow return their rented arrays.
+        /// </summary>
+        [Test]
+        public void OverflowReturnsTheRentedArraysOfDroppedMessages()
+        {
+            var queue = new SentMessageQueue(() => 1, 1, null, NullLogger.Instance);
+            var droppedItem = new MonitoredItemNotification { ClientHandle = 1 };
+            var keptItem = new MonitoredItemNotification { ClientHandle = 2 };
+            MonitoredItemNotification[] dropped = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            dropped[0] = droppedItem;
+            MonitoredItemNotification[] kept = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            kept[0] = keptItem;
+            List<NotificationMessage> messages =
+            [
+                new NotificationMessage { SequenceNumber = 1 },
+                new NotificationMessage { SequenceNumber = 2 }
+            ];
+            List<MonitoredItemNotification[]?> rented = [dropped, kept];
+
+            NotificationMessage sent = queue.Enqueue(messages, [], out _, out uint discarded, out NotificationMessageLease lease, rented);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sent.SequenceNumber, Is.EqualTo(2u));
+                Assert.That(discarded, Is.EqualTo(1u));
+                Assert.That(dropped[0], Is.Not.SameAs(droppedItem), "returned with the dropped message");
+                Assert.That(kept[0], Is.SameAs(keptItem));
+                Assert.That(rented, Has.Count.EqualTo(1), "trimmed with the messages");
+            });
+            lease.Release();
+            queue.Clear();
+            Assert.That(kept[0], Is.Not.SameAs(keptItem));
         }
 
         /// <summary>

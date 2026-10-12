@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -60,8 +61,19 @@ namespace Opc.Ua.Server
         /// Creates a lease with one reference owned by the creator.
         /// </summary>
         public NotificationMessageLease(NotificationMessage message)
+            : this(message, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a lease with one reference owned by the creator for a message whose data
+        /// change notifications are a slice of <paramref name="rentedItems"/>, an array rented
+        /// from <see cref="ArrayPool{T}.Shared"/> that is returned with the payload.
+        /// </summary>
+        public NotificationMessageLease(NotificationMessage message, MonitoredItemNotification[]? rentedItems)
         {
             Message = message ?? throw new ArgumentNullException(nameof(message));
+            m_rentedItems = rentedItems;
             m_references = 1;
         }
 
@@ -92,7 +104,7 @@ namespace Opc.Ua.Server
             int references = Interlocked.Decrement(ref m_references);
             if (references == 0)
             {
-                RecyclePayload(Message);
+                RecyclePayload(Message, m_rentedItems);
             }
             else if (references < 0)
             {
@@ -106,6 +118,16 @@ namespace Opc.Ua.Server
         /// The message must not be referenced by anyone afterwards.
         /// </summary>
         internal static void RecyclePayload(NotificationMessage message)
+        {
+            RecyclePayload(message, null);
+        }
+
+        /// <summary>
+        /// Returns the pooled objects of a notification message to their activator pools and
+        /// the rented array that holds its data change notifications to its array pool. The
+        /// message must not be referenced by anyone afterwards.
+        /// </summary>
+        internal static void RecyclePayload(NotificationMessage message, MonitoredItemNotification[]? rentedItems)
         {
             ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
             for (int i = 0; i < data.Length; i++)
@@ -131,8 +153,15 @@ namespace Opc.Ua.Server
                 }
             }
             (message as IPooledEncodeable)?.Reuse();
+
+            // cleared, so the array does not keep the recycled notifications reachable.
+            if (rentedItems != null)
+            {
+                ArrayPool<MonitoredItemNotification>.Shared.Return(rentedItems, clearArray: true);
+            }
         }
 
+        private readonly MonitoredItemNotification[]? m_rentedItems;
         private int m_references;
     }
 

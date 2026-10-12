@@ -312,12 +312,18 @@ namespace Opc.Ua.Server
         /// Receives a reference on the returned message that the caller must release once it no
         /// longer reads the message (when the Publish response was sent).
         /// </param>
+        /// <param name="rentedItemArrays">
+        /// Optional, aligned with <paramref name="messages"/>: the array rented from
+        /// <c>ArrayPool&lt;T&gt;.Shared</c> whose slice holds the data change notifications of
+        /// each message, returned to the pool with the payload. Trimmed with the messages.
+        /// </param>
         public NotificationMessage Enqueue(
             List<NotificationMessage> messages,
             List<uint> availableSequenceNumbers,
             out bool moreNotifications,
             out uint discardedMessageCount,
-            out NotificationMessageLease lease)
+            out NotificationMessageLease lease,
+            List<MonitoredItemNotification[]?>? rentedItemArrays = null)
         {
             discardedMessageCount = 0;
             uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
@@ -332,9 +338,10 @@ namespace Opc.Ua.Server
                 // never handed out, so nobody else references them.
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
-                    NotificationMessageLease.RecyclePayload(messages[ii]);
+                    NotificationMessageLease.RecyclePayload(messages[ii], rentedItemArrays?[ii]);
                 }
                 messages.RemoveRange(0, overflowCount);
+                rentedItemArrays?.RemoveRange(0, overflowCount);
             }
 
             ArrayOf<uint> removedSequenceNumbers = m_retransmissionStore == null ? default : [];
@@ -362,7 +369,7 @@ namespace Opc.Ua.Server
             m_lastSentMessage = m_sent.Count;
             for (int ii = 0; ii < messages.Count; ii++)
             {
-                m_sent.Add(new NotificationMessageLease(messages[ii]));
+                m_sent.Add(new NotificationMessageLease(messages[ii], rentedItemArrays?[ii]));
             }
             StoreRetransmissionState(messages, removedSequenceNumbers);
 
