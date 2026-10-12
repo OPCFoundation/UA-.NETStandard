@@ -70,8 +70,8 @@ namespace Opc.Ua.Machinery.Server
         /// <summary>
         /// Gets a value indicating whether
         /// <see cref="ReleaseNodeIdReservation(NodeState)"/> has any effect.
-        /// Only a <see cref="MachineryNodeManager"/> that is also the context's
-        /// NodeId factory reserves NodeIds that need releasing.
+        /// Allocators implementing <see cref="ICompanionNodeIdReservationOwner"/>
+        /// release their own temporary reservations after the build.
         /// </summary>
         bool ReleasesNodeIdReservations { get; }
 
@@ -139,21 +139,20 @@ namespace Opc.Ua.Machinery.Server
             m_postSetupContext = postSetupContext;
 
             Context = manager.SystemContext;
-            if (Context.NodeIdFactory is not IMachineryNodeIdFactory)
+            if (Context.NodeIdFactory is not ICompanionNodeIdFactory)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The custom DI node manager '{0}' cannot build Machinery instances " +
-                    "because Context.NodeIdFactory does not implement {1}. Implement the " +
+                    "because Context.NodeIdFactory does not implement {1} or {2}. Implement a " +
                     "marker on the manager with a thread-safe allocator for the configured " +
                     "instance namespace, or assign such a factory before " +
                     "ConfigureMachineryFor/CreateMachineryBuildContext.",
                     manager.GetType().FullName ?? manager.GetType().Name,
-                    nameof(IMachineryNodeIdFactory));
+                    nameof(IMachineryNodeIdFactory),
+                    nameof(ICompanionNodeIdFactory));
             }
-            m_releasesNodeIdReservations =
-                manager is MachineryNodeManager &&
-                ReferenceEquals(Context.NodeIdFactory, manager);
+            m_nodeIdReservationOwner = Context.NodeIdFactory as ICompanionNodeIdReservationOwner;
 
             RequireNamespace(Opc.Ua.Machinery.Namespaces.Machinery, MachineryParts.BuildingBlocks);
             RequireNamespace(
@@ -323,10 +322,7 @@ namespace Opc.Ua.Machinery.Server
 
         void IMachineryBuildCoordinator.ReleaseNodeIdReservation(NodeState node)
         {
-            if (m_releasesNodeIdReservations)
-            {
-                m_managerCoordinator.ReleaseNodeId(node);
-            }
+            m_nodeIdReservationOwner?.ReleaseNodeIdReservation(node);
         }
 
         IDisposable IMachineryBuildCoordinator.ReserveRootBrowseName(
@@ -349,7 +345,7 @@ namespace Opc.Ua.Machinery.Server
         bool IMachineryBuildCoordinator.IsSealed => IsSealed;
 
         bool IMachineryBuildCoordinator.ReleasesNodeIdReservations =>
-            m_releasesNodeIdReservations;
+            m_nodeIdReservationOwner != null;
 
         internal QualifiedName QualifyInstanceName(QualifiedName browseName)
         {
@@ -397,7 +393,7 @@ namespace Opc.Ua.Machinery.Server
         private readonly IDiPostSetupContext? m_postSetupContext;
         private readonly MachineryBuildCoordinator m_managerCoordinator;
         private readonly Lock m_stateLock = new();
-        private readonly bool m_releasesNodeIdReservations;
+        private readonly ICompanionNodeIdReservationOwner? m_nodeIdReservationOwner;
         private int m_activeBuildLeaseCount;
         private bool m_sealed;
 

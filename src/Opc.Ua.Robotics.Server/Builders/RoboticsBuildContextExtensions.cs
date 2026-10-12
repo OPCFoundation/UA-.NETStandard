@@ -96,18 +96,62 @@ namespace Opc.Ua.Robotics.Server.Builders
                 cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Creates or adopts a derived system through the existing Robotics validation and registration path.
+        /// </summary>
+        /// <typeparam name="TState">The derived motion-device-system state.</typeparam>
+        /// <param name="buildContext">The existing Robotics owner context.</param>
+        /// <param name="browseName">The system's instance browse name.</param>
+        /// <param name="createSystem">
+        /// Creates an initialized subtype with the supplied parent and browse name, or returns an
+        /// unregistered existing instance with that identity.
+        /// </param>
+        /// <param name="configure">Configures the standard topology and companion members.</param>
+        /// <param name="cancellationToken">Cancels configuration and registration.</param>
+        /// <returns>The registered system builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The factory returns an incompatible instance or the topology is invalid.
+        /// </exception>
+        public static async ValueTask<IMotionDeviceSystemBuilder> AddMotionDeviceSystemAsync<TState>(
+            this IRoboticsBuildContext buildContext,
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, TState> createSystem,
+            Action<IMotionDeviceSystemBuilder> configure,
+            CancellationToken cancellationToken = default)
+            where TState : MotionDeviceSystemState
+        {
+            ArgumentNullException.ThrowIfNull(buildContext);
+            ArgumentNullException.ThrowIfNull(createSystem);
+            ArgumentNullException.ThrowIfNull(configure);
+            using IDisposable lease = RoboticsBuildScope.AcquireBuildLease(buildContext);
+            QualifiedName normalized = RoboticsBuilderUtilities.NormalizeBrowseName(buildContext, browseName);
+            return await AddMotionDeviceSystemCoreAsync(
+                buildContext,
+                normalized,
+                configure,
+                cancellationToken,
+                (context, parent, name) => RoboticsBuilderUtilities.CreateCompanionInstance(
+                    context,
+                    parent,
+                    name,
+                    createSystem,
+                    ObjectTypes.MotionDeviceSystemType)).ConfigureAwait(false);
+        }
+
         private static async ValueTask<IMotionDeviceSystemBuilder>
             AddMotionDeviceSystemCoreAsync(
                 IRoboticsBuildContext buildContext,
                 QualifiedName browseName,
                 Action<IMotionDeviceSystemBuilder> configure,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                Func<ISystemContext, NodeState, QualifiedName, MotionDeviceSystemState>? createSystem = null)
         {
             RoboticsBuildScope? scope = null;
             bool registrationSucceeded = false;
             try
             {
-                scope = new RoboticsBuildScope(buildContext, browseName);
+                scope = new RoboticsBuildScope(buildContext, browseName, createSystem);
                 configure(scope.RootBuilder);
 
                 CancellationToken contextToken = buildContext.CancellationToken;

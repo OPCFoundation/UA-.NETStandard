@@ -235,9 +235,14 @@ builder.ConfigureMachineryFor<PumpNodeManager>(async machinery =>
 specification created — an OPC 40223 `PumpState`, an OPC 40223-style
 `GeneratorSetState` — so the vendor model keeps its own type definition and
 still answers the Machinery browse paths. The custom manager only has to expose
-an `IMachineryNodeIdFactory`; `MachineryNodeManager` implements it, and a
-custom manager implements it with a thread-safe allocator for the configured
-instance namespace.
+an `IMachineryNodeIdFactory` or the shared DI `ICompanionNodeIdFactory`;
+`MachineryNodeManager` implements both. A custom manager supplies a thread-safe
+allocator for the configured instance namespace. The Robotics allocator marker
+also derives from the shared marker, allowing both families to reuse one owner
+when their required models are loaded and their instance namespaces agree.
+The optional `ICompanionNodeIdReservationOwner` capability releases temporary
+reservations through the actual allocator on success or rollback; both stock
+managers implement it without adding required methods to existing markers.
 
 ## Builder reference
 

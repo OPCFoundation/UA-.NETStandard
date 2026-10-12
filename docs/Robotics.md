@@ -324,6 +324,17 @@ registers the completed generated state tree — rolling back the reservation if
 any step fails. Reservations for NodeIds and root BrowseNames are held per node
 manager, so concurrent configurators cannot collide.
 
+Companion specifications can supply their generated derived factories with
+`AddMotionDeviceSystemAsync(browseName, createSystem, configure, cancellationToken)`.
+The matching `AddMotionDevice`, `AddAxis` and `AddMotor` overloads accept
+`(ISystemContext, NodeState, QualifiedName) => TState` factories. They keep the
+returned instance and its subtype identity, while reusing Robotics validation,
+semantic references, registration and rollback. A factory can also return an
+unregistered existing instance, but its parent and browse name must match the
+supplied arguments and its type definition must derive from the expected
+Robotics type. Incompatible types are rejected rather than replaced with base
+instances; temporary allocations for those rejected instances are released.
+
 ## Topology builders
 
 Every builder implements `IRoboticsNodeBuilder<TState>`, which exposes the
@@ -518,9 +529,19 @@ IRoboticsBuildContext buildContext =
 
 `CreateRoboticsBuildContext` validates the `DeviceSet`, the loaded Robotics
 model, and the configured instance namespace before returning. The manager's
-`Context.NodeIdFactory` must implement `IRoboticsNodeIdFactory`; the allocator
+`Context.NodeIdFactory` must implement `IRoboticsNodeIdFactory` or the shared
+DI `ICompanionNodeIdFactory` marker; the allocator
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
+
+Both the Robotics and Machinery allocator markers inherit the shared marker,
+so one existing namespace owner can support both build contexts without a
+second DI manager. All contexts must use that owner's application namespace.
+Allocators retaining temporary reservations can additionally implement
+`ICompanionNodeIdReservationOwner`; rollback and successful registration then
+release reservations through the actual allocator, even when another companion
+family owns the manager. The stock Robotics and Machinery managers provide
+this capability. Existing marker implementers acquire no new required methods.
 
 [`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the example of
 the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD

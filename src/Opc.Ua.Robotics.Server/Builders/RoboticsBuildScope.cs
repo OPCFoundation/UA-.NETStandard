@@ -53,9 +53,13 @@ namespace Opc.Ua.Robotics.Server.Builders
         private IDisposable? m_rootBrowseNameReservation;
         private bool m_registering;
 
+        /// <summary>
+        /// Stages a generated Robotics system or a supplied companion subtype under the existing owner.
+        /// </summary>
         public RoboticsBuildScope(
             IRoboticsBuildContext buildContext,
-            QualifiedName browseName)
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, MotionDeviceSystemState>? createSystem = null)
         {
             BuildContext = buildContext ??
                 throw new ArgumentNullException(nameof(buildContext));
@@ -68,9 +72,9 @@ namespace Opc.Ua.Robotics.Server.Builders
                 browseName);
             try
             {
-                Root = Context.CreateInstanceOfMotionDeviceSystemType(
-                    BuildContext.DeviceSet,
-                    browseName);
+                Root = createSystem == null
+                    ? Context.CreateInstanceOfMotionDeviceSystemType(BuildContext.DeviceSet, browseName)
+                    : createSystem(Context, BuildContext.DeviceSet, browseName);
                 Root.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
                 RootBuilder = new MotionDeviceSystemBuilder(this, Root);
             }
