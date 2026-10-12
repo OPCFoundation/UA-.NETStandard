@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Tests.Samples
 {
@@ -126,7 +127,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             switch (group)
             {
                 case "Asset":
-                    root["@type"] = new JsonArray("Thing", "uav:projection", "Asset");
+                    root["@type"] = new JsonArray("uav:projection", "Asset");
                     root["properties"] = SelectMembers(
                         members, "properties", PropertyBindings.ToList().Where(binding => binding.IsIdentity)
                             .Select(binding => binding.Name));
@@ -138,27 +139,27 @@ namespace Opc.Ua.WotCon.Tests.Samples
                             ["rel"] = "ua:Organizes",
                             ["href"] = ProjectionResourceId(pumpName, child),
                             ["uav:refName"] = child,
-                            ["type"] = "application/td+json"
+                            ["type"] = WotProjection.ContentType
                         });
                     }
                     root["links"] = links;
                     break;
                 case "ProcessData":
                 case "ConditionData":
-                    root["@type"] = new JsonArray("Thing", "uav:projection", "dataset");
+                    root["@type"] = new JsonArray("uav:projection", "dataset");
                     root["properties"] = SelectMembers(
                         members, "properties", group == "ProcessData" ? s_processMembers : s_conditionMembers,
                         semanticType: "dataPoint");
                     break;
                 case "Supervision":
-                    root["@type"] = new JsonArray("Thing", "uav:projection", "eventGroup");
+                    root["@type"] = new JsonArray("uav:projection", "eventGroup");
                     root["properties"] = SelectMembers(
                         members, "properties", s_alarmSources.Select(alarm => alarm.Alarm));
                     root["events"] = SelectMembers(
                         members, "events", s_alarmSources.Select(alarm => alarm.Alarm + "Alarm"));
                     break;
                 case "Management":
-                    root["@type"] = new JsonArray("Thing", "uav:projection", "managementGroup");
+                    root["@type"] = new JsonArray("uav:projection", "managementGroup");
                     root["properties"] = SelectMembers(
                         members, "properties", s_sourceNames.Select(source => source + "Running"));
                     root["actions"] = SelectMembers(
@@ -208,7 +209,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     ["uav:sourceName"] = source,
                     ["href"] = source,
-                    ["type"] = "application/td+json",
+                    ["type"] = group == "Members" ? "application/td+json" : WotProjection.ContentType,
                     ["uav:routing"] = "source"
                 });
             }
@@ -224,10 +225,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         ["uav"] = "http://opcfoundation.org/UA/WoT-Binding/"
                     }
                 },
-                ["@type"] = new JsonArray("Thing", "uav:projection"),
+                ["@type"] = new JsonArray("uav:projection"),
+                ["uav:projectionKind"] = "ThingDescription",
                 ["id"] = $"urn:opcfoundation.org:UA:WotAggregation:Asset:{pumpName}" +
                     (group == "Asset" ? string.Empty : ":" + group),
-                ["title"] = group == "Members" || group == "Asset" ? $"{pumpName} {group}" : group,
+                ["title"] = group is "Members" or "Asset" ? $"{pumpName} {group}" : group,
                 ["uav:scenario"] = "urn:opcfoundation.org:UA:WotAggregation:AssetManagement",
                 ["securityDefinitions"] = new JsonObject
                 {

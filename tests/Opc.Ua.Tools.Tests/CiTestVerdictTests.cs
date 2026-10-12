@@ -544,6 +544,15 @@ namespace Opc.Ua.Tools.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                if (!File.Exists(Path.Combine(configuredRoot, ".github", "scripts", "get-test-verdict.ps1")))
+                {
+                    throw new DirectoryNotFoundException("The configured root has no CI verdict script.");
+                }
+                return configuredRoot;
+            }
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {

@@ -39,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.WotCon.Tests.Registry;
 using AggregationClient;
 using AggregationServer;
 using FlatTagServer;
@@ -56,7 +57,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
             FlatTagValues sourceAValues,
             FlatTagValues sourceBValues,
             FlatTagValues sourceAPump2Values,
-            FlatTagValues sourceBPump2Values)
+            FlatTagValues sourceBPump2Values,
+            RecordingLeasedResourceStore? contentStore)
         {
             Root = root;
             SourceAHost = sourceAHost;
@@ -67,6 +69,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             SourceBValues = sourceBValues;
             SourceAPump2Values = sourceAPump2Values;
             SourceBPump2Values = sourceBPump2Values;
+            m_contentStore = contentStore;
         }
 
         public string Root { get; }
@@ -89,8 +92,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public string DocumentsDirectory => FindDocumentsDirectory();
 
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
         public static async Task<WotSampleEnvironment> StartAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool forceLeasedContent = false)
         {
             string id = Guid.NewGuid().ToString("N");
             string root = Path.Combine(
@@ -175,12 +181,16 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Values = sourceBValues,
                 Pump2Values = sourceBPump2Values
             });
+            RecordingLeasedResourceStore? contentStore = forceLeasedContent || !OperatingSystem.IsWindows()
+                ? new RecordingLeasedResourceStore() : null;
             IHost aggregationHost = AggregationServerHost.Build(
                 new AggregationServerOptions
                 {
                     EndpointUrl = aggregationEndpoint,
                     ApplicationName = $"AggregationServer{id}",
-                    PkiRoot = Path.Combine(root, "Aggregation", "pki")
+                    PkiRoot = Path.Combine(root, "Aggregation", "pki"),
+                    StorageFolder = Path.Combine(root, "Aggregation", "registry"),
+                    ResourceStore = contentStore
                 });
             var clientOptions = new AggregationClientOptions
             {
@@ -201,7 +211,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 sourceAValues,
                 sourceBValues,
                 sourceAPump2Values,
-                sourceBPump2Values);
+                sourceBPump2Values,
+                contentStore);
             try
             {
                 await sourceAHost.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -284,10 +295,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
             AggregationHost.Dispose();
             SourceBHost.Dispose();
             SourceAHost.Dispose();
+            m_contentStore?.Dispose();
             if (Directory.Exists(Root))
             {
                 Directory.Delete(Root, recursive: true);
             }
+
         }
 
         private static async Task StopHostAsync(IHost host)
@@ -355,8 +368,20 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
-        private static string FindDocumentsDirectory()
+        internal static string FindDocumentsDirectory()
         {
+            string? repositoryRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(repositoryRoot))
+            {
+                string documents = Path.Combine(
+                    repositoryRoot, "samples", "WotCon", "AggregationClient", "Documents");
+                if (File.Exists(Path.Combine(repositoryRoot, "UA.slnx")) && Directory.Exists(documents))
+                {
+                    return documents;
+                }
+                throw new DirectoryNotFoundException(
+                    "OPCUA_TEST_REPOSITORY_ROOT must identify the checkout containing the sample documents.");
+            }
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory != null)
             {
@@ -379,6 +404,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
             throw new DirectoryNotFoundException(
                 "The checked-in samples\\AggregationClient\\Documents directory was not found.");
         }
+
+        private readonly RecordingLeasedResourceStore? m_contentStore;
     }
 
     internal sealed class OpcUaClientConnection : IAsyncDisposable
@@ -485,6 +512,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public WotRegistryClient Registry { get; }
 
+        /// <param name="options">The aggregation client options.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public static async Task<WotClientConnection> CreateAsync(
             AggregationClientOptions options,
             CancellationToken cancellationToken)
@@ -497,6 +526,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     host.Services.GetRequiredService<
                         Func<CancellationToken, Task<ManagedSession>>>();
                 ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
+                session.OperationTimeout = (int)TimeSpan.FromMinutes(30).TotalMilliseconds;
+                session.KeepAliveInterval = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
                 session.MessageContext.NamespaceUris.Update(session.NamespaceUris.ToArray());
                 Func<ManagedSession, CancellationToken, Task<WotRegistryClient>> createClient =
                     host.Services.GetRequiredService<

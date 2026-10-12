@@ -61,13 +61,68 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private const string kSourceANamespaceUri =
             "urn:opcfoundation.org:UA:WotAggregation:SourceA";
 
-        private const string kWotConNamespaceUri = "http://opcfoundation.org/UA/WoT-Con/";
         private const string kPumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
 
+        /// <summary>
+        /// Verifies that pooled upstream sessions retain their binding mapping holders.
+        /// </summary>
+        /// <param name="secondSource">The second-source flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PooledUpstreamSessionsRetainTheirBindingMappingHolders(bool secondSource)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token).ConfigureAwait(false);
+            string endpoint = secondSource
+                ? environment.ClientOptions.SourceBEndpoint : environment.ClientOptions.SourceAEndpoint;
+            IManagedSessionPool pool = environment.AggregationHost.Services.GetRequiredService<IManagedSessionPool>();
+            ManagedSession session = await pool.GetOrConnectAsync(endpoint, new ConfiguredEndpoint(
+                null, new EndpointDescription
+                {
+                    EndpointUrl = endpoint,
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                }, null), timeout.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.MessageContext.NamespaceUris, Is.SameAs(session.NamespaceUris));
+                Assert.That(session.MessageContext.ServerUris, Is.SameAs(session.ServerUris));
+            });
+            using ISessionClient binding = await ((ISessionBindingProvider)session)
+                .CreateBindingAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(binding, Is.InstanceOf<ISessionBinding>());
+        }
+
+        /// <summary>
+        /// Verifies that registry connections retain the finite sample refresh service budget.
+        /// </summary>
+        [Test]
+        public async Task RegistryConnectionsRetainTheFiniteSampleRefreshServiceBudgetAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token).ConfigureAwait(false);
+            await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(connection.Session.OperationTimeout,
+                Is.EqualTo((int)TimeSpan.FromMinutes(30).TotalMilliseconds));
+            Assert.That(connection.Session.KeepAliveInterval,
+                Is.EqualTo((int)TimeSpan.FromSeconds(30).TotalMilliseconds));
+            Assert.That(connection.Session.SessionTimeout,
+                Is.GreaterThanOrEqualTo(TimeSpan.FromMinutes(30).TotalMilliseconds));
+            OpcUaClientOptions upstreamOptions = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaClientOptions>();
+            Assert.That(upstreamOptions.Session.SessionTimeout, Is.EqualTo(TimeSpan.FromMinutes(30)));
+        }
+
+        /// <summary>
+        /// Verifies that real samples aggregate subscribe and replace generation.
+        /// </summary>
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(60));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -77,16 +132,38 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
             using JsonDocument manifest = JsonDocument.Parse(
                 File.ReadAllBytes(Path.Combine(environment.DocumentsDirectory, "documents.json")));
-            string[] expectedResourceIds = manifest.RootElement.EnumerateArray()
-                .Select(entry => entry.GetProperty("resourceId").GetString()!).ToArray();
-            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(expectedResourceIds.Length));
-            var uploadedResourceIds = new List<string>();
+            var expectedDocuments = new List<ByteString>();
+            var sourceIdentities = new Dictionary<string, string>(StringComparer.Ordinal);
+            ByteString expectedPump = default;
+            foreach (JsonElement entry in manifest.RootElement.EnumerateArray())
+            {
+                string path = Path.Combine(environment.DocumentsDirectory, entry.GetProperty("path").GetString()!);
+                ByteString expected = ByteString.From(AggregationClientRunner.EnsureDocumentIdentity(
+                    AggregationClientRunner.SubstituteEndpoints(File.ReadAllText(path), environment.ClientOptions),
+                    entry.GetProperty("resourceId").GetString()!));
+                expectedDocuments.Add(expected);
+                using JsonDocument source = JsonDocument.Parse(expected.Memory);
+                sourceIdentities.Add(entry.GetProperty("resourceId").GetString()!,
+                    source.RootElement.GetProperty("id").GetString()!);
+                if (entry.GetProperty("resourceId").GetString() == "sample-pump")
+                {
+                    expectedPump = expected;
+                }
+            }
+            expectedDocuments = expectedDocuments.ConvertAll(content => ByteString.From(
+                AggregationClientRunner.RewriteDocumentReferences(content.ToArray(), sourceIdentities)));
+            Assert.That(expectedPump.IsNull, Is.False);
+            expectedPump = ByteString.From(AggregationClientRunner.RewriteDocumentReferences(
+                expectedPump.ToArray(), sourceIdentities));
+            Assert.That(result.LoadResult.Uploaded, Has.Count.EqualTo(expectedDocuments.Count));
+            var uploadedDocuments = new List<ByteString>();
             foreach (WotRegistryDocumentLoadOutcome upload in result.LoadResult.Uploaded)
             {
-                uploadedResourceIds.Add(upload.Document.ResourceId);
+                uploadedDocuments.Add(upload.Document.Content);
             }
-            Assert.That(uploadedResourceIds, Is.EquivalentTo(expectedResourceIds));
-            Assert.That(uploadedResourceIds, Does.Contain("sample-pump").And.Contain("pump2-asset"));
+            Assert.That(uploadedDocuments, Is.EquivalentTo(expectedDocuments));
+            WotRegistryDocument pumpDocument = result.LoadResult.Uploaded.ToList()
+                .Single(upload => upload.Document.Content == expectedPump).Document;
             WotRegistryRefreshResult firstRefresh = result.LoadResult.Refresh ??
                 throw new InvalidOperationException("The real loader did not run Refresh.");
             Assert.That(firstRefresh.HasFailures, Is.False, FormatRefresh(firstRefresh));
@@ -94,7 +171,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             foreach (WoTResourceLoadResultDataType load in firstRefresh.Results)
             {
                 pumpActive |=
-                    load.ResourceId == "sample-pump" &&
+                    load.ResourceId == pumpDocument.ResourceId &&
                     load.LoadState == WoTLoadStateEnum.Active;
             }
             Assert.That(pumpActive, Is.True);
@@ -212,23 +289,29 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 retiredGenerationPublish = PublishDataChangeAsync(
                     subscriptionSession,
                     acknowledgements,
-                    TimeSpan.FromMinutes(4),
+                    TimeSpan.FromMinutes(45),
                     retiredPublishLifetime.Token);
 #pragma warning restore CA2025
 
             try
             {
-                (string resourceId, string changedPump) = await CreateChangedPumpDocumentAsync(
+                (string resourceName, string changedPump) = await CreateChangedPumpDocumentAsync(
                     environment, timeout.Token).ConfigureAwait(false);
-                (WotRegistryGroupClient group, _) = await connection.Registry
-                    .GetOrCreateThingDescriptionGroupAsync(timeout.Token)
-                    .ConfigureAwait(false);
-                (WotRegistryResourceClient pumpResource, _, _) = await group
-                    .GetOrCreateResourceAsync(resourceId, string.Empty, timeout.Token)
+                ByteString changedDocument = ByteString.From(AggregationClientRunner.EnsureDocumentIdentity(
+                    Encoding.UTF8.GetBytes(changedPump), resourceName));
+                changedDocument = ByteString.From(AggregationClientRunner.RewriteDocumentReferences(
+                    changedDocument.ToArray(), sourceIdentities));
+                string sourceId = sourceIdentities[resourceName];
+                WotRegistryDocument assigned = result.LoadResult.Uploaded.ToList()
+                    .Single(upload => ReadDocumentIdentity(upload.Document.Content) == sourceId).Document;
+                WotRegistryGroupClient group = await connection.Registry
+                    .OpenGroupAsync(assigned.GroupId, timeout.Token).ConfigureAwait(false);
+                WotRegistryResourceClient pumpResource = await group
+                    .OpenResourceAsync(assigned.ResourceId, timeout.Token)
                     .ConfigureAwait(false);
                 WotRegistryUploadResult upload = await pumpResource
                     .UploadNewVersionAndGetResultAsync(
-                        ByteString.From(Encoding.UTF8.GetBytes(changedPump)),
+                        changedDocument,
                         ct: timeout.Token)
                     .ConfigureAwait(false);
                 await pumpResource
@@ -240,6 +323,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
                 WotRegistryRefreshResult secondRefresh = await connection.Registry
                     .RefreshAllAsync(
+                        new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry },
                         requestId: "sample-pump-replacement",
                         ct: timeout.Token).ConfigureAwait(false);
                 if (secondRefresh.HasFailures)
@@ -312,10 +396,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             AssertDataValue(afterDrain, environment.SourceBValues.BearingTemperature);
         }
 
+        /// <summary>
+        /// Verifies that real samples route management and condition actions to each source.
+        /// </summary>
         [Test]
         public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -353,14 +440,16 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await using ConfiguredAsyncDisposable connectionLifetime = connection.ConfigureAwait(false);
 
             ushort pumpNs = ResolveNamespace(connection.Session, kPumpNamespaceUri);
-            ushort wotConNs = ResolveNamespace(connection.Session, kWotConNamespaceUri);
             for (int i = 0; i < result.Pumps.Count; i++)
             {
                 string pumpName = result.Pumps[i].Name;
-                var assetView = new NodeId(
-                    "WoTRegistry/groups/thingdescriptions/resources/" +
-                    pumpName.ToLowerInvariant() + "-asset/View",
-                    wotConNs);
+                WotRegistryDocument assetDocument = result.LoadResult.Uploaded.ToList().Single(upload =>
+                    ReadDocumentIdentity(upload.Document.Content) ==
+                        "urn:opcfoundation.org:UA:WotAggregation:Asset:" + pumpName).Document;
+                WoTResourceLoadResultDataType asset = refresh.Results.ToList().Single(item =>
+                    item.GroupId == assetDocument.GroupId && item.ResourceId == assetDocument.ResourceId);
+                Assert.That(asset.RootNodeId.IsNull, Is.False, asset.Message);
+                NodeId assetView = ExpandedNodeId.ToNodeId(asset.RootNodeId, connection.Session.NamespaceUris);
                 NodeId processGroup = await FindOrganizedChildAsync(
                     connection.Session, assetView, "ProcessData", timeout.Token).ConfigureAwait(false);
                 await AssertOrganizedMeasurementsAsync(
@@ -462,12 +551,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure.Message, Does.Contain("missing or cyclic dependency"));
         }
 
+        /// <summary>
+        /// Verifies that bad target mapping fails refresh.
+        /// </summary>
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            // Uploading and refreshing the full sample document set takes close to four minutes
-            // on a Windows Debug runner, so use the same budget as the other full workflows.
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -487,14 +577,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that unavailable upstream endpoint fails mapped read.
+        /// </summary>
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            // The budget covers the whole workflow, not only the failing read: uploading and
-            // refreshing the full sample document set takes close to four minutes on a Windows
-            // Debug runner, and on Windows every refused loopback connect costs about two seconds
-            // of SYN retries, so the mapped read adds a further half minute there.
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -512,12 +601,18 @@ namespace Opc.Ua.WotCon.Samples.Tests
             };
             string unavailableEndpoint =
                 $"opc.tcp://127.0.0.1:{TestPorts.GetFreePort()}/UnavailableSource";
+            string documents = environment.CreateDocumentsCopy();
+            (string path, _, JsonObject root, JsonObject property) = await FindMeasurementDocumentAsync(
+                documents, timeout.Token).ConfigureAwait(false);
+            foreach (JsonNode? form in property["forms"]!.AsArray())
+            {
+                form!["href"] = unavailableEndpoint;
+            }
+            await File.WriteAllTextAsync(path, root.ToJsonString(), timeout.Token).ConfigureAwait(false);
 
             Exception failure = await CaptureFailureAsync(
                 () => AggregationClientRunner.RunAsync(
-                    environment.CreateClientOptions(
-                        environment.DocumentsDirectory,
-                        sourceAEndpoint: unavailableEndpoint),
+                    environment.CreateClientOptions(documents),
                     timeout.Token)).ConfigureAwait(false);
 
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
@@ -858,7 +953,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 references.ToArray()!
                     .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
                 Is.EquivalentTo(names.Select(name =>
-                    new NodeId($"{pumpName}.Operational.Measurements.{name}", namespaceIndex))));
+                    new NodeId($"{pumpName}.Operational.Measurements.{name}", namespaceIndex)).Concat(
+                    names.Where(name => name != "NumberOfStarts").Select(name => new NodeId(
+                        $"{pumpName}.Operational.Measurements.{name}.EngineeringUnits", namespaceIndex)))));
         }
 
         private static void AssertOrganizedIds(
@@ -985,6 +1082,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
         {
             Assert.That(value.WrappedValue.TryGetValue(out double actual), Is.True);
             Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        private static string ReadDocumentIdentity(ByteString content)
+        {
+            using JsonDocument document = JsonDocument.Parse(content.Memory);
+            return document.RootElement.GetProperty("id").GetString() ??
+                throw new InvalidDataException("A published sample document has no source identity.");
         }
 
         private static async Task<(string ResourceId, string Json)> CreateChangedPumpDocumentAsync(

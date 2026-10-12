@@ -51,27 +51,37 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class WotMaterializationExtensibilityTests
     {
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
+            m_preparedHost = m_runtime.Observe(m_host.RecordCommitted);
             m_converter = new FakeWotDocumentConverter();
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
             m_coordinator?.Dispose();
-            m_registry.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null;
         }
 
+        /// <summary>
+        /// Verifies that a contributor adds nodes to every converted document.
+        /// </summary>
         [Test]
         public async Task AContributorAddsNodesToEveryConvertedDocumentAsync()
         {
             var contributor = new RecordingContributor();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetContributors: [contributor]);
 
@@ -87,11 +97,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// Verifies that no contributor leaves materialization unchanged.
+        /// </summary>
         [Test]
         public async Task NoContributorLeavesMaterializationUnchangedAsync()
         {
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
 
             await RegisterAsync("a").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -100,12 +113,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Registering no contributor must leave the previous behaviour untouched.");
         }
 
+        /// <summary>
+        /// Verifies that a contributed data type reaches the projection.
+        /// </summary>
         [Test]
         public async Task AContributedDataTypeReachesTheProjectionAsync()
         {
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetContributors: [new DataTypeContributor()]);
 
@@ -122,13 +138,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "is what lets a uav:mapByFieldPath mapping resolve against a controller UDT.");
         }
 
+        /// <summary>
+        /// Verifies that an unresolved dependency namespace is reported not silently dropped.
+        /// </summary>
         [Test]
         public async Task AnUnresolvedDependencyNamespaceIsReportedNotSilentlyDroppedAsync()
         {
             m_converter.RequiredNamespace = kDependencyNamespace;
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: new DecliningResolver());
 
@@ -142,13 +161,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A namespace nothing can resolve must surface, so an operator sees what is missing.");
         }
 
+        /// <summary>
+        /// Verifies that a resolved dependency is projected before the document that needs it.
+        /// </summary>
         [Test]
         public async Task AResolvedDependencyIsProjectedBeforeTheDocumentThatNeedsItAsync()
         {
             m_converter.RequiredNamespace = kDependencyNamespace;
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: new StubResolver(kDependencyNamespace));
 
@@ -161,11 +183,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A resolved dependency must be materialized before the document that requires it.");
         }
 
+        /// <summary>
+        /// Verifies that no resolver leaves a known document unaffected.
+        /// </summary>
         [Test]
         public async Task NoResolverLeavesAKnownDocumentUnaffectedAsync()
         {
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
 
             await RegisterAsync("a").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -189,6 +214,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
+        private IWotInvocationProjectionHost m_preparedHost = null!;
+        private PreparedWotTestRuntime? m_runtime;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator? m_coordinator;
 

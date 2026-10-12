@@ -49,6 +49,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_fields.Add((path, value));
         }
 
+        /// <param name="context">The filter context.</param>
+        /// <param name="typeDefinitionId">The type definition identifier.</param>
+        /// <param name="relativePath">The relative path.</param>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="indexRange">The index range.</param>
         public override Variant GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
@@ -78,10 +83,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     Ua.BrowseNames.EventId => new Variant(EventId is null ? default : EventId.Value),
                     Ua.BrowseNames.EventType => new Variant(TypeDefinitionId),
                     Ua.BrowseNames.SourceNode => new Variant(SourceNode is null ? NodeId.Null : SourceNode.Value),
+                    Ua.BrowseNames.ReceiveTime => new Variant(ReceiveTime is null ? default : ReceiveTime.Value),
                     _ => Variant.Null
                 };
                 found = relativePath[0].Name is
-                    Ua.BrowseNames.EventId or Ua.BrowseNames.EventType or Ua.BrowseNames.SourceNode;
+                    Ua.BrowseNames.EventId or Ua.BrowseNames.EventType or
+                    Ua.BrowseNames.SourceNode or Ua.BrowseNames.ReceiveTime;
             }
             if (!found)
             {

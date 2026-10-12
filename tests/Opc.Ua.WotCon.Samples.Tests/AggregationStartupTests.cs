@@ -115,6 +115,15 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                if (!File.Exists(Path.Combine(configuredRoot, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return configuredRoot;
+            }
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory is not null)
             {

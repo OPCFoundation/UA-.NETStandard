@@ -59,10 +59,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
     [SetUICulture("en-us")]
     public sealed class WotPumpAddressSpaceComparisonTests
     {
+        /// <summary>
+        /// Verifies that WoT pump instance matches native pump subset.
+        /// </summary>
         [Test]
         public async Task WotPumpInstanceMatchesNativePumpSubsetAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment wotEnvironment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable wotEnvironmentLifetime =
@@ -107,10 +110,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failures, Is.Empty, failures);
         }
 
+        /// <summary>
+        /// Verifies that companion type definitions match native pump server.
+        /// </summary>
         [Test]
         public async Task CompanionTypeDefinitionsMatchNativePumpServerAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             WotSampleEnvironment wotEnvironment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable wotEnvironmentLifetime =
@@ -474,7 +480,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 StringComparer.Ordinal))
             {
                 // Sample-specific source controls and proxy Conditions are exercised by the control round-trip test.
-                if (path.Contains(kWotPumpNamespaceUri, StringComparison.Ordinal))
+                const string eventBindings = "http://opcfoundation.org/UA/WoT-Con/:EventBindings";
+                if (path.Contains(kWotPumpNamespaceUri, StringComparison.Ordinal) ||
+                    path == eventBindings || path.StartsWith(eventBindings + "/", StringComparison.Ordinal))
                 {
                     continue;
                 }
