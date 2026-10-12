@@ -113,14 +113,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns the pooled objects of a notification message to their activator pools.
-        /// The message must not be referenced by anyone afterwards.
-        /// </summary>
-        internal static void RecyclePayload(NotificationMessage message)
-        {
-            RecyclePayload(message, null);
-        }
 
         /// <summary>
         /// Returns the pooled objects of a notification message to their activator pools and

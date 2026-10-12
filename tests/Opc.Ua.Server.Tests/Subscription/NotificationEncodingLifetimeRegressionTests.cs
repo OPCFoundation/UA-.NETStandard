@@ -386,6 +386,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A release beyond the owners never recycles the payload a second time, and a
+        /// later regular release still finds the count intact.
+        /// </summary>
+        [Test]
+        public void ExtraReleaseNeverRecyclesTwice()
+        {
+            var message = new CountingNotificationMessage { SequenceNumber = 1 };
+            var lease = new NotificationMessageLease(message);
+            lease.Release();
+            lease.Release();
+            Assert.That(message.ReuseCount, Is.EqualTo(1));
+            Assert.That(lease.References, Is.Zero);
+
+            var shared = new CountingNotificationMessage { SequenceNumber = 2 };
+            var sharedLease = new NotificationMessageLease(shared);
+            sharedLease.AddReference();
+            sharedLease.Release();
+            Assert.That(shared.ReuseCount, Is.Zero, "one owner left");
+            sharedLease.Release();
+            sharedLease.Release();
+            Assert.That(shared.ReuseCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The retained messages are exposed read-only, in queue order, as the shared
+        /// instances (not copies).
+        /// </summary>
+        [Test]
+        public void SentMessagesExposesTheRetainedMessagesInOrder()
+        {
+            var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
+            var first = new NotificationMessage { SequenceNumber = 1 };
+            var second = new NotificationMessage { SequenceNumber = 2 };
+            queue.Enqueue([first, second], [], out _, out _, out NotificationMessageLease lease);
+            lease.Release();
+
+            IReadOnlyList<NotificationMessage> sent = queue.SentMessages;
+            Assert.Multiple(() =>
+            {
+                Assert.That(sent, Has.Count.EqualTo(2));
+                Assert.That(sent[1], Is.SameAs(second));
+                Assert.That(sent.ToList(), Is.EqualTo(new[] { first, second }));
+                Assert.That(((System.Collections.IEnumerable)sent).Cast<NotificationMessage>().First(), Is.SameAs(first));
+            });
+            queue.Clear();
+            Assert.That(sent, Is.Empty);
+        }
+
+        /// <summary>
         /// A keep-alive is not retained for republish, so its response is the only owner and
         /// recycles it once it was sent.
         /// </summary>
