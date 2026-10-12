@@ -117,7 +117,8 @@ namespace Opc.Ua.Types.Tests.State
                 context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
             Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
             Assert.That(value.WrappedValue.IsNull, Is.True);
-            Assert.That(value.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(variable.Timestamp, Is.EqualTo(DateTimeUtc.MinValue),
+                "A fallback read may synthesize a response timestamp but must leave the invalidated cache untouched.");
         }
 
         /// <summary>
