@@ -2624,12 +2624,10 @@ namespace Opc.Ua.Server
 
             bool isInverse = !item.IsForward;
 
-            if (source.ReferenceExists(item.ReferenceTypeId, isInverse, item.TargetNodeId))
+            if (!source.AddReferenceIfMissing(item.ReferenceTypeId, isInverse, item.TargetNodeId))
             {
                 return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed));
             }
-
-            source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
 
             // Part 3 5.x/9.32.2: the NodeVersion of the source is updated and a
             // ModelChangeEvent reported whenever one of its References is added.
