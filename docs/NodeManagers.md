@@ -388,6 +388,18 @@ support filter validation, event subscriptions, condition refresh, and role chec
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
 
+A sampling group checks the Read permission of an item through
+`ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
+verdict until one of its inputs changes: the Session or its effective identity
+(ActivateSession with another user, or granted roles refreshed after a role
+change), the item's node handle, the `RolePermissions` or `UserRolePermissions`
+of any `NodeState`, or the default permissions of a namespace. A revoked
+permission therefore yields `BadUserAccessDenied` within one or two sampling
+cycles, as before. Each item
+is also revalidated at least once per second, which bounds the delay for
+permissions a node manager computes without such a change, for example through
+`OnReadRolePermissions`.
+
 #### Sampling interval revision
 
 When a client creates or modifies a monitored item the node manager revises the
