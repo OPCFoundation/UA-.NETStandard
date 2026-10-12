@@ -44,18 +44,12 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
-### Native registry implementation work
+### Native registry contracts
 
-The shared model now includes the additive xRegistry 0.10.0 native document and bounded-snapshot
+The xRegistry 0.10.0 model defines native document and bounded-snapshot
 contracts. Schema Registry and the merged Endpoint/Message model are generated in separate
 `Opc.Ua.SchemaRegistry` and `Opc.Ua.EndpointRegistry` assemblies. Loading their declarations does
 not instantiate either registry, enable PubSub, or claim a conformance facet.
-
-`tools\registry-models.json` records the imported specification revision, model versions and
-content hashes. Refresh them with `tools\ImportRegistryModels.ps1 -SpecificationRoot <checkout>`;
-normal builds do not need that checkout. `-Check` compares without importing, and
-`-AllowUncommitted` is only for an explicitly marked local development import. Delivery must
-replace such an import with a committed specification revision.
 
 `RegistryValues.Parse` is a server-side JSON compatibility bridge to the generated native value
 family. Its number coefficient and exponent retain arbitrary admitted decimal precision.
@@ -72,7 +66,9 @@ is not distributed registry coordination or a guarantee against arbitrary power/
 The common interface does not prohibit a future distributed compare-and-swap adapter.
 
 Native mutation, paging, bounded snapshots, Endpoint facets and optional Schema Registry hosting
-are implemented and runtime-verified. `tools\registry-conformance.json` maps the implemented facets
+are implemented and runtime-verified.
+[The conformance manifest](../src/Opc.Ua.EndpointRegistry/Generation/registry-conformance.json)
+maps the implemented facets
 to evidence; it is not certification, and each deployment advertises only its enabled features.
 Automatic schema materialization, an inbound xRegistry HTTP server, clustered high availability
 and the Schema Server/Full facets remain out of scope. See [Native Endpoint, Message and Schema

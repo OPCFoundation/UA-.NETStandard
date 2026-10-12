@@ -7,14 +7,11 @@ Neither hosting a catalog nor reading an Endpoint connects a broker or configure
 
 ## Modules and hosting
 
-`Opc.Ua.XRegistry` supplies exact native values, presence-aware record mapping, shared
-document descriptors and model/capabilities records. Its server module supplies CAS
-state stores, metadata commits, pinned snapshots, metadata files and projection support.
-Endpoint Registry and Schema Registry reuse these modules; Schema Registry does not
-depend on Endpoint Registry.
-Registry packages follow the current central library targets: `net48`, `net8.0`,
-`net9.0` and `net10.0`. Earlier pre-merge validation of additional legacy targets
-does not imply that the current packages ship those assets.
+Endpoint Registry and Schema Registry use the [xRegistry packages](XRegistry.md) for
+native values, record mapping, document contracts, CAS state stores, metadata commits,
+pinned snapshots and projection support. Schema Registry is independent of Endpoint Registry.
+Registry packages target `net48`, `net8.0`,
+`net9.0` and `net10.0`.
 
 Register `EndpointRegistryNodeManagerFactory` explicitly to host Endpoint/Message catalogs.
 Use `EndpointRegistryServerOptions.Generic` for a generic or Message-only catalog, and
@@ -73,9 +70,7 @@ be combined.
 Typed schema reads, exact-Version FileType downloads, `GetSchema` and Opaque fingerprint
 lookup share the same store. Visibility is evaluated before legacy lookup ambiguity.
 Distinct visible candidates fail explicitly instead of selecting the first match.
-The first-party JSON Schema, Avro and Arrow providers preserve supported declarations.
-Arrow is one binary IPC Schema message and has no inline JSON form in Message metadata.
-Messages reference Arrow documents instead.
+The first-party JSON Schema and Avro providers preserve supported declarations.
 
 Shared root metadata, model and capabilities are also native documents. Metadata and its
 epoch come from one committed generation; hidden Versions are excluded. Oversized documents
@@ -104,7 +99,8 @@ retained expiry/replay handling does not invent native targets.
 
 ## Scope and conformance
 
-`tools\registry-conformance.json` maps implemented facets and their shared prerequisites to
+[The conformance manifest](../src/Opc.Ua.EndpointRegistry/Generation/registry-conformance.json)
+maps implemented facets and their shared prerequisites to
 observable runtime evidence. It is not OPC Foundation certification. Each deployment advertises
 only its enabled facets and supplies the required source identity, authorization and trust policies.
 The inherited Schema creation surface, durable drafts, explicit default/lineage/provenance and

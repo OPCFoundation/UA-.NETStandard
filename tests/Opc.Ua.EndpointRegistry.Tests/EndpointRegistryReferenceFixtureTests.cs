@@ -42,7 +42,8 @@ namespace Opc.Ua.EndpointRegistry.Tests
     /// <summary>
     /// Replays the specification's example documents and representation vectors. The expected native
     /// records were produced by the specification's reference projection (registry_native_values.py) and are
-    /// checked in as Assets/native-fixtures.json by tools/GenerateRegistryNativeCatalog.py.
+    /// checked in as Assets/native-fixtures.json by the Endpoint Registry's
+    /// Generation/GenerateRegistryNativeCatalog.py script.
     /// </summary>
     [TestFixture]
     [Category("EndpointRegistry")]

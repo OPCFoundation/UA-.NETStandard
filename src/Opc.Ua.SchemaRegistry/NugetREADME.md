@@ -8,4 +8,5 @@ Referencing the model does not host a Schema Registry or start a transport. The 
 depends on `Opc.Ua.XRegistry`; runtime format libraries and server/client workflows are
 separate modules.
 
-Model provenance and content hashes are recorded in `tools\registry-models.json`.
+Model provenance and content hashes are recorded in
+`src\Opc.Ua.EndpointRegistry\Generation\registry-models.json`.

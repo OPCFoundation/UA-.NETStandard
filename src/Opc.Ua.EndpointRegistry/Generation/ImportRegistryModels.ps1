@@ -12,7 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$root = Split-Path $PSScriptRoot -Parent
+$root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..')).Path
 $source = (Resolve-Path -LiteralPath $SpecificationRoot).Path
 $commit = & git -C $source rev-parse HEAD
 if ($LASTEXITCODE -ne 0) {
@@ -71,11 +71,11 @@ $json = $provenance | ConvertTo-Json -Depth 6
 $provenancePath = Join-Path $PSScriptRoot 'registry-models.json'
 if ($Check) {
     if (-not (Test-Path -LiteralPath $provenancePath -PathType Leaf)) {
-        throw 'Imported model provenance is missing: tools\registry-models.json'
+        throw 'Imported model provenance is missing: src\Opc.Ua.EndpointRegistry\Generation\registry-models.json'
     }
     $recorded = Get-Content -LiteralPath $provenancePath -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 6
     if ($recorded -cne $json) {
-        throw 'Imported model provenance differs: tools\registry-models.json'
+        throw 'Imported model provenance differs: src\Opc.Ua.EndpointRegistry\Generation\registry-models.json'
     }
 }
 else {

@@ -8,4 +8,5 @@ Message-only catalogs do not require an Endpoint collection, a local Schema Regi
 a PubSub runtime. The Schema Registry reference is a dependency on its information model,
 not on a hosted registry.
 
-Model provenance and content hashes are recorded in `tools\registry-models.json`.
+Model provenance and content hashes are recorded in
+`src\Opc.Ua.EndpointRegistry\Generation\registry-models.json`.

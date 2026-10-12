@@ -21,7 +21,7 @@ import types
 import unittest
 from pathlib import Path
 
-STACK_ROOT = Path(__file__).resolve().parents[1]
+STACK_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT = STACK_ROOT / "tests/Opc.Ua.EndpointRegistry.Tests/Assets/rule-fixtures.json"
 VECTORS = [
     "extras/endpoint-registry/tools/vectors/message-metadata.json",
