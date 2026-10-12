@@ -62,9 +62,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var transport = new GateByteTransport(responseCount);
             channel.SetTransport(transport);
 
+            // responses above an eighth of the send buffer keep their send buffer;
+            // smaller ones move to a buffer of their own size.
             for (uint requestId = 1; requestId <= responseCount; requestId++)
             {
-                channel.SendResponse(requestId, CreateResponse());
+                channel.SendResponse(requestId, CreateLargeResponse(16 * 1024));
             }
 
             Assert.That(
@@ -103,8 +105,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -223,8 +224,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -248,8 +248,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -337,7 +336,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var transport = new GateByteTransport(expectedSendCount: 1);
             channel.SetTransport(transport);
 
-            channel.SendResponse(1, CreateResponse());
+            // large enough to keep the send buffer (smaller responses move to a
+            // buffer of their own size).
+            channel.SendResponse(1, CreateLargeResponse(16 * 1024));
 
             Assert.That(
                 await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),

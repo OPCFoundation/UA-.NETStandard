@@ -792,6 +792,26 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.RemoveRange(keptCount, chunksToProcess.Count - keptCount);
                 }
 
+                // A small message moves to a buffer of its own size. It can wait in the
+                // write queue for the writer, and a deep pipeline of responses that
+                // each hold a send-buffer-sized array exhausts the buffer pool. The
+                // room after the body covers the padding count, the padding and the
+                // signature that sealing adds.
+                if (chunksToProcess.Count == 1)
+                {
+                    ArraySegment<byte> body = chunksToProcess[0];
+                    int required = headerSize + body.Count + paddingCountSize +
+                        signatureSize + (2 * EncryptionBlockSize);
+                    if (required <= sendBufferSize / kSmallMessageFraction)
+                    {
+                        byte[] large = body.GetArray();
+                        byte[] small = BufferManager.TakeBuffer(required, "WriteSymmetricMessage");
+                        Buffer.BlockCopy(large, body.Offset, small, headerSize, body.Count);
+                        chunksToProcess[0] = new ArraySegment<byte>(small, headerSize, body.Count);
+                        BufferManager.ReturnBuffer(large, "WriteSymmetricMessage");
+                    }
+                }
+
                 var encoded = new EncodedSymmetricMessage(
                     messageType,
                     requestId,
@@ -1171,6 +1191,12 @@ namespace Opc.Ua.Bindings
         /// was activated.
         /// </summary>
         private ChannelToken? m_renewedTokenWithKeys;
+
+        /// <summary>
+        /// A single-chunk message that needs at most this fraction of the send buffer
+        /// is moved to a buffer of its own size (see <see cref="EncodeSymmetricMessage"/>).
+        /// </summary>
+        private const int kSmallMessageFraction = 8;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private ISymmetricCryptoProvider? m_symmetricProvider;
