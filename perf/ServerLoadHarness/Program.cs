@@ -34,7 +34,7 @@
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
 //   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
-//           [--subs S] [--pub ms] [--write-interval ms] [--trace file] [--trace-profile p] [--out file]
+//           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K] [--trace file] [--trace-profile p] [--out file]
 //           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
@@ -350,7 +350,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("subs", 5),
                     ArgInt("pub", 100),
                     ArgInt("write-interval", 100),
-                    Arg("callback", "fast") == "item")
+                    Arg("callback", "fast") == "item",
+                    ArgInt("write-nodes", 0))
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
@@ -757,7 +758,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int subscriptions,
             int publishingInterval,
             int writeInterval,
-            bool itemCallback)
+            bool itemCallback,
+            int writeNodes)
         {
             m_sessions = sessions;
             m_nodes = nodes;
@@ -765,6 +767,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
             m_itemCallback = itemCallback;
+            m_writeNodes = writeNodes;
         }
 
         public override double Operations => Interlocked.Read(ref m_notifications);
@@ -788,7 +791,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"sub: {m_sessions.Length} sessions x {m_subscriptions} subs x {m_nodeIds.Count} items, ") +
                 FormattableString.Invariant(
-                $"pub {m_publishingInterval} ms, write every {m_writeInterval} ms; setup {setupTime.ElapsedMilliseconds} ms"));
+                $"pub {m_publishingInterval} ms, write {WrittenNodes} items every {m_writeInterval} ms; setup {setupTime.ElapsedMilliseconds} ms"));
         }
 
         public override async Task RunAsync(CancellationToken ct)
@@ -797,7 +800,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
                 int counter = Interlocked.Increment(ref m_counter);
-                var values = new WriteValue[m_nodeIds.Count];
+                var values = new WriteValue[WrittenNodes];
                 for (int i = 0; i < values.Length; i++)
                 {
                     values[i] = new WriteValue
@@ -823,7 +826,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override string Report(double seconds)
         {
             long notifications = Interlocked.Read(ref m_notifications);
-            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * m_nodeIds.Count;
+            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * WrittenNodes;
             double ratio = expected == 0 ? 0 : (double)notifications / expected;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
@@ -1017,6 +1020,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private long m_notifications;
         private long m_writes;
         private int m_counter;
+        /// <summary>
+        /// The number of monitored nodes the writer changes: all of them, or the first
+        /// <c>--write-nodes</c> (a large subscription in which few items change).
+        /// </summary>
+        private int WrittenNodes => m_writeNodes > 0 ? Math.Min(m_writeNodes, m_nodeIds.Count) : m_nodeIds.Count;
+
         private ArrayOf<NodeId> m_nodeIds;
+        private readonly int m_writeNodes;
     }
 }

@@ -40,6 +40,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--client` | `classic` | `classic`: `Session` with the classic subscription engine. `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`). `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
 | `--callback` | `fast` | Classic data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
 | `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). |
+| `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
