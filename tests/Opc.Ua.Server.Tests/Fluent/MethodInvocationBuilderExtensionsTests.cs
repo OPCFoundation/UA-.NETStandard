@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             [Values] bool asynchronous,
             [Values] bool completeFirst)
         {
-            using var root = new BaseObjectState(null)
+            var root = new BaseObjectState(null)
             {
                 NodeId = new NodeId("Root", kNamespace),
                 BrowseName = new QualifiedName("Root", kNamespace)
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             [Values("predefined", "instance", "reference-child", "resolved")] string family,
             [Values] bool asynchronous)
         {
-            using var root = new BaseObjectState(null)
+            var root = new BaseObjectState(null)
             {
                 NodeId = new NodeId("Root", kNamespace),
                 BrowseName = new QualifiedName("Root", kNamespace)
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// Creates each built-in builder through its public entry point.
         /// </summary>
         /// <param name="family">The public entry point to use.</param>
-        /// <param name="root">The owning root that releases the method's node graph.</param>
+        /// <param name="root">The owning root of the authored method's node graph.</param>
         /// <exception cref="ArgumentOutOfRangeException">The family is not a supported test case.</exception>
         private static INodeBuilder<MethodState> CreateBuilder(string family, BaseObjectState root)
         {
