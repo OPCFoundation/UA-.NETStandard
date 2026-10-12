@@ -34,7 +34,8 @@
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
 //   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
-//           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K] [--trace file] [--trace-profile p] [--out file]
+//           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
+//           [--trace file] [--trace-profile p] [--out file]
 //           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
@@ -774,6 +775,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public override string OperationName => "notification";
 
+        /// <summary>
+        /// The number of monitored nodes the writer changes: all of them, or the first
+        /// <c>--write-nodes</c> (a large subscription in which few items change).
+        /// </summary>
+        private int WrittenNodes => m_writeNodes > 0 ? Math.Min(m_writeNodes, m_nodeIds.Count) : m_nodeIds.Count;
+
         public override async Task SetupAsync()
         {
             m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes, typeof(int)).ToArray();
@@ -791,7 +798,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"sub: {m_sessions.Length} sessions x {m_subscriptions} subs x {m_nodeIds.Count} items, ") +
                 FormattableString.Invariant(
-                $"pub {m_publishingInterval} ms, write {WrittenNodes} items every {m_writeInterval} ms; setup {setupTime.ElapsedMilliseconds} ms"));
+                $"pub {m_publishingInterval} ms, write {WrittenNodes} items every {m_writeInterval} ms; ") +
+                FormattableString.Invariant($"setup {setupTime.ElapsedMilliseconds} ms"));
         }
 
         public override async Task RunAsync(CancellationToken ct)
@@ -1020,12 +1028,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private long m_notifications;
         private long m_writes;
         private int m_counter;
-        /// <summary>
-        /// The number of monitored nodes the writer changes: all of them, or the first
-        /// <c>--write-nodes</c> (a large subscription in which few items change).
-        /// </summary>
-        private int WrittenNodes => m_writeNodes > 0 ? Math.Min(m_writeNodes, m_nodeIds.Count) : m_nodeIds.Count;
-
         private ArrayOf<NodeId> m_nodeIds;
         private readonly int m_writeNodes;
     }
