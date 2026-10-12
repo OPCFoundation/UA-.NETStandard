@@ -3353,7 +3353,11 @@ namespace Opc.Ua.XRegistry.Server
         /// replacing a label on the owning node.
         /// </summary>
         /// <param name="labels">The label container that owns the mutation.</param>
+        /// <param name="epoch">The owner's epoch property, advanced after a successful change; may be null.</param>
+        /// <param name="key">The label key to add or replace.</param>
+        /// <param name="value">The label value to store.</param>
         /// <param name="expectedEpoch">The caller's epoch guard; zero disables the check.</param>
+        /// <param name="changed">Optional callback invoked after the label changes.</param>
         /// <param name="cancellationToken">Cancels the mutation.</param>
         internal async ValueTask<AddAttributeMethodStateResult> OnAddAttributeAsync(
             AttributesState labels,
