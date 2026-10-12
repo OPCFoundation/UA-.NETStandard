@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
@@ -599,7 +600,7 @@ namespace Opc.Ua.Bindings
         /// it without the gate. Sealing takes the token and the sequence numbers and
         /// is done by the writer, in queue order (see <see cref="SendOrder"/>).
         /// </remarks>
-        private protected sealed class EncodedSymmetricMessage
+        private protected readonly struct EncodedSymmetricMessage
         {
             public EncodedSymmetricMessage(
                 uint messageType,
@@ -792,12 +793,13 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.RemoveRange(keptCount, chunksToProcess.Count - keptCount);
                 }
 
-                // A small message moves to a buffer of its own size. It can wait in the
-                // write queue for the writer, and a deep pipeline of responses that
-                // each hold a send-buffer-sized array exhausts the buffer pool. The
+                // A small message that will wait in the write queue (writes are already
+                // queued) moves to a buffer of its own size: a deep pipeline of
+                // responses that each hold a send-buffer-sized array exhausts the
+                // buffer pool. A message that is sent right away skips the copy. The
                 // room after the body covers the padding count, the padding and the
                 // signature that sealing adds.
-                if (chunksToProcess.Count == 1)
+                if (chunksToProcess.Count == 1 && Volatile.Read(ref m_activeWriteRequests) > 0)
                 {
                     ArraySegment<byte> body = chunksToProcess[0];
                     int required = headerSize + body.Count + paddingCountSize +

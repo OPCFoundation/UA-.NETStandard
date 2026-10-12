@@ -1086,16 +1086,17 @@ namespace Opc.Ua.Bindings
 
                 // the limits should never be exceeded when sending a fault.
 
-                encoded = EncodeSymmetricMessage(
+                EncodedSymmetricMessage message = EncodeSymmetricMessage(
                     TcpMessageType.Message,
                     requestId,
                     response,
                     false,
                     out _);
+                encoded = message;
 
                 // queue for the writer, which secures it. Without a transport the
                 // fault is dropped, as a write to a closed transport would be.
-                if (BeginWriteSymmetricMessage(encoded, null))
+                if (BeginWriteSymmetricMessage(message, null))
                 {
                     encoded = null;
                 }
