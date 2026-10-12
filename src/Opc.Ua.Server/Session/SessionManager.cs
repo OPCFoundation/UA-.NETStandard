@@ -2512,6 +2512,15 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
+            // Diagnostics changes are raised for every request; without a subscriber they
+            // must not take the server-wide event lock. Subscriptions are added under the
+            // lock, so a subscriber racing with this check misses at most this one event.
+            if (reason == SessionEventReason.DiagnosticsChanged &&
+                Volatile.Read(ref m_SessionDiagnosticsChanged) == null)
+            {
+                return;
+            }
+
             lock (m_eventLock)
             {
                 SessionEventHandler? handler = null;
