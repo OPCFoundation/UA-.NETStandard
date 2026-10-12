@@ -113,13 +113,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             });
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () =>
-                {
-                    _ = await new RobotIntentControllerClient(failedTransport)
+                async () => _ = await new RobotIntentControllerClient(failedTransport)
                         .TrySubmitIntentAsync(
                             RoboticsIntentDtoConverter.ConvertLinearMove(kLinearMoveDto, null),
-                            CancellationToken.None).ConfigureAwait(false);
-                })!;
+                            CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 
@@ -146,7 +143,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Pumps,
                     McpToolProfile.Di,
                     McpToolProfile.Isa95,
-                    McpToolProfile.Positioning
+                    McpToolProfile.Positioning,
+                    McpToolProfile.Wot,
+                    McpToolProfile.XRegistry,
+                    McpToolProfile.WotDocuments
                 }));
 
             foreach (McpToolProfile profile in profiles)

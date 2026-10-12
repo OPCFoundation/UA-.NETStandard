@@ -50,6 +50,7 @@ jobs:
       run: >
         ./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
         -ResultsDirectory '${{ runner.temp }}/mcpgrade-results'
+        -AdditionalProfiles @('wot', 'xregistry', 'wot-documents', 'wot,xregistry,wot-documents')
 
     - name: Upload grading reports
       if: ${{ always() }}

@@ -66,6 +66,9 @@ namespace Opc.Ua
         public const int DefaultSessionFactory = 520;
         public const int AliasNameResolver = 560;
 
+        /// <summary>Bounded FileType transfer diagnostics.</summary>
+        public const int FileTypeStreamExtensions = 570;
+
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider

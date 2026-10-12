@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -90,7 +89,7 @@ namespace Opc.Ua.Mcp
             services.AddSingleton<OpcUaSessionManager>();
             services.AddSingleton<McpFileTransfers>();
 
-            OpcUaMcpOptions options = OpcUaMcpOptions.FromEnvironment();
+            var options = OpcUaMcpOptions.FromEnvironment();
             configure?.Invoke(options);
             services.AddSingleton(options);
             return services;
@@ -201,6 +200,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Di:
                 case McpToolProfile.Isa95:
                 case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
@@ -230,7 +232,7 @@ namespace Opc.Ua.Mcp
         /// tool set contributes it, deduplicated by tool type. Profiles that
         /// only rely on Part 4 tools indirectly - <see cref="McpToolProfile.Vision"/>,
         /// <see cref="McpToolProfile.Robotics"/> and <see cref="McpToolProfile.Diagnostics"/>
-        /// - cause <see cref="Tools.ConnectionTools"/> to be registered exactly once
+        /// - cause <see cref="ConnectionTools"/> to be registered exactly once
         /// through <see cref="WithOpcUaConnectionTools(IMcpServerBuilder)"/>, so
         /// composing Vision and Robotics on the same builder does not register
         /// the connection tools twice.
@@ -283,7 +285,7 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Registers <see cref="Tools.ConnectionTools"/> at most once on the
+        /// Registers <see cref="ConnectionTools"/> at most once on the
         /// supplied builder, so several tool packages composed on the same MCP
         /// server share one set of connection tools instead of registering
         /// their own.
@@ -339,6 +341,8 @@ namespace Opc.Ua.Mcp
                 toolProfiles.Contains(McpToolProfile.Di) ||
                 toolProfiles.Contains(McpToolProfile.Isa95) ||
                 toolProfiles.Contains(McpToolProfile.Positioning) ||
+                toolProfiles.Contains(McpToolProfile.Wot) ||
+                toolProfiles.Contains(McpToolProfile.XRegistry) ||
                 toolProfiles.Contains(McpToolProfile.Full);
         }
 #pragma warning restore RCS1224

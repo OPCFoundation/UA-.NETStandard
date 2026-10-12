@@ -53,7 +53,8 @@ namespace Opc.Ua.Mcp
         public static void ConfigureServices(
             IServiceCollection services,
             PcapOptions pcapOptions,
-            OpcUaMcpOptions? OpcUaMcpOptions = null)
+            OpcUaMcpOptions? OpcUaMcpOptions = null,
+            WotMcpOptions? wotOptions = null)
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(pcapOptions);
@@ -69,6 +70,8 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpDi();
             services.AddOpcUaMcpIsa95();
             services.AddOpcUaMcpPositioning();
+            services.AddOpcUaMcpXRegistry();
+            services.AddOpcUaMcpWotCon(wotOptions);
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -204,6 +207,8 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaDiTools(toolProfile)
                 .WithOpcUaIsa95Tools(toolProfile)
                 .WithOpcUaPositioningTools(toolProfile)
+                .WithOpcUaXRegistryTools(toolProfile)
+                .WithOpcUaWotConTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
 
@@ -253,6 +258,8 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaDiTools(toolProfiles)
                 .WithOpcUaIsa95Tools(toolProfiles)
                 .WithOpcUaPositioningTools(toolProfiles)
+                .WithOpcUaXRegistryTools(toolProfiles)
+                .WithOpcUaWotConTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
 

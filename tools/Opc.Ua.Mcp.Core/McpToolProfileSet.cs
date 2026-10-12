@@ -241,14 +241,17 @@ namespace Opc.Ua.Mcp
 
             foreach (string token in tokens)
             {
-                if (!Enum.TryParse(token, ignoreCase: true, out McpToolProfile profile) ||
+                string name = token.Equals("wot-documents", StringComparison.OrdinalIgnoreCase)
+                    ? nameof(McpToolProfile.WotDocuments) : token;
+                if (!Enum.TryParse(name, ignoreCase: true, out McpToolProfile profile) ||
                     !Enum.IsDefined(profile))
                 {
                     error = string.Format(
                         CultureInfo.InvariantCulture,
                         "Unknown MCP tool profile '{0}'. Valid profiles: {1}.",
                         token,
-                        string.Join(", ", Enum.GetNames<McpToolProfile>()));
+                        string.Join(", ", Enum.GetNames<McpToolProfile>()).Replace(
+                            nameof(McpToolProfile.WotDocuments), "wot-documents", StringComparison.Ordinal));
                     return false;
                 }
                 bits |= ToBit(profile);
@@ -278,7 +281,7 @@ namespace Opc.Ua.Mcp
                 {
                     builder.Append(kListSeparatorComma);
                 }
-                builder.Append(profile.ToString());
+                builder.Append(profile == McpToolProfile.WotDocuments ? "wot-documents" : profile.ToString());
             }
             return builder.ToString();
         }

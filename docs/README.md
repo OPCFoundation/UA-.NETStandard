@@ -199,6 +199,9 @@ For more examples, including the Pumps and Machinery models, see the
 To expose these typed client interfaces to an agent, use the
 [industrial companion MCP tools](McpServer.md#industrial-companion-tools). Select one family or
 compose several profiles without enabling the entire tool catalog.
+The [WoT and xRegistry profiles](McpServer.md#wot-and-registry-tools) cover
+asset/registry management and document conversion; the document profile does
+not require a UA connection.
 
 ## 5. Prepare for production
 

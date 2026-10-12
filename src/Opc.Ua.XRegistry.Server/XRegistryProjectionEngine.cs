@@ -577,13 +577,13 @@ namespace Opc.Ua.XRegistry.Server
         {
             GroupState node = m_strategy.CreateGroupNode(m_registryNode!, group);
             NodeId nodeId = GroupNodeId(group.GroupId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
                 new QualifiedName(group.GroupId, m_context.ModelNamespaceIndex),
                 new LocalizedText(group.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.AddCreateResource(m_context.SystemContext)
                 .AddGetOrCreateResource(m_context.SystemContext)
                 .AddDelete(m_context.SystemContext)
@@ -665,7 +665,6 @@ namespace Opc.Ua.XRegistry.Server
                 resource.GroupId,
                 resource.ResourceId,
                 resource.VersionId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
@@ -674,6 +673,7 @@ namespace Opc.Ua.XRegistry.Server
                     m_context.ModelNamespaceIndex),
                 new LocalizedText(resource.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.AddVersionId(m_context.SystemContext)
                 .AddFormat(m_context.SystemContext)
                 .AddContentType(m_context.SystemContext)
@@ -870,13 +870,13 @@ namespace Opc.Ua.XRegistry.Server
             // Create the logical Resource node — child of the Group.
             ResourceState node = m_strategy.CreateResourceNode(group.Node, defaultVersion);
             NodeId logicalNodeId = LogicalResourceNodeId(groupId, resourceId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 logicalNodeId,
                 new QualifiedName(resourceId, m_context.ModelNamespaceIndex),
                 new LocalizedText(defaultVersion.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
 
             // Logical Resource carries Meta-prefixed members, stable Xid, Delete and Labels.
             node.AddVersionId(m_context.SystemContext)
@@ -924,7 +924,7 @@ namespace Opc.Ua.XRegistry.Server
             ResourceVersionsState versionsFolder = node.Versions!;
             versionsFolder.NodeId = VersionsFolderNodeId(groupId, resourceId);
             versionsFolder.BrowseName = new QualifiedName(
-                "Versions", m_context.ModelNamespaceIndex);
+                "Versions", (ushort)m_context.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri));
             versionsFolder.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
             var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
@@ -1207,13 +1207,13 @@ namespace Opc.Ua.XRegistry.Server
                 : logical.LogicalNode.Parent as GroupState ?? new GroupState(null);
             ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
             NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 versionNodeId,
                 new QualifiedName(versionId, m_context.ModelNamespaceIndex),
                 new LocalizedText(version.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
 
             // Version carries its own Xid, Epoch, Labels, CreatedAt, ModifiedAt, Delete.
             node.AddVersionId(m_context.SystemContext)

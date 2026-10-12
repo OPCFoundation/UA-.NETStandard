@@ -404,6 +404,8 @@
     <Project Path="tools/Opc.Ua.Mcp.Robotics/Opc.Ua.Mcp.Robotics.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Scales/Opc.Ua.Mcp.Scales.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.WotCon/Opc.Ua.Mcp.WotCon.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.XRegistry/Opc.Ua.Mcp.XRegistry.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

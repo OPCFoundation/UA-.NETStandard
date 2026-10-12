@@ -103,6 +103,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Di:
                 case McpToolProfile.Isa95:
                 case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

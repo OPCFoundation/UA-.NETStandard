@@ -12,6 +12,7 @@ automation systems through natural language.
 - [Tool Profiles](#tool-profiles)
   - [Vision-guided Robotics](#vision-guided-robotics)
   - [Industrial companion tools](#industrial-companion-tools)
+  - [WoT and registry tools](#wot-and-registry-tools)
 - [Resources](#resources)
   - [Multi-Session Support](#multi-session-support)
 - [Installation](#installation)
@@ -26,6 +27,7 @@ automation systems through natural language.
   - [Cursor](#cursor)
   - [HTTP Transport (for remote clients)](#http-transport-for-remote-clients)
   - [Companion file transfers](#companion-file-transfers)
+  - [WoT document dependency policy](#wot-document-dependency-policy)
 - [Usage](#usage)
   - [Companion workflows](#companion-workflows)
   - [Companion results, errors and bounds](#companion-results-errors-and-bounds)
@@ -38,6 +40,8 @@ automation systems through natural language.
   - [Packages](#packages)
   - [Embedding the tools in your own MCP server](#embedding-the-tools-in-your-own-mcp-server)
   - [Embedding industrial companions](#embedding-industrial-companions)
+  - [Embedding WoT and xRegistry](#embedding-wot-and-xregistry)
+  - [Remaining tooling gaps](#remaining-tooling-gaps)
 - [Security Notes](#security-notes)
 - [Agent-Usability Quality Gate](#agent-usability-quality-gate)
 - [Requirements](#requirements)
@@ -106,6 +110,9 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `di` | Connection plus device topology, identification, locks, transfers and software updates | Device configuration and explicitly requested updates |
 | `isa95` | Connection plus common objects and V1/V2 job order/response tools | Job submission, control and monitoring |
 | `positioning` | Connection plus spatial frames, global locations and coordinate conversion | Inspect and transform relative/global positions |
+| `wot` | Connection plus legacy asset management and WoT-specific registry state, validation, refresh and events | Manage a WoT server without starting protocol executors in the MCP host |
+| `xregistry` | Connection plus generic registry groups, resources, versions, labels, content and events | Reusable registry workflows, including compatible WoT specializations |
+| `wot-documents` | Document inspection, validation, binding planning and NodeSet conversion | No UA connection required; external dependencies are disabled unless explicitly allowed by the host and request |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -184,11 +191,87 @@ agent work. Profile selection is not an authorization check; use `tools/list`
 to inspect the exact names and input schemas.
 
 IA, PA-DIM, ECM and PackML are represented through the typed clients that use
-them, not through duplicate catalogs. AI, WoT Connectivity, OpenUSD and
-xRegistry are outside this industrial set. See [companion workflows](#companion-workflows)
+them, not through duplicate catalogs. WoT Connectivity and xRegistry have
+[separate profiles](#wot-and-registry-tools); general AI management and OpenUSD
+remain outside this set. See [companion workflows](#companion-workflows)
 for cross-family handoffs, [file transfers](#companion-file-transfers) for host
 policy, and [embedding industrial companions](#embedding-industrial-companions)
 for library registration.
+
+### WoT and registry tools
+
+The WoT and xRegistry modules contribute 35 domain tools. The `wot` profile
+contains 16 server-facing tools, `xregistry` contains 14, and `wot-documents`
+contains five document tools. Connection tools are shared exactly once when
+session-scoped profiles are composed:
+
+```powershell
+opcua-mcp --profile wot
+opcua-mcp --profile wot,xregistry
+opcua-mcp --profile wot-documents
+opcua-mcp --profile core,wot,xregistry,wot-documents
+```
+
+WoT legacy asset management and the registry are independent capabilities.
+`wot_inspect_server` reports each separately and accepts explicitly discovered
+roots when a server uses different placement. Missing optional capabilities
+are not treated as supported empty results. Draft WoT registry and xRegistry
+model identities are described in [WoT connectivity](WoTConnectivity.md) and
+[xRegistry](XRegistry.md); package release-channel policy is independent of
+model maturity.
+
+| Workflow | Tools |
+| --- | --- |
+| WoT discovery and inspection | `wot_inspect_server`, `wot_list_assets`, `wot_inspect_asset`, `wot_read_resource_state` |
+| Explicit endpoint operations | `wot_discover_endpoints`, `wot_test_connection` |
+| Legacy asset lifecycle and TD files | `wot_create_asset`, `wot_create_asset_for_endpoint`, `wot_delete_asset`, `wot_upload_thing_description`, `wot_download_thing_description` |
+| WoT registry operations | `wot_validate_resource`, `wot_set_enabled`, `wot_set_default_version`, `wot_refresh`, `wot_observe_events` |
+| Generic registry reads | `xregistry_discover`, `xregistry_list`, `xregistry_read`, `xregistry_resolve_content`, `xregistry_observe_events` |
+| Generic registry creation, content and labels | `xregistry_create_group`, `xregistry_create_resource`, `xregistry_upload_document`, `xregistry_download_document`, `xregistry_set_label`, `xregistry_remove_label` |
+| Explicit deletion scopes | `xregistry_delete_group`, `xregistry_delete_resource`, `xregistry_delete_version` |
+| Document processing | `wot_inspect_document`, `wot_validate_document`, `wot_plan_bindings`, `wot_to_nodeset`, `wot_from_nodeset` |
+
+For asset data-plane operations, `wot_inspect_asset` returns property/action
+NodeIds and action argument metadata. Compose with `core` or `services` and use
+the existing read/write/call tools; the WoT module does not create a second
+generic service catalogue.
+
+Registry operations preserve the distinction between a logical Resource and a
+concrete Version, even though both use `ResourceType`. Deleting a Resource
+removes its versions and uses `MetaEpoch`; deleting one Version uses that
+Version's `Epoch`. Tools verify the hierarchy before dispatch. Ambiguous legacy
+flat layouts remain inspectable but cannot be used to disguise a whole-resource
+deletion as a single-version deletion.
+
+Mutations require `SignAndEncrypt`. Where a method supports an expected epoch or
+generation, callers supply it explicitly; zero requires an explicit
+unconditional-operation opt-in. FileType writes have no atomic epoch argument,
+so tools do not pretend that a metadata pre-read provides such protection.
+Uploads target concrete versions rather than mutable default-version aliases.
+No tool implicitly enables, refreshes, promotes, retries or acquires a lock.
+Configured server-side automatic behavior is not overridden.
+
+`wot_validate_resource` is a server mutation: validation updates stored state.
+It is different from `wot_validate_document`, which checks document processing
+without modifying a UA server. `wot_refresh` requires explicit selectors or
+`allResources: true`. It preserves partial outcomes and the returned generation.
+Detailed refresh results can be truncated explicitly at the requested item
+limit; they have no continuation cursor that would re-run the mutation.
+
+Document tools reuse the existing [WoT converter](WoTNodeSetConversion.md) and
+[binding planners](WotBindings.md). Consumer conversion preserves unknown
+vocabulary and residue; strict authoring validation is explicit. A syntactically
+readable document is not automatically a convertible WoT Binding projection.
+Binding analysis reports supported forms and diagnostics but never opens a
+protocol channel or activates an executor.
+
+Inline text is limited to 64 KiB. Larger documents and generated artifacts use
+the configured transfer root, with host byte/count/depth limits and no overwrite.
+Linked document sets are kept together as a document-set ZIP with a manifest of
+exact hrefs and SHA-256 digests; this is an MCP transfer artifact, not a new WoT
+vocabulary. The archive is read without extracting member paths. It can be
+supplied back with `documentSetArchive: true`, so nested documents are not
+silently flattened or dropped.
 
 ## Resources
 
@@ -382,6 +465,64 @@ There is no arbitrary URL fetching or large inline base64 transport.
 Uploading a software package does not invoke the Installation or Confirmation
 methods; those are separate explicit operations. A server's DirectLoading
 profile may apply the software when the upload commits.
+
+### WoT document dependency policy
+
+Document processing starts with explicitly supplied text/files and dependencies.
+It does not fetch URLs merely because they occur in a document. Remote
+dependencies require both `resolveRemoteDependencies: true` on that invocation
+and an exact host-configured HTTPS origin allowlist. An empty allowlist denies
+all remote retrieval.
+
+```json
+{
+  "McpServer": {
+    "ToolProfile": "wot-documents",
+    "TransferRoot": "C:\\opcua-mcp-transfer",
+    "Wot": {
+      "AllowedDependencyOrigins": [
+        "https://models.example.org",
+        "https://schemas.example.org:8443"
+      ],
+      "AllowPrivateDependencyAddresses": false,
+      "MaxDocumentBytes": 16777216,
+      "MaxTotalBytes": 67108864,
+      "MaxDocuments": 256,
+      "MaxResolverDepth": 16,
+      "OperationTimeoutMilliseconds": 30000,
+      "MaxConcurrentOperations": 2
+    }
+  }
+}
+```
+
+The host can also set `OPCUA_MCP_WOT_DEPENDENCY_ORIGINS` to a comma- or
+semicolon-separated origin list and `OPCUA_MCP_WOT_ALLOW_PRIVATE_DEPENDENCIES`
+to an explicit Boolean. Configuration values take precedence. Tool arguments
+cannot change these settings or raise host resource ceilings.
+
+Origins include the normalized host and effective port, not an arbitrary URL
+prefix. Paths, query strings, fragments, credentials and non-HTTPS schemes
+are rejected in allowlist entries. Every dependency is checked; redirects are
+rejected, cookies and ambient credentials are disabled, and no system proxy is
+used. DNS addresses are checked before connecting to those exact addresses,
+without a second resolution. Private addresses require explicit host policy;
+loopback is blocked. A custom injected HTTP transport is trusted host code and
+must retain these guarantees.
+
+The whole-operation deadline covers the source and every dependency request.
+Declared sizes and actual decompressed bytes are both bounded. Cycle, depth and
+document limits apply across the operation, including generated linked-document
+sets and their preservation partitions. Results carry provenance and
+digests rather than large inline document bodies; credential-bearing URL
+details are not suitable for logs.
+
+Document sources, dependency arrays and refresh selectors are top-level MCP
+arguments; scalar settings live in `options`, without an extra `input`
+envelope. This keeps schemas shallow and argument counts small without
+stringifying arrays or hiding them behind references. Embedding C# callers
+continue to use `WotDocumentInput` and `WotRefreshInput`; the registered MCP
+adapter binds the advertised fields to those same typed methods.
 
 ## Usage
 
@@ -680,7 +821,7 @@ runtime and collect publisher responses):
 
 ## Architecture
 
-The MCP tools ship as thirteen libraries plus the executable that composes them.
+The MCP tools ship as fifteen libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
@@ -728,6 +869,8 @@ tools/
 ├── Opc.Ua.Mcp.Di/                       # Device topology, locking, transfers and software updates
 ├── Opc.Ua.Mcp.ISA95/                    # Common objects and V1/V2 job control
 ├── Opc.Ua.Mcp.Positioning/              # Spatial frames, global locations and transforms
+├── Opc.Ua.Mcp.WotCon/                   # WoT management, document processing and controlled dependencies
+├── Opc.Ua.Mcp.XRegistry/                # Generic registry/version/label/file operations
 └── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
     ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
     ├── McpHostBuilder.cs                # Composes the tool libraries
@@ -752,6 +895,8 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device topology, locks, transfers and software updates | Core + `Opc.Ua.Di.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and job control V1/V2 | Core + `Opc.Ua.ISA95.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames, global locations and transforms | Core + `Opc.Ua.Positioning.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT assets, registry state and document processing | Core + `Opc.Ua.WotCon.Client` + `.Bindings` (planning only) |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content tools | Core + `Opc.Ua.XRegistry.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
@@ -851,6 +996,64 @@ New value projections avoid JSON reflection, but the MCP SDK's existing
 tool-registration path still requires JSON reflection. This feature does not
 make the complete MCP executable NativeAOT-compatible. The repository's MCP
 AOT tests pin that limitation explicitly.
+
+### Embedding WoT and xRegistry
+
+Each module can be embedded without the executable host. Register its services,
+then select the required catalogue. The document profile does not open a UA
+session, and registration itself performs no network I/O.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Mcp;
+
+McpToolProfileSet profiles = McpToolProfileSet.Parse("core,wot,xregistry,wot-documents");
+
+builder.Services
+    .AddOpcUaMcpCore(new OpcUaMcpOptions
+    {
+        TransferRoot = "C:\\opcua-mcp-transfer"
+    })
+    .AddOpcUaMcpWotCon(new WotMcpOptions
+    {
+        AllowedDependencyOrigins = ["https://models.example.org"]
+    })
+    .AddOpcUaMcpXRegistry();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(profiles)
+    .WithOpcUaWotConTools(profiles)
+    .WithOpcUaXRegistryTools(profiles);
+```
+
+Use `OpcUaMcpWotConExtensions.CreateWotMcpOptions(configuration)` to share the
+executable's reflection-free configuration binding. The module registers a
+dedicated named HTTP client for controlled dependencies; do not attach
+credentials or redirect/proxy handlers to it.
+
+### Remaining tooling gaps
+
+The library inventory distinguishes a missing task-oriented catalogue from
+features already reachable through the generic services or another companion.
+The following capabilities remain outside these new profiles:
+
+| Area | Missing dedicated workflow |
+| --- | --- |
+| `Opc.Ua.AI*` | General model/source/deployment/dataset and inference/evaluation/learning-job management; Vision already provides domain-specific inference tools |
+| `Opc.Ua.OpenUsd*` | General representation/binding/scene inspection and asset export; the standalone connector and Vision backend are not a general MCP catalogue |
+| `Opc.Ua.Gds*` | GDS directory, remote certificate push/pull, onboarding and credential services; existing PKI tools manage the MCP client's own stores |
+| `Opc.Ua.Core.Schema`, `Opc.Ua.PubSub.Schema`, `Opc.Ua.Client.ComplexTypes` | Schema generation and explicit complex-type discovery/introspection; NodeSet export and WoT conversion are separate workflows |
+| PubSub MQTT/Kafka/Ethernet, Adapter and Server modules | Broader transport/runtime/adapter/server configuration beyond the current UDP/UADP-oriented tools |
+| `Opc.Ua.Redundancy*` | Dedicated replica diagnostics and authorized maintenance workflows; this does not imply arbitrary host or Kubernetes administration |
+| Higher-level client helpers | Generic file directories and temporary transfers, alarms/conditions, general state machines and aliases, processed/event/modified history, and role/user management |
+
+IA, PA-DIM, ECM and PackML are already represented through the companion clients
+that use them. Core types, transport, cryptography and server-hosting modules
+are infrastructure, not reasons to create duplicate tool catalogues. No direct
+HSM/secret-management, process-launch or unbounded external-fetch interface is
+introduced.
 
 ## Security Notes
 

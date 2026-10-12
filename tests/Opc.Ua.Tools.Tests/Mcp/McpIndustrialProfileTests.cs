@@ -57,10 +57,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(McpToolProfile.Di, "di_")]
         [TestCase(McpToolProfile.Isa95, "isa95_")]
         [TestCase(McpToolProfile.Positioning, "positioning_")]
+        [TestCase(McpToolProfile.Wot, "wot_")]
+        [TestCase(McpToolProfile.XRegistry, "xregistry_")]
         public void CompanionProfilesContributeOnlyOwnCatalogAndConnections(McpToolProfile profile, string prefix)
         {
             McpServerTool[] tools = ResolveTools(new McpToolProfileSet(profile));
-            string[] names = tools.Select(tool => tool.ProtocolTool.Name).ToArray();
+            string[] names = [.. tools.Select(tool => tool.ProtocolTool.Name)];
 
             Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(names.Length));
             Assert.That(names.Count(name => name == "Connect"), Is.EqualTo(1));
@@ -91,16 +93,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("amb,pumps,machinery")]
         [TestCase("positioning,vision,robotics")]
         [TestCase("full,di,amb")]
+        [TestCase("wot,xregistry")]
+        [TestCase("wot,wot-documents,xregistry,core")]
         public void IndustrialCompositionsAreExactUnionsWithoutDuplicates(string profiles)
         {
-            McpToolProfileSet set = McpToolProfileSet.Parse(profiles);
+            var set = McpToolProfileSet.Parse(profiles);
             var expected = new HashSet<string>(StringComparer.Ordinal);
             foreach (McpToolProfile profile in set.Enumerate())
             {
                 expected.UnionWith(ResolveTools(new McpToolProfileSet(profile))
                     .Select(tool => tool.ProtocolTool.Name));
             }
-            string[] actual = ResolveTools(set).Select(tool => tool.ProtocolTool.Name).ToArray();
+            string[] actual = [.. ResolveTools(set).Select(tool => tool.ProtocolTool.Name)];
 
             Assert.That(actual, Is.EquivalentTo(expected));
             Assert.That(actual.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(actual.Length));
@@ -113,13 +117,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void FullIncludesAllIndustrialToolsWithinApprovedBudget()
         {
             var selected = McpToolProfileSet.Parse("amb,machinery,scales,pumps,di,isa95,positioning");
-            string[] industrial = ResolveTools(selected)
+            string[] industrial = [.. ResolveTools(selected)
                 .Select(tool => tool.ProtocolTool.Name)
-                .Where(name => !kConnections.Contains(name, StringComparer.Ordinal))
-                .ToArray();
-            string[] full = ResolveTools(new McpToolProfileSet(McpToolProfile.Full))
-                .Select(tool => tool.ProtocolTool.Name)
-                .ToArray();
+                .Where(name => !kConnections.Contains(name, StringComparer.Ordinal))];
+            string[] full =
+                [.. ResolveTools(new McpToolProfileSet(McpToolProfile.Full)).Select(tool => tool.ProtocolTool.Name)];
 
             Assert.That(industrial, Has.Length.InRange(7, 120));
             Assert.That(full, Is.SupersetOf(industrial));
@@ -140,6 +142,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That((int)McpToolProfile.Robotics, Is.EqualTo(5));
             Assert.That((int)McpToolProfile.Vision, Is.EqualTo(6));
             Assert.That((int)McpToolProfile.Full, Is.EqualTo(7));
+            Assert.That((int)McpToolProfile.Amb, Is.EqualTo(8));
+            Assert.That((int)McpToolProfile.Machinery, Is.EqualTo(9));
+            Assert.That((int)McpToolProfile.Scales, Is.EqualTo(10));
+            Assert.That((int)McpToolProfile.Pumps, Is.EqualTo(11));
+            Assert.That((int)McpToolProfile.Di, Is.EqualTo(12));
+            Assert.That((int)McpToolProfile.Isa95, Is.EqualTo(13));
+            Assert.That((int)McpToolProfile.Positioning, Is.EqualTo(14));
         }
 
         /// <summary>
@@ -195,7 +204,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var services = new ServiceCollection();
             McpHostBuilder.ConfigureMcpTools(services.AddMcpServer(), profiles, diagnosticsToolsEnabled: false);
             using ServiceProvider provider = services.BuildServiceProvider();
-            return provider.GetServices<McpServerTool>().ToArray();
+            return [.. provider.GetServices<McpServerTool>()];
         }
 
         /// <summary>

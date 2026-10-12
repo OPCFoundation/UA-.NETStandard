@@ -116,6 +116,10 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95.Debug", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", false),
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
@@ -284,7 +288,7 @@ namespace Opc.Ua.Tools.Tests
                 string error = await standardError.ConfigureAwait(false);
                 Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
 
-                Dictionary<string, string> actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
+                var actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
                     .Select(line => line.Split('=', 2))
                     .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
 
@@ -1095,7 +1099,7 @@ namespace Opc.Ua.Tools.Tests
 
             using FileStream stream = File.OpenRead(
                 Path.Combine(FindRepositoryRoot(), "version.json"));
-            using JsonDocument document = JsonDocument.Parse(stream);
+            using var document = JsonDocument.Parse(stream);
 
             string[] refSpecs =
             [
@@ -1107,7 +1111,7 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(
                 refSpecs,
-                Is.EqualTo(new[] { expression }),
+                Is.EqualTo([expression]),
                 "version.json's publicReleaseRefSpec must be exactly the expression " +
                 "Test-CanonicalReleaseBranchRef applies.");
         }
@@ -1194,7 +1198,7 @@ namespace Opc.Ua.Tools.Tests
                     "release.yml must inline exactly one canonical release-branch expression.");
                 Assert.That(
                     workflowMatches,
-                    Is.EqualTo(new[] { expression }),
+                    Is.EqualTo([expression]),
                     "The inlined bootstrap check in release.yml and " +
                     "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
             });
@@ -1319,7 +1323,7 @@ namespace Opc.Ua.Tools.Tests
         public void NbgvCliUsesTheCentralPackageVersion()
         {
             string root = FindRepositoryRoot();
-            XDocument packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
             string? version = packages
                 .Descendants("PackageVersion")
                 .SingleOrDefault(element =>
@@ -1352,7 +1356,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public void OpenUsdPackageFamilyUsesOneVerifiedPrerelease()
         {
-            XDocument packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
             string[] versions =
             [
                 .. packages

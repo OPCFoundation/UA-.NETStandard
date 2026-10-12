@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/mcp-server.json",
   "name": "opcua-mcp",
   "displayName": "OPC UA MCP Server",
-  "description": "OPC UA Part 4 services and typed industrial companion tools, including Robotics, Vision, AMB, Machinery, Scales, Pumps, Device Integration, ISA-95 and Positioning. Select bounded, composable catalogs with --profile; use --help for the current names. The default 'full' profile includes every catalog. Explicit controls preserve server permissions and refusals; companion file transfers require a host-configured root.",
+  "description": "OPC UA Part 4 services and typed companion tools, including Robotics, Vision, AMB, Machinery, Scales, Pumps, Device Integration, ISA-95, Positioning, WoT and xRegistry. Select bounded, composable catalogs with --profile. WoT document inspection, validation, binding planning and NodeSet conversion require no UA connection; remote dependencies require an explicit host allowlist. The default 'full' profile includes every catalog. Mutations preserve server permissions and results; file transfers require a host-configured root.",
   "version": "1.0.0",
   "publisher": "OPC Foundation",
   "license": "MIT",

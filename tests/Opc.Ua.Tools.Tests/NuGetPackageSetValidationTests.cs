@@ -55,7 +55,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsAUniformPreviewPackageSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0-preview.1.gabc123def0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.1.gabc123def0");
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsAStableCoreWithNumberedPreviewFamilyReleaseSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
@@ -84,27 +84,27 @@ namespace Opc.Ua.Tools.Tests
             {
                 Assert.That(result.ExitCode, Is.Zero, result.Output);
                 Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("stable"));
-                string[] actualVersions = result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
+                string[] actualVersions = [.. result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
                     .Select(e => e.GetString()!)
-                    .OrderBy(v => v, StringComparer.Ordinal)
-                    .ToArray();
+                    .OrderBy(v => v, StringComparer.Ordinal)];
                 string[] expectedVersions = ["2.0.0", PreviewFamilyVersion];
                 Assert.That(actualVersions, Is.EqualTo(expectedVersions.OrderBy(v => v, StringComparer.Ordinal)));
             });
         }
 
         /// <summary>
-        /// The seven industrial MCP modules follow a stable root while Robotics and Vision remain preview.
+        /// Industrial, WoT and xRegistry MCP modules follow a stable root while Robotics and Vision remain preview.
         /// </summary>
         [TestCase("")]
         [TestCase(".Debug")]
         public async Task AcceptsStableIndustrialMcpPackagesAsync(string suffix)
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core" + suffix, "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics" + suffix, PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" + suffix, PreviewFamilyVersion);
-            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning"];
+            string[] families =
+                ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning", "WotCon", "XRegistry"];
             foreach (string family in families)
             {
                 fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", "2.0.0");
@@ -120,7 +120,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task AcceptsADebugOnlyStableReleaseSetAnchoredOnCoreDebugAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", PreviewFamilyVersion);
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsASelectedFamilyPackageThatIsAccidentallyStableAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0");
 
@@ -157,7 +157,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnUnaffectedPackageThatDoesNotMatchTheRootVersionAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Server", "1.9.9");
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAMissingCoreAnchorPackageAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
@@ -192,7 +192,7 @@ namespace Opc.Ua.Tools.Tests
             // Debug matrix legs into one directory before validating and
             // promoting them, so Core and Core.Debug legitimately coexist
             // there - this must not be rejected as long as they agree.
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
 
@@ -210,7 +210,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsCoreAndCoreDebugDisagreeingOnVersionAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.1");
 
@@ -226,7 +226,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsDuplicatePackageIdentitiesAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0", fileNameSuffix: "-dup");
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnUnexpectedExpectedVersionMismatchAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.1").ConfigureAwait(false);
@@ -257,7 +257,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RequireDebugRejectsAReleaseOnlySetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
@@ -273,7 +273,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RequireDebugAcceptsACombinedReleaseAndDebugSetAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
@@ -292,7 +292,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task RejectsAnOrphanedSymbolPackageAsync()
         {
-            using PackageSetFixture fixture = PackageSetFixture.Create();
+            using var fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             // A .snupkg whose corresponding .nupkg never exists.
             fixture.AddOrphanedSymbolPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);

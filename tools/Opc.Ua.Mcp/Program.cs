@@ -60,7 +60,9 @@ var portOption = new Option<int>("--port", "-p")
 var profileOption = new Option<string?>("--profile")
 {
     Description = "Tool profiles: one profile or a comma-separated list of profiles - " +
-        string.Join(", ", Enum.GetNames<McpToolProfile>()).ToLowerInvariant() + " (default: full). " +
+        string.Join(", ", Enum.GetNames<McpToolProfile>()).Replace(
+            nameof(McpToolProfile.WotDocuments), "wot-documents", StringComparison.Ordinal).ToLowerInvariant() +
+        " (default: full). " +
         "Compose profiles with ',' or '+', e.g. --profile vision,robotics for a vision-guided agent."
 };
 
@@ -117,7 +119,8 @@ static async Task RunStdioServerAsync(string? toolProfileOverride, CancellationT
     OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
+        OpcUaMcpWotConExtensions.CreateWotMcpOptions(builder.Configuration));
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
@@ -148,7 +151,8 @@ static async Task RunHttpServerAsync(
     OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
+        OpcUaMcpWotConExtensions.CreateWotMcpOptions(builder.Configuration));
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()

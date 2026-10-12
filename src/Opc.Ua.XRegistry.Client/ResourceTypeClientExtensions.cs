@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.XRegistry.Client
 {
@@ -120,7 +122,7 @@ namespace Opc.Ua.XRegistry.Client
             uint fileHandle = await resource.OpenAsync(kReadMode, ct).ConfigureAwait(false);
             try
             {
-                var document = new System.IO.MemoryStream();
+                var document = new MemoryStream();
                 while (true)
                 {
                     ByteString chunk = await resource.ReadAsync(fileHandle, chunkSize, ct)
@@ -146,6 +148,33 @@ namespace Opc.Ua.XRegistry.Client
             {
                 await resource.CloseAsync(fileHandle, CancellationToken.None).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Streams an open resource write without buffering the document, then closes the handle.
+        /// </summary>
+        public static ValueTask<long> WriteDocumentAsync(
+            this ResourceTypeClient resource,
+            uint fileHandle,
+            Stream document,
+            long maxBytes,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return resource.WriteStreamAndCloseAsync(fileHandle, document, maxBytes, chunkSize, ct);
+        }
+
+        /// <summary>
+        /// Downloads resource content into a bounded destination without buffering the complete document.
+        /// </summary>
+        public static ValueTask<long> ReadDocumentAsync(
+            this ResourceTypeClient resource,
+            Stream destination,
+            long maxBytes,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return resource.DownloadToStreamAsync(destination, maxBytes, chunkSize, ct);
         }
 
         private const byte kReadMode = 1;

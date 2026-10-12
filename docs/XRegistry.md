@@ -6,6 +6,11 @@ identity**, an **Opaque-NodeId content fast path** that resolves a document in a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
+The [xRegistry MCP profile](McpServer.md#wot-and-registry-tools) exposes generic
+discovery, metadata, versions, labels, bounded document transfers and explicit
+lifecycle operations. Compose it with `wot` for WoT-specific validation and
+materialization; the generic registry catalogue is not duplicated.
+
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses
 everything else. The PubSub Schema Registry and WoT Connectivity registry are concrete
@@ -52,6 +57,13 @@ reference the identity abstraction without pulling in the client or the server.
 `/groups/{group}` for a group, `/groups/{group}/resources/{resource}` for a Resource, and that
 Resource path plus `/versions/{version}` for a materialized Version file. Replacing document bytes
 never changes `Xid`, `ResourceId`, `VersionId`, AddressSpace placement, or event `Subject`.
+
+Projected groups, logical Resources and concrete Versions retain their
+collection references after generated-node initialization. The inherited
+`Versions` child keeps its xRegistry-qualified browse name, even when a domain
+registry uses another namespace for instance NodeIds. Generic clients accept
+`Organizes` or `HasComponent` collection links and distinguish those from the
+parallel event-notifier chain when checking deletion scope.
 
 Every registry may separately supply an `IResourceContentIdProvider` that maps a document plus its
 format to an opaque content key:
@@ -568,6 +580,7 @@ via the generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes. The mo
 
 ## Related documentation
 
+* [MCP server](McpServer.md#wot-and-registry-tools) — agent-facing registry operations and deletion/concurrency semantics.
 * [Source generation](../tools/Opc.Ua.SourceGeneration/readme.md) — how the companion model and its typed proxies are compiled into the assembly.
 * [Node management](NodeManagement.md) — the node manager model the three managers build on.
 * [PubSub (Part 14)](PubSub.md) — the PubSub Schema Registry specialization of this model.

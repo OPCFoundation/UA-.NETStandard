@@ -31,6 +31,7 @@
 param(
     [string] $Configuration = 'Release',
     [string] $ResultsDirectory,
+    [string[]] $AdditionalProfiles = @(),
     [switch] $SkipBuild
 )
 
@@ -235,8 +236,13 @@ try
         Pop-Location
     }
 
-    foreach ($profile in @('core', 'full'))
+    $profiles = @('core', 'full') + @($AdditionalProfiles) | Select-Object -Unique
+    foreach ($profile in $profiles)
     {
+        if ($profile -notmatch '^[a-z][a-z0-9,+-]*$')
+        {
+            throw "Invalid profile name '$profile'."
+        }
         $server = Start-McpHttpServer -Profile $profile -AssemblyPath $assemblyPath `
             -LogPrefix "$profile-server"
         try
@@ -283,6 +289,22 @@ try
     if ($fullReport.totalScore -lt 95 -or $fullUnexpected.Count -ne 0)
     {
         throw "Full profile grade is $($fullReport.totalScore) with $($fullUnexpected.Count) unexpected finding(s)."
+    }
+
+    foreach ($profile in @($AdditionalProfiles | Select-Object -Unique))
+    {
+        if ($profile -in @('core', 'full'))
+        {
+            continue
+        }
+        $report = Get-Content (Join-Path $ResultsDirectory "$profile-static.json") -Raw | ConvertFrom-Json
+        $blocking = @(Get-McpGradeFindings $report |
+            Where-Object { $_.severity -in @('error', 'warn') })
+        if ($report.totalScore -lt 98 -or $blocking.Count -ne 0)
+        {
+            throw "Profile '$profile' grade is $($report.totalScore) with $($blocking.Count) blocking finding(s)."
+        }
+        Write-Host "$profile grade: $($report.grade) / $($report.totalScore)"
     }
 
     $probeReport = Get-Content (Join-Path $ResultsDirectory 'full-probe.json') -Raw |

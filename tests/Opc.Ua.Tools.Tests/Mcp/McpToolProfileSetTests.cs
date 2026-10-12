@@ -67,7 +67,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(set.Count, Is.EqualTo(1));
             Assert.That(set.Contains(McpToolProfile.Vision), Is.True);
             Assert.That(set.Contains(McpToolProfile.Robotics), Is.False);
-            Assert.That(set.Enumerate(), Is.EqualTo(new[] { McpToolProfile.Vision }));
+            Assert.That(set.Enumerate(), Is.EqualTo([McpToolProfile.Vision]));
         }
 
         [Test]
@@ -88,7 +88,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public void WithReturnsAugmentedSet()
         {
-            McpToolProfileSet original = new McpToolProfileSet(McpToolProfile.Vision);
+            var original = new McpToolProfileSet(McpToolProfile.Vision);
 
             McpToolProfileSet extended = original.With(McpToolProfile.Robotics);
 
@@ -106,22 +106,41 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.PubSub, McpToolProfile.Diagnostics, McpToolProfile.Robotics, McpToolProfile.Vision)]
         public void ParseAcceptsDelimitedProfileNames(string value, params McpToolProfile[] expected)
         {
-            McpToolProfileSet set = McpToolProfileSet.Parse(value);
+            var set = McpToolProfileSet.Parse(value);
 
-            List<McpToolProfile> profiles = set.Enumerate().ToList();
-            HashSet<McpToolProfile> expectedProfiles = new(expected);
-            HashSet<McpToolProfile> actualProfiles = new(profiles);
+            var profiles = set.Enumerate().ToList();
+            HashSet<McpToolProfile> expectedProfiles = [.. expected];
+            HashSet<McpToolProfile> actualProfiles = [.. profiles];
             Assert.That(actualProfiles.SetEquals(expectedProfiles) || actualProfiles.IsSubsetOf(expectedProfiles), Is.True);
         }
 
         [Test]
         public void ParseRoundTripsThroughToString()
         {
-            McpToolProfileSet set = McpToolProfileSet.Parse("vision,robotics");
+            var set = McpToolProfileSet.Parse("vision,robotics");
 
-            McpToolProfileSet parsed = McpToolProfileSet.Parse(set.ToString());
+            var parsed = McpToolProfileSet.Parse(set.ToString());
 
             Assert.That(parsed, Is.EqualTo(set));
+        }
+
+        /// <summary>
+        /// WoT profile composition retains its exact members and the document profile's canonical slug.
+        /// </summary>
+        [TestCase("wot,xregistry,wot-documents")]
+        [TestCase("WOT+XREGISTRY+WotDocuments")]
+        public void WotProfilesRoundTripWithoutLosingMembers(string value)
+        {
+            var set = McpToolProfileSet.Parse(value);
+
+            Assert.That(set.Enumerate(), Is.EquivalentTo(new[]
+            {
+                McpToolProfile.Wot,
+                McpToolProfile.XRegistry,
+                McpToolProfile.WotDocuments
+            }));
+            Assert.That(set.ToString(), Does.Contain("wot-documents"));
+            Assert.That(McpToolProfileSet.Parse(set.ToString()), Is.EqualTo(set));
         }
 
         [Test]

@@ -62,6 +62,8 @@ OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision
+OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon
+OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry
 OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client

@@ -18,8 +18,9 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
-Device Integration, ISA-95 and Positioning companion profiles. Profiles compose,
-for example `--profile machinery,isa95` or `--profile scales,di`.
+Device Integration, ISA-95, Positioning, WoT and xRegistry profiles. Profiles
+compose, for example `--profile machinery,isa95`, `--profile scales,di`, or
+`--profile core,wot,xregistry,wot-documents`. `wot-documents` needs no UA connection.
 
 ## Usage
 
@@ -64,6 +65,11 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
 - **Industrial companions**: asset management, machinery, weighing, pumps,
   device integration, ISA-95 jobs and relative/global positioning. See the
   [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools).
+- **WoT and xRegistry**: explicit asset/registry/version/label operations,
+  bounded events and content transfers, document validation, binding planning
+  and bidirectional WoT/NodeSet conversion. Remote dependencies require both
+  request opt-in and the host's exact HTTPS origin allowlist; bindings are not
+  executed in the MCP host.
 
 Companion calls preserve server failures, use bounded lists and observations,
 and never acquire locks or retry commands implicitly. Package upload and result
@@ -100,6 +106,8 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device integration, locking and updates |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management and document processing |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content operations |
 
 The Robotics and Vision libraries are preview-only packages. The seven
 industrial companion libraries follow the root release channel and are stable

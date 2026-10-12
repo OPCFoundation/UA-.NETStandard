@@ -28,10 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Opc.Ua.Mcp.Serialization;
 
 namespace Opc.Ua.Mcp
 {
@@ -39,64 +38,13 @@ namespace Opc.Ua.Mcp
     /// Converts bounded DTO arrays using only the module's source-generated JSON metadata.
     /// </summary>
     /// <typeparam name="T">A concrete ISA-95 input type registered in the generated context.</typeparam>
-    public sealed class Isa95InputArrayJsonConverter<T> : JsonConverter<ArrayOf<T>>
+    public sealed class Isa95InputArrayJsonConverter<T> : McpInputArrayJsonConverter<T>
         where T : class
     {
         /// <inheritdoc/>
-        public override ArrayOf<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            if (reader.TokenType == JsonTokenType.Null)
-            {
-                return ArrayOf<T>.Null;
-            }
-            if (reader.TokenType != JsonTokenType.StartArray)
-            {
-                throw new JsonException("Expected an array of ISA-95 input objects.");
-            }
-            JsonTypeInfo<T> type = ElementType();
-            var values = new List<T>();
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonTokenType.EndArray)
-                {
-                    return new ArrayOf<T>(values.ToArray());
-                }
-                if (values.Count == 500 || reader.CurrentDepth > 32)
-                {
-                    throw new JsonException("ISA-95 inputs are limited to 500 items per array and 32 JSON levels.");
-                }
-                values.Add(JsonSerializer.Deserialize(ref reader, type)
-                    ?? throw new JsonException("Null ISA-95 array entries are not permitted."));
-            }
-            throw new JsonException("The ISA-95 input array is incomplete.");
-        }
-
-        /// <inheritdoc/>
-        public override void Write(Utf8JsonWriter writer, ArrayOf<T> value, JsonSerializerOptions options)
-        {
-            ArgumentNullException.ThrowIfNull(writer);
-            if (value.IsNull)
-            {
-                writer.WriteNullValue();
-                return;
-            }
-            JsonTypeInfo<T> type = ElementType();
-            writer.WriteStartArray();
-            foreach (T item in value)
-            {
-                JsonSerializer.Serialize(writer, item, type);
-            }
-            writer.WriteEndArray();
-        }
-
-        /// <summary>
-        /// Resolves a closed, source-generated input contract without reflection.
-        /// </summary>
-        private static JsonTypeInfo<T> ElementType()
-        {
-            return Isa95InputJsonContext.Default.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
+        protected override JsonTypeInfo<T> ElementType =>
+            Isa95InputJsonContext.Default.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
                 ?? throw new NotSupportedException("This type is not an ISA-95 input contract.");
-        }
     }
 
     /// <summary>

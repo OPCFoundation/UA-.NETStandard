@@ -113,7 +113,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public async Task ConfigureServicesUsesProvidedOpcUaMcpOptionsAsync()
         {
             var services = new ServiceCollection();
-            var expected = new Opc.Ua.Mcp.OpcUaMcpOptions
+            var expected = new OpcUaMcpOptions
             {
                 ToolProfile = McpToolProfile.Core
             };
@@ -122,7 +122,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(
-                provider.GetRequiredService<Opc.Ua.Mcp.OpcUaMcpOptions>(),
+                provider.GetRequiredService<OpcUaMcpOptions>(),
                 Is.SameAs(expected));
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Environment.SetEnvironmentVariable(kExportRootVariable, "export-root");
             Environment.SetEnvironmentVariable(kPcapRootVariable, "pcap-root");
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options =
+            OpcUaMcpOptions options =
                 McpHostBuilder.CreateOpcUaMcpOptions();
 
             Assert.That(options.NodeSetExportRoot, Is.EqualTo("export-root"));
@@ -153,6 +153,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("di", McpToolProfile.Di)]
         [TestCase("isa95", McpToolProfile.Isa95)]
         [TestCase("positioning", McpToolProfile.Positioning)]
+        [TestCase("wot", McpToolProfile.Wot)]
+        [TestCase("xregistry", McpToolProfile.XRegistry)]
+        [TestCase("wot-documents", McpToolProfile.WotDocuments)]
         [TestCase("full", McpToolProfile.Full)]
         public void CreateOpcUaMcpOptionsParsesConfiguredProfile(
             string configuredProfile,
@@ -165,7 +168,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -182,7 +185,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 "core");
 
@@ -194,7 +197,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -207,7 +210,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Environment.SetEnvironmentVariable(kProfileVariable, "pubsub");
             IConfiguration configuration = new ConfigurationBuilder().Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -241,7 +244,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -261,7 +264,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 "vision,robotics");
 
@@ -280,7 +283,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 })
                 .Build();
 
-            Opc.Ua.Mcp.OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
+            OpcUaMcpOptions options = McpHostBuilder.CreateOpcUaMcpOptions(
                 configuration,
                 null);
 
@@ -306,7 +309,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> composed = provider
+            var composed = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -332,7 +335,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> tools = provider
+            var tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -353,7 +356,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> composed = provider
+            var composed = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
@@ -368,7 +371,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("diagnostics", 10)]
         [TestCase("robotics", 42)]
         [TestCase("vision", 26)]
-        [TestCase("full", 138)]
+        [TestCase("full", 173)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);
@@ -377,7 +380,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpHostBuilder.ConfigureMcpTools(builder, toolProfiles, diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> tools = provider
+            var tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .Where(name => !IsIndustrialCompanionTool(name))
@@ -522,6 +525,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 bool needsSession = tools.Any(
                     name => name.StartsWith("robotics_", StringComparison.Ordinal) ||
                         name.StartsWith("vision_", StringComparison.Ordinal) ||
+                        name.StartsWith("xregistry_", StringComparison.Ordinal) ||
+                        (name.StartsWith("wot_", StringComparison.Ordinal) &&
+                            toolProfile != McpToolProfile.WotDocuments) ||
                         IsIndustrialCompanionTool(name));
 
                 if (!needsSession)

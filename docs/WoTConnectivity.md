@@ -16,6 +16,11 @@ target version `1.02.0`, publication 2025-12-05.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
+For agent-facing access, use the [WoT and xRegistry MCP profiles](McpServer.md#wot-and-registry-tools).
+They reuse these clients on the current named session, keep legacy management
+separate from registry support, and make mutations explicit. Generic registry
+operations are shared rather than repeated in the WoT catalogue.
+
 ## Contents
 
 - [1. Hosting a WoT Connectivity server](#1-hosting-a-wot-connectivity-server)
@@ -958,6 +963,20 @@ refresh.EnsureSuccess();
 ```
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
+
+Bounded consumers can use the stream overload of
+`UploadNewVersionAndGetResultAsync` with `maxBytes`; pending structural versions
+are claimed before consuming a non-seekable source, without buffering it for
+replay. The returned version id and NodeId identify the bytes actually written.
+`WotRegistryRefreshResult.MethodStatus` retains the actual method completion
+status alongside the summary and per-resource outcomes.
+
+For the legacy file workflow, `UploadAndUpdateWithResultAsync` returns the
+consumed byte count and actual `CloseAndUpdate` status, including
+`GoodResultsMayBeIncomplete`. `ValidateWithResultAsync` on a generated document
+proxy validates that exact node and returns the method status plus the typed
+outcome. These result-bearing helpers do not replace completed results with
+late cancellation.
 
 ## 12. Conformance to WoT Connectivity 1.1
 

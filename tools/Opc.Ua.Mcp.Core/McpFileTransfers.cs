@@ -105,18 +105,7 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(download);
             ct.ThrowIfCancellationRequested();
-            (string root, long limit) = GetPolicy();
-            string path = ResolvePath(root, filePath);
-            if (File.Exists(path) || Directory.Exists(path))
-            {
-                throw new IOException("The download destination already exists; choose a new file name.");
-            }
-            string directory = Path.GetDirectoryName(path) ??
-                throw new ArgumentException("A download destination must have a parent directory.", nameof(filePath));
-            if (!Directory.Exists(directory))
-            {
-                throw new DirectoryNotFoundException("The download's parent directory must already exist.");
-            }
+            (string root, string path, string directory, long limit) = DownloadPath(filePath);
             string temporaryPath = Path.Combine(directory, $".opcua-mcp-{Guid.NewGuid():N}.tmp");
             try
             {
@@ -145,6 +134,38 @@ namespace Opc.Ua.Mcp
             {
                 File.Delete(temporaryPath);
             }
+        }
+
+        /// <summary>
+        /// Checks a future output destination before expensive conversion or dependency I/O begins.
+        /// DownloadAsync repeats the checks when publishing; this is not a reservation or permission to overwrite.
+        /// </summary>
+        public void ValidateDownloadPath(string filePath)
+        {
+            _ = DownloadPath(filePath);
+        }
+
+        /// <summary>
+        /// Shares the exact destination policy between preflight and publication.
+        /// </summary>
+        /// <exception cref="IOException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="DirectoryNotFoundException"></exception>
+        private (string Root, string Path, string Directory, long Limit) DownloadPath(string filePath)
+        {
+            (string root, long limit) = GetPolicy();
+            string path = ResolvePath(root, filePath);
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                throw new IOException("The download destination already exists; choose a new file name.");
+            }
+            string directory = Path.GetDirectoryName(path) ??
+                throw new ArgumentException("A download destination must have a parent directory.", nameof(filePath));
+            if (!Directory.Exists(directory))
+            {
+                throw new DirectoryNotFoundException("The download's parent directory must already exist.");
+            }
+            return (root, path, directory, limit);
         }
 
         /// <summary>

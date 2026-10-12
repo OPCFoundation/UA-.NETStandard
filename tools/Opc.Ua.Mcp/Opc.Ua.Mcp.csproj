@@ -57,6 +57,8 @@
     <ProjectReference Include="..\Opc.Ua.Mcp.Di\Opc.Ua.Mcp.Di.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.ISA95\Opc.Ua.Mcp.ISA95.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Positioning\Opc.Ua.Mcp.Positioning.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.XRegistry\Opc.Ua.Mcp.XRegistry.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.WotCon\Opc.Ua.Mcp.WotCon.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

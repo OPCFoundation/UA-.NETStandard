@@ -108,6 +108,21 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Relative spatial locations, global positioning and coordinate transforms.
         /// </summary>
-        Positioning
+        Positioning,
+
+        /// <summary>
+        /// WoT Connectivity assets, registry materialization and lifecycle events.
+        /// </summary>
+        Wot,
+
+        /// <summary>
+        /// Generic xRegistry groups, resources, versions and document transfers.
+        /// </summary>
+        XRegistry,
+
+        /// <summary>
+        /// WoT document inspection, bounded dependency resolution, planning and conversion.
+        /// </summary>
+        WotDocuments
     }
 }
