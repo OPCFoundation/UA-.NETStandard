@@ -405,6 +405,38 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
+        public void TimeoutConstructorClaimsTheTerminalStateWhenTheTimeoutElapses()
+        {
+            int callbacks = 0;
+            using var lifetime = new RequestLifetime(
+                TimeSpan.FromMilliseconds(20), CancellationToken.None, CancellationToken.None);
+            using var fired = new ManualResetEventSlim();
+            lifetime.CancellationToken.Register(() =>
+            {
+                Interlocked.Increment(ref callbacks);
+                lifetime.MarkCompleted();
+                fired.Set();
+            });
+
+            Assert.That(fired.Wait(TimeSpan.FromSeconds(10)), Is.True);
+            Assert.That(lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.False);
+            Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(callbacks, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TimeoutConstructorLosesToEarlierExplicitCancellation()
+        {
+            using var lifetime = new RequestLifetime(
+                TimeSpan.FromMilliseconds(200), CancellationToken.None, CancellationToken.None);
+
+            Assert.That(lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);
+            Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Thread.Sleep(400);
+            Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
         public void TimeoutConstructorWithoutTimeoutOrTokensIsOnlyCancelledExplicitly()
         {
             using var first = new CancellationTokenSource();

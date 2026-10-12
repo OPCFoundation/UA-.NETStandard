@@ -73,9 +73,10 @@ namespace Opc.Ua
         /// <paramref name="timeout"/> elapses.
         /// </summary>
         /// <remarks>
-        /// The timeout uses the lifetime's own token source instead of a separate timeout source
-        /// and registration. Tokens that cannot be cancelled are not registered. A timeout
-        /// cancellation reports <see cref="StatusCodes.Good"/>, like an external token.
+        /// The timeout is an owned timer that claims the terminal state through
+        /// <see cref="TryCancel"/> and is released with the other resources, so it races
+        /// with explicit cancellation like an external token. Tokens that cannot be cancelled
+        /// are not registered. A timeout cancellation reports <see cref="StatusCodes.Good"/>.
         /// </remarks>
         /// <param name="timeout">The time after which the request is cancelled, or
         /// <see cref="TimeSpan.Zero"/> or <see cref="Timeout.InfiniteTimeSpan"/> for none.</param>
@@ -93,7 +94,12 @@ namespace Opc.Ua
             }
             if (timeout > TimeSpan.Zero)
             {
-                m_cts.CancelAfter(timeout);
+                m_timeoutTimer = new Timer(
+                    static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                    this,
+                    Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+                m_timeoutTimer.Change(timeout, Timeout.InfiniteTimeSpan);
             }
         }
 
@@ -208,6 +214,7 @@ namespace Opc.Ua
             {
                 registration.Dispose();
             }
+            m_timeoutTimer?.Dispose();
             m_cts.Dispose();
         }
 
@@ -224,6 +231,7 @@ namespace Opc.Ua
             });
         private readonly CancellationTokenSource m_cts;
         private readonly CancellationTokenRegistration[] m_externalRegistrations;
+        private Timer? m_timeoutTimer;
         private long m_state;
     }
 }
