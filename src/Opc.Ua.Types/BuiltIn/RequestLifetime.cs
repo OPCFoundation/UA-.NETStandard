@@ -56,9 +56,7 @@ namespace Opc.Ua
             {
                 for (int i = 0; i < m_externalRegistrations.Length; i++)
                 {
-                    m_externalRegistrations[i] = externalTokens[i].Register(
-                        static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
-                        this);
+                    m_externalRegistrations[i] = RegisterExternal(externalTokens[i]);
                 }
             }
             catch
@@ -85,21 +83,42 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
         /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
         public RequestLifetime(TimeSpan timeout, CancellationToken first, CancellationToken second)
-            : this(first == second ? [first] : [first, second])
         {
             if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
             {
-                Dispose();
                 throw new ArgumentOutOfRangeException(nameof(timeout));
             }
-            if (timeout > TimeSpan.Zero)
+
+            m_cts = new CancellationTokenSource();
+            CancellationToken = m_cts.Token;
+            bool useFirst = first.CanBeCanceled;
+            bool useSecond = second.CanBeCanceled && second != first;
+            int count = (useFirst ? 1 : 0) + (useSecond ? 1 : 0);
+            m_externalRegistrations = count == 0 ? [] : new CancellationTokenRegistration[count];
+            try
             {
-                m_timeoutTimer = new Timer(
-                    static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
-                    this,
-                    Timeout.InfiniteTimeSpan,
-                    Timeout.InfiniteTimeSpan);
-                m_timeoutTimer.Change(timeout, Timeout.InfiniteTimeSpan);
+                int index = 0;
+                if (useFirst)
+                {
+                    m_externalRegistrations[index++] = RegisterExternal(first);
+                }
+                if (useSecond)
+                {
+                    m_externalRegistrations[index] = RegisterExternal(second);
+                }
+                if (timeout > TimeSpan.Zero)
+                {
+                    m_timeoutTimer = new Timer(
+                        static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                        this,
+                        timeout,
+                        Timeout.InfiniteTimeSpan);
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
             }
         }
 
@@ -202,6 +221,18 @@ namespace Opc.Ua
                 DisposeResources();
             }
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Registers an external token so that its cancellation claims the terminal state.
+        /// </summary>
+        /// <param name="token">The external token.</param>
+        /// <returns>The registration that the lifetime releases when it completes.</returns>
+        private CancellationTokenRegistration RegisterExternal(CancellationToken token)
+        {
+            return token.Register(
+                static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                this);
         }
 
         /// <summary>
