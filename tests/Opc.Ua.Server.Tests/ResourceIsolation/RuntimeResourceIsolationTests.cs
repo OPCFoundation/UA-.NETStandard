@@ -979,6 +979,132 @@ namespace Opc.Ua.Server.Tests
             Assert.That(plan.GetStage(ResourceIsolationStage.Connection).SharedCapacity, Is.EqualTo(3));
         }
 
+        [TestCase(ServerResourceIsolationMode.Balanced, 3)]
+        [TestCase(ServerResourceIsolationMode.FairShare, 0)]
+        [TestCase(ServerResourceIsolationMode.TrustedReservations, 4)]
+        public void DecodedRequestFloorsAreAddedOnTopOfTheConfiguredQueue(
+            ServerResourceIsolationMode mode,
+            int floors)
+        {
+            var options = new ServerResourceIsolationOptions { Mode = mode, MaxRetainedMessageBytes = 10 };
+            if (mode == ServerResourceIsolationMode.TrustedReservations)
+            {
+                options.TrustedOwners = [new TrustedResourceOwnerOptions { Key = "tenant-a" }];
+            }
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 150;
+            configuration.ServerConfiguration.MaxRequestThreadCount = 120;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+
+            ResourceIsolationStagePlan queue = plan.GetStage(ResourceIsolationStage.RequestQueue);
+            Assert.That(queue.SharedCapacity, Is.EqualTo(150));
+            Assert.That(queue.Capacity, Is.EqualTo(150 + floors));
+            ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
+            Assert.That(parked.SharedCapacity, Is.EqualTo(150));
+            Assert.That(parked.Capacity, Is.EqualTo(150 + floors));
+            ResourceIsolationStagePlan bytes = plan.GetStage(ResourceIsolationStage.RequestQueueBytes);
+            Assert.That(bytes.SharedCapacity, Is.EqualTo((2 * 150 + 120) * 10));
+            Assert.That(bytes.Capacity, Is.EqualTo(((2 * 150) + 120 + floors) * 10));
+
+            // execution floors stay inside the worker limit, so a worker remains for protected work.
+            ResourceIsolationStagePlan execution = plan.GetStage(ResourceIsolationStage.RequestExecution);
+            Assert.That(execution.Capacity, Is.EqualTo(120));
+            Assert.That(execution.SharedCapacity, Is.EqualTo(120 - floors));
+        }
+
+        [Test]
+        public void ExplicitQueueCapacityStillIncludesTheFloors()
+        {
+            var options = new ServerResourceIsolationOptions
+            {
+                MaxRetainedMessageBytes = 10,
+                Stages =
+                [
+                    new ResourceIsolationStageOptions { Stage = ResourceIsolationStage.RequestQueue, Capacity = 120 }
+                ]
+            };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 150;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).Capacity, Is.EqualTo(120));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).SharedCapacity, Is.EqualTo(117));
+            options.Stages[0].Capacity = 154;
+            Assert.That(() => options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void FairQueueAdmitsExactlyMaxQueuedRequestCountFromSeveralOwnersAndKeepsFloors()
+        {
+            const int maxQueued = 100;
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = maxQueued;
+            using var provider = new DefaultServerResourceIsolationProvider(
+                options.CreateRuntimePlan(configuration, new ServerRateLimitOptions(),
+                    new ChunkReassemblyBudget(100, 50)),
+                NUnitTelemetryContext.Create(), null, new TestClassifier());
+            var completed = new List<StatusCode>();
+            var completedLock = new Lock();
+            using var queue = new FairRequestQueue(provider, maxQueued, 10, false, (_, status) =>
+            {
+                lock (completedLock)
+                {
+                    completed.Add(status);
+                }
+            });
+
+            // four established owners fill the configured queue exactly.
+            for (int ii = 0; ii < maxQueued; ii++)
+            {
+                Assert.That(queue.TryEnqueue(QueueRequest(10 + (ii % 4)), default, out StatusCode error), Is.True,
+                    $"request {ii}: {error}");
+            }
+            Assert.That(queue.Count, Is.EqualTo(maxQueued));
+            Assert.That(queue.TryEnqueue(QueueRequest(10), default, out StatusCode rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(queue.TryEnqueue(QueueRequest(14), default, out rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+
+            // the protected classes still find their floors in the full queue.
+            Assert.That(queue.TryEnqueue(QueueRequest(1), default, out StatusCode bootstrap), Is.True,
+                bootstrap.ToString());
+            Assert.That(queue.TryEnqueue(QueueRequest(2), default, out StatusCode reconnect), Is.True,
+                reconnect.ToString());
+            Assert.That(queue.TryEnqueue(QueueRequest(1), default, out rejected), Is.False);
+            Assert.That(rejected, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(queue.Count, Is.EqualTo(maxQueued + 2));
+            Assert.That(provider.GetUsage(ResourceIsolationStage.RequestQueue), Is.EqualTo(maxQueued + 2));
+
+            // a dequeued ordinary request frees exactly one shared slot.
+            var dequeued = new List<FairRequestQueue.Entry>();
+            try
+            {
+                do
+                {
+                    dequeued.Add(Dequeue(queue));
+                }
+                while (dequeued[^1].Owner.Class != ResourceIsolationClass.Established);
+                Assert.That(queue.TryEnqueue(QueueRequest(11), default, out StatusCode refill), Is.True,
+                    refill.ToString());
+                Assert.That(queue.TryEnqueue(QueueRequest(12), default, out rejected), Is.False);
+            }
+            finally
+            {
+                foreach (FairRequestQueue.Entry entry in dequeued)
+                {
+                    entry.Dispose();
+                }
+            }
+            lock (completedLock)
+            {
+                Assert.That(completed, Is.Empty);
+            }
+        }
+
         [Test]
         public void MissingOrUnprovisionedTrustedClassifierFailsExplicitly()
         {
@@ -1233,8 +1359,9 @@ namespace Opc.Ua.Server.Tests
             long queued = Math.Max(100, configuration.ServerConfiguration.MaxQueuedRequestCount);
             long executing = Math.Max(100, Math.Max(configuration.ServerConfiguration.MinRequestThreadCount,
                 configuration.ServerConfiguration.MaxRequestThreadCount));
-            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueueBytes).Capacity,
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueueBytes).SharedCapacity,
                 Is.EqualTo((2 * queued + executing) * configuration.TransportQuotas.MaxMessageSize));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestQueue).SharedCapacity, Is.EqualTo(queued));
             for (int ii = 0; ii <= (int)ResourceIsolationStage.ParkedRequest; ii++)
             {
                 var stage = (ResourceIsolationStage)ii;

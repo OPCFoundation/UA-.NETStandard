@@ -41,9 +41,11 @@ namespace Opc.Ua
     /// admission and non-borrowable partitions; this queue owns ordering and lease lifetimes.
     /// </summary>
     /// <remarks>
-    /// The provider's RequestQueue capacity must not exceed the physical maxQueuedRequests.
-    /// Every queued entry holds a provider lease, so matching capacity envelopes preserve
-    /// protected slots even when the shared partition is full.
+    /// The provider's RequestQueue capacity must not exceed the physical bound. A provider that
+    /// reports its capacity raises the bound from maxQueuedRequests to that capacity, because the
+    /// default plan adds protected floors on top of the configured queue size. Every queued entry
+    /// holds a provider lease, so matching capacity envelopes preserve protected slots even when
+    /// the shared partition is full.
     /// </remarks>
     internal sealed class FairRequestQueue : IDisposable
     {
@@ -67,7 +69,10 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(requestCost));
             }
-            m_maxQueuedRequests = maxQueuedRequests;
+            m_maxQueuedRequests = provider is IResourceIsolationCapacitySource capacitySource
+                ? (int)Math.Min(int.MaxValue, Math.Max(
+                    maxQueuedRequests, capacitySource.GetStageCapacity(ResourceIsolationStage.RequestQueue)))
+                : maxQueuedRequests;
             m_requestCost = requestCost;
             m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
