@@ -1449,9 +1449,10 @@ namespace Opc.Ua.Bindings
         /// Both matter. Running off the caller's stack is required because the
         /// write reports completion through <see cref="HandleWriteComplete"/>,
         /// which enters the gate the caller may be holding. Preserving order is
-        /// required because sequence numbers are assigned under that gate, and a
-        /// peer rejects a chunk whose sequence number does not follow its
-        /// predecessor. Independently queued work items carry no such guarantee,
+        /// required because sequence numbers are assigned in queue order (see
+        /// <see cref="SendOrder"/>), and a peer rejects a chunk whose sequence
+        /// number does not follow its predecessor. Independently queued work items
+        /// carry no such guarantee,
         /// so the writes are queued and a single writer on the thread pool sends
         /// them one after the other; a write cannot start before the one issued
         /// before it has finished.
@@ -1468,6 +1469,70 @@ namespace Opc.Ua.Bindings
                 m_writerRunning = true;
             }
 
+            ScheduleWriter();
+        }
+
+        /// <summary>
+        /// Queues a message encoded by <see cref="EncodeSymmetricMessage"/> for the
+        /// writer, which seals it in queue order and sends it.
+        /// </summary>
+        /// <param name="message">The message. Ownership transfers when this
+        /// returns <see langword="true"/>.</param>
+        /// <param name="state">Reported to <see cref="HandleWriteComplete"/>.</param>
+        /// <param name="startWriterInline">
+        /// Whether an idle writer may run on the caller's thread for one batch
+        /// instead of being queued to the pool. Only for a caller that holds
+        /// neither the gate nor <see cref="SendOrder"/>.
+        /// </param>
+        /// <returns><see langword="false"/> when no transport is attached; the
+        /// caller still owns the message.</returns>
+        /// <remarks>
+        /// The caller needs no lock: nothing ordered per channel is decided until
+        /// the writer seals the message. See <see cref="SendOrder"/>.
+        /// </remarks>
+        private protected bool BeginWriteSymmetricMessage(
+            EncodedSymmetricMessage message,
+            object? state,
+            bool startWriterInline)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                return false;
+            }
+
+            Interlocked.Increment(ref m_activeWriteRequests);
+            var write = new PendingWrite(transport, default, null, null, state, message);
+
+            lock (m_writeQueueLock)
+            {
+                m_unsealedWriteQueue.Enqueue(write);
+                if (m_writerRunning)
+                {
+                    return true;
+                }
+                m_writerRunning = true;
+            }
+
+            if (startWriterInline)
+            {
+                // Saves the hop to the pool for a response produced on a worker:
+                // the writer seals and sends on this thread, and hands the rest of
+                // the queue to the pool after one batch (see RunWritesAsync).
+                _ = RunWritesAsync(inline: true);
+            }
+            else
+            {
+                ScheduleWriter();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Starts the writer on the thread pool.
+        /// </summary>
+        private void ScheduleWriter()
+        {
             // The execution context is not needed by the write and is not flowed.
             // The write goes to the local queue of the issuing thread, which picks
             // it up as soon as it returns to the pool (typically to await the
@@ -1481,53 +1546,57 @@ namespace Opc.Ua.Bindings
 
 #if NETCOREAPP3_0_OR_GREATER
         private static readonly Action<UaSCUaBinaryChannel> s_runWrites =
-            static channel => _ = channel.RunWritesAsync();
+            static channel => _ = channel.RunWritesAsync(inline: false);
 #else
         private static readonly WaitCallback s_runWrites =
-            static state => _ = ((UaSCUaBinaryChannel)state!).RunWritesAsync();
+            static state => _ = ((UaSCUaBinaryChannel)state!).RunWritesAsync(inline: false);
 #endif
 
         /// <summary>
-        /// Sends the queued writes in order until the queue is empty.
+        /// Seals and sends the queued writes in order until the queue is empty.
         /// </summary>
-        private async Task RunWritesAsync()
+        /// <param name="inline">
+        /// Whether the writer was started on a producer's thread. It then sends
+        /// one batch and hands the rest of the queue to the pool, so a producer is
+        /// not held as the channel's writer.
+        /// </param>
+        private async Task RunWritesAsync(bool inline)
         {
             List<PendingWrite> batch = m_writeBatch;
             while (true)
             {
-                PendingWrite write;
-                lock (m_writeQueueLock)
+                // Sealing takes sequence numbers and the current token, so it runs
+                // under the send order lock, and in queue order. The batch is taken
+                // under the same lock: see SendOrder for why that orders the wire.
+                using (await SendOrder.EnterAsync().ConfigureAwait(false))
                 {
-                    if (m_writeQueue.Count == 0)
+                    lock (m_writeQueueLock)
                     {
-                        m_writerRunning = false;
-                        return;
-                    }
-                    write = m_writeQueue.Dequeue();
-
-                    // Writes queued behind this one for the same transport go out
-                    // with it in one vectored send, when the transport is a stream.
-                    if (m_writeQueue.Count > 0 &&
-                        write.Transport is IUaSCChunkCoalescing coalescing &&
-                        coalescing.CanCoalesceChunks)
-                    {
-                        batch.Add(write);
-                        while (m_writeQueue.Count > 0 &&
-                            batch.Count < kMaxCoalescedWrites &&
-                            ReferenceEquals(m_writeQueue.Peek().Transport, write.Transport))
+                        if (!TakeWriteBatch(batch))
                         {
-                            batch.Add(m_writeQueue.Dequeue());
+                            m_writerRunning = false;
+                            return;
                         }
                     }
+
+                    SealWriteBatch(batch);
+                }
+
+                if (batch.Count == 0)
+                {
+                    // every message in the batch failed to seal and was reported.
+                    continue;
                 }
 
                 Task pending;
-                if (batch.Count > 0)
+                if (batch.Count > 1)
                 {
-                    pending = WriteCoalescedAsync(write.Transport, batch);
+                    pending = WriteCoalescedAsync(batch[0].Transport, batch);
                 }
                 else
                 {
+                    PendingWrite write = batch[0];
+                    batch.Clear();
                     pending = write.Buffers != null
                         ? WriteBuffersAsync(write.Transport, write.Buffers, write.State)
                         : WriteSingleChunkAsync(write.Transport, write.Chunk, write.BackingBuffer!, write.State);
@@ -1537,6 +1606,22 @@ namespace Opc.Ua.Bindings
                     // Observe a fault that escaped the write's own error handling, so
                     // that it cannot surface later as an unobserved task exception.
                     _ = pending.Exception;
+
+                    if (inline)
+                    {
+                        lock (m_writeQueueLock)
+                        {
+                            if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
+                            {
+                                m_writerRunning = false;
+                                return;
+                            }
+                        }
+
+                        // the writer stays marked running and continues on the pool.
+                        ScheduleWriter();
+                        return;
+                    }
                     continue;
                 }
                 try
@@ -1552,12 +1637,123 @@ namespace Opc.Ua.Bindings
                 // next write must start on the pool, not on that thread, which may
                 // be one that holds a gate (an in-process peer, for instance).
                 await Task.Yield();
+                inline = false;
+            }
+        }
+
+        /// <summary>
+        /// Takes the next writes to send together, the numbered ones first.
+        /// </summary>
+        /// <param name="batch">Receives the writes; empty on entry.</param>
+        /// <returns><see langword="false"/> when nothing is queued.</returns>
+        /// <remarks>
+        /// Called under <see cref="SendOrder"/> and the write queue lock. Every
+        /// sealed write in the queue was numbered before the caller took
+        /// <see cref="SendOrder"/>, so it goes out before the unsealed writes the
+        /// caller is about to number. Writes queued behind the first one for the
+        /// same transport go out with it in one vectored send, when the transport
+        /// is a stream.
+        /// </remarks>
+        private bool TakeWriteBatch(List<PendingWrite> batch)
+        {
+            PendingWrite first;
+            if (m_writeQueue.Count > 0)
+            {
+                first = m_writeQueue.Dequeue();
+            }
+            else if (m_unsealedWriteQueue.Count > 0)
+            {
+                first = m_unsealedWriteQueue.Dequeue();
+            }
+            else
+            {
+                return false;
+            }
+
+            batch.Add(first);
+
+            if (first.Transport is IUaSCChunkCoalescing coalescing &&
+                coalescing.CanCoalesceChunks)
+            {
+                while (m_writeQueue.Count > 0 &&
+                    batch.Count < kMaxCoalescedWrites &&
+                    ReferenceEquals(m_writeQueue.Peek().Transport, first.Transport))
+                {
+                    batch.Add(m_writeQueue.Dequeue());
+                }
+
+                // unsealed writes only once no sealed write is left ahead of them.
+                while (m_writeQueue.Count == 0 &&
+                    m_unsealedWriteQueue.Count > 0 &&
+                    batch.Count < kMaxCoalescedWrites &&
+                    ReferenceEquals(m_unsealedWriteQueue.Peek().Transport, first.Transport))
+                {
+                    batch.Add(m_unsealedWriteQueue.Dequeue());
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Seals the unsealed writes of a batch in order, and drops and reports
+        /// those that cannot be sealed.
+        /// </summary>
+        /// <remarks>
+        /// Called under <see cref="SendOrder"/>. A write that fails is reported as
+        /// a failed write, after its chunks have been returned.
+        /// </remarks>
+        private void SealWriteBatch(List<PendingWrite> batch)
+        {
+            int kept = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                PendingWrite write = batch[ii];
+                if (write.Unsealed is EncodedSymmetricMessage message)
+                {
+                    try
+                    {
+                        ChannelToken? token = CurrentToken;
+                        if (token == null)
+                        {
+                            message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadSecureChannelClosed,
+                                "The channel was closed before the message was sent.");
+                        }
+
+                        // returns the chunks to the pool when it fails.
+                        BufferCollection sealedChunks = SealSymmetricMessage(message, token);
+                        write = new PendingWrite(write.Transport, default, null, sealedChunks, write.State);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.UaSCChannelSealFailed(ex, ChannelId, message.RequestId);
+                        ReportWriteComplete(
+                            null,
+                            write.State,
+                            0,
+                            ServiceResult.Create(
+                                ex,
+                                StatusCodes.BadTcpInternalError,
+                                "Could not secure the outgoing message."));
+                        continue;
+                    }
+                }
+
+                batch[kept++] = write;
+            }
+
+            if (kept < batch.Count)
+            {
+                batch.RemoveRange(kept, batch.Count - kept);
             }
         }
 
         /// <summary>
         /// A write waiting for its turn: either one contiguous chunk with the
-        /// buffer to return, or a collection of buffers.
+        /// buffer to return, a collection of buffers, or a message the writer
+        /// still has to seal.
         /// </summary>
         private readonly struct PendingWrite
         {
@@ -1566,13 +1762,15 @@ namespace Opc.Ua.Bindings
                 ReadOnlyMemory<byte> chunk,
                 byte[]? backingBuffer,
                 BufferCollection? buffers,
-                object? state)
+                object? state,
+                EncodedSymmetricMessage? unsealed = null)
             {
                 Transport = transport;
                 Chunk = chunk;
                 BackingBuffer = backingBuffer;
                 Buffers = buffers;
                 State = state;
+                Unsealed = unsealed;
             }
 
             public IUaSCByteTransport Transport { get; }
@@ -1580,6 +1778,7 @@ namespace Opc.Ua.Bindings
             public byte[]? BackingBuffer { get; }
             public BufferCollection? Buffers { get; }
             public object? State { get; }
+            public EncodedSymmetricMessage? Unsealed { get; }
         }
 
         /// <summary>
@@ -2071,6 +2270,38 @@ namespace Opc.Ua.Bindings
         internal ChannelGate Gate { get; } = new();
 
         /// <summary>
+        /// Orders the sequence numbers of outgoing chunks with the order they
+        /// reach the transport, and guards the token the writer secures them with.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 §6.7.2.4 requires the sequence numbers on the wire to
+        /// increase by one per chunk, and a message's chunks to be contiguous.
+        /// Messages are numbered in one of two ways, both under this lock:
+        /// <list type="bullet">
+        /// <item>The writer seals unsealed messages
+        /// (<see cref="BeginWriteSymmetricMessage"/>) while it holds the lock,
+        /// in queue order, after taking them from the queue under it.</item>
+        /// <item>A producer that numbers its own message (asymmetric messages,
+        /// <see cref="WriteSymmetricMessage"/>) holds the lock from taking the
+        /// numbers until the message is in the queue of sealed writes, unless its
+        /// channel queues no unsealed messages and orders those producers itself
+        /// (the client, under its gate).</item>
+        /// </list>
+        /// The writer sends every sealed write ahead of the unsealed ones it takes
+        /// with them, so a write numbered by a producer — necessarily before the
+        /// writer took the lock — precedes the numbers the writer assigns, and one
+        /// writer sends batches one after the other. Messages without sequence
+        /// numbers (Hello, Acknowledge, ReverseHello, Error) need no lock.
+        /// <para>
+        /// Token changes that can dispose a token take the lock too, so the writer
+        /// never secures a chunk with a disposed token. Lock order: <see cref="Gate"/>,
+        /// then this, then the write queue lock. Nothing takes the gate while
+        /// holding this.
+        /// </para>
+        /// </remarks>
+        internal ChannelGate SendOrder { get; } = new();
+
+        /// <summary>
         /// The byte-level transport that carries UASC chunks for the channel.
         /// Set by listener channels after a successful accept/connect, by
         /// client channels after <c>ConnectAsync</c>, or by reverse-connect
@@ -2274,6 +2505,7 @@ namespace Opc.Ua.Bindings
         private TaskCompletionSource<bool>? m_writeCapacityWaiter;
         private readonly Lock m_writeQueueLock = new();
         private readonly Queue<PendingWrite> m_writeQueue = new();
+        private readonly Queue<PendingWrite> m_unsealedWriteQueue = new();
         private bool m_writerRunning;
 
         /// <summary>
@@ -2626,5 +2858,13 @@ namespace Opc.Ua.Bindings
             uint channelId,
             long limitBytes,
             bool hasSession);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 18, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: Could not secure the message for RequestId {RequestId}; it is not sent.")]
+        public static partial void UaSCChannelSealFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId,
+            uint requestId);
     }
 }
