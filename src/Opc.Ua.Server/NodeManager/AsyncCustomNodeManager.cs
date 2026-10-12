@@ -51,13 +51,14 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager :
+    public partial class AsyncCustomNodeManager :
         IAsyncNodeManager,
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemLifecycle,
+        INodeValuePublication
     {
         /// <summary>
         /// Initializes the node manager.
@@ -231,6 +232,7 @@ namespace Opc.Ua.Server
                     m_operationsDrained.TrySetResult(true);
                 }
             }
+            m_valuePublicationShutdown.Cancel();
             // Cleanup starts inline until its first incomplete await, then publishes the shared
             // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
             _ = DisposeOwnedResourcesAsync();
@@ -384,6 +386,7 @@ namespace Opc.Ua.Server
                 await DisposeOwnedResourceAsync(m_writeSemaphore, PredefinedNodes.Clear, errors).ConfigureAwait(false);
                 await DisposeOwnedResourceAsync(m_monitoredItemSemaphore,
                     () => m_monitoredItemManager?.Dispose(), errors).ConfigureAwait(false);
+                m_valuePublicationShutdown.Dispose();
                 await DisposeOwnedResourceAsync(m_componentCacheSemaphore,
                     () => m_componentCache?.Clear(), errors).ConfigureAwait(false);
                 if (errors.Count > 0)

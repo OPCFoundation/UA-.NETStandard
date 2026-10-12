@@ -388,6 +388,13 @@ support filter validation, event subscriptions, condition refresh, and role chec
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
 
+For application-driven terminal observations before deleting a dynamic subtree,
+`AsyncCustomNodeManager` implements `INodeValuePublication`. Its bounded
+`WaitForValuePublicationAsync` operation samples final Values and waits for
+their inclusion in actual Publish responses. `ClearChangeMasksAsync` alone
+does not provide that guarantee. See [final-value publication](FinalValuePublication.md)
+for the membership, cancellation, and transport-delivery limitations.
+
 A sampling group checks the Read permission of an item through
 `ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
 verdict until one of its inputs changes: the Session or its effective identity

@@ -368,6 +368,30 @@ namespace Opc.Ua.Server
                 retryOnEmpty: false);
         }
 
+        /// <summary>
+        /// Dequeues a value and identifies whether it is the protected required observation.
+        /// </summary>
+        internal bool PublishSingleValue(
+            out DataValue value,
+            out ServiceResult error,
+            out bool wasRequired)
+        {
+            return PublishSingleValue(out value, out error, out wasRequired, noEventLog: false, retryOnEmpty: false);
+        }
+
+        /// <summary>
+        /// Releases protection when a final-value waiter ends, leaving its sample in the normal queue.
+        /// </summary>
+        internal void ReleaseRequiredValue(in DataValue value)
+        {
+            if (IsRequiredMarker(value))
+            {
+                m_required = default;
+                m_requiredError = null;
+                m_requiredPending = false;
+            }
+        }
+
         private bool PublishSingleValue(
             out DataValue value,
             out ServiceResult error,
