@@ -272,9 +272,56 @@ namespace Opc.Ua.Machinery.Server.Builders
                     static (ctx, parent, name) =>
                         ctx.CreateInstanceOfMachineryComponentIdentificationType(parent, name));
 
-            // Identification is in Table 12's "may be referenced" column: the
-            // direct HasAddIn from the item stays the primary path, and the
-            // organizer references the same node in addition.
+            BindIdentification(identification, data, asMachine);
+            return identification;
+        }
+
+        /// <summary>
+        /// Reuses the shared nameplate writer and organizer for an existing companion descendant.
+        /// </summary>
+        internal void BindIdentification(
+            MachineryItemIdentificationState identification,
+            Action<MachineryIdentificationData> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.BuildingBlocks, "Identification");
+            bool asMachine = identification is MachineIdentificationState;
+            if (!asMachine && identification is not MachineryComponentIdentificationState)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeDefinitionInvalid,
+                    "A companion identification must derive from machine or component identification.");
+            }
+            uint identifier = asMachine
+                ? ObjectTypes.MachineIdentificationType
+                : ObjectTypes.MachineryComponentIdentificationType;
+            NodeId requiredType = NodeId.Create(identifier, Namespaces.Machinery, Context.NamespaceUris);
+            if (!Context.TypeTable.IsTypeOf(identification.TypeDefinitionId, requiredType))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeDefinitionInvalid,
+                    "The identification's type definition does not match its generated state.");
+            }
+            var data = new MachineryIdentificationData();
+            configure(data);
+            data.Validate();
+            BindIdentification(identification, data, asMachine);
+        }
+
+        /// <summary>
+        /// Applies validated identity values and records only the materialized identification facets.
+        /// </summary>
+        private void BindIdentification(
+            MachineryItemIdentificationState identification,
+            MachineryIdentificationData data,
+            bool asMachine)
+        {
+            if (asMachine && data.ProductInstanceUri == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "OPC 40001-1 requires ProductInstanceUri on a machine identification.");
+            }
             ReferenceBuildingBlock(identification);
             WriteIdentification(identification, data, asMachine);
             Scope.RecordFacet(
@@ -293,7 +340,6 @@ namespace Opc.Ua.Machinery.Server.Builders
                     Scope.RecordFacet(MachineryFacet.ComponentIdentificationWritable);
                 }
             }
-            return identification;
         }
 
         /// <summary>

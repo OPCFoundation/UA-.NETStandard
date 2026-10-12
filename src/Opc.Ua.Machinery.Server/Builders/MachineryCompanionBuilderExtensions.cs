@@ -43,6 +43,28 @@ namespace Opc.Ua.Machinery.Server.Builders
     public static class MachineryCompanionBuilderExtensions
     {
         /// <summary>
+        /// Configures an existing machine or component nameplate at its companion-declared location.
+        /// </summary>
+        /// <typeparam name="TState">The containing machine or peripheral state.</typeparam>
+        /// <param name="builder">The containing builder.</param>
+        /// <param name="identification">The existing derived identification descendant.</param>
+        /// <param name="configure">Supplies the validated identification values.</param>
+        /// <returns>The containing builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">The identification is incompatible or belongs elsewhere.</exception>
+        public static IMachineBuilder<TState> WithIdentification<TState>(
+            this IMachineBuilder<TState> builder,
+            MachineryItemIdentificationState identification,
+            Action<MachineryIdentificationData> configure)
+            where TState : BaseObjectState
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(identification);
+            ArgumentNullException.ThrowIfNull(configure);
+            return builder.GetMachineBuilder().BindIdentification(identification, configure);
+        }
+
+        /// <summary>
         /// Publishes a numeric sample without losing its scalar type, quality or acquisition timestamp.
         /// </summary>
         /// <remarks>

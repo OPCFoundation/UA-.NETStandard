@@ -412,6 +412,19 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
+        /// Configures an existing nameplate without creating a duplicate base identification add-in.
+        /// </summary>
+        internal IMachineBuilder<TState> BindIdentification(
+            MachineryItemIdentificationState identification,
+            Action<MachineryIdentificationData> configure)
+        {
+            Scope.EnsureMutable();
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, identification);
+            m_blocks.BindIdentification(identification, configure);
+            return this;
+        }
+
+        /// <summary>
         /// Binds an existing companion process value under its original parent.
         /// </summary>
         internal IMachineBuilder<TState> BindProcessValue(

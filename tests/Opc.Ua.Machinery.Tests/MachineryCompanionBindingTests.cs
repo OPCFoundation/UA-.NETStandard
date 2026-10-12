@@ -47,6 +47,86 @@ namespace Opc.Ua.Machinery.Tests
     [Category("Machinery")]
     public sealed class MachineryCompanionBindingTests
     {
+        /// <summary>
+        /// Existing machine and nested component nameplates retain their declared identities.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExistingIdentificationKeepsItsDeclaredLocationAsync(bool machineIdentification)
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("IdentifiedCompanion"));
+            NodeState parent = machine.State;
+            if (!machineIdentification)
+            {
+                FolderState information = context.Context.CreateInstanceOfFolderType(
+                    machine.State,
+                    new QualifiedName("DeviceInformation", context.InstanceNamespaceIndex));
+                machine.State.AddChild(information);
+                parent = information;
+            }
+            ushort diIndex = (ushort)context.Context.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
+            var name = new QualifiedName(Opc.Ua.Di.BrowseNames.Identification, diIndex);
+            MachineryItemIdentificationState identification = machineIdentification
+                ? context.Context.CreateInstanceOfMachineIdentificationType(parent, name)
+                : context.Context.CreateInstanceOfMachineryComponentIdentificationType(parent, name);
+            identification.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            parent.AddChild(identification);
+            NodeId originalId = identification.NodeId;
+
+            await machine.WithIdentification(identification, data =>
+            {
+                data.Manufacturer = new LocalizedText("Test manufacturer");
+                data.SerialNumber = "Existing-1";
+                data.ProductInstanceUri = "urn:test:companion:existing-1";
+            }).BuildAsync();
+
+            Assert.That(identification.Parent, Is.SameAs(parent));
+            Assert.That(identification.NodeId, Is.EqualTo(originalId));
+            Assert.That(identification.BrowseName, Is.EqualTo(name));
+            Assert.That(identification.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(identification.Manufacturer!.Value.Text, Is.EqualTo("Test manufacturer"));
+            Assert.That(identification.SerialNumber!.Value, Is.EqualTo("Existing-1"));
+            Assert.That(parent.FindChild(context.Context, name), Is.SameAs(identification));
+            var siblings = new List<BaseInstanceState>();
+            parent.GetChildren(context.Context, siblings);
+            Assert.That(siblings.FindAll(child => child.BrowseName == name), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Invalid machine identification is rejected before changing an existing nameplate.
+        /// </summary>
+        [Test]
+        public async Task InvalidIdentificationDoesNotPartiallyRewriteTheExistingNameplateAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("InvalidIdentity"));
+            MachineIdentificationState identification = context.Context.CreateInstanceOfMachineIdentificationType(
+                machine.State,
+                new QualifiedName("Identification", context.InstanceNamespaceIndex));
+            machine.State.AddChild(identification);
+            identification.Manufacturer!.Value = new LocalizedText("Original");
+            identification.SerialNumber!.Value = "Original-1";
+            identification.ProductInstanceUri!.Value = "urn:test:original";
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                machine.WithIdentification(identification, data =>
+                {
+                    data.Manufacturer = new LocalizedText("Replacement");
+                    data.SerialNumber = "Replacement-1";
+                }))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(identification.Manufacturer.Value.Text, Is.EqualTo("Original"));
+            Assert.That(identification.SerialNumber.Value, Is.EqualTo("Original-1"));
+            Assert.That(identification.ProductInstanceUri.Value, Is.EqualTo("urn:test:original"));
+            await machine.BuildAsync();
+        }
+
         [Test]
         public async Task ExistingResultManagementKeepsItsIdentityAndPublishesResultsAsync()
         {

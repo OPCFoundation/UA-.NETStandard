@@ -244,6 +244,15 @@ The optional `ICompanionNodeIdReservationOwner` capability releases temporary
 reservations through the actual allocator on success or rollback; both stock
 managers implement it without adding required methods to existing markers.
 
+When a companion already declares its nameplate, bind it with
+`machine.WithIdentification(existingIdentification, configure)` instead of
+creating another base add-in. Derived machine identification and nested
+component identification are both supported. The type, parent, browse name,
+NodeId and reference type remain intact, and `MachineryBuildingBlocks` points
+at that same node. Required identification values are validated before the
+existing nameplate is changed; machine and component requirements remain
+distinct.
+
 ## Builder reference
 
 ### OPC 40001-1 building blocks
