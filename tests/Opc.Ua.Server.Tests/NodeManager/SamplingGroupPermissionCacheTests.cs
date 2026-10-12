@@ -172,6 +172,127 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A Read that throws is logged and skipped; the loop keeps sampling in the next cycle.
+        /// </summary>
+        [Test]
+        public async Task FailedReadDoesNotStopTheLoopAsync()
+        {
+            using var harness = new Harness();
+            harness.OnRead(3, () => throw new InvalidOperationException("read failed"));
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForReadAsync(5).ConfigureAwait(false);
+
+            Assert.That(harness.QueuedStatus(3), Is.Null);
+            Assert.That(harness.QueuedStatus(4), Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.QueuedStatus(5), Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Items of one group that TransferSubscriptions moved to different Sessions are read and
+        /// permission-checked with the context of their own Session in every cycle.
+        /// </summary>
+        [Test]
+        public async Task ItemsOfDifferentSessionsAreSampledWithTheirOwnContextAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                ISession first = CreateSession(1);
+                ISession second = CreateSession(2);
+                var validatedSessions = new List<ISession>();
+                var validatedLock = new Lock();
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(m => m.ReadAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<double>(),
+                        It.IsAny<ArrayOf<ReadValueId>>(),
+                        It.IsAny<IList<DataValue>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                        IList<ServiceResult>, CancellationToken>(
+                        (_, _, nodesToRead, values, _, _) =>
+                        {
+                            for (int ii = 0; ii < nodesToRead.Count; ii++)
+                            {
+                                nodesToRead[ii].Processed = true;
+                                values[ii] = new DataValue(new Variant(ii));
+                            }
+                            return default;
+                        });
+                nodeManager.Setup(m => m.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<PermissionType>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, NodeId, PermissionType, CancellationToken>((context, _, _, _) =>
+                    {
+                        lock (validatedLock)
+                        {
+                            validatedSessions.Add(context.Session);
+                        }
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+
+                using var context = new OperationContext(
+                    new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, first);
+                using var group = new SamplingGroup(
+                    server.Object,
+                    nodeManager.Object,
+                    [new SamplingRateGroup((int)kInterval, (int)kInterval, 4)],
+                    context,
+                    kInterval);
+                var firstQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var secondQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Mock<ISampledDataChangeMonitoredItem> firstItem = CreateItem(1, first, firstQueued);
+                Mock<ISampledDataChangeMonitoredItem> secondItem = CreateItem(2, second, secondQueued);
+
+                Assert.That(group.StartMonitoring(context, firstItem.Object, null, initialValueQueued: true), Is.True);
+                Assert.That(group.StartMonitoring(context, secondItem.Object, null, initialValueQueued: true), Is.True);
+                Assert.That(group.ApplyChanges(), Is.False);
+                await Task.WhenAll(firstQueued.Task, secondQueued.Task)
+                    .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                lock (validatedLock)
+                {
+                    Assert.That(validatedSessions, Does.Contain(first));
+                    Assert.That(validatedSessions, Does.Contain(second));
+                }
+            }
+
+            static ISession CreateSession(uint id)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(s => s.Id).Returns(new NodeId(id));
+                session.SetupGet(s => s.EffectiveIdentity).Returns(new UserIdentity());
+                session.SetupGet(s => s.PreferredLocales).Returns([]);
+                return session.Object;
+            }
+
+            static Mock<ISampledDataChangeMonitoredItem> CreateItem(
+                uint id,
+                ISession session,
+                TaskCompletionSource<bool> queued)
+            {
+                var item = new Mock<ISampledDataChangeMonitoredItem>();
+                item.SetupGet(m => m.Id).Returns(id);
+                item.SetupGet(m => m.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+                item.SetupGet(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+                item.SetupGet(m => m.SamplingInterval).Returns(kInterval);
+                item.SetupGet(m => m.Session).Returns(session);
+                item.Setup(m => m.GetReadValueId()).Returns(() => new ReadValueId
+                {
+                    NodeId = new NodeId(id, 1),
+                    AttributeId = Attributes.Value
+                });
+                item.Setup(m => m.QueueValue(in It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult?>()))
+                    .Callback(() => queued.TrySetResult(true));
+                return item;
+            }
+        }
+
+        /// <summary>
         /// Drives a sampling group with one item and records, per Read, the queued value, the
         /// number of permission validations so far and whether the item was marked processed.
         /// </summary>
