@@ -2587,10 +2587,19 @@ namespace Opc.Ua.Server
 
             public bool Enabled { get; set; } = true;
 
+            /// <summary>
+            /// Gets or sets a value indicating whether business source emissions may be admitted while dispatch is active.
+            /// </summary>
             public bool BusinessEmissionsEnabled { get; set; } = true;
 
+            /// <summary>
+            /// Gets or sets the number of outstanding source-emission cutoff reservations that block immediate dispatch.
+            /// </summary>
             public int EmissionCutoffReservations { get; set; }
 
+            /// <summary>
+            /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
+            /// </summary>
             public int CustomSourceCreations { get; set; }
 
             public int ActiveDispatches { get; set; }
