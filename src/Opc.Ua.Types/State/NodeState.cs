@@ -637,7 +637,11 @@ namespace Opc.Ua
                 NodeStateSecurityData? data = value.IsNull
                     ? Volatile.Read(ref m_securityData)
                     : GetOrCreateSecurityData();
-                data?.UserRolePermissions = value;
+                if (data != null && data.UserRolePermissions != value)
+                {
+                    data.UserRolePermissions = value;
+                    Interlocked.Increment(ref s_rolePermissionsVersion);
+                }
             }
         }
 
@@ -6816,8 +6820,20 @@ namespace Opc.Ua
             NodeStateSecurityData? data = value.IsNull
                 ? Volatile.Read(ref m_securityData)
                 : GetOrCreateSecurityData();
-            data?.RolePermissions = value;
+            if (data != null && data.RolePermissions != value)
+            {
+                data.RolePermissions = value;
+                Interlocked.Increment(ref s_rolePermissionsVersion);
+            }
         }
+
+        /// <summary>
+        /// Changes whenever the RolePermissions or UserRolePermissions of any node change, so
+        /// that cached permission verdicts can be invalidated without a reference to the node.
+        /// </summary>
+        internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
+
+        private static long s_rolePermissionsVersion;
 
         private void SetAccessRestrictions(AccessRestrictionType? value)
         {

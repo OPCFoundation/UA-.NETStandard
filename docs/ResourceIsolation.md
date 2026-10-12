@@ -57,7 +57,7 @@ These terms describe resource accounting, not permission to access OPC UA data.
 | Isolation refusal | A rejection by the resource-isolation provider, for example because capacity or a per-caller limit is exhausted. A rate limiter or normal service authorization can reject work independently. |
 | Owner | The accounting group charged for work: an observed address, a verified application or Session identity, or an explicitly configured group. It is not necessarily one person or one client process. |
 | Stage | One separately counted resource, such as connections, queued requests, or retained bytes. The API names are listed under [Accounting and lifetime](#accounting-and-lifetime). |
-| Floor / reservation | Capacity kept for a particular class of work or configured owner, inside the existing total. Other classes cannot borrow it, even when it is unused. |
+| Floor / reservation | Capacity kept for a particular class of work or configured owner. Other classes cannot borrow it, even when it is unused. Floors are inside the existing total, except at the RequestQueue, RequestQueueBytes and ParkedRequest stages, where the default total adds them on top of the configured queue (see [Configuring request and caller limits](#configuring-request-and-caller-limits)). |
 | Shared capacity / work-conserving | Capacity available to all classes. If only one owner has work, it can use the unused shared capacity up to its hard limit. The server does not divide it into fixed equal shares. Reserved capacity is excluded. |
 | Lease | The provider's record of capacity in use. Disposing the lease releases that charge. It is not a time-limited Session or credential. |
 | Bootstrap / reconnect | Initial startup or recovery of a connection or Session. Protected access requires a trusted ingress mapping or, where applicable, an authoritative live Session binding. A request's name alone is not evidence. |
@@ -323,7 +323,9 @@ Slot totals come from `MaxChannelCount` for Connection/Handshake,
 (its default applies to nonpositive values), and the existing request-dispatch
 limits for queued, executing, and parked work. The dispatcher already uses at
 least 100 queue slots and 100 execution slots. The plan mirrors those
-minimums. It does not raise configured totals to make reservations fit.
+minimums. Apart from the decoded-request queue stages described under
+[Configuring request and caller limits](#configuring-request-and-caller-limits),
+it does not raise configured totals to make reservations fit.
 `Stages[].Capacity` can apply a smaller isolation limit.
 
 For Balanced and TrustedReservations with the default connection rate limiter
@@ -584,9 +586,20 @@ for another caller.
 
 ### Configuring request and caller limits
 
+`MaxQueuedRequestCount` is the number of decoded requests that established
+Sessions can have waiting at once. For the RequestQueue, RequestQueueBytes
+and ParkedRequest stages, the default total is the configured limit plus the
+bootstrap, reconnect, control and trusted floors, so the shared capacity equals
+the configured value. For example, with `MaxQueuedRequestCount = 10000`, ten
+clients can each keep 1,000 requests outstanding. Balanced then sizes the
+RequestQueue stage at 10,003 entries. RequestExecution keeps its floors inside
+the worker limit, so an idle worker remains available for protected requests.
+An explicit `Stages[].Capacity` is still an absolute total that includes the
+floors, and it cannot exceed the default total.
+
 `RequestQueueBytes` limits the data retained by decoded requests. The default
-total is `MaxMessageSize` multiplied by the combined queued, executing, and
-parked request limits. This is deliberately conservative accounting, not a
+shared capacity is `MaxMessageSize` multiplied by the combined queued, executing,
+and parked request limits. This is deliberately conservative accounting, not a
 measurement of CLR heap size. Decoder and operation limits continue to apply.
 
 `MaxTrackedOwners` bounds how many caller groups can have resources charged at

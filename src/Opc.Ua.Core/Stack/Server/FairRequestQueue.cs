@@ -41,9 +41,11 @@ namespace Opc.Ua
     /// admission and non-borrowable partitions; this queue owns ordering and lease lifetimes.
     /// </summary>
     /// <remarks>
-    /// The provider's RequestQueue capacity must not exceed the physical maxQueuedRequests.
-    /// Every queued entry holds a provider lease, so matching capacity envelopes preserve
-    /// protected slots even when the shared partition is full.
+    /// The provider's RequestQueue capacity must not exceed the physical bound. A provider that
+    /// reports its capacity raises the bound from maxQueuedRequests to that capacity, because the
+    /// default plan adds protected floors on top of the configured queue size. Every queued entry
+    /// holds a provider lease, so matching capacity envelopes preserve protected slots even when
+    /// the shared partition is full.
     /// </remarks>
     internal sealed class FairRequestQueue : IDisposable
     {
@@ -67,7 +69,10 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(requestCost));
             }
-            m_maxQueuedRequests = maxQueuedRequests;
+            m_maxQueuedRequests = provider is IResourceIsolationCapacitySource capacitySource
+                ? (int)Math.Min(int.MaxValue, Math.Max(
+                    maxQueuedRequests, capacitySource.GetStageCapacity(ResourceIsolationStage.RequestQueue)))
+                : maxQueuedRequests;
             m_requestCost = requestCost;
             m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
@@ -195,6 +200,7 @@ namespace Opc.Ua
                         m_owners.Add(schedulingKey, ownerQueue);
                     }
                     entry.OwnerQueue = ownerQueue;
+                    entry.Sequence = ++m_sequence;
                     entry.Node = ownerQueue.Requests.AddLast(entry);
                     m_count++;
                     admission.TransferToQueue();
@@ -217,6 +223,12 @@ namespace Opc.Ua
         /// A blocked global FIFO head cannot be overtaken by another owner.
         /// Provider calls and completions are deliberately outside the queue gate.
         /// </summary>
+        /// <remarks>
+        /// The selected head is unlinked under the gate, so a dispatch that is admitted needs no
+        /// second gate entry, and in weighted mode several workers select at once. A head whose
+        /// execution admission fails returns to the front of its owner's FIFO. In global FIFO
+        /// mode one worker selects at a time, so the blocked head keeps its place.
+        /// </remarks>
         public bool TryDequeue([NotNullWhen(true)] out Entry? result)
         {
             int attempts = -1;
@@ -225,7 +237,6 @@ namespace Opc.Ua
                 IDisposable? executionLease = null;
                 StatusCode error = StatusCodes.Good;
                 bool acquired = false;
-                bool removed = false;
                 try
                 {
                     if (candidate.CancellationToken.IsCancellationRequested)
@@ -248,61 +259,77 @@ namespace Opc.Ua
                 }
                 catch
                 {
-                    lock (m_gate)
-                    {
-                        m_selecting = false;
-                        removed = Remove(candidate);
-                    }
-                    Pulse();
+                    EndSelection();
                     executionLease?.Dispose();
-                    if (removed)
-                    {
-                        candidate.Dispose();
-                        m_complete(candidate.Request, StatusCodes.BadInternalError);
-                    }
+                    Pulse();
+                    candidate.Dispose();
+                    m_complete(candidate.Request, StatusCodes.BadInternalError);
                     throw;
                 }
 
+                if (acquired)
+                {
+                    candidate.SetExecutionLease(executionLease!);
+                    executionLease = null;
+                    EndSelection();
+                    Pulse();
+                    candidate.ReleaseQueueLease();
+                    if (Volatile.Read(ref m_stopped))
+                    {
+                        // stopped while selecting: the request was no longer linked for Dispose
+                        candidate.Dispose();
+                        m_complete(candidate.Request, StatusCodes.BadServerHalted);
+                        break;
+                    }
+                    if (candidate.CancellationToken.IsCancellationRequested)
+                    {
+                        // cancelled while selecting: the callback found the request unlinked
+                        candidate.Dispose();
+                        m_complete(candidate.Request, StatusCodes.BadRequestCancelledByClient);
+                        continue;
+                    }
+                    result = candidate;
+                    return true;
+                }
+                executionLease?.Dispose();
+
+                if (StatusCode.IsBad(error))
+                {
+                    EndSelection();
+                    Pulse();
+                    candidate.Dispose();
+                    m_complete(candidate.Request, error);
+                    continue;
+                }
+
+                // Execution capacity is exhausted: the head returns to the front of its FIFO and
+                // the owner is not retried before capacity or membership changes.
+                StatusCode terminal = StatusCodes.Good;
                 lock (m_gate)
                 {
                     m_selecting = false;
-                    if (candidate.Node != null)
+                    if (m_stopped)
                     {
-                        if (acquired || StatusCode.IsBad(error))
-                        {
-                            removed = Remove(candidate, acquired);
-                            if (acquired)
-                            {
-                                candidate.SetExecutionLease(executionLease!);
-                                executionLease = null;
-                            }
-                        }
-                        else
-                        {
-                            candidate.OwnerQueue!.LastAttempt = version;
-                            Rotate(candidate.OwnerQueue);
-                        }
+                        terminal = StatusCodes.BadServerHalted;
                     }
-                }
-                executionLease?.Dispose();
-                if (Volatile.Read(ref m_version) != version)
-                {
-                    Pulse();
-                }
-
-                if (removed)
-                {
-                    candidate.ReleaseQueueLease();
-                    if (StatusCode.IsBad(error))
+                    else if (candidate.CancellationToken.IsCancellationRequested)
                     {
-                        candidate.Dispose();
-                        m_complete(candidate.Request, error);
+                        // the cancellation callback found the request unlinked
+                        terminal = StatusCodes.BadRequestCancelledByClient;
                     }
                     else
                     {
-                        result = candidate;
-                        return true;
+                        Relink(candidate, version);
                     }
+                }
+                if (StatusCode.IsBad(terminal))
+                {
+                    candidate.Dispose();
+                    m_complete(candidate.Request, terminal);
+                }
+                if (Volatile.Read(ref m_version) != version)
+                {
+                    Pulse();
                 }
             }
             result = null;
@@ -428,7 +455,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Selects one eligible owner head while excluding concurrent provider admission attempts.
+        /// Selects and unlinks one eligible owner head. In global FIFO mode concurrent selection is
+        /// excluded, so the head cannot be overtaken while its admission is attempted.
         /// The first call of a dequeue pass (<paramref name="attempts"/> negative) snapshots the
         /// number of scheduling FIFOs under the same gate acquisition; each call consumes one attempt.
         /// </summary>
@@ -441,7 +469,7 @@ namespace Opc.Ua
                 {
                     attempts = m_owners.Count;
                 }
-                if (attempts-- > 0 && !m_stopped && !m_selecting)
+                if (attempts-- > 0 && !m_stopped && (m_useFairScheduling || !m_selecting))
                 {
                     int remaining = m_round.Count;
                     while (remaining-- > 0 && m_round.First != null)
@@ -450,6 +478,7 @@ namespace Opc.Ua
                         if (owner.LastAttempt != version)
                         {
                             entry = owner.Requests.First!.Value;
+                            Unlink(entry);
                             m_selecting = true;
                             return true;
                         }
@@ -459,6 +488,64 @@ namespace Opc.Ua
                 entry = null;
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Unlinks a selected head under the queue gate and consumes one turn of its owner.
+        /// The version is not changed: a head that fails admission is relinked and its owner
+        /// must not be retried before capacity changes.
+        /// </summary>
+        private void Unlink(Entry entry)
+        {
+            OwnerQueue owner = entry.OwnerQueue!;
+            owner.Requests.Remove(entry.Node!);
+            entry.Node = null;
+            entry.OwnerQueue = null;
+            m_count--;
+            if (owner.Requests.Count == 0)
+            {
+                m_round.Remove(owner.RoundNode!);
+                m_owners.Remove(m_useFairScheduling ? entry.Owner.Key : string.Empty);
+            }
+            else if (--owner.Remaining == 0)
+            {
+                Rotate(owner);
+            }
+        }
+
+        /// <summary>
+        /// Returns a head whose execution admission failed to the front of its owner's FIFO
+        /// under the queue gate, and marks the owner as attempted at <paramref name="version"/>.
+        /// </summary>
+        private void Relink(Entry entry, long version)
+        {
+            string schedulingKey = m_useFairScheduling ? entry.Owner.Key : string.Empty;
+            if (!m_owners.TryGetValue(schedulingKey, out OwnerQueue? owner))
+            {
+                owner = new OwnerQueue(m_useFairScheduling ? entry.Owner.Weight : 1);
+                owner.RoundNode = m_round.AddLast(owner);
+                m_owners.Add(schedulingKey, owner);
+            }
+            entry.OwnerQueue = owner;
+            // concurrent selections of one owner may fail in any order; keep admission order
+            LinkedListNode<Entry>? next = owner.Requests.First;
+            while (next != null && next.Value.Sequence < entry.Sequence)
+            {
+                next = next.Next;
+            }
+            entry.Node = next == null ? owner.Requests.AddLast(entry) : owner.Requests.AddBefore(next, entry);
+            m_count++;
+            owner.LastAttempt = version;
+            Rotate(owner);
+        }
+
+        /// <summary>
+        /// Ends a selection that removed its head for good, outside the queue gate.
+        /// </summary>
+        private void EndSelection()
+        {
+            Changed();
+            Volatile.Write(ref m_selecting, false);
         }
 
         /// <summary>
@@ -601,6 +688,11 @@ namespace Opc.Ua
             /// Gets or sets the owning FIFO while linked under the queue gate.
             /// </summary>
             internal OwnerQueue? OwnerQueue { get; set; }
+
+            /// <summary>
+            /// Gets or sets the admission order, assigned under the queue gate.
+            /// </summary>
+            internal long Sequence { get; set; }
 
             /// <summary>
             /// Gets or sets the FIFO node; null means no longer queued.
@@ -886,7 +978,13 @@ namespace Opc.Ua
         private long m_wakeSignalCount;
 
         /// <summary>
-        /// Whether an owner head is currently undergoing provider admission outside the gate.
+        /// Admission order of the last linked request.
+        /// </summary>
+        private long m_sequence;
+
+        /// <summary>
+        /// Whether a selected head is undergoing provider admission outside the gate; only global
+        /// FIFO mode waits for it, weighted mode selects concurrently.
         /// </summary>
         private bool m_selecting;
 

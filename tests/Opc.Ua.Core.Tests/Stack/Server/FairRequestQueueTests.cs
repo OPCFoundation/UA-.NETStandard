@@ -434,6 +434,120 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// In weighted mode a worker selects the next request while another worker's admission
+        /// is still running; global FIFO mode keeps one selection at a time.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void WeightedModeSelectsWhileAnotherAdmissionRuns(bool useFairScheduling)
+        {
+            var provider = new TestProvider(executionCapacity: 2) { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(token, 1));
+            Enqueue(queue, new TestRequest(token, 2));
+            bool nested = false;
+            FairRequestQueue.Entry? second = null;
+            provider.BeforeExecutionGrant = () =>
+            {
+                provider.BeforeExecutionGrant = null!;
+                nested = queue.TryDequeue(out second);
+            };
+
+            using FairRequestQueue.Entry first = Dequeue(queue);
+
+            Assert.That(first.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(1));
+            Assert.That(nested, Is.EqualTo(useFairScheduling));
+            if (useFairScheduling)
+            {
+                Assert.That(second!.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+                second.Dispose();
+            }
+            else
+            {
+                using FairRequestQueue.Entry next = Dequeue(queue);
+                Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            }
+            first.Dispose();
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Concurrent selections of one owner that both find execution capacity exhausted
+        /// return to the owner's FIFO in admission order, whichever fails last.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentlyBlockedHeadsKeepAdmissionOrderAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 1);
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(token, 1));
+            FairRequestQueue.Entry running = Dequeue(queue);
+            Enqueue(queue, new TestRequest(token, 2));
+            Enqueue(queue, new TestRequest(token, 3));
+            using var laterInGrant = new ManualResetEventSlim();
+            using var releaseLater = new ManualResetEventSlim();
+            Task<bool>? later = null;
+            int grants = 0;
+            provider.BeforeExecutionGrant = () =>
+            {
+                if (Interlocked.Increment(ref grants) == 1)
+                {
+                    // request 2 is selected; a second worker selects request 3 and holds its grant
+                    later = Task.Run(() => queue.TryDequeue(out _));
+                    Assert.That(laterInGrant.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                }
+                else
+                {
+                    laterInGrant.Set();
+                    Assert.That(releaseLater.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                }
+            };
+
+            // request 2 fails first and is relinked before request 3 fails
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            releaseLater.Set();
+            Assert.That(await later!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.False);
+            provider.BeforeExecutionGrant = null!;
+            Assert.That(provider.ExecutionAttempts, Is.EqualTo(3));
+            Assert.That(queue.Count, Is.EqualTo(2));
+
+            running.Dispose();
+            using (FairRequestQueue.Entry next = Dequeue(queue))
+            {
+                Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            }
+            using (FairRequestQueue.Entry last = Dequeue(queue))
+            {
+                Assert.That(last.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(3));
+            }
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+        /// <summary>
+        /// A queue stopped while a selected request's admission runs completes that request
+        /// once with Bad_ServerHalted and returns all of its accounting.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StopDuringGrantCompletesTheSelectedRequestOnce(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            FairRequestQueue queue = CreateQueue(provider);
+            var request = new TestRequest(token);
+            Enqueue(queue, request);
+            provider.BeforeExecutionGrant = queue.Dispose;
+
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(request.CompletionCount, Is.EqualTo(1));
+            Assert.That(request.Status, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void RunningCancellationKeepsAccountingUntilTheHandlerFinishes(bool useFairScheduling)
