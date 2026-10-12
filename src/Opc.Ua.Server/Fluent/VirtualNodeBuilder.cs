@@ -185,6 +185,9 @@ namespace Opc.Ua.Server.Fluent
         }
     }
 
+    /// <summary>
+    /// Stores the callback template applied to each materialized member of a virtual-node family.
+    /// </summary>
     internal sealed class VirtualNodeRegistration : IVirtualNodeBuilder
     {
         public VirtualNodeRegistration(
@@ -265,15 +268,41 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
+        /// <summary>
+        /// Registers a synchronous method handler for the virtual-node family.
+        /// </summary>
+        /// <param name="handler">The method invocation handler.</param>
         public IVirtualNodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
+            ThrowIfCompleteCallRegistered();
             m_call = SetOnce(m_call, handler, "OnCall");
             return this;
         }
 
+        /// <summary>
+        /// Registers an asynchronous method handler for the virtual-node family.
+        /// </summary>
+        /// <param name="handler">The asynchronous method invocation handler.</param>
         public IVirtualNodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
         {
+            ThrowIfCompleteCallRegistered();
             m_callAsync = SetOnce(m_callAsync, handler, "OnCallAsync");
+            return this;
+        }
+
+        /// <summary>
+        /// Registers an exclusive complete-result handler for the virtual-node family.
+        /// </summary>
+        /// <param name="handler">The asynchronous complete-result handler.</param>
+        public IVirtualNodeBuilder OnCallWithResult(MethodCalledWithResultEventHandlerAsync handler)
+        {
+            Owner.ThrowIfSealed();
+            if (m_call is not null || m_callAsync is not null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The virtual family already has an invocation handler.");
+            }
+            m_callWithResultAsync = SetOnce(m_callWithResultAsync, handler, "OnCallWithResult");
             return this;
         }
 
@@ -364,6 +393,10 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
+        /// <summary>
+        /// Applies the family's handlers to a materialized node without replacing occupied slots.
+        /// </summary>
+        /// <param name="node">The materialized node.</param>
         public void Apply(NodeState node)
         {
             lock (m_applyLock)
@@ -414,19 +447,30 @@ namespace Opc.Ua.Server.Fluent
                         "OnSimpleWriteAsync");
                 }
 
-                if (m_call != null || m_callAsync != null)
+                if (m_call != null || m_callAsync != null || m_callWithResultAsync is not null)
                 {
                     if (node is not MethodState method)
                     {
                         throw CreateTypeMismatch(node, "method");
                     }
 
-                    SetSlot(ref method.OnCallMethod2, m_call, node, "OnCall");
-                    SetSlot(
-                        ref method.OnCallMethod2Async,
-                        m_callAsync,
-                        node,
-                        "OnCallAsync");
+                    if (m_callWithResultAsync is not null)
+                    {
+                        MethodInvocationBuilderExtensions.RegisterHandler(method, m_callWithResultAsync);
+                    }
+                    else
+                    {
+                        if (method.OnCallMethodWithResultAsync is not null)
+                        {
+                            throw CreateOccupiedSlot(node, "OnCallWithResult");
+                        }
+                        SetSlot(ref method.OnCallMethod2, m_call, node, "OnCall");
+                        SetSlot(
+                            ref method.OnCallMethod2Async,
+                            m_callAsync,
+                            node,
+                            "OnCallAsync");
+                    }
                 }
 
                 if (m_conditionRefresh != null)
@@ -459,6 +503,18 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 m_applied.Add(node, AppliedMarker.Instance);
+            }
+        }
+
+        /// <summary>
+        /// Rejects ordinary method registration when a complete-result handler is already registered.
+        /// </summary>
+        private void ThrowIfCompleteCallRegistered()
+        {
+            if (m_callWithResultAsync is not null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The virtual family already has a complete invocation handler.");
             }
         }
 
@@ -550,6 +606,10 @@ namespace Opc.Ua.Server.Fluent
         private NodeValueSimpleWriteEventHandlerAsync? m_simpleWriteAsync;
         private GenericMethodCalledEventHandler2? m_call;
         private GenericMethodCalledEventHandler2Async? m_callAsync;
+
+        /// <summary>The asynchronous complete-result handler for the virtual-node family.</summary>
+        private MethodCalledWithResultEventHandlerAsync? m_callWithResultAsync;
+
         private ConditionRefreshHandler? m_conditionRefresh;
         private EventNotificationHandler? m_event;
         private NodeStateCreateBrowserEventHandler? m_createBrowser;

@@ -1400,6 +1400,7 @@ The builder exposes:
 | `OnRead` / `OnReadAsync` | `BaseVariableState.OnReadValue` |
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
+| `OnCallWithResult` | `MethodState.OnCallMethodWithResultAsync` — ordered outputs and resolved operation/input diagnostics |
 | `OnReadRolePermissions` / `OnReadUserRolePermissions` | `NodeState.OnRead*RolePermissions` — compute the permission set per request (e.g. grant a caller a role on its own record) |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
@@ -1416,6 +1417,11 @@ tree. Virtual node families are registered during the same phase but
 materialize individual nodes per service operation as described below.
 There is no reflection, no `Activator.CreateInstance`, no
 `Expression.Compile` — the whole pipeline is NativeAOT-safe.
+
+For methods that need an operation result and per-input diagnostics together,
+see [complete method invocation results](MethodInvocationResults.md). This
+asynchronous handler is exclusive with ordinary method handlers and also works
+on virtual method families.
 
 #### On-demand virtual node families
 
