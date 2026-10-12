@@ -104,10 +104,6 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
-        // -----------------------------------------------------------------
-        // OnReadValueAsync (full)
-        // -----------------------------------------------------------------
-
         [Test]
         public async Task ReadAttributeAsyncRoutesValueReadsToFullAsyncSlot()
         {
@@ -184,10 +180,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
-        // -----------------------------------------------------------------
-        // OnSimpleReadValueAsync
-        // -----------------------------------------------------------------
-
         [Test]
         public async Task ReadAttributeAsyncRoutesValueReadsToSimpleAsyncSlot()
         {
@@ -226,10 +218,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWaitingForInitialData));
         }
-
-        // -----------------------------------------------------------------
-        // Cancellation
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task ReadAttributeAsyncWrapsCancellationFromFullSlot()
@@ -276,10 +264,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
             Assert.That(dv.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
-
-        // -----------------------------------------------------------------
-        // OnWriteValueAsync (full) - cache update on success
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task WriteAttributeAsyncRoutesValueWritesToFullAsyncSlot()
@@ -368,6 +352,9 @@ namespace Opc.Ua.Types.Tests.State
                 "An index-range write must only replace the addressed elements of the cached value.");
         }
 
+        /// <summary>
+        /// Verifies that an accepted slice invalidates an unusable cache while still reporting a value change.
+        /// </summary>
         [Test]
         public async Task WriteAttributeAsyncReportsChangeWhenCacheCannotAbsorbIndexRangeSlice()
         {
@@ -408,13 +395,10 @@ namespace Opc.Ua.Types.Tests.State
                 "The slice must not be stored as the whole value.");
             Assert.That(v.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value),
                 "A successful handler write must still raise a value change.");
-            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
-            Assert.That(v.Timestamp, Is.EqualTo(sourceTimestamp));
+            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadWaitingForInitialData),
+                "An unmergeable slice invalidates the local cache until a fresh read supplies the whole value.");
+            Assert.That(v.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
-
-        // -----------------------------------------------------------------
-        // OnSimpleWriteValueAsync
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task WriteAttributeAsyncRoutesValueWritesToSimpleAsyncSlot()
@@ -480,10 +464,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(called, Is.False);
         }
 
-        // -----------------------------------------------------------------
-        // Fallback to sync path when no async slot is set
-        // -----------------------------------------------------------------
-
         [Test]
         public async Task ReadAttributeAsyncFallsBackToSyncWhenNoAsyncSlotSet()
         {
@@ -536,10 +516,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetLocalizedText().Text, Is.EqualTo("Var"));
         }
-
-        // -----------------------------------------------------------------
-        // Access control
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task ReadAttributeAsyncReturnsBadNotReadableForNoAccessLevel()
