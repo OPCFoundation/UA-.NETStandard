@@ -752,7 +752,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Out.WriteLine(",");
                 context.Out.Write(
                     "        {0}",
-                    BoxInputArgument(inputs[ii]));
+                    BoxInputArgument(inputs[ii], targetNamespace, namespaces));
             }
             context.Out.WriteLine(").ConfigureAwait(false);");
 
@@ -895,6 +895,16 @@ namespace Opc.Ua.SourceGeneration
                 parameter.IsOptional);
             string localName = GetLocalVariableName(parameter);
 
+            if (typeName == "global::Opc.Ua.Variant")
+            {
+                context.Out.WriteLine(
+                    "    {0} {1} = _outputArguments[{2}];",
+                    typeName,
+                    localName,
+                    index);
+                return;
+            }
+
             switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
@@ -916,14 +926,6 @@ namespace Opc.Ua.SourceGeneration
                         index,
                         localName);
                     EmitConversionFailure(context, methodName, parameter.Name);
-                    break;
-                case BasicDataType.BaseDataType when parameter.ValueRank == ValueRank.Scalar:
-                    // The argument is itself a Variant; assign directly.
-                    context.Out.WriteLine(
-                        "    {0} {1} = _outputArguments[{2}];",
-                        typeName,
-                        localName,
-                        index);
                     break;
                 default:
                     context.Out.WriteLine(
@@ -974,17 +976,27 @@ namespace Opc.Ua.SourceGeneration
         /// Returns the C# expression used to box an input argument into a
         /// <see cref="Variant"/>.
         /// </summary>
-        private static string BoxInputArgument(Parameter parameter)
+        private static string BoxInputArgument(
+            Parameter parameter,
+            string targetNamespace,
+            Namespace[] namespaces)
         {
             string name = GetMethodArgumentIdentifier(parameter);
+            string typeName = parameter.DataTypeNode!.GetMethodArgumentTypeAsCode(
+                parameter.ValueRank,
+                targetNamespace,
+                namespaces,
+                parameter.IsOptional);
+            if (typeName == "global::Opc.Ua.Variant")
+            {
+                return name;
+            }
             switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     return CoreUtils.Format(
                         "global::Opc.Ua.Variant.FromStructure({0})",
                         name);
-                case BasicDataType.BaseDataType when parameter.ValueRank == ValueRank.Scalar:
-                    return name;
                 default:
                     return CoreUtils.Format(
                         "global::Opc.Ua.Variant.From({0})",
