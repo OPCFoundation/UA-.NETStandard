@@ -3625,7 +3625,7 @@ namespace Opc.Ua.Server
             // request was registered, did not see it when it aborted the Session's outstanding
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
-            // takes the same lock, so a request the sweep missed sees the mark here.
+            // ends with a full fence, so a request the sweep missed sees the mark here.
             if (context.Session is ISession admittedSession &&
                 SessionTermination.IsClosingOrClaimed(admittedSession))
             {

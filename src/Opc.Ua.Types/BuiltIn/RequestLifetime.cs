@@ -69,6 +69,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes a lifetime that is cancelled by either token or once
+        /// <paramref name="timeout"/> elapses.
+        /// </summary>
+        /// <remarks>
+        /// The timeout uses the lifetime's own token source instead of a separate timeout source
+        /// and registration. Tokens that cannot be cancelled are not registered. A timeout
+        /// cancellation reports <see cref="StatusCodes.Good"/>, like an external token.
+        /// </remarks>
+        /// <param name="timeout">The time after which the request is cancelled, or
+        /// <see cref="TimeSpan.Zero"/> or <see cref="Timeout.InfiniteTimeSpan"/> for none.</param>
+        /// <param name="first">A token that cancels the request.</param>
+        /// <param name="second">Another token that cancels the request.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
+        /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
+        public RequestLifetime(TimeSpan timeout, CancellationToken first, CancellationToken second)
+            : this(first == second ? [first] : [first, second])
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                Dispose();
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            if (timeout > TimeSpan.Zero)
+            {
+                m_cts.CancelAfter(timeout);
+            }
+        }
+
+        /// <summary>
         /// A default instance of the RequestLifetime class that is already completed and cannot be cancelled.
         /// </summary>
         public static RequestLifetime None => s_default.Value;

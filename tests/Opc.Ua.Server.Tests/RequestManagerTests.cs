@@ -1349,6 +1349,63 @@ namespace Opc.Ua.Server.Tests
             m_requestManager.RequestCompleted(innerContext);
         }
 
+        /// <summary>
+        /// Requests and validation scopes are registered and completed without the request
+        /// manager lock. A drain that snapshots them concurrently must still be released by every
+        /// completion it waits for, or it would run into its two-minute timeout.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task DrainsRacingLockFreeRegistrationAndCompletionAlwaysCompleteAsync()
+        {
+            using var stop = new CancellationTokenSource();
+            int completed = 0;
+            var churn = new Task[4];
+            for (int worker = 0; worker < churn.Length; worker++)
+            {
+                churn[worker] = Task.Run(() =>
+                {
+                    uint handle = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        IDisposable validation = m_requestManager.EnterValidationScope();
+                        using var lifetime = new RequestLifetime();
+                        OperationContext context = CreateOperationContext(++handle, lifetime, 60000);
+                        m_requestManager.RequestReceived(context);
+                        validation.Dispose();
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
+                        m_requestManager.RequestCompleted(context);
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+                        Interlocked.Increment(ref completed);
+                    }
+                });
+            }
+
+            try
+            {
+                // the drains must race the churn, so wait until it is running
+                using var started = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                while (Volatile.Read(ref completed) < 1000)
+                {
+                    await Task.Delay(1, started.Token).ConfigureAwait(false);
+                }
+                for (int ii = 0; ii < 200; ii++)
+                {
+                    await m_requestManager.WaitForCurrentRequestsAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+                await Task.WhenAll(churn).ConfigureAwait(false);
+            }
+
+            Assert.That(completed, Is.GreaterThan(0));
+            await AssertCompletesWithinTimeoutAsync(m_requestManager.WaitForCurrentRequestsAsync().AsTask())
+                .ConfigureAwait(false);
+        }
+
         private static OperationContext CreateOperationContext(
             uint requestHandle,
             RequestLifetime requestLifetime)
