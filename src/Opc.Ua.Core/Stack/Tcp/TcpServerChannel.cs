@@ -1259,19 +1259,24 @@ namespace Opc.Ua.Bindings
                 // key served over a network still occupies a thread; that is recorded
                 // as a residual limitation rather than cascading async through eight
                 // fault call sites.
-                chunksToSend = WriteAsymmetricMessage(
-                    TcpMessageType.Open,
-                    requestId,
-                    ServerCertificate,
-                    senderCertificateChain: null,
-                    ClientCertificate,
-                    new ArraySegment<byte>(buffer, 0, buffer.Length),
-                    !renew ? m_oscRequestSignature : null,
-                    out _);
+                // Numbered and queued under SendOrder, ahead of the responses the
+                // writer has not numbered yet.
+                using (SendOrder.Enter())
+                {
+                    chunksToSend = WriteAsymmetricMessage(
+                        TcpMessageType.Open,
+                        requestId,
+                        ServerCertificate,
+                        senderCertificateChain: null,
+                        ClientCertificate,
+                        new ArraySegment<byte>(buffer, 0, buffer.Length),
+                        !renew ? m_oscRequestSignature : null,
+                        out _);
 
-                // write the message to the server.
-                BeginWriteMessage(chunksToSend, null);
-                chunksToSend = null;
+                    // write the message to the server.
+                    BeginWriteMessage(chunksToSend, null);
+                    chunksToSend = null;
+                }
             }
             catch (Exception e)
             {
@@ -1325,22 +1330,26 @@ namespace Opc.Ua.Bindings
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
-            BufferCollection chunksToSend = WriteAsymmetricMessage(
-                TcpMessageType.Open,
-                requestId,
-                ServerCertificate,
-                ServerCertificateChain,
-                ClientCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length),
-                !renew ? m_oscRequestSignature : null,
-                out byte[] signature);
-
-            if (!renew)
+            // numbered and queued under SendOrder; see SendOpenSecureChannelResponseAsync.
+            using (SendOrder.Enter())
             {
-                ChannelThumbprint = signature;
-            }
+                BufferCollection chunksToSend = WriteAsymmetricMessage(
+                    TcpMessageType.Open,
+                    requestId,
+                    ServerCertificate,
+                    ServerCertificateChain,
+                    ClientCertificate,
+                    new ArraySegment<byte>(buffer, 0, buffer.Length),
+                    !renew ? m_oscRequestSignature : null,
+                    out byte[] signature);
 
-            SendOpenSecureChannelChunks(chunksToSend);
+                if (!renew)
+                {
+                    ChannelThumbprint = signature;
+                }
+
+                SendOpenSecureChannelChunks(chunksToSend);
+            }
         }
 
         /// <summary>
@@ -1374,22 +1383,30 @@ namespace Opc.Ua.Bindings
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
-            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
-                TcpMessageType.Open,
-                requestId,
-                ServerCertificate,
-                ServerCertificateChain,
-                ClientCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length),
-                !renew ? m_oscRequestSignature : null,
-                ct).ConfigureAwait(false);
-
-            if (!renew)
+            // A renewal is answered while responses are in flight. The response takes
+            // its sequence number here, so it is numbered and queued under SendOrder:
+            // the writer sends it ahead of the responses it has not numbered yet. The
+            // writer waits while the response is signed, as responses waited for the
+            // gate before.
+            using (await SendOrder.EnterAsync(ct).ConfigureAwait(false))
             {
-                ChannelThumbprint = written.Signature;
-            }
+                AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
+                    TcpMessageType.Open,
+                    requestId,
+                    ServerCertificate,
+                    ServerCertificateChain,
+                    ClientCertificate,
+                    new ArraySegment<byte>(buffer, 0, buffer.Length),
+                    !renew ? m_oscRequestSignature : null,
+                    ct).ConfigureAwait(false);
 
-            SendOpenSecureChannelChunks(written.Chunks);
+                if (!renew)
+                {
+                    ChannelThumbprint = written.Signature;
+                }
+
+                SendOpenSecureChannelChunks(written.Chunks);
+            }
         }
 
         /// <summary>
@@ -1772,6 +1789,11 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
+            if (TrySendResponseWithoutGate(requestId, response, startWriterInline: false))
+            {
+                return false;
+            }
+
             using (Gate.Enter())
             {
                 return SendResponseCore(requestId, response);
@@ -1783,11 +1805,12 @@ namespace Opc.Ua.Bindings
         /// without blocking the calling thread.
         /// </summary>
         /// <remarks>
-        /// Used by the request dispatch path, which runs on thread-pool workers. With many
-        /// requests in flight on one channel, the synchronous <see cref="SendResponse"/>
-        /// parked one pool thread per waiting response on the gate; the receive loop that
-        /// was handed the gate then waited for a free pool thread to continue, and the
-        /// channel stalled until the pool injected more threads.
+        /// Used by the request dispatch path, which runs on thread-pool workers. An open
+        /// channel takes no lock for a response: it is encoded on the caller's thread and
+        /// queued for the writer, which numbers and secures it (see
+        /// <see cref="UaSCUaBinaryChannel.SendOrder"/>). If the writer is idle it runs
+        /// on the caller's thread for one batch. Only a channel that is not open, or
+        /// whose renewed token is due for activation, waits for the gate.
         /// </remarks>
         /// <returns><c>true</c> if the response was retained for delivery after reconnect.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
@@ -1799,9 +1822,92 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
+            if (TrySendResponseWithoutGate(requestId, response, startWriterInline: true))
+            {
+                return false;
+            }
+
             using (await Gate.EnterAsync().ConfigureAwait(false))
             {
                 return SendResponseCore(requestId, response);
+            }
+        }
+
+        /// <summary>
+        /// Encodes and queues a response without the channel gate, when the channel
+        /// is open and no token change is due.
+        /// </summary>
+        /// <param name="requestId">The request being answered.</param>
+        /// <param name="response">The response.</param>
+        /// <param name="startWriterInline">Whether an idle writer may run on this
+        /// thread. The caller holds no lock.</param>
+        /// <returns><see langword="false"/> when the caller must send the response
+        /// under the gate instead: the channel is not open, a renewed token is due
+        /// for activation, the transport is gone, or the response cannot be encoded
+        /// (the gate path sends the fault). Nothing was sent then.</returns>
+        /// <remarks>
+        /// The state is read without the gate, so the channel can fault or close
+        /// right after the check. The response then goes to the transport the
+        /// channel had, and is lost with it, like a response whose write was queued
+        /// just before the channel faulted always was.
+        /// </remarks>
+        private bool TrySendResponseWithoutGate(
+            uint requestId,
+            IServiceResponse response,
+            bool startWriterInline)
+        {
+            if (State != TcpChannelState.Open ||
+                IsRenewedTokenActivationDue ||
+                Transport == null)
+            {
+                return false;
+            }
+
+            EncodedSymmetricMessage encoded;
+            try
+            {
+                // note that the server does nothing if the message limits are exceeded.
+                encoded = EncodeSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId,
+                    response,
+                    false,
+                    out _);
+            }
+            catch (Exception)
+            {
+                // the gate path encodes again and reports the failure.
+                return false;
+            }
+
+            if (!BeginWriteSymmetricMessage(encoded, null, startWriterInline))
+            {
+                encoded.Chunks.Release(BufferManager, "SendResponse");
+                return false;
+            }
+
+            m_eventLogger.CoreSendResponse((int)ChannelId, (int)requestId);
+            TrackSessions(response);
+            return true;
+        }
+
+        /// <summary>
+        /// Counts the sessions activated and closed on the channel, when no session
+        /// binding provider does.
+        /// </summary>
+        private void TrackSessions(IServiceResponse response)
+        {
+            if (Quotas.SessionBindingProvider == null &&
+                response is ActivateSessionResponse activateSessionResponse &&
+                StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult))
+            {
+                AddSession();
+            }
+            else if (Quotas.SessionBindingProvider == null &&
+                response is CloseSessionResponse closeSessionResponse &&
+                StatusCode.IsGood(closeSessionResponse.ResponseHeader.ServiceResult))
+            {
+                RemoveSession();
             }
         }
 
@@ -1827,23 +1933,21 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_eventLogger.CoreSendResponse((int)ChannelId, (int)requestId);
-                BufferCollection? buffers = null;
 
                 // a response sent long after its request (Publish) must not be secured
                 // with a token that has expired while the client sent nothing.
                 ActivateRenewedTokenIfDue();
 
+                EncodedSymmetricMessage encoded;
                 try
                 {
                     // note that the server does nothing if the message limits are exceeded.
-
-                    buffers = WriteSymmetricMessage(
+                    encoded = EncodeSymmetricMessage(
                         TcpMessageType.Message,
                         requestId,
-                        CurrentToken!,
                         response,
                         false,
-                        out bool limitsExceeded);
+                        out _);
                 }
                 catch (Exception e)
                 {
@@ -1859,32 +1963,16 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                try
+                // queued for the writer, which secures it with the token current then.
+                if (!BeginWriteSymmetricMessage(encoded, null, startWriterInline: false))
                 {
-                    BeginWriteMessage(buffers, null);
-                    buffers = null!;
-                }
-                catch (Exception)
-                {
-                    buffers?.Release(BufferManager, "SendResponse");
+                    encoded.Chunks.Release(BufferManager, "SendResponse");
 
                     m_queuedResponses[requestId] = response;
                     return true;
                 }
 
-                if (Quotas.SessionBindingProvider == null &&
-                    response is ActivateSessionResponse activateSessionResponse &&
-                    StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult))
-                {
-                    AddSession();
-                }
-                else if (Quotas.SessionBindingProvider == null &&
-                    response is CloseSessionResponse closeSessionResponse &&
-                    StatusCode.IsGood(closeSessionResponse.ResponseHeader.ServiceResult))
-                {
-                    RemoveSession();
-                }
-
+                TrackSessions(response);
                 return false;
             }
         }

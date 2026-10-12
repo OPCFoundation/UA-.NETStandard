@@ -1042,11 +1042,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a fault response secured with the symmetric keys.
         /// </summary>
-        /// <param name="token">The token that secures the fault.</param>
+        /// <param name="token">The token of the failed request. The fault is
+        /// secured with the token that is current when the writer sends it, which
+        /// is this one or the one the client activated after it.</param>
         /// <param name="requestId">The request id of the failed request.</param>
         /// <param name="fault">The fault to report.</param>
         /// <param name="requestHandle">The RequestHandle of the failed request, echoed in
         /// the ResponseHeader as OPC 10000-4 §7.33 recommends; 0 if it is unknown.</param>
+        /// <remarks>
+        /// Needs no lock: the fault is encoded here and queued for the writer, which
+        /// numbers and secures it (see <see cref="UaSCUaBinaryChannel.SendOrder"/>).
+        /// </remarks>
         protected void SendServiceFault(
             ChannelToken token,
             uint requestId,
@@ -1055,7 +1061,8 @@ namespace Opc.Ua.Bindings
         {
             m_logger.TcpListenChannelLog7(ChannelId, requestId, fault.StatusCode);
 
-            BufferCollection? buffers = null;
+            _ = token;
+            EncodedSymmetricMessage? encoded = null;
 
             try
             {
@@ -1079,22 +1086,24 @@ namespace Opc.Ua.Bindings
 
                 // the limits should never be exceeded when sending a fault.
 
-                // secure message.
-                buffers = WriteSymmetricMessage(
+                encoded = EncodeSymmetricMessage(
                     TcpMessageType.Message,
                     requestId,
-                    token,
                     response,
                     false,
-                    out bool limitsExceeded);
+                    out _);
 
-                // send message.
-                BeginWriteMessage(buffers, null);
-                buffers = null;
+                // queue for the writer, which secures it. Without a transport the
+                // fault is dropped, as a write to a closed transport would be.
+                if (BeginWriteSymmetricMessage(encoded, null, startWriterInline: false))
+                {
+                    encoded = null;
+                }
             }
             catch (Exception e)
             {
-                buffers?.Release(BufferManager, "SendServiceFault");
+                encoded?.Chunks.Release(BufferManager, "SendServiceFault");
+                encoded = null;
 
                 m_logger.TcpListenChannelLog8(e, ChannelId, requestId, fault.StatusCode);
 
@@ -1103,6 +1112,10 @@ namespace Opc.Ua.Bindings
                         e,
                         StatusCodes.BadTcpInternalError,
                         "Unexpected error sending a service fault."));
+            }
+            finally
+            {
+                encoded?.Chunks.Release(BufferManager, "SendServiceFault");
             }
         }
 
