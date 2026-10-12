@@ -37,7 +37,7 @@ using Opc.Ua.Server.TestFramework;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Verifies diagnostic permission validation through an activated server session.
+    /// Verifies diagnostic permission validation through public request admission and activated sessions.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -112,6 +112,12 @@ namespace Opc.Ua.Server.Tests
                 Assert.That((validated & DiagnosticsMasks.UserPermissionAdditionalInfo) != 0,
                     Is.EqualTo(authorized));
                 Assert.That(validated & ~DiagnosticsMasks.UserPermissionAdditionalInfo, Is.EqualTo(mask));
+                header.ReturnDiagnostics = (uint)(mask |
+                    (forged ? DiagnosticsMasks.UserPermissionAdditionalInfo : DiagnosticsMasks.None));
+                using OperationContext admitted = await server.CurrentInstance.SessionManager.ValidateRequestAsync(
+                    header, channel, RequestType.Read, RequestLifetime.None).ConfigureAwait(false);
+                Assert.That((admitted.DiagnosticsMask & DiagnosticsMasks.UserPermissionAdditionalInfo) != 0,
+                    Is.EqualTo(authorized));
                 var result = new ServiceResult(
                     "urn:device", StatusCodes.BadOutOfRange, LocalizedText.Null, "limit: 100", innerResult: null);
                 foreach (bool serviceLevel in new[] { false, true })
@@ -124,6 +130,125 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 await server.CloseSessionAsync(channel, header, true, RequestLifetime.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies pre-session and accepted session-less requests cannot retain a client's permission bit.
+        /// </summary>
+        /// <param name="requestType">The early-return request path to exercise.</param>
+        /// <param name="requested">Whether additional information is requested.</param>
+        [TestCase(RequestType.CreateSession, false)]
+        [TestCase(RequestType.CreateSession, true)]
+        [TestCase(RequestType.ActivateSession, false)]
+        [TestCase(RequestType.ActivateSession, true)]
+        [TestCase(RequestType.Read, false)]
+        [TestCase(RequestType.Read, true)]
+        public async Task RequestBoundaryStripsDiagnosticPermissionBeforeEarlyReturns(
+            RequestType requestType, bool requested)
+        {
+            StandardServer server = m_fixture.Server;
+            var manager = (SessionManager)server.CurrentInstance.SessionManager;
+            SessionlessInvocationOptions? previous = manager.SessionlessInvocation;
+            (RequestHeader closeHeader, SecureChannelContext channel) =
+                await server.CreateAndActivateSessionAsync("EarlyDiagnosticPermission").ConfigureAwait(false);
+            try
+            {
+                if (requestType == RequestType.Read)
+                {
+                    manager.SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true };
+                }
+                RequestHeader header = CreateUntrustedHeader(NodeId.Null, requested);
+
+                using OperationContext context = await manager.ValidateRequestAsync(
+                    header, channel, requestType, RequestLifetime.None).ConfigureAwait(false);
+
+                Assert.That(context.Session, Is.Null);
+                Assert.That(context.DiagnosticsMask & DiagnosticsMasks.UserPermissionAdditionalInfo,
+                    Is.EqualTo(DiagnosticsMasks.None));
+                AssertNoAdditionalInfo(header, requested);
+            }
+            finally
+            {
+                manager.SessionlessInvocation = previous;
+                await server.CloseSessionAsync(channel, closeHeader, true, RequestLifetime.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies session-less rejection and failed session-channel validation clear the permission bit first.
+        /// </summary>
+        /// <param name="existingSession">Whether the rejection occurs inside an existing session's validation.</param>
+        /// <param name="requested">Whether additional information is requested.</param>
+        [Test]
+        public async Task RequestBoundaryStripsDiagnosticPermissionBeforeRejections(
+            [Values] bool existingSession, [Values] bool requested)
+        {
+            StandardServer server = m_fixture.Server;
+            (RequestHeader closeHeader, SecureChannelContext channel) =
+                await server.CreateAndActivateSessionAsync("RejectedDiagnosticPermission").ConfigureAwait(false);
+            try
+            {
+                RequestHeader header = CreateUntrustedHeader(
+                    existingSession ? closeHeader.AuthenticationToken : NodeId.Null, requested);
+                var invalidChannel = new SecureChannelContext(
+                    "wrong-channel", channel.EndpointDescription, channel.MessageEncoding);
+                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                {
+                    using OperationContext context = await server.CurrentInstance.SessionManager.ValidateRequestAsync(
+                        header, invalidChannel, RequestType.Read, RequestLifetime.None).ConfigureAwait(false);
+                });
+
+                Assert.That(error!.StatusCode, Is.EqualTo(existingSession
+                    ? StatusCodes.BadSecureChannelIdInvalid : StatusCodes.BadServiceUnsupported));
+                AssertNoAdditionalInfo(header, requested);
+            }
+            finally
+            {
+                await server.CloseSessionAsync(channel, closeHeader, true, RequestLifetime.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates a request carrying a forged internal permission flag.
+        /// </summary>
+        /// <param name="token">The authentication token used by the request.</param>
+        /// <param name="requested">Whether additional information is requested.</param>
+        private static RequestHeader CreateUntrustedHeader(NodeId token, bool requested)
+        {
+            DiagnosticsMasks mask = DiagnosticsMasks.ServiceSymbolicId | DiagnosticsMasks.OperationSymbolicId;
+            if (requested)
+            {
+                mask |= DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo;
+            }
+            return new RequestHeader
+            {
+                AuthenticationToken = token,
+                ReturnDiagnostics = (uint)(mask | DiagnosticsMasks.UserPermissionAdditionalInfo)
+            };
+        }
+
+        /// <summary>
+        /// Verifies that sanitized masks cannot expose service or operation additional information.
+        /// </summary>
+        /// <param name="header">The request header after admission or rejection.</param>
+        /// <param name="requested">Whether the original request asked for additional information.</param>
+        private static void AssertNoAdditionalInfo(RequestHeader header, bool requested)
+        {
+            DiagnosticsMasks expected = DiagnosticsMasks.ServiceSymbolicId | DiagnosticsMasks.OperationSymbolicId;
+            if (requested)
+            {
+                expected |= DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo;
+            }
+            Assert.That((DiagnosticsMasks)header.ReturnDiagnostics, Is.EqualTo(expected));
+            var result = new ServiceResult(
+                "urn:request", StatusCodes.BadUnexpectedError, LocalizedText.Null, "private detail", innerResult: null);
+            foreach (bool serviceLevel in new[] { false, true })
+            {
+                var diagnostic = new DiagnosticInfo(
+                    result, (DiagnosticsMasks)header.ReturnDiagnostics,
+                    serviceLevel, new StringTable(), Mock.Of<ILogger>());
+                Assert.That(diagnostic.AdditionalInfo, Is.Null);
             }
         }
 
