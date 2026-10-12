@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -50,13 +50,13 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.PipelineId,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.PipelineId,
                 new(3010u, 3), "pipeline-1");
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.State,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.State,
                 new(3011u, 3), (int)VisionEndpointStateEnum.Active);
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.Continuous,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.Continuous,
                 new(3012u, 3), true);
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.Sensor,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.Sensor,
                 new(3013u, 3), harness.SensorNodeId);
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
@@ -79,7 +79,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddValueChild(harness.PipelineNodeId, BrowseNames.State,
+            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.State,
                 new(3020u, 3), (int)VisionEndpointStateEnum.Ready);
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task StartContinuousDoesNotThrowOnGoodCall()
+        public Task StartContinuousDoesNotThrowOnGoodCall()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -129,10 +129,11 @@ namespace Opc.Ua.Vision.Tests
 
             Assert.DoesNotThrowAsync(async () =>
                 await pipeline.StartContinuousAsync().ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
-        public async Task StopDoesNotThrowOnGoodCall()
+        public Task StopDoesNotThrowOnGoodCall()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -143,6 +144,7 @@ namespace Opc.Ua.Vision.Tests
 
             Assert.DoesNotThrowAsync(async () =>
                 await pipeline.StopAsync().ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -151,11 +153,11 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddChild(harness.PipelineNodeId, BrowseNames.Results,
+            harness.AddChild(harness.PipelineNodeId, Perception.BrowseNames.Results,
                 harness.ResultsFolderId);
             harness.AddBrowse(harness.ResultsFolderId,
                 [harness.Ref(harness.InferenceResultNodeId, "R1",
-                    ObjectTypes.DetectionResultType)]);
+                    Perception.ObjectTypes.DetectionResultType)]);
 
             var entries = new List<VisionNodeEntry>();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
@@ -205,7 +207,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddChild(harness.PipelineNodeId, BrowseNames.Feedback,
+            harness.AddChild(harness.PipelineNodeId, Perception.BrowseNames.Feedback,
                 harness.FeedbackNodeId);
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
@@ -243,10 +245,10 @@ namespace Opc.Ua.Vision.Tests
             // Part 9.5 pairs the array with the flag: an empty array without
             // SceneIsEmpty is a lost payload rather than an observation, so the
             // wrapper refuses it before the call leaves the client.
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
-                    ArrayOf<VisionDetectionDataType>.Empty,
+                    [],
                     null,
                     ByteString.Empty).ConfigureAwait(false));
 
@@ -258,7 +260,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     new[] { new VisionDetectionDataType { ClassLabel = "Part" } }.ToArrayOf(),
@@ -274,12 +276,12 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     "r-1",
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     new[] { new VisionDetectionDataType { ClassLabel = "Part" } }.ToArrayOf(),
-                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    [],
                     default,
                     ByteString.Empty,
                     retractAll: true).ConfigureAwait(false));
@@ -293,7 +295,7 @@ namespace Opc.Ua.Vision.Tests
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
             var characteristics = new List<VisionCharacteristicDataType> { new() }.ToArrayOf();
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitInspectionResultAsync(
                     string.Empty,
                     VisionResultEvaluationEnum.Ok,
@@ -307,11 +309,11 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitInspectionResultAsync(
                     "r-1",
                     VisionResultEvaluationEnum.Ok,
-                    ArrayOf<VisionCharacteristicDataType>.Empty).ConfigureAwait(false));
+                    []).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("characteristics"));
         }
@@ -322,12 +324,12 @@ namespace Opc.Ua.Vision.Tests
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
             var detections = new List<VisionDetectionDataType> { new() }.ToArrayOf();
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     string.Empty,
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     detections,
-                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    [],
                     LocalizedText.Null,
                     ByteString.Empty).ConfigureAwait(false));
 
@@ -360,8 +362,8 @@ namespace Opc.Ua.Vision.Tests
                 await feedback.SubmitCorrectionAsync(
                     "r-1",
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
-                    ArrayOf<VisionDetectionDataType>.Empty,
-                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    [],
+                    [],
                     LocalizedText.Null,
                     ByteString.Empty).ConfigureAwait(false));
         }
@@ -371,7 +373,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException? ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await feedback.SubmitImageReferenceAsync(
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     null!,
@@ -386,7 +388,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddChild(harness.PipelineNodeId, BrowseNames.Feedback,
+            harness.AddChild(harness.PipelineNodeId, Perception.BrowseNames.Feedback,
                 harness.FeedbackNodeId);
             harness.ConfigureCall(StatusCodes.Good);
 
@@ -409,7 +411,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline();
-            harness.AddChild(harness.PipelineNodeId, BrowseNames.Feedback,
+            harness.AddChild(harness.PipelineNodeId, Perception.BrowseNames.Feedback,
                 harness.FeedbackNodeId);
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
             VisionFeedbackClient? feedback = await pipeline.OpenFeedbackAsync()

@@ -44,10 +44,10 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
-using Opc.Ua.RobotIntent;
 using Opc.Ua.Robotics.Client.Intent;
-using Opc.Ua.Vision;
+using Opc.Ua.RobotIntent;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {
@@ -210,7 +210,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task TruncatedSummaryReadsTheFullDetectionSnapshotAsync()
         {
-            VisionDetectionItem[] bounded = new VisionDetectionItem[100];
+            var bounded = new VisionDetectionItem[100];
             for (int i = 0; i < bounded.Length; i++)
             {
                 bounded[i] = Detection(
@@ -689,8 +689,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             await using ServiceProvider provider = BuildRoboticsProvider();
 
-            var first = provider.GetRequiredService<VisionGuidedRoboticsManager>();
-            var second = provider.GetRequiredService<VisionGuidedRoboticsManager>();
+            VisionGuidedRoboticsManager first = provider.GetRequiredService<VisionGuidedRoboticsManager>();
+            VisionGuidedRoboticsManager second = provider.GetRequiredService<VisionGuidedRoboticsManager>();
 
             Assert.Multiple(() =>
             {
@@ -759,25 +759,25 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void ComposedVisionAndRoboticsProfilePublishesSixtyFourTools()
+        public void ComposedVisionAndRoboticsProfilePublishesEightyOneTools()
         {
             var services = new ServiceCollection();
             var toolProfiles = new McpToolProfileSet(
-                new[] { McpToolProfile.Vision, McpToolProfile.Robotics });
+                [McpToolProfile.Vision, McpToolProfile.Robotics]);
             services.AddMcpServer()
                 .WithOpcUaCoreTools(toolProfiles)
                 .WithOpcUaRoboticsTools(toolProfiles)
                 .WithOpcUaVisionTools(toolProfiles);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            HashSet<string> tools = provider
+            var tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
 
             Assert.Multiple(() =>
             {
-                Assert.That(tools, Has.Count.EqualTo(64));
+                Assert.That(tools, Has.Count.EqualTo(81));
                 Assert.That(tools, Does.Contain("robotics_vision_pick"));
                 Assert.That(tools, Does.Contain("vision_run_inference"));
             });

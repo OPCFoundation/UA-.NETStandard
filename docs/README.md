@@ -184,6 +184,9 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
+  released control, recipes, configurations, results, assets, and condition monitoring,
+  with Vision/Perception composition and Machinery hosting.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
@@ -316,7 +319,7 @@ guide describes its current limitations.
   registry base model, resource storage, and federation.
 - [AI model management](AI.md) (draft model; preview package) — model
   catalogues, deployments, inference, and learning jobs. Builds on xRegistry.
-- [Vision](Vision.md) (draft model; preview package) — perception, media,
+- [Perception model](Vision.md#perception-model) (draft model; optional OpenUSD renderer is preview-only) — capture, media,
   feedback, and client workflows.
 - [Robot Intent](Robotics.md#robot-intent) (draft model; preview package) —
   task-level motion commands. Does not require the Robotics model.

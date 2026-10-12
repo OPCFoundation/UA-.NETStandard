@@ -29,6 +29,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Intent.Tests.Infrastructure

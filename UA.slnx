@@ -11,6 +11,8 @@
     <Project Path="samples/Robotics/BinPickingClient/BinPickingClient.csproj" />
     <Project Path="samples/Vision/VisualInspectionCell/VisualInspectionCell.csproj" />
     <Project Path="samples/Vision/VisualInspectionAgent/VisualInspectionAgent.csproj" />
+    <Project Path="samples/Vision/MachineVisionServer/MachineVisionServer.csproj" />
+    <Project Path="samples/Vision/MachineVisionClient/MachineVisionClient.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
   <Folder Name="/samples/AI/">
@@ -168,6 +170,9 @@
     <Project Path="src/Opc.Ua.Vision/Opc.Ua.Vision.csproj" />
     <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision/Opc.Ua.MachineVision.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Client/Opc.Ua.MachineVision.Client.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Server/Opc.Ua.MachineVision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />

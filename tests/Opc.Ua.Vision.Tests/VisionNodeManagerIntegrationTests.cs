@@ -29,15 +29,14 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
-using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Tests
 {
     /// <summary>
     /// Integration tests over a real <see cref="VisionNodeManager"/>
-    /// booted inside a <see cref="Opc.Ua.Server.TestFramework.ServerFixture{T}"/>.
+    /// booted inside a <see cref="Ua.Server.TestFramework.ServerFixture{T}"/>.
     /// These exercise the address-space bootstrap, the fluent build
     /// context, and the small policy surfaces on the manager itself.
     /// </summary>

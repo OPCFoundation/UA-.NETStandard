@@ -148,7 +148,7 @@ namespace Opc.Ua.Mcp.Tools
                     "Invalid detail value.");
             }
 
-            if (request.MaxItems < 0 || request.MaxItems > 100)
+            if (request.MaxItems is < 0 or > 100)
             {
                 throw new System.ArgumentOutOfRangeException(
                     nameof(request),
@@ -335,7 +335,7 @@ namespace Opc.Ua.Mcp.Tools
             return new VisionInferenceDetectionSummary
             {
                 TotalDetections = summary.TotalDetections,
-                Items = items.ToArray()
+                Items = [.. items]
             };
         }
 
@@ -365,7 +365,7 @@ namespace Opc.Ua.Mcp.Tools
                 PartId = summary.PartId,
                 RecipeId = summary.RecipeId,
                 TotalCharacteristics = summary.TotalCharacteristics,
-                Items = items.ToArray()
+                Items = [.. items]
             };
         }
 
@@ -442,7 +442,7 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Overall inspection evaluation.
         /// </summary>
-        public Vision.VisionResultEvaluationEnum Evaluation { get; init; }
+        public Vision.Perception.VisionResultEvaluationEnum Evaluation { get; init; }
 
         /// <summary>
         /// Inspected part identifier, when reported.
@@ -478,7 +478,7 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Tolerance status.
         /// </summary>
-        public Vision.VisionToleranceStatusEnum Status { get; init; }
+        public Vision.Perception.VisionToleranceStatusEnum Status { get; init; }
 
         /// <summary>
         /// Deviation from the nominal value.

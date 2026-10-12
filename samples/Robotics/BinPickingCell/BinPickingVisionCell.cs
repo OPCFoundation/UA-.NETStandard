@@ -33,9 +33,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Server;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.OpenUsd;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Builders;
 
@@ -170,7 +169,7 @@ namespace Vision.BinPickingCell
 
         private void AddPipeline(IVisionBuildContext context)
         {
-            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            var deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             bool offServer = m_options.InferenceLocation == BinPickingInferenceLocation.EdgeOffServer;
             context.Nodes.AddPipeline(PipelineBrowseName, pipe =>
             {
@@ -213,7 +212,7 @@ namespace Vision.BinPickingCell
                     "The Vision builder must create the pipeline's Results folder.");
             await ValueTask.CompletedTask.ConfigureAwait(false);
             VisionIntrinsicsDataType intrinsics = BuildIntrinsics();
-            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            var deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             var target = new BinPickingInferenceTarget(
                 context.Manager,
                 context.Context,
@@ -322,12 +321,9 @@ namespace Vision.BinPickingCell
         private async ValueTask AttachSimulatedTwinAsync(
             IVisionBuildContext context, CancellationToken cancellationToken)
         {
-            ImageSensorState? sensor = FindSensor(context, SensorTwinBrowseName);
-            if (sensor == null)
-            {
+            ImageSensorState? sensor = FindSensor(context, SensorTwinBrowseName) ??
                 throw new InvalidOperationException(
                     "Sensor '" + SensorTwinBrowseName + "' was not registered on the Vision node manager.");
-            }
             IVisionSimulatedState simulated = context.Context.CreateInstanceOfIVisionSimulatedType(
                 sensor,
                 new QualifiedName("Simulated", context.VisionNamespaceIndex));
@@ -398,7 +394,7 @@ namespace Vision.BinPickingCell
                 FrameId = frameId,
                 Position = new[] { x, y, z }.ToArrayOf(),
                 Orientation = s_identityOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -409,7 +405,7 @@ namespace Vision.BinPickingCell
                 FrameId = BinPickingRobotCell.FlangeFrameId,
                 Position = s_handEyePosition.ToArrayOf(),
                 Orientation = s_handEyeOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -420,7 +416,7 @@ namespace Vision.BinPickingCell
                 FrameId = BinPickingRobotCell.RobotBaseFrameId,
                 Position = s_flangeScanPosition.ToArrayOf(),
                 Orientation = s_flangeScanOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -431,7 +427,7 @@ namespace Vision.BinPickingCell
                 FrameId = BinPickingRobotCell.WorldFrameId,
                 Position = s_cameraInWorldPosition.ToArrayOf(),
                 Orientation = s_cameraInWorldOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 

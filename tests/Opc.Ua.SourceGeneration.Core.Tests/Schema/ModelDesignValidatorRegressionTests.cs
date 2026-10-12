@@ -514,6 +514,89 @@ namespace Opc.Ua.Schema.Model.Tests
                 """;
         }
 
+        /// <summary>
+        /// Recursive optional variables, such as Machine Vision AMCM SubStates,
+        /// retain their declaration without expanding an infinite instance tree.
+        /// </summary>
+        [Test]
+        public void RecursiveOptionalVariablePreservesItsDeclaredChildren()
+        {
+            string path = AddDesign(
+                "Recursive",
+                """
+                <opc:VariableType SymbolicName="TreeType"
+                    BaseType="ua:BaseDataVariableType" DataType="ua:Int32">
+                  <opc:Children>
+                    <opc:Property SymbolicName="Info" DataType="ua:String" ModellingRule="Mandatory" />
+                    <opc:Variable SymbolicName="SubStates" TypeDefinition="TreeType"
+                        DataType="ua:Int32" ModellingRule="Optional">
+                      <opc:Children>
+                        <opc:Property SymbolicName="Info" DataType="ua:String" ModellingRule="Mandatory" />
+                      </opc:Children>
+                    </opc:Variable>
+                  </opc:Children>
+                </opc:VariableType>
+                """);
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null!);
+
+            var type = (VariableTypeDesign)FindNode(validator, "TreeType", "Recursive");
+            Assert.That(
+                type.Hierarchy.NodeList.ConvertAll(node => node.RelativePath),
+                Is.EquivalentTo(new[] { string.Empty, "Info", "SubStates", "SubStates_Info" }));
+            var child = (VariableDesign)type.Hierarchy.NodeList
+                .Single(node => node.RelativePath == "SubStates").Instance!;
+            Assert.That(child.TypeDefinition, Is.EqualTo(type.SymbolicId));
+            Assert.That(child.ModellingRule, Is.EqualTo(ModellingRule.Optional));
+        }
+
+        [Test]
+        public void IndirectOptionalRecursionPreservesMandatoryDescendants()
+        {
+            string path = AddDesign("OptionalCycle",
+                """
+                <opc:ObjectType SymbolicName="AType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Property SymbolicName="Info" DataType="ua:String" ModellingRule="Mandatory" />
+                    <opc:Object SymbolicName="OptionalB" TypeDefinition="BType" ModellingRule="Optional" />
+                  </opc:Children>
+                </opc:ObjectType>
+                <opc:ObjectType SymbolicName="BType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Object SymbolicName="RequiredA" TypeDefinition="AType" ModellingRule="Mandatory" />
+                  </opc:Children>
+                </opc:ObjectType>
+                """);
+            ModelDesignValidator validator = CreateValidator();
+            validator.Validate([path], [], null!);
+            var type = (ObjectTypeDesign)FindNode(validator, "BType", "OptionalCycle");
+            Assert.That(type.Hierarchy.NodeList.ConvertAll(node => node.RelativePath),
+                Is.EquivalentTo(new[] { string.Empty, "RequiredA", "RequiredA_Info", "RequiredA_OptionalB" }));
+        }
+
+        [Test]
+        public void MandatoryRecursionHasNoFiniteInstance()
+        {
+            string path = AddDesign("MandatoryCycle",
+                """
+                <opc:ObjectType SymbolicName="AType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Object SymbolicName="RequiredB" TypeDefinition="BType" ModellingRule="Mandatory" />
+                  </opc:Children>
+                </opc:ObjectType>
+                <opc:ObjectType SymbolicName="BType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Object SymbolicName="RequiredA" TypeDefinition="AType" ModellingRule="Mandatory" />
+                  </opc:Children>
+                </opc:ObjectType>
+                """);
+            ModelDesignValidator validator = CreateValidator();
+            InvalidOperationException? error = Assert.Throws<InvalidOperationException>(() =>
+                validator.Validate([path], [], null!));
+            Assert.That(error!.Message, Does.Contain("Recursive mandatory instance"));
+        }
+
         private static string NamespaceUri(string name)
         {
             return $"http://test.org/UA/{name}/";

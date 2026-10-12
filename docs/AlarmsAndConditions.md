@@ -43,6 +43,7 @@ For the formal model, see
 | Shelve / Unshelve | `SetShelvingState` | `AlarmClient.TimedShelveAsync` / `OneShotShelveAsync` / `UnshelveAsync` |
 | Re-alarm | `ProcessReAlarm` | n/a (server timer) |
 | Filtered retain | `ConditionState.SupportsFilteredRetain` | n/a (per-subscription) |
+| Additional retention | `ConditionState.RetainStateProvider` | read Retain / observe condition events |
 | Alarm groups | `AlarmGroup`, `AlarmSuppressionEngine` | `AlarmClient.GetGroupMembershipsAsync` |
 | Alarm rate | `AlarmRateTracker` | read `AlarmMetricsType` attributes |
 | Refresh state | `Server.ConditionRefresh` (server-driven) | `AlarmClient.ConditionRefreshAsync` / `ConditionRefresh2Async` |
@@ -78,6 +79,13 @@ await new AlarmConditionTypeClient(session, conditionId, telemetry)
 ```
 
 ## Server side
+
+An enabled condition can supply `RetainStateProvider` for an additional
+application retention requirement, such as an unresolved Machine Vision error
+that must remain visible after acknowledgement. Returning false does not bypass
+standard acknowledgement, confirmation, or branch retention. Disabled conditions
+are not retained by this provider. The callback must be non-blocking and receives
+the branch being evaluated when the condition is branched.
 
 Fluent-created alarms have distinct per-instance NodeIds for their entire
 subtree, including condition Methods and state properties. Configuring

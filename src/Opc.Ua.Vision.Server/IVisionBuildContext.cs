@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server.Builders;
 
 namespace Opc.Ua.Vision.Server

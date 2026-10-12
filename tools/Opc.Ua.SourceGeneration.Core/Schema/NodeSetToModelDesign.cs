@@ -2336,7 +2336,8 @@ namespace Opc.Ua.Schema.Model
 
                         foreach (InstanceDesign child in type.Children.Items)
                         {
-                            if (child.BrowseName == type.ClassName)
+                            if (child.BrowseName == type.ClassName ||
+                                child.SymbolicName.Name == type.ClassName + "State")
                             {
                                 type.ClassName = className +
                                     (type is VariableTypeDesign ? "Variable" : "Object");

@@ -61,7 +61,7 @@ namespace Opc.Ua.Aot.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             await Assert.That(StatusCode.IsGood(nsArray.StatusCode)).IsTrue();
-            string[] uris = nsArray.GetValue<string[]>(null);
+            string[]? uris = nsArray.GetValue<string[]?>(null);
             await Assert.That(uris).IsNotNull();
             await Assert.That(uris).Contains(kBoilerNamespaceUri);
         }
@@ -225,17 +225,21 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class BoilerAotFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; }
-        public Client.ISession Session { get; private set; }
-        public string ServerUrl { get; private set; }
-        public ITelemetryContext Telemetry { get; private set; }
+        public AotServerFixture<BoilerTestServer> ServerFixture => m_serverFixture
+            ?? throw new InvalidOperationException("The boiler server fixture has not been initialized.");
+
+        public Client.ISession Session => m_session
+            ?? throw new InvalidOperationException("The boiler client session has not been initialized.");
+
+        public string ServerUrl { get; private set; } = null!;
+        public ITelemetryContext Telemetry { get; private set; } = null!;
 
         public async Task InitializeAsync()
         {
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
 
-            ServerFixture = new AotServerFixture<BoilerTestServer>(
+            m_serverFixture = new AotServerFixture<BoilerTestServer>(
                 t => new BoilerTestServer(t), Telemetry)
             {
                 AutoAccept = true,
@@ -298,14 +302,15 @@ namespace Opc.Ua.Aot.Tests
             EndpointDescription endpointDescription =
                 await CoreClientUtils.SelectEndpointAsync(
                     m_clientConfiguration, ServerUrl, useSecurity: false,
-                    Telemetry, CancellationToken.None).ConfigureAwait(false);
+                    Telemetry, CancellationToken.None).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("No suitable boiler server endpoint was found.");
             var configuredEndpoint = new ConfiguredEndpoint(
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
             var sessionFactory = new DefaultSessionFactory(Telemetry);
 #pragma warning disable CA2000 // Dispose objects before losing scope
-            Session = await sessionFactory.CreateAsync(
+            m_session = await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,
                 updateBeforeConnect: false,
@@ -319,28 +324,30 @@ namespace Opc.Ua.Aot.Tests
 
         public async ValueTask DisposeAsync()
         {
-            if (Session != null)
+            if (m_session != null)
             {
-                await Session.CloseAsync(CancellationToken.None)
+                await m_session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                await Session.DisposeAsync().ConfigureAwait(false);
-                Session = null;
+                await m_session.DisposeAsync().ConfigureAwait(false);
+                m_session = null;
             }
             if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
             {
                 disposableManager.Dispose();
-                m_clientConfiguration.CertificateManager = null;
             }
-            if (ServerFixture != null)
+            m_clientConfiguration = null;
+            if (m_serverFixture != null)
             {
-                await ServerFixture.StopAsync().ConfigureAwait(false);
-                ServerFixture = null;
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
+                m_serverFixture = null;
             }
             GC.SuppressFinalize(this);
         }
 
-        private ApplicationConfiguration m_clientConfiguration;
-        private string m_pkiRoot;
+        private AotServerFixture<BoilerTestServer>? m_serverFixture;
+        private Client.ISession? m_session;
+        private ApplicationConfiguration? m_clientConfiguration;
+        private string? m_pkiRoot;
     }
 
     /// <summary>

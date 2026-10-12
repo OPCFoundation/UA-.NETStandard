@@ -142,11 +142,11 @@ namespace Opc.Ua.Aot.Tests
             bool argumentsMatch = true;
             bool asyncContextCleared = true;
             var expectedFailure = new InvalidOperationException("AOT event sink failure");
-            InvalidOperationException reportedFailure = null;
+            InvalidOperationException? reportedFailure = null;
 
             var dispatch = Task.Run(() =>
             {
-                SynchronizationContext previous = SynchronizationContext.Current;
+                SynchronizationContext? previous = SynchronizationContext.Current;
                 try
                 {
                     SynchronizationContext.SetSynchronizationContext(

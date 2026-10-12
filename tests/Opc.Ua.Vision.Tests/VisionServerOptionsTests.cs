@@ -126,7 +126,7 @@ namespace Opc.Ua.Vision.Tests
         {
             var options = new VisionServerOptions
             {
-                InstanceNamespaceUri = global::Opc.Ua.Vision.Namespaces.Vision
+                InstanceNamespaceUri = Perception.Namespaces.Vision
             };
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(options.Validate)!;

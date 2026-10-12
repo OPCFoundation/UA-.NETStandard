@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -41,7 +41,7 @@ namespace Opc.Ua.Vision.Client
     /// Reads identity, imaging or depth members, optics, illumination, the sensor's
     /// mounted frame, and its intrinsic and hand-eye extrinsic calibrations, so a
     /// caller can act on detections in world coordinates without knowing NodeIds
-    /// or BrowseNames.
+    /// or Perception.BrowseNames.
     /// </summary>
     public sealed class VisionSensorClient
     {
@@ -78,14 +78,14 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.SensorId,
-                BrowseNames.RealityKind,
-                BrowseNames.Modality,
-                BrowseNames.Manufacturer,
-                BrowseNames.Model,
-                BrowseNames.SerialNumber,
-                BrowseNames.DeviceUri,
-                BrowseNames.FrameId
+                Perception.BrowseNames.SensorId,
+                Perception.BrowseNames.RealityKind,
+                Perception.BrowseNames.Modality,
+                Perception.BrowseNames.Manufacturer,
+                Perception.BrowseNames.Model,
+                Perception.BrowseNames.SerialNumber,
+                Perception.BrowseNames.DeviceUri,
+                Perception.BrowseNames.FrameId
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 SensorNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -134,13 +134,13 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.Width,
-                BrowseNames.Height,
-                BrowseNames.PixelFormat,
-                BrowseNames.ExposureTime,
-                BrowseNames.Gain,
-                BrowseNames.AcquisitionFrameRate,
-                BrowseNames.Intrinsics
+                Perception.BrowseNames.Width,
+                Perception.BrowseNames.Height,
+                Perception.BrowseNames.PixelFormat,
+                Perception.BrowseNames.ExposureTime,
+                Perception.BrowseNames.Gain,
+                Perception.BrowseNames.AcquisitionFrameRate,
+                Perception.BrowseNames.Intrinsics
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 SensorNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -189,11 +189,11 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.MinDepth,
-                BrowseNames.MaxDepth,
-                BrowseNames.DepthScale,
-                BrowseNames.Baseline,
-                BrowseNames.PointsPerFrame
+                Perception.BrowseNames.MinDepth,
+                Perception.BrowseNames.MaxDepth,
+                Perception.BrowseNames.DepthScale,
+                Perception.BrowseNames.Baseline,
+                Perception.BrowseNames.PointsPerFrame
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 SensorNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -250,9 +250,9 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.FocalLength,
-                BrowseNames.Aperture,
-                BrowseNames.MinimumWorkingDistance
+                Perception.BrowseNames.FocalLength,
+                Perception.BrowseNames.Aperture,
+                Perception.BrowseNames.MinimumWorkingDistance
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 optics.ObjectId, members, cancellationToken).ConfigureAwait(false);
@@ -293,8 +293,8 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.Wavelength,
-                BrowseNames.RelativeIntensity
+                Perception.BrowseNames.Wavelength,
+                Perception.BrowseNames.RelativeIntensity
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 illumination.ObjectId, members, cancellationToken).ConfigureAwait(false);
@@ -328,13 +328,13 @@ namespace Opc.Ua.Vision.Client
         {
             ArrayOf<ReferenceDescription> refs = await m_operations.BrowseAsync(
                 SensorNodeId,
-                m_operations.VisionReference(ReferenceTypes.MountedOn),
+                m_operations.VisionReference(Perception.ReferenceTypes.MountedOn),
                 BrowseDirection.Forward,
                 (uint)NodeClass.Object,
                 cancellationToken).ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId target = ExpandedNodeId.ToNodeId(
+                var target = ExpandedNodeId.ToNodeId(
                     refs[ii].NodeId, m_operations.Session.NamespaceUris);
                 if (!target.IsNull)
                 {
@@ -374,7 +374,7 @@ namespace Opc.Ua.Vision.Client
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId calibrationType = m_operations.VisionNamespaceType(
-                ObjectTypes.VisionCalibrationType);
+                Perception.ObjectTypes.VisionCalibrationType);
             if (calibrationType.IsNull)
             {
                 yield break;
@@ -382,7 +382,7 @@ namespace Opc.Ua.Vision.Client
             var refs = new List<ReferenceDescription>();
             ArrayOf<ReferenceDescription> direct = await m_operations.BrowseAsync(
                 SensorNodeId,
-                m_operations.VisionReference(ReferenceTypes.HasCalibration),
+                m_operations.VisionReference(Perception.ReferenceTypes.HasCalibration),
                 BrowseDirection.Forward,
                 (uint)NodeClass.Object,
                 cancellationToken).ConfigureAwait(false);
@@ -405,9 +405,9 @@ namespace Opc.Ua.Vision.Client
             var seen = new HashSet<NodeId>();
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     refs[ii].NodeId, m_operations.Session.NamespaceUris);
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
                 if (nodeId.IsNull || typeDef.IsNull || !seen.Add(nodeId))
                 {
@@ -445,12 +445,12 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.CalibrationId,
-                BrowseNames.PerformedAt,
-                BrowseNames.Valid,
-                BrowseNames.ResidualError,
-                BrowseNames.Method,
-                BrowseNames.Intrinsics
+                Perception.BrowseNames.CalibrationId,
+                Perception.BrowseNames.PerformedAt,
+                Perception.BrowseNames.Valid,
+                Perception.BrowseNames.ResidualError,
+                Perception.BrowseNames.Method,
+                Perception.BrowseNames.Intrinsics
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 calibrationNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -503,15 +503,15 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.CalibrationId,
-                BrowseNames.PerformedAt,
-                BrowseNames.Valid,
-                BrowseNames.ResidualError,
-                BrowseNames.Method,
-                BrowseNames.Mount,
-                BrowseNames.SourceFrame,
-                BrowseNames.TargetFrame,
-                BrowseNames.Transform
+                Perception.BrowseNames.CalibrationId,
+                Perception.BrowseNames.PerformedAt,
+                Perception.BrowseNames.Valid,
+                Perception.BrowseNames.ResidualError,
+                Perception.BrowseNames.Method,
+                Perception.BrowseNames.Mount,
+                Perception.BrowseNames.SourceFrame,
+                Perception.BrowseNames.TargetFrame,
+                Perception.BrowseNames.Transform
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 calibrationNodeId, members, cancellationToken).ConfigureAwait(false);

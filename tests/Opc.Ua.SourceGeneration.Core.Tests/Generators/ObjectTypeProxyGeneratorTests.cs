@@ -417,18 +417,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "public partial class FooTypeClient : global::" + kTestNamespacePrefix + ".FooBaseTypeClient"));
         }
 
-        [Test]
-        public void Emit_MethodNameShadowsAncestor_EmitsNewModifier()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MethodEmitsNewOnlyWhenItsInputSignatureMatchesAncestor(bool matchingSignature)
         {
-            // Both base and derived declare a method called DoIt; the
-            // generator must emit `public new async ... DoItAsync(...)` on
-            // the derived proxy so that it hides (not overrides) the base
-            // implementation.
-            MethodDesign baseDoIt = CreateMethod("DoIt");
+            MethodDesign baseDoIt = CreateMethod(
+                "DoIt",
+                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
             ObjectTypeDesign baseType = CreateObjectType("FooBaseType", baseDoIt);
             MethodDesign derivedDoIt = CreateMethod(
                 "DoIt",
-                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
+                inputs: [CreateParameter(
+                    "requestId",
+                    matchingSignature ? BasicDataType.Int32 : BasicDataType.String)]);
             ObjectTypeDesign derived = CreateObjectType("FooType", derivedDoIt);
             derived.BaseTypeNode = baseType;
             m_mockModelDesign
@@ -443,9 +444,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
-            // The derived class section contains the `new` modifier on the
-            // shadowed method.
-            Assert.That(content, Does.Contain("public new async"));
+            Assert.That(
+                content.Contains("public new async", StringComparison.Ordinal),
+                Is.EqualTo(matchingSignature));
         }
 
         [Test]

@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI.Server;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Vision.VisualInspectionCell
@@ -165,7 +165,8 @@ namespace Vision.VisualInspectionCell
             if (request.CorrectedCharacteristics.Count > 0)
             {
                 string resultId = FormattableString.Invariant($"correction-{Sanitize(request.ResultId)}");
-                VisionImageReferenceDataType frameReference = TryGetImageReference(request.ResultId, out var image)
+                VisionImageReferenceDataType frameReference = TryGetImageReference(request.ResultId,
+                    out VisionImageReferenceDataType? image)
                     ? image
                     : FrameFromPublished(request.ResultId);
                 await m_publisher.PublishAsync(
@@ -194,7 +195,7 @@ namespace Vision.VisualInspectionCell
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(request.ResultId))
             {
-                return ValueTask.FromResult<ServiceResult>(new ServiceResult(
+                return ValueTask.FromResult(new ServiceResult(
                     StatusCodes.BadInvalidArgument,
                     LocalizedText.From("An image reference must name the result it belongs to.")));
             }

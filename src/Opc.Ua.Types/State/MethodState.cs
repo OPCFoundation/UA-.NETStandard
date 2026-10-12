@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -218,6 +219,12 @@ namespace Opc.Ua
         /// Only works if the server / node managers supports async method calls.
         /// </summary>
         public GenericMethodCalledEventHandler2Async? OnCallMethod2Async;
+
+        /// <summary>
+        /// Raised before an asynchronous call returns without invoking its handler because
+        /// executability or input validation failed. Synchronous calls do not invoke this callback.
+        /// </summary>
+        public MethodCallValidationFailedEventHandler? OnCallValidationFailedAsync;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -717,7 +724,9 @@ namespace Opc.Ua
 
             if (executable.TryGetValue(out bool exec) && !exec)
             {
-                return StatusCodes.BadNotExecutable;
+                return await ReportValidationFailureAsync(
+                    context, objectId, inputArguments, StatusCodes.BadNotExecutable, sync, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // check if user executable.
@@ -726,7 +735,9 @@ namespace Opc.Ua
 
             if (userExecutable.TryGetValue(out bool userExec) && !userExec)
             {
-                return StatusCodes.BadUserAccessDenied;
+                return await ReportValidationFailureAsync(
+                    context, objectId, inputArguments, StatusCodes.BadUserAccessDenied, sync, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // validate input arguments.
@@ -749,12 +760,16 @@ namespace Opc.Ua
                     context,
                     expectedInputArguments!.Value) > inputArguments.Count)
             {
-                return StatusCodes.BadArgumentsMissing;
+                return await ReportValidationFailureAsync(
+                    context, objectId, inputArguments, StatusCodes.BadArgumentsMissing, sync, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             if (expectedCount < inputArguments.Count)
             {
-                return StatusCodes.BadTooManyArguments;
+                return await ReportValidationFailureAsync(
+                    context, objectId, inputArguments, StatusCodes.BadTooManyArguments, sync, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             // validate individual arguements.
@@ -779,6 +794,9 @@ namespace Opc.Ua
             // return good - caller must check argument errors.
             if (error)
             {
+                await ReportValidationFailureAsync(
+                    context, objectId, inputArguments, StatusCodes.BadInvalidArgument, sync, cancellationToken)
+                    .ConfigureAwait(false);
                 return ServiceResult.Good;
             }
 
@@ -1094,11 +1112,73 @@ namespace Opc.Ua
                 context.TypeTable);
         }
 
+        private async ValueTask<ServiceResult> ReportValidationFailureAsync(
+            ISystemContext context,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            ServiceResult error,
+            bool sync,
+            CancellationToken cancellationToken)
+        {
+            MethodCallValidationFailedEventHandler? handler = OnCallValidationFailedAsync;
+            if (!sync && handler != null)
+            {
+                try
+                {
+                    await handler(context, this, objectId, inputArguments, error, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception observerError)
+                {
+                    context.Telemetry.CreateLogger<MethodState>()
+                        .ValidationObserverFailed(NodeId, error.StatusCode, observerError);
+                }
+            }
+            return error;
+        }
+
         private bool m_executable;
         private bool m_userExecutable;
         private PropertyState<ArrayOf<Argument>>? m_inputArguments;
         private PropertyState<ArrayOf<Argument>>? m_outputArguments;
     }
+
+    /// <summary>
+    /// Diagnostics for failures in optional method-validation observers.
+    /// </summary>
+    internal static partial class MethodStateLog
+    {
+        /// <summary>
+        /// Records an observer failure while the caller receives the original validation status.
+        /// </summary>
+        [LoggerMessage(EventId = TypesEventIds.MethodState, Level = LogLevel.Warning,
+            Message = "Validation observer failed for method {MethodId}; preserving {ValidationStatus}.")]
+        public static partial void ValidationObserverFailed(
+            this ILogger logger, NodeId methodId, StatusCode validationStatus, Exception exception);
+    }
+
+    /// <summary>
+    /// Observes a failed asynchronous method-call validation without replacing its service result.
+    /// </summary>
+    /// <param name="context">The calling session's system context.</param>
+    /// <param name="method">The method that rejected the call.</param>
+    /// <param name="objectId">The requested target object.</param>
+    /// <param name="inputArguments">The unvalidated inputs; observers must redact sensitive values.</param>
+    /// <param name="error">
+    /// The validation failure, including per-argument failures summarized as BadInvalidArgument.
+    /// </param>
+    /// <param name="cancellationToken">The call cancellation token.</param>
+    public delegate ValueTask MethodCallValidationFailedEventHandler(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        ArrayOf<Variant> inputArguments,
+        ServiceResult error,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Used to process a method call.

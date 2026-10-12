@@ -63,7 +63,10 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             m_world = world ?? throw new ArgumentNullException(nameof(world));
         }
 
-        public bool CanCancel(IntentExecution execution) => true;
+        public bool CanCancel(IntentExecution execution)
+        {
+            return true;
+        }
 
         public ValueTask<IntentOutcome> ExecuteAsync(
             IntentExecution execution, CancellationToken cancellationToken)
@@ -75,7 +78,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             string intentId = execution.Intent.IntentId ?? string.Empty;
             execution.Progress.ReportProgress(1.0);
 
-            if (execution.Intent is GraspIntentDataType grasp &&
+            if (execution.Intent is GraspIntentDataType &&
                 TryExtractClassLabel(intentId, "grasp-", out string graspLabel))
             {
                 m_world.MarkHeld(graspLabel);
@@ -116,7 +119,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             {
                 end = intentId.Length;
             }
-            classLabel = intentId.Substring(start, end - start);
+            classLabel = intentId[start..end];
             return classLabel.Length > 0;
         }
 

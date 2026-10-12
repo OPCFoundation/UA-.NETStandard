@@ -30,8 +30,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -49,22 +49,22 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadIdentityReturnsAllPopulatedMembers()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.SensorId,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.SensorId,
                 new(2500u, 3), "cam-1");
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.RealityKind,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.RealityKind,
                 new(2501u, 3), (int)VisionRealityKindEnum.Physical);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Modality,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Modality,
                 new(2502u, 3), (int)VisionSensorModalityEnum.Area2D);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Manufacturer,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Manufacturer,
                 new(2503u, 3), new LocalizedText("ACME"));
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Model,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Model,
                 new(2504u, 3), new LocalizedText("Model X"));
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.SerialNumber,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.SerialNumber,
                 new(2505u, 3), "SN-1");
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.DeviceUri,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.DeviceUri,
                 new(2506u, 3), "urn:acme:camera:1");
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.FrameId,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.FrameId,
                 new(2507u, 3), "cam-1");
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -89,7 +89,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadImageMembersReturnsNullWhenCoreMembersAbsent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             VisionImageSensorSnapshot? snapshot = await sensor.ReadImageMembersAsync()
@@ -103,18 +103,18 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadImageMembersReturnsPopulatedSnapshotWhenPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Width,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Width,
                 new(2510u, 3), 1920u);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Height,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Height,
                 new(2511u, 3), 1080u);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.PixelFormat,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.PixelFormat,
                 new(2512u, 3), "Mono8");
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.ExposureTime,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.ExposureTime,
                 new(2513u, 3), 0.001);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Gain,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Gain,
                 new(2514u, 3), 1.5);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.AcquisitionFrameRate,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.AcquisitionFrameRate,
                 new(2515u, 3), 30.0);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -137,7 +137,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadDepthMembersReturnsNullWhenNoDepthMembersPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.Depth3DSensorType);
+            harness.AddSensor(Perception.ObjectTypes.Depth3DSensorType);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             VisionDepth3DSensorSnapshot? snapshot = await sensor.ReadDepthMembersAsync()
@@ -150,16 +150,16 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadDepthMembersReturnsPopulatedSnapshotWhenPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.Depth3DSensorType);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.MinDepth,
+            harness.AddSensor(Perception.ObjectTypes.Depth3DSensorType);
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.MinDepth,
                 new(2520u, 3), 0.1);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.MaxDepth,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.MaxDepth,
                 new(2521u, 3), 5.0);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.DepthScale,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.DepthScale,
                 new(2522u, 3), 0.001);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.Baseline,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.Baseline,
                 new(2523u, 3), 0.05);
-            harness.AddValueChild(harness.SensorNodeId, BrowseNames.PointsPerFrame,
+            harness.AddValueChild(harness.SensorNodeId, Perception.BrowseNames.PointsPerFrame,
                 new(2524u, 3), 640u * 480u);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -181,7 +181,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadOpticsReturnsNullWhenNotPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             VisionOpticsSnapshot? optics = await sensor.ReadOpticsAsync()
@@ -194,13 +194,13 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadOpticsReadsMembersWhenPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddChild(harness.SensorNodeId, BrowseNames.Optics, harness.OpticsNodeId);
-            harness.AddValueChild(harness.OpticsNodeId, BrowseNames.FocalLength,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddChild(harness.SensorNodeId, Perception.BrowseNames.Optics, harness.OpticsNodeId);
+            harness.AddValueChild(harness.OpticsNodeId, Perception.BrowseNames.FocalLength,
                 new(2530u, 3), 8.0);
-            harness.AddValueChild(harness.OpticsNodeId, BrowseNames.Aperture,
+            harness.AddValueChild(harness.OpticsNodeId, Perception.BrowseNames.Aperture,
                 new(2531u, 3), 2.8);
-            harness.AddValueChild(harness.OpticsNodeId, BrowseNames.MinimumWorkingDistance,
+            harness.AddValueChild(harness.OpticsNodeId, Perception.BrowseNames.MinimumWorkingDistance,
                 new(2532u, 3), 0.3);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -221,7 +221,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadIlluminationReturnsNullWhenNotPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             VisionIlluminationSnapshot? illumination = await sensor.ReadIlluminationAsync()
@@ -234,12 +234,12 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadIlluminationReadsMembersWhenPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddChild(harness.SensorNodeId, BrowseNames.Illumination,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddChild(harness.SensorNodeId, Perception.BrowseNames.Illumination,
                 harness.IlluminationNodeId);
-            harness.AddValueChild(harness.IlluminationNodeId, BrowseNames.Wavelength,
+            harness.AddValueChild(harness.IlluminationNodeId, Perception.BrowseNames.Wavelength,
                 new(2540u, 3), 850.0);
-            harness.AddValueChild(harness.IlluminationNodeId, BrowseNames.RelativeIntensity,
+            harness.AddValueChild(harness.IlluminationNodeId, Perception.BrowseNames.RelativeIntensity,
                 new(2541u, 3), 0.9);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -259,7 +259,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task GetMountedFrameIdReturnsNullNodeIdWhenNotMounted()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             NodeId mount = await sensor.GetMountedFrameIdAsync().ConfigureAwait(false);
@@ -271,7 +271,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task GetMountedFrameIdReturnsFrameWhenMountedOnReferenceExists()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             harness.AppendBrowse(harness.SensorNodeId, new ReferenceDescription
             {
                 NodeId = new ExpandedNodeId(harness.FrameNodeId),
@@ -279,8 +279,8 @@ namespace Opc.Ua.Vision.Tests
                 DisplayName = new LocalizedText("MyMount"),
                 NodeClass = NodeClass.Object,
                 TypeDefinition = new ExpandedNodeId(
-                    new NodeId(ObjectTypes.CoordinateFrameType, harness.VisionNamespaceIndex)),
-                ReferenceTypeId = new NodeId(ReferenceTypes.MountedOn, harness.VisionNamespaceIndex),
+                    new NodeId(Perception.ObjectTypes.CoordinateFrameType, harness.VisionNamespaceIndex)),
+                ReferenceTypeId = new NodeId(Perception.ReferenceTypes.MountedOn, harness.VisionNamespaceIndex),
                 IsForward = true
             });
 
@@ -294,12 +294,12 @@ namespace Opc.Ua.Vision.Tests
         public async Task EnumerateCalibrationsYieldsCalibrationsFromNestedFolder()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddChild(harness.SensorNodeId, BrowseNames.Calibrations,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddChild(harness.SensorNodeId, Perception.BrowseNames.Calibrations,
                 harness.CalibrationsFolderId);
             harness.AddBrowse(harness.CalibrationsFolderId,
                 [harness.Ref(harness.IntrinsicCalibrationNodeId, "Intrinsic",
-                    ObjectTypes.IntrinsicCalibrationType)]);
+                    Perception.ObjectTypes.IntrinsicCalibrationType)]);
 
             var entries = new List<VisionNodeEntry>();
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -313,31 +313,32 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task ReadIntrinsicCalibrationThrowsForNullNodeId()
+        public Task ReadIntrinsicCalibrationThrowsForNullNodeId()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
             Assert.ThrowsAsync<System.ArgumentException>(async () =>
                 await sensor.ReadIntrinsicCalibrationAsync(NodeId.Null)
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
         public async Task ReadIntrinsicCalibrationReturnsPopulatedSnapshot()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, BrowseNames.CalibrationId,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.CalibrationId,
                 new(2600u, 3), "cal-1");
-            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, BrowseNames.PerformedAt,
+            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.PerformedAt,
                 new(2601u, 3), new DateTimeUtc(new System.DateTime(2024, 1, 1)));
-            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, BrowseNames.Valid,
+            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.Valid,
                 new(2602u, 3), true);
-            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, BrowseNames.ResidualError,
+            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.ResidualError,
                 new(2603u, 3), 0.15);
-            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, BrowseNames.Method,
+            harness.AddValueChild(harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.Method,
                 new(2604u, 3), "Zhang");
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -356,22 +357,23 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task ReadExtrinsicCalibrationThrowsForNullNodeId()
+        public Task ReadExtrinsicCalibrationThrowsForNullNodeId()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
             Assert.ThrowsAsync<System.ArgumentException>(async () =>
                 await sensor.ReadExtrinsicCalibrationAsync(NodeId.Null)
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
         public async Task OpenMediaReturnsNullWhenNoMediaObjectPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
             VisionMediaClient? media = await sensor.OpenMediaAsync()
@@ -384,8 +386,8 @@ namespace Opc.Ua.Vision.Tests
         public async Task OpenMediaReturnsClientWhenMediaObjectPresent()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddChild(harness.SensorNodeId, BrowseNames.Media, harness.MediaNodeId);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddChild(harness.SensorNodeId, Perception.BrowseNames.Media, harness.MediaNodeId);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
             VisionMediaClient? media = await sensor.OpenMediaAsync()
