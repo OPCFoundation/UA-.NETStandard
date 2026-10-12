@@ -49,6 +49,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The synchronous NodeManagers to add.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -61,6 +65,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The asynchronous NodeManagers to add.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -73,6 +81,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The asynchronous NodeManagers to add, or <c>null</c>.</param>
+        /// <param name="additionalSyncManagers">The synchronous NodeManagers to add, or <c>null</c>.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
