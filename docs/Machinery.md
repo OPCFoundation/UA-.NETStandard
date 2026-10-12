@@ -378,6 +378,15 @@ When no provider is supplied explicitly the builder resolves
 `IIsa95JobOrderReceiverV2` from the application services, so
 `AddInMemoryIsa95JobControlProvider()` is enough for a demo server.
 
+Companion models can bind an already-declared job-management child with
+`machine.WithJobManagement(existingJobManagement, configure)`. This overload
+preserves the child's identity and validates **both** the receiver and response
+provider before publishing the machine. Explicit per-machine providers never
+borrow another instance's catalog from the container. The original
+`WithJobManagement(configure)` overload retains its receiver-only compatibility
+behavior; choose the companion overload when complete response handling is
+required.
+
 `MachineryEndToEndTests.JobControlPausesResumesAndRevokesStartThroughAMachineAsync`
 drives `Pause`, `Resume` and `RevokeStart` through a machine over `opc.tcp`,
 both the accepted transitions and the refused ones (revoking a running order,
@@ -472,6 +481,23 @@ All five methods of `ResultManagementType` are optional; the builder publishes
 `GetLatestResult`, `GetResultById`, `GetResultIdListFiltered`,
 `AcknowledgeResults` and `ReleaseResultHandle` once a store is bound, and the
 `ResultTransfer` object only when downloads are enabled.
+
+For a companion-declared subtype, use
+`machine.WithResultManagement(existingResultManagement, configure)` instead of
+creating a second base add-in. The existing descendant keeps its parent, browse
+name, NodeId, type definition and reference type, while the shared runtime
+supplies queries, metadata handles, publication and file-transfer lifetime.
+Foreign descendants and duplicate bindings are rejected. Stores are validated
+before the machine is published, and method nodes are staged before indexing.
+
+`results.WithResultsFolder(count, createResult)` accepts a typed result-variable
+factory, and `results.WithResultReadyEvents(eventTypeId, createEvent)` selects a
+derived result-ready event factory. The event factory receives the result being
+published; any specialized result child it creates is retained. Abstract event
+declarations stay unchanged: the runtime registers a concrete subtype in the
+application namespace. These overloads are extensions in
+`Opc.Ua.Machinery.Server.Builders`, so existing builder-interface implementers
+do not gain new mandatory members.
 
 #### Bringing your own store
 

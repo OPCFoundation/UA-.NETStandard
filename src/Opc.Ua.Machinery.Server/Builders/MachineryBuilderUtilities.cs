@@ -95,7 +95,11 @@ namespace Opc.Ua.Machinery.Server.Builders
             Func<ISystemContext, NodeState, QualifiedName, TState> factory)
             where TState : BaseInstanceState
         {
-            TState state = factory(context, parent, browseName);
+            TState state = factory(context, parent, browseName) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The instance factory returned null for '{0}'.",
+                    browseName);
             state.SymbolicName = browseName.Name ?? string.Empty;
             state.BrowseName = browseName;
             state.DisplayName = new LocalizedText(browseName.Name);
@@ -192,6 +196,43 @@ namespace Opc.Ua.Machinery.Server.Builders
                     namespaceUri);
             }
             return (ushort)index;
+        }
+
+        /// <summary>
+        /// Rejects a companion binding to a node outside the staged machine tree.
+        /// </summary>
+        internal static void EnsureDescendant(
+            ISystemContext context,
+            NodeState root,
+            BaseInstanceState descendant)
+        {
+            var pending = new Queue<NodeState>();
+            var visited = new HashSet<NodeState>();
+            var children = new List<BaseInstanceState>();
+            pending.Enqueue(root);
+            while (pending.Count > 0)
+            {
+                NodeState parent = pending.Dequeue();
+                if (!visited.Add(parent))
+                {
+                    continue;
+                }
+                children.Clear();
+                parent.GetChildren(context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (ReferenceEquals(child, descendant))
+                    {
+                        return;
+                    }
+                    pending.Enqueue(child);
+                }
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadInvalidArgument,
+                "The companion node '{0}' is not a descendant of machine '{1}'.",
+                descendant.BrowseName,
+                root.BrowseName);
         }
     }
 }

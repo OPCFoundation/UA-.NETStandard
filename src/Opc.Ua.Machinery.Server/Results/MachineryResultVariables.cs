@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Globalization;
@@ -51,8 +52,11 @@ namespace Opc.Ua.Machinery.Server.Results
         public static MachineryResultVariables Create(
             MachineryBuildScope scope,
             FolderState results,
-            int capacity)
+            int capacity,
+            Func<ISystemContext, NodeState, QualifiedName, ResultState>? createResult = null)
         {
+            createResult ??= static (context, parent, browseName) =>
+                context.CreateInstanceOfResultType(parent, browseName);
             var slots = new List<ResultState>(capacity);
             for (int ii = 0; ii < capacity; ii++)
             {
@@ -63,8 +67,17 @@ namespace Opc.Ua.Machinery.Server.Results
                     scope.Context,
                     results,
                     new QualifiedName(name, scope.BuildContext.InstanceNamespaceIndex),
-                    static (ctx, parent, browseName) =>
-                        ctx.CreateInstanceOfResultType(parent, browseName));
+                    createResult);
+                NodeId resultTypeId = NodeId.Create(
+                    Opc.Ua.Machinery.Result.VariableTypes.ResultType,
+                    Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
+                    scope.Context.NamespaceUris);
+                if (!scope.Context.TypeTable.IsTypeOf(slot.TypeDefinitionId, resultTypeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeDefinitionInvalid,
+                        "The companion result factory must create a ResultType variable or a subtype.");
+                }
                 slots.Add(slot);
             }
             return new MachineryResultVariables(slots);
@@ -102,7 +115,10 @@ namespace Opc.Ua.Machinery.Server.Results
             }
         }
 
-        private static void Write(ISystemContext context, ResultState slot, ResultDataType? data)
+        /// <summary>
+        /// Updates the standard structured value and its declared field variables together.
+        /// </summary>
+        internal static void Write(ISystemContext context, ResultState slot, ResultDataType? data)
         {
             if (data == null)
             {

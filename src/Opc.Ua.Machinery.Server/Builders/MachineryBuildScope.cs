@@ -69,6 +69,11 @@ namespace Opc.Ua.Machinery.Server.Builders
         internal NodeState Root { get; private set; } = null!;
 
         /// <summary>
+        /// Provider validation that must finish before any staged node is published.
+        /// </summary>
+        internal List<Func<CancellationToken, ValueTask>> PreRegistrationActions { get; } = [];
+
+        /// <summary>
         /// Asynchronous work that must run after the completed tree has been
         /// registered with the node manager — binding a result store to the
         /// transfer object, for example.
@@ -172,6 +177,10 @@ namespace Opc.Ua.Machinery.Server.Builders
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                for (int ii = 0; ii < PreRegistrationActions.Count; ii++)
+                {
+                    await PreRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
+                }
                 VerifyNodeIds();
                 VerifyEnergyMainGrouping();
 

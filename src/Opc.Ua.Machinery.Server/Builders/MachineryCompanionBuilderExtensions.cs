@@ -1,0 +1,165 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using Opc.Ua.Machinery.Jobs;
+using Opc.Ua.Machinery.Result;
+using Opc.Ua.Machinery.Server.Results;
+
+namespace Opc.Ua.Machinery.Server.Builders
+{
+    /// <summary>
+    /// Binds companion-declared nodes without replacing their standard identities.
+    /// </summary>
+    public static class MachineryCompanionBuilderExtensions
+    {
+        /// <summary>
+        /// Binds existing companion job management, requiring both control and response providers.
+        /// </summary>
+        /// <remarks>
+        /// Provider validation runs before the machine enters the address space. The existing
+        /// receiver-only Machinery overload remains unchanged.
+        /// </remarks>
+        /// <typeparam name="TState">The machine state type.</typeparam>
+        /// <param name="builder">The machine builder.</param>
+        /// <param name="management">The existing job-management descendant.</param>
+        /// <param name="configure">Configures the per-machine providers.</param>
+        /// <returns>The machine builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The builder cannot bind companion nodes or the node is outside its machine.
+        /// </exception>
+        public static IMachineBuilder<TState> WithJobManagement<TState>(
+            this IMachineBuilder<TState> builder,
+            JobManagementState management,
+            Action<IJobManagementBuilder> configure)
+            where TState : BaseObjectState
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(management);
+            ArgumentNullException.ThrowIfNull(configure);
+            if (builder is not MachineBuilder<TState> implementation)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The machine builder does not support binding companion job-management nodes.");
+            }
+            return implementation.BindJobManagement(management, configure);
+        }
+
+        /// <summary>
+        /// Binds an existing result-management descendant to the Machinery result runtime.
+        /// </summary>
+        /// <remarks>
+        /// The descendant keeps its parent, browse name, reference type and type definition.
+        /// This overload requires a builder returned by an OPC UA Machinery build context.
+        /// </remarks>
+        /// <typeparam name="TState">The machine state type.</typeparam>
+        /// <param name="builder">The machine builder.</param>
+        /// <param name="management">The existing result-management descendant.</param>
+        /// <param name="configure">Configures its store and selected result features.</param>
+        /// <returns>The machine builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The builder does not support companion bindings, the node is not its descendant,
+        /// or result management is already configured.
+        /// </exception>
+        public static IMachineBuilder<TState> WithResultManagement<TState>(
+            this IMachineBuilder<TState> builder,
+            ResultManagementState management,
+            Action<IResultManagementBuilder> configure)
+            where TState : BaseObjectState
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(management);
+            ArgumentNullException.ThrowIfNull(configure);
+            if (builder is not MachineBuilder<TState> implementation)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The machine builder does not support binding companion result-management nodes.");
+            }
+            return implementation.BindResultManagement(management, configure);
+        }
+
+        /// <summary>
+        /// Creates the result ring using a companion's derived result-variable factory.
+        /// </summary>
+        /// <param name="builder">The result-management builder.</param>
+        /// <param name="publishedResults">The number of result slots, or zero for no slots.</param>
+        /// <param name="createResult">Creates an initialized result variable of the required subtype.</param>
+        /// <returns>The result-management builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">The builder cannot bind companion result nodes.</exception>
+        public static IResultManagementBuilder WithResultsFolder(
+            this IResultManagementBuilder builder,
+            int publishedResults,
+            Func<ISystemContext, NodeState, QualifiedName, ResultState> createResult)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(createResult);
+            return builder.GetResultBuilder().WithResultsFolder(publishedResults, createResult);
+        }
+
+        /// <summary>
+        /// Publishes a companion's result-ready subtype through the shared result publisher.
+        /// </summary>
+        /// <remarks>
+        /// The factory receives the result being published and must return an initialized instance
+        /// of the selected event type. Its specialized result child is preserved. A concrete
+        /// application subtype is registered without altering the released event declaration.
+        /// </remarks>
+        /// <param name="builder">The result-management builder.</param>
+        /// <param name="eventTypeId">The declared result-ready event subtype.</param>
+        /// <param name="createEvent">Creates the specialized event for a result.</param>
+        /// <returns>The result-management builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">The builder or event type cannot bind result-ready events.</exception>
+        public static IResultManagementBuilder WithResultReadyEvents(
+            this IResultManagementBuilder builder,
+            NodeId eventTypeId,
+            Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(createEvent);
+            return builder.GetResultBuilder().WithResultReadyEvents(eventTypeId, createEvent);
+        }
+
+        /// <summary>
+        /// Resolves the built-in result builder without extending existing implementers' contracts.
+        /// </summary>
+        private static ResultManagementBuilder GetResultBuilder(this IResultManagementBuilder builder)
+        {
+            return builder as ResultManagementBuilder ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The result-management builder does not support companion result factories.");
+        }
+    }
+}

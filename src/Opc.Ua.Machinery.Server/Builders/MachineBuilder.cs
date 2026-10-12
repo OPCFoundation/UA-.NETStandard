@@ -413,6 +413,49 @@ namespace Opc.Ua.Machinery.Server.Builders
             return this;
         }
 
+        /// <summary>
+        /// Binds complete job management already declared by a companion model.
+        /// </summary>
+        internal IMachineBuilder<TState> BindJobManagement(
+            Opc.Ua.Machinery.Jobs.JobManagementState management,
+            Action<IJobManagementBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.Jobs, "JobManagement");
+            if (m_jobManagement != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The machine already declares a JobManagement binding.");
+            }
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, management);
+            m_jobManagement = JobManagementBuilder.Adopt(Scope, management);
+            m_blocks.ReferenceBuildingBlock(management);
+            configure(m_jobManagement);
+            return this;
+        }
+
+        /// <summary>
+        /// Binds the result-management node already declared by a companion model.
+        /// </summary>
+        internal IMachineBuilder<TState> BindResultManagement(
+            Opc.Ua.Machinery.Result.ResultManagementState management,
+            Action<IResultManagementBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.Result, "ResultManagement");
+            if (m_results != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The machine already declares a ResultManagement binding.");
+            }
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, management);
+            m_results = ResultManagementBuilder.Adopt(Scope, management);
+            configure(m_results);
+            return this;
+        }
+
         public async ValueTask<IMachineHandle<TState>> BuildAsync(
             CancellationToken cancellationToken = default)
         {

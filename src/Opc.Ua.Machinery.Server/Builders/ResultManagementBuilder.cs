@@ -153,6 +153,18 @@ namespace Opc.Ua.Machinery.Server.Builders
             return new ResultManagementBuilder(scope, management);
         }
 
+        /// <summary>
+        /// Binds an existing derived result-management object without replacing it.
+        /// </summary>
+        internal static ResultManagementBuilder Adopt(
+            MachineryBuildScope scope,
+            ResultManagementState management)
+        {
+            management.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            scope.RecordFacet(MachineryFacet.ResultManagement);
+            return new ResultManagementBuilder(scope, management);
+        }
+
         private ResultManagementBuilder(MachineryBuildScope scope, ResultManagementState state)
         {
             m_scope = scope;
@@ -161,6 +173,8 @@ namespace Opc.Ua.Machinery.Server.Builders
                 state,
                 scope.Context,
                 ResolveOptions(scope));
+            m_binder.PrepareMethods();
+            scope.PreRegistrationActions.Add(PrepareStoreAsync);
             scope.PostRegistrationActions.Add(BindAsync);
         }
 
@@ -199,6 +213,18 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         public IResultManagementBuilder WithResultsFolder(int publishedResults = 4)
         {
+            return WithResultsFolder(
+                publishedResults,
+                static (context, parent, browseName) => context.CreateInstanceOfResultType(parent, browseName));
+        }
+
+        /// <summary>
+        /// Stages the result ring using the selected companion result-variable type.
+        /// </summary>
+        internal IResultManagementBuilder WithResultsFolder(
+            int publishedResults,
+            Func<ISystemContext, NodeState, QualifiedName, ResultState> createResult)
+        {
             if (publishedResults < 0)
             {
                 throw new ArgumentOutOfRangeException(
@@ -211,15 +237,32 @@ namespace Opc.Ua.Machinery.Server.Builders
             m_resultVariables = MachineryResultVariables.Create(
                 m_scope,
                 State.Results!,
-                publishedResults);
+                publishedResults,
+                createResult);
             return this;
         }
 
-        private async ValueTask BindAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Selects the initialized result-ready event subtype supplied by a companion.
+        /// </summary>
+        internal IResultManagementBuilder WithResultReadyEvents(
+            NodeId eventTypeId,
+            Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
         {
-            IMachineryResultStore? store = m_store ??
+            m_scope.EnsureMutable();
+            m_binder.SetEventFactory(eventTypeId, createEvent);
+            return this;
+        }
+
+        /// <summary>
+        /// Resolves the store before exposing its result-management node.
+        /// </summary>
+        private ValueTask PrepareStoreAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            m_store ??=
                 m_scope.BuildContext.GetService<IMachineryResultStore>();
-            if (store == null)
+            if (m_store == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -227,7 +270,12 @@ namespace Opc.Ua.Machinery.Server.Builders
                     "WithStore() or WithInMemoryStore(), or register an " +
                     "IMachineryResultStore in the application services.");
             }
+            return default;
+        }
 
+        private async ValueTask BindAsync(CancellationToken cancellationToken)
+        {
+            IMachineryResultStore store = m_store!;
             // The publisher writes to the store the application bound; only
             // the read paths go through the metadata check below.
             IMachineryResultStore boundStore = store;
@@ -306,7 +354,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             MachineryResult result,
             CancellationToken cancellationToken)
         {
-            _ = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             m_resultVariables?.Publish(m_scope.Context, result);
             m_binder.RaiseResultReady(result);
             m_scope.RecordFacet(MachineryFacet.ResultEvents);
