@@ -56,6 +56,8 @@ namespace Opc.Ua.Wot
         /// The resolver charges each request and returned payload to the shared
         /// resolution budget and owns a separate document for generated forms.
         /// </remarks>
+        /// <param name="context">The WoT projection form context.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<ArrayOf<JsonElement>> GetFormsAsync(
             WotProjectionFormContext context,
             CancellationToken cancellationToken = default);
@@ -67,6 +69,19 @@ namespace Opc.Ua.Wot
     /// </summary>
     public sealed class WotProjectionFormContext
     {
+        /// <summary>
+        /// Initializes a new <c>WotProjectionFormContext</c> instance.
+        /// </summary>
+        /// <param name="projectionDocument">The projection document used to initialize the instance.</param>
+        /// <param name="projectionLocation">The projection location used to initialize the instance.</param>
+        /// <param name="projectionBase">The projection base used to initialize the instance.</param>
+        /// <param name="sourceDocument">The source document used to initialize the instance.</param>
+        /// <param name="sourceLocation">The source location used to initialize the instance.</param>
+        /// <param name="sourcePointer">The source pointer used to initialize the instance.</param>
+        /// <param name="name">The name used to initialize <c>WotProjectionFormContext</c>.</param>
+        /// <param name="kind">The kind used to initialize the instance.</param>
+        /// <param name="resultKind">The result kind used to initialize the instance.</param>
+        /// <param name="resolutionContext">The resolution context used to initialize the instance.</param>
         internal WotProjectionFormContext(
             WotDocument projectionDocument,
             string projectionLocation,

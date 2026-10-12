@@ -40,10 +40,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection selection.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionSelectionTests
     {
+        /// <summary>
+        /// Verifies that enumerated references select only an affordance of the declared kind.
+        /// </summary>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("properties", "/properties/value", true)]
         [TestCase("actions", "/actions/reset", true)]
         [TestCase("events", "/events/alarm", true)]

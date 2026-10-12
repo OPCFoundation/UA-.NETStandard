@@ -38,8 +38,18 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that standard base name and native identity must agree.
+        /// </summary>
+        /// <param name="nativeId">The native ID used by this test case.</param>
+        /// <param name="nameForm">The name form used by this test case.</param>
+        /// <param name="agrees">The agrees flag for this test case.</param>
+        /// <param name="projection">The projection flag for this test case.</param>
         [Test]
         public async Task StandardBaseNameAndNativeIdentityMustAgree(
             [Values("i=11", "nsu=http://opcfoundation.org/UA/;i=11")] string nativeId,
@@ -108,6 +118,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that known custom base with a standard browse name remains definitive.
+        /// </summary>
+        /// <param name="projection">The projection flag for this test case.</param>
+        /// <param name="ambiguous">The ambiguous flag for this test case.</param>
         [Test]
         public async Task KnownCustomBaseWithAStandardBrowseNameRemainsDefinitive(
             [Values] bool projection, [Values] bool ambiguous)

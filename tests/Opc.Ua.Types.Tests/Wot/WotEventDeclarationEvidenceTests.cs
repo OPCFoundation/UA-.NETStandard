@@ -39,10 +39,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT event declaration evidence.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotEventDeclarationEvidenceTests
     {
+        /// <summary>
+        /// Verifies that occurrence selection requires the actual base event declaration.
+        /// </summary>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("inherited", true)]
         [TestCase("qualified", true)]
         [TestCase("vendor", false)]
@@ -137,6 +144,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that a standard query uses the known base event declaration.
+        /// </summary>
+        /// <param name="queryIdentity">The query identity used by this test case.</param>
         [TestCase("i=2041")]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=2041")]
         [TestCase("i=2955")]
@@ -151,6 +162,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, Errors(result));
         }
 
+        /// <summary>
+        /// Verifies that a document declared custom query inherits the actual occurrence field.
+        /// </summary>
         [Test]
         public async Task ADocumentDeclaredCustomQueryInheritsTheActualOccurrenceFieldAsync()
         {
@@ -169,6 +183,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("i=2955"));
         }
 
+        /// <summary>
+        /// Verifies that cancellation during occurrence declaration resolution is observed.
+        /// </summary>
         [Test]
         public async Task CancellationDuringOccurrenceDeclarationResolutionIsObservedAsync()
         {
@@ -201,6 +218,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that namespace distinct vendor fields are materialized without borrowing standard identity.
+        /// </summary>
         [TestCase("EventId")]
         [TestCase("Token")]
         public void NamespaceDistinctVendorFieldsAreMaterializedWithoutBorrowingStandardIdentity(string name)
@@ -244,6 +264,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(fields.All(field => field.ParentNodeId == owner), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that namespace aliases still reject duplicate event field declarations.
+        /// </summary>
         [Test]
         public void NamespaceAliasesStillRejectDuplicateEventFieldDeclarations()
         {
@@ -272,6 +295,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Required().Items.Required().OfType<UAVariable>().Count(), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a linked vendor field keeps its definition namespace when materialized.
+        /// </summary>
         [Test]
         public async Task ALinkedVendorFieldKeepsItsDefinitionNamespaceWhenMaterializedAsync()
         {
@@ -313,6 +339,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "ns=1;s=/nsu=urn%3Atest%3Apump;Pump/nsu=urn%3Atest%3Apump;event/nsu=urn%3Atest%3Avendor;EventId"));
         }
 
+        /// <summary>
+        /// Verifies that a selected occurrence cannot be redefined as an incompatible native field.
+        /// </summary>
         [TestCase("uav:browseName", "\"vendor:EventId\"")]
         [TestCase("uav:mapToType", "\"i=12\"")]
         [TestCase("uav:valueRank", "1")]
@@ -337,6 +366,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/events/alarm"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a linked condition schema uses its verified inherited occurrence.
+        /// </summary>
         [Test]
         public async Task ALinkedConditionSchemaUsesItsVerifiedInheritedOccurrenceAsync()
         {
@@ -357,6 +389,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_linkedFields));
         }
 
+        /// <summary>
+        /// Verifies that event payload capture preserves verified occurrence across clause copies.
+        /// </summary>
+        /// <param name="termScoped">The term-scoped flag for this test case.</param>
         [Test]
         public async Task EventPayloadCapturePreservesVerifiedOccurrenceAcrossClauseCopiesAsync(
             [Values] bool termScoped)

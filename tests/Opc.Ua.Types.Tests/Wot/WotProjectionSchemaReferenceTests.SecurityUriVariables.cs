@@ -36,8 +36,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that URI security variables use the effective form owner.
+        /// </summary>
         [Test]
         public async Task UriSecurityVariablesUseTheEffectiveFormOwner(
             [Values("Root", "Source", "Host")] string placement,
@@ -93,6 +99,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.SecurityDefinitions.ContainsKey(scheme), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that URI security declarations cannot hide missing or conflicting data variables.
+        /// </summary>
         [Test]
         public async Task UriSecurityDeclarationsCannotHideMissingOrConflictingDataVariables(
             [Values("Root", "Source", "Host")] string placement,
@@ -127,6 +136,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == pointer), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that URI security variables cannot borrow another owners scheme.
+        /// </summary>
         [TestCase("Root")]
         [TestCase("Source")]
         public async Task UriSecurityVariablesCannotBorrowAnotherOwnersScheme(string placement)

@@ -85,6 +85,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 $"'{annotation}' should not be admitted as a projection annotation.");
         }
 
+        /// <summary>
+        /// Verifies that a permitted annotation is accepted.
+        /// </summary>
         [TestCase("\"title\":\"Speed\"")]
         [TestCase("\"titles\":{\"en\":\"Speed\",\"de\":\"Drehzahl\"}")]
         [TestCase("\"description\":\"A condition signal.\"")]
@@ -108,6 +111,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 $"'{annotation}' should be admitted as a projection annotation.");
         }
 
+        /// <summary>
+        /// Verifies that a forbidden annotation never overrides the source schema.
+        /// </summary>
         [Test]
         public async Task AForbiddenAnnotationNeverOverridesTheSourceSchemaAsync()
         {
@@ -146,6 +152,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that permitted annotations are merged.
+        /// </summary>
         [Test]
         public async Task PermittedAnnotationsAreMergedAsync()
         {
@@ -186,6 +195,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that under source routing an annotated form makes the document invalid.
+        /// </summary>
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedFormMakesTheDocumentInvalidAsync()
         {
@@ -218,6 +230,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that under source routing an annotated security makes the document invalid.
+        /// </summary>
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedSecurityMakesTheDocumentInvalidAsync()
         {

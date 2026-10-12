@@ -48,6 +48,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotDocumentKindTests
     {
+        /// <summary>
+        /// Verifies that kind is thing description for thing annotation.
+        /// </summary>
         [TestCase("Thing")]
         [TestCase("td:Thing")]
         [TestCase("https://www.w3.org/2019/wot/td#Thing")]
@@ -59,6 +62,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingDescription));
         }
 
+        /// <summary>
+        /// Verifies that native mapping classification does not claim validation.
+        /// </summary>
         [TestCase("""{"@type":"Thing"}""", false)]
         [TestCase("""{"@type":["Thing","https://saref.etsi.org/core/TemperatureSensor"]}""", false)]
         [TestCase("""{"@type":"uav:object"}""", true)]
@@ -77,6 +83,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(await WotNodeSetConverter.RequiresNativeMappingAsync(document), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that native mapping classification honors cancellation.
+        /// </summary>
         [Test]
         public void NativeMappingClassificationHonorsCancellation()
         {
@@ -88,6 +97,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 await WotNodeSetConverter.RequiresNativeMappingAsync(document, cancellationToken: cancellation.Token));
         }
 
+        /// <summary>
+        /// Verifies that native mapping classification rejects null document.
+        /// </summary>
         [Test]
         public void NativeMappingClassificationRejectsNullDocument()
         {

@@ -40,10 +40,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection origin.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionOriginTests
     {
+        /// <summary>
+        /// Verifies that reviewed carried forms follow rfc 3986 reference examples.
+        /// </summary>
         [TestCase("g:h", "g:h")]
         [TestCase("g", "http://a/b/c/g")]
         [TestCase("./g", "http://a/b/c/g")]
@@ -101,6 +107,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that reviewed source URIs resolve path query and fragment as separate components.
+        /// </summary>
+        /// <param name="baseUri">The base URI used by this test case.</param>
         [TestCase("https://review.test/views/root.json?old=1", "?edition=2",
             "https://review.test/views/root.json?edition=2")]
         [TestCase("https://review.test/views/root.json?path=/wrong/route", "../device.json",
@@ -131,6 +141,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 expected, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
+        /// <summary>
+        /// Verifies that reviewed query bearing organizes graph cannot hide its cycle.
+        /// </summary>
+        /// <param name="oldQuery">The old-query flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ReviewedQueryBearingOrganizesGraphCannotHideItsCycle(bool oldQuery)
@@ -172,6 +186,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
+        /// <summary>
+        /// Verifies that source retrieval and carried forms retain their original base.
+        /// </summary>
+        /// <param name="sourceBase">The source base used by this test case.</param>
+        /// <param name="retrievalUri">The retrieval URI used by this test case.</param>
+        /// <param name="formUri">The form URI used by this test case.</param>
         [TestCase("../device.json", null,
             "https://origin.test/device.json", "https://origin.test/value")]
         [TestCase("../device.json", "./runtime/",
@@ -213,6 +233,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 retrievalUri, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that nested sources resolve against their owning document location.
+        /// </summary>
+        /// <param name="nestedBase">The nested base used by this test case.</param>
+        /// <param name="leafHref">The leaf href used by this test case.</param>
+        /// <param name="leafLocation">The leaf location used by this test case.</param>
         [TestCase(null, "../device.json", "https://origin.test/views/device.json")]
         [TestCase("../../assets/", "device.json", "https://origin.test/assets/device.json")]
         public async Task NestedSourcesResolveAgainstTheirOwningDocumentLocation(
@@ -246,6 +272,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nested["uav:projects"]![0]!["href"]!.GetValue<string>(), Is.EqualTo(leafHref));
         }
 
+        /// <summary>
+        /// Verifies that organizing traversal retains the origin at every hop.
+        /// </summary>
+        /// <param name="cycle">The cycle flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task OrganizingTraversalRetainsTheOriginAtEveryHop(bool cycle)

@@ -73,6 +73,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Reads retained selection metadata before readable localized values are generated.
         /// </summary>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         internal static bool TryGetDocumentLocale(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -117,6 +119,10 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="options">The WoT node set converter options.</param>
+        /// <param name="resolvedDefinitionBinding">The resolved definition binding.</param>
         public static void Replace(
             UANodeSet nodeSet,
             WotDocument document,
@@ -273,6 +279,9 @@ namespace Opc.Ua.Wot
             return true;
         }
 
+        /// <param name="generatedJson">The generated JSON.</param>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         public static byte[] Apply(
             byte[] generatedJson,
             UANodeSet nodeSet,

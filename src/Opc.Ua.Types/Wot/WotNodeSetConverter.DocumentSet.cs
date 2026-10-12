@@ -851,8 +851,14 @@ namespace Opc.Ua.Wot
 
             public UANodeSet? ArchiveContext { get; set; }
 
+            /// <summary>
+            /// Gets or sets the defer preserved fact validation for <c>DocumentSetThingResolver</c>.
+            /// </summary>
             public bool DeferPreservedFactValidation { get; init; }
 
+            /// <summary>
+            /// Gets or sets the data types for <c>DocumentSetThingResolver</c>.
+            /// </summary>
             public DataTypeDefinitionContext? DataTypes { get; set; }
 
             public ArrayOf<WotDocument> DataTypeOwners

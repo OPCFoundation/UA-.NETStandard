@@ -38,8 +38,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that data type literal duplicate members survive projection.
+        /// </summary>
         [TestCase("uav:metadata")]
         [TestCase("const")]
         [TestCase("default")]
@@ -84,6 +90,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(type.Definition.Required().Field.Required().Single().DataType, Is.EqualTo("i=11"));
         }
 
+        /// <summary>
+        /// Verifies that undeclared configuration member retains semantic uniqueness.
+        /// </summary>
         [Test]
         public async Task UndeclaredConfigurationMemberRetainsSemanticUniqueness()
         {
@@ -104,6 +113,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that opaque projection values retain received representation.
+        /// </summary>
+        /// <param name="onDefinition">The on-definition flag for this test case.</param>
         [Test]
         public async Task OpaqueProjectionValuesRetainReceivedRepresentation([Values] bool onDefinition)
         {
@@ -130,6 +143,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(actualOwner.GetProperty("uav:metadata").GetRawText(), Is.EqualTo(literal));
         }
 
+        /// <summary>
+        /// Verifies that declaration map names do not become literal boundaries.
+        /// </summary>
+        /// <param name="repeated">The repeated flag for this test case.</param>
         [Test]
         public async Task DeclarationMapNamesDoNotBecomeLiteralBoundaries([Values] bool repeated)
         {
@@ -160,6 +177,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that opaque duplicate members participate in data type reuse without collapsing.
+        /// </summary>
+        /// <param name="same">The same flag for this test case.</param>
         [Test]
         public async Task OpaqueDuplicateMembersParticipateInDataTypeReuseWithoutCollapsing([Values] bool same)
         {
@@ -195,6 +216,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("{\"value\":1,\"value\":2}"));
         }
 
+        /// <summary>
+        /// Verifies that projected opaque data type value survives native round trip.
+        /// </summary>
+        /// <param name="repeated">The repeated flag for this test case.</param>
         [Test]
         public async Task ProjectedOpaqueDataTypeValueSurvivesNativeRoundTrip([Values] bool repeated)
         {
@@ -223,6 +248,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definitions[0].GetProperty("uav:metadata").GetRawText(), Is.EqualTo(literal));
         }
 
+        /// <summary>
+        /// Verifies that declared affordance configurations remain verbatim.
+        /// </summary>
         [TestCase("properties", "uav:propertyConfiguration")]
         [TestCase("actions", "uav:actionConfiguration")]
         [TestCase("events", "uav:eventConfiguration")]
@@ -254,6 +282,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/" + collection + "/Value"));
         }
 
+        /// <summary>
+        /// Verifies that data type literal residue targets generated native definition.
+        /// </summary>
+        /// <param name="reverseDefinitions">The reverse-definitions flag for this test case.</param>
         [Test]
         public async Task DataTypeLiteralResidueTargetsGeneratedNativeDefinition([Values] bool reverseDefinitions)
         {

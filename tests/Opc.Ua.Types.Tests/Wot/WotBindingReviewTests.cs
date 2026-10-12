@@ -387,6 +387,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
 
+        /// <summary>
+        /// Verifies that has component subtype emits discovery and reference type relation.
+        /// </summary>
         [Test]
         public void HasComponentSubtypeEmitsDiscoveryAndReferenceTypeRelation()
         {
@@ -611,6 +614,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that external iri relation is preserved rather than rejected.
+        /// </summary>
         [Test]
         public void ExternalIriRelationIsPreservedRatherThanRejected()
         {
@@ -675,6 +681,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(reference.IsForward, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that has component subtype round trips exactly through readable mapping.
+        /// </summary>
         [Test]
         public void HasComponentSubtypeRoundTripsExactlyThroughReadableMapping()
         {
@@ -720,6 +729,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that base object type template uses known core facts.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
+        /// <param name="asynchronous">The asynchronous flag for this test case.</param>
         [TestCase("i=58", false)]
         [TestCase("i=58", true)]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=58", false)]
@@ -752,6 +766,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 }));
         }
 
+        /// <summary>
+        /// Verifies that session local core template retains portability diagnostic.
+        /// </summary>
+        /// <param name="asynchronous">The asynchronous flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SessionLocalCoreTemplateRetainsPortabilityDiagnosticAsync(bool asynchronous)
@@ -770,6 +788,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.UnresolvedTypeBinding), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that unknown component templates do not acquire core type facts.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
         [TestCase("i=11")]
         [TestCase("i=47")]
         [TestCase("i=999999")]
@@ -793,6 +815,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that core template facts do not override conflicting resolved nodes.
+        /// </summary>
+        /// <param name="resolvedId">The resolved ID used by this test case.</param>
+        /// <param name="nodeClass">The node class used by this test case.</param>
         [TestCase("i=58", WotExpectedNodeClass.Any)]
         [TestCase("i=58", WotExpectedNodeClass.ReferenceType)]
         [TestCase("i=58", WotExpectedNodeClass.DataType)]

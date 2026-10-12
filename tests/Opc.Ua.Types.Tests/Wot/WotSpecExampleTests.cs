@@ -549,6 +549,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that condition example requires authoritative occurrence declaration context.
+        /// </summary>
         [Test]
         public async Task ConditionExampleRequiresAuthoritativeOccurrenceDeclarationContext()
         {

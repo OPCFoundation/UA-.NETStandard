@@ -160,6 +160,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error, Does.Contain("interoperable domain"));
         }
 
+        /// <summary>
+        /// Verifies that JSON numbers compare without rounding or expanding exponents.
+        /// </summary>
         [TestCase("1e100", "1000", 1)]
         [TestCase("-1e100", "-1000", -1)]
         [TestCase("1e100", "10.00e99", 0)]
@@ -185,6 +188,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(System.Math.Sign(reverse), Is.EqualTo(-expected));
         }
 
+        /// <summary>
+        /// Verifies that unsupported JSON numeric comparisons are explicit.
+        /// </summary>
         [TestCase("1e999999999999999999999999")]
         [TestCase("1e-999999999999999999999999")]
         [TestCase("\"1\"")]

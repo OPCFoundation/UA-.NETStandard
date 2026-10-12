@@ -85,6 +85,8 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <param name="documents">The WoT document set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,
@@ -100,6 +102,9 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="OperationCanceledException"></exception>
+        /// <param name="documents">The WoT document set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,
@@ -895,6 +900,10 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <param name="document">The WoT document.</param>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="data">The JSON element.</param>
+        /// <param name="maxDepth">The max depth.</param>
         internal static bool IsGeneratedEventDefinitionData(
             WotDocument document,
             UANodeSet nodeSet,

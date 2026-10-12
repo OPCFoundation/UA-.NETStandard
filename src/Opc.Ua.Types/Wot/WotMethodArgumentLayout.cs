@@ -59,6 +59,13 @@ namespace Opc.Ua.Wot
     /// </summary>
     public sealed class WotMethodArgumentLayout
     {
+        /// <summary>
+        /// Initializes a new <c>WotMethodArgumentLayout</c> instance.
+        /// </summary>
+        /// <param name="kind">The kind used to initialize the instance.</param>
+        /// <param name="schema">The JSON element used to initialize the instance.</param>
+        /// <param name="fieldOrder">The field order used to initialize the instance.</param>
+        /// <param name="defaultName">The default name used to initialize the instance.</param>
         internal WotMethodArgumentLayout(
             WotMethodArgumentLayoutKind kind,
             JsonElement schema,
@@ -118,6 +125,7 @@ namespace Opc.Ua.Wot
                 : FieldOrder[index];
         }
 
+        /// <param name="sourceSchema">The source schema.</param>
         internal JsonElement GetArgumentSchema(JsonElement sourceSchema, int index)
         {
             if (index < 0 || index >= ArgumentCount)

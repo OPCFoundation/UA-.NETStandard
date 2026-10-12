@@ -449,6 +449,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that projection security domains match the vectors.
+        /// </summary>
         [Test]
         public async Task ProjectionSecurityDomainsMatchTheVectors()
         {
@@ -516,6 +519,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that transmitted node ID query components decode exactly once.
+        /// </summary>
         [Test]
         public void TransmittedNodeIdQueryComponentsDecodeExactlyOnce()
         {
@@ -539,6 +545,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.TypeOf<FormatException>());
         }
 
+        /// <summary>
+        /// Verifies that HTTP identifier queries are not OPC UA node IDs.
+        /// </summary>
         [Test]
         public void HttpIdentifierQueriesAreNotOpcUaNodeIds()
         {

@@ -241,6 +241,12 @@ namespace Opc.Ua.Wot
         {
         }
 
+        /// <summary>
+        /// Initializes a new <c>WotEventSelectionResolver</c> instance.
+        /// </summary>
+        /// <param name="thingResolver">The thing resolver used to initialize the instance.</param>
+        /// <param name="nodeResolver">The node resolver used to initialize the instance.</param>
+        /// <param name="options">The WoT node set converter options used to initialize the instance.</param>
         internal WotEventSelectionResolver(
             IWotThingResolver thingResolver,
             IWotNodeResolver? nodeResolver,
@@ -597,6 +603,8 @@ namespace Opc.Ua.Wot
         /// together, every baseline clause an explicit clause names is removed,
         /// and the explicit clauses are appended in the order they are written.
         /// </summary>
+        /// <param name="explicitClauses">The explicit clauses.</param>
+        /// <param name="resolvePrefix">The resolve prefix.</param>
         internal static ArrayOf<WotResolvedEventSelectClause> Overlay(
             List<WotResolvedEventSelectClause> baseline,
             List<WotResolvedEventSelectClause> explicitClauses,
@@ -1308,6 +1316,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         private readonly struct Leaf
         {
+            /// <summary>
+            /// Initializes a new <c>Leaf</c> instance.
+            /// </summary>
+            /// <param name="members">The members used to initialize the instance.</param>
+            /// <param name="elements">The elements used to initialize the instance.</param>
+            /// <param name="qualifiedElements">The qualified elements used to initialize the instance.</param>
             public Leaf(string[] members, string[] elements, string[] qualifiedElements)
             {
                 Members = members;
@@ -1319,6 +1333,9 @@ namespace Opc.Ua.Wot
 
             public string[] Elements { get; }
 
+            /// <summary>
+            /// Gets the qualified elements for <c>Leaf</c>.
+            /// </summary>
             public string[] QualifiedElements { get; }
         }
 
@@ -1329,6 +1346,14 @@ namespace Opc.Ua.Wot
         /// </summary>
         private sealed class EventTypeDefinition
         {
+            /// <summary>
+            /// Initializes a new <c>EventTypeDefinition</c> instance.
+            /// </summary>
+            /// <param name="reference">The reference used to initialize the instance.</param>
+            /// <param name="typeDefinitionId">The type definition ID used to initialize the instance.</param>
+            /// <param name="data">The JSON element used to initialize the instance.</param>
+            /// <param name="document">The document used to initialize the instance.</param>
+            /// <param name="payloadSchema">The payload schema used to initialize the instance.</param>
             public EventTypeDefinition(
                 string reference,
                 string typeDefinitionId,
@@ -1349,8 +1374,14 @@ namespace Opc.Ua.Wot
 
             public JsonElement Data { get; }
 
+            /// <summary>
+            /// Gets the document for <c>EventTypeDefinition</c>.
+            /// </summary>
             public WotDocument Document { get; }
 
+            /// <summary>
+            /// Gets the payload schema for <c>EventTypeDefinition</c>.
+            /// </summary>
             public WotPayloadSchema PayloadSchema { get; }
         }
 
@@ -1427,6 +1458,8 @@ namespace Opc.Ua.Wot
                     : default;
             }
 
+            /// <param name="referring">The WoT document.</param>
+            /// <param name="schema">The JSON element.</param>
             public (WotDocument Document, JsonElement Schema) GetPayloadOwner(WotDocument referring, JsonElement schema)
             {
                 if (referring.Owns(schema))

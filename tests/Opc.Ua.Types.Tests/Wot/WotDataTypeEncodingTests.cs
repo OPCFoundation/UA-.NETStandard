@@ -95,6 +95,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that the data type references every encoding it exposes.
+        /// </summary>
         [Test]
         public void TheDataTypeReferencesEveryEncodingItExposes()
         {
@@ -303,6 +306,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an inherited field cannot change its data type.
+        /// </summary>
         [Test]
         public void AnInheritedFieldCannotChangeItsDataType()
         {
@@ -328,6 +334,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that subtype cycles through data type IDs are rejected.
+        /// </summary>
         [Test]
         public void SubtypeCyclesThroughDataTypeIdsAreRejected()
         {
@@ -357,6 +366,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("ancestor", StringComparison.Ordinal)), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that simple aliases cannot terminate at an abstract numeric type.
+        /// </summary>
         [TestCase("i=26")]
         [TestCase("i=27")]
         [TestCase("i=28")]
@@ -378,6 +390,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains(terminal, StringComparison.Ordinal)), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that an option set may use an unsigned simple alias.
+        /// </summary>
         [Test]
         public void AnOptionSetMayUseAnUnsignedSimpleAlias()
         {
@@ -412,6 +427,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(flags.Definition.Field!.Single().Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that every inherited field attribute is validated.
+        /// </summary>
+        /// <param name="baseAttributes">The base attributes used by this test case.</param>
+        /// <param name="derivedAttributes">The derived attributes used by this test case.</param>
+        /// <param name="structureType">The structure type used by this test case.</param>
         [TestCase("\"uav:valueRank\":1", "\"uav:valueRank\":2", "Structure", "ValueRank")]
         [TestCase("\"uav:valueRank\":2,\"uav:arrayDimensions\":[2,3]",
             "\"uav:valueRank\":2,\"uav:arrayDimensions\":[2,4]", "Structure", "ArrayDimensions")]
@@ -453,6 +474,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/1/uav:fields/0"));
         }
 
+        /// <summary>
+        /// Verifies that every resolved subtype reference form participates in cycle checks.
+        /// </summary>
+        /// <param name="baseOfA">The base of a used by this test case.</param>
+        /// <param name="baseOfB">The base of b used by this test case.</param>
         [TestCase(/*lang=json,strict*/ """{"@id":"urn:test:pump#B"}""", /*lang=json,strict*/ """{"@id":"urn:test:pump#A"}""")]
         [TestCase("\"urn:test:pump#B\"", "\"urn:test:pump#A\"")]
         [TestCase("\"nsu=urn:test:pump;i=2302\"", "\"nsu=urn:test:pump;i=2301\"")]
@@ -488,6 +514,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(second.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/1/uav:dataTypeSubtypeOf"));
         }
 
+        /// <summary>
+        /// Verifies that option set alias chains use the terminal unsigned width.
+        /// </summary>
+        /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase("i=3", 7, false)]
         [TestCase("i=3", 8, true)]
         [TestCase("i=5", 15, false)]
@@ -535,6 +565,12 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that union kinds and abstractness cannot contradict their definition.
+        /// </summary>
+        /// <param name="structureType">The structure type used by this test case.</param>
+        /// <param name="baseType">The base type used by this test case.</param>
+        /// <param name="isAbstract">The abstract flag for this test case.</param>
         [TestCase("Structure", "i=12756", false)]
         [TestCase("Union", "i=22", false)]
         [TestCase("Union", "i=12756", true)]
@@ -559,6 +595,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     : "/uav:dataTypeDefinitions/0/uav:dataTypeSubtypeOf")), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that inherited field defaults and identity aliases are equivalent.
+        /// </summary>
         [Test]
         public void InheritedFieldDefaultsAndIdentityAliasesAreEquivalent()
         {
@@ -589,6 +628,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=1;i=2701"));
         }
 
+        /// <summary>
+        /// Verifies that an inherited enumeration field cannot change its value.
+        /// </summary>
         [Test]
         public void AnInheritedEnumerationFieldCannotChangeItsValue()
         {

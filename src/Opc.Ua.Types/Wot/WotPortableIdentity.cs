@@ -237,6 +237,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <param name="document">The WoT document.</param>
+        /// <param name="carryingNode">The carrying node.</param>
+        /// <param name="qualifiedName">The qualified name.</param>
         internal static bool TryResolveQualifiedName(
             string? value,
             WotDocument document,
@@ -499,12 +502,12 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Splits a browse path into its elements, honouring the <c>&amp;</c>
-        /// escape so an escaped separator inside a name does not split it.
-        /// </summary>
-        /// <summary>
         /// Allocates a projection name or qualified identity segment within its caller's scope.
         /// </summary>
+        /// <param name="candidate">The preferred name, or an empty value to use the default <c>member</c> name.</param>
+        /// <param name="used">
+        /// The names already allocated in the caller's scope; the selected name is added to this set.
+        /// </param>
         internal static string AllocateName(string? candidate, HashSet<string> used)
         {
             string name = string.IsNullOrEmpty(candidate) ? "member" : candidate!;
@@ -525,6 +528,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the local authored BrowseName, falling back to the affordance key.
         /// </summary>
+        /// <param name="affordance">The JSON element.</param>
         internal static string AffordanceName(JsonElement affordance, string key)
         {
             return affordance.ValueKind == JsonValueKind.Object &&
@@ -534,6 +538,7 @@ namespace Opc.Ua.Wot
                 : key;
         }
 
+        /// <param name="browseName">The browse name.</param>
         internal static string? LocalName(string? browseName)
         {
             if (string.IsNullOrEmpty(browseName))

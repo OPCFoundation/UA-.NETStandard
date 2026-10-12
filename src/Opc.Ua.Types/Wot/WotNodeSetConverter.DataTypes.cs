@@ -59,16 +59,32 @@ namespace Opc.Ua.Wot
         [Flags]
         private enum EncodingPresence
         {
+            /// <summary>
+            /// The none value of <c>EncodingPresence</c>.
+            /// </summary>
             None = 0,
+            /// <summary>
+            /// The binary value of <c>EncodingPresence</c>.
+            /// </summary>
             Binary = 1,
+            /// <summary>
+            /// The XML value of <c>EncodingPresence</c>.
+            /// </summary>
             Xml = 2,
+            /// <summary>
+            /// The JSON value of <c>EncodingPresence</c>.
+            /// </summary>
             Json = 4,
+            /// <summary>
+            /// The all value of <c>EncodingPresence</c>.
+            /// </summary>
             All = Binary | Xml | Json
         }
 
         /// <summary>
         /// Collects DataType nodes in the order used by the generated definition array.
         /// </summary>
+        /// <param name="nodeSet">The node set.</param>
         internal static ArrayOf<UADataType> CollectDataTypeNodes(UANodeSet nodeSet)
         {
             if (nodeSet.Items is null)
@@ -249,6 +265,7 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <param name="document">The WoT document.</param>
         internal static ArrayOf<JsonElement> ReadDataSchemaOccurrences(WotDocument document)
         {
             var schemas = new List<JsonElement>();
@@ -664,11 +681,13 @@ namespace Opc.Ua.Wot
             return sources.ToArrayOf();
         }
 
+        /// <param name="root">The JSON element.</param>
         internal static ArrayOf<JsonElement> ReadDataTypeDefinitionOccurrences(JsonElement root)
         {
             return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
         }
 
+        /// <param name="root">The JSON element.</param>
         internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(
             JsonElement root)
         {
@@ -799,6 +818,7 @@ namespace Opc.Ua.Wot
                     : throw new FormatException($"The DataType graph identity '{raw}' cannot be expanded in its context.");
         }
 
+        /// <param name="definition">The JSON element.</param>
         internal static bool IsReferenceOnlyDefinition(JsonElement definition)
         {
             foreach (JsonProperty member in definition.EnumerateObject())
@@ -812,7 +832,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Determines the NodeId a definition materializes as.
+        /// Determines the definition's NodeId using the shared identity rule for synthesis and document indexing.
         /// </summary>
         /// <remarks>
         /// §6.11.1 lets <c>uav:dataTypeId</c> state it. Where it is absent the
@@ -820,9 +840,12 @@ namespace Opc.Ua.Wot
         /// same definition read from a differently ordered or differently
         /// nested document still lands on the same Node.
         /// </remarks>
-        /// <summary>
-        /// Applies the shared definition identity rule for synthesis and document indexing.
-        /// </summary>
+        /// <param name="document">The WoT document supplying context for the derived identity.</param>
+        /// <param name="definition">The JSON DataType definition to resolve.</param>
+        /// <param name="nodeSet">The NodeSet against which the identity is resolved.</param>
+        /// <param name="diagnostics">
+        /// The diagnostic collection receiving invalid definition or identity findings.
+        /// </param>
         internal static string? ResolveDataTypeIdentity(
             WotDocument document,
             JsonElement definition,
@@ -847,6 +870,8 @@ namespace Opc.Ua.Wot
             return DeriveDataTypeNodeId(document, name, nodeSet, diagnostics, definition);
         }
 
+        /// <param name="document">The WoT document.</param>
+        /// <param name="reference">The JSON element.</param>
         internal static bool ValidateStandardDataTypeReference(
             WotDocument document,
             JsonElement reference,
@@ -2892,36 +2917,67 @@ namespace Opc.Ua.Wot
             HashSet<WotDocument> emissionOwners,
             WotDocument primaryOwner)
         {
+            /// <summary>
+            /// Gets the definitions for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, JsonElement> Definitions { get; } = definitions;
 
+            /// <summary>
+            /// Gets the owners for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, WotDocument> Owners { get; } = owners;
 
+            /// <summary>
+            /// Gets the identities for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, string> Identities { get; } = identities;
 
+            /// <summary>
+            /// Gets the schema identities for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<JsonElement, string> SchemaIdentities { get; } = new(
                 new WotJsonElementComparer(owners.Values.Prepend(primaryOwner).Distinct()
                     .Select(owner => owner.RootElement).ToArrayOf()));
 
+            /// <summary>
+            /// Gets the inferred schemas for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, List<(WotDocument Document, JsonElement Schema)>> InferredSchemas { get; } =
                 new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Gets the named identities for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<(string NamespaceUri, string Name), string?> NamedIdentities { get; } = [];
 
+            /// <summary>
+            /// Gets the produced nodes for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, (WotDocument Document, UANode Node)> ProducedNodes { get; } =
                 new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Gets the validation types for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, DataTypeValidationNode> ValidationTypes { get; } =
                 new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Gets the scalar terminals for <c>DataTypeDefinitionContext</c>.
+            /// </summary>
             public Dictionary<string, (bool Valid, string Terminal)> ScalarTerminals { get; } =
                 new(StringComparer.Ordinal);
 
+            /// <param name="document">The WoT document.</param>
+            /// <param name="definitionOwner">The definition owner.</param>
             public bool IsEmissionOwner(WotDocument document, WotDocument definitionOwner)
             {
                 return ReferenceEquals(
                     document, emissionOwners.Contains(definitionOwner) ? definitionOwner : primaryOwner);
             }
 
+            /// <param name="document">The WoT document.</param>
+            /// <param name="schema">The JSON element.</param>
             public void AddName(WotDocument document, JsonElement schema, string name, string identity)
             {
                 if (TrySplitCompactName(document, name, out string namespaceUri, out string local, schema))

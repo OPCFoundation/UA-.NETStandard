@@ -36,8 +36,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that enumerated host forms must be authored before any provider is invoked.
+        /// </summary>
+        /// <param name="selectAll">The select-all flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EnumeratedHostFormsMustBeAuthoredBeforeAnyProviderIsInvoked(bool selectAll)

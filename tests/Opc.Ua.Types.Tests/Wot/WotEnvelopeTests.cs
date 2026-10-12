@@ -75,6 +75,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(digest, Does.Match("^[0-9a-f]{64}$"));
         }
 
+        /// <summary>
+        /// Verifies that from node set emits native affordances.
+        /// </summary>
         [Test]
         public void FromNodeSetEmitsNativeAffordances()
         {

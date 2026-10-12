@@ -430,6 +430,8 @@ namespace Opc.Ua.Types.Tests.Wot
         /// A member the type adds is a field of that type, with the DataType,
         /// rank, dimensions and ModellingRule the schema states.
         /// </summary>
+        /// <param name="modellingRule">The modelling rule used by this test case.</param>
+        /// <param name="required">The required flag for this test case.</param>
         [TestCase(true, "i=78")]
         [TestCase(false, "i=80")]
         public void AFieldTheTypeAddsIsMaterialized(bool required, string modellingRule)
@@ -1233,6 +1235,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private sealed class ExampleResolver : IWotThingResolver
         {
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,

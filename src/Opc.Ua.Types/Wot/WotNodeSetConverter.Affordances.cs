@@ -42,6 +42,9 @@ namespace Opc.Ua.Wot
         /// must confirm the expected NodeClass. An unauthored identity can also
         /// resolve through one unambiguous qualified declaration owned by the root.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="rootNodeId">The root node identifier.</param>
         public static ArrayOf<WotConvertedAffordance> ResolveAffordanceNodes(
             WotDocument document,
             UANodeSet nodeSet,

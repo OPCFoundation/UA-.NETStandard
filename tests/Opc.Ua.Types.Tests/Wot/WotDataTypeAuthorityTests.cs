@@ -78,6 +78,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("i=11"));
         }
 
+        /// <summary>
+        /// Verifies that an authored definition outranks data type ID.
+        /// </summary>
         [Test]
         public void AnAuthoredDefinitionOutranksDataTypeId()
         {
@@ -206,6 +209,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that inferred field order cannot omit a required property.
+        /// </summary>
         [Test]
         public void InferredFieldOrderCannotOmitARequiredProperty()
         {
@@ -227,6 +233,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("fieldOrder", StringComparison.Ordinal)), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that an authoritative double rejects a string value schema.
+        /// </summary>
         [Test]
         public void AnAuthoritativeDoubleRejectsAStringValueSchema()
         {
@@ -240,6 +249,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("i=11", StringComparison.Ordinal)), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that inferred field order is an exact permutation.
+        /// </summary>
         [TestCase("""["A","A"]""")]
         [TestCase("""["A","C"]""")]
         [TestCase("""["A",1]""")]
@@ -267,6 +279,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error.Message, Does.Contain("every property exactly once"));
         }
 
+        /// <summary>
+        /// Verifies that complete field order preserves exact fields.
+        /// </summary>
         [TestCase("""["A","B"]""", "A", "B")]
         [TestCase("""["B","A"]""", "B", "A")]
         public void CompleteFieldOrderPreservesExactFields(string order, string first, string second)
@@ -291,6 +306,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Items!.OfType<UAVariable>().Single().DataType, Is.EqualTo(type.NodeId));
         }
 
+        /// <summary>
+        /// Verifies that equivalent authoritative scalar schemas are accepted.
+        /// </summary>
         [TestCase("i=11", "\"number\"")]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=11", "\"number\"")]
         [TestCase("i=11", "[\"number\"]")]
@@ -307,6 +325,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(variable.DataType, Is.EqualTo(WotTestData.LocalNodeId(result.Value, identity)));
         }
 
+        /// <summary>
+        /// Verifies that authoritative nested value schemas are compared recursively.
+        /// </summary>
+        /// <param name="leafType">The leaf type used by this test case.</param>
+        /// <param name="array">The array flag for this test case.</param>
+        /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase(false, "boolean", false)]
         [TestCase(true, "boolean", false)]
         [TestCase(false, "string", true)]
@@ -361,6 +385,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that an authoritative scalar field rejects an explicit array schema.
+        /// </summary>
         [Test]
         public void AnAuthoritativeScalarFieldRejectsAnExplicitArraySchema()
         {
@@ -376,6 +403,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(outer.Definition!.Field!.Single().ValueRank, Is.EqualTo(-1));
         }
 
+        /// <summary>
+        /// Verifies that authoritative field ranks retain valid shorthand and variable ranks.
+        /// </summary>
+        /// <param name="arrayDepth">The array depth used by this test case.</param>
+        /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase(-1, 0, false)]
         [TestCase(-1, 2, true)]
         [TestCase(1, 0, false)]
@@ -412,6 +444,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that inferred union values cannot bypass validation.
+        /// </summary>
         [TestCase("default", "null")]
         [TestCase("default", /*lang=json,strict*/ """{"Unknown":null}""")]
         public void InferredUnionValuesCannotBypassValidation(string term, string value)
@@ -432,6 +467,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items!.OfType<UADataType>().Single().Definition!.IsUnion, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that inferred union const and default contracts are checked.
+        /// </summary>
+        /// <param name="array">The array flag for this test case.</param>
+        /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase("const", "null", false, true)]
         [TestCase("const", /*lang=json,strict*/ """{"Unknown":null}""", false, true)]
         [TestCase("const", /*lang=json,strict*/ """{"Text":"value","Enabled":true}""", false, true)]
@@ -502,6 +542,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that union no selection and selected null remain distinct.
+        /// </summary>
+        /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase("{}", false)]
         [TestCase(/*lang=json,strict*/ """{"Text":null}""", false)]
         [TestCase("null", true)]
@@ -549,6 +593,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that inferred enumerations do not replace invalid constants with minus one.
+        /// </summary>
         [TestCase("true")]
         [TestCase("\"1\"")]
         [TestCase("1.5")]
@@ -569,6 +616,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/properties/value/oneOf/0"), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that inferred required fields must name distinct declared properties.
+        /// </summary>
         [TestCase("""["Missing"]""")]
         [TestCase("""["A","A"]""")]
         [TestCase("[1]")]
@@ -588,6 +638,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/properties/value/required"), Is.True, Messages(result));
         }
 
+        /// <summary>
+        /// Verifies that an inferred structure retains its resolved supertype.
+        /// </summary>
         [Test]
         public void AnInferredStructureRetainsItsResolvedSupertype()
         {
@@ -620,6 +673,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo([("A", "i=1"), ("B", "i=12")]));
         }
 
+        /// <summary>
+        /// Verifies that inferred simple aliases keep their declared abstractness.
+        /// </summary>
+        /// <param name="isAbstract">The abstract flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void InferredSimpleAliasesKeepTheirDeclaredAbstractness(bool isAbstract)
@@ -641,6 +698,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value, Is.EqualTo("i=5"));
         }
 
+        /// <summary>
+        /// Verifies that inferred array unions preserve their declared family.
+        /// </summary>
+        /// <param name="facetOnElement">The facet-on-element flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void InferredArrayUnionsPreserveTheirDeclaredFamily(bool facetOnElement)

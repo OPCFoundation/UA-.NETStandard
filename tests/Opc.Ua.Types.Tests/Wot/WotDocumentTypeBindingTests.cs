@@ -38,9 +38,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT document type binding.
+    /// </summary>
     [TestFixture]
     public sealed class WotDocumentTypeBindingTests
     {
+        /// <summary>
+        /// Verifies that document references bind roots and variable affordances.
+        /// </summary>
+        /// <param name="referenceForm">The reference form used by this test case.</param>
+        /// <param name="property">The property flag for this test case.</param>
         [TestCase(false, 0)]
         [TestCase(false, 1)]
         [TestCase(false, 2)]
@@ -77,6 +85,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 kTypeDocument, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that unresolved document binding never queries the address space.
+        /// </summary>
+        /// <param name="hasThingResolver">The has-thing-resolver flag for this test case.</param>
+        /// <param name="property">The property flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -104,6 +117,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 kTypeDocument, It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that document type binding rejects the wrong node class.
+        /// </summary>
+        /// <param name="property">The property flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DocumentTypeBindingRejectsTheWrongNodeClass(bool property)
@@ -120,6 +137,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that document binding uses the target models generated identity.
+        /// </summary>
+        /// <param name="property">The property flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DocumentBindingUsesTheTargetModelsGeneratedIdentity(bool property)
@@ -154,6 +175,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(WotTestData.LocalNodeId(result.Value!, expected)));
         }
 
+        /// <summary>
+        /// Verifies that native type document without readable ID binds its actual root.
+        /// </summary>
+        /// <param name="envelope">The envelope flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task NativeTypeDocumentWithoutReadableIdBindsItsActualRoot(bool envelope)

@@ -93,6 +93,7 @@ namespace Opc.Ua.Wot
         /// Decomposes a decimal literal into its sign, significant digits and decimal position:
         /// the value is <c>0.&lt;digits&gt; * 10^exponent</c>, without leading or trailing zeros.
         /// </summary>
+        /// <param name="negative">The negative flag supplied by the caller.</param>
         internal static bool TryDecompose(
             string literal, out bool negative, out string digits, out long exponent)
         {

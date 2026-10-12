@@ -38,8 +38,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that host prefix chains resolve completely and cycles fail.
+        /// </summary>
+        /// <param name="objectForm">The object-form flag for this test case.</param>
+        /// <param name="cycle">The cycle flag for this test case.</param>
         [Test]
         public async Task HostPrefixChainsResolveCompletelyAndCyclesFail(
             [Values] bool objectForm, [Values] bool cycle)
@@ -73,6 +81,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that self and indirect prefix cycles return diagnostics.
+        /// </summary>
+        /// <param name="objectForm">The object-form flag for this test case.</param>
         [Test]
         public async Task SelfAndIndirectPrefixCyclesReturnDiagnostics(
             [Values] bool objectForm, [Values("self", "self-suffix", "indirect-suffix")] string cycle)
@@ -103,6 +115,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertContextRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that text predicates require their original known definition.
+        /// </summary>
         [Test]
         public async Task TextPredicatesRequireTheirOriginalKnownDefinition(
             [Values("title", "description")] string term,
@@ -141,6 +156,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definition.GetProperty("@language").GetString(), Is.EqualTo("fr"));
         }
 
+        /// <summary>
+        /// Verifies that restored text predicate does not invent unknown language.
+        /// </summary>
         [Test]
         public async Task RestoredTextPredicateDoesNotInventUnknownLanguage(
             [Values("title", "description")] string term,
@@ -174,6 +192,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(carried.GetProperty("@language").GetString(), Is.EqualTo(language == "null" ? null : "fr"));
         }
 
+        /// <summary>
+        /// Verifies that nested invalid context declarations fail before acquisition.
+        /// </summary>
+        /// <param name="host">The host flag for this test case.</param>
         [Test]
         public async Task NestedInvalidContextDeclarationsFailBeforeAcquisition(
             [Values] bool host, [Values("42", "true")] string invalid)
@@ -200,6 +222,12 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertContextRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that imported contexts invalidate earlier prefix authority.
+        /// </summary>
+        /// <param name="sameObject">The same-object flag for this test case.</param>
+        /// <param name="namespaceKind">The namespace kind used by this test case.</param>
+        /// <param name="restored">The restored flag for this test case.</param>
         [Test]
         public async Task ImportedContextsInvalidateEarlierPrefixAuthority(
             [Values] bool restored, [Values] bool sameObject,
@@ -253,6 +281,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(namespaceKind == "https" ? "https://host.test/types/Signal" : "urn:host:Signal"));
         }
 
+        /// <summary>
+        /// Verifies that property scope must be established after unknown root context.
+        /// </summary>
+        /// <param name="restored">The restored flag for this test case.</param>
         [Test]
         public async Task PropertyScopeMustBeEstablishedAfterUnknownRootContext(
             [Values] bool restored, [Values("@type", "title")] string annotation)

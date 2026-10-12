@@ -41,10 +41,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT event condition adapter.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotEventConditionAdapterTests
     {
+        /// <summary>
+        /// Verifies that canonical exported event roots support conditions and occurrences.
+        /// </summary>
+        /// <param name="selection">The selection flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CanonicalExportedEventRootsSupportConditionsAndOccurrencesAsync(bool selection)
@@ -83,6 +90,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that document ancestry rejects conflicting parent order.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DocumentAncestryRejectsConflictingParentOrderAsync(bool reverse)
@@ -101,6 +112,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertConditionRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that document ancestry honors supplied standard facts.
+        /// </summary>
+        /// <param name="standardPin">The standard-pin flag for this test case.</param>
         [TestCase("cycle", false)]
         [TestCase("cycle", true)]
         [TestCase("wrongParent", false)]
@@ -127,6 +142,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertConditionRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that inherited summaries do not hide conflicting parents.
+        /// </summary>
+        /// <param name="includeInherited">The include-inherited flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task InheritedSummariesDoNotHideConflictingParentsAsync(bool includeInherited)
@@ -144,6 +163,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertConditionRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that native context reports actual forward only event ID declaration.
+        /// </summary>
+        /// <param name="dataType">The data type used by this test case.</param>
         [TestCase("i=15", -1)]
         [TestCase("i=12", -1)]
         [TestCase("i=15", 1)]
@@ -176,6 +199,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(actual.ValueRank, Is.EqualTo(rank));
         }
 
+        /// <summary>
+        /// Verifies that native occurrence selections use actual declarations.
+        /// </summary>
+        /// <param name="dataType">The data type used by this test case.</param>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("i=15", -1, true, "i=2041")]
         [TestCase("i=12", -1, false, "i=2041")]
         [TestCase("i=15", 1, false, "i=2041")]
@@ -206,6 +234,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that counterfeit native event ID owner is rejected.
+        /// </summary>
         [Test]
         public void CounterfeitNativeEventIdOwnerIsRejected()
         {
@@ -226,6 +257,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
         }
 
+        /// <summary>
+        /// Verifies that restored pins must name condition ancestors.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(false, "i=2782", true)]
         [TestCase(true, "i=2782", true)]
         [TestCase(false, QueryId, true)]
@@ -252,6 +288,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that restored conditions reject supplied standard cycles.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
+        /// <param name="forward">The forward flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -286,6 +327,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Required().Items.Required(), Has.Length.EqualTo(6));
         }
 
+        /// <summary>
+        /// Verifies that forward native supertype references preserve condition identity.
+        /// </summary>
         [Test]
         public async Task ForwardNativeSupertypeReferencesPreserveConditionIdentityAsync()
         {
@@ -314,6 +358,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Single(reference => reference.ReferenceType == "HasSubtype").Value, Is.EqualTo("ns=2;i=7001"));
         }
 
+        /// <summary>
+        /// Verifies that incompatible forward only type carriages are rejected.
+        /// </summary>
         [Test]
         public void IncompatibleForwardOnlyTypeCarriagesAreRejected()
         {
@@ -336,6 +383,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
         }
 
+        /// <summary>
+        /// Verifies that native occurrence selections reject non root counterfeit owners.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(false, "i=2041")]
         [TestCase(true, "i=2041")]
         [TestCase(false, QueryId)]
@@ -379,6 +430,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/events/alarm/uav:eventSelectClauses"), Is.True, Errors(result));
         }
 
+        /// <summary>
+        /// Verifies that actual document declaration closure honors its depth bound.
+        /// </summary>
+        /// <param name="customTypes">The custom types used by this test case.</param>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(98, true)]
         [TestCase(99, true)]
         [TestCase(100, false)]
@@ -418,6 +474,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that cancelled conversion with an actual document context stops.
+        /// </summary>
         [Test]
         public async Task CancelledConversionWithAnActualDocumentContextStopsAsync()
         {
@@ -433,6 +492,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that residual native standard identity preserves its node class.
+        /// </summary>
+        /// <param name="sourceKind">The source kind used by this test case.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [Test]
         public async Task ResidualNativeStandardIdentityPreservesItsNodeClassAsync(
             [Values(false, true)] bool archive,
@@ -482,6 +546,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.Utf8Json.ToArray(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that residual native standard identity rejects conflicting classes in either order.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [Test]
         public async Task ResidualNativeStandardIdentityRejectsConflictingClassesInEitherOrderAsync(
             [Values(false, true)] bool archive,
@@ -506,6 +575,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(declarations.Detail, Does.Contain("Conflicting native"));
         }
 
+        /// <summary>
+        /// Verifies that residual native declarations reject conflicts in either order.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [Test]
         public async Task ResidualNativeDeclarationsRejectConflictsInEitherOrderAsync(
             [Values(false, true)] bool archive,

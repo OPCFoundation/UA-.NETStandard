@@ -42,6 +42,9 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
         private static IEnumerable<TestCaseData> ReviewServerCases
@@ -64,6 +67,13 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent review remote server indexes follow node set headers.
+        /// </summary>
+        /// <param name="serverCount">The server count used by this test case.</param>
+        /// <param name="serverIndex">The server index used by this test case.</param>
+        /// <param name="changed">The changed flag for this test case.</param>
+        /// <param name="reference">The reference flag for this test case.</param>
         [TestCaseSource(nameof(ReviewServerCases))]
         public void IndependentReviewRemoteServerIndexesFollowNodeSetHeaders(
             int serverCount,
@@ -121,6 +131,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent review native export import keeps remote references and values.
+        /// </summary>
+        /// <param name="configuredContext">The configured-context flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void IndependentReviewNativeExportImportKeepsRemoteReferencesAndValues(bool configuredContext)
@@ -193,6 +207,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(context.ServerUris.ToArray(), Is.EqualTo(servers));
         }
 
+        /// <summary>
+        /// Verifies that independent review string nullness survives value import.
+        /// </summary>
+        /// <param name="nil">The nil flag for this test case.</param>
         [TestCase("String", false)]
         [TestCase("String", true)]
         [TestCase("StringArray", false)]
@@ -251,6 +269,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent review ordinary string decoding preserves typed null and exact text.
+        /// </summary>
         [TestCase(
             "<uax:String xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:nil=\"true\"/>", null)]
         [TestCase("<uax:String/>", "")]
@@ -274,6 +295,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(text, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that independent review known value indexes are validated without relocation.
+        /// </summary>
+        /// <param name="declared">The declared flag for this test case.</param>
+        /// <param name="changed">The changed flag for this test case.</param>
         [Test]
         public void IndependentReviewKnownValueIndexesAreValidatedWithoutRelocation(
             [Values("NodeId", "ExpandedServer", "QualifiedName", "Argument", "Variants", "DataValue", "VariableType")]
@@ -343,6 +369,10 @@ namespace Opc.Ua.Types.Tests.Wot
                     : (changed ? "ns=2;i=42" : "ns=1;i=42")));
         }
 
+        /// <summary>
+        /// Verifies that independent review opaque values keep their unchanged contract.
+        /// </summary>
+        /// <param name="invalidOuterIdentity">The invalid-outer-identity flag for this test case.</param>
         [TestCase("binary", false)]
         [TestCase("binary", true)]
         [TestCase("xml", false)]

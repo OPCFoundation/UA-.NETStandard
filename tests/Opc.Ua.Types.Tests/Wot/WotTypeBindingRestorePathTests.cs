@@ -85,6 +85,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(IsTypeBindingError), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that native projection with ambiguous binding restores without binding error.
+        /// </summary>
         [Test]
         public async Task NativeProjectionWithAmbiguousBindingRestoresWithoutBindingErrorAsync()
         {

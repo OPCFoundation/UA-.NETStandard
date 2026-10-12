@@ -52,6 +52,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotMethodArgumentTests
     {
+        /// <summary>
+        /// Verifies that method arguments become the actions ordered input and output schemas.
+        /// </summary>
         [Test]
         public void MethodArgumentsBecomeTheActionsOrderedInputAndOutputSchemas()
         {
@@ -322,6 +325,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(input[0].DataType, Is.EqualTo("i=22"));
         }
 
+        /// <summary>
+        /// Verifies that explicit single object layout does not flatten its fields.
+        /// </summary>
+        /// <param name="browseName">The browse name used by this test case.</param>
         [TestCase("input", "InputArguments")]
         [TestCase("output", "OutputArguments")]
         public void ExplicitSingleObjectLayoutDoesNotFlattenItsFields(string member, string browseName)
@@ -341,6 +348,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(arguments[0].ValueRank, Is.EqualTo("-1"));
         }
 
+        /// <summary>
+        /// Verifies that explicit named layout uses its complete order.
+        /// </summary>
+        /// <param name="browseName">The browse name used by this test case.</param>
         [TestCase("input", "InputArguments")]
         [TestCase("output", "OutputArguments")]
         public void ExplicitNamedLayoutUsesItsCompleteOrder(string member, string browseName)
@@ -359,6 +370,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(arguments.Select(argument => argument.DataType), Is.EqualTo(s_explicitInputTypes));
         }
 
+        /// <summary>
+        /// Verifies that public layout names match the effective native argument names.
+        /// </summary>
         [TestCase("input", "", "Input")]
         [TestCase("output", "", "Output")]
         [TestCase("input", "\"title\":\"NamedValue\",", "NamedValue")]
@@ -385,6 +399,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(layout.GetArgumentName(0), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that public layout names reject an out of range position.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(1)]
         public void PublicLayoutNamesRejectAnOutOfRangePosition(int index)
@@ -396,6 +413,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.Throws<ArgumentOutOfRangeException>(() => layout.GetArgumentName(index));
         }
 
+        /// <summary>
+        /// Verifies that malformed required sets do not materialize native arguments.
+        /// </summary>
         [TestCase("true")]
         [TestCase("[7]")]
         [TestCase("[\"Missing\"]")]
@@ -420,6 +440,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 variable => variable.BrowseName == "InputArguments"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that invalid explicit layout does not materialize an argument list.
+        /// </summary>
         [TestCase("\"uav:argumentLayout\":\"named\",")]
         [TestCase("\"uav:argumentLayout\":\"named\",\"uav:mapToType\":\"i=22\",\"uav:fieldOrder\":[\"Value\"],")]
         [TestCase("\"uav:argumentLayout\":\"flattened\",\"uav:fieldOrder\":[\"Value\"],")]
@@ -517,6 +540,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// all three, so the order follows from the Method rather than needing
         /// to be restated.
         /// </summary>
+        /// <param name="conditionAction">The condition action used by this test case.</param>
         [TestCase("Acknowledge")]
         [TestCase("Confirm")]
         [TestCase("AddComment")]
@@ -569,6 +593,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(extensions, Does.Not.Contain("/input"));
         }
 
+        /// <summary>
+        /// Verifies that explicit named argument layouts are not retained as unmapped residue.
+        /// </summary>
         [Test]
         public void ExplicitNamedArgumentLayoutsAreNotRetainedAsUnmappedResidue()
         {
@@ -583,6 +610,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(extensions, Does.Not.Contain("/input"));
         }
 
+        /// <summary>
+        /// Verifies that generated argument layouts do not add residue to preserved native models.
+        /// </summary>
         [Test]
         public void GeneratedArgumentLayoutsDoNotAddResidueToPreservedNativeModels()
         {
@@ -596,6 +626,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo((source.Extensions ?? []).Select(value => value.OuterXml)));
         }
 
+        /// <summary>
+        /// Verifies that explicit single layouts retain the whole value across repeated round trips.
+        /// </summary>
+        /// <param name="structure">The structure flag for this test case.</param>
         [TestCase("input", false)]
         [TestCase("input", true)]
         [TestCase("output", false)]
@@ -635,6 +669,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that preserved single schemas cannot replace changed native argument facts.
+        /// </summary>
         [TestCase("type")]
         [TestCase("rank")]
         [TestCase("any-rank")]
@@ -686,6 +723,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(variable.Value.OuterXml, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that effective argument data type cannot be hidden by equivalent JSON number types.
+        /// </summary>
         [TestCase("uav:mapToType")]
         [TestCase("uav:dataTypeId")]
         [TestCase("uav:dataTypeName")]
@@ -725,6 +765,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Child(Child(argument, "DataType"), "Identifier").InnerText, Is.EqualTo("i=10"));
         }
 
+        /// <summary>
+        /// Verifies that single layout preservation uses the configured combined JSON depth.
+        /// </summary>
         [Test]
         public void SingleLayoutPreservationUsesTheConfiguredCombinedJsonDepth()
         {
@@ -752,6 +795,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(actual.GetInt32(), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that single union argument retains its authored value constraints.
+        /// </summary>
+        /// <param name="explicitLayout">The explicit-layout flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void SingleUnionArgumentRetainsItsAuthoredValueConstraints(bool explicitLayout)
@@ -786,6 +833,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restoredArguments[0].ValueRank, Is.EqualTo("-1"));
         }
 
+        /// <summary>
+        /// Verifies that single layout replacement reports the combined depth limit.
+        /// </summary>
         [Test]
         public void SingleLayoutReplacementReportsTheCombinedDepthLimit()
         {

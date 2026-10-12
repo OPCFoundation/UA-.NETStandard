@@ -40,8 +40,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that every mode rejects authoritative namespace reordering.
+        /// </summary>
+        /// <param name="mode">The WoT document set mode.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(WotDocumentSetMode.PartitionReconstruction, false)]
         [TestCase(WotDocumentSetMode.IndependentReadableModels, false)]
         [TestCase(WotDocumentSetMode.PartitionReconstruction, true)]
@@ -75,6 +83,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that every mode rejects conflicting authoritative headers.
+        /// </summary>
+        /// <param name="mode">The WoT document set mode.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(WotDocumentSetMode.PartitionReconstruction, false)]
         [TestCase(WotDocumentSetMode.IndependentReadableModels, false)]
         [TestCase(WotDocumentSetMode.PartitionReconstruction, true)]
@@ -105,6 +118,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that every mode rejects readable overlays on authoritative partitions.
+        /// </summary>
+        /// <param name="mode">The WoT document set mode.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(WotDocumentSetMode.PartitionReconstruction, false)]
         [TestCase(WotDocumentSetMode.IndependentReadableModels, false)]
         [TestCase(WotDocumentSetMode.PartitionReconstruction, true)]
@@ -142,6 +160,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "b"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions preserve model constraints and multilingual metadata.
+        /// </summary>
         [Test]
         public void IndependentPartitionsPreserveModelConstraintsAndMultilingualMetadata()
         {
@@ -210,6 +231,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions reject conflicting model facts.
+        /// </summary>
         [TestCase("version")]
         [TestCase("modelVersion")]
         [TestCase("publicationDate")]
@@ -281,6 +305,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "b"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions deduplicate namespace URIs and equivalent shared nodes.
+        /// </summary>
         [Test]
         public void IndependentPartitionsDeduplicateNamespaceUrisAndEquivalentSharedNodes()
         {
@@ -305,6 +332,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=2;i=42"));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions reject conflicting shared nodes.
+        /// </summary>
         [Test]
         public void IndependentPartitionsRejectConflictingSharedNodes()
         {
@@ -327,6 +357,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location.Reference == "b"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent readable import honors exact aggregate limits.
+        /// </summary>
         [TestCase("nodes", -1)]
         [TestCase("nodes", 0)]
         [TestCase("nodes", 1)]
@@ -388,6 +421,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that empty and single document sets report their selected mode.
+        /// </summary>
+        /// <param name="mode">The WoT document set mode.</param>
         [TestCase(WotDocumentSetMode.PartitionReconstruction)]
         [TestCase(WotDocumentSetMode.IndependentReadableModels)]
         public async Task EmptyAndSingleDocumentSetsReportTheirSelectedModeAsync(WotDocumentSetMode mode)
@@ -414,6 +451,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent readable import honors cancellation even when empty.
+        /// </summary>
+        /// <param name="empty">The empty flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void IndependentReadableImportHonorsCancellationEvenWhenEmpty(bool empty)
@@ -428,6 +469,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that independent partition merge honors cancellation.
+        /// </summary>
         [Test]
         public void IndependentPartitionMergeHonorsCancellation()
         {

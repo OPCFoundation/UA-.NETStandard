@@ -115,6 +115,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that published local context is pinned and its terms are recognized.
+        /// </summary>
         [Test]
         public void PublishedLocalContextIsPinnedAndItsTermsAreRecognized()
         {

@@ -50,6 +50,10 @@ namespace Opc.Ua.Types.Tests.Wot
     {
         private const string s_ns = WotNodeSetConverter.VocabularyNamespace;
 
+        /// <summary>
+        /// Verifies that opaque values retain their exact lexical representation across round trips.
+        /// </summary>
+        /// <param name="preservation">The WoT node set preservation mode.</param>
         [TestCase(WotNodeSetPreservationMode.Never)]
         [TestCase(WotNodeSetPreservationMode.Always)]
         public void OpaqueValuesRetainTheirExactLexicalRepresentationAcrossRoundTrips(
@@ -104,6 +108,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that property link residue remains on its property instead of creating a root type link.
+        /// </summary>
+        /// <param name="preservation">The WoT node set preservation mode.</param>
         [TestCase(WotNodeSetPreservationMode.Never)]
         [TestCase(WotNodeSetPreservationMode.Always)]
         public void PropertyLinkResidueRemainsOnItsPropertyInsteadOfCreatingARootTypeLink(
@@ -156,6 +164,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that raw opaque insertion still enforces the combined document depth.
+        /// </summary>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(4, false)]
         [TestCase(5, true)]
         public void RawOpaqueInsertionStillEnforcesTheCombinedDocumentDepth(int depth, bool accepted)
@@ -185,6 +197,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that a subsequent entry cannot be silently hidden by an opaque raw value.
+        /// </summary>
         [Test]
         public void ASubsequentEntryCannotBeSilentlyHiddenByAnOpaqueRawValue()
         {
@@ -207,6 +222,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.RootElement.GetProperty("uav:metadata").GetProperty("y").GetInt32(), Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that equivalent generated opaque value retains its authored numeric spelling.
+        /// </summary>
         [Test]
         public void EquivalentGeneratedOpaqueValueRetainsItsAuthoredNumericSpelling()
         {
@@ -226,6 +244,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.RootElement.GetProperty("uav:metadata").GetRawText(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that apply with null extensions returns original bytes.
+        /// </summary>
         [Test]
         public void ApplyWithNullExtensionsReturnsOriginalBytes()
         {
@@ -239,6 +260,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that apply with no matching extension returns original bytes.
+        /// </summary>
         [Test]
         public void ApplyWithNoMatchingExtensionReturnsOriginalBytes()
         {
@@ -254,6 +278,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects unsupported version.
+        /// </summary>
         [Test]
         public void ApplyRejectsUnsupportedVersion()
         {
@@ -272,6 +299,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects non base 64 encoding.
+        /// </summary>
         [Test]
         public void ApplyRejectsNonBase64Encoding()
         {
@@ -289,6 +319,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects invalid base 64 content.
+        /// </summary>
         [Test]
         public void ApplyRejectsInvalidBase64Content()
         {
@@ -310,6 +343,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects digest mismatch.
+        /// </summary>
         [Test]
         public void ApplyRejectsDigestMismatch()
         {
@@ -329,6 +365,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects invalid JSON pointer without leading slash.
+        /// </summary>
         [Test]
         public void ApplyRejectsInvalidJsonPointerWithoutLeadingSlash()
         {
@@ -345,6 +384,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects pointer exceeding max depth.
+        /// </summary>
         [Test]
         public void ApplyRejectsPointerExceedingMaxDepth()
         {
@@ -363,6 +405,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply rejects oversized residue.
+        /// </summary>
         [Test]
         public void ApplyRejectsOversizedResidue()
         {
@@ -381,6 +426,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply adds new member to object document.
+        /// </summary>
         [Test]
         public void ApplyAddsNewMemberToObjectDocument()
         {
@@ -398,6 +446,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("\"key\""));
         }
 
+        /// <summary>
+        /// Verifies that apply appends to links array with dash pointer.
+        /// </summary>
         [Test]
         public void ApplyAppendsToLinksArrayWithDashPointer()
         {
@@ -416,6 +467,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("urn:x"));
         }
 
+        /// <summary>
+        /// Verifies that apply reports conflict when member value differs.
+        /// </summary>
         [Test]
         public void ApplyReportsConflictWhenMemberValueDiffers()
         {
@@ -463,6 +517,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "The two are the same JSON value under RFC 8785, so nothing is in conflict.");
         }
 
+        /// <summary>
+        /// Verifies that apply still reports a conflict for a real difference.
+        /// </summary>
         [TestCase(/*lang=json,strict*/ "{\"a\":1,\"b\":2}", /*lang=json,strict*/ "{\"b\":2,\"a\":3}", TestName =
             "ResidueConflictSurvivesReordering")]
         [TestCase("1.0", "1.5", TestName = "ResidueConflictSurvivesNumberNormalization")]
@@ -486,6 +543,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "Canonicalizing two values never makes two different values one.");
         }
 
+        /// <summary>
+        /// Verifies that apply reports a conflict when a value cannot be canonicalized.
+        /// </summary>
         [Test]
         public void ApplyReportsAConflictWhenAValueCannotBeCanonicalized()
         {
@@ -508,6 +568,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply reports invalid target pointer for non object root.
+        /// </summary>
         [Test]
         public void ApplyReportsInvalidTargetPointerForNonObjectRoot()
         {
@@ -562,6 +625,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply invalid JSON in residue entry is skipped.
+        /// </summary>
         [Test]
         public void ApplyInvalidJsonInResidueEntryIsSkipped()
         {
@@ -586,6 +652,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that replace preserves unrelated extensions.
+        /// </summary>
         [Test]
         public void ReplacePreservesUnrelatedExtensions()
         {
@@ -606,6 +675,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that replace drops existing residue extension.
+        /// </summary>
         [Test]
         public void ReplaceDropsExistingResidueExtension()
         {
@@ -622,6 +694,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that replace reports oversized residue when capturing.
+        /// </summary>
         [Test]
         public void ReplaceReportsOversizedResidueWhenCapturing()
         {
@@ -639,6 +714,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that replace round trips unknown root members via apply.
+        /// </summary>
         [Test]
         public void ReplaceRoundTripsUnknownRootMembersViaApply()
         {
@@ -665,6 +743,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultText, Does.Contain("42"));
         }
 
+        /// <summary>
+        /// Verifies that replace capturable browse name with nsu prefix.
+        /// </summary>
         [Test]
         public void ReplaceCapturableBrowseNameWithNsuPrefix()
         {
@@ -687,6 +768,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(xml, Does.Contain("MyProp"));
         }
 
+        /// <summary>
+        /// Verifies that replace capturable browse name without colon uses full name.
+        /// </summary>
         [Test]
         public void ReplaceCapturableBrowseNameWithoutColonUsesFullName()
         {
@@ -703,6 +787,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that replace capturable browse name with nsu prefix missing semicolon.
+        /// </summary>
         [Test]
         public void ReplaceCapturableBrowseNameWithNsuPrefixMissingSemicolon()
         {
@@ -719,6 +806,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that apply creates intermediate object for deep pointer.
+        /// </summary>
         [Test]
         public void ApplyCreatesIntermediateObjectForDeepPointer()
         {
@@ -737,6 +827,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("42"));
         }
 
+        /// <summary>
+        /// Verifies that apply sets array element at numeric index.
+        /// </summary>
         [Test]
         public void ApplySetsArrayElementAtNumericIndex()
         {
@@ -753,6 +846,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("\"d\""));
         }
 
+        /// <summary>
+        /// Verifies that apply multiple entries within single residue extension.
+        /// </summary>
         [Test]
         public void ApplyMultipleEntriesWithinSingleResidueExtension()
         {
@@ -772,6 +868,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("vendor:b"));
         }
 
+        /// <summary>
+        /// Verifies that apply entry traverses array parent by numeric index.
+        /// </summary>
         [Test]
         public void ApplyEntryTraversesArrayParentByNumericIndex()
         {
@@ -788,6 +887,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("99"));
         }
 
+        /// <summary>
+        /// Verifies that apply entry no conflict when value matches existing member.
+        /// </summary>
         [Test]
         public void ApplyEntryNoConflictWhenValueMatchesExistingMember()
         {
@@ -804,6 +906,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("original"));
         }
 
+        /// <summary>
+        /// Verifies that apply entry array index conflict emits residue conflict.
+        /// </summary>
         [Test]
         public void ApplyEntryArrayIndexConflictEmitsResidueConflict()
         {
@@ -820,6 +925,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply entry out of range array index emits residue invalid.
+        /// </summary>
         [Test]
         public void ApplyEntryOutOfRangeArrayIndexEmitsResidueInvalid()
         {
@@ -836,6 +944,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply link entry creates new link and links array when absent.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryCreatesNewLinkAndLinksArrayWhenAbsent()
         {
@@ -853,6 +964,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("urn:x"));
         }
 
+        /// <summary>
+        /// Verifies that apply link entry adds extras to new link.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryAddsExtrasToNewLink()
         {
@@ -874,6 +988,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultJson, Does.Contain("custom-value"));
         }
 
+        /// <summary>
+        /// Verifies that apply link entry merges extras into existing exact match link.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryMergesExtrasIntoExistingExactMatchLink()
         {
@@ -916,6 +1033,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that apply link entry reports conflict for non array links key.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryReportsConflictForNonArrayLinksKey()
         {
@@ -932,6 +1052,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply link entry reports invalid when extras value is not JSON object.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryReportsInvalidWhenExtrasValueIsNotJsonObject()
         {
@@ -970,6 +1093,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that apply link entry reports conflict when extra property mismatch.
+        /// </summary>
         [Test]
         public void ApplyLinkEntryReportsConflictWhenExtraPropertyMismatch()
         {
@@ -992,6 +1118,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that replace capture sets non array context as residue entry.
+        /// </summary>
         [Test]
         public void ReplaceCaptureSetsNonArrayContextAsResidueEntry()
         {
@@ -1008,6 +1137,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(xml, Does.Contain("@context"));
         }
 
+        /// <summary>
+        /// Verifies that replace captures non object affordance map as whole entry.
+        /// </summary>
         [Test]
         public void ReplaceCapturesNonObjectAffordanceMapAsWholeEntry()
         {
@@ -1022,6 +1154,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nodeSet.Extensions, Is.Not.Null.And.Not.Empty);
         }
 
+        /// <summary>
+        /// Verifies that replace captures colliding affordance names with unique suffix.
+        /// </summary>
         [Test]
         public void ReplaceCapturesCollidingAffordanceNamesWithUniqueSuffix()
         {
@@ -1042,6 +1177,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(xml, Does.Contain("SameName_2"));
         }
 
+        /// <summary>
+        /// Verifies that replace captures non array links as whole entry.
+        /// </summary>
         [Test]
         public void ReplaceCapturesNonArrayLinksAsWholeEntry()
         {
@@ -1056,6 +1194,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nodeSet.Extensions, Is.Not.Null.And.Not.Empty);
         }
 
+        /// <summary>
+        /// Verifies that replace captures mapped link extras for ns generated namespace prefix.
+        /// </summary>
         [Test]
         public void ReplaceCapturesMappedLinkExtrasForNsGeneratedNamespacePrefix()
         {
@@ -1074,6 +1215,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(xml, Does.Contain("ns123:ref"));
         }
 
+        /// <summary>
+        /// Verifies that replace and apply round trips link extras for mapped link.
+        /// </summary>
         [Test]
         public void ReplaceAndApplyRoundTripsLinkExtrasForMappedLink()
         {
@@ -1101,6 +1245,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultStr, Does.Contain("vendor:score"));
         }
 
+        /// <summary>
+        /// Verifies that from node set rejects conflicting data type contexts.
+        /// </summary>
         [TestCase("null", s_dataTypeOwnerContext, TestName = "FromNodeSetRejectsDataTypeContextNullBeforeOwner")]
         [TestCase(s_dataTypeOwnerContext, "null", TestName = "FromNodeSetRejectsDataTypeContextOwnerBeforeNull")]
         [TestCase(s_dataTypeOwnerContext, /*lang=json,strict*/ """{"v":"https://other.test/"}""",
@@ -1121,6 +1268,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 d.Location?.JsonPointer == s_dataTypeContextPointer), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that from node set accepts absent or equal data type contexts.
+        /// </summary>
         [TestCase(0, "null", TestName = "FromNodeSetAcceptsAbsentDataTypeContext")]
         [TestCase(1, "null", TestName = "FromNodeSetAcceptsSingleNullDataTypeContext")]
         [TestCase(2, "null", TestName = "FromNodeSetAcceptsDuplicateNullDataTypeContexts")]

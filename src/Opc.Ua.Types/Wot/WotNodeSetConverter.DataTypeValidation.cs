@@ -846,10 +846,25 @@ namespace Opc.Ua.Wot
 
         private enum ValidationDataTypeKind
         {
+            /// <summary>
+            /// The simple value of <c>ValidationDataTypeKind</c>.
+            /// </summary>
             Simple,
+            /// <summary>
+            /// The enumeration value of <c>ValidationDataTypeKind</c>.
+            /// </summary>
             Enumeration,
+            /// <summary>
+            /// The option set value of <c>ValidationDataTypeKind</c>.
+            /// </summary>
             OptionSet,
+            /// <summary>
+            /// The structure value of <c>ValidationDataTypeKind</c>.
+            /// </summary>
             Structure,
+            /// <summary>
+            /// The union value of <c>ValidationDataTypeKind</c>.
+            /// </summary>
             Union
         }
 
@@ -857,6 +872,12 @@ namespace Opc.Ua.Wot
 
         private sealed class DataTypeValidationNode
         {
+            /// <summary>
+            /// Initializes a new <c>DataTypeValidationNode</c> instance.
+            /// </summary>
+            /// <param name="document">The document used to initialize the instance.</param>
+            /// <param name="source">The JSON element used to initialize the instance.</param>
+            /// <param name="inferred">The inferred flag used to initialize <c>DataTypeValidationNode</c>.</param>
             public DataTypeValidationNode(WotDocument document, JsonElement source, string identity, bool inferred)
             {
                 Document = document;
@@ -880,24 +901,51 @@ namespace Opc.Ua.Wot
                             : ValidationDataTypeKind.Structure;
             }
 
+            /// <summary>
+            /// Gets the document for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public WotDocument Document { get; }
 
+            /// <summary>
+            /// Gets the JSON element for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public JsonElement Source { get; }
 
             public string Identity { get; }
 
+            /// <summary>
+            /// Gets the name for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public string Name { get; }
 
+            /// <summary>
+            /// Gets the inferred for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public bool Inferred { get; }
 
+            /// <summary>
+            /// Gets the kind for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public ValidationDataTypeKind Kind { get; }
 
+            /// <summary>
+            /// Gets or sets the base identity for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public string? BaseIdentity { get; set; }
 
+            /// <summary>
+            /// Gets or sets the invalid for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public bool Invalid { get; set; }
 
+            /// <summary>
+            /// Gets or sets the fields loaded for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public bool FieldsLoaded { get; set; }
 
+            /// <summary>
+            /// Gets or sets the fields for <c>DataTypeValidationNode</c>.
+            /// </summary>
             public ArrayOf<DataTypeField> Fields { get; set; }
         }
     }

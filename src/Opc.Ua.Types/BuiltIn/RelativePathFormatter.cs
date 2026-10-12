@@ -316,6 +316,9 @@ namespace Opc.Ua
             return path;
         }
 
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="resolvePrefix">The resolve prefix.</param>
+        /// <param name="maxElements">The max elements.</param>
         internal static RelativePathFormatter ParsePortable(
             string text,
             NamespaceTable namespaceUris,
@@ -511,6 +514,9 @@ namespace Opc.Ua
                 return Parse(reader, null, null);
             }
 
+            /// <param name="reader">The string reader.</param>
+            /// <param name="namespaceUris">The namespace URIs.</param>
+            /// <param name="resolvePrefix">The resolve prefix.</param>
             internal static Element Parse(
                 StringReader reader,
                 NamespaceTable? namespaceUris,

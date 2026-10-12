@@ -380,6 +380,10 @@ namespace Opc.Ua.Types.Tests.Wot
             await AssertEquivalentAsync(source, reloaded, new WotNodeSetConverterOptions()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that repository source survives serialized linked partitions.
+        /// </summary>
+        /// <param name="relativePath">The relative path used by this test case.</param>
         [TestCase("tests\\Opc.Ua.SourceGeneration.Core.Tests\\Resources\\Opc.Ua.Di.NodeSet2.xml")]
         [TestCase("samples\\DI\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Machinery.NodeSet2.xml")]
         [TestCase("samples\\DI\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Pumps.NodeSet2.xml")]

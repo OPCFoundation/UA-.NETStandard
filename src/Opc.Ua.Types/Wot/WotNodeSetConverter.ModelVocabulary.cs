@@ -212,6 +212,10 @@ namespace Opc.Ua.Wot
         /// affordance itself names the value the unit belongs to rather than
         /// the unit.
         /// </remarks>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="element">The JSON element.</param>
+        /// <param name="affordanceName">The affordance name.</param>
+        /// <param name="parentPointer">The parent pointer.</param>
         internal static void ValidateUnitProperty(
             WotDocument document,
             JsonElement element,

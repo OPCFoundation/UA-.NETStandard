@@ -35,8 +35,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that supplied root forms require valid owned URI variables.
+        /// </summary>
+        /// <param name="thingModel">The thing-model flag for this test case.</param>
         [Test]
         public async Task SuppliedRootFormsRequireValidOwnedUriVariables(
             [Values] bool thingModel,
@@ -91,6 +98,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that root form variables cannot borrow source declarations.
+        /// </summary>
+        /// <param name="thingModel">The thing-model flag for this test case.</param>
+        /// <param name="localDeclaration">The local-declaration flag for this test case.</param>
         [Test]
         public async Task RootFormVariablesCannotBorrowSourceDeclarations(
             [Values] bool thingModel,

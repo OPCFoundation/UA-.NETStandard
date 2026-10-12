@@ -163,19 +163,29 @@ namespace Opc.Ua.Wot
         /// </summary>
         private sealed class WotAnalogFacets
         {
-            /// <summary>The decoded <c>EngineeringUnits</c> value.</summary>
+            /// <summary>
+            /// The decoded <c>EngineeringUnits</c> value.
+            /// </summary>
             public WotEngineeringUnits? Units { get; set; }
 
-            /// <summary>The NodeId of the <c>EngineeringUnits</c> Property.</summary>
+            /// <summary>
+            /// The NodeId of the <c>EngineeringUnits</c> Property.
+            /// </summary>
             public string? UnitsNodeId { get; set; }
 
-            /// <summary>The affordance name the unit Property projects to.</summary>
+            /// <summary>
+            /// The affordance name the unit Property projects to.
+            /// </summary>
             public string? UnitsAffordance { get; set; }
 
-            /// <summary>The decoded <c>EURange</c> value.</summary>
+            /// <summary>
+            /// The decoded <c>EURange</c> value.
+            /// </summary>
             public WotRange? EuRange { get; set; }
 
-            /// <summary>The decoded <c>InstrumentRange</c> value.</summary>
+            /// <summary>
+            /// The decoded <c>InstrumentRange</c> value.
+            /// </summary>
             public WotRange? InstrumentRange { get; set; }
         }
 
@@ -383,6 +393,7 @@ namespace Opc.Ua.Wot
             writer.WriteEndObject();
         }
 
+        /// <param name="context">The JSON element.</param>
         internal static bool IsGeneratedUnitLocalizedTextOverride(JsonElement context)
         {
             if (context.ValueKind != JsonValueKind.Object)

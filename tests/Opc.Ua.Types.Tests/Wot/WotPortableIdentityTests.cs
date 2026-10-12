@@ -54,6 +54,9 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ModelNamespace = "urn:test:identity";
         private const string EscapedModel = "nsu=urn%3Atest%3Aidentity;";
 
+        /// <summary>
+        /// Verifies that generated IDs use qualified paths and the actual model namespace.
+        /// </summary>
         [Test]
         public void GeneratedIdsUseQualifiedPathsAndTheActualModelNamespace()
         {
@@ -89,6 +92,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an authored identity cannot belong to two declarations.
+        /// </summary>
+        /// <param name="secondId">The second ID used by this test case.</param>
         [TestCase("nsu=urn:test:identity;i=2")]
         [TestCase("nsu=urn%3Atest%3Aidentity;i=2")]
         public void AnAuthoredIdentityCannotBelongToTwoDeclarations(string secondId)
@@ -118,6 +125,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that argument IDs retain the qualified method path.
+        /// </summary>
         [Test]
         public void ArgumentIdsRetainTheQualifiedMethodPath()
         {
@@ -155,6 +165,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that namespace URI escaping does not create another model namespace.
+        /// </summary>
+        /// <param name="namespaceForm">The namespace form used by this test case.</param>
         [TestCase("urn:test:identity")]
         [TestCase("urn%3Atest%3Aidentity")]
         public void NamespaceUriEscapingDoesNotCreateAnotherModelNamespace(string namespaceForm)
@@ -179,6 +193,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=1;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Atest%3Aidentity;Speed"));
         }
 
+        /// <summary>
+        /// Verifies that generated node IDs escape the namespace qualifier as well as the path.
+        /// </summary>
         [Test]
         public void GeneratedNodeIdsEscapeTheNamespaceQualifierAsWellAsThePath()
         {
@@ -334,6 +351,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// without the <c>nsu=</c> qualifier, and refuses the session-local
         /// <c>ns=</c> and the <c>svr=</c> prefix.
         /// </summary>
+        /// <param name="portable">The portable flag for this test case.</param>
         [TestCase("i=2041", true)]
         [TestCase("s=Pump", true)]
         [TestCase("g=09087e75-8e5e-499b-954f-f2a9603db28a", true)]

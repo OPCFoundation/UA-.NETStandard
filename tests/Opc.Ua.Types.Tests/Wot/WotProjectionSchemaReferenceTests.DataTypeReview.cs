@@ -38,8 +38,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that literal definitions cannot become authoritative or duplicate semantic definitions.
+        /// </summary>
+        /// <param name="pointerTarget">The pointer-target flag for this test case.</param>
         [Test]
         public async Task LiteralDefinitionsCannotBecomeAuthoritativeOrDuplicateSemanticDefinitions(
             [Values("const", "default", "enum", "examples", "uav:metadata")] string member,
@@ -87,6 +94,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that data schema property names are not semantic predicates.
+        /// </summary>
         [TestCase("uav:dataTypeDefinition")]
         [TestCase("uav:fieldDataTypeDefinition")]
         [TestCase("default")]
@@ -113,6 +123,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["reading"].GetProperty("required")[0].GetString(), Is.EqualTo(name));
         }
 
+        /// <summary>
+        /// Verifies that unknown prefixed data type facts retain their original context.
+        /// </summary>
+        /// <param name="equal">The equal flag for this test case.</param>
         [Test]
         public async Task UnknownPrefixedDataTypeFactsRetainTheirOriginalContext(
             [Values("uav:futureSemantic", "classification", "urn:semantic:classification")] string term,
@@ -155,6 +169,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that duplicate definition members return diagnostics instead of dictionary exceptions.
+        /// </summary>
         [TestCase("@id")]
         [TestCase("uav:dataTypeName")]
         [TestCase("uav:fields")]
@@ -177,6 +194,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that ambiguous names do not override definitive data type references.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase("graph", true)]
         [TestCase("native", true)]
         [TestCase("name", false)]
@@ -218,6 +239,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that ambiguous base names require their own definitive reference.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase("name", false)]
         [TestCase("object", false)]
         [TestCase("native", true)]
@@ -268,6 +293,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that equivalent local data type pointers use the indexed graph identity.
+        /// </summary>
+        /// <param name="pointers">The pointers flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EquivalentLocalDataTypePointersUseTheIndexedGraphIdentity(bool pointers)
@@ -304,6 +333,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(outer.Definition!.Field!.Single().DataType, Does.EndWith("i=3001"));
         }
 
+        /// <summary>
+        /// Verifies that known simple data type facets do not make prefix aliases incomparable.
+        /// </summary>
+        /// <param name="sameMinimum">The same-minimum flag for this test case.</param>
+        /// <param name="alias">The alias flag for this test case.</param>
         [Test]
         public async Task KnownSimpleDataTypeFacetsDoNotMakePrefixAliasesIncomparable(
             [Values] bool alias, [Values] bool sameMinimum)

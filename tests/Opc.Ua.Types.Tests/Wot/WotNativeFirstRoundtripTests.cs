@@ -209,6 +209,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertResidue(second);
         }
 
+        /// <summary>
+        /// Verifies that context and mapped link residue use stable selectors.
+        /// </summary>
         [TestCase("tm:extends")]
         [TestCase("ua:SubtypeOf")]
         [TestCase("ua:HasSupertype")]
@@ -270,6 +273,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(WotTestData.LocalNodeId(secondNodeSet, "nsu=urn:base;i=1001")));
         }
 
+        /// <summary>
+        /// Verifies that inheritance link residue keeps independent relationships.
+        /// </summary>
+        /// <param name="preservation">The WoT node set preservation mode.</param>
         [TestCase(WotNodeSetPreservationMode.Never)]
         [TestCase(WotNodeSetPreservationMode.Always)]
         public void InheritanceLinkResidueKeepsIndependentRelationships(WotNodeSetPreservationMode preservation)
@@ -403,6 +410,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that residue uses same affordance collision keys as readable mapping.
+        /// </summary>
         [Test]
         public void ResidueUsesSameAffordanceCollisionKeysAsReadableMapping()
         {
@@ -453,6 +463,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(second.Properties["Temp_2"].GetProperty("vendor:value").GetString(), Is.EqualTo("second"));
         }
 
+        /// <summary>
+        /// Verifies that qualified collision allocation agrees across public views.
+        /// </summary>
+        /// <param name="preservation">The WoT node set preservation mode.</param>
         [TestCase(WotNodeSetPreservationMode.Never)]
         [TestCase(WotNodeSetPreservationMode.Always)]
         public async Task QualifiedCollisionAllocationAgreesAcrossPublicViewsAsync(
@@ -531,6 +545,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that colliding method names keep their arguments and residue.
+        /// </summary>
+        /// <param name="explicitIds">The explicit-IDs flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void CollidingMethodNamesKeepTheirArgumentsAndResidue(bool explicitIds)
@@ -600,6 +618,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that colliding affordance link residue stays on its owning node.
+        /// </summary>
+        /// <param name="escapedName">The escaped-name flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void CollidingAffordanceLinkResidueStaysOnItsOwningNode(bool escapedName)

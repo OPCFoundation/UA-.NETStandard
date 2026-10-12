@@ -42,10 +42,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection plan format.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionPlanFormatTests
     {
+        /// <summary>
+        /// Verifies that non object JSON is not a plan and never resolves sources.
+        /// </summary>
         [TestCase("[]")]
         [TestCase("null")]
         [TestCase("42")]
@@ -70,6 +76,10 @@ namespace Opc.Ua.Types.Tests.Wot
             sources.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that resolved projection has the declared output kind and no plan control.
+        /// </summary>
+        /// <param name="expectedType">The expected type asserted by the test.</param>
         [TestCase("ThingDescription", "Thing")]
         [TestCase("ThingModel", "tm:ThingModel")]
         public async Task ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl(string kind, string expectedType)
@@ -97,6 +107,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.RootElement.GetProperty("uav:projectionKind").GetString(), Is.EqualTo(kind));
         }
 
+        /// <summary>
+        /// Verifies that present invalid result kinds cannot become an unspecified plan.
+        /// </summary>
         [TestCase("null")]
         [TestCase("42")]
         [TestCase("\"\"")]
@@ -116,6 +129,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 value.Message.Contains("uav:projectionKind", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a modern plan cannot claim an already resolved role.
+        /// </summary>
         [TestCase("Thing")]
         [TestCase("tm:ThingModel")]
         [TestCase("uav:object")]
@@ -132,6 +148,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics.Any(value => value.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that missing result kind does not implicitly enable draft compatibility.
+        /// </summary>
+        /// <param name="legacyType">The legacy type used by this test case.</param>
         [TestCase("Thing")]
         [TestCase("tm:ThingModel")]
         [TestCase(null)]
@@ -152,6 +172,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 value.Message.Contains("uav:projectionKind", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that explicit draft compatibility requires exactly one legacy kind.
+        /// </summary>
+        /// <param name="expected">The expected WoT document kind asserted by the test.</param>
+        /// <param name="contradictory">The contradictory flag for this test case.</param>
         [TestCase("Thing", false, WotDocumentKind.ThingDescription)]
         [TestCase("tm:ThingModel", false, WotDocumentKind.ThingModel)]
         [TestCase("Thing", true, WotDocumentKind.Unknown)]
@@ -181,6 +206,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.RootElement.TryGetProperty("uav:projectionKind", out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that resolver requires the explicit compatibility option for draft plans.
+        /// </summary>
         [Test]
         public async Task ResolverRequiresTheExplicitCompatibilityOptionForDraftPlans()
         {
@@ -210,6 +238,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:plan:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that nested plan sources use the projection media type.
+        /// </summary>
         [Test]
         public async Task NestedPlanSourcesUseTheProjectionMediaType()
         {
@@ -240,6 +271,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:plan:leaf", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that source media type must describe the fetched document role.
+        /// </summary>
+        /// <param name="mediaType">The media type used by this test case.</param>
         [TestCase("application/tm+json", "Thing")]
         [TestCase("application/td+json", "tm:ThingModel")]
         [TestCase(WotProjection.ContentType, "Thing")]
@@ -282,6 +317,9 @@ namespace Opc.Ua.Types.Tests.Wot
             source.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that undefined compatibility modes are rejected at both public boundaries.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(2)]
         [TestCase(int.MaxValue)]
@@ -299,6 +337,9 @@ namespace Opc.Ua.Types.Tests.Wot
             source.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that explicit compatibility does not relax an authored modern kind.
+        /// </summary>
         [TestCase("ThingDescription", "Thing")]
         [TestCase("ThingModel", "tm:ThingModel")]
         [TestCase("Thing", null)]
@@ -319,6 +360,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that malformed root roles cannot be hidden by a projection marker.
+        /// </summary>
+        /// <param name="legacy">The legacy flag for this test case.</param>
         [TestCase("[\"uav:projection\",null]", false)]
         [TestCase("[\"uav:projection\",42]", false)]
         [TestCase("[\"uav:projection\",[]]", false)]
@@ -343,6 +388,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that current plan metadata and result kind term are discoverable.
+        /// </summary>
         [Test]
         public void CurrentPlanMetadataAndResultKindTermAreDiscoverable()
         {
@@ -352,6 +400,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotBindingConformance.IsKnownTerm("uav:projectionKind"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that ordinary node set conversion rejects a projection marker even with an object role.
+        /// </summary>
+        /// <param name="legacy">The legacy flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task OrdinaryNodeSetConversionRejectsAProjectionMarkerEvenWithAnObjectRole(bool legacy)

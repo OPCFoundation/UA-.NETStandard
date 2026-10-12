@@ -203,6 +203,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "A UADataType root should fall through to the default @type tm:ThingModel.");
         }
 
+        /// <summary>
+        /// Verifies that to node set retains abstract UA links as metadata.
+        /// </summary>
         [Test]
         public void ToNodeSetRetainsAbstractUaLinksAsMetadata()
         {
@@ -289,6 +292,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "tm:extends with a NodeId href should produce a HasSubtype backward reference.");
         }
 
+        /// <summary>
+        /// Verifies that to node set warns about non node ID href without resolver.
+        /// </summary>
         [Test]
         public void ToNodeSetWarnsAboutNonNodeIdHrefWithoutResolver()
         {
@@ -1690,6 +1696,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "A uav:hasComponent entry with session-local ns= form should produce NonPortableIdentity warning.");
         }
 
+        /// <summary>
+        /// Verifies that to node set warn when href query ID uses session local ns form.
+        /// </summary>
         [Test]
         public void ToNodeSetWarnWhenHrefQueryIdUsesSessionLocalNsForm()
         {
@@ -1915,6 +1924,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "A BrowseName with namespace index 0 should produce a bare 'Name' portable browse name.");
         }
 
+        /// <summary>
+        /// Verifies that component of link to registry document emits inverse has component.
+        /// </summary>
+        /// <param name="parentReference">The parent reference used by this test case.</param>
         [TestCase("urn:parent")]
         [TestCase("https://models.example/parent.json")]
         [TestCase("../models/parent.json")]

@@ -81,7 +81,15 @@ namespace Opc.Ua.Wot
                 namespaceUri is not null && m_namespaces.Contains(namespaceUri));
         }
 
+        /// <summary>
+        /// Resolves a NamespaceUri-qualified BrowseName.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="namespaceUri">The NamespaceUri the compact model name's prefix resolved to.</param>
+        /// <param name="browseName">The unqualified BrowseName.</param>
+        /// <param name="expected">The NodeClass the caller requires, or
+        /// <see cref="WotExpectedNodeClass.Any"/>.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
         public ValueTask<ArrayOf<WotResolvedNode>> ResolveByBrowseNameAsync(
             string namespaceUri,
             string browseName,
@@ -258,7 +266,12 @@ namespace Opc.Ua.Wot
                 m_declarations.Resolve(typeNodeId, scope));
         }
 
+        /// <summary>
+        /// Resolves a DataType definition's JSON-LD graph identity.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="graphId">The graph ID.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
             string graphId,
             CancellationToken cancellationToken = default)

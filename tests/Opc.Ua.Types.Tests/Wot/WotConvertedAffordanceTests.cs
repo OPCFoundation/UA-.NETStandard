@@ -38,9 +38,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT converted affordance.
+    /// </summary>
     [TestFixture]
     public sealed class WotConvertedAffordanceTests
     {
+        /// <summary>
+        /// Verifies that native node identity is selected by its qualified owned declaration.
+        /// </summary>
         [Test]
         public void NativeNodeIdentityIsSelectedByItsQualifiedOwnedDeclaration()
         {
@@ -57,6 +63,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nodeSet.Items![1].NodeId, Is.EqualTo("ns=1;i=7"));
         }
 
+        /// <summary>
+        /// Verifies that mapping rejects missing or ambiguous authority.
+        /// </summary>
         [TestCase("explicit-missing")]
         [TestCase("unowned")]
         [TestCase("ambiguous")]
@@ -106,6 +115,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.TypeOf<FormatException>());
         }
 
+        /// <summary>
+        /// Verifies that namespace zero URI identities match local node set identifiers.
+        /// </summary>
         [Test]
         public void NamespaceZeroUriIdentitiesMatchLocalNodeSetIdentifiers()
         {
@@ -144,6 +156,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(mapped[0].OwnerNodeId, Is.EqualTo(new ExpandedNodeId(2253)));
         }
 
+        /// <summary>
+        /// Verifies that payload capture retains original scoped types and nested ranks after disposal.
+        /// </summary>
         [Test]
         public void PayloadCaptureRetainsOriginalScopedTypesAndNestedRanksAfterDisposal()
         {
@@ -192,6 +207,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("Values"));
         }
 
+        /// <summary>
+        /// Verifies that converted inferred payload types keep the native argument identity after disposal.
+        /// </summary>
         [TestCase("input")]
         [TestCase("output")]
         public void ConvertedInferredPayloadTypesKeepTheNativeArgumentIdentityAfterDisposal(string member)
@@ -247,6 +265,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("type").GetString(), Is.EqualTo("boolean"));
         }
 
+        /// <summary>
+        /// Verifies that payload capture skips non object sibling declarations.
+        /// </summary>
         [Test]
         public void PayloadCaptureSkipsNonObjectSiblingDeclarations(
             [Values("actions", "events")] string collection,
@@ -278,6 +299,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(captured.Definition.GetRawText(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that payload capture rejects foreign or cloned elements instead of guessing context.
+        /// </summary>
+        /// <param name="clone">The clone flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void PayloadCaptureRejectsForeignOrClonedElementsInsteadOfGuessingContext(bool clone)
@@ -290,6 +315,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.ArgumentException.With.Property("ParamName").EqualTo("affordance"));
         }
 
+        /// <summary>
+        /// Verifies that replacing an event browse path cannot reuse its previous context resolution.
+        /// </summary>
         [Test]
         public void ReplacingAnEventBrowsePathCannotReuseItsPreviousContextResolution()
         {

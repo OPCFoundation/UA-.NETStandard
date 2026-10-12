@@ -63,6 +63,9 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string TitleIri = "https://www.w3.org/2019/wot/td#title";
         private const string DescriptionIri = "https://www.w3.org/2019/wot/td#description";
 
+        /// <summary>
+        /// Verifies that later context binding determines the root browse name namespace.
+        /// </summary>
         [Test]
         public void LaterContextBindingDeterminesTheRootBrowseNameNamespace()
         {
@@ -90,6 +93,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(nodeSet.NamespaceUris![browseName.NamespaceIndex - 1], Is.EqualTo("urn:new:"));
         }
 
+        /// <summary>
+        /// Verifies that an object form local prefix changes only its affordance namespace.
+        /// </summary>
         [Test]
         public void AnObjectFormLocalPrefixChangesOnlyItsAffordanceNamespace()
         {
@@ -131,6 +137,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that context definitions and opaque payloads are not readable node identities.
+        /// </summary>
         [Test]
         public void ContextDefinitionsAndOpaquePayloadsAreNotReadableNodeIdentities()
         {
@@ -261,6 +270,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(OverrideEntries(document), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a non english default locale states its singular term language.
+        /// </summary>
         [Test]
         public void ANonEnglishDefaultLocaleStatesItsSingularTermLanguage()
         {
@@ -374,6 +386,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that engineering unit fallback does not strip the other text locale.
+        /// </summary>
+        /// <param name="displayNameFallback">The display-name-fallback flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         public void EngineeringUnitFallbackDoesNotStripTheOtherTextLocale(bool displayNameFallback)

@@ -50,6 +50,10 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotModellingRuleAndReferenceTests
     {
+        /// <summary>
+        /// Verifies that component subtype and independent references survive in either order.
+        /// </summary>
+        /// <param name="reverseOrder">The reverse-order flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ComponentSubtypeAndIndependentReferencesSurviveInEitherOrder(bool reverseOrder)
@@ -85,6 +89,12 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that either reference direction exports readable variable and method affordances.
+        /// </summary>
+        /// <param name="referenceType">The reference type used by this test case.</param>
+        /// <param name="referenceId">The reference ID used by this test case.</param>
+        /// <param name="inverseOnly">The inverse-only flag for this test case.</param>
         [TestCase("HasComponent", "i=47", false)]
         [TestCase("HasComponent", "i=47", true)]
         [TestCase("HasOrderedComponent", "i=49", false)]
@@ -145,6 +155,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that an object type supertype is readable and reconstructs exactly.
+        /// </summary>
         [Test]
         public void AnObjectTypeSupertypeIsReadableAndReconstructsExactly()
         {
@@ -173,6 +186,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(supertypes[0], Is.EqualTo("nsu=urn:test:rules;i=1000"));
         }
 
+        /// <summary>
+        /// Verifies that numeric and aliased modelling rules are readable.
+        /// </summary>
+        /// <param name="referenceType">The reference type used by this test case.</param>
+        /// <param name="ruleTarget">The rule target used by this test case.</param>
         [TestCase("i=37", "i=78")]
         [TestCase("RuleLink", "Required")]
         public void NumericAndAliasedModellingRulesAreReadable(string referenceType, string ruleTarget)
@@ -202,6 +220,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Single(r => r.IsForward && r.ReferenceType == "HasModellingRule").Value, Is.EqualTo("i=78"));
         }
 
+        /// <summary>
+        /// Verifies that abstract reference types cannot be instantiated.
+        /// </summary>
+        /// <param name="referenceId">The reference ID used by this test case.</param>
         [TestCase("References", "i=31")]
         [TestCase("NonHierarchicalReferences", "i=32")]
         [TestCase("HierarchicalReferences", "i=33")]
@@ -231,6 +253,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that companion component subtypes export readable affordances.
+        /// </summary>
+        /// <param name="inverseOnly">The inverse-only flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CompanionComponentSubtypesExportReadableAffordancesAsync(bool inverseOnly)

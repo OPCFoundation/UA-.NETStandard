@@ -61,6 +61,10 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string RootId = "nsu=http://example.com/demo/pump;s=Pump07";
         private const string NestedId = "nsu=http://example.com/demo/pump;s=Pump07.Motor";
 
+        /// <summary>
+        /// Verifies that every relative path element must be portable.
+        /// </summary>
+        /// <param name="portable">The portable flag for this test case.</param>
         [TestCase("pump:Root/1:Speed", false)]
         [TestCase("pump:Root/pump:Motor/2:Speed", false)]
         [TestCase("pump:Root/pump:Motor/pump:Speed", true)]

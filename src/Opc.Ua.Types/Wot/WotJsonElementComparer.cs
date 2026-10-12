@@ -43,18 +43,22 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Initializes identity hashing over the supplied live document roots.
         /// </summary>
+        /// <param name="roots">The roots used to initialize the instance.</param>
         public WotJsonElementComparer(ArrayOf<JsonElement> roots)
         {
             m_roots = roots.ConvertAll(root => (Root: root, Hash: root.GetHashCode()));
         }
 
         /// <inheritdoc/>
+        /// <param name="x">The JSON element.</param>
+        /// <param name="y">The JSON element.</param>
         public bool Equals(JsonElement x, JsonElement y)
         {
             return x.Equals(y);
         }
 
         /// <inheritdoc/>
+        /// <param name="element">The JSON element.</param>
         public int GetHashCode(JsonElement element)
         {
             if (element.ValueKind == JsonValueKind.Undefined)

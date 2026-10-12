@@ -508,6 +508,7 @@ namespace Opc.Ua.Wot
             INodeSetAliasResolver aliases,
             int serverCount)
         {
+            /// <param name="allowRemote">The allow-remote flag supplied by the caller.</param>
             public string? NodeId(string? text, bool allowRemote = false)
             {
                 if (string.IsNullOrEmpty(text))

@@ -38,10 +38,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT semantic type residue.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotSemanticTypeResidueTests
     {
+        /// <summary>
+        /// Verifies that unmapped type annotations survive repeated readable round trips.
+        /// </summary>
+        /// <param name="onProperty">The on-property flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void UnmappedTypeAnnotationsSurviveRepeatedReadableRoundTrips(bool onProperty)
@@ -91,6 +98,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that interaction type annotations retain order without duplicating native markers.
+        /// </summary>
+        /// <param name="nativeType">The native type used by this test case.</param>
         [TestCase("actions", "uav:method")]
         [TestCase("events", "uav:eventType")]
         public void InteractionTypeAnnotationsRetainOrderWithoutDuplicatingNativeMarkers(
@@ -127,6 +138,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that type annotation keeps its affordance local prefix binding.
+        /// </summary>
         [Test]
         public void TypeAnnotationKeepsItsAffordanceLocalPrefixBinding()
         {
@@ -165,6 +179,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("urn:property-semantic#"));
         }
 
+        /// <summary>
+        /// Verifies that contextual type annotations retain native class and deduplicate semantic types.
+        /// </summary>
+        /// <param name="nativeType">The native type used by this test case.</param>
         [TestCase("properties", "uav:variable")]
         [TestCase("actions", "uav:method")]
         [TestCase("events", "uav:eventType")]
@@ -202,6 +220,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that semantic type residue cannot override native facts or supply invalid tokens.
+        /// </summary>
+        /// <param name="expected">The expected WoT diagnostic code asserted by the test.</param>
+        /// <param name="repeatsExistingFacts">The repeats-existing-facts flag for this test case.</param>
         [TestCase("[\"uav:method\"]", WotDiagnosticCode.ResidueConflict, false)]
         [TestCase("[\"uav:variable\"]", WotDiagnosticCode.ResidueConflict, false)]
         [TestCase("[42]", WotDiagnosticCode.ResidueInvalid, false)]

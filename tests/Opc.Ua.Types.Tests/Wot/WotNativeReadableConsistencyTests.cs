@@ -38,11 +38,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT native readable consistency.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     [Parallelizable(ParallelScope.All)]
     public sealed class WotNativeReadableConsistencyTests
     {
+        /// <summary>
+        /// Verifies that native only readable contradictions fail without changing native facts.
+        /// </summary>
         [TestCase("uav:id", "\"nsu=urn:test:model;i=9999\"")]
         [TestCase("uav:browseName", "\"nsu=urn:test:model;OtherSpeed\"")]
         [TestCase("uav:dataTypeId", "\"i=12\"")]
@@ -83,6 +89,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.RootElement.GetProperty("uav:nodes").GetRawText(), Is.EqualTo(native));
         }
 
+        /// <summary>
+        /// Verifies that native only root facts remain authoritative.
+        /// </summary>
         [TestCase("uav:id", "\"nsu=urn:test:model;i=9999\"")]
         [TestCase("uav:browseName", "\"nsu=urn:test:model;OtherType\"")]
         [TestCase("@type", "\"uav:object\"")]
@@ -106,6 +115,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
         }
 
+        /// <summary>
+        /// Verifies that native only zero argument methods cannot acquire readable arguments.
+        /// </summary>
         [TestCase("input")]
         [TestCase("output")]
         public void NativeOnlyZeroArgumentMethodsCannotAcquireReadableArguments(string member)
@@ -125,6 +137,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Location?.JsonPointer == "/actions/Reset/" + member), Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that native symmetric references accept either stored direction but asymmetric references do not.
+        /// </summary>
+        /// <param name="symmetric">The symmetric flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         public void NativeSymmetricReferencesAcceptEitherStoredDirectionButAsymmetricReferencesDoNot(bool symmetric)
@@ -170,6 +186,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.Value == "ns=1;i=6001"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that native XML fragments keep whitespace text.
+        /// </summary>
         [TestCase("value")]
         [TestCase("node-extension")]
         [TestCase("model-extension")]
@@ -225,6 +244,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(actual.OuterXml, Is.EqualTo(expected.OuterXml));
         }
 
+        /// <summary>
+        /// Verifies that native localized facts use the document fallback but reject another language.
+        /// </summary>
+        /// <param name="german">The german flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void NativeLocalizedFactsUseTheDocumentFallbackButRejectAnotherLanguage(bool german)
@@ -270,6 +293,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that generated singleton non default locale remains consistent with native.
+        /// </summary>
         [TestCase("title", "titles")]
         [TestCase("description", "descriptions")]
         public void GeneratedSingletonNonDefaultLocaleRemainsConsistentWithNative(string singular, string plural)
@@ -302,6 +328,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restoredText[0].Value, Is.EqualTo("Drehzahl"));
         }
 
+        /// <summary>
+        /// Verifies that unasserted native facts do not consume readable schema depth.
+        /// </summary>
+        /// <param name="readableIdentity">The readable-identity flag for this test case.</param>
         [TestCase(false, 4)]
         [TestCase(true, 4)]
         [TestCase(true, 1001)]
@@ -325,6 +355,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restored.ValueRank, Is.EqualTo(rank));
         }
 
+        /// <summary>
+        /// Verifies that empty readable definition lists do not regenerate unasserted schemas.
+        /// </summary>
         [Test]
         public void EmptyReadableDefinitionListsDoNotRegenerateUnassertedSchemas()
         {
@@ -340,6 +373,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items.Required().OfType<UAVariable>().Single().ValueRank, Is.EqualTo(1001));
         }
 
+        /// <summary>
+        /// Verifies that data type assertions do not regenerate unrelated high rank properties.
+        /// </summary>
         [Test]
         public void DataTypeAssertionsDoNotRegenerateUnrelatedHighRankProperties()
         {
@@ -363,6 +399,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Items.OfType<UADataType>().Single().NodeId, Is.EqualTo("ns=1;i=3"));
         }
 
+        /// <summary>
+        /// Verifies that data type only assertions do not request root event data.
+        /// </summary>
         [Test]
         public void DataTypeOnlyAssertionsDoNotRequestRootEventData()
         {
@@ -393,6 +432,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Items.OfType<UADataType>().Single().NodeId, Is.EqualTo("ns=1;i=3"));
         }
 
+        /// <summary>
+        /// Verifies that native data type definitions resolve name only identities.
+        /// </summary>
+        /// <param name="nativeType">The native-type flag for this test case.</param>
+        /// <param name="typeName">The type name used by this test case.</param>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase(false, "T", false)]
         [TestCase(true, "T", true)]
         [TestCase(true, "Missing", false)]
@@ -429,6 +474,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that readable and regenerated data type names use their respective contexts.
+        /// </summary>
         [Test]
         public void ReadableAndRegeneratedDataTypeNamesUseTheirRespectiveContexts()
         {
@@ -451,6 +499,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items.Required().OfType<UADataType>().Single().BrowseName, Is.EqualTo("1:T"));
         }
 
+        /// <summary>
+        /// Verifies that empty native models reject every unmatched affordance identity.
+        /// </summary>
         [TestCase("properties")]
         [TestCase("actions")]
         [TestCase("events")]
@@ -471,6 +522,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Location.NodeId == "ns=1;i=9"), Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that native scalar type checks retain every string refinement.
+        /// </summary>
+        /// <param name="dataType">The data type used by this test case.</param>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase("i=13", true)]
         [TestCase("i=13", false)]
         [TestCase("i=14", true)]
@@ -505,6 +561,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that native fact projection spends the affordance budget only on asserted schemas.
+        /// </summary>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         public void NativeFactProjectionSpendsTheAffordanceBudgetOnlyOnAssertedSchemas(bool compatible)
@@ -533,6 +593,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that native fact projection cannot discard its own budget diagnostics.
+        /// </summary>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         public void NativeFactProjectionCannotDiscardItsOwnBudgetDiagnostics(int limit, bool compatible)
@@ -565,6 +629,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that required native projection depth failure is reported without throwing.
+        /// </summary>
         [Test]
         public void RequiredNativeProjectionDepthFailureIsReportedWithoutThrowing()
         {
@@ -591,6 +658,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Message.Contains("depth", StringComparison.OrdinalIgnoreCase)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that empty native models reject an unmatched readable data type identity.
+        /// </summary>
+        /// <param name="addDefinition">The add-definition flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void EmptyNativeModelsRejectAnUnmatchedReadableDataTypeIdentity(bool addDefinition)
@@ -631,6 +702,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that native condition pairing keeps local ownership and only comment may be optional.
+        /// </summary>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase("all", true)]
         [TestCase("reversed", true)]
         [TestCase("event-only", true)]
@@ -674,6 +749,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that native condition pairing validates targets without truncating context.
+        /// </summary>
+        /// <param name="matchingTarget">The matching-target flag for this test case.</param>
+        /// <param name="standard">The standard flag for this test case.</param>
         [TestCase(1, true, true)]
         [TestCase(1, true, false)]
         [TestCase(2, true, true)]
@@ -712,6 +792,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that native only data type encoding assertions cannot change the encoding set.
+        /// </summary>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase("uav:defaultEncodings", "[\"Binary\"]", false)]
         [TestCase("uav:defaultEncodings", "[\"JSON\",\"Binary\",\"XML\"]", true)]
         [TestCase("uav:defaultEncodingId", "\"nsu=urn:test:model;s=WrongEncoding\"", false)]
@@ -775,6 +859,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EquivalentTo(source.Items.Required().Select(item => item.NodeId)));
         }
 
+        /// <summary>
+        /// Verifies that native only readable subsets and routing metadata do not overlay native content.
+        /// </summary>
         [Test]
         public async Task NativeOnlyReadableSubsetsAndRoutingMetadataDoNotOverlayNativeContent()
         {
@@ -808,6 +895,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Value.Required().OuterXml));
         }
 
+        /// <summary>
+        /// Verifies that linked native partitions still reject contradictions after context preparation.
+        /// </summary>
         [Test]
         public async Task LinkedNativePartitionsStillRejectContradictionsAfterContextPreparation()
         {

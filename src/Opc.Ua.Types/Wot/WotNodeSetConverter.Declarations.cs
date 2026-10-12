@@ -122,6 +122,7 @@ namespace Opc.Ua.Wot
         /// order, so an effective closure follows the same links the
         /// conversion's own type resolution does.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
         internal static ArrayOf<string> ReadSupertypeReferences(WotDocument document)
         {
             List<string>? hrefs = null;
@@ -325,6 +326,9 @@ namespace Opc.Ua.Wot
             return values.ToArrayOf();
         }
 
+        /// <param name="element">The JSON element.</param>
+        /// <param name="nodeId">The node ID.</param>
+        /// <param name="nodeClass">The node class.</param>
         internal static WotResolvedNode DescribeResolvedNode(
             JsonElement element,
             string nodeId,
@@ -344,6 +348,8 @@ namespace Opc.Ua.Wot
                 };
         }
 
+        /// <param name="node">The UA node.</param>
+        /// <param name="nodeSet">The node set.</param>
         internal static WotResolvedNode DescribeNativeType(UANode node, UANodeSet nodeSet)
         {
             string identity = NormalizeExpandedNodeId(ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris)!);
@@ -368,6 +374,9 @@ namespace Opc.Ua.Wot
             };
         }
 
+        /// <param name="type">The UA node.</param>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="references">The WoT reference type names.</param>
         internal static ArrayOf<WotTypeDeclaration> DescribeNativeTypeDeclarations(
             UANode type,
             UANodeSet nodeSet,

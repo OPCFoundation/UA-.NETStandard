@@ -41,8 +41,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that independent partitions use the supplied structure context without mutating it.
+        /// </summary>
         [TestCase("Structure")]
         [TestCase("Optional")]
         [TestCase("Union")]
@@ -104,6 +110,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions rebase typed values.
+        /// </summary>
         [TestCase("NodeId")]
         [TestCase("ExpandedNodeId")]
         [TestCase("QualifiedName")]
@@ -169,6 +178,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions reject unresolved opaque values.
+        /// </summary>
         [TestCase("binary")]
         [TestCase("xml")]
         [TestCase("nested")]
@@ -199,6 +211,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions preserve namespace independent payloads.
+        /// </summary>
         [TestCase("<uax:String>ns=1;i=42</uax:String>", "ns=1;i=42")]
         [TestCase("<uax:ByteString>AQI=</uax:ByteString>", "AQI=")]
         public void IndependentPartitionsPreserveNamespaceIndependentPayloads(string xml, string expected)

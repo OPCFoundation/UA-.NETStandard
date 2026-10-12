@@ -35,6 +35,12 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// view: an ordinary Thing Description or Thing Model that carries no
+    /// <c>uav:projection</c> marker, so a consumer needs no projection support
+    /// to use it.
+    /// </summary>
     public sealed partial class WotProjectionResolver
     {
         private static bool IsLiteralMember(string name)
@@ -86,6 +92,7 @@ namespace Opc.Ua.Wot
 
         private sealed class PreservedLiteralConverter : JsonConverter<PreservedLiteral>
         {
+            /// <param name="reader">The utf 8 JSON reader.</param>
             public override PreservedLiteral Read(
                 ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
@@ -93,6 +100,8 @@ namespace Opc.Ua.Wot
                 return new PreservedLiteral(document.RootElement.Clone());
             }
 
+            /// <param name="writer">The utf 8 JSON writer.</param>
+            /// <param name="value">The preserved literal.</param>
             public override void Write(
                 Utf8JsonWriter writer, PreservedLiteral value, JsonSerializerOptions options)
             {

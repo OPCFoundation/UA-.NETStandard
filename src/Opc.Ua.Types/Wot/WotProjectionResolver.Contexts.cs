@@ -35,6 +35,12 @@ using System.Text.Json.Nodes;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// view: an ordinary Thing Description or Thing Model that carries no
+    /// <c>uav:projection</c> marker, so a consumer needs no projection support
+    /// to use it.
+    /// </summary>
     public sealed partial class WotProjectionResolver
     {
         private static bool ValidateContexts(WotDocument document, List<WotDiagnostic> diagnostics)
@@ -397,6 +403,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <param name="document">The WoT document.</param>
+        /// <param name="owner">The JSON element.</param>
+        /// <param name="vocabulary">The vocabulary flag supplied by the caller.</param>
         internal static bool TryExpandSemanticIdentity(
             string value, WotDocument document, JsonElement owner, string origin,
             bool vocabulary, out string identity)

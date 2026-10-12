@@ -36,8 +36,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that host prefix namespace is bound when defined.
+        /// </summary>
+        /// <param name="objectForm">The object-form flag for this test case.</param>
+        /// <param name="before">The before flag for this test case.</param>
         [Test]
         public async Task HostPrefixNamespaceIsBoundWhenDefined(
             [Values] bool before, [Values] bool objectForm,
@@ -67,6 +75,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 before ? "https://first.test/ns/Signal" : "https://second.test/ns/Signal");
         }
 
+        /// <summary>
+        /// Verifies that host term alias is bound when defined.
+        /// </summary>
+        /// <param name="objectForm">The object-form flag for this test case.</param>
+        /// <param name="before">The before flag for this test case.</param>
         [Test]
         public async Task HostTermAliasIsBoundWhenDefined([Values] bool before, [Values] bool objectForm)
         {
@@ -98,6 +111,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 before ? "https://first.test/ns/Signal" : "https://second.test/ns/Signal");
         }
 
+        /// <summary>
+        /// Verifies that host urn namespace is bound when defined.
+        /// </summary>
+        /// <param name="objectForm">The object-form flag for this test case.</param>
         [Test]
         public async Task HostUrnNamespaceIsBoundWhenDefined(
             [Values("before-rebind", "after-rebind", "before-disable")] string ordering,
@@ -139,6 +156,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertDefinitionTimeAnnotation(view, "@type", expected);
         }
 
+        /// <summary>
+        /// Verifies that ordered redefinitions are not prefix cycles.
+        /// </summary>
         [TestCase("a:Signal")]
         [TestCase("g:Signal")]
         public async Task OrderedRedefinitionsAreNotPrefixCycles(string value)
@@ -158,6 +178,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertDefinitionTimeAnnotation(view, "@type", "https://first.test/ns/Signal");
         }
 
+        /// <summary>
+        /// Verifies that property scoped binding uses application context.
+        /// </summary>
         [Test]
         public async Task PropertyScopedBindingUsesApplicationContext()
         {
@@ -176,6 +199,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertDefinitionTimeAnnotation(view, "@type", "https://second.test/ns/Signal");
         }
 
+        /// <summary>
+        /// Verifies that text predicate uses definition time namespace.
+        /// </summary>
         [TestCase("title")]
         [TestCase("description")]
         public async Task TextPredicateUsesDefinitionTimeNamespace(string term)
@@ -202,6 +228,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definition.GetProperty("@language").GetString(), Is.EqualTo("fr"));
         }
 
+        /// <summary>
+        /// Verifies that vocabulary uses definition time namespace.
+        /// </summary>
+        /// <param name="urn">The urn flag for this test case.</param>
         [Test]
         public async Task VocabularyUsesDefinitionTimeNamespace([Values] bool urn)
         {
@@ -225,6 +255,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 urn ? "urn:host:Signal" : "https://first.test/ns/Signal");
         }
 
+        /// <summary>
+        /// Verifies that self restated term retains definition time prefix.
+        /// </summary>
+        /// <param name="rebind">The rebind flag for this test case.</param>
         [Test]
         public async Task SelfRestatedTermRetainsDefinitionTimePrefix([Values] bool rebind)
         {
@@ -265,6 +299,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertContextRejected(result);
         }
 
+        /// <summary>
+        /// Verifies that text predicate uses its implicit definition vocabulary.
+        /// </summary>
         [TestCase("title", "https://first.test/ns/title")]
         [TestCase("description", "https://first.test/ns/description")]
         public async Task TextPredicateUsesItsImplicitDefinitionVocabulary(string term, string expected)
@@ -291,6 +328,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definition.GetProperty("@language").GetString(), Is.EqualTo("fr"));
         }
 
+        /// <summary>
+        /// Verifies that unknown bare type cannot fall through known vocabulary.
+        /// </summary>
         [Test]
         public async Task UnknownBareTypeCannotFallThroughKnownVocabulary(
             [Values("context", "import")] string barrier,
@@ -323,6 +363,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertDefinitionTimeAnnotation(view.Required(), "@type", "https://host.test/Signal");
         }
 
+        /// <summary>
+        /// Verifies that known inherited term outranks property vocabulary.
+        /// </summary>
+        /// <param name="alias">The alias flag for this test case.</param>
         [Test]
         public async Task KnownInheritedTermOutranksPropertyVocabulary([Values] bool alias)
         {

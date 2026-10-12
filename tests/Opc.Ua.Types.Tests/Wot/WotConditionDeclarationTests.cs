@@ -40,10 +40,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT condition declaration.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotConditionDeclarationTests
     {
+        /// <summary>
+        /// Verifies that a companion condition uses one verified type for its supertype and action.
+        /// </summary>
+        /// <param name="pinned">The pinned flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ACompanionConditionUsesOneVerifiedTypeForItsSupertypeAndActionAsync(bool pinned)
@@ -94,6 +101,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Cast<System.Xml.XmlElement>().Select(element => element.InnerText), Is.EqualTo(s_argumentIdentities));
         }
 
+        /// <summary>
+        /// Verifies that a condition pin requires exact resolved object type ancestry.
+        /// </summary>
         [TestCase("missing")]
         [TestCase("substituted")]
         [TestCase("wrongClass")]
@@ -146,6 +156,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/events/alarm/uav:conditionTypeId"), Is.True, Errors(result));
         }
 
+        /// <summary>
+        /// Verifies that condition ancestry honors its exact depth boundary.
+        /// </summary>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(100, true)]
         [TestCase(101, false)]
         public async Task ConditionAncestryHonorsItsExactDepthBoundaryAsync(int depth, bool accepted)
@@ -182,6 +196,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtMost(100));
         }
 
+        /// <summary>
+        /// Verifies that cancellation during condition resolution stops before synthesis.
+        /// </summary>
         [Test]
         public async Task CancellationDuringConditionResolutionStopsBeforeSynthesisAsync()
         {
@@ -208,6 +225,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 IntermediateIdentity, It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a standard pin cannot override a resolved companion hint.
+        /// </summary>
+        /// <param name="hintResolves">The hint-resolves flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AStandardPinCannotOverrideAResolvedCompanionHintAsync(bool hintResolves)
@@ -237,6 +258,12 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that restored condition claims use actual native ancestry without demanding missing data.
+        /// </summary>
+        /// <param name="companionPin">The companion-pin flag for this test case.</param>
+        /// <param name="conditionAncestor">The condition-ancestor flag for this test case.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(false, false, false)]
         [TestCase(false, false, true)]
         [TestCase(false, true, false)]
@@ -272,6 +299,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.Items.OfType<UAVariable>(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that native condition ancestry accepts a forward has subtype declaration.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void NativeConditionAncestryAcceptsAForwardHasSubtypeDeclaration(bool archive)
@@ -304,6 +335,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=2;i=7001"));
         }
 
+        /// <summary>
+        /// Verifies that native condition pins do not hide malformed readable hints.
+        /// </summary>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void NativeConditionPinsDoNotHideMalformedReadableHints(bool archive)

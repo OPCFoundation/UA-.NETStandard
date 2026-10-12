@@ -142,6 +142,7 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <param name="schema">The JSON element.</param>
         internal static bool MapsRankedJsonType(JsonElement schema, string member)
         {
             if (!schema.TryGetProperty(member, out JsonElement actual))
@@ -174,6 +175,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Regenerates the ranked JSON type only when the schema states its definitive DataType.
         /// </summary>
+        /// <param name="schema">The JSON element.</param>
         internal static JsonDocument? CreateRankedJsonType(JsonElement schema)
         {
             string? dataType = GetElementString(schema, "uav:mapToType");
@@ -194,6 +196,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Reads an affordance's authored ValueRank.
         /// </summary>
+        /// <param name="element">The JSON element.</param>
         internal static int ReadValueRank(JsonElement element)
         {
             return GetElementInt32(element, ValueRankTerm) ?? ScalarValueRank;

@@ -36,6 +36,12 @@ using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// view: an ordinary Thing Description or Thing Model that carries no
+    /// <c>uav:projection</c> marker, so a consumer needs no projection support
+    /// to use it.
+    /// </summary>
     public sealed partial class WotProjectionResolver
     {
         private sealed partial class SchemaReferenceClosure
@@ -735,9 +741,21 @@ namespace Opc.Ua.Wot
 
             private sealed class DataTypeIndex
             {
+                /// <summary>
+                /// Gets the graph IDs for <c>DataTypeIndex</c>.
+                /// </summary>
                 public Dictionary<string, DataTypeEntry> GraphIds { get; } = new(StringComparer.Ordinal);
+                /// <summary>
+                /// Gets the locations for <c>DataTypeIndex</c>.
+                /// </summary>
                 public Dictionary<string, DataTypeEntry> Locations { get; } = new(StringComparer.Ordinal);
+                /// <summary>
+                /// Gets the native IDs for <c>DataTypeIndex</c>.
+                /// </summary>
                 public Dictionary<string, DataTypeEntry> NativeIds { get; } = new(StringComparer.Ordinal);
+                /// <summary>
+                /// Gets the names for <c>DataTypeIndex</c>.
+                /// </summary>
                 public Dictionary<string, DataTypeEntry?> Names { get; } = new(StringComparer.Ordinal);
             }
 

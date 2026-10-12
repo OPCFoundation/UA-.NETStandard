@@ -116,6 +116,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(SupertypeOfEvent(result.Value!), Is.Not.EqualTo(BaseEventType));
         }
 
+        /// <summary>
+        /// Verifies that a vendor event ID cannot satisfy the occurrence selection.
+        /// </summary>
         [Test]
         public async Task AVendorEventIdCannotSatisfyTheOccurrenceSelectionAsync()
         {
@@ -172,6 +175,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/events/highTemperature/uav:eventSelectClauses"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a condition pin cannot declare base object type to be a condition.
+        /// </summary>
         [Test]
         public void AConditionPinCannotDeclareBaseObjectTypeToBeACondition()
         {
@@ -192,6 +198,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer == "/events/highTemperature/uav:conditionTypeId"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a companion condition pin requires compatible resolved ancestry.
+        /// </summary>
+        /// <param name="conditionAncestor">The condition-ancestor flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ACompanionConditionPinRequiresCompatibleResolvedAncestryAsync(bool conditionAncestor)

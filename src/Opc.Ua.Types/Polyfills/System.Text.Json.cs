@@ -45,6 +45,8 @@ namespace System.Text.Json
             /// while comparing numbers without rounding.
             /// </summary>
             /// <exception cref="InvalidOperationException"></exception>
+            /// <param name="element1">The element 1.</param>
+            /// <param name="element2">The element 2.</param>
             public static bool DeepEquals(JsonElement element1, JsonElement element2)
             {
                 var pending = new Stack<(JsonElement First, JsonElement Second)>();

@@ -42,8 +42,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that bulk host routing without provider cannot return source forms or empty success.
+        /// </summary>
         [Test]
         public async Task BulkHostRoutingWithoutProviderCannotReturnSourceFormsOrEmptySuccess()
         {
@@ -68,6 +74,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(originalSource));
         }
 
+        /// <summary>
+        /// Verifies that bulk host provider supplies actual forms with owned security variables and response schemas.
+        /// </summary>
         [Test]
         public async Task BulkHostProviderSuppliesActualFormsWithOwnedSecurityVariablesAndResponseSchemas()
         {
@@ -153,6 +162,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(originalSource));
         }
 
+        /// <summary>
+        /// Verifies that host form provider preserves explicit result kind domain and source provenance.
+        /// </summary>
+        /// <param name="kind">The WoT document kind.</param>
         [TestCase(WotDocumentKind.ThingDescription, "Thing")]
         [TestCase(WotDocumentKind.ThingModel, "tm:ThingModel")]
         public async Task HostFormProviderPreservesExplicitResultKindDomainAndSourceProvenance(
@@ -205,6 +218,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 $"version={Environment.Version}; base={AppContext.BaseDirectory}");
         }
 
+        /// <summary>
+        /// Verifies that host form provider unavailable returns an explicit error without a value.
+        /// </summary>
+        /// <param name="nullResult">The null-result flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostFormProviderUnavailableReturnsAnExplicitErrorWithoutAValue(bool nullResult)
@@ -226,6 +243,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHostFormFailure(result);
         }
 
+        /// <summary>
+        /// Verifies that host form provider operational failure returns an explicit error without a value.
+        /// </summary>
         [TestCase("io")]
         [TestCase("operation")]
         [TestCase("timeout")]
@@ -253,6 +273,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHostFormFailure(result);
         }
 
+        /// <summary>
+        /// Verifies that host form provider malformed forms cannot produce a partial successful view.
+        /// </summary>
         [TestCase("null")]
         [TestCase("[]")]
         [TestCase("{}")]
@@ -281,6 +304,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that host form provider cannot send host credentials to another origin.
+        /// </summary>
         [TestCase("https://device.test/runtime/value")]
         [TestCase("https://unrelated.test/runtime/value")]
         public async Task HostFormProviderCannotSendHostCredentialsToAnotherOrigin(string href)
@@ -307,6 +333,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHostFormFailure(result);
         }
 
+        /// <summary>
+        /// Verifies that host form provider cancellation never returns a partial view.
+        /// </summary>
+        /// <param name="providerThrows">The provider-throws flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostFormProviderCancellationNeverReturnsAPartialView(bool providerThrows)
@@ -339,6 +369,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that host form provider rejects owner data and credential variable conflicts.
+        /// </summary>
         [Test]
         public async Task HostFormProviderRejectsOwnerDataAndCredentialVariableConflicts()
         {
@@ -372,6 +405,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "/properties/Value/forms/0/href"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that host form provider never replaces authored forms even when they are unavailable.
+        /// </summary>
+        /// <param name="emptyForms">The empty-forms flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostFormProviderNeverReplacesAuthoredFormsEvenWhenTheyAreUnavailable(bool emptyForms)
@@ -407,6 +444,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that host form provider preserves bulk selection and supplied form order.
+        /// </summary>
         [Test]
         public async Task HostFormProviderPreservesBulkSelectionAndSuppliedFormOrder()
         {
@@ -443,6 +483,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Select(form => form.GetProperty("href").GetString()), Is.EqualTo(s_hostFormOrder));
         }
 
+        /// <summary>
+        /// Verifies that host form provider supplies supporting forms without replacing authored selections.
+        /// </summary>
         [Test]
         public async Task HostFormProviderSuppliesSupportingFormsWithoutReplacingAuthoredSelections()
         {
@@ -484,6 +527,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/properties/Value"));
         }
 
+        /// <summary>
+        /// Verifies that host form provider shares document and byte budgets.
+        /// </summary>
+        /// <param name="documentLimit">The document-limit flag for this test case.</param>
+        /// <param name="expectedCalls">The expected calls asserted by the test.</param>
         [TestCase(true, 0)]
         [TestCase(false, 1)]
         public async Task HostFormProviderSharesDocumentAndByteBudgets(bool documentLimit, int expectedCalls)
@@ -564,6 +612,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private sealed class HostFormSourceResolver(string source) : IWotThingResolver
         {
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string href, WotResolutionContext context, CancellationToken cancellationToken = default)
             {
@@ -577,6 +626,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Func<WotProjectionFormContext, CancellationToken, ValueTask<ArrayOf<JsonElement>>> handler)
             : IWotProjectionFormProvider
         {
+            /// <param name="context">The WoT projection form context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<ArrayOf<JsonElement>> GetFormsAsync(
                 WotProjectionFormContext context, CancellationToken cancellationToken = default)
             {

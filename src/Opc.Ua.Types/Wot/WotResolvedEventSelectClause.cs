@@ -140,6 +140,9 @@ namespace Opc.Ua.Wot
         /// </remarks>
         public string? TypeDefinitionReference { get; }
 
+        /// <summary>
+        /// Gets or sets the resolved path elements for <c>WotResolvedEventSelectClause</c>.
+        /// </summary>
         internal ArrayOf<string> ResolvedPathElements { get; init; }
 
         /// <summary>
@@ -148,6 +151,9 @@ namespace Opc.Ua.Wot
         /// </summary>
         internal WotTypeDeclaration? Declaration { get; init; }
 
+        /// <summary>
+        /// Gets or sets the declaration failure for <c>WotResolvedEventSelectClause</c>.
+        /// </summary>
         internal string? DeclarationFailure { get; init; }
 
         /// <summary>
@@ -265,6 +271,8 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException">
         /// <paramref name="schema"/> is <c>null</c>.
         /// </exception>
+        /// <param name="schema">The WoT payload schema.</param>
+        /// <param name="resolvedBrowsePath">The resolved browse path.</param>
         public WotResolvedEventSelectClause WithPayloadSchema(
             WotPayloadSchema schema, string? resolvedBrowsePath = null)
         {
@@ -306,6 +314,7 @@ namespace Opc.Ua.Wot
             return TypeDefinitionId + "#" + BrowsePath;
         }
 
+        /// <param name="declaration">The WoT type declaration.</param>
         internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)
         {
             return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)

@@ -33,8 +33,15 @@ using Opc.Ua.Types;
 
 namespace Opc.Ua.Export
 {
+    /// <summary>
+    /// A set of nodes in an address space.
+    /// </summary>
     public partial class UANodeSet
     {
+        /// <param name="source">The XML element.</param>
+        /// <param name="target">The UA node set.</param>
+        /// <param name="context">The service message context.</param>
+        /// <param name="rebase">The rebase flag supplied by the caller.</param>
         internal System.Xml.XmlElement RebaseValue(
             System.Xml.XmlElement source,
             UANodeSet target,

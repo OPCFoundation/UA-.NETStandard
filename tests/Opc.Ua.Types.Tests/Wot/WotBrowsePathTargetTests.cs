@@ -38,9 +38,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT browse path target.
+    /// </summary>
     [TestFixture]
     public sealed class WotBrowsePathTargetTests
     {
+        /// <summary>
+        /// Verifies that capture reuses native selectors and escaping.
+        /// </summary>
+        /// <param name="kind">The element type.</param>
         [TestCase("/Objects/p:Pump&/One", "Pump/One", RelativePathFormatter.ElementType.AnyHierarchical)]
         [TestCase(".p:Value", "Value", RelativePathFormatter.ElementType.AnyComponent)]
         [TestCase("<#p:Contains>p:Value", "Value", RelativePathFormatter.ElementType.ForwardReference)]
@@ -73,6 +80,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotPortableIdentity.IsResolvableBrowsePath(path, anchored: true), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that inherited path retains its original carrying context.
+        /// </summary>
+        /// <param name="expectedNamespace">The expected namespace asserted by the test.</param>
         [TestCase("root", "urn:root", "/uav:browsePath")]
         [TestCase("affordance", "urn:affordance", "/properties/Value/uav:browsePath")]
         [TestCase("form", "urn:form", "/properties/Value/forms/0/uav:browsePath")]
@@ -102,6 +113,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(form.ContainsKey("uav:browsePath"), Is.EqualTo(scope == "form"));
         }
 
+        /// <summary>
+        /// Verifies that ordered reset and object prefix definitions survive capture.
+        /// </summary>
         [Test]
         public void OrderedResetAndObjectPrefixDefinitionsSurviveCapture()
         {
@@ -121,6 +135,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(target!.Elements[0].TargetName.NamespaceUri, Is.EqualTo("urn:after-reset"));
         }
 
+        /// <summary>
+        /// Verifies that reset does not recover an outer prefix.
+        /// </summary>
         [Test]
         public void ResetDoesNotRecoverAnOuterPrefix()
         {
@@ -134,6 +151,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
+        /// <summary>
+        /// Verifies that explicit anchors precede nearer fallback identities.
+        /// </summary>
+        /// <param name="rootAnchor">The root-anchor flag for this test case.</param>
+        /// <param name="formAnchor">The form-anchor flag for this test case.</param>
         [TestCase(true, false, "nsu=urn:source;s=RootAnchor")]
         [TestCase(true, true, "nsu=urn:source;s=FormAnchor")]
         [TestCase(false, false, "nsu=urn:source;s=Affordance")]
@@ -158,6 +180,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(target!.AnchorId, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that invalid nearer anchor declarations cannot fall back.
+        /// </summary>
         [TestCase("uav:browsePathAnchor")]
         [TestCase("uav:id")]
         public void InvalidNearerAnchorDeclarationsCannotFallBack(string term)
@@ -172,6 +197,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
+        /// <summary>
+        /// Verifies that malformed paths fail with an explicit native status.
+        /// </summary>
         [TestCase("")]
         [TestCase("/")]
         [TestCase("/Objects/")]
@@ -194,6 +222,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(StatusCode.IsBad(exception!.StatusCode), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that namespace URI delimiters do not split path steps.
+        /// </summary>
+        /// <param name="expectedNamespace">The expected namespace asserted by the test.</param>
         [TestCase("/{https://example.org/model/}Value", "https://example.org/model/")]
         [TestCase("/nsu=https://example.org/model/;Value", "https://example.org/model/")]
         [TestCase("/nsu=urn:vendor%3Bpart%253B;Value", "urn:vendor;part%3B")]
@@ -209,6 +241,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(new WotBrowsePathElement(expectedNamespace, "Value")));
         }
 
+        /// <summary>
+        /// Verifies that character and element bounds accept the boundary and reject the next value.
+        /// </summary>
         [Test]
         public void CharacterAndElementBoundsAcceptTheBoundaryAndRejectTheNextValue()
         {
@@ -225,6 +260,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(elements!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
+        /// <summary>
+        /// Verifies that undeclared paths are distinct from invalid paths.
+        /// </summary>
         [Test]
         public void UndeclaredPathsAreDistinctFromInvalidPaths()
         {
@@ -235,6 +273,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotBrowsePathTarget.FromForm(document, FormPointer), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that portable annotations are not assumed to be complete native targets.
+        /// </summary>
         [TestCase("/")]
         [TestCase("/Objects/Pump/")]
         public void PortableAnnotationsAreNotAssumedToBeCompleteNativeTargets(string path)
@@ -248,6 +289,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
+        /// <summary>
+        /// Verifies that numeric namespace prefixes cannot become portable after overflow.
+        /// </summary>
         [TestCase("0")]
         [TestCase("4294967295")]
         [TestCase("4294967296")]

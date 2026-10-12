@@ -40,8 +40,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that predicate selection compares owner semantic identities.
+        /// </summary>
+        /// <param name="sameSpelling">The same-spelling flag for this test case.</param>
         [Test]
         public async Task PredicateSelectionComparesOwnerSemanticIdentities(
             [Values("@type", "uav:semanticId")] string predicate,
@@ -90,6 +97,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that predicate selection retains filter and affordance scopes.
+        /// </summary>
+        /// <param name="matching">The matching flag for this test case.</param>
         [Test]
         public async Task PredicateSelectionRetainsFilterAndAffordanceScopes(
             [Values("@type", "uav:semanticId")] string predicate, [Values] bool matching)
@@ -125,6 +136,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties, Has.Count.EqualTo(matching ? 1 : 0));
         }
 
+        /// <summary>
+        /// Verifies that predicate filters compose kind semantic ID and all types.
+        /// </summary>
+        /// <param name="readable">The readable flag for this test case.</param>
         [Test]
         public async Task PredicateFiltersComposeKindSemanticIdAndAllTypes([Values] bool readable)
         {
@@ -180,6 +195,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/actions/Reset"));
         }
 
+        /// <summary>
+        /// Verifies that unresolved predicate fails before source acquisition.
+        /// </summary>
+        /// <param name="emptySource">The empty-source flag for this test case.</param>
         [Test]
         public async Task UnresolvedPredicateFailsBeforeSourceAcquisition(
             [Values("@type", "uav:semanticId")] string predicate, [Values] bool emptySource)
@@ -215,6 +234,10 @@ namespace Opc.Ua.Types.Tests.Wot
             documents.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that decisive predicate match does not depend on unknown alternative type.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [Test]
         public async Task DecisivePredicateMatchDoesNotDependOnUnknownAlternativeType(
             [Values("type-match", "filter-match", "unresolved")] string outcome, [Values] bool reverse)
@@ -257,6 +280,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Does.Contain("Mystery"));
         }
 
+        /// <summary>
+        /// Verifies that predicate identity retains its definition time namespace.
+        /// </summary>
+        /// <param name="before">The before flag for this test case.</param>
         [Test]
         public async Task PredicateIdentityRetainsItsDefinitionTimeNamespace(
             [Values("@type", "uav:semanticId")] string predicate, [Values] bool before)
@@ -289,6 +316,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties, Has.Count.EqualTo(before ? 1 : 0));
         }
 
+        /// <summary>
+        /// Verifies that semantic predicate uses source location not endpoint base.
+        /// </summary>
+        /// <param name="endpoint">The endpoint flag for this test case.</param>
         [Test]
         public async Task SemanticPredicateUsesSourceLocationNotEndpointBase([Values] bool endpoint)
         {
@@ -313,6 +344,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties, Has.Count.EqualTo(endpoint ? 0 : 1));
         }
 
+        /// <summary>
+        /// Verifies that type predicate uses its own vocabulary not the source vocabulary.
+        /// </summary>
+        /// <param name="explicitIdentity">The explicit-identity flag for this test case.</param>
         [Test]
         public async Task TypePredicateUsesItsOwnVocabularyNotTheSourceVocabulary([Values] bool explicitIdentity)
         {

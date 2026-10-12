@@ -37,8 +37,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that selected payload carries exactly one complete data type definition.
+        /// </summary>
+        /// <param name="inline">The inline flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SelectedPayloadCarriesExactlyOneCompleteDataTypeDefinition(bool inline)
@@ -73,6 +80,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(type.Definition!.Field!.Single().DataType, Is.EqualTo("i=11"));
         }
 
+        /// <summary>
+        /// Verifies that data type field references close over only their original definitions.
+        /// </summary>
+        /// <param name="recursive">The recursive flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DataTypeFieldReferencesCloseOverOnlyTheirOriginalDefinitions(bool recursive)
@@ -104,6 +115,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("@id").GetString(), Is.EqualTo("urn:dtd:Nested"));
         }
 
+        /// <summary>
+        /// Verifies that native type identity references carry their known definition.
+        /// </summary>
         [TestCase("uav:dataTypeName", "t:Reading")]
         [TestCase("uav:dataTypeId", "nsu=urn:test:projection-types;i=3000")]
         public async Task NativeTypeIdentityReferencesCarryTheirKnownDefinition(string term, string reference)
@@ -121,6 +135,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["reading"].GetProperty(term).GetString(), Is.EqualTo(reference));
         }
 
+        /// <summary>
+        /// Verifies that duplicate complete data type definitions cannot be merged within one source.
+        /// </summary>
+        /// <param name="sameFacts">The same-facts flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DuplicateCompleteDataTypeDefinitionsCannotBeMergedWithinOneSource(bool sameFacts)
@@ -142,6 +160,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that carried data type definitions share the projection node budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         [TestCase(3, true)]
@@ -168,6 +190,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that data type base references carry the local base definition.
+        /// </summary>
+        /// <param name="objectReference">The object-reference flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DataTypeBaseReferencesCarryTheLocalBaseDefinition(bool objectReference)
@@ -189,6 +215,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that base type carriage preserves every supplied identity form.
+        /// </summary>
         [Test]
         public async Task BaseTypeCarriagePreservesEverySuppliedIdentityForm(
             [Values("name", "id", "both", "graphAndName", "graphAndId", "all")] string form)
@@ -225,6 +254,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 JsonNode.Parse(original)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that conflicting base identity forms cannot be erased during carriage.
+        /// </summary>
         [TestCase("uav:dataTypeId", "nsu=urn:test:projection-types;i=3002")]
         [TestCase("uav:dataTypeName", "t:Other")]
         public async Task ConflictingBaseIdentityFormsCannotBeErasedDuringCarriage(string term, string value)
@@ -250,6 +282,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that literal and opaque definition lookalikes do not become dependencies.
+        /// </summary>
         [Test]
         public async Task LiteralAndOpaqueDefinitionLookalikesDoNotBecomeDependencies()
         {
@@ -271,6 +306,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 JsonNode.Parse(original)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that matching host and source graph identities require equal resolved facts.
+        /// </summary>
+        /// <param name="conflict">The conflict flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task MatchingHostAndSourceGraphIdentitiesRequireEqualResolvedFacts(bool conflict)
@@ -305,6 +344,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that reused definitions still validate the second owners transitive facts.
+        /// </summary>
+        /// <param name="conflict">The conflict flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ReusedDefinitionsStillValidateTheSecondOwnersTransitiveFacts(bool conflict)
@@ -342,6 +385,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that local data type pointers must identify an owned definition.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase("#/uav:dataTypeDefinitions/0", true)]
         [TestCase("#/uav:dataTypeDefinitions/9", false)]
         [TestCase("#/properties/Value/default", false)]
@@ -371,6 +418,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that duplicate data type containers cannot assign different definitions to one pointer.
+        /// </summary>
         [Test]
         public async Task DuplicateDataTypeContainersCannotAssignDifferentDefinitionsToOnePointer()
         {
@@ -392,6 +442,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that different graph identities cannot claim one native data type.
+        /// </summary>
         [Test]
         public async Task DifferentGraphIdentitiesCannotClaimOneNativeDataType()
         {
@@ -413,6 +466,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid data type collections cannot disappear during carriage.
+        /// </summary>
+        /// <param name="host">The host flag for this test case.</param>
         [Test]
         public async Task InvalidDataTypeCollectionsCannotDisappearDuringCarriage(
             [Values("null", "{}", "[null]", "[false]", "[17]")] string collection, [Values] bool host)
@@ -431,6 +488,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a data type reference must retain its object shape.
+        /// </summary>
         [TestCase("null")]
         [TestCase("17")]
         [TestCase("[]")]
@@ -450,6 +510,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that definition reuse does not erase context or location dependent facts.
+        /// </summary>
+        /// <param name="equal">The equal flag for this test case.</param>
         [Test]
         public async Task DefinitionReuseDoesNotEraseContextOrLocationDependentFacts(
             [Values("custom", "language", "schema")] string fact, [Values] bool equal)
@@ -501,6 +565,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that opaque definition metadata remains literal during reuse.
+        /// </summary>
         [Test]
         public async Task OpaqueDefinitionMetadataRemainsLiteralDuringReuse()
         {

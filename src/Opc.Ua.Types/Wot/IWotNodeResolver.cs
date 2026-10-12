@@ -482,7 +482,12 @@ namespace Opc.Ua.Wot
             return null;
         }
 
+        /// <summary>
+        /// Resolves a DataType definition's JSON-LD graph identity.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="graphId">The graph ID.</param>
         public async ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
             string graphId,
             CancellationToken cancellationToken = default)

@@ -38,6 +38,10 @@ namespace Opc.Ua.Wot
 {
     public static partial class WotNodeSetConverter
     {
+        /// <param name="document">The WoT document.</param>
+        /// <param name="baseline">The UA node set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
+        /// <param name="archiveContext">The archive context.</param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
@@ -724,6 +728,13 @@ namespace Opc.Ua.Wot
                 GetElementInt32(comment, ValueRankTerm) == ScalarValueRank;
         }
 
+        /// <param name="authoredDocument">The authored document.</param>
+        /// <param name="authoredAction">The authored action.</param>
+        /// <param name="generatedDocument">The generated document.</param>
+        /// <param name="generatedAction">The generated action.</param>
+        /// <param name="identities">The UA node set.</param>
+        /// <param name="aliases">The node set alias resolver.</param>
+        /// <param name="actionPointer">The action pointer.</param>
         internal static bool PreservedArgumentSchemasMatch(
             WotDocument authoredDocument,
             JsonElement authoredAction,

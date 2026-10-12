@@ -412,6 +412,7 @@ namespace Opc.Ua.Wot
         /// prefix bound to the OPC UA namespace, a pin that disagrees - is not
         /// re-derivable and is carried verbatim.
         /// </remarks>
+        /// <param name="affordance">The JSON element.</param>
         internal static bool MapsConditionType(JsonElement affordance)
         {
             if (affordance.ValueKind != JsonValueKind.Object ||
@@ -816,6 +817,7 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <param name="queryTypeNodeId">The query type node ID.</param>
         internal static WotTypeDeclaration StandardEventIdDeclaration(string queryTypeNodeId)
         {
             return new WotTypeDeclaration
@@ -1915,6 +1917,10 @@ namespace Opc.Ua.Wot
         /// Verifies one EventType's exact identity and bounded native ancestry.
         /// The result retains the requested type, not its known ancestor.
         /// </summary>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="typeNodeId">The type node ID.</param>
+        /// <param name="requireCondition">The require-condition flag supplied by the caller.</param>
+        /// <param name="resolver">The WoT node resolver.</param>
         internal static async ValueTask<WotTypeBinding> VerifyEventTypeBindingAsync(
             string typeNodeId,
             bool requireCondition,

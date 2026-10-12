@@ -42,6 +42,10 @@ namespace Opc.Ua.Types.Tests.Wot
     [TestFixture]
     public sealed class WotTypeBindingTests
     {
+        /// <summary>
+        /// Verifies that a portable property type binding is not replaced.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
         [TestCase("i=68")]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=68")]
         [TestCase("nsu=http%3A%2F%2Fopcfoundation.org%2FUA%2F;i=68")]

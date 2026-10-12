@@ -38,8 +38,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that data type literal keys keep their owner context through native round trip.
+        /// </summary>
+        /// <param name="contextArray">The context-array flag for this test case.</param>
+        /// <param name="absoluteKey">The absolute-key flag for this test case.</param>
         [Test]
         public async Task DataTypeLiteralKeysKeepTheirOwnerContextThroughNativeRoundTrip(
             [Values] bool contextArray,
@@ -99,6 +107,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertNativeReadingIdentity(reconverted.Value.Required());
         }
 
+        /// <summary>
+        /// Verifies that data type literal context preserves generated native names and localized text.
+        /// </summary>
         [TestCase("ns1")]
         [TestCase("ns2")]
         public async Task DataTypeLiteralContextPreservesGeneratedNativeNamesAndLocalizedText(string prefix)

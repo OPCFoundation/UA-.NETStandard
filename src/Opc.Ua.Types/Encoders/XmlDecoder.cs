@@ -874,6 +874,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="fieldName">The field name.</param>
         public XmlElement ReadXmlElement(string? fieldName)
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
@@ -892,6 +893,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="fieldName">The field name.</param>
         public NodeId ReadNodeId(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -931,6 +933,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="fieldName">The field name.</param>
         public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -1029,6 +1032,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="fieldName">The field name.</param>
         public QualifiedName ReadQualifiedName(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -1081,6 +1085,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="fieldName">The field name.</param>
         public Variant ReadVariant(string? fieldName)
         {
             CheckAndIncrementNestingLevel();
@@ -2667,6 +2672,7 @@ namespace Opc.Ua
         /// Reads the body extension object from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="typeId">The type identifier.</param>
         public ExtensionObject ReadExtensionObjectBody(ExpandedNodeId typeId)
         {
             m_reader.MoveToContent();
@@ -3405,6 +3411,11 @@ namespace Opc.Ua
         /// Maps NodeSet tables with their implicit local server at index zero.
         /// Rebasing keeps remote identities remote; native import resolves the actual destination server.
         /// </summary>
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="serverUris">The server URIs.</param>
+        /// <param name="preserveRemoteServerIdentity">
+        /// The preserve-remote-server-identity flag supplied by the caller.
+        /// </param>
         internal void SetNodeSetMappingTables(
             NamespaceTable namespaceUris,
             StringTable serverUris,

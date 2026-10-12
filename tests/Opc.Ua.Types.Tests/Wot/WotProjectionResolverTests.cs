@@ -53,6 +53,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotProjectionResolverTests
     {
+        /// <summary>
+        /// Verifies that resolves predictive maintenance projection to expected view.
+        /// </summary>
         [Test]
         public async Task ResolvesPredictiveMaintenanceProjectionToExpectedView()
         {
@@ -66,6 +69,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
+        /// <summary>
+        /// Verifies that unacquired worked example context cannot establish host annotations.
+        /// </summary>
         [Test]
         public async Task UnacquiredWorkedExampleContextCannotEstablishHostAnnotations()
         {
@@ -79,6 +85,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionContextConflict), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that resolves asset instance projection to expected view.
+        /// </summary>
         [Test]
         public async Task ResolvesAssetInstanceProjectionToExpectedView()
         {
@@ -96,6 +105,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
+        /// <summary>
+        /// Verifies that selects enumerated affordance.
+        /// </summary>
         [Test]
         public async Task SelectsEnumeratedAffordance()
         {
@@ -107,6 +119,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("./01-opcua-td-pump.jsonld#/properties/pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that selects whole document with select all.
+        /// </summary>
         [Test]
         public async Task SelectsWholeDocumentWithSelectAll()
         {
@@ -123,6 +138,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EquivalentTo(s_identityMembers));
         }
 
+        /// <summary>
+        /// Verifies that selects by predicate affordance kind.
+        /// </summary>
         [Test]
         public async Task SelectsByPredicateAffordanceKind()
         {
@@ -136,6 +154,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Contains.Item("pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that predicate requires every type token.
+        /// </summary>
         [Test]
         public async Task PredicateRequiresEveryTypeToken()
         {
@@ -151,6 +172,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_sensorMembers));
         }
 
+        /// <summary>
+        /// Verifies that enumerated selection wins over bulk and reports drop.
+        /// </summary>
         [Test]
         public async Task EnumeratedSelectionWinsOverBulkAndReportsDrop()
         {
@@ -172,6 +196,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that annotation overrides source members and discards tm ref.
+        /// </summary>
         [Test]
         public async Task AnnotationOverridesSourceMembersAndDiscardsTmRef()
         {
@@ -187,6 +214,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(speed.TryGetProperty("tm:ref", out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that name prefix upper cases source name.
+        /// </summary>
         [Test]
         public async Task NamePrefixUpperCasesSourceName()
         {
@@ -197,6 +227,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Contains.Item("deviceSerialNumber"));
         }
 
+        /// <summary>
+        /// Verifies that without name prefix names are unchanged.
+        /// </summary>
         [Test]
         public async Task WithoutNamePrefixNamesAreUnchanged()
         {
@@ -212,6 +245,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Contains.Item("serialNumber"));
         }
 
+        /// <summary>
+        /// Verifies that self referential projection source reports cycle.
+        /// </summary>
         [Test]
         public async Task SelfReferentialProjectionSourceReportsCycle()
         {
@@ -351,6 +387,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
+        /// <summary>
+        /// Verifies that digest mismatch reports error.
+        /// </summary>
         [Test]
         public async Task DigestMismatchReportsError()
         {
@@ -368,6 +407,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that matching digest resolves.
+        /// </summary>
         [Test]
         public async Task MatchingDigestResolves()
         {
@@ -385,6 +427,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that conflicting context prefixes remain in their source scopes.
+        /// </summary>
         [Test]
         public async Task ConflictingContextPrefixesRemainInTheirSourceScopes()
         {
@@ -405,6 +450,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(second, Is.EqualTo("http://example.com/b"));
         }
 
+        /// <summary>
+        /// Verifies that compatible context prefix does not leak into host scope.
+        /// </summary>
         [Test]
         public async Task CompatibleContextPrefixDoesNotLeakIntoHostScope()
         {
@@ -430,6 +478,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that source routing absolutizes form and copies security closure.
+        /// </summary>
         [Test]
         public async Task SourceRoutingAbsolutizesFormAndCopiesSecurityClosure()
         {
@@ -460,6 +511,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that projection routing keeps projection forms.
+        /// </summary>
         [Test]
         public async Task ProjectionRoutingKeepsProjectionForms()
         {
@@ -480,6 +534,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 PropertyNames(definitions), Is.EqualTo(s_nosecOnly));
         }
 
+        /// <summary>
+        /// Verifies that form without effective security declares none.
+        /// </summary>
         [Test]
         public async Task FormWithoutEffectiveSecurityDeclaresNone()
         {
@@ -495,6 +552,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that bulk provenance is href plus pointer.
+        /// </summary>
         [Test]
         public async Task BulkProvenanceIsHrefPlusPointer()
         {
@@ -507,6 +567,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"));
         }
 
+        /// <summary>
+        /// Verifies that relative browse path inherits source anchor.
+        /// </summary>
         [Test]
         public async Task RelativeBrowsePathInheritsSourceAnchor()
         {
@@ -518,6 +581,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("nsu=http://example.com/demo/pump;s=Pump07"));
         }
 
+        /// <summary>
+        /// Verifies that absolute browse path does not inherit anchor.
+        /// </summary>
         [Test]
         public async Task AbsoluteBrowsePathDoesNotInheritAnchor()
         {
@@ -688,6 +754,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
+        /// <summary>
+        /// Verifies that source without base uses source URI as base.
+        /// </summary>
         [Test]
         public async Task SourceWithoutBaseUsesSourceUriAsBase()
         {
@@ -705,6 +774,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://things.example/read/pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that resolved view carries no projection marker.
+        /// </summary>
         [Test]
         public async Task ResolvedViewCarriesNoProjectionMarker()
         {
@@ -717,6 +789,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.TypeTokens, Does.Not.Contain("uav:projection"));
         }
 
+        /// <summary>
+        /// Verifies that non projection document is rejected.
+        /// </summary>
         [Test]
         public async Task NonProjectionDocumentIsRejected()
         {
@@ -733,6 +808,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that unresolvable source reports error.
+        /// </summary>
         [Test]
         public async Task UnresolvableSourceReportsError()
         {
@@ -749,6 +827,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that null document throws.
+        /// </summary>
         [Test]
         public void NullDocumentThrows()
         {

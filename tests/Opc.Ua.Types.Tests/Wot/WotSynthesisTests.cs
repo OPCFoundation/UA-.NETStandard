@@ -322,6 +322,9 @@ namespace Opc.Ua.Types.Tests.Wot
         // More rules the specification's reference validator enforces as
         // mutations of its own example. Each would otherwise materialize
         // silently into a definition that cannot be read back unambiguously.
+        /// <summary>
+        /// Verifies that definition that cannot be read back is rejected.
+        /// </summary>
         [TestCase(
             "two definitions on one identity",
             "\"uav:dataTypeDefinitions\":[" +

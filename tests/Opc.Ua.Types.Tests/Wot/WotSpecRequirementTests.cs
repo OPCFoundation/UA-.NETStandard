@@ -120,6 +120,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that target specific evidence names only declared runnable frameworks.
+        /// </summary>
         [Test]
         public void TargetSpecificEvidenceNamesOnlyDeclaredRunnableFrameworks()
         {

@@ -92,6 +92,8 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Resolves a base-namespace DataType named by its BrowseName.
         /// </summary>
+        /// <param name="browseName">The browse name.</param>
+        /// <param name="nodeId">The node ID.</param>
         public static bool TryGetDataTypeNodeId(string? browseName, out string nodeId)
         {
             if (browseName is not null &&
@@ -227,6 +229,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Gets whether an identifier has the VariableType NodeClass in the standard OPC UA model.
         /// </summary>
+        /// <param name="nodeId">The node ID.</param>
         public static bool IsVariableType(string? nodeId)
         {
             return nodeId is not null && s_variableTypeNodeIdToName.ContainsKey(nodeId);

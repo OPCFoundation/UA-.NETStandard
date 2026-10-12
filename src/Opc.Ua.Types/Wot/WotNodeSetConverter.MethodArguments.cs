@@ -124,19 +124,29 @@ namespace Opc.Ua.Wot
         /// </summary>
         private enum WotArgumentShapeKind
         {
-            /// <summary>The member is absent or declares no argument.</summary>
+            /// <summary>
+            /// The member is absent or declares no argument.
+            /// </summary>
             None,
 
-            /// <summary>The schema is one value, so it is one argument.</summary>
+            /// <summary>
+            /// The schema is one value, so it is one argument.
+            /// </summary>
             Single,
 
-            /// <summary>The schema's members are the arguments, in order.</summary>
+            /// <summary>
+            /// The schema's members are the arguments, in order.
+            /// </summary>
             Members,
 
-            /// <summary>The schema is not one this Binding can map.</summary>
+            /// <summary>
+            /// The schema is not one this Binding can map.
+            /// </summary>
             Invalid,
 
-            /// <summary>The member order is neither stated nor derivable.</summary>
+            /// <summary>
+            /// The member order is neither stated nor derivable.
+            /// </summary>
             AmbiguousOrder
         }
 
@@ -195,6 +205,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Names the one argument a bare DataSchema denotes.
         /// </summary>
+        /// <param name="schema">The JSON element.</param>
+        /// <param name="defaultName">The default name.</param>
         internal static string ReadArgumentName(JsonElement schema, string defaultName)
         {
             return LocalName(GetElementString(schema, "uav:browseName")) ??

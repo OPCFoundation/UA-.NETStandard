@@ -45,7 +45,9 @@ namespace Opc.Ua.Wot
         /// </summary>
         WhenRequired,
 
-        /// <summary>Always emit the byte-exact preservation envelope.</summary>
+        /// <summary>
+        /// Always emit the byte-exact preservation envelope.
+        /// </summary>
         Always,
 
         /// <summary>

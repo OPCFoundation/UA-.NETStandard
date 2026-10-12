@@ -44,6 +44,10 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotMappingValidationTests
     {
+        /// <summary>
+        /// Verifies that runtime mapping needs explicit identifier leniency.
+        /// </summary>
+        /// <param name="lenient">The lenient flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void RuntimeMappingNeedsExplicitIdentifierLeniency(bool lenient)
@@ -73,6 +77,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that identifier leniency does not accept malformed node IDs.
+        /// </summary>
+        /// <param name="lenient">The lenient flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void IdentifierLeniencyDoesNotAcceptMalformedNodeIds(bool lenient)

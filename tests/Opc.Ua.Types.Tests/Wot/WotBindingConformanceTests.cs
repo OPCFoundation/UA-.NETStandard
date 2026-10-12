@@ -622,6 +622,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that unnamespaced opaque key warns for consumers and fails authoring.
+        /// </summary>
         [Test]
         public void UnnamespacedOpaqueKeyWarnsForConsumersAndFailsAuthoring()
         {

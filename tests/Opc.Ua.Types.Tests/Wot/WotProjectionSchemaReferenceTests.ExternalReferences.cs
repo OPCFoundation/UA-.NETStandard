@@ -44,8 +44,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that external binding event closure uses original locations across public services.
+        /// </summary>
         [Test]
         public async Task ExternalBindingEventClosureUsesOriginalLocationsAcrossPublicServices()
         {
@@ -83,6 +89,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/events/alarm"));
         }
 
+        /// <summary>
+        /// Verifies that external binding logical event identity is expanded in its original owner.
+        /// </summary>
         [Test]
         public async Task ExternalBindingLogicalEventIdentityIsExpandedInItsOriginalOwner()
         {
@@ -113,6 +122,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(requests, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding explicit clause location is relocated before movement.
+        /// </summary>
         [Test]
         public async Task ExternalBindingExplicitClauseLocationIsRelocatedBeforeMovement()
         {
@@ -141,6 +153,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding mapped local event type is resolved without refetching the source.
+        /// </summary>
         [Test]
         public async Task ExternalBindingMappedLocalEventTypeIsResolvedWithoutRefetchingTheSource()
         {
@@ -172,6 +187,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that external binding unavailable required event does not produce a selection.
+        /// </summary>
         [Test]
         public async Task ExternalBindingUnavailableRequiredEventDoesNotProduceASelection()
         {
@@ -196,6 +214,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding configured policy denial cannot become successful closure.
+        /// </summary>
         [Test]
         public async Task ExternalBindingConfiguredPolicyDenialCannotBecomeSuccessfulClosure()
         {
@@ -217,6 +238,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding required event cycle is reported without a partial selection.
+        /// </summary>
         [Test]
         public async Task ExternalBindingRequiredEventCycleIsReportedWithoutAPartialSelection()
         {
@@ -245,6 +269,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(requests, Is.EqualTo(s_externalCycleLocations));
         }
 
+        /// <summary>
+        /// Verifies that external binding event cancellation retains the caller token.
+        /// </summary>
         [Test]
         public async Task ExternalBindingEventCancellationRetainsTheCallerToken()
         {
@@ -269,6 +296,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding supporting schema retains origin and canonical data type.
+        /// </summary>
+        /// <param name="compactIdentity">The compact-identity flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalBindingSupportingSchemaRetainsOriginAndCanonicalDataType(bool compactIdentity)
@@ -307,6 +338,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that external binding supporting schema distinguishes unevaluated and unavailable.
+        /// </summary>
+        /// <param name="configured">The configured flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalBindingSupportingSchemaDistinguishesUnevaluatedAndUnavailable(bool configured)
@@ -336,6 +371,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["reading"].GetProperty("type").GetString(), Is.EqualTo("number"));
         }
 
+        /// <summary>
+        /// Verifies that external binding incompatible supporting schema cannot redefine canonical data.
+        /// </summary>
         [Test]
         public async Task ExternalBindingIncompatibleSupportingSchemaCannotRedefineCanonicalData()
         {
@@ -361,6 +399,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["reading"].GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=11"));
         }
 
+        /// <summary>
+        /// Verifies that external binding unselected opaque and literal references never acquire documents.
+        /// </summary>
         [Test]
         public async Task ExternalBindingUnselectedOpaqueAndLiteralReferencesNeverAcquireDocuments()
         {
@@ -417,6 +458,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(calls, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that external binding source digest pins exact bytes before any reference consumer.
+        /// </summary>
+        /// <param name="sameBytes">The same-bytes flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalBindingSourceDigestPinsExactBytesBeforeAnyReferenceConsumer(bool sameBytes)
@@ -445,6 +490,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that external binding executable source td cannot have missing or empty forms.
+        /// </summary>
+        /// <param name="emptyForms">The empty-forms flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalBindingExecutableSourceTdCannotHaveMissingOrEmptyForms(bool emptyForms)
@@ -469,6 +518,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "/properties/reading/forms"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that external binding static source property does not require an executable form.
+        /// </summary>
         [Test]
         public async Task ExternalBindingStaticSourcePropertyDoesNotRequireAnExecutableForm()
         {
@@ -487,6 +539,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/properties/Value"));
         }
 
+        /// <summary>
+        /// Verifies that external binding supporting unit facts do not become executable selections.
+        /// </summary>
         [Test]
         public async Task ExternalBindingSupportingUnitFactsDoNotBecomeExecutableSelections()
         {
@@ -518,6 +573,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(5259596));
         }
 
+        /// <summary>
+        /// Verifies that external binding abstract source tm may retain an affordance without forms.
+        /// </summary>
         [Test]
         public async Task ExternalBindingAbstractSourceTmMayRetainAnAffordanceWithoutForms()
         {
@@ -603,6 +661,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Func<string, WotResolutionContext, CancellationToken, ValueTask<WotResolverResult>> handler)
             : IWotThingResolver
         {
+            /// <param name="context">The WoT resolution context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference, WotResolutionContext context, CancellationToken cancellationToken = default)
             {
@@ -614,6 +674,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Func<string, WotResolutionContext, CancellationToken, ValueTask<WotResolverResult>> handler)
             : IWotSchemaResolver
         {
+            /// <param name="context">The WoT resolution context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveSchemaAsync(
                 string reference, WotResolutionContext context, CancellationToken cancellationToken = default)
             {

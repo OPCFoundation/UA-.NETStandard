@@ -229,7 +229,9 @@ namespace Opc.Ua.Wot
                 new(namespaces.GetString(name.NamespaceIndex), name.Name!);
         }
 
-        /// <summary>The form and affordance browse-path term.</summary>
+        /// <summary>
+        /// The form and affordance browse-path term.
+        /// </summary>
         public const string PathTerm = "uav:browsePath";
     }
 }

@@ -137,6 +137,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that generated fractional ranges and sampling intervals can be canonicalized on every framework.
+        /// </summary>
         [Test]
         public void GeneratedFractionalRangesAndSamplingIntervalsCanBeCanonicalizedOnEveryFramework()
         {
@@ -423,6 +426,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that engineering units use the declared locale and retain every translation.
+        /// </summary>
+        /// <param name="localLanguage">The local-language flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void EngineeringUnitsUseTheDeclaredLocaleAndRetainEveryTranslation(bool localLanguage)
@@ -643,6 +650,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a unit model with component declarations projects its unit pointer and ranges.
+        /// </summary>
         [Test]
         public async Task AUnitModelWithComponentDeclarationsProjectsItsUnitPointerAndRangesAsync()
         {
@@ -678,6 +688,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a unit model with component declarations imports as a node set.
+        /// </summary>
         [Test]
         public async Task AUnitModelWithComponentDeclarationsImportsAsANodeSetAsync()
         {
@@ -706,6 +719,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 instance.References!.Any(reference => reference.ReferenceType == "HasTypeDefinition")), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the pinned legacy model does not turn a component type into an instance.
+        /// </summary>
         [Test]
         public async Task ThePinnedLegacyModelDoesNotTurnAComponentTypeIntoAnInstanceAsync()
         {

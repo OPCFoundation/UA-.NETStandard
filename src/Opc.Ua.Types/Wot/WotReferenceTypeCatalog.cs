@@ -215,6 +215,7 @@ namespace Opc.Ua.Wot
                 node.Value.NodeClass != WotExpectedNodeClass.ReferenceType;
         }
 
+        /// <param name="nodeId">The node ID.</param>
         public bool IsAbstract(string nodeId)
         {
             return m_identities.TryGetValue(
@@ -222,6 +223,7 @@ namespace Opc.Ua.Wot
                 node?.IsAbstract == true;
         }
 
+        /// <param name="nodeId">The node ID.</param>
         public bool IsHasComponentSubtype(string nodeId)
         {
             if (!m_identities.TryGetValue(

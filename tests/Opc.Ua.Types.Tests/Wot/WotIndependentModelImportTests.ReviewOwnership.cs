@@ -41,8 +41,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that independent review effective root ownership rejects collisions.
+        /// </summary>
+        /// <param name="explicitPeer">The explicit-peer flag for this test case.</param>
+        /// <param name="reverse">The reverse flag for this test case.</param>
+        /// <param name="preconverted">The preconverted flag for this test case.</param>
         [Test]
         public async Task IndependentReviewEffectiveRootOwnershipRejectsCollisionsAsync(
             [Values(false, true)] bool explicitPeer,
@@ -82,6 +91,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent review generated roots retain equivalent context copies.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task IndependentReviewGeneratedRootsRetainEquivalentContextCopiesAsync(bool reverse)
@@ -133,6 +146,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent review generated root default control.
+        /// </summary>
         [Test]
         public async Task IndependentReviewGeneratedRootDefaultControlAsync()
         {

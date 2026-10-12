@@ -40,8 +40,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that host routed forms do not retarget source data references.
+        /// </summary>
+        /// <param name="nested">The nested flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostRoutedFormsDoNotRetargetSourceDataReferences(bool nested)
@@ -89,6 +96,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(picked.GetProperty("forms")[0].GetProperty("op").GetString(), Is.EqualTo("readproperty"));
         }
 
+        /// <summary>
+        /// Verifies that source local duplicate URI variable containers are validated before selection.
+        /// </summary>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SourceLocalDuplicateUriVariableContainersAreValidatedBeforeSelection(bool equivalent)
@@ -127,6 +138,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that source variable support keeps its original context references and budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(4, false)]
         [TestCase(5, true)]
         [TestCase(6, true)]
@@ -197,6 +212,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("host-schema"));
         }
 
+        /// <summary>
+        /// Verifies that source variable support remains independent of host supply.
+        /// </summary>
+        /// <param name="hostTemplate">The host-template flag for this test case.</param>
+        /// <param name="collision">The collision flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(true, true)]
         public async Task SourceVariableSupportRemainsIndependentOfHostSupply(bool hostTemplate, bool collision)
@@ -246,6 +266,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that a replaced variable container cannot use its source affordance ancestor mapping.
+        /// </summary>
         [Test]
         public async Task AReplacedVariableContainerCannotUseItsSourceAffordanceAncestorMapping()
         {
@@ -265,6 +288,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that implicit selections validate source local duplicate URI variable containers.
+        /// </summary>
+        /// <param name="supporting">The supporting flag for this test case.</param>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -320,6 +348,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that host routing keeps duplicate source variable facts independent.
+        /// </summary>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostRoutingKeepsDuplicateSourceVariableFactsIndependent(bool equivalent)

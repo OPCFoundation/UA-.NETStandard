@@ -39,8 +39,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that unresolved host annotations cannot acquire source meaning.
+        /// </summary>
         [Test]
         public async Task UnresolvedHostAnnotationsCannotAcquireSourceMeaning(
             [Values("none", "urn", "tag", "null-base", "null-prefix", "unknown-context")] string scope,
@@ -89,6 +95,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that located host annotations keep their own base.
+        /// </summary>
+        /// <param name="explicitBase">The explicit-base flag for this test case.</param>
         [Test]
         public async Task LocatedHostAnnotationsKeepTheirOwnBase(
             [Values] bool explicitBase, [Values("@type", "uav:semanticId")] string annotation)
@@ -124,6 +134,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 : actual.GetString() == "https://host.test/views/Role", Is.True);
         }
 
+        /// <summary>
+        /// Verifies that host type aliases and vocabulary resolve completely.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase("string-chain", true)]
         [TestCase("object-chain", true)]
         [TestCase("compact-vocab", true)]
@@ -169,6 +183,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that security definition names are context map keys.
+        /// </summary>
+        /// <param name="host">The host flag for this test case.</param>
         [Test]
         public async Task SecurityDefinitionNamesAreContextMapKeys(
             [Values("@context", "@base", "context")] string name, [Values] bool host)
@@ -195,6 +213,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definition.TryGetProperty("@context", out _), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that duplicate semantic contexts return diagnostics.
+        /// </summary>
         [Test]
         public async Task DuplicateSemanticContextsReturnDiagnostics(
             [Values("host-root", "source-root", "source-local", "source-term")] string location,
@@ -256,6 +277,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that host text predicate cannot acquire source prefix.
+        /// </summary>
         [TestCase("title")]
         [TestCase("description")]
         public async Task HostTextPredicateCannotAcquireSourcePrefix(string term)
@@ -286,6 +310,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid context declaration kinds return diagnostics.
+        /// </summary>
         [TestCase("true")]
         [TestCase("42")]
         public async Task InvalidContextDeclarationKindsReturnDiagnostics(string json)
@@ -302,6 +329,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that host security map names remain names without explicit context.
+        /// </summary>
         [TestCase("@context")]
         [TestCase("@base")]
         public async Task HostSecurityMapNamesRemainNamesWithoutExplicitContext(string name)
@@ -321,6 +351,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
         }
 
+        /// <summary>
+        /// Verifies that standard vocabulary matches its carrying scope.
+        /// </summary>
         [TestCase("root", "https://www.w3.org/2019/wot/td#")]
         [TestCase("property", "https://www.w3.org/2019/wot/json-schema#")]
         [TestCase("form", "https://www.w3.org/2019/wot/hypermedia#")]
@@ -340,6 +373,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(vocabulary.GetString(), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that standard property vocabulary preserves bare type annotations.
+        /// </summary>
+        /// <param name="typeName">The type name used by this test case.</param>
+        /// <param name="rootOverride">The root-override flag for this test case.</param>
         [Test]
         public async Task StandardPropertyVocabularyPreservesBareTypeAnnotations(
             [Values("Signal", "dataPoint")] string typeName, [Values] bool rootOverride)

@@ -42,11 +42,18 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT converter integration fix.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     [Parallelizable]
     public sealed class WotConverterIntegrationFixTests
     {
+        /// <summary>
+        /// Verifies that archived value shapes round trip exactly.
+        /// </summary>
+        /// <param name="jsonType">The JSON type used by this test case.</param>
         [TestCase(-1, null, "number")]
         [TestCase(1, "3", "array")]
         [TestCase(2, "2,3", "array")]
@@ -75,6 +82,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that archived matrix rejects contradictory value metadata.
+        /// </summary>
         [TestCase("uav:mapToType", "\"i=12\"")]
         [TestCase("uav:dataTypeId", "\"i=12\"")]
         [TestCase("uav:valueRank", "1")]
@@ -89,6 +99,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertArchiveConflict(source, root, "/properties/Samples/" + member);
         }
 
+        /// <summary>
+        /// Verifies that archived indeterminate ranks reject conflicting scalar types.
+        /// </summary>
         [TestCase(-3)]
         [TestCase(-2)]
         public void ArchivedIndeterminateRanksRejectConflictingScalarTypes(int rank)
@@ -100,6 +113,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertArchiveConflict(source, root, "/properties/Samples/type");
         }
 
+        /// <summary>
+        /// Verifies that archived component templates preserve declarations and source types.
+        /// </summary>
+        /// <param name="inverse">The inverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ArchivedComponentTemplatesPreserveDeclarationsAndSourceTypes(bool inverse)
@@ -140,6 +157,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that archived component template rejects contradictory facts.
+        /// </summary>
+        /// <param name="conflictSuffix">The conflict suffix used by this test case.</param>
         [TestCase("uav:browseName", "\"nsu=urn:test:integration;Other\"", "/uav:declaration/uav:browseName")]
         [TestCase("uav:modellingRule", "\"Optional\"", "/uav:declaration/uav:modellingRule")]
         [TestCase("uav:id", "\"nsu=urn:test:integration;i=9999\"", "/uav:declaration/uav:id")]
@@ -169,6 +190,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 conflictSuffix);
         }
 
+        /// <summary>
+        /// Verifies that archived component template cannot change its ownership reference.
+        /// </summary>
         [Test]
         public void ArchivedComponentTemplateCannotChangeItsOwnershipReference()
         {
@@ -183,6 +207,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 source, root, "/links/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
+        /// <summary>
+        /// Verifies that external reference aliases keep their forward identity.
+        /// </summary>
+        /// <param name="inferredForward">The inferred-forward flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ExternalReferenceAliasesKeepTheirForwardIdentity(bool inferredForward)
@@ -224,6 +252,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that an external reference alias does not invent an inverse name.
+        /// </summary>
         [Test]
         public void AnExternalReferenceAliasDoesNotInventAnInverseName()
         {
@@ -247,6 +278,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(result.Value!), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that multiple ownership edges emit one affordance and retain both relations.
+        /// </summary>
+        /// <param name="inverseComponent">The inverse-component flag for this test case.</param>
+        /// <param name="inverseOrdered">The inverse-ordered flag for this test case.</param>
+        /// <param name="method">The method flag for this test case.</param>
         [TestCase(false, false, false)]
         [TestCase(false, false, true)]
         [TestCase(false, true, false)]
@@ -318,6 +355,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that different node IDs with the same browse name keep their own affordances.
+        /// </summary>
+        /// <param name="method">The method flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void DifferentNodeIdsWithTheSameBrowseNameKeepTheirOwnAffordances(bool method)
@@ -354,6 +395,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restored.Count(node => node.NodeId == "ns=1;i=1101"), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that archived browse names use their carrying affordance context.
+        /// </summary>
+        /// <param name="objectTerm">The object-term flag for this test case.</param>
+        /// <param name="identifyByName">The identify-by-name flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -385,6 +431,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(source.NamespaceUris));
         }
 
+        /// <summary>
+        /// Verifies that archived browse names reject a contradictory local namespace.
+        /// </summary>
+        /// <param name="objectTerm">The object-term flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ArchivedBrowseNamesRejectAContradictoryLocalNamespace(bool objectTerm)
@@ -401,6 +451,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertArchiveConflict(source, root, "/properties/Samples/uav:browseName");
         }
 
+        /// <summary>
+        /// Verifies that archived reference names use their carrying link context.
+        /// </summary>
+        /// <param name="companion">The companion flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ArchivedReferenceNamesUseTheirCarryingLinkContext(bool companion)
@@ -444,6 +498,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(source.NamespaceUris));
         }
 
+        /// <summary>
+        /// Verifies that archived data type terms use their carrying affordance context.
+        /// </summary>
         [Test]
         public void ArchivedDataTypeTermsUseTheirCarryingAffordanceContext()
         {
@@ -462,6 +519,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(source.NamespaceUris));
         }
 
+        /// <summary>
+        /// Verifies that archived component declaration browse names use their lexical scope.
+        /// </summary>
+        /// <param name="declarationContext">The declaration-context flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ArchivedComponentDeclarationBrowseNamesUseTheirLexicalScope(bool declarationContext)
@@ -486,6 +547,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(source.NamespaceUris));
         }
 
+        /// <summary>
+        /// Verifies that archived data type names use the definition context.
+        /// </summary>
         [Test]
         public void ArchivedDataTypeNamesUseTheDefinitionContext()
         {
@@ -515,6 +579,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value.NamespaceUris, Is.EqualTo(source.NamespaceUris));
         }
 
+        /// <summary>
+        /// Verifies that namespace zero does not prove a variable type.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
+        /// <param name="forbiddenTypeId">The forbidden type ID used by this test case.</param>
+        /// <param name="asynchronous">The asynchronous flag for this test case.</param>
         [TestCase("i=58", "i=58", false)]
         [TestCase("i=58", "i=58", true)]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=58", "i=58", false)]
@@ -543,6 +613,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.ReferenceType == "HasTypeDefinition" && reference.Value == forbiddenTypeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that standard variable type facts preserve the authored binding.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
+        /// <param name="expectedTypeId">The expected type ID asserted by the test.</param>
         [TestCase("i=63", "i=63")]
         [TestCase("i=68", "i=68")]
         [TestCase("nsu=http://opcfoundation.org/UA/;i=63", "i=63")]
@@ -574,6 +649,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that a property resolver must supply positive variable type class evidence.
+        /// </summary>
+        /// <param name="nodeClass">The node class used by this test case.</param>
+        /// <param name="binds">The binds flag for this test case.</param>
         [TestCase(WotExpectedNodeClass.Any, false)]
         [TestCase(WotExpectedNodeClass.ObjectType, false)]
         [TestCase(WotExpectedNodeClass.ReferenceType, false)]
@@ -605,6 +685,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that namespace zero type bindings use an available document class.
+        /// </summary>
+        /// <param name="binds">The binds flag for this test case.</param>
         [TestCase("uav:variableType", true)]
         [TestCase("uav:objectType", false)]
         public async Task NamespaceZeroTypeBindingsUseAnAvailableDocumentClassAsync(string annotation, bool binds)

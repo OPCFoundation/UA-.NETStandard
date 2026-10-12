@@ -84,6 +84,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an agreeing schema is compatible.
+        /// </summary>
         [Test]
         public async Task AnAgreeingSchemaIsCompatibleAsync()
         {
@@ -104,6 +107,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a disagreeing JSON type is incompatible.
+        /// </summary>
         [Test]
         public async Task ADisagreeingJsonTypeIsIncompatibleAsync()
         {
@@ -148,6 +154,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a disagreeing data type ID is incompatible.
+        /// </summary>
         [Test]
         public async Task ADisagreeingDataTypeIdIsIncompatibleAsync()
         {
@@ -188,6 +197,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a member of a different type is incompatible.
+        /// </summary>
         [Test]
         public async Task AMemberOfADifferentTypeIsIncompatibleAsync()
         {
@@ -205,6 +217,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Detail, Does.Contain("Speed"));
         }
 
+        /// <summary>
+        /// Verifies that matching members are compatible.
+        /// </summary>
         [Test]
         public async Task MatchingMembersAreCompatibleAsync()
         {
@@ -222,6 +237,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Compatible));
         }
 
+        /// <summary>
+        /// Verifies that a nested field type disagreement is incompatible.
+        /// </summary>
         [Test]
         public async Task ANestedFieldTypeDisagreementIsIncompatibleAsync()
         {
@@ -255,6 +273,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.ProviderIndex, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that nested external contracts compare complete semantic shapes.
+        /// </summary>
+        /// <param name="compatible">The compatible flag for this test case.</param>
         [TestCase(
                                  /*lang=json,strict*/
                                  """{"type":"array","items":{"type":"string"}}""",
@@ -331,6 +353,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that external data type identity aliases are equivalent.
+        /// </summary>
         [Test]
         public async Task ExternalDataTypeIdentityAliasesAreEquivalentAsync()
         {
@@ -343,6 +368,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Compatible), result.Detail);
         }
 
+        /// <summary>
+        /// Verifies that malformed partial external contracts cannot be certified.
+        /// </summary>
         [TestCase(/*lang=json,strict*/ """{"type":7}""", "/type")]
         [TestCase(/*lang=json,strict*/ """{"type":"unknown"}""", "/type")]
         [TestCase(/*lang=json,strict*/ """{"properties":{"A":7}}""", "/properties/A")]
@@ -360,6 +388,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Detail, Does.Contain(pointer));
         }
 
+        /// <summary>
+        /// Verifies that unmatched schema branches are validated independently.
+        /// </summary>
+        /// <param name="invalidSchema">The invalid schema used by this test case.</param>
+        /// <param name="partialSchema">The partial schema used by this test case.</param>
+        /// <param name="invalidCanonical">The invalid-canonical flag for this test case.</param>
         [TestCase(/*lang=json,strict*/ """{"type":"array","items":{"$ref":"urn:missing"}}""",
                                  /*lang=json,strict*/
                                  """{"type":"array"}""", "/items/$ref", false)]
@@ -402,6 +436,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(provider.Calls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that supported facet types are checked without a matching facet.
+        /// </summary>
         [TestCase("maximum", "false")]
         [TestCase("exclusiveMinimum", "null")]
         [TestCase("exclusiveMaximum", "\"ten\"")]
@@ -434,6 +471,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Detail, Does.Contain("/" + term));
         }
 
+        /// <summary>
+        /// Verifies that valid partial facets remain compatible.
+        /// </summary>
         [TestCase(WideNumericPartialSchema)]
         [TestCase(/*lang=json,strict*/ """{"minItems":1.0,"maxLength":1e1000,"minProperties":-0.0e999999}""")]
         [TestCase(StringFacetPartialSchema)]
@@ -448,6 +488,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Detail, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that unknown extension values are not interpreted as schemas.
+        /// </summary>
+        /// <param name="annotatedCanonical">The annotated-canonical flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnknownExtensionValuesAreNotInterpretedAsSchemasAsync(bool annotatedCanonical)
@@ -604,6 +648,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a readable media type with parameters is accepted.
+        /// </summary>
         [Test]
         public async Task AReadableMediaTypeWithParametersIsAcceptedAsync()
         {
@@ -627,6 +674,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a bare fragment names nothing a provider could hold.
+        /// </summary>
         [Test]
         public async Task ABareFragmentNamesNothingAProviderCouldHoldAsync()
         {
@@ -646,6 +696,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an empty reference names nothing.
+        /// </summary>
         [Test]
         public async Task AnEmptyReferenceNamesNothingAsync()
         {
@@ -684,6 +737,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that schema bytes count against the shared byte budget.
+        /// </summary>
         [Test]
         public async Task SchemaBytesCountAgainstTheSharedByteBudgetAsync()
         {
@@ -706,6 +762,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that schema resolution counts against the shared document budget.
+        /// </summary>
         [Test]
         public async Task SchemaResolutionCountsAgainstTheSharedDocumentBudgetAsync()
         {
@@ -887,6 +946,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a conversion reports ambiguous providers.
+        /// </summary>
         [Test]
         public async Task AConversionReportsAmbiguousProvidersAsync()
         {

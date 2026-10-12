@@ -39,6 +39,11 @@ namespace Opc.Ua.Types.Tests.Wot
     /// </summary>
     internal sealed class WotEventTypeTestContext : IDisposable
     {
+        /// <summary>
+        /// Initializes a new <c>WotEventTypeTestContext</c> instance.
+        /// </summary>
+        /// <param name="supertype">The supertype used to initialize the instance.</param>
+        /// <param name="browseName">The browse name used to initialize the instance.</param>
         public WotEventTypeTestContext(
             string identity,
             string supertype = "i=2782",
@@ -67,6 +72,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Resolver = new WotDocumentNodeResolver(m_documents);
         }
 
+        /// <summary>
+        /// Gets the resolver for <c>WotEventTypeTestContext</c>.
+        /// </summary>
         public IWotNodeResolver Resolver { get; }
 
         public void Dispose()

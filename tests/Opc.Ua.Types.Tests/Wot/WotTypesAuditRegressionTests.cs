@@ -116,6 +116,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that source scheme cannot replace the projections own scheme.
+        /// </summary>
         [Test]
         public async Task SourceSchemeCannotReplaceTheProjectionsOwnSchemeAsync()
         {
@@ -148,6 +151,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that source schemes with colliding legacy names retain separate owners.
+        /// </summary>
         [Test]
         public async Task SourceSchemesWithCollidingLegacyNamesRetainSeparateOwnersAsync()
         {
@@ -185,6 +191,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that identical projection and source schemes retain separate ownership.
+        /// </summary>
         [Test]
         public async Task IdenticalProjectionAndSourceSchemesRetainSeparateOwnershipAsync()
         {
@@ -216,6 +225,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a deep affordance within the configured depth is projected.
+        /// </summary>
         [Test]
         public async Task ADeepAffordanceWithinTheConfiguredDepthIsProjectedAsync()
         {
@@ -291,6 +303,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(floor!.SecurityMode, Is.EqualTo("SignAndEncrypt"));
         }
 
+        /// <summary>
+        /// Verifies that projection node IDs are indexed with an escaped namespace.
+        /// </summary>
         [Test]
         public async Task ProjectionNodeIdsAreIndexedWithAnEscapedNamespaceAsync()
         {
@@ -380,6 +395,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that many components of one owner are linked in linear time.
+        /// </summary>
+        /// <param name="ownerFirst">The owner-first flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         [NonParallelizable]

@@ -1247,6 +1247,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Restores authoritative storage for type lookup without running readable checks that require the closure.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
         internal static WotConversionResult<UANodeSet> ReadAuthoritativeTypeContext(WotDocument document)
         {
             var options = new WotNodeSetConverterOptions();
@@ -2270,6 +2271,8 @@ namespace Opc.Ua.Wot
             /// Adds the forward Reference from <paramref name="owner"/> to
             /// <paramref name="nodeId"/>, if a Node with that NodeId exists.
             /// </summary>
+            /// <param name="nodeId">The node ID.</param>
+            /// <param name="referenceType">The reference type.</param>
             public void Add(string owner, string nodeId, string? referenceType)
             {
                 for (; m_indexed < m_items.Count; m_indexed++)
@@ -3137,6 +3140,7 @@ namespace Opc.Ua.Wot
             rootReferences.Add(new Reference { ReferenceType = referenceType, Value = nodeId });
         }
 
+        /// <param name="declaration">The JSON element.</param>
         internal static bool MapsComponentDeclaration(JsonElement declaration)
         {
             if (declaration.ValueKind != JsonValueKind.Object ||
@@ -3192,6 +3196,7 @@ namespace Opc.Ua.Wot
                 StringComparison.Ordinal);
         }
 
+        /// <param name="nodeId">The node ID.</param>
         internal static string NormalizeExpandedNodeId(string nodeId)
         {
             if (nodeId.StartsWith("nsu=", StringComparison.Ordinal))

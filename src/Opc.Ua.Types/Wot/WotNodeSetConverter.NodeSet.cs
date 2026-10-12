@@ -625,6 +625,7 @@ namespace Opc.Ua.Wot
         /// Other IRIs or additional keywords are preserved rather than treated
         /// as re-derivable native localized metadata.
         /// </remarks>
+        /// <param name="item">The JSON element.</param>
         internal static bool IsGeneratedLocalizedTextOverride(JsonElement item)
         {
             if (item.ValueKind != JsonValueKind.Object)
@@ -656,12 +657,14 @@ namespace Opc.Ua.Wot
         /// Gets whether a term definition is exactly
         /// <c>{ "@id": iri, "@language": null }</c>.
         /// </summary>
+        /// <param name="definition">The JSON element.</param>
         internal static bool IsLanguageFreeAlias(JsonElement definition, string iri)
         {
             return IsLocalizedTextAlias(definition, iri) &&
                 definition.GetProperty("@language").ValueKind == JsonValueKind.Null;
         }
 
+        /// <param name="definition">The JSON element.</param>
         internal static bool IsLocalizedTextAlias(JsonElement definition, string iri)
         {
             if (definition.ValueKind != JsonValueKind.Object)
@@ -1224,6 +1227,8 @@ namespace Opc.Ua.Wot
         /// DataSchema's json type stays the only claim rather than the
         /// conversion failing over a value it was only trying to enrich.
         /// </remarks>
+        /// <param name="dataType">The data type.</param>
+        /// <param name="nodeSet">The node set.</param>
         internal static string? ToPortableDataTypeId(string? dataType, UANodeSet nodeSet)
         {
             if (string.IsNullOrEmpty(dataType))
@@ -2527,6 +2532,8 @@ namespace Opc.Ua.Wot
         /// form is never emitted. An unparseable or unresolvable value is left
         /// untouched.
         /// </summary>
+        /// <param name="rawNodeId">The raw node ID.</param>
+        /// <param name="namespaceUris">The namespace URIs.</param>
         internal static string? ToPortableNodeId(string? rawNodeId, string[]? namespaceUris)
         {
             return RenderPortableNodeId(rawNodeId, namespaceUris);
@@ -2643,6 +2650,7 @@ namespace Opc.Ua.Wot
             return WotPortableIdentity.AllocateName(candidate, used);
         }
 
+        /// <param name="browseName">The browse name.</param>
         internal static string? LocalName(string? browseName)
         {
             return WotPortableIdentity.LocalName(browseName);
@@ -2724,6 +2732,9 @@ namespace Opc.Ua.Wot
             string RefType,
             string RefName)
         {
+            /// <summary>
+            /// Gets or sets the declaration for <c>TypedComponentLink</c>.
+            /// </summary>
             public (string NodeId, string BrowseName, string? ModellingRule)? Declaration { get; init; }
         }
 
@@ -2733,6 +2744,9 @@ namespace Opc.Ua.Wot
             bool IsExtends,
             bool IsForward)
         {
+            /// <summary>
+            /// Gets or sets the source link for <c>ResolvableThingReference</c>.
+            /// </summary>
             public JsonElement SourceLink { get; init; }
         }
     }

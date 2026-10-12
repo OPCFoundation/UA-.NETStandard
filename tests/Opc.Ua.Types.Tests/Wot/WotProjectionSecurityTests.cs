@@ -42,10 +42,18 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection security.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionSecurityTests
     {
+        /// <summary>
+        /// Verifies that reviewed source affordance security retains its owner.
+        /// </summary>
+        /// <param name="enumerated">The enumerated flag for this test case.</param>
+        /// <param name="array">The array flag for this test case.</param>
         [Test]
         public async Task ReviewedSourceAffordanceSecurityRetainsItsOwner(
             [Values("properties", "actions", "events")] string map,
@@ -89,6 +97,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("q:s:c291cmNl:YXV0aA"));
         }
 
+        /// <summary>
+        /// Verifies that reviewed affordance requirement cannot select another sources anonymous scheme.
+        /// </summary>
+        /// <param name="reversed">The reversed flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ReviewedAffordanceRequirementCannotSelectAnotherSourcesAnonymousScheme(bool reversed)
@@ -116,6 +128,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.SecurityDefinitions[raw].GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
         }
 
+        /// <summary>
+        /// Verifies that reviewed model affordance security carries its closure without forms.
+        /// </summary>
         [Test]
         public async Task ReviewedModelAffordanceSecurityCarriesItsClosureWithoutForms()
         {
@@ -142,6 +157,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["value"].TryGetProperty("forms", out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that reviewed duplicate security containers cannot replace earlier requirements.
+        /// </summary>
+        /// <param name="host">The host flag for this test case.</param>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -195,6 +215,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that distinct source security origins cannot collide through underscores.
+        /// </summary>
+        /// <param name="reversed">The reversed flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DistinctSourceSecurityOriginsCannotCollideThroughUnderscores(bool reversed)
@@ -223,6 +247,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(sources["urn:source:right"]["security"]!.GetValue<string>(), Is.EqualTo("b_c"));
         }
 
+        /// <summary>
+        /// Verifies that projection owned names cannot impersonate qualified source security.
+        /// </summary>
         [Test]
         public async Task ProjectionOwnedNamesCannotImpersonateQualifiedSourceSecurity()
         {
@@ -274,6 +301,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(projection["security"]!.GetValue<string>(), Is.EqualTo(authored));
         }
 
+        /// <summary>
+        /// Verifies that duplicate security names cannot discard contradictory facts.
+        /// </summary>
+        /// <param name="projectionOwned">The projection-owned flag for this test case.</param>
+        /// <param name="consistent">The consistent flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -322,6 +354,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that referenced security closures must be complete.
+        /// </summary>
+        /// <param name="projectionOwned">The projection-owned flag for this test case.</param>
         [TestCase(false, "missing-root")]
         [TestCase(true, "missing-root")]
         [TestCase(false, "missing-child")]
@@ -356,6 +392,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that combo closures retain scoped references and unrelated metadata.
+        /// </summary>
+        /// <param name="projectionOwned">The projection-owned flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ComboClosuresRetainScopedReferencesAndUnrelatedMetadata(bool projectionOwned)
@@ -395,6 +435,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(combo.GetProperty("vendor:data").GetProperty("allOf")[1].GetString(), Is.EqualTo("none"));
         }
 
+        /// <summary>
+        /// Verifies that security depth bounds do not depend on definition enumeration order.
+        /// </summary>
+        /// <param name="reversed">The reversed flag for this test case.</param>
+        /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(3, false, true)]
         [TestCase(3, true, true)]
         [TestCase(2, false, false)]
@@ -437,6 +482,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that non combo security metadata is not rewritten as a reference.
+        /// </summary>
         [Test]
         public async Task NonComboSecurityMetadataIsNotRewrittenAsAReference()
         {
@@ -454,6 +502,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("literal-metadata"));
         }
 
+        /// <summary>
+        /// Verifies that malformed combo requirements cannot survive qualification.
+        /// </summary>
         [TestCase("\"auth\"")]
         [TestCase("[]")]
         [TestCase("[\"auth\",42]")]

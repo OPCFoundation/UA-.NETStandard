@@ -41,11 +41,18 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     [Parallelizable]
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that independent readable models normalize source namespaces.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task IndependentReadableModelsNormalizeSourceNamespacesAsync(bool reverse)
@@ -80,6 +87,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent partitions normalize identities without mutating inputs.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void IndependentPartitionsNormalizeIdentitiesWithoutMutatingInputs(bool reverse)
@@ -108,6 +119,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(originalB));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions rebase every identity field.
+        /// </summary>
         [Test]
         public void IndependentPartitionsRebaseEveryIdentityField()
         {
@@ -220,6 +234,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that default reconstruction rejects independent tables.
+        /// </summary>
         [Test]
         public async Task DefaultReconstructionRejectsIndependentTablesAsync()
         {
@@ -238,6 +255,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "b"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that invalid document set mode is rejected.
+        /// </summary>
         [Test]
         public void InvalidDocumentSetModeIsRejected()
         {

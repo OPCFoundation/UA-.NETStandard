@@ -2541,8 +2541,17 @@ namespace Opc.Ua.Wot
 
         private enum PredicateMatch
         {
+            /// <summary>
+            /// The mismatch value of <c>PredicateMatch</c>.
+            /// </summary>
             Mismatch,
+            /// <summary>
+            /// The match value of <c>PredicateMatch</c>.
+            /// </summary>
             Match,
+            /// <summary>
+            /// The unknown value of <c>PredicateMatch</c>.
+            /// </summary>
             Unknown
         }
 
@@ -2552,6 +2561,9 @@ namespace Opc.Ua.Wot
 
             public WotDocument Document { get; init; } = null!;
 
+            /// <summary>
+            /// Gets or sets the document href for <c>ResolvedSource</c>.
+            /// </summary>
             public string DocumentHref { get; init; } = string.Empty;
 
             public string BaseHref { get; init; } = string.Empty;
@@ -2559,29 +2571,59 @@ namespace Opc.Ua.Wot
 
         private sealed class ResolvedAffordance
         {
+            /// <summary>
+            /// Gets or sets the kind for <c>ResolvedAffordance</c>.
+            /// </summary>
             public WotAffordanceKind Kind { get; init; }
 
             public string Name { get; init; } = string.Empty;
 
             public JsonObject Value { get; init; } = null!;
 
+            /// <summary>
+            /// Gets or sets the resolved source for <c>ResolvedAffordance</c>.
+            /// </summary>
             public ResolvedSource Source { get; init; } = null!;
 
+            /// <summary>
+            /// Gets or sets the source name for <c>ResolvedAffordance</c>.
+            /// </summary>
             public string SourceName { get; init; } = string.Empty;
 
+            /// <summary>
+            /// Gets or sets the pointer for <c>ResolvedAffordance</c>.
+            /// </summary>
             public string Pointer { get; init; } = string.Empty;
 
+            /// <summary>
+            /// Gets or sets the definition for <c>ResolvedAffordance</c>.
+            /// </summary>
             public JsonElement Definition { get; init; }
 
+            /// <summary>
+            /// Gets or sets the supporting for <c>ResolvedAffordance</c>.
+            /// </summary>
             public bool Supporting { get; init; }
 
+            /// <summary>
+            /// Gets or sets the enumerated for <c>ResolvedAffordance</c>.
+            /// </summary>
             public bool Enumerated { get; init; }
 
+            /// <summary>
+            /// Gets or sets the generated form owner for <c>ResolvedAffordance</c>.
+            /// </summary>
             public ReferenceOwner? GeneratedFormOwner { get; set; }
         }
 
         private sealed class Selection
         {
+            /// <summary>
+            /// Initializes a new <c>Selection</c> instance.
+            /// </summary>
+            /// <param name="document">The document used to initialize the instance.</param>
+            /// <param name="documentHref">The document href used to initialize the instance.</param>
+            /// <param name="securityDefinitions">The security definitions used to initialize the instance.</param>
             public Selection(WotDocument document, string documentHref, JsonObject securityDefinitions)
             {
                 Document = document;
@@ -2596,8 +2638,14 @@ namespace Opc.Ua.Wot
                 }
             }
 
+            /// <summary>
+            /// Gets the document for <c>Selection</c>.
+            /// </summary>
             public WotDocument Document { get; }
 
+            /// <summary>
+            /// Gets the document href for <c>Selection</c>.
+            /// </summary>
             public string DocumentHref { get; }
 
             public List<ResolvedAffordance> Properties { get; } = [];
@@ -2606,6 +2654,9 @@ namespace Opc.Ua.Wot
 
             public List<ResolvedAffordance> Events { get; } = [];
 
+            /// <summary>
+            /// Gets the members for <c>Selection</c>.
+            /// </summary>
             public List<ResolvedAffordance> Members { get; } = [];
 
             public JsonObject SecurityDefinitions { get; }
@@ -2622,11 +2673,19 @@ namespace Opc.Ua.Wot
                 return Taken(kind).Add(name);
             }
 
+            /// <param name="kind">The WoT affordance kind.</param>
             public bool IsClaimed(WotAffordanceKind kind, string name)
             {
                 return Taken(kind).Contains(name);
             }
 
+            /// <param name="kind">The WoT affordance kind.</param>
+            /// <param name="value">The JSON object.</param>
+            /// <param name="source">The resolved source.</param>
+            /// <param name="sourceName">The source name.</param>
+            /// <param name="definition">The JSON element.</param>
+            /// <param name="supporting">The supporting flag supplied by the caller.</param>
+            /// <param name="enumerated">The enumerated flag supplied by the caller.</param>
             public ResolvedAffordance Add(
                 WotAffordanceKind kind, string name, JsonObject value,
                 ResolvedSource source, string sourceName, JsonElement definition,
@@ -2650,11 +2709,15 @@ namespace Opc.Ua.Wot
                 return member;
             }
 
+            /// <param name="source">The resolved source.</param>
+            /// <param name="member">The resolved affordance.</param>
             public bool TryLocate(ResolvedSource source, string pointer, out ResolvedAffordance? member)
             {
                 return m_locations.TryGetValue((source.DocumentHref, pointer), out member);
             }
 
+            /// <param name="kind">The WoT affordance kind.</param>
+            /// <param name="source">The resolved source.</param>
             public string AllocateSupportName(
                 WotAffordanceKind kind, ResolvedSource source, string name, string pointer)
             {

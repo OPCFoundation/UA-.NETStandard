@@ -38,9 +38,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT captured data type definition.
+    /// </summary>
     [TestFixture]
     public sealed class WotCapturedDataTypeDefinitionTests
     {
+        /// <summary>
+        /// Verifies that captured definitions respect the document budget without a resolver.
+        /// </summary>
         [Test]
         public async Task CapturedDefinitionsRespectTheDocumentBudgetWithoutAResolver()
         {
@@ -59,6 +65,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that captured definition emission preserves its authoritative namespace.
+        /// </summary>
+        /// <param name="separatelyProjected">The separately-projected flag for this test case.</param>
+        /// <param name="contextualDefinition">The contextual-definition flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -100,6 +111,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 It.IsAny<string>(), It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that qualified name parsing uses the carrying context.
+        /// </summary>
         [Test]
         public void QualifiedNameParsingUsesTheCarryingContext()
         {
@@ -127,6 +141,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(missing.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that scoped graph reference does not become a second complete definition.
+        /// </summary>
         [Test]
         public async Task ScopedGraphReferenceDoesNotBecomeASecondCompleteDefinition()
         {
@@ -144,6 +161,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items!.OfType<UADataType>().Count(), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that native path classification does not read records of an unsupported profile.
+        /// </summary>
+        /// <param name="restores">The restores flag for this test case.</param>
         [TestCase("1.0", true)]
         [TestCase("99.0", false)]
         public void NativePathClassificationDoesNotReadRecordsOfAnUnsupportedProfile(string profile, bool restores)

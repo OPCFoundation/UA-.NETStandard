@@ -44,11 +44,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT data type closure.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     [Parallelizable]
     public sealed class WotDataTypeClosureTests
     {
+        /// <summary>
+        /// Verifies that matching data type definition populates the root without duplicating its identity.
+        /// </summary>
         [Test]
         public void MatchingDataTypeDefinitionPopulatesTheRootWithoutDuplicatingItsIdentity()
         {
@@ -81,6 +87,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.Value == "i=85"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that data type or encoding cannot claim an ordinary root identity.
+        /// </summary>
+        /// <param name="identityMember">The identity member used by this test case.</param>
         [TestCase("uav:dataTypeId")]
         [TestCase("uav:binaryEncodingId")]
         public void DataTypeOrEncodingCannotClaimAnOrdinaryRootIdentity(string identityMember)
@@ -98,6 +108,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that matching data type root rejects contradictory identity facts.
+        /// </summary>
         [TestCase("uav:browseName", "\"t:Other\"")]
         [TestCase("uav:isAbstract", "true")]
         public void MatchingDataTypeRootRejectsContradictoryIdentityFacts(string member, string json)
@@ -116,6 +129,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that data type or encoding cannot claim an ordinary affordance identity.
+        /// </summary>
+        /// <param name="identityMember">The identity member used by this test case.</param>
         [TestCase("uav:dataTypeId")]
         [TestCase("uav:binaryEncodingId")]
         public void DataTypeOrEncodingCannotClaimAnOrdinaryAffordanceIdentity(string identityMember)
@@ -141,6 +158,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.NodeId == "ns=1;i=2"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that an encoding cannot claim its data types identity.
+        /// </summary>
         [Test]
         public void AnEncodingCannotClaimItsDataTypesIdentity()
         {
@@ -156,6 +176,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.NodeId == "ns=1;i=3000"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that encoding backlinks name the actual data type identity.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
         [TestCase("nsu=urn:test:datatype-closure;i=3000")]
         [TestCase("nsu=urn:test:datatype-closure;g=01234567-89ab-cdef-0123-456789abcdef")]
         [TestCase("nsu=urn:test:datatype-closure;b=AQIDBA==")]
@@ -201,6 +225,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that default encoding ID uses the name derived binary identity.
+        /// </summary>
+        /// <param name="typeId">The type ID used by this test case.</param>
         [TestCase("nsu=urn:test:datatype-closure;i=3000")]
         [TestCase("nsu=urn:test:datatype-closure;g=01234567-89ab-cdef-0123-456789abcdef")]
         [TestCase("nsu=urn:test:datatype-closure;b=AQIDBA==")]
@@ -218,6 +246,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=1;s=DataTypes/Reading/Default Binary"));
         }
 
+        /// <summary>
+        /// Verifies that default encoding ID cannot select an explicit non binary encoding.
+        /// </summary>
+        /// <param name="encodingTerm">The encoding term used by this test case.</param>
         [TestCase("uav:xmlEncodingId")]
         [TestCase("uav:jsonEncodingId")]
         public void DefaultEncodingIdCannotSelectAnExplicitNonBinaryEncoding(string encodingTerm)
@@ -234,6 +266,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that default encoding ID can supply the binary identity.
+        /// </summary>
         [Test]
         public void DefaultEncodingIdCanSupplyTheBinaryIdentity()
         {
@@ -249,6 +284,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=1;i=4001"));
         }
 
+        /// <summary>
+        /// Verifies that default encoding ID agrees with the normalized binary identity.
+        /// </summary>
+        /// <param name="defaultId">The default ID used by this test case.</param>
+        /// <param name="agrees">The agrees flag for this test case.</param>
         [TestCase("nsu=urn%3Atest%3Adatatype-closure;i=04001", true)]
         [TestCase("nsu=urn:test:datatype-closure;i=4002", false)]
         public void DefaultEncodingIdAgreesWithTheNormalizedBinaryIdentity(string defaultId, bool agrees)
@@ -269,6 +309,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that suppressing generated defaults preserves explicit non binary encodings.
+        /// </summary>
         [TestCase("uav:xmlEncodingId", "Default XML")]
         [TestCase("uav:jsonEncodingId", "Default JSON")]
         public void SuppressingGeneratedDefaultsPreservesExplicitNonBinaryEncodings(string term, string name)
@@ -288,6 +331,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.ReferenceType == "HasEncoding" && !reference.IsForward).Value, Is.EqualTo("ns=1;i=3000"));
         }
 
+        /// <summary>
+        /// Verifies that an exact binary JSON encoding set stays partial through readable round trips.
+        /// </summary>
         [Test]
         public void AnExactBinaryJsonEncodingSetStaysPartialThroughReadableRoundTrips()
         {
@@ -317,6 +363,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that exact encoding presence agrees with the default policy.
+        /// </summary>
+        /// <param name="hasDefault">The has-default flag for this test case.</param>
+        /// <param name="valid">The valid flag for this test case.</param>
         [TestCase("[\"XML\",\"JSON\"]", false, true)]
         [TestCase("[]", false, true)]
         [TestCase("[]", true, false)]
@@ -348,6 +399,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that an explicit encoding identity cannot override exact absence.
+        /// </summary>
         [TestCase("uav:xmlEncodingId")]
         [TestCase("uav:jsonEncodingId")]
         public void AnExplicitEncodingIdentityCannotOverrideExactAbsence(string term)
@@ -364,6 +418,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that a null default cannot declare a binary identity.
+        /// </summary>
         [TestCase("uav:binaryEncodingId")]
         [TestCase("uav:defaultEncodingId")]
         public void ANullDefaultCannotDeclareABinaryIdentity(string term)
@@ -380,6 +437,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that only an empty encoding presence is allowed on an abstract structure.
+        /// </summary>
+        /// <param name="binary">The binary flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void OnlyAnEmptyEncodingPresenceIsAllowedOnAnAbstractStructure(bool binary)
@@ -395,6 +456,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items!.OfType<UAObject>(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that non structure kinds cannot declare encoding policy.
+        /// </summary>
         [TestCase("uav:SimpleDataType", false)]
         [TestCase("uav:SimpleDataType", true)]
         [TestCase("uav:EnumDefinition", false)]
@@ -437,6 +501,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that explicit XML does not make a nested only type directly selectable.
+        /// </summary>
         [Test]
         public void ExplicitXmlDoesNotMakeANestedOnlyTypeDirectlySelectable()
         {
@@ -464,6 +531,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that partial encoding sets remain exact and importable with an archive.
+        /// </summary>
         [Test]
         public void PartialEncodingSetsRemainExactAndImportableWithAnArchive()
         {
@@ -493,6 +563,11 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(result.Value!, "archived partial Binary/JSON encoding set");
         }
 
+        /// <summary>
+        /// Verifies that sibling data type references use their definitions own context.
+        /// </summary>
+        /// <param name="available">The available flag for this test case.</param>
+        /// <param name="composite">The composite flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(true, true)]
@@ -555,6 +630,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.Utf8Json.ToArray(), Is.EqualTo(consumerBytes));
         }
 
+        /// <summary>
+        /// Verifies that document sets resolve shared data type definitions once.
+        /// </summary>
         [Test]
         public async Task DocumentSetsResolveSharedDataTypeDefinitionsOnceAsync()
         {
@@ -575,6 +653,10 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(result.Value, "document-set DTD closure");
         }
 
+        /// <summary>
+        /// Verifies that data type definition closure includes transitive field references.
+        /// </summary>
+        /// <param name="nestedAvailable">The nested-available flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DataTypeDefinitionClosureIncludesTransitiveFieldReferencesAsync(bool nestedAvailable)
@@ -609,6 +691,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that conflicting sibling definition owners are rejected.
+        /// </summary>
         [Test]
         public async Task ConflictingSiblingDefinitionOwnersAreRejectedAsync()
         {
@@ -629,6 +714,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "urn:dtd:Reading"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that name only standard fields bind to the actual data type.
+        /// </summary>
         [TestCase("ua:Double", "i=11")]
         [TestCase("standard:Double", "i=11")]
         [TestCase("nsu=http://opcfoundation.org/UA/;Double", "i=11")]
@@ -660,6 +748,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "qualified standard field DataType");
         }
 
+        /// <summary>
+        /// Verifies that named property schemas use their shared allocated data type.
+        /// </summary>
         [Test]
         public void NamedPropertySchemasUseTheirSharedAllocatedDataType()
         {
@@ -690,6 +781,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "shared inferred property DataType");
         }
 
+        /// <summary>
+        /// Verifies that named action and event schemas bind their materialized consumers.
+        /// </summary>
         [TestCase("input")]
         [TestCase("output")]
         [TestCase("event")]
@@ -761,6 +855,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "inferred " + location + " DataType");
         }
 
+        /// <summary>
+        /// Verifies that known local data type names bind fields and consumers to the declared identity.
+        /// </summary>
         [Test]
         public void KnownLocalDataTypeNamesBindFieldsAndConsumersToTheDeclaredIdentity()
         {
@@ -814,6 +911,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "declared DataType name consumers");
         }
 
+        /// <summary>
+        /// Verifies that typed definition callbacks retain transitive owners and their lexical contexts.
+        /// </summary>
         [Test]
         public async Task TypedDefinitionCallbacksRetainTransitiveOwnersAndTheirLexicalContextsAsync()
         {
@@ -865,6 +965,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "typed transitive DTD callback");
         }
 
+        /// <summary>
+        /// Verifies that single argument retains its externally resolved definition binding.
+        /// </summary>
         [TestCase("input")]
         [TestCase("output")]
         public async Task SingleArgumentRetainsItsExternallyResolvedDefinitionBindingAsync(string member)
@@ -909,6 +1012,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:dtd:Reading", It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that loaded data type names bind fields and arguments without inventing types.
+        /// </summary>
+        /// <param name="sibling">The sibling flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task LoadedDataTypeNamesBindFieldsAndArgumentsWithoutInventingTypesAsync(bool sibling)
@@ -971,6 +1078,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "loaded DataType name callback");
         }
 
+        /// <summary>
+        /// Verifies that unresolved field names never become phantom data type identities.
+        /// </summary>
         [TestCase("ua:MissingDataType")]
         [TestCase("ua:HasComponent")]
         [TestCase("t:MissingDataType")]
@@ -990,6 +1100,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == name), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that document set consumers share only matching inferred type contracts.
+        /// </summary>
+        /// <param name="conflicting">The conflicting flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DocumentSetConsumersShareOnlyMatchingInferredTypeContractsAsync(bool conflicting)
@@ -1039,6 +1153,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "closure-wide inferred datatype allocation");
         }
 
+        /// <summary>
+        /// Verifies that inferred data types fill their live root and retain partial encoding presence.
+        /// </summary>
         [Test]
         public void InferredDataTypesFillTheirLiveRootAndRetainPartialEncodingPresence()
         {
@@ -1083,6 +1200,9 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(nodeSet, "inferred live DataType root");
         }
 
+        /// <summary>
+        /// Verifies that shared type allocations cannot be hidden by another documents ordinary root.
+        /// </summary>
         [TestCase("nsu=urn:test:datatype-closure;i=3000")]
         [TestCase("nsu=urn:test:datatype-closure;s=DataTypes/Reading/Default Binary")]
         public async Task SharedTypeAllocationsCannotBeHiddenByAnotherDocumentsOrdinaryRootAsync(string identity)
@@ -1108,6 +1228,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that qualified base type names resolve in their carrying definition.
+        /// </summary>
+        /// <param name="baseReference">The base reference used by this test case.</param>
         [TestCase("\"ua:Double\"")]
         [TestCase("\"standard:Double\"")]
         [TestCase("\"nsu=http://opcfoundation.org/UA/;Double\"")]
@@ -1138,6 +1262,10 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(result.Value, "qualified SimpleDataType base");
         }
 
+        /// <summary>
+        /// Verifies that named array schemas bind the consumer to their inferred element type.
+        /// </summary>
+        /// <param name="nameOnArray">The name-on-array flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void NamedArraySchemasBindTheConsumerToTheirInferredElementType(bool nameOnArray)
@@ -1175,6 +1303,10 @@ namespace Opc.Ua.Types.Tests.Wot
             WotNodeSetImportTests.AssertImportable(result.Value, "named array element DataType");
         }
 
+        /// <summary>
+        /// Verifies that an incomplete named schema cannot leave its consumer bound to an unemitted type.
+        /// </summary>
+        /// <param name="schemaType">The schema type used by this test case.</param>
         [TestCase("object")]
         [TestCase("array")]
         public void AnIncompleteNamedSchemaCannotLeaveItsConsumerBoundToAnUnemittedType(string schemaType)
@@ -1195,6 +1327,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == "t:Unknown"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that inferred consumers cannot use a contradictory default encoding identity.
+        /// </summary>
         [Test]
         public void InferredConsumersCannotUseAContradictoryDefaultEncodingIdentity()
         {

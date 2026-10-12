@@ -38,8 +38,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that source affordance retains its own prefix despite host binding.
+        /// </summary>
+        /// <param name="objectPrefix">The object-prefix flag for this test case.</param>
+        /// <param name="localContext">The local-context flag for this test case.</param>
         [Test]
         public async Task SourceAffordanceRetainsItsOwnPrefixDespiteHostBinding(
             [Values] bool objectPrefix, [Values] bool localContext)
@@ -83,6 +91,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(localContext ? "urn:local" : "urn:source"));
         }
 
+        /// <summary>
+        /// Verifies that projection context retains its ordered entries.
+        /// </summary>
+        /// <param name="repeatedContextUrl">The repeated-context-URL flag for this test case.</param>
         [Test]
         public async Task ProjectionContextRetainsItsOrderedEntries([Values] bool repeatedContextUrl)
         {
@@ -109,6 +121,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 JsonNode.Parse(original)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that source context does not inherit host only prefixes.
+        /// </summary>
+        /// <param name="reset">The reset flag for this test case.</param>
         [Test]
         public async Task SourceContextDoesNotInheritHostOnlyPrefixes([Values] bool reset)
         {
@@ -135,6 +151,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that carried forms keep their actual owner context.
+        /// </summary>
+        /// <param name="hostRouting">The host-routing flag for this test case.</param>
+        /// <param name="local">The local flag for this test case.</param>
         [Test]
         public async Task CarriedFormsKeepTheirActualOwnerContext([Values] bool hostRouting, [Values] bool local)
         {
@@ -170,6 +191,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(dataScope, Is.EqualTo("urn:source"));
         }
 
+        /// <summary>
+        /// Verifies that carried dependencies retain their original context.
+        /// </summary>
         [TestCase("schema")]
         [TestCase("variable")]
         [TestCase("datatype")]
@@ -223,6 +247,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(rootScope, Is.EqualTo("urn:host"));
         }
 
+        /// <summary>
+        /// Verifies that host annotations retain their own semantic identities.
+        /// </summary>
         [Test]
         public async Task HostAnnotationsRetainTheirOwnSemanticIdentities()
         {
@@ -249,6 +276,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(sourcePrefix, Is.EqualTo("urn:source:"));
         }
 
+        /// <summary>
+        /// Verifies that host title override does not retag source description.
+        /// </summary>
+        /// <param name="nullLanguage">The null-language flag for this test case.</param>
         [Test]
         public async Task HostTitleOverrideDoesNotRetagSourceDescription([Values] bool nullLanguage)
         {
@@ -310,6 +341,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that moved context locations use the source document not its endpoint base.
+        /// </summary>
         [Test]
         public async Task MovedContextLocationsUseTheSourceDocumentNotItsEndpointBase()
         {
@@ -338,6 +372,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://origin.test/models/contexts/term.jsonld"));
         }
 
+        /// <summary>
+        /// Verifies that nested schema context locations retain the source origin.
+        /// </summary>
+        /// <param name="schemaMember">The schema member used by this test case.</param>
         [TestCase("items")]
         [TestCase("additionalProperties")]
         public async Task NestedSchemaContextLocationsRetainTheSourceOrigin(string schemaMember)
@@ -367,6 +405,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(property.GetProperty("default").GetProperty("id").GetString(), Is.EqualTo("not-a-reference"));
         }
 
+        /// <summary>
+        /// Verifies that ordered source base contexts retain their effective base.
+        /// </summary>
+        /// <param name="reset">The reset flag for this test case.</param>
         [Test]
         public async Task OrderedSourceBaseContextsRetainTheirEffectiveBase([Values] bool reset)
         {
@@ -391,6 +433,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 : "https://origin.test/models/identity/child/"));
         }
 
+        /// <summary>
+        /// Verifies that host semantic identity uses its ordered base contexts.
+        /// </summary>
+        /// <param name="reset">The reset flag for this test case.</param>
         [Test]
         public async Task HostSemanticIdentityUsesItsOrderedBaseContexts([Values] bool reset)
         {
@@ -417,6 +463,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 : "https://host.test/models/identity/child/Reading"));
         }
 
+        /// <summary>
+        /// Verifies that relative context location does not use an opaque logical identifier.
+        /// </summary>
         [TestCase("urn:host:unlocated")]
         [TestCase("tag:host,2026:unlocated")]
         public async Task RelativeContextLocationDoesNotUseAnOpaqueLogicalIdentifier(string id)
@@ -434,6 +483,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.RootElement.GetProperty("@context")[1].GetString(), Is.EqualTo("../context.jsonld"));
         }
 
+        /// <summary>
+        /// Verifies that host title string term keeps its semantic identity.
+        /// </summary>
         [Test]
         public async Task HostTitleStringTermKeepsItsSemanticIdentity()
         {
@@ -460,6 +512,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(title.GetProperty("@language").GetString(), Is.EqualTo("fr"));
         }
 
+        /// <summary>
+        /// Verifies that context map keys are not context declarations.
+        /// </summary>
+        /// <param name="arrayContainer">The array-container flag for this test case.</param>
+        /// <param name="objectEntry">The object-entry flag for this test case.</param>
         [Test]
         public async Task ContextMapKeysAreNotContextDeclarations(
             [Values] bool arrayContainer, [Values] bool objectEntry)

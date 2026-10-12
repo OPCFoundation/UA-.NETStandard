@@ -133,6 +133,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(metadata.GetProperty("pump:note").GetString(), Is.EqualTo("kept"));
         }
 
+        /// <summary>
+        /// Verifies that an event data schema with properties is materialized and not duplicated.
+        /// </summary>
         [Test]
         public void AnEventDataSchemaWithPropertiesIsMaterializedAndNotDuplicated()
         {
@@ -500,6 +503,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "stated as residue.");
         }
 
+        /// <summary>
+        /// Verifies that the vocabulary covers every term the context mints.
+        /// </summary>
         [Test]
         public void TheVocabularyCoversEveryTermTheContextMints()
         {
@@ -648,6 +654,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         }
 
+        /// <summary>
+        /// Verifies that the migration helper moves a quantity kind and invents no unit.
+        /// </summary>
         [Test]
         public void TheMigrationHelperMovesAQuantityKindAndInventsNoUnit()
         {
@@ -742,6 +751,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that the migration helper resolves a document bound prefix to the same iri.
+        /// </summary>
         [Test]
         public void TheMigrationHelperResolvesADocumentBoundPrefixToTheSameIri()
         {
@@ -768,6 +780,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that the migration helper reads every document the library accepts.
+        /// </summary>
         [TestCase(65)]
         [TestCase(100)]
         [TestCase(128)]
@@ -794,6 +809,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that the migration helper honours a configured depth and reports instead of throwing.
+        /// </summary>
         [Test]
         public void TheMigrationHelperHonoursAConfiguredDepthAndReportsInsteadOfThrowing()
         {
@@ -839,6 +857,9 @@ namespace Opc.Ua.Types.Tests.Wot
             return json.ToString();
         }
 
+        /// <summary>
+        /// Verifies that the opaque size is measured over the compact received form.
+        /// </summary>
         [Test]
         public void TheOpaqueSizeIsMeasuredOverTheCompactReceivedForm()
         {
@@ -859,6 +880,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "whitespace removed, and nothing else.");
         }
 
+        /// <summary>
+        /// Verifies that the opaque size counts non ascii in utf 8 octets.
+        /// </summary>
         [Test]
         public void TheOpaqueSizeCountsNonAsciiInUtf8Octets()
         {
@@ -874,6 +898,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "U+00E4, three for U+20AC and four for the supplementary scalar.");
         }
 
+        /// <summary>
+        /// Verifies that the opaque size keeps whitespace inside a string literal.
+        /// </summary>
         [Test]
         public void TheOpaqueSizeKeepsWhitespaceInsideAStringLiteral()
         {
@@ -928,6 +955,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         }
 
+        /// <summary>
+        /// Verifies that the residue digest is over the retained bytes.
+        /// </summary>
         [Test]
         public void TheResidueDigestIsOverTheRetainedBytes()
         {
@@ -1016,6 +1046,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "that projects a ReferenceType Node and to no other.");
         }
 
+        /// <summary>
+        /// Verifies that a type carries at most one node class annotation.
+        /// </summary>
         [Test]
         public void ATypeCarriesAtMostOneNodeClassAnnotation()
         {
@@ -1057,6 +1090,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "(Section 6.1).");
         }
 
+        /// <summary>
+        /// Verifies that two prefixes for one namespace select one path.
+        /// </summary>
         [Test]
         public void TwoPrefixesForOneNamespaceSelectOnePath()
         {

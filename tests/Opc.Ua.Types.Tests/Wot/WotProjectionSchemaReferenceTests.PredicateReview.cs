@@ -37,8 +37,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that explicit selection keeps precedence over uncertain bulk membership.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase("enumerated-only", true)]
         [TestCase("same-name", true)]
         [TestCase("different-name", false)]
@@ -85,6 +92,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(QualifiedName.Parse(value.BrowseName.Required()).Name, Is.EqualTo("Reading"));
         }
 
+        /// <summary>
+        /// Verifies that bulk collision uses total order before uncertain later predicates.
+        /// </summary>
+        /// <param name="earlierKnown">The earlier-known flag for this test case.</param>
+        /// <param name="reverseInput">The reverse-input flag for this test case.</param>
         [Test]
         public async Task BulkCollisionUsesTotalOrderBeforeUncertainLaterPredicates(
             [Values] bool earlierKnown, [Values] bool reverseInput)

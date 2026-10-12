@@ -37,6 +37,12 @@ using System.Threading;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// view: an ordinary Thing Description or Thing Model that carries no
+    /// <c>uav:projection</c> marker, so a consumer needs no projection support
+    /// to use it.
+    /// </summary>
     public sealed partial class WotProjectionResolver
     {
         private static bool ValidateReusableSchemaDefinitions(WotDocument document, List<WotDiagnostic> diagnostics)
@@ -91,6 +97,15 @@ namespace Opc.Ua.Wot
 
         private sealed partial class SchemaReferenceClosure
         {
+            /// <summary>
+            /// Initializes a new <c>SchemaReferenceClosure</c> instance.
+            /// </summary>
+            /// <param name="root">The root used to initialize the instance.</param>
+            /// <param name="projectionDocument">The projection document used to initialize the instance.</param>
+            /// <param name="documentLocation">The document location used to initialize the instance.</param>
+            /// <param name="selection">The selection used to initialize the instance.</param>
+            /// <param name="options">The WoT node set converter options used to initialize the instance.</param>
+            /// <param name="diagnostics">The diagnostics used to initialize the instance.</param>
             public SchemaReferenceClosure(
                 JsonObject root,
                 WotDocument projectionDocument,
@@ -107,6 +122,7 @@ namespace Opc.Ua.Wot
                     projectionDocument, documentLocation ?? projectionDocument.Id ?? string.Empty, null);
             }
 
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public void Close(CancellationToken cancellationToken)
             {
                 InitializeDataTypeCarriage();
@@ -602,8 +618,14 @@ namespace Opc.Ua.Wot
         private sealed record ReferenceCarriage(
             JsonObject Value, ReferenceOwner Owner, string SourcePointer, string Destination)
         {
+            /// <summary>
+            /// Gets or sets the named response for <c>ReferenceCarriage</c>.
+            /// </summary>
             public bool NamedResponse { get; init; }
 
+            /// <summary>
+            /// Gets or sets the event select clause for <c>ReferenceCarriage</c>.
+            /// </summary>
             public bool EventSelectClause { get; init; }
         }
     }

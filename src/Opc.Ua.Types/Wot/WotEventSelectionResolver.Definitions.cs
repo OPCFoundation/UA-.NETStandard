@@ -90,6 +90,13 @@ namespace Opc.Ua.Wot
         /// </summary>
         private readonly struct DefinitionCandidate
         {
+            /// <summary>
+            /// Initializes a new <c>DefinitionCandidate</c> instance.
+            /// </summary>
+            /// <param name="document">The document used to initialize the instance.</param>
+            /// <param name="origin">The origin used to initialize the instance.</param>
+            /// <param name="pointer">The pointer used to initialize the instance.</param>
+            /// <param name="element">The element used to initialize the instance.</param>
             public DefinitionCandidate(WotDocument document, string origin, string pointer, JsonElement element)
             {
                 Document = document;
@@ -98,6 +105,9 @@ namespace Opc.Ua.Wot
                 Element = element;
             }
 
+            /// <summary>
+            /// Gets the document for <c>DefinitionCandidate</c>.
+            /// </summary>
             public WotDocument Document { get; }
 
             /// <summary>
@@ -275,6 +285,8 @@ namespace Opc.Ua.Wot
         /// two cannot be told apart by spelling, and pretending otherwise would
         /// make the same document mean different things to different readers.
         /// </remarks>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="carryingNode">The carrying node.</param>
         internal static bool TryExpandLogicalId(
             WotDocument document, string value, out string expanded, JsonElement carryingNode = default)
         {

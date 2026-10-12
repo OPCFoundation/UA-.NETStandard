@@ -40,10 +40,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection dependency.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionDependencyTests
     {
+        /// <summary>
+        /// Verifies that selected value carries its unit or reuses its selected rename.
+        /// </summary>
+        /// <param name="selectUnit">The select-unit flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SelectedValueCarriesItsUnitOrReusesItsSelectedRename(bool selectUnit)
@@ -73,6 +80,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that unit support cannot overwrite authored selections or their generated name lookalikes.
+        /// </summary>
         [Test]
         public async Task UnitSupportCannotOverwriteAuthoredSelectionsOrTheirGeneratedNameLookalikes()
         {
@@ -99,6 +109,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties[stem].GetProperty("const").GetString(), Is.EqualTo("%"));
         }
 
+        /// <summary>
+        /// Verifies that same named dependencies from different sources retain their source identity.
+        /// </summary>
+        /// <param name="reverseMembers">The reverse-members flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SameNamedDependenciesFromDifferentSourcesRetainTheirSourceIdentity(bool reverseMembers)
@@ -137,6 +151,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties["q:d:cQ:L3Byb3BlcnRpZXMvVW5pdA"].GetProperty("const").GetString(), Is.EqualTo("F"));
         }
 
+        /// <summary>
+        /// Verifies that one source location cannot supply conflicting dependency definitions.
+        /// </summary>
+        /// <param name="changed">The changed flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task OneSourceLocationCannotSupplyConflictingDependencyDefinitions(bool changed)
@@ -184,6 +202,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 SourceHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies that carried dependencies retain original provenance at its document origin.
+        /// </summary>
+        /// <param name="selected">The selected flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CarriedDependenciesRetainOriginalProvenanceAtItsDocumentOrigin(bool selected)
@@ -206,6 +228,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://origin.test/original.td.json#/properties/unit"));
         }
 
+        /// <summary>
+        /// Verifies that malformed original provenance cannot be replaced by a false origin.
+        /// </summary>
         [TestCase("null")]
         [TestCase("42")]
         [TestCase("\"\"")]
@@ -227,6 +252,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that finite recursive unit dependencies are carried once without reverse expansion.
+        /// </summary>
         [Test]
         public async Task FiniteRecursiveUnitDependenciesAreCarriedOnceWithoutReverseExpansion()
         {
@@ -249,6 +277,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("/properties/Unit"));
         }
 
+        /// <summary>
+        /// Verifies that opaque reference lookalikes are not dependencies or rewrite targets.
+        /// </summary>
         [Test]
         public async Task OpaqueReferenceLookalikesAreNotDependenciesOrRewriteTargets()
         {
@@ -274,6 +305,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that unit dependency pointers retain canonical escaping.
+        /// </summary>
         [TestCase("unit/name", "/properties/unit~1name")]
         [TestCase("unit~name", "/properties/unit~0name")]
         public async Task UnitDependencyPointersRetainCanonicalEscaping(string name, string pointer)
@@ -294,6 +328,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Properties[name].GetProperty("const").GetString(), Is.EqualTo("rpm"));
         }
 
+        /// <summary>
+        /// Verifies that invalid unit dependencies fail without a partial resolved result.
+        /// </summary>
         [TestCase("null")]
         [TestCase("42")]
         [TestCase("\"/properties/Missing\"")]
@@ -317,6 +354,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that unit dependency must still be string valued.
+        /// </summary>
         [Test]
         public async Task UnitDependencyMustStillBeStringValued()
         {
@@ -334,6 +374,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that selected condition action carries its own event without reverse expanding actions.
+        /// </summary>
+        /// <param name="selectEvent">The select-event flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SelectedConditionActionCarriesItsOwnEventWithoutReverseExpandingActions(bool selectEvent)
@@ -391,6 +435,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://device.test/alarm"));
         }
 
+        /// <summary>
+        /// Verifies that invalid condition dependencies cannot produce a partial view.
+        /// </summary>
+        /// <param name="condition">The condition flag for this test case.</param>
         [TestCase("null", true)]
         [TestCase("42", true)]
         [TestCase("\"\"", true)]
@@ -428,6 +476,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that supporting affordances count against the configured node budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         [TestCase(3, true)]

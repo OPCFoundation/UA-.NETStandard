@@ -192,6 +192,7 @@ namespace Opc.Ua.Wot
             return names;
         }
 
+        /// <param name="node">The UA node.</param>
         public ArrayOf<Reference> GetReferences(UANode node)
         {
             return node.NodeId is not null && m_references.TryGetValue(node.NodeId, out ArrayOf<Reference> references)
@@ -199,18 +200,21 @@ namespace Opc.Ua.Wot
                 : new ArrayOf<Reference>(node.References ?? []);
         }
 
+        /// <param name="referenceType">The reference type.</param>
         public bool IsAbstract(string referenceType)
         {
             return TryGetIdentifier(referenceType, out string identity) &&
                 (NodeSetStandardAliases.IsAbstractReferenceType(identity) || m_abstractTypes.Contains(identity));
         }
 
+        /// <param name="referenceType">The reference type.</param>
         public bool IsOwnershipReference(string? referenceType)
         {
             return TryGetIdentifier(referenceType, out string identity) &&
                 (identity == WotVocabulary.HasProperty || IsHasComponentReference(identity));
         }
 
+        /// <param name="referenceType">The reference type.</param>
         public bool IsHasComponentReference(string? referenceType)
         {
             if (!TryGetIdentifier(referenceType, out string identity) || IsAbstract(identity))

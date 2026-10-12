@@ -39,10 +39,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that recursive source schemas are carried without replacing host definitions.
+        /// </summary>
+        /// <param name="hostCollision">The host-collision flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RecursiveSourceSchemasAreCarriedWithoutReplacingHostDefinitions(bool hostCollision)
@@ -91,6 +98,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that external schema references use the original document location without fetching.
+        /// </summary>
         [TestCase("./schemas.json#/definitions/Reading", "https://origin.test/models/schemas.json#/definitions/Reading")]
         [TestCase("../schemas.json#/definitions/Reading", "https://origin.test/schemas.json#/definitions/Reading")]
         [TestCase("https://schema.test/reading", "https://schema.test/reading")]
@@ -115,6 +125,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(reference));
         }
 
+        /// <summary>
+        /// Verifies that invalid known schema references never leave a dangling successful result.
+        /// </summary>
         [TestCase("null")]
         [TestCase("42")]
         [TestCase("[]")]
@@ -140,6 +153,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that references to selected data schemas use their selected output location.
+        /// </summary>
         [Test]
         public async Task ReferencesToSelectedDataSchemasUseTheirSelectedOutputLocation()
         {
@@ -162,6 +178,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.RootElement.TryGetProperty("schemaDefinitions", out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that nested action event and variable schemas share the correct local definition.
+        /// </summary>
         [Test]
         public async Task NestedActionEventAndVariableSchemasShareTheCorrectLocalDefinition()
         {
@@ -245,6 +264,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("$ref").GetString(), Is.EqualTo("#/schemaDefinitions/Reading/properties/temperature"));
         }
 
+        /// <summary>
+        /// Verifies that invalid referenced schema containers cannot be completed silently.
+        /// </summary>
         [TestCase("null")]
         [TestCase("[]")]
         [TestCase(/*lang=json,strict*/ "{\"Reading\":null}")]
@@ -264,6 +286,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid host schema containers are not replaced during source carriage.
+        /// </summary>
         [TestCase("null")]
         [TestCase("[]")]
         [TestCase(/*lang=json,strict*/ "{\"Reading\":null}")]
@@ -281,6 +306,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid named response schemas are reported.
+        /// </summary>
         [TestCase("null")]
         [TestCase("42")]
         [TestCase("\"\"")]
@@ -302,6 +330,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that conflicting duplicate reusable definitions cannot choose an arbitrary winner.
+        /// </summary>
+        /// <param name="reversed">The reversed flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ConflictingDuplicateReusableDefinitionsCannotChooseAnArbitraryWinner(bool reversed)
@@ -327,6 +359,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that consistent duplicate reusable definitions can share one carried schema.
+        /// </summary>
         [Test]
         public async Task ConsistentDuplicateReusableDefinitionsCanShareOneCarriedSchema()
         {
@@ -346,6 +381,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definitions.GetProperty("Reading").GetProperty("minimum").GetDouble(), Is.EqualTo(1d));
         }
 
+        /// <summary>
+        /// Verifies that host repeated definitions require equivalent facts.
+        /// </summary>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostRepeatedDefinitionsRequireEquivalentFacts(bool equivalent)
@@ -378,6 +417,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that response schema dependencies belong to the actual form owner.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
+        /// <param name="equalLogicalId">The equal-logical-ID flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -429,6 +473,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definitions.GetProperty("Response").GetProperty("type").GetString(), Is.EqualTo("string"));
         }
 
+        /// <summary>
+        /// Verifies that supporting schemas participate in the projection budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         [TestCase(3, true)]

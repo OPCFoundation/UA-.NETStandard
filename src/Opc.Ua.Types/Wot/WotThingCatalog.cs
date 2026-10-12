@@ -50,6 +50,7 @@ namespace Opc.Ua.Wot
             AddTarget(reference, nodeId is null ? null : new WotResolvedNode(nodeId, WotExpectedNodeClass.Any));
         }
 
+        /// <param name="target">The WoT resolved node.</param>
         public void AddTarget(string reference, WotResolvedNode? target)
         {
             if (!m_entries.TryGetValue(reference, out Queue<WotResolvedNode?>? entries))
@@ -78,6 +79,7 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <param name="target">The WoT resolved node.</param>
         public bool TryPeekTarget(string reference, out WotResolvedNode? target)
         {
             if (m_entries.TryGetValue(reference, out Queue<WotResolvedNode?>? entries) && entries.Count > 0)

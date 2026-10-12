@@ -41,8 +41,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that independent remote identity survives configured local URI collision.
+        /// </summary>
         [Test]
         public void IndependentRemoteIdentitySurvivesConfiguredLocalUriCollision()
         {
@@ -105,6 +111,12 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that independent remote identity keeps local and remote slots.
+        /// </summary>
+        /// <param name="remoteCount">The remote count used by this test case.</param>
+        /// <param name="contextKind">The context kind used by this test case.</param>
+        /// <param name="relocate">The relocate flag for this test case.</param>
         [Test]
         public void IndependentRemoteIdentityKeepsLocalAndRemoteSlots(
             [Values(1, 2)] int remoteCount,
@@ -169,6 +181,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent remote identity preserves nested typed values.
+        /// </summary>
+        /// <param name="remoteCount">The remote count used by this test case.</param>
+        /// <param name="relocate">The relocate flag for this test case.</param>
         [Test]
         public void IndependentRemoteIdentityPreservesNestedTypedValues(
             [Values(1, 2)] int remoteCount,
@@ -244,6 +261,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(context.Factory.KnownTypeIds, Is.EquivalentTo(originalTypes));
         }
 
+        /// <summary>
+        /// Verifies that independent remote identity native export preserves equal URI slots.
+        /// </summary>
+        /// <param name="remoteCount">The remote count used by this test case.</param>
         [TestCase(1)]
         [TestCase(2)]
         public void IndependentRemoteIdentityNativeExportPreservesEqualUriSlots(int remoteCount)
@@ -300,6 +321,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ServerUris.ToArray(), Is.EqualTo(originalServers));
         }
 
+        /// <summary>
+        /// Verifies that independent remote identity native import uses actual destination server.
+        /// </summary>
         [Test]
         public void IndependentRemoteIdentityNativeImportUsesActualDestinationServer()
         {

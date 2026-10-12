@@ -48,6 +48,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotValueRankTests
     {
+        /// <summary>
+        /// Verifies that arrays and matrices export ordinary nested array schemas.
+        /// </summary>
         [TestCase(1, "4")]
         [TestCase(2, "2,3")]
         [TestCase(3, "0,2,0")]
@@ -79,6 +82,11 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that ranked item constraints survive canonical projection.
+        /// </summary>
+        /// <param name="nestedItems">The nested-items flag for this test case.</param>
+        /// <param name="archive">The archive flag for this test case.</param>
         [TestCase(1, false, false)]
         [TestCase(2, false, false)]
         [TestCase(2, true, false)]
@@ -162,6 +170,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that contradictory or opaque items are not discarded.
+        /// </summary>
+        /// <param name="itemJson">The item JSON used by this test case.</param>
         [TestCase(/*lang=json,strict*/ "{\"type\":\"string\",\"minLength\":2}")]
         [TestCase("false")]
         public void ContradictoryOrOpaqueItemsAreNotDiscarded(string itemJson)

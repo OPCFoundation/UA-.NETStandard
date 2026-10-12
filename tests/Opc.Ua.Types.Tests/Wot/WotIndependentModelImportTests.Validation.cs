@@ -39,8 +39,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT independent model import.
+    /// </summary>
     public sealed partial class WotIndependentModelImportTests
     {
+        /// <summary>
+        /// Verifies that independent partitions do not hide conflicting context copies.
+        /// </summary>
+        /// <param name="conflict">The conflict flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void IndependentPartitionsDoNotHideConflictingContextCopies(bool conflict)
@@ -78,6 +85,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent readable affordances cannot claim another documents root.
+        /// </summary>
         [Test]
         public async Task IndependentReadableAffordancesCannotClaimAnotherDocumentsRootAsync()
         {
@@ -108,6 +118,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent readable parent links keep the owning roots.
+        /// </summary>
         [Test]
         public async Task IndependentReadableParentLinksKeepTheOwningRootsAsync()
         {
@@ -144,6 +157,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.ReferenceType == "i=47" && reference.Value == "ns=1;i=1"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that independent documents require unambiguous source ownership.
+        /// </summary>
         [TestCase("root")]
         [TestCase("href")]
         public async Task IndependentDocumentsRequireUnambiguousSourceOwnershipAsync(string collision)
@@ -164,6 +180,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent alias renaming does not overwrite an existing alias.
+        /// </summary>
         [Test]
         public void IndependentAliasRenamingDoesNotOverwriteAnExistingAlias()
         {
@@ -183,6 +202,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Does.Contain("ns=1;i=1").And.Contain("ns=2;i=1"));
         }
 
+        /// <summary>
+        /// Verifies that import mode does not change verified partition export.
+        /// </summary>
         [Test]
         public async Task ImportModeDoesNotChangeVerifiedPartitionExportAsync()
         {
@@ -218,6 +240,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(source), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent readable definitions and arguments keep their owners.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task IndependentReadableDefinitionsAndArgumentsKeepTheirOwnersAsync(bool reverse)
@@ -255,6 +281,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that independent readable data type cycles fail without partial models.
+        /// </summary>
         [Test]
         public async Task IndependentReadableDataTypeCyclesFailWithoutPartialModelsAsync()
         {
@@ -281,6 +310,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.JsonPointer is not null), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that generated identities use the owning model rather than namespace one.
+        /// </summary>
         [Test]
         public async Task GeneratedIdentitiesUseTheOwningModelRatherThanNamespaceOneAsync()
         {
@@ -310,6 +342,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(variable.Value!.InnerText, Is.EqualTo("true"));
         }
 
+        /// <summary>
+        /// Verifies that namespace union uses unicode code point order.
+        /// </summary>
         [Test]
         public void NamespaceUnionUsesUnicodeCodePointOrder()
         {
@@ -327,6 +362,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.NamespaceUris, Is.EqualTo(s_unicodeNamespaces));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions reject unresolved identity indexes and aliases.
+        /// </summary>
         [TestCase("aliasCycle")]
         [TestCase("nodeIndex")]
         [TestCase("browseIndex")]
@@ -372,6 +410,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions preserve declared remote references and values.
+        /// </summary>
         [Test]
         public void IndependentPartitionsPreserveDeclaredRemoteReferencesAndValues()
         {
@@ -395,6 +436,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("svr=1;ns=2;i=42"));
         }
 
+        /// <summary>
+        /// Verifies that independent value rebasing never discards unknown fields or undeclared indexes.
+        /// </summary>
         [TestCase("<uax:NodeId><uax:Identifier>ns=9;i=42</uax:Identifier></uax:NodeId>")]
         [TestCase("<uax:QualifiedName><uax:NamespaceIndex>9</uax:NamespaceIndex>" +
             "<uax:Name>Unknown</uax:Name></uax:QualifiedName>")]
@@ -419,6 +463,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that independent variable type values are rebased.
+        /// </summary>
         [Test]
         public void IndependentVariableTypeValuesAreRebased()
         {
@@ -440,6 +487,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("ns=2;s=literal;ns=1;i=42"));
         }
 
+        /// <summary>
+        /// Verifies that opaque values stay unchanged when no table needs rebasing.
+        /// </summary>
         [Test]
         public void OpaqueValuesStayUnchangedWhenNoTableNeedsRebasing()
         {
@@ -459,6 +509,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(Serialize(b), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that independent partitions honor XML depth before cloning opaque values.
+        /// </summary>
         [Test]
         public void IndependentPartitionsHonorXmlDepthBeforeCloningOpaqueValues()
         {

@@ -221,6 +221,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that child fallback text carries its own selective language override.
+        /// </summary>
+        /// <param name="multipleLocales">The multiple-locales flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ChildFallbackTextCarriesItsOwnSelectiveLanguageOverride(bool multipleLocales)
@@ -241,6 +245,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "An English description must not lose its language because the title is a fallback.");
         }
 
+        /// <summary>
+        /// Verifies that property text uses its carrying context rather than the root language.
+        /// </summary>
+        /// <param name="expectedLocale">The expected locale asserted by the test.</param>
         [TestCase(/*lang=json,strict*/ "{\"@language\":\"de\"}", "de")]
         [TestCase(/*lang=json,strict*/ "[{\"@language\":\"fr\"},{\"@language\":\"de\"}]", "de")]
         [TestCase("null", "")]
@@ -287,6 +295,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restoredSpeed.Description!.Single().Locale, Is.EqualTo(expectedLocale));
         }
 
+        /// <summary>
+        /// Verifies that singular text uses its term language without relabeling the other term.
+        /// </summary>
+        /// <param name="termLanguage">The term language used by this test case.</param>
+        /// <param name="expectedLocale">The expected locale asserted by the test.</param>
         [TestCase("de", "de")]
         [TestCase(null, "")]
         public void SingularTextUsesItsTermLanguageWithoutRelabelingTheOtherTerm(
@@ -316,6 +329,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restoredSpeed.Description!.Single().Locale, Is.EqualTo("en"));
         }
 
+        /// <summary>
+        /// Verifies that contextual property preservation honors combined depth bounds.
+        /// </summary>
+        /// <param name="annotationDepth">The annotation depth used by this test case.</param>
+        /// <param name="maximumDepth">The maximum depth used by this test case.</param>
+        /// <param name="succeeds">The succeeds flag for this test case.</param>
         [TestCase(70, 256, true)]
         [TestCase(30, 32, false)]
         public void ContextualPropertyPreservationHonorsCombinedDepthBounds(
@@ -355,6 +374,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that contextual property preservation honors the complete byte limit.
+        /// </summary>
+        /// <param name="limitOffset">The limit offset used by this test case.</param>
         [TestCase(0)]
         [TestCase(-1)]
         public void ContextualPropertyPreservationHonorsTheCompleteByteLimit(int limitOffset)
@@ -386,6 +409,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that contextual property cannot overwrite contradictory native facts.
+        /// </summary>
         [Test]
         public void ContextualPropertyCannotOverwriteContradictoryNativeFacts()
         {
@@ -406,6 +432,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(speed.DataType, Is.EqualTo("i=10"));
         }
 
+        /// <summary>
+        /// Verifies that contextual property does not discard unstated native facts.
+        /// </summary>
         [Test]
         public void ContextualPropertyDoesNotDiscardUnstatedNativeFacts()
         {
@@ -429,6 +458,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restoredSpeed.DisplayName!.Single().Locale, Is.EqualTo("de"));
         }
 
+        /// <summary>
+        /// Verifies that action and event text retains its local context across round trips.
+        /// </summary>
+        /// <param name="nodeClass">The node class used by this test case.</param>
         [TestCase("actions", "uav:method", /*lang=json,strict*/ "{\"@language\":\"de\"}", "de")]
         [TestCase("actions", "uav:method", "null", "")]
         [TestCase("events", "uav:eventType", /*lang=json,strict*/ "{\"@language\":\"de\"}", "de")]
@@ -463,6 +496,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that argument description retains its own context across round trips.
+        /// </summary>
         [TestCase(/*lang=json,strict*/ "{\"@language\":\"de\"}", "de")]
         [TestCase(/*lang=json,strict*/ "[{\"@language\":\"fr\"},{\"@language\":\"de\"}]", "de")]
         [TestCase("null", "")]
@@ -494,6 +530,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that data type and field languages use their own scopes.
+        /// </summary>
+        /// <param name="enumeration">The enumeration flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void DataTypeAndFieldLanguagesUseTheirOwnScopes(bool enumeration)
@@ -526,6 +566,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that property scoped language applies to its entries.
+        /// </summary>
         [Test]
         public void PropertyScopedLanguageAppliesToItsEntries()
         {
@@ -808,6 +851,10 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that contextual property retains its referenced data type in the readable projection.
+        /// </summary>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ContextualPropertyRetainsItsReferencedDataTypeInTheReadableProjection(bool contextual)
@@ -835,6 +882,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("Sample"));
         }
 
+        /// <summary>
+        /// Verifies that contextual unit pointer uses the regenerated affordance name.
+        /// </summary>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ContextualUnitPointerUsesTheRegeneratedAffordanceName(bool contextual)
@@ -861,6 +912,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that neutral singular language does not change the ambient plural selection.
+        /// </summary>
         [TestCase("title", "titles")]
         [TestCase("description", "descriptions")]
         public void NeutralSingularLanguageDoesNotChangeTheAmbientPluralSelection(string singular, string plural)
@@ -891,6 +945,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotNodeSetConverter.ToNodeSetResult(readable).Success, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that retained unit translations cannot override the selected native text.
+        /// </summary>
         [Test]
         public void RetainedUnitTranslationsCannotOverrideTheSelectedNativeText()
         {
@@ -919,6 +976,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that method argument preserves translations outside its selected native description.
+        /// </summary>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void MethodArgumentPreservesTranslationsOutsideItsSelectedNativeDescription(bool contextual)
@@ -950,6 +1011,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that root neutral description does not cross the td property scope.
+        /// </summary>
         [Test]
         public void RootNeutralDescriptionDoesNotCrossTheTdPropertyScope()
         {
@@ -965,6 +1029,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.Items!.OfType<UAObjectType>().Single().Description!.Single().Locale, Is.EqualTo("de"));
         }
 
+        /// <summary>
+        /// Verifies that english metadata survives an unscoped parent neutral override.
+        /// </summary>
         [TestCase("action")]
         [TestCase("type")]
         [TestCase("field")]
@@ -1022,6 +1089,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that index map keys do not activate property scoped term definitions.
+        /// </summary>
+        /// <param name="localOverride">The local-override flag for this test case.</param>
+        /// <param name="expectedLocale">The expected locale asserted by the test.</param>
         [TestCase(false, "de")]
         [TestCase(true, "fr")]
         public void IndexMapKeysDoNotActivatePropertyScopedTermDefinitions(bool localOverride, string expectedLocale)
@@ -1040,6 +1112,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(expectedLocale));
         }
 
+        /// <summary>
+        /// Verifies that empty type annotations retain the generated native marker.
+        /// </summary>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase("properties", true)]
         [TestCase("actions", true)]
         [TestCase("events", true)]
@@ -1075,6 +1151,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that ambient selection locale survives neutral root text.
+        /// </summary>
         [TestCase("properties", "neutral")]
         [TestCase("actions", "neutral")]
         [TestCase("events", "neutral")]
@@ -1117,6 +1196,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that root selection can differ from the native root text locale.
+        /// </summary>
+        /// <param name="explicitLocale">The explicit-locale flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         public void RootSelectionCanDifferFromTheNativeRootTextLocale(bool explicitLocale)

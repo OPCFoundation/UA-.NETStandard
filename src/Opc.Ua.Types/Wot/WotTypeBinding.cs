@@ -140,6 +140,10 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// The binding resolved to <paramref name="nodeId"/>.
         /// </summary>
+        /// <param name="nodeId">The node ID.</param>
+        /// <param name="verifiedSupertypes">The verified supertypes.</param>
+        /// <param name="hasTypeContext">The has-type-context flag supplied by the caller.</param>
+        /// <param name="declarationSet">The declaration set.</param>
         public static WotTypeBinding Bound(
             string nodeId,
             ArrayOf<string> verifiedSupertypes = default,

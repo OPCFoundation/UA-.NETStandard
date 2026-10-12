@@ -2257,6 +2257,8 @@ namespace Opc.Ua
         /// <summary>
         /// Maps NodeSet tables with their implicit local server at index zero.
         /// </summary>
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="serverUris">The server URIs.</param>
         internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
             SetMappingTables(namespaceUris, null);

@@ -36,9 +36,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT JSON element comparer.
+    /// </summary>
     [TestFixture]
     public sealed class WotJsonElementComparerTests
     {
+        /// <summary>
+        /// Verifies that identical sibling values retain distinct occurrence identity.
+        /// </summary>
         [Test]
         public void IdenticalSiblingValuesRetainDistinctOccurrenceIdentity()
         {
@@ -64,6 +70,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that distinct roots and detached clones never alias an occurrence.
+        /// </summary>
         [Test]
         public void DistinctRootsAndDetachedClonesNeverAliasAnOccurrence()
         {
@@ -86,6 +95,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that equal content at many offsets does not collapse into one hash bucket.
+        /// </summary>
         [Test]
         public void EqualContentAtManyOffsetsDoesNotCollapseIntoOneHashBucket()
         {
@@ -107,6 +119,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that empty context retains default foreign element hashing.
+        /// </summary>
         [Test]
         public void EmptyContextRetainsDefaultForeignElementHashing()
         {
@@ -123,6 +138,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that hashing rejects disposed owner rather than using returned buffer.
+        /// </summary>
         [Test]
         public void HashingRejectsDisposedOwnerRatherThanUsingReturnedBuffer()
         {

@@ -75,16 +75,24 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotAffordanceKind
     {
-        /// <summary>Any affordance kind; the filter does not constrain it.</summary>
+        /// <summary>
+        /// Any affordance kind; the filter does not constrain it.
+        /// </summary>
         Any,
 
-        /// <summary>A member of <c>properties</c>.</summary>
+        /// <summary>
+        /// A member of <c>properties</c>.
+        /// </summary>
         Property,
 
-        /// <summary>A member of <c>actions</c>.</summary>
+        /// <summary>
+        /// A member of <c>actions</c>.
+        /// </summary>
         Action,
 
-        /// <summary>A member of <c>events</c>.</summary>
+        /// <summary>
+        /// A member of <c>events</c>.
+        /// </summary>
         Event
     }
 
@@ -120,6 +128,9 @@ namespace Opc.Ua.Wot
         /// </remarks>
         public ArrayOf<string> TypeTokens { get; init; }
 
+        /// <summary>
+        /// Gets or sets the context owner for <c>WotProjectionFilter</c>.
+        /// </summary>
         internal JsonElement ContextOwner { get; init; }
     }
 

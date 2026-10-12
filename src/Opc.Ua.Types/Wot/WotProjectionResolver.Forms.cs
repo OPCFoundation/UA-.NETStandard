@@ -39,6 +39,12 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// view: an ordinary Thing Description or Thing Model that carries no
+    /// <c>uav:projection</c> marker, so a consumer needs no projection support
+    /// to use it.
+    /// </summary>
     public sealed partial class WotProjectionResolver
     {
         private async ValueTask<bool> SupplyHostFormsAsync(

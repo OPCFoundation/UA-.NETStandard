@@ -51,6 +51,9 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotEventSelectionResolverTests
     {
+        /// <summary>
+        /// Verifies that a fast path derives one clause per leaf in the stated order.
+        /// </summary>
         [Test]
         public async Task AFastPathDerivesOneClausePerLeafInTheStatedOrderAsync()
         {
@@ -115,6 +118,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a relative definition hop retains its owning document origin.
+        /// </summary>
         [Test]
         public async Task ARelativeDefinitionHopRetainsItsOwningDocumentOriginAsync()
         {
@@ -129,6 +135,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a relative document location retains its directory across hops.
+        /// </summary>
         [TestCase("models/sub/derived.json", "base.json", "models/sub/base.json")]
         [TestCase("models/sub/derived.json", "../base.json", "models/base.json")]
         [TestCase("../models/derived.json", "../../base.json", "../../base.json")]
@@ -161,6 +170,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a query only reference retains the document before its pointer.
+        /// </summary>
         [TestCase("models/sub/derived.json?version=1", "models/sub/derived.json?version=2")]
         [TestCase(
             "https://origin.test/models/derived.json?version=1",
@@ -180,6 +192,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a chain rejects empty or fragment only references.
+        /// </summary>
         [TestCase("")]
         [TestCase("#")]
         [TestCase("#/events/alarm")]
@@ -206,6 +221,9 @@ namespace Opc.Ua.Types.Tests.Wot
             provider.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that a nested definition composes its active relative bases.
+        /// </summary>
         [Test]
         public async Task ANestedDefinitionComposesItsActiveRelativeBasesAsync()
         {
@@ -233,6 +251,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 clause.TypeDefinitionReference == "https://origin.test/models/derived.json#/events/derived"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a literal dot member is not replaced by a segmented path.
+        /// </summary>
         [Test]
         public async Task ALiteralDotMemberIsNotReplacedByASegmentedPathAsync()
         {
@@ -267,6 +288,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "nsu=urn:test:pump;i=6201"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a definition hop uses its own scoped base.
+        /// </summary>
         [Test]
         public async Task ADefinitionHopUsesItsOwnScopedBaseAsync()
         {
@@ -288,6 +312,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a definition hop uses its document base before its scoped base.
+        /// </summary>
         [Test]
         public async Task ADefinitionHopUsesItsDocumentBaseBeforeItsScopedBaseAsync()
         {
@@ -311,6 +338,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 clause.TypeDefinitionReference == "https://origin.test/sub/derived.json"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a definition root and the built in definition are not a cycle.
+        /// </summary>
         [Test]
         public async Task ADefinitionRootAndTheBuiltInDefinitionAreNotACycleAsync()
         {
@@ -325,6 +355,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 clause.TypeDefinitionReference == "./derived.json"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a cancelled definition resolution does not read a sibling.
+        /// </summary>
         [Test]
         public async Task ACancelledDefinitionResolutionDoesNotReadASiblingAsync()
         {
@@ -343,6 +376,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(provider.Requests, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a linked field retains its definition scoped namespace.
+        /// </summary>
         [Test]
         public async Task ALinkedFieldRetainsItsDefinitionScopedNamespaceAsync()
         {
@@ -372,6 +408,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(clauses[0].TypeDefinitionReference, Is.EqualTo("https://origin.test/sub/derived.json"));
         }
 
+        /// <summary>
+        /// Verifies that namespace distinct paths are not overlay aliases.
+        /// </summary>
+        /// <param name="sameNamespace">The same-namespace flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task NamespaceDistinctPathsAreNotOverlayAliasesAsync(bool sameNamespace)
@@ -446,6 +486,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an explicit clause replaces the baseline entry it names.
+        /// </summary>
         [Test]
         public async Task AnExplicitClauseReplacesTheBaselineEntryItNamesAsync()
         {
@@ -607,6 +650,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertReports(diagnostics, "declares no such member");
         }
 
+        /// <summary>
+        /// Verifies that a bounded resolver stops at the configured depth.
+        /// </summary>
         [Test]
         public async Task ABoundedResolverStopsAtTheConfiguredDepthAsync()
         {

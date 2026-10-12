@@ -153,6 +153,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets display-selection metadata that the root's native text does not encode.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="nodeSet">The node set.</param>
         internal static bool TryGetUnrepresentedDocumentLocale(
             WotDocument document, UANodeSet nodeSet, out string? locale)
         {
@@ -212,6 +214,8 @@ namespace Opc.Ua.Wot
         /// a UANodeSet writes when it names one language and does not say
         /// which, and the second states the tag the Nodes carry.
         /// </remarks>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="carryingNode">The carrying node.</param>
         internal static string? GetDeclaredLocale(
             WotDocument document, JsonElement carryingNode = default, string? term = null)
         {
@@ -565,6 +569,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the locale of the native text selected from a localized member.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="element">The JSON element.</param>
         internal static string? ReadSelectedLocalizedTextLocale(
             WotDocument document, JsonElement element, string singular, string plural)
         {
@@ -577,6 +583,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the term language that preserves the selected value across generated TD scopes.
         /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="element">The JSON element.</param>
         internal static string? PreservedTextLanguage(
             WotDocument document, JsonElement element, string singular, string plural)
         {

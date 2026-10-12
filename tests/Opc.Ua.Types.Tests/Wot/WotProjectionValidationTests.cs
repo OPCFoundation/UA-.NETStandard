@@ -59,6 +59,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 () => WotProjection.IsProjection(null!));
         }
 
+        /// <summary>
+        /// Verifies that a document without the projection annotation is not a projection.
+        /// </summary>
         [Test]
         public void ADocumentWithoutTheProjectionAnnotationIsNotAProjection()
         {
@@ -98,6 +101,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionScenarioMissing);
         }
 
+        /// <summary>
+        /// Verifies that a missing manifest is reported.
+        /// </summary>
         [Test]
         public void AMissingManifestIsReported()
         {
@@ -134,6 +140,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
         }
 
+        /// <summary>
+        /// Verifies that a manifest entry missing its required keys is reported.
+        /// </summary>
         [Test]
         public void AManifestEntryMissingItsRequiredKeysIsReported()
         {

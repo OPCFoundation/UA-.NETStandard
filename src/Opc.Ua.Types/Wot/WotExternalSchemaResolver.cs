@@ -437,6 +437,10 @@ namespace Opc.Ua.Wot
         /// Sections 5.4 and 6.11 are compared first, because they are the only
         /// statements that could otherwise be read as redefining the Variable.
         /// </remarks>
+        /// <param name="external">The JSON element.</param>
+        /// <param name="canonical">The JSON element.</param>
+        /// <param name="canonicalDataType">The canonical data type.</param>
+        /// <param name="maxDepth">The max depth.</param>
         internal static string? FindIncompatibility(
             JsonElement external,
             JsonElement canonical,
@@ -446,6 +450,11 @@ namespace Opc.Ua.Wot
             return FindIncompatibility(external, canonical, canonicalDataType, out _, maxDepth);
         }
 
+        /// <param name="external">The JSON element.</param>
+        /// <param name="canonical">The JSON element.</param>
+        /// <param name="canonicalDataType">The canonical data type.</param>
+        /// <param name="mismatchPointer">The mismatch pointer.</param>
+        /// <param name="maxDepth">The max depth.</param>
         internal static string? FindIncompatibility(
             JsonElement external,
             JsonElement canonical,

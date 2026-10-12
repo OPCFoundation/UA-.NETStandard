@@ -142,6 +142,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.ToCanonicalUtf8(), Is.Not.EqualTo(json));
         }
 
+        /// <summary>
+        /// Verifies that leading utf 8 preamble preserves original bytes and canonical value.
+        /// </summary>
+        /// <param name="includePreamble">The include-preamble flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void LeadingUtf8PreamblePreservesOriginalBytesAndCanonicalValue(bool includePreamble)
@@ -161,6 +165,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("{\"title\":\"T\",\"vendor:x\":2}"));
         }
 
+        /// <summary>
+        /// Verifies that document byte limit includes utf 8 preamble.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(0)]
         [TestCase(1)]
@@ -180,6 +187,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that preamble is not accepted outside the single leading position.
+        /// </summary>
         [TestCase("\uFEFF\uFEFF{}")]
         [TestCase(" \uFEFF{}")]
         [TestCase("{}\uFEFF")]
@@ -188,6 +198,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(() => WotDocument.Parse(Encoding.UTF8.GetBytes(json)), Throws.InstanceOf<JsonException>());
         }
 
+        /// <summary>
+        /// Verifies that truncated utf 8 preamble is rejected.
+        /// </summary>
         [TestCase(1)]
         [TestCase(2)]
         public void TruncatedUtf8PreambleIsRejected(int length)

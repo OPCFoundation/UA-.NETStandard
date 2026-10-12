@@ -40,8 +40,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that required root URI variables follow the carried template.
+        /// </summary>
         [TestCase("value/{device}", "device")]
         [TestCase("value/{+device}", "device")]
         [TestCase("value/{#device}", "device")]
@@ -77,6 +83,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that required URI variables use their actual form owner.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
+        /// <param name="localDeclaration">The local-declaration flag for this test case.</param>
         [Test]
         public async Task RequiredUriVariablesUseTheirActualFormOwner(
             [Values] bool hostForms, [Values] bool localDeclaration)
@@ -107,6 +118,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("default").GetString(), Is.EqualTo("host-root"));
         }
 
+        /// <summary>
+        /// Verifies that required URI variable schema references retain their original owner.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RequiredUriVariableSchemaReferencesRetainTheirOriginalOwner(bool hostForms)
@@ -142,6 +157,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(definition.GetProperty("default").GetString(), Is.EqualTo(hostForms ? "host" : "source"));
         }
 
+        /// <summary>
+        /// Verifies that a required URI variable cannot borrow the other owners declaration.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ARequiredUriVariableCannotBorrowTheOtherOwnersDeclaration(bool hostForms)
@@ -170,6 +189,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("device", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid URI templates fail instead of hiding their dependencies.
+        /// </summary>
         [TestCase("value/{")]
         [TestCase("value/}")]
         [TestCase("value/{}")]
@@ -196,6 +218,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that escaped template delimiters and literal metadata do not invent dependencies.
+        /// </summary>
         [Test]
         public async Task EscapedTemplateDelimitersAndLiteralMetadataDoNotInventDependencies()
         {
@@ -214,6 +239,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://device.test/runtime/value/%7Bdevice%7D"));
         }
 
+        /// <summary>
+        /// Verifies that supporting URI variables participate in the projection budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         [TestCase(3, true)]
@@ -241,6 +270,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that projection annotations cannot redefine URI variables.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ProjectionAnnotationsCannotRedefineUriVariables(bool hostForms)
@@ -267,6 +300,10 @@ namespace Opc.Ua.Types.Tests.Wot
             documents.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that carried root URI variables do not inherit the affordances unrelated context.
+        /// </summary>
+        /// <param name="termScoped">The term-scoped flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CarriedRootUriVariablesDoNotInheritTheAffordancesUnrelatedContext(bool termScoped)
@@ -303,6 +340,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(affordanceUri, Is.EqualTo("urn:wrong-affordance"));
         }
 
+        /// <summary>
+        /// Verifies that duplicate URI variable declarations cannot replace their owners facts.
+        /// </summary>
+        /// <param name="hostForms">The host-forms flag for this test case.</param>
+        /// <param name="containers">The containers flag for this test case.</param>
+        /// <param name="equivalent">The equivalent flag for this test case.</param>
         [Test]
         public async Task DuplicateUriVariableDeclarationsCannotReplaceTheirOwnersFacts(
             [Values] bool hostForms, [Values] bool containers, [Values] bool equivalent)
@@ -345,6 +388,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that required URI variable carriage uses code point order without changing the template.
+        /// </summary>
         [Test]
         public async Task RequiredUriVariableCarriageUsesCodePointOrderWithoutChangingTheTemplate()
         {
@@ -363,6 +409,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://device.test/runtime/value{?z,a,z}"));
         }
 
+        /// <summary>
+        /// Verifies that same named URI variables from different sources remain independent.
+        /// </summary>
+        /// <param name="reverse">The reverse flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SameNamedUriVariablesFromDifferentSourcesRemainIndependent(bool reverse)

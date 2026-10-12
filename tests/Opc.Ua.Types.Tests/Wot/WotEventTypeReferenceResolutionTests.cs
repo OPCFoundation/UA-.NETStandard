@@ -131,6 +131,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Describe(diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that a logical identifier cannot fall back to a substituted root.
+        /// </summary>
         [Test]
         public async Task ALogicalIdentifierCannotFallBackToASubstitutedRootAsync()
         {
@@ -158,6 +161,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("urn:event:Wanted", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that logical identity aliases use the actual carrying contexts.
+        /// </summary>
         [Test]
         public async Task LogicalIdentityAliasesUseTheActualCarryingContextsAsync()
         {
@@ -202,6 +208,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:event:Wanted", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that fragment logical identifiers reach the provider and verify its definitions.
+        /// </summary>
+        /// <param name="answerKind">The answer kind used by this test case.</param>
+        /// <param name="expanded">The expanded flag for this test case.</param>
         [TestCase(false, "matching")]
         [TestCase(true, "matching")]
         [TestCase(false, "substituted")]
@@ -219,6 +230,10 @@ namespace Opc.Ua.Types.Tests.Wot
             await AssertFragmentLogicalIdentityAsync(expanded, answerKind, explicitClause: false).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that fragment logical identifiers are valid in explicit clauses.
+        /// </summary>
+        /// <param name="expanded">The expanded flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FragmentLogicalIdentifiersAreValidInExplicitClausesAsync(bool expanded)
@@ -226,6 +241,10 @@ namespace Opc.Ua.Types.Tests.Wot
             await AssertFragmentLogicalIdentityAsync(expanded, "matching", explicitClause: true).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that an empty fragment can belong to a full logical identifier.
+        /// </summary>
+        /// <param name="explicitClause">The explicit-clause flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AnEmptyFragmentCanBelongToAFullLogicalIdentifierAsync(bool explicitClause)

@@ -41,11 +41,19 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT opaque semantic boundary.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     [Parallelizable(ParallelScope.All)]
     public sealed class WotOpaqueSemanticBoundaryTests
     {
+        /// <summary>
+        /// Verifies that opaque values do not contribute model identities or definitions.
+        /// </summary>
+        /// <param name="onProperty">The on-property flag for this test case.</param>
+        /// <param name="asynchronous">The asynchronous flag for this test case.</param>
         [Test]
         [Combinatorial]
         public async Task OpaqueValuesDoNotContributeModelIdentitiesOrDefinitions(
@@ -141,6 +149,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that nested opaque members remain verbatim when mapped siblings are removed.
+        /// </summary>
+        /// <param name="mappedSibling">The mapped-sibling flag for this test case.</param>
         [Test]
         [Combinatorial]
         public void NestedOpaqueMembersRemainVerbatimWhenMappedSiblingsAreRemoved(

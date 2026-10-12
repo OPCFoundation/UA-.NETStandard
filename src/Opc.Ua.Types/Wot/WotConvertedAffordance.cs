@@ -41,6 +41,12 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Initializes a mapped interaction and an immutable snapshot of its authored schema.
         /// </summary>
+        /// <param name="kind">The kind used to initialize the instance.</param>
+        /// <param name="name">The name used to initialize <c>WotConvertedAffordance</c>.</param>
+        /// <param name="jsonPointer">The JSON pointer used to initialize the instance.</param>
+        /// <param name="nodeId">The node ID used to initialize the instance.</param>
+        /// <param name="ownerNodeId">The owner node ID used to initialize the instance.</param>
+        /// <param name="affordance">The affordance used to initialize the instance.</param>
         public WotConvertedAffordance(
             WotAffordanceKind kind,
             string name,

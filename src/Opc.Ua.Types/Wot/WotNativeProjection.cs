@@ -54,6 +54,8 @@ namespace Opc.Ua.Wot
                 !string.Equals(version, ProfileVersion, StringComparison.Ordinal);
         }
 
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         public static byte[] Write(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -102,6 +104,8 @@ namespace Opc.Ua.Wot
             return output.ToArray();
         }
 
+        /// <param name="projection">The JSON element.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         public static UANodeSet? Read(
             JsonElement projection,
             WotNodeSetConverterOptions options,

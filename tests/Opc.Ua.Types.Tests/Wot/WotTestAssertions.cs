@@ -48,6 +48,9 @@ namespace Opc.Ua.Types.Tests.Wot
             return value ?? throw new AssertionException("The required test value was null.");
         }
 
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="sourceNodeId">The source node ID.</param>
+        /// <param name="browseName">The browse name.</param>
         public static UAObjectType EventTypeOf(UANodeSet nodeSet, string sourceNodeId, string browseName)
         {
             UANode[] nodes = nodeSet.Items.Required();

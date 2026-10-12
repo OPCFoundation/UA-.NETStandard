@@ -34,8 +34,15 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that null context reset does not restore implicit prefixes.
+        /// </summary>
+        /// <param name="scoped">The scoped flag for this test case.</param>
         [Test]
         public async Task NullContextResetDoesNotRestoreImplicitPrefixes(
             [Values("ua", "uav")] string prefix,

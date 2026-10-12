@@ -40,6 +40,12 @@ namespace Opc.Ua.Wot
     /// </summary>
     public sealed class WotPayloadSchema
     {
+        /// <summary>
+        /// Initializes a new <c>WotPayloadSchema</c> instance.
+        /// </summary>
+        /// <param name="definition">The definition used to initialize the instance.</param>
+        /// <param name="typeBindings">The type bindings used to initialize the instance.</param>
+        /// <param name="diagnostics">The diagnostics used to initialize the instance.</param>
         internal WotPayloadSchema(
             JsonElement definition,
             ArrayOf<WotPayloadTypeBinding> typeBindings,
@@ -73,6 +79,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Finds the native type facts for a schema's relative JSON Pointer.
         /// </summary>
+        /// <param name="jsonPointer">The JSON pointer.</param>
+        /// <param name="binding">The WoT payload type binding.</param>
         public bool TryGetTypeBinding(
             string jsonPointer, [NotNullWhen(true)] out WotPayloadTypeBinding? binding)
         {
@@ -88,6 +96,13 @@ namespace Opc.Ua.Wot
     /// </summary>
     public sealed class WotPayloadTypeBinding
     {
+        /// <summary>
+        /// Initializes a new <c>WotPayloadTypeBinding</c> instance.
+        /// </summary>
+        /// <param name="jsonPointer">The JSON pointer used to initialize the instance.</param>
+        /// <param name="dataTypeId">The data type ID used to initialize the instance.</param>
+        /// <param name="typeInfo">The type info used to initialize the instance.</param>
+        /// <param name="resolvedBrowseName">The resolved browse name used to initialize the instance.</param>
         internal WotPayloadTypeBinding(
             string jsonPointer, ExpandedNodeId dataTypeId, TypeInfo typeInfo, string? resolvedBrowseName)
         {

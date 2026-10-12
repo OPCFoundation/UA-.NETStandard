@@ -101,6 +101,8 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Resolves a DataType definition's JSON-LD graph identity.
         /// </summary>
+        /// <param name="graphId">The graph ID.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
             string graphId,
             CancellationToken cancellationToken = default);

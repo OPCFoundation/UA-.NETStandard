@@ -41,10 +41,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection control.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotProjectionControlTests
     {
+        /// <summary>
+        /// Verifies that reviewed malformed semantic iris are rejected before downstream acquisition.
+        /// </summary>
+        /// <param name="nested">The nested flag for this test case.</param>
         [Test]
         public async Task ReviewedMalformedSemanticIrisAreRejectedBeforeDownstreamAcquisition(
             [Values("space", "scheme", "percent", "control")] string failure,
@@ -93,6 +100,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:review:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
+        /// <summary>
+        /// Verifies that numeric source digest is reported instead of discarding the pin.
+        /// </summary>
         [Test]
         public void NumericSourceDigestIsReportedInsteadOfDiscardingThePin()
         {
@@ -110,6 +120,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("uav:sourceDigest", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that present invalid text controls are not treated as omitted.
+        /// </summary>
         [TestCase("uav:routing", "42")]
         [TestCase("uav:routing", "null")]
         [TestCase("uav:routing", "{}")]
@@ -140,6 +153,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains(term, StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid type predicates cannot become unconstrained filters.
+        /// </summary>
         [TestCase("42")]
         [TestCase("null")]
         [TestCase("true")]
@@ -166,6 +182,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(parsed.Required().Sources[0].Filters.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that explicitly empty selectors cannot imply select all.
+        /// </summary>
         [TestCase("[]")]
         [TestCase("[{}]")]
         public void ExplicitlyEmptySelectorsCannotImplySelectAll(string value)
@@ -182,6 +201,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that semantic predicates require an absolute identity.
+        /// </summary>
         [TestCase("")]
         [TestCase("relative/meaning")]
         public void SemanticPredicatesRequireAnAbsoluteIdentity(string value)
@@ -199,6 +221,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that absent controls keep defaults and valid controls retain every predicate.
+        /// </summary>
         [Test]
         public void AbsentControlsKeepDefaultsAndValidControlsRetainEveryPredicate()
         {
@@ -239,6 +264,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_expectedTypes));
         }
 
+        /// <summary>
+        /// Verifies that invalid controls fail before source acquisition.
+        /// </summary>
         [TestCase("uav:sourceDigest", "42")]
         [TestCase("uav:select", /*lang=json,strict*/ "[{\"@type\":42}]")]
         [TestCase("uav:namePrefix", "{}")]
@@ -263,6 +291,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 It.IsAny<string>(), It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that invalid nested controls cannot acquire their unpinned source.
+        /// </summary>
         [Test]
         public async Task InvalidNestedControlsCannotAcquireTheirUnpinnedSource()
         {
@@ -294,6 +325,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that prefix capitalizes the first unicode scalar without changing the remainder.
+        /// </summary>
         [Test]
         public async Task PrefixCapitalizesTheFirstUnicodeScalarWithoutChangingTheRemainder()
         {

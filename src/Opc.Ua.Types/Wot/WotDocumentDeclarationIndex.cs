@@ -178,6 +178,7 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException">
         /// <paramref name="typeNodeId"/> is <c>null</c>.
         /// </exception>
+        /// <param name="typeNodeId">The type node ID.</param>
         public ArrayOf<string> GetDirectSupertypes(string typeNodeId)
         {
             if (typeNodeId is null)
@@ -225,6 +226,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets complete DataType definitions for a graph identity, retaining their owning contexts.
         /// </summary>
+        /// <param name="graphId">The graph ID.</param>
         public ArrayOf<WotDataTypeDefinitionSource> ResolveDataTypeDefinitions(string graphId)
         {
             if (graphId is null)

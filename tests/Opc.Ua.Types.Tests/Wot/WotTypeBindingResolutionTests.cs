@@ -53,6 +53,10 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string TankTypeId = "nsu=urn:test:pump;i=1042";
         private const string OtherTypeId = "nsu=urn:test:pump;i=9999";
 
+        /// <summary>
+        /// Verifies that URI qualified browse names resolve types and references.
+        /// </summary>
+        /// <param name="namespaceForm">The namespace form used by this test case.</param>
         [TestCase("urn:test:pump")]
         [TestCase("urn%3Atest%3Apump")]
         public async Task UriQualifiedBrowseNamesResolveTypesAndReferencesAsync(string namespaceForm)
@@ -95,6 +99,12 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an affordance resolves its own variable type binding.
+        /// </summary>
+        /// <param name="nodeKind">The node kind used by this test case.</param>
+        /// <param name="available">The available flag for this test case.</param>
+        /// <param name="binds">The binds flag for this test case.</param>
         [TestCase("uav:variableType", true, true)]
         [TestCase("uav:objectType", true, false)]
         [TestCase("uav:variableType", false, false)]
@@ -155,6 +165,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that two component templates create distinct object declarations.
+        /// </summary>
+        /// <param name="documentReference">The document-reference flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task TwoComponentTemplatesCreateDistinctObjectDeclarationsAsync(bool documentReference)
@@ -231,6 +245,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(unchangedType.Items![0].BrowseName, Is.EqualTo("1:MotorType"));
         }
 
+        /// <summary>
+        /// Verifies that a variable template creates a variable with the types value shape.
+        /// </summary>
+        /// <param name="nativeDefinition">The native-definition flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AVariableTemplateCreatesAVariableWithTheTypesValueShapeAsync(bool nativeDefinition)
@@ -290,6 +308,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that object declarations export as distinct component templates.
+        /// </summary>
         [Test]
         public async Task ObjectDeclarationsExportAsDistinctComponentTemplatesAsync()
         {
@@ -365,6 +386,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(declarations.Single(n => n.NodeId == "ns=1;i=3").BrowseName, Is.EqualTo("1:Right"));
         }
 
+        /// <summary>
+        /// Verifies that a component type needs an explicitly named instance declaration.
+        /// </summary>
+        /// <param name="unnamedDeclaration">The unnamed-declaration flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task AComponentTypeNeedsAnExplicitlyNamedInstanceDeclarationAsync(bool unnamedDeclaration)

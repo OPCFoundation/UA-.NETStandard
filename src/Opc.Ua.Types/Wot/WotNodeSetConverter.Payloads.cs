@@ -47,6 +47,9 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentException">
         /// <paramref name="affordance"/> is not an original object from <paramref name="document"/>.
         /// </exception>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="kind">The WoT affordance kind.</param>
+        /// <param name="affordance">The JSON element.</param>
         public static WotPayloadSchema CapturePayloadSchema(
             WotDocument document, WotAffordanceKind kind, JsonElement affordance)
         {

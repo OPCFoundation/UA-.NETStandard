@@ -38,10 +38,17 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT opaque bounds.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotOpaqueBoundsTests
     {
+        /// <summary>
+        /// Verifies that opaque byte bound is an error in every consumer mode.
+        /// </summary>
+        /// <param name="mode">The WoT conformance mode.</param>
         [TestCase("1.0", WotConformanceMode.Permissive)]
         [TestCase("1.1", WotConformanceMode.Permissive)]
         [TestCase("1.0", WotConformanceMode.Strict)]
@@ -65,6 +72,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that thirty two opaque containers do not count their scalar leaf as another level.
+        /// </summary>
+        /// <param name="includeArrays">The include-arrays flag for this test case.</param>
+        /// <param name="mode">The WoT conformance mode.</param>
         [TestCase(false, WotConformanceMode.Permissive)]
         [TestCase(true, WotConformanceMode.Permissive)]
         [TestCase(false, WotConformanceMode.Strict)]
@@ -79,6 +91,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that legacy opaque key admission depends on authoring rather than consumer strictness.
+        /// </summary>
+        /// <param name="mode">The WoT conformance mode.</param>
+        /// <param name="authoring">The authoring flag for this test case.</param>
         [TestCase(WotConformanceMode.Permissive, false)]
         [TestCase(WotConformanceMode.Strict, false)]
         [TestCase(WotConformanceMode.Permissive, true)]
@@ -101,6 +118,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that exact opaque byte limit uses utf 8 octets and ignores only insignificant whitespace.
+        /// </summary>
+        /// <param name="mode">The WoT conformance mode.</param>
+        /// <param name="unicode">The unicode flag for this test case.</param>
         [TestCase(WotConformanceMode.Permissive, false)]
         [TestCase(WotConformanceMode.Strict, false)]
         [TestCase(WotConformanceMode.Permissive, true)]
@@ -124,6 +146,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
         }
 
+        /// <summary>
+        /// Verifies that opaque top level key limit has the same boundary for every consumer.
+        /// </summary>
+        /// <param name="keyCount">The key count used by this test case.</param>
+        /// <param name="mode">The WoT conformance mode.</param>
         [TestCase(256, WotConformanceMode.Permissive)]
         [TestCase(256, WotConformanceMode.Strict)]
         [TestCase(257, WotConformanceMode.Permissive)]
@@ -142,6 +169,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Message.Contains("top-level keys", StringComparison.Ordinal)), Is.EqualTo(keyCount > 256));
         }
 
+        /// <summary>
+        /// Verifies that thirty three opaque containers exceed the bound in every consumer.
+        /// </summary>
+        /// <param name="includeArrays">The include-arrays flag for this test case.</param>
+        /// <param name="mode">The WoT conformance mode.</param>
         [TestCase(false, WotConformanceMode.Permissive)]
         [TestCase(true, WotConformanceMode.Permissive)]
         [TestCase(false, WotConformanceMode.Strict)]

@@ -38,8 +38,14 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT projection schema reference.
+    /// </summary>
     public sealed partial class WotProjectionSchemaReferenceTests
     {
+        /// <summary>
+        /// Verifies that unselected local schema targets are carried without selecting their owners.
+        /// </summary>
         [TestCase("/properties/Other", "Other", "")]
         [TestCase("/properties/Other/properties/part", "Other", "/properties/part")]
         [TestCase("/properties/Other/properties/const", "Other", "/properties/const")]
@@ -86,6 +92,10 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(source.ToJsonString(), Is.EqualTo(original));
         }
 
+        /// <summary>
+        /// Verifies that unselected local schemas reuse recursive targets without replacing host definitions.
+        /// </summary>
+        /// <param name="collision">The collision flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnselectedLocalSchemasReuseRecursiveTargetsWithoutReplacingHostDefinitions(bool collision)
@@ -122,6 +132,9 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        /// <summary>
+        /// Verifies that unselected local schema carriage retains the target context and reference origin.
+        /// </summary>
         [Test]
         public async Task UnselectedLocalSchemaCarriageRetainsTheTargetContextAndReferenceOrigin()
         {
@@ -153,6 +166,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.Actions, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that unselected local schema targets cannot enter literal or non schema locations.
+        /// </summary>
         [TestCase("/properties/Other/const")]
         [TestCase("/properties/Other/default")]
         [TestCase("/properties/Other/enum/0")]
@@ -190,6 +206,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == SourceHref + "#" + pointer), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that unselected local schema references cannot enter already carried literal values.
+        /// </summary>
+        /// <param name="literalFirst">The literal-first flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnselectedLocalSchemaReferencesCannotEnterAlreadyCarriedLiteralValues(bool literalFirst)
@@ -213,6 +233,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.Reference == SourceHref + "#/properties/Other/const"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that unselected local schema roots count once against the output budget.
+        /// </summary>
+        /// <param name="success">The success flag for this test case.</param>
         [TestCase(1, false)]
         [TestCase(2, true)]
         public async Task UnselectedLocalSchemaRootsCountOnceAgainstTheOutputBudget(int budget, bool success)

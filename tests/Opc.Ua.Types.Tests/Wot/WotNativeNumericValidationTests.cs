@@ -38,10 +38,16 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
+    /// <summary>
+    /// Contains tests for WoT native numeric validation.
+    /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotNativeNumericValidationTests
     {
+        /// <summary>
+        /// Verifies that fractional native value rank is rejected instead of restored as scalar.
+        /// </summary>
         [Test]
         public void FractionalNativeValueRankIsRejectedInsteadOfRestoredAsScalar()
         {
@@ -56,6 +62,10 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/nodes/0/valueRank");
         }
 
+        /// <summary>
+        /// Verifies that native integer widths reject invalid present numbers.
+        /// </summary>
+        /// <param name="nodeClass">The node class used by this test case.</param>
         [TestCase("Variable", "accessLevel", "-1")]
         [TestCase("Variable", "accessLevel", "4294967296")]
         [TestCase("Variable", "userAccessLevel", "1.5")]
@@ -79,6 +89,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/nodes/0/" + member);
         }
 
+        /// <summary>
+        /// Verifies that native sampling interval must remain finite.
+        /// </summary>
         [TestCase("1e400")]
         [TestCase("-1e400")]
         public void NativeSamplingIntervalMustRemainFinite(string number)
@@ -93,6 +106,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/nodes/0/minimumSamplingInterval");
         }
 
+        /// <summary>
+        /// Verifies that nested data type numbers report the field pointer.
+        /// </summary>
         [TestCase("valueRank", "1.5")]
         [TestCase("maxStringLength", "-1")]
         [TestCase("maxStringLength", "4294967296")]
@@ -113,6 +129,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/nodes/0/definition/fields/0/" + member);
         }
 
+        /// <summary>
+        /// Verifies that native permission numbers report their owning record.
+        /// </summary>
         [Test]
         public void NativePermissionNumbersReportTheirOwningRecord()
         {
@@ -127,6 +146,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/nodes/0/rolePermissions/0/permissions");
         }
 
+        /// <summary>
+        /// Verifies that native model numbers report every invalid nested owner.
+        /// </summary>
         [Test]
         public void NativeModelNumbersReportEveryInvalidNestedOwner()
         {
@@ -146,6 +168,9 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertInvalid(result, "/uav:nodes/models/0/requiredModels/0/rolePermissions/0/permissions");
         }
 
+        /// <summary>
+        /// Verifies that supported native numeric limits and missing defaults are preserved.
+        /// </summary>
         [Test]
         public void SupportedNativeNumericLimitsAndMissingDefaultsArePreserved()
         {
@@ -182,6 +207,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(defaultVariable.AccessRestrictionsSpecified, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that native sampling interval retains supported finite values.
+        /// </summary>
         [TestCase("-1")]
         [TestCase("0")]
         [TestCase("1.7976931348623157e308")]
@@ -204,6 +232,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(((UAVariable)result.Value!.Items!.Single()).MinimumSamplingInterval, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that unknown native record numbers are not treated as known attributes.
+        /// </summary>
         [Test]
         public void UnknownNativeRecordNumbersAreNotTreatedAsKnownAttributes()
         {

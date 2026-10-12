@@ -51,6 +51,7 @@ namespace Opc.Ua.Wot
         /// unresolvable encoding rather than here, where the document that
         /// caused it is still in hand.
         /// </remarks>
+        /// <param name="nestedOnly">The nested only.</param>
         internal static void ValidateNestedOnlySelection(
             HashSet<string> nestedOnly,
             List<UANode> items,

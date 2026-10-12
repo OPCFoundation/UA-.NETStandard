@@ -59,6 +59,10 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string PumpConnectedTo = "nsu=http://example.com/demo/pump;i=5002";
         private const string LinkTarget = "nsu=http://example.com/demo/pump;s=Blade_1";
 
+        /// <summary>
+        /// Verifies that an alternate UA prefix retains its typed reference.
+        /// </summary>
+        /// <param name="localContext">The local-context flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void AnAlternateUaPrefixRetainsItsTypedReference(bool localContext)
@@ -86,6 +90,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 r.IsForward && r.ReferenceType == WotVocabulary.Organizes && r.Value == "i=85"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that component subtypes use their declared ancestry and abstractness.
+        /// </summary>
+        /// <param name="isAbstract">The abstract flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ComponentSubtypesUseTheirDeclaredAncestryAndAbstractnessAsync(bool isAbstract)
