@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -91,7 +92,8 @@ namespace Opc.Ua.Server
             // never used (OPC 10000-4, 5.14.1.1).
             // null entries are dropped; the sent index keeps pointing at the first unsent
             // message, so only the messages in front of it are counted.
-            SentMessages = [];
+            m_sent = [];
+            SentMessages = new SentMessageView(m_sent);
             int sentPrefix = 0;
             if (sentMessages != null)
             {
@@ -106,10 +108,10 @@ namespace Opc.Ua.Server
                     {
                         sentPrefix++;
                     }
-                    SentMessages.Add(CoreUtils.Clone(sentMessages[ii])!);
+                    m_sent.Add(new NotificationMessageLease(CoreUtils.Clone(sentMessages[ii])!));
                 }
             }
-            m_sequenceNumber = ValidateNextSequenceNumber(nextSequenceNumber, SentMessages);
+            m_sequenceNumber = ValidateNextSequenceNumber(nextSequenceNumber, m_sent);
             m_lastSentMessage = sentPrefix;
         }
 
@@ -153,19 +155,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the number of sent messages currently retained.
         /// </summary>
-        public int SentCount => SentMessages.Count;
+        public int SentCount => m_sent.Count;
 
         /// <summary>
-        /// Gets the underlying sent-message list for persistence (read while the subscription is quiesced).
+        /// Gets the retained messages (read while the subscription is quiesced). The messages are
+        /// shared with Publish responses that may still be sending them and must not be modified.
         /// </summary>
-        public List<NotificationMessage> SentMessages { get; }
+        public IReadOnlyList<NotificationMessage> SentMessages { get; }
 
         /// <summary>
         /// Creates a detached snapshot whose payloads survive recycling of the retained messages.
         /// </summary>
         public List<NotificationMessage> CreateSnapshot()
         {
-            return SentMessages.ConvertAll(message => CoreUtils.Clone(message)!);
+            return m_sent.ConvertAll(lease => CoreUtils.Clone(lease.Message)!);
         }
 
         /// <summary>
@@ -184,26 +187,55 @@ namespace Opc.Ua.Server
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
         /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
+        /// <remarks>
+        /// The returned message is shared with the queue and is never recycled to the pools.
+        /// </remarks>
         public NotificationMessage? TryDequeueQueued(
             List<uint> availableSequenceNumbers,
             bool hasItemsToPublish,
             out bool moreNotifications)
         {
-            moreNotifications = false;
+            return TryDequeueQueued(
+                availableSequenceNumbers,
+                hasItemsToPublish,
+                out moreNotifications,
+                out _);
+        }
 
-            if (m_lastSentMessage < SentMessages.Count)
+        /// <summary>
+        /// Returns the next already-queued (but not yet published) message, or <c>null</c> when none is queued.
+        /// </summary>
+        /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
+        /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
+        /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
+        /// <param name="lease">
+        /// Receives a reference on the returned message that the caller must release once it no
+        /// longer reads the message (when the Publish response was sent); <c>null</c> when no
+        /// message is returned.
+        /// </param>
+        public NotificationMessage? TryDequeueQueued(
+            List<uint> availableSequenceNumbers,
+            bool hasItemsToPublish,
+            out bool moreNotifications,
+            out NotificationMessageLease? lease)
+        {
+            moreNotifications = false;
+            lease = null;
+
+            if (m_lastSentMessage < m_sent.Count)
             {
                 // return the available sequence numbers.
-                for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
+                for (int ii = 0; ii <= m_lastSentMessage && ii < m_sent.Count; ii++)
                 {
-                    availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
+                    availableSequenceNumbers.Add(m_sent[ii].Message.SequenceNumber);
                 }
 
-                moreNotifications = (m_lastSentMessage < SentMessages.Count - 1) || hasItemsToPublish;
+                moreNotifications = (m_lastSentMessage < m_sent.Count - 1) || hasItemsToPublish;
 
-                NotificationMessage queued = CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+                lease = m_sent[m_lastSentMessage++];
+                lease.AddReference();
                 StoreSendState();
-                return queued;
+                return lease.Message;
             }
 
             return null;
@@ -217,10 +249,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public void FillAvailableSequenceNumbers(List<uint> availableSequenceNumbers)
         {
-            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            int sentCount = Math.Min(m_lastSentMessage, m_sent.Count);
             for (int ii = 0; ii < sentCount; ii++)
             {
-                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
+                availableSequenceNumbers.Add(m_sent[ii].Message.SequenceNumber);
             }
         }
 
@@ -249,11 +281,43 @@ namespace Opc.Ua.Server
         /// dropped unsent because the batch exceeds the queue limit plus older messages evicted from the
         /// retransmission queue; <c>0</c> when nothing was discarded.
         /// </param>
+        /// <remarks>
+        /// The returned message is shared with the queue and is never recycled to the pools.
+        /// </remarks>
         public NotificationMessage Enqueue(
             List<NotificationMessage> messages,
             List<uint> availableSequenceNumbers,
             out bool moreNotifications,
             out uint discardedMessageCount)
+        {
+            return Enqueue(
+                messages,
+                availableSequenceNumbers,
+                out moreNotifications,
+                out discardedMessageCount,
+                out _);
+        }
+
+        /// <summary>
+        /// Appends freshly constructed messages to the queue, dropping/trimming as needed to respect the queue limit,
+        /// mirrors the retransmission state, and returns the next message to publish.
+        /// </summary>
+        /// <param name="messages">The messages to enqueue (may be trimmed in place on overflow).</param>
+        /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
+        /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
+        /// <param name="discardedMessageCount">
+        /// The number of messages discarded before they were acknowledged (for diagnostics).
+        /// </param>
+        /// <param name="lease">
+        /// Receives a reference on the returned message that the caller must release once it no
+        /// longer reads the message (when the Publish response was sent).
+        /// </param>
+        public NotificationMessage Enqueue(
+            List<NotificationMessage> messages,
+            List<uint> availableSequenceNumbers,
+            out bool moreNotifications,
+            out uint discardedMessageCount,
+            out NotificationMessageLease lease)
         {
             discardedMessageCount = 0;
             uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
@@ -265,9 +329,10 @@ namespace Opc.Ua.Server
                 // Dropped unsent messages were never acknowledged either (Part 5 DiscardedMessageCount).
                 discardedMessageCount = (uint)overflowCount;
                 m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
+                // never handed out, so nobody else references them.
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
-                    ReuseNotificationPayloads(messages[ii]);
+                    NotificationMessageLease.RecyclePayload(messages[ii]);
                 }
                 messages.RemoveRange(0, overflowCount);
             }
@@ -277,39 +342,43 @@ namespace Opc.Ua.Server
             // Only the excess over capacity displaces previously retained messages.
             int evictionCount = (int)Math.Max(
                 0,
-                (long)SentMessages.Count + messages.Count - effectiveMaxMessageCount);
+                (long)m_sent.Count + messages.Count - effectiveMaxMessageCount);
             if (evictionCount > 0)
             {
                 discardedMessageCount += (uint)evictionCount;
 
                 if (m_retransmissionStore != null)
                 {
-                    removedSequenceNumbers = GetSequenceNumbers(SentMessages, evictionCount);
+                    removedSequenceNumbers = GetSequenceNumbers(m_sent, evictionCount);
                 }
                 for (int ii = 0; ii < evictionCount; ii++)
                 {
-                    ReuseNotificationPayloads(SentMessages[ii]);
+                    m_sent[ii].Release();
                 }
-                SentMessages.RemoveRange(0, evictionCount);
+                m_sent.RemoveRange(0, evictionCount);
             }
 
             // save new message
-            m_lastSentMessage = SentMessages.Count;
-            SentMessages.AddRange(messages);
+            m_lastSentMessage = m_sent.Count;
+            for (int ii = 0; ii < messages.Count; ii++)
+            {
+                m_sent.Add(new NotificationMessageLease(messages[ii]));
+            }
             StoreRetransmissionState(messages, removedSequenceNumbers);
 
             // check if there are more notifications to send.
             moreNotifications = messages.Count > 1;
 
             // return the available sequence numbers.
-            for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
+            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sent.Count; ii++)
             {
-                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
+                availableSequenceNumbers.Add(m_sent[ii].Message.SequenceNumber);
             }
 
-            NotificationMessage next = CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+            lease = m_sent[m_lastSentMessage++];
+            lease.AddReference();
             StoreSendState();
-            return next;
+            return lease.Message;
         }
 
         /// <summary>
@@ -320,19 +389,22 @@ namespace Opc.Ua.Server
         {
             // only a sent message can be acknowledged: a message still queued for Publish is
             // unknown to the client (Bad_SequenceNumberUnknown) and must not be lost.
-            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            int sentCount = Math.Min(m_lastSentMessage, m_sent.Count);
             for (int ii = 0; ii < sentCount; ii++)
             {
-                if (SentMessages[ii].SequenceNumber == sequenceNumber)
+                if (m_sent[ii].Message.SequenceNumber == sequenceNumber)
                 {
                     if (m_lastSentMessage > ii)
                     {
                         m_lastSentMessage--;
                     }
 
-                    NotificationMessage removed = SentMessages[ii];
-                    SentMessages.RemoveAt(ii);
-                    ReuseNotificationPayloads(removed);
+                    NotificationMessageLease removed = m_sent[ii];
+                    m_sent.RemoveAt(ii);
+
+                    // the payload is recycled once the response that carries it was sent,
+                    // which may happen after the client acknowledged it.
+                    removed.Release();
                     m_retransmissionStore?.AcknowledgeNotification(Id, sequenceNumber);
                     StoreSendState();
                     return true;
@@ -349,12 +421,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage? FindForRepublish(uint retransmitSequenceNumber)
         {
-            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            int sentCount = Math.Min(m_lastSentMessage, m_sent.Count);
             for (int ii = 0; ii < sentCount; ii++)
             {
-                if (SentMessages[ii].SequenceNumber == retransmitSequenceNumber)
+                if (m_sent[ii].Message.SequenceNumber == retransmitSequenceNumber)
                 {
-                    return CoreUtils.Clone(SentMessages[ii])!;
+                    // Republish is rare; a copy keeps the Republish response independent of
+                    // the retained message (ISubscriptionManager.Republish returns a message).
+                    return CoreUtils.Clone(m_sent[ii].Message)!;
                 }
             }
 
@@ -399,15 +473,15 @@ namespace Opc.Ua.Server
             {
                 if (message != null)
                 {
-                    SentMessages.Add(CoreUtils.Clone(message)!);
+                    m_sent.Add(new NotificationMessageLease(CoreUtils.Clone(message)!));
                 }
             }
-            m_sequenceNumber = ValidateNextSequenceNumber(state.NextSequenceNumber, SentMessages);
+            m_sequenceNumber = ValidateNextSequenceNumber(state.NextSequenceNumber, m_sent);
 
             // Messages queued for a Publish response but not yet returned are still
             // delivered by Publish, not only through Republish (OPC 10000-4, 5.14.1.1).
             // Mirrors that do not track it treat every retained message as sent.
-            m_lastSentMessage = SentMessages.Count;
+            m_lastSentMessage = m_sent.Count;
             if (state.FirstUnsentSequenceNumber != 0)
             {
                 // the first unsent message itself may be missing from the snapshot (its key
@@ -416,8 +490,8 @@ namespace Opc.Ua.Server
                 // rollover is handled (OPC 10000-4, 7.38).
                 uint next = m_sequenceNumber;
                 uint boundaryAge = unchecked(next - state.FirstUnsentSequenceNumber);
-                int firstUnsent = SentMessages.FindIndex(
-                    message => unchecked(next - message.SequenceNumber) <= boundaryAge);
+                int firstUnsent = m_sent.FindIndex(
+                    lease => unchecked(next - lease.Message.SequenceNumber) <= boundaryAge);
                 if (firstUnsent >= 0)
                 {
                     m_lastSentMessage = firstUnsent;
@@ -432,8 +506,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private uint GetFirstUnsentSequenceNumber()
         {
-            return m_lastSentMessage < SentMessages.Count
-                ? SentMessages[m_lastSentMessage].SequenceNumber
+            return m_lastSentMessage < m_sent.Count
+                ? m_sent[m_lastSentMessage].Message.SequenceNumber
                 : 0;
         }
 
@@ -459,15 +533,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Recycles and clears all sent messages (called when the subscription is disposed).
+        /// Releases and clears all sent messages (called when the subscription is disposed). A payload
+        /// still being sent is recycled when its response was sent.
         /// </summary>
         public void Clear()
         {
-            for (int ii = 0; ii < SentMessages.Count; ii++)
+            for (int ii = 0; ii < m_sent.Count; ii++)
             {
-                ReuseNotificationPayloads(SentMessages[ii]);
+                m_sent[ii].Release();
             }
-            SentMessages.Clear();
+            m_sent.Clear();
         }
 
         /// <summary>
@@ -501,7 +576,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static uint ValidateNextSequenceNumber(
             uint nextSequenceNumber,
-            List<NotificationMessage> sentMessages)
+            List<NotificationMessageLease> sentMessages)
         {
             if (nextSequenceNumber != 0)
             {
@@ -509,59 +584,66 @@ namespace Opc.Ua.Server
             }
 
             uint sequenceNumber = sentMessages.Count > 0
-                ? sentMessages[sentMessages.Count - 1].SequenceNumber
+                ? sentMessages[sentMessages.Count - 1].Message.SequenceNumber
                 : 0;
             Utils.IncrementIdentifier(ref sequenceNumber);
             return sequenceNumber;
         }
 
-        private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessage> messages, int count)
+        private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessageLease> messages, int count)
         {
             uint[] sequenceNumbers = new uint[count];
             for (int ii = 0; ii < count; ii++)
             {
-                sequenceNumbers[ii] = messages[ii].SequenceNumber;
+                sequenceNumbers[ii] = messages[ii].Message.SequenceNumber;
             }
 
             return new ArrayOf<uint>(sequenceNumbers);
         }
 
-        private static void ReuseNotificationPayloads(NotificationMessage message)
-        {
-            ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
-            for (int i = 0; i < data.Length; i++)
-            {
-                if (data[i].TryGetValue(out DataChangeNotification? dcn))
-                {
-                    ReadOnlySpan<MonitoredItemNotification> items =
-                        dcn.MonitoredItems.Span;
-                    for (int j = 0; j < items.Length; j++)
-                    {
-                        (items[j] as IPooledEncodeable)?.Reuse();
-                    }
-                    (dcn as IPooledEncodeable)?.Reuse();
-                }
-                else if (data[i].TryGetValue(out EventNotificationList? enl))
-                {
-                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
-                    for (int j = 0; j < events.Length; j++)
-                    {
-                        (events[j] as IPooledEncodeable)?.Reuse();
-                    }
-                    (enl as IPooledEncodeable)?.Reuse();
-                }
-            }
-            (message as IPooledEncodeable)?.Reuse();
-        }
-
         private uint Id => m_subscriptionIdProvider();
 
+        private readonly List<NotificationMessageLease> m_sent;
         private readonly Func<uint> m_subscriptionIdProvider;
         private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private readonly ILogger m_logger;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
         private uint m_mirroredFirstUnsentSequenceNumber;
+    }
+
+    /// <summary>
+    /// Read-only view of the messages retained by a <see cref="SentMessageQueue"/>.
+    /// </summary>
+    internal sealed class SentMessageView : IReadOnlyList<NotificationMessage>
+    {
+        public SentMessageView(List<NotificationMessageLease> leases)
+        {
+            m_leases = leases;
+        }
+
+        /// <inheritdoc/>
+        public NotificationMessage this[int index] => m_leases[index].Message;
+
+        /// <inheritdoc/>
+        public int Count => m_leases.Count;
+
+        /// <inheritdoc/>
+        public IEnumerator<NotificationMessage> GetEnumerator()
+        {
+            for (int ii = 0; ii < m_leases.Count; ii++)
+            {
+                yield return m_leases[ii].Message;
+            }
+        }
+
+        /// <inheritdoc/>
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        private readonly List<NotificationMessageLease> m_leases;
     }
 
     /// <summary>
