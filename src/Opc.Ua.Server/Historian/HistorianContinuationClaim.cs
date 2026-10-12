@@ -117,6 +117,13 @@ namespace Opc.Ua.Server.Historian
             {
                 return;
             }
+            if (state.Ownership.HasCapturedDependencies)
+            {
+                // A failed captured-generation read is terminal: restoring its old token would
+                // keep a retired source alive after the request relinquishes its ownership.
+                state.Dispose();
+                return;
+            }
 
             try
             {

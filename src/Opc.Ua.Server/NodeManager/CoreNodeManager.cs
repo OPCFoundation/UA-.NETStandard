@@ -93,6 +93,51 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates and applies a modify request to a monitored item whose source node is detached from the address
+        /// space, using the metadata retained by the item.
+        /// </summary>
+        /// <param name="context">The operation context of the request.</param>
+        /// <param name="timestampsToReturn">The timestamps to be returned for the item.</param>
+        /// <param name="monitoredItem">The detached monitored item to modify.</param>
+        /// <param name="request">The modify request.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <returns>The modification error and the revised filter result, if any.</returns>
+        internal async ValueTask<(ServiceResult? Error, MonitoringFilterResult? FilterResult)>
+            ModifyDetachedMonitoredItemAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                MonitoredItem monitoredItem,
+                MonitoredItemModifyRequest request,
+                CancellationToken cancellationToken)
+        {
+            MonitoringParameters parameters = request.RequestedParameters;
+            NodeState? metadata = monitoredItem.SourceMetadata;
+            if (metadata is null && !parameters.Filter.IsNull)
+            {
+                return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
+            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                parameters.SamplingInterval, monitoredItem.SamplingInterval, metadata,
+                monitoredItem.AttributeId, MinSupportedSamplingInterval);
+            uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
+                monitoredItem.IsDurable, parameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
+            ValidateMonitoringFilterResult validated = await ValidateMonitoringFilterAsync(
+                SystemContext.Copy(context),
+                new NodeHandle { NodeId = monitoredItem.NodeId, Node = metadata! },
+                monitoredItem.AttributeId, samplingInterval, queueSize, parameters.Filter, cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(validated.StatusCode))
+            {
+                return (validated.StatusCode, validated.FilterResult);
+            }
+            ServiceResult? error = monitoredItem.ModifyAttributes(
+                context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
+                validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
+                queueSize, parameters.DiscardOldest);
+            return (error, validated.FilterResult);
+        }
+
+        /// <summary>
         /// Updates the diagnostics node manager with the nodes that were imported.
         /// </summary>
         private void UpdateDiagnostics(ISystemContext context, NodeState node)

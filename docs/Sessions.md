@@ -1383,6 +1383,12 @@ admission succeed. If the session closes during persistence, the late
 mirror entry is removed and `BadSessionClosed` is returned without
 transferring or disposing the caller's resource twice.
 
+Restoring an unknown server session suspends the current activation admission
+while waiting for the restore provider. Activations for distinct tokens and
+unrelated session creation can continue; same-token activations still share one
+pending restore. Admission is reacquired before restored-session validation,
+security checks, activation, and binding notifications.
+
 Replacing or resetting a session's ephemeral user-token key retires the
 previous key. A key already borrowed by credential decryption remains
 valid until the final decrypt operation returns or fails, then its

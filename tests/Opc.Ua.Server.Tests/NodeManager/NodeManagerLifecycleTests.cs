@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -67,7 +68,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class NodeManagerLifecycleTests
+    public sealed partial class NodeManagerLifecycleTests
     {
         private const double kMaxAge = 10000;
 
@@ -94,6 +95,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
         private HashSet<Guid> m_startupRegistrationIds;
+        private ArrayOf<NodeManagerRegistration> m_startupRegistrations;
 
         /// <summary>
         /// Shared by every Session the fixture activates. A subscription transfer between
@@ -124,7 +126,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
             m_startupRegistrationIds = [];
-            m_server.NodeManagerLifecycle.Registrations.ForEach(
+            m_startupRegistrations = m_server.NodeManagerLifecycle.Registrations;
+            m_startupRegistrations.ForEach(
                 registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
@@ -1800,7 +1803,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(
                     modifyResponse.Results[0].StatusCode,
-                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Is.EqualTo(StatusCodes.Good));
 
                 header = m_requestHeader;
                 header.Timestamp = DateTimeUtc.Now;
@@ -7547,6 +7550,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
         }
 
+        private ArrayOf<NodeManagerRegistration> GetBranchRegistrations(INodeManagerLifecycle? lifecycle = null)
+        {
+            lifecycle ??= m_server.NodeManagerLifecycle;
+            ArrayOf<NodeManagerRegistration> registrations = lifecycle.Registrations;
+            if (ReferenceEquals(lifecycle, m_server.NodeManagerLifecycle) && !lifecycle.IsShuttingDown)
+            {
+                foreach (NodeManagerRegistration startup in m_startupRegistrations)
+                {
+                    Assert.That(registrations.Find(registration => registration.Id == startup.Id),
+                        Is.SameAs(startup), "Runtime publication must retain each adopted startup registration.");
+                }
+            }
+            return registrations.ToList().Where(registration => !m_startupRegistrationIds.Contains(registration.Id))
+                .ToArrayOf();
+        }
+
+        private NodeManagerRegistration GetBranchRegistration(INodeManagerLifecycle lifecycle, Guid id)
+        {
+            return RequireLifecycleValue(GetBranchRegistrations(lifecycle).Find(registration => registration.Id == id));
+        }
+
         private static int IndexOfReference(
             IReadOnlyList<IAsyncNodeManager> managers,
             IAsyncNodeManager target)
@@ -7822,7 +7846,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private sealed class TrackingLifecycleNodeManager :
+        private sealed partial class TrackingLifecycleNodeManager :
             NodeManagementLifecycleNodeManager
         {
             private int m_sessionActivatedCount;
@@ -7862,6 +7886,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public int SessionActivatedCount =>
                 Volatile.Read(ref m_sessionActivatedCount);
+
+            public ArrayOf<NodeId> ActivatedSessionIds => [.. m_activatedSessionIds];
+
+            public ArrayOf<NodeId> ClosedSessionIds => [.. m_closedSessionIds];
+
+            public ArrayOf<uint> SubscribedAllEventIds => [.. m_subscribedAllEventIds];
+
+            public ArrayOf<uint> UnsubscribedAllEventIds => [.. m_unsubscribedAllEventIds];
+
+            public ServiceResult AllEventsSubscribeResult { get; set; } = ServiceResult.Good;
+
+            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
 
             /// <summary>
             /// Gets the number of all-events subscriptions dispatched to this generation.
@@ -7903,11 +7939,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets the completion signal raised after asynchronous disposal of the retired manager finishes.
             /// </summary>
             public Task DisposalCompleted => m_disposalCompleted.Task;
-
-            /// <summary>
-            /// Gets or sets the result returned after a successful all-events unsubscribe to simulate cleanup failure.
-            /// </summary>
-            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
 
             /// <summary>
             /// Gets or sets how many address-space deletion attempts must fail before cleanup succeeds.
@@ -7962,6 +7993,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Func<CancellationToken, ValueTask> ReadCallback { get; set; } = null!;
 
+            public NodeId ReadCallbackNodeId { get; set; }
+
+            public Func<NodeId, CancellationToken, ValueTask> ValidateNodeCallback { get; set; } = null!;
+
+            public async ValueTask AddContinuationChildrenAsync(
+                string prefix,
+                CancellationToken cancellationToken)
+            {
+                ushort namespaceIndex = NamespaceIndexes[0];
+                BaseObjectState root = RequireLifecycleValue(
+                    Find(new NodeId(kRootNodeId, namespaceIndex)) as BaseObjectState);
+                for (uint index = 0; index < 2; index++)
+                {
+                    string name = prefix + (index == 0 ? "First" : "Second");
+                    var child = new BaseDataVariableState(root)
+                    {
+                        NodeId = new NodeId(8010 + index, namespaceIndex),
+                        BrowseName = new QualifiedName(name, namespaceIndex),
+                        DisplayName = LocalizedText.From(name),
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        AccessLevel = AccessLevels.CurrentRead,
+                        UserAccessLevel = AccessLevels.CurrentRead,
+                        Value = 42
+                    };
+                    root.AddChild(child);
+                    await AddPredefinedNodeAsync(SystemContext, child, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             /// <summary>
             /// Counts reads and runs the configured observation callback before normal node-manager dispatch.
             /// </summary>
@@ -7974,7 +8036,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_readCount);
-                if (ReadCallback is not null)
+                if (ReadCallback is not null &&
+                    (ReadCallbackNodeId.IsNull || nodesToRead.Contains(node => node.NodeId == ReadCallbackNodeId)))
                 {
                     await ReadCallback(cancellationToken).ConfigureAwait(false);
                 }
@@ -7997,6 +8060,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_sessionActivatedCount);
+                m_activatedSessionIds.Enqueue(sessionId);
                 if (SessionActivatedCallback is not null)
                 {
                     await SessionActivatedCallback(cancellationToken).ConfigureAwait(false);
@@ -8006,6 +8070,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         sessionId,
                         cancellationToken)
                     .ConfigureAwait(false);
+            }
+
+            public override ValueTask SessionClosingAsync(
+                OperationContext context,
+                NodeId sessionId,
+                bool deleteSubscriptions,
+                CancellationToken cancellationToken = default)
+            {
+                m_closedSessionIds.Enqueue(sessionId);
+                return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
             }
 
             /// <summary>
@@ -8021,10 +8095,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (unsubscribe)
                 {
                     Interlocked.Increment(ref m_allEventsUnsubscribeCount);
+                    m_unsubscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
                 else
                 {
                     Interlocked.Increment(ref m_allEventsSubscribeCount);
+                    m_subscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
 
                 if (AllEventsCallback is not null)
@@ -8033,6 +8109,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         monitoredItem,
                         unsubscribe,
                         cancellationToken).ConfigureAwait(false);
+                }
+                if (!unsubscribe && ServiceResult.IsBad(AllEventsSubscribeResult))
+                {
+                    return AllEventsSubscribeResult;
+                }
+                if (unsubscribe && ServiceResult.IsBad(AllEventsUnsubscribeResult))
+                {
+                    return AllEventsUnsubscribeResult;
                 }
 
                 ServiceResult result = await base
@@ -8085,6 +8169,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            protected override async ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                if (ValidateNodeCallback is not null)
+                {
+                    await ValidateNodeCallback(handle.NodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+            }
+
             /// <summary>
             /// Completes base disposal before signaling that the retired generation has released its resources.
             /// </summary>
@@ -8124,6 +8221,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return false;
             }
+
+            private readonly ConcurrentQueue<NodeId> m_activatedSessionIds = new();
+            private readonly ConcurrentQueue<NodeId> m_closedSessionIds = new();
+            private readonly ConcurrentQueue<uint> m_subscribedAllEventIds = new();
+            private readonly ConcurrentQueue<uint> m_unsubscribedAllEventIds = new();
 
             /// <summary>
             /// Signals when asynchronous disposal has completed for deterministic retirement assertions.
