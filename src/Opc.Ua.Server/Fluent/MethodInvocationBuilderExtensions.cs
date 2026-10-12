@@ -56,7 +56,10 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A Method handler requires a Method Node.");
             }
-            FluentNodeManagerBase.ResolveAttachedBuilder(builder.Builder, "OnCallWithResult").ThrowIfSealed();
+            NodeManagerBuilder? manager = builder.Builder is NodeManagerBuilder concrete
+                ? concrete
+                : FluentNodeManagerBase.TryResolveAttachedBuilder(builder.Builder);
+            manager?.ThrowIfSealed();
             RegisterHandler(method, handler);
             return builder;
         }

@@ -59,7 +59,9 @@ response table.
 
 Nested diagnostic text is retained even when the inner status is Good.
 Additional information still requires both the requested diagnostics mask and
-user permission. Encoding respects `DiagnosticInfo.MaxInnerDepth`, counting the
+user permission. Session validation clears any client-supplied internal
+permission flag and grants it only to a SecurityAdmin or ConfigureAdmin session
+that requested additional information. Encoding respects `DiagnosticInfo.MaxInnerDepth`, counting the
 outer diagnostic as one level.
 
 These contracts complement the OPC UA Part 4 Call service's ordered argument

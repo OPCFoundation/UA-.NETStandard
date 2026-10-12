@@ -792,10 +792,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validate the diagnostic info.
+        /// Validates requested diagnostic flags against the session's server-authorized roles.
         /// </summary>
+        /// <param name="requestHeader">The request header whose diagnostic flags must be validated.</param>
         public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
         {
+            if (requestHeader is null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             const uint additionalInfoDiagnosticsMask = (uint)(
                 DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)

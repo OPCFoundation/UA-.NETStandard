@@ -230,11 +230,13 @@ namespace Opc.Ua.Server.Tests
             using var resources = new ResourceManager(m_configuration);
             m_mockServer.Setup(server => server.ResourceManager).Returns(resources);
             ITestNodeManager manager = CreateManager(asynchronousLegacyCall: true);
+            var core = new Mock<ICoreNodeManager>();
+            core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
             var factory = new Mock<IMainNodeManagerFactory>();
             factory.Setup(value => value.CreateConfigurationNodeManager())
                 .Returns(Mock.Of<IConfigurationNodeManager>());
             factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
-                .Returns(Mock.Of<ICoreNodeManager>());
+                .Returns(core.Object);
             m_mockServer.Setup(server => server.MainNodeManagerFactory).Returns(factory.Object);
             await using var dispatcher = new MasterNodeManager(m_mockServer.Object, m_configuration, null, manager);
             m_mockServer.Setup(server => server.NodeManager).Returns(dispatcher);

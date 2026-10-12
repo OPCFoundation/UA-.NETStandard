@@ -264,6 +264,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears the diagnostics result when no reportable operation diagnostics remain.
         /// </summary>
+        /// <param name="context">The receiving operation's string table.</param>
+        /// <param name="diagnosticsExist">Whether a requested diagnostic was generated.</param>
+        /// <param name="diagnosticInfos">The ordered operation diagnostics retained in the response.</param>
         internal void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
@@ -280,7 +283,8 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo) ||
+                            !diagnosticInfo.InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                         {
                             diagnosticsExist = true;
                             break;
