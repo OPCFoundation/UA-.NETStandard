@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         (_, _, nodesToRead, values, _, _) =>
                         {
                             int read;
-                            lock (m_records)
+                            lock (m_recordsLock)
                             {
                                 read = m_records.Count;
                                 m_records.Add(new Record
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_item.Setup(m => m.QueueValue(in It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult?>()))
                     .Callback(new QueueValueCallback((in DataValue value, ServiceResult _) =>
                     {
-                        lock (m_records)
+                        lock (m_recordsLock)
                         {
                             m_records[^1].Queued = value.StatusCode;
                         }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int ValidationsBeforeRead(int cycle)
             {
-                lock (m_records)
+                lock (m_recordsLock)
                 {
                     return m_records[cycle].ValidationsBefore;
                 }
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public StatusCode? QueuedStatus(int cycle)
             {
-                lock (m_records)
+                lock (m_recordsLock)
                 {
                     return m_records[cycle].Queued;
                 }
@@ -343,6 +343,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private readonly Mock<ISampledDataChangeMonitoredItem> m_item = new();
             private readonly object m_handle = new();
             private readonly List<Record> m_records = [];
+            private readonly Lock m_recordsLock = new();
             private readonly Dictionary<int, Action> m_onRead = [];
             private OperationContext? m_context;
             private SamplingGroup? m_group;

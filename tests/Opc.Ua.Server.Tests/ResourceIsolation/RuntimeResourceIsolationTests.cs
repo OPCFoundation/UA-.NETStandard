@@ -1048,9 +1048,10 @@ namespace Opc.Ua.Server.Tests
                     new ChunkReassemblyBudget(100, 50)),
                 NUnitTelemetryContext.Create(), null, new TestClassifier());
             var completed = new List<StatusCode>();
+            var completedLock = new Lock();
             using var queue = new FairRequestQueue(provider, maxQueued, 10, false, (_, status) =>
             {
-                lock (completed)
+                lock (completedLock)
                 {
                     completed.Add(status);
                 }
@@ -1098,7 +1099,10 @@ namespace Opc.Ua.Server.Tests
                     entry.Dispose();
                 }
             }
-            Assert.That(completed, Is.Empty);
+            lock (completedLock)
+            {
+                Assert.That(completed, Is.Empty);
+            }
         }
 
         [Test]

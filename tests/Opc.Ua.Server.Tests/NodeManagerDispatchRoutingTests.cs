@@ -43,7 +43,7 @@ namespace Opc.Ua.Server.Tests
     [TestFixture]
     [Category("MasterNodeManager")]
     [Parallelizable]
-    public class NodeManagerDispatchRoutingTests
+    public sealed class NodeManagerDispatchRoutingTests
     {
         private const string kNamespaceA = "http://test.org/UA/RoutingA/";
         private const string kNamespaceB = "http://test.org/UA/RoutingB/";

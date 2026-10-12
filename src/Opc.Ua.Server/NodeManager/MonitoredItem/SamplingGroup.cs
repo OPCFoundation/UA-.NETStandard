@@ -863,7 +863,8 @@ namespace Opc.Ua.Server
             {
                 m_group = group;
                 m_loopCts = loopCts;
-                double cycles = Math.Ceiling(kPermissionRevalidationPeriod / Math.Max(group.m_samplingInterval, 1));
+                // round down, so that no verdict is used for longer than the period.
+                double cycles = Math.Floor(kPermissionRevalidationPeriod / Math.Max(group.m_samplingInterval, 1));
                 m_revalidationStride = (int)Math.Min(Math.Max(cycles, 1), int.MaxValue);
             }
 

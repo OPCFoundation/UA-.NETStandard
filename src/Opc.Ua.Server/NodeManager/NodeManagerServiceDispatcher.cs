@@ -1235,7 +1235,9 @@ namespace Opc.Ua.Server
                 nodesToRead,
                 out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
 
-            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers = NamespaceManagers;
+            (IAsyncNodeManager[] dispatchOrder,
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
+                m_nodeManagers.GetDispatchView();
             var routes = new NamespaceRoutes();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1271,7 +1273,7 @@ namespace Opc.Ua.Server
             // call each node manager that serves the namespace of a valid item.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
                     if (!routes.Includes(nodeManager))
                     {
@@ -1575,7 +1577,9 @@ namespace Opc.Ua.Server
                 nodesToWrite,
                 out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
 
-            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers = NamespaceManagers;
+            (IAsyncNodeManager[] dispatchOrder,
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
+                m_nodeManagers.GetDispatchView();
             var routes = new NamespaceRoutes();
 
             // add placeholder for each result.
@@ -1626,7 +1630,7 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
                     if (!routes.Includes(nodeManager))
                     {
