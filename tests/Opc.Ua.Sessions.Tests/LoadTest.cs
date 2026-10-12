@@ -763,10 +763,19 @@ namespace Opc.Ua.Sessions.Tests
                 TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
                     $"({eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
 
-                // Wait for subscriptions to deliver the events.
-                // Allow enough publishing intervals for all notifications to be sent and acknowledged.
-                const int publishingIntervalsToWait = 20;
-                await Task.Delay(publishingInterval * publishingIntervalsToWait).ConfigureAwait(false);
+                // Wait until the subscriptions have delivered the queued events: the received
+                // count stops growing for 10 publishing intervals.
+                var drain = System.Diagnostics.Stopwatch.StartNew();
+                long lastReceived = -1;
+                int stableIntervals = 0;
+                while (stableIntervals < 10 && drain.Elapsed < TimeSpan.FromSeconds(testDurationSeconds * 2))
+                {
+                    await Task.Delay(publishingInterval).ConfigureAwait(false);
+                    long receivedSoFar = Interlocked.Read(ref eventsReceived);
+                    stableIntervals = receivedSoFar == lastReceived ? stableIntervals + 1 : 0;
+                    lastReceived = receivedSoFar;
+                }
+                TestContext.Out.WriteLine($"Events drained {drain.Elapsed.TotalSeconds:F1} s after the last event.");
 
                 long expectedTotal = (long)eventCount * totalSubscriptions;
                 long received = Interlocked.Read(ref eventsReceived);
