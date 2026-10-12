@@ -1368,6 +1368,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         /// worker dispose the inner session, which waited the full drain
         /// timeout (30 s) for the very handler that waited for the close.
         /// </summary>
+        /// <param name="dispose">The dispose flag for this test case.</param>
         [TestCase(true)]
         [TestCase(false)]
         public async Task CloseFromInnerNotificationHandlerDoesNotWaitForItsDrainAsync(bool dispose)
@@ -1413,6 +1414,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .WaitAsync(TimeSpan.FromSeconds(60))
                 .ConfigureAwait(false);
             Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(8)));
+            await managedSession.DisposeAsync().AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(8))
+                .ConfigureAwait(false);
             Assert.That(innerSession.Disposed, Is.True);
         }
 

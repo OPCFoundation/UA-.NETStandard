@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -4065,19 +4065,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?
                 .HasSession(secureChannelId) ?? false;
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.TryGetSessionContext(
+        bool IServerSessionBindingProvider.TryGetSessionContext(
             NodeId authenticationToken,
             SecureChannelContext channelContext,
             [NotNullWhen(true)] out SessionBindingContext? context)
         {
-            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            if (m_serverInternal?.SessionManager is IServerSessionBindingProvider provider)
             {
                 return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
             }

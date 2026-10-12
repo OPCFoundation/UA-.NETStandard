@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
             int rental = probe.Length;
             buffers.ReturnBuffer(probe, "probe");
             var budget = new ChunkReassemblyBudget(8L * rental);
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 2L * rental };
             ApplicationConfiguration configuration = Configuration();
             using var provider = new DefaultServerResourceIsolationProvider(
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
         {
             ServerResourceIsolationOptions options = Options();
             options.MaxTrackedOwners = 4;
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession("active")).Returns(true);
             using DefaultServerResourceIsolationProvider provider =
                 CreateProvider(options, new TestClassifier(), bindings.Object);
@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests
             ResourceIsolationIdentity identity = new("shared-tenant", ResourceIsolationClass.Established);
             classifier.Setup(value => value.TryClassify(
                     It.IsAny<SecureChannelContext>(), It.IsAny<SessionBindingContext>(), out identity)).Returns(true);
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
             using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), classifier.Object,
                 bindings.Object);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ReassemblyMembershipPromotionCannotGrantOtherResourceOrRatePrivileges()
         {
-            var bindings = new Mock<ISessionBindingProvider>();
+            var bindings = new Mock<IServerSessionBindingProvider>();
             bindings.Setup(value => value.HasSession("active")).Returns(true);
             using DefaultServerResourceIsolationProvider provider =
                 CreateProvider(Options(), bindings: bindings.Object);
@@ -1609,7 +1609,7 @@ namespace Opc.Ua.Server.Tests
         private static DefaultServerResourceIsolationProvider CreateProvider(
             ServerResourceIsolationOptions options,
             IResourceIsolationClassifier? classifier = null,
-            ISessionBindingProvider? bindings = null)
+            IServerSessionBindingProvider? bindings = null)
         {
             return new DefaultServerResourceIsolationProvider(
                 options.CreateRuntimePlan(Configuration(), new ServerRateLimitOptions(),
@@ -1675,7 +1675,7 @@ namespace Opc.Ua.Server.Tests
                 SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt);
         }
 
-        private sealed class TestBindings : ISessionBindingProvider
+        private sealed class TestBindings : IServerSessionBindingProvider
         {
             public Dictionary<NodeId, SessionBindingContext> Bindings { get; } = [];
 

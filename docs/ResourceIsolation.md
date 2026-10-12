@@ -598,7 +598,7 @@ ordinary caller churn cannot use every entry.
 ### Memory for clients that already have a Session
 
 When an incomplete message arrives, the Session token may be in a later chunk.
-The default provider asks the server's `ISessionBindingProvider` whether the
+The default provider asks the server's `IServerSessionBindingProvider` whether the
 channel already carries an activated Session. Such a channel can use the
 continuity/reconnect byte reserve without a tenant classifier. A channel
 without an activated Session cannot consume that reserve.
@@ -676,7 +676,7 @@ A secure application certificate does not, by itself, grant a provisioned
 trusted-owner reserve. An activated anonymous Session is not automatically a
 trusted owner either.
 
-Decoded-request classification uses `ISessionBindingProvider` and is checked
+Decoded-request classification uses `IServerSessionBindingProvider` and is checked
 again before execution. Stale, transferred, expired, or unknown Session tokens
 cannot preserve an earlier protected classification. Normal service
 authentication and authorization still execute. HTTPS logical channels may
