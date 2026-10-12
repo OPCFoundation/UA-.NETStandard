@@ -1789,7 +1789,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            if (TrySendResponseWithoutGate(requestId, response, startWriterInline: false))
+            if (TrySendResponseWithoutGate(requestId, response))
             {
                 return false;
             }
@@ -1808,8 +1808,7 @@ namespace Opc.Ua.Bindings
         /// Used by the request dispatch path, which runs on thread-pool workers. An open
         /// channel takes no lock for a response: it is encoded on the caller's thread and
         /// queued for the writer, which numbers and secures it (see
-        /// <see cref="UaSCUaBinaryChannel.SendOrder"/>). If the writer is idle it runs
-        /// on the caller's thread for one batch. Only a channel that is not open, or
+        /// <see cref="UaSCUaBinaryChannel.SendOrder"/>). Only a channel that is not open, or
         /// whose renewed token is due for activation, waits for the gate.
         /// </remarks>
         /// <returns><c>true</c> if the response was retained for delivery after reconnect.</returns>
@@ -1822,7 +1821,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            if (TrySendResponseWithoutGate(requestId, response, startWriterInline: true))
+            if (TrySendResponseWithoutGate(requestId, response))
             {
                 return false;
             }
@@ -1839,8 +1838,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="requestId">The request being answered.</param>
         /// <param name="response">The response.</param>
-        /// <param name="startWriterInline">Whether an idle writer may run on this
-        /// thread. The caller holds no lock.</param>
         /// <returns><see langword="false"/> when the caller must send the response
         /// under the gate instead: the channel is not open, a renewed token is due
         /// for activation, the transport is gone, or the response cannot be encoded
@@ -1853,8 +1850,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private bool TrySendResponseWithoutGate(
             uint requestId,
-            IServiceResponse response,
-            bool startWriterInline)
+            IServiceResponse response)
         {
             if (State != TcpChannelState.Open ||
                 IsRenewedTokenActivationDue ||
@@ -1880,7 +1876,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (!BeginWriteSymmetricMessage(encoded, null, startWriterInline))
+            if (!BeginWriteSymmetricMessage(encoded, null))
             {
                 encoded.Chunks.Release(BufferManager, "SendResponse");
                 return false;
@@ -1964,7 +1960,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // queued for the writer, which secures it with the token current then.
-                if (!BeginWriteSymmetricMessage(encoded, null, startWriterInline: false))
+                if (!BeginWriteSymmetricMessage(encoded, null))
                 {
                     encoded.Chunks.Release(BufferManager, "SendResponse");
 

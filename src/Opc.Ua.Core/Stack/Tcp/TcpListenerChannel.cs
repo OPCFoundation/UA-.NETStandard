@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Bindings
 
                 // queue for the writer, which secures it. Without a transport the
                 // fault is dropped, as a write to a closed transport would be.
-                if (BeginWriteSymmetricMessage(encoded, null, startWriterInline: false))
+                if (BeginWriteSymmetricMessage(encoded, null))
                 {
                     encoded = null;
                 }
