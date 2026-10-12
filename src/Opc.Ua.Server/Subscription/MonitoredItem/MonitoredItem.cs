@@ -408,6 +408,20 @@ namespace Opc.Ua.Server
         internal static bool HasRecoverableItems => Interlocked.Read(ref s_recoverableCount) > 0;
 
         /// <summary>
+        /// Whether this item is included in <see cref="HasRecoverableItems"/>.
+        /// </summary>
+        internal bool IsCountedAsRecoverable
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_countedAsRecoverable;
+                }
+            }
+        }
+
+        /// <summary>
         /// Sets the detached and deleted flags and keeps <see cref="HasRecoverableItems"/>
         /// in step. The caller holds <c>m_lock</c>.
         /// </summary>
