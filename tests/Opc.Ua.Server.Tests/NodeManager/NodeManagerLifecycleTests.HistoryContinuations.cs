@@ -603,6 +603,66 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that dynamic history pagination rejects replacement caches before
+        /// returning data or transferring continuation ownership, even when the cache
+        /// implements the ownership-reporting interface.
+        /// </summary>
+        /// <param name="reportsOwnership">Whether the cache implements ownership reporting.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Integration")]
+        public async Task DynamicHistoryPaginationRejectsReplacementCacheBeforeSaveAsync(bool reportsOwnership)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var data = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
+            var owner = await AddHistoryOwnerAsync(
+                data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            var cache = new Mock<ISessionContinuationPoints>(MockBehavior.Strict);
+            if (reportsOwnership)
+            {
+                cache.As<ISessionHistoryContinuationPointLifecycle>()
+                    .Setup(value => value.HasHistoryForManager(It.IsAny<IAsyncNodeManager>()))
+                    .Returns(false);
+            }
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.ContinuationPoints).Returns(cache.Object);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            session.SetupGet(value => value.PreferredLocales).Returns([]);
+            using var operation = new OperationContext(session.Object, DiagnosticsMasks.None);
+            var context = new ServerSystemContext(m_server.CurrentInstance, operation);
+            NodeState node = RequireLifecycleValue(owner.Manager.Find(owner.NodeId));
+            var unpaged = new HistoryReadResult();
+
+            ServiceResult unpagedError = await HistorianDispatcher.DispatchRawReadAsync(
+                context, data, node, new HistoryReadValueId { NodeId = owner.NodeId },
+                CreateHistoryDetails(0), TimestampsToReturn.Both, unpaged, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(unpagedError), Is.True);
+            Assert.That(unpaged.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(unpaged.HistoryData.TryGetValue(out HistoryData? values), Is.True);
+            AssertLifecycleValue(values);
+            Assert.That(values.DataValues.Count, Is.EqualTo(2));
+            Assert.That(unpaged.ContinuationPoint.IsEmpty, Is.True);
+
+            var paged = new HistoryReadResult();
+            await HistorianDispatcher.DispatchRawReadAsync(
+                context, data, node, new HistoryReadValueId { NodeId = owner.NodeId },
+                CreateHistoryDetails(1), TimestampsToReturn.Both, paged, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(paged.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(paged.HistoryData.IsNull, Is.True);
+            Assert.That(paged.ContinuationPoint.IsEmpty, Is.True);
+            cache.Verify(value => value.SaveHistoryAsync(
+                It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()), Times.Never);
+            cache.VerifyNoOtherCalls();
+            NodeManagerBatchResult retired = await RetireContinuationOwnerAsync(
+                owner.Registration, false, timeout.Token).ConfigureAwait(false);
+            Assert.That(retired.Retired, Is.EqualTo(1u));
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
+        }
+
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]

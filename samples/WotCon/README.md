@@ -25,7 +25,7 @@ protocol forms, native payloads, defaults and vendor metadata are not rewritten.
 The complete linked set is refreshed with `PerRegistry` atomicity. The server
 uses file-backed registry storage so preparation and publication share a durable
 decision.
-Stock file-content leases provide mandatory exclusion on Windows only. On other
+Default file-content leases provide mandatory exclusion on Windows only. On other
 platforms, programmatic hosts must supply `AggregationServerOptions.ResourceStore`
 with genuine immutable-content leases for `PerRegistry` publication; the sample
 fails explicitly rather than pretending advisory file sharing is equivalent.
@@ -233,7 +233,8 @@ registry storage its own directory under the isolated run root.
 ## Checked-in document set
 
 [`documents.json`](AggregationClient/Documents/documents.json) is the authoritative
-inventory. It contains linked DI, Machinery, and Pumps documents, two pump
+inventory. The current manifest has **535 document entries**. It contains linked
+DI, Machinery, and Pumps documents, two pump
 instance closures, and six projection documents per pump: Members,
 ProcessData, ConditionData, Supervision, Management, and Asset.
 
@@ -243,7 +244,9 @@ export by reconstructing the complete source facts. The generator then enriches
 existing affordances by local identity with source-specific forms. It does not
 replace the generated maps or add Nodes over an authoritative native partition.
 Dependencies describe actual document references and ownership, not an arbitrary
-upload chain. Use the manifest rather than assuming a fixed resource count.
+upload chain. The pinned Pumps NodeSet contains **9,624 Nodes**; this source-model
+count is distinct from the exported document inventory. Use the manifest rather
+than assuming that every Node corresponds to one document.
 
 Checked-in JSON uses sorted members, two-space indentation, and LF line endings.
 Generated filenames use single hyphens with no trailing hyphen before `.json`.
@@ -254,7 +257,7 @@ Localizations, type bindings, method arguments, engineering units and ranges,
 ordered event selections, and Condition-action relationships remain in the
 generated documents. Event severity comes from the source occurrence, not an
 invented severity property on an asset projection. See
-[WoT / NodeSet conversion](../../docs/WoTNodeSetConversion.md) for the representation
+[WoT bindings and conversion](../../docs/WotBindings.md#identity-and-preservation) for the representation
 and preservation rules.
 
 The DI documents use **DI 1.05.0**. `ConnectsTo` derives from

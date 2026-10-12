@@ -246,9 +246,8 @@ Assumes the client or server path.
   metadata between PubSub messages.
 - [MCP server](McpServer.md) — let AI agents browse, read, write, and diagnose
   OPC UA servers.
-- [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
-  [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
-  protocol bindings. Read WoT connectivity first.
+- [WoT bindings and NodeSet conversion](WotBindings.md) — configure transports,
+  convert Thing Descriptions, and add bindings. Read WoT connectivity first.
 
 ### Session recovery and performance
 
@@ -322,27 +321,18 @@ guide describes its current limitations.
   task-level motion commands. Does not require the Robotics model.
 - [OpenUSD](OpenUsd.md) (draft models; preview package) — bind values to OpenUSD
   scenes and materialize scenes in the address space.
-- [WoT Connectivity 1.1 registry](WoTConnectivity.md#11-wot-connectivity-11-registry-and-materialization-preview)
-  (draft model; preview package) — registry and materialization. Read WoT
-  connectivity first.
+- [WoT Connectivity registry](WoTConnectivity.md#hosting-the-registry)
+  (draft model; preview package) — hosting, document provisioning, and refresh.
 - [Generation-bound session clients](SessionBindings.md) — captured
   authenticated dispatch and immutable mapping ownership.
-- [Awaited NodeManager readiness](NodeManagerReadiness.md) — post-publication
+- [Awaited NodeManager readiness](NodeManagers.md#awaited-readiness) — post-publication
   initialization and dependent runtime-manager ownership.
-- [Independent readable WoT models](WoTIndependentModels.md) — explicit
-  multi-model import and deterministic namespace normalization.
-- [Legacy WoT existing-type bindings](WoTLegacyTypeBindings.md) — loaded
-  declarations and literal source preservation.
-- [WoT registry Version leases](WotRegistryVersionLeases.md) — exact
-  Version retention for file handles and pending writes.
-- [Prepared WoT registry storage](WotRegistryPreparedStore.md) — validated
-  generations and authoritative atomic commit outcomes.
-- [WoT dependency snapshots](WotDependencySnapshots.md) — committed and
-  attempted exact-Version graphs, origin pins, and persistence boundaries.
-- [Prepared View publication](WotPreparedViewPublication.md) — graph-wide
-  candidates, captured native ownership, and recovery.
-- [OPC UA browse-path targets](WotBrowsePathTargets.md) — portable source
-  paths, captured anchors, and observation maintenance.
+- [WoT-Con 1.02 compatibility](WoTConnectivity.md#wot-con-102-compatibility) —
+  existing-type bindings, declarations, and original document preservation.
+- [WoT bindings and conversion](WotBindings.md) — independent readable models,
+  portable source paths, payloads, and protocol configuration.
+- [WoT design and provider contracts](WoT.md) — exact-Version dependencies and
+  leases, prepared storage/publication, and recovery.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
 

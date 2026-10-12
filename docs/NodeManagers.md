@@ -34,7 +34,6 @@ a server yet, start with [Getting started](GettingStarted.md).
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
   - [Awaited readiness](#awaited-readiness)
-
   - [Registration generations](#registration-generations)
   - [Runtime registration](#runtime-registration)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
@@ -634,18 +633,129 @@ services.AddOpcUa()
 
 ### Awaited readiness
 
-A manager that needs initialized server subsystems or must register dependent
-runtime managers implements `INodeManagerReadinessParticipant`. `StandardServer`
-awaits it for static initial managers; runtime Add and all reload modes await it
-for their committed generation. Do not register dependencies while preparing
-`CreateAddressSpaceAsync`: preparation is serialized and is not server readiness.
+Implement `INodeManagerReadinessParticipant` when your manager needs initialized
+server subsystems or registers dependent runtime NodeManagers:
 
-Readiness runs after publication, outside registration serialization, while the
-owning operation reserves its generation. Competing same-generation removal or
-reload fails explicitly until readiness completes. Caller cancellation and
-readiness failures are reported as post-commit failures, not rollback.
-See [Awaited NodeManager readiness](NodeManagerReadiness.md) for ordering,
-dependency cleanup, synchronous factory adapters, and custom host migration.
+```csharp
+public interface INodeManagerReadinessParticipant
+{
+    ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default);
+}
+```
+
+Create the manager's own address space in `CreateAddressSpaceAsync`. Register
+dependent runtime managers in `OnServerReadyAsync`, when the server can process
+runtime lifecycle operations. `AsyncNodeManagerAdapter` and
+`SyncNodeManagerAdapter` forward this asynchronous callback. A manager created
+directly or through a DI factory uses the same readiness contract.
+
+| Hosting operation | When readiness runs | Completion |
+| --- | --- | --- |
+| `StandardServer` startup | After initial address spaces and server subsystems are initialized | Startup awaits each initial participant before `OnServerStarted` and before returning |
+| Runtime `AddAsync` | After the new generation is registered and visible to clients | `AddAsync` awaits readiness before returning its handle |
+| Normal, shadow or immediate reload | After the replacement is visible and the applicable retired-generation completion work has run | Reload awaits replacement readiness before returning its handle |
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Lifecycle as Server / lifecycle
+    participant Manager as New NodeManager
+    participant Dependency as Dependent NodeManager
+    Caller->>Lifecycle: StartAsync / AddAsync / reload
+    Lifecycle->>Manager: CreateAddressSpaceAsync
+    Lifecycle->>Lifecycle: Publish address space
+    Note over Lifecycle,Manager: Clients can read the published generation
+    Lifecycle->>Manager: OnServerReadyAsync(cancellationToken)
+    Manager->>Lifecycle: AddAsync(dependentFactory)
+    Lifecycle->>Dependency: CreateAddressSpaceAsync and readiness
+    Lifecycle-->>Manager: Dependent registration handle
+    Manager-->>Lifecycle: Readiness complete
+    Lifecycle-->>Caller: Startup complete / registration handle
+```
+
+The server captures the initial manager set before allowing runtime additions.
+A manager added during startup or inside a readiness callback receives its own
+callback through `AddAsync`. The server does not call it again as an initial
+participant. Static initial managers also receive readiness.
+
+#### Concurrent operations and cancellation
+
+While awaiting readiness, the lifecycle allows operations on unrelated
+registrations, including dependent `AddAsync` calls. It prevents removal or
+reload of the initializing generation until its owning operation completes.
+A competing operation on that registration throws `InvalidOperationException`
+with a readiness-in-progress diagnostic. Retry after initialization finishes.
+Do not remove or reload your own registration inside its readiness callback.
+
+Forward the callback's cancellation token to your awaited work. The lifecycle
+checks it before and after the callback. Cancellation after publication does
+not undo publication, so it does not mean that clients never saw the manager.
+Readiness also does not make several registrations visible atomically.
+
+Shutdown rejects new lifecycle operations and waits for active readiness work
+before dismantling the server. After an orderly `StopAsync`, the same server
+and injected `INodeManagerLifecycle` can be used by a later `StartAsync`.
+Disposing the server or lifecycle provider is final.
+
+#### Readiness failure and dependency cleanup
+
+| Failure point | What the caller receives |
+| --- | --- |
+| Preparation | The preparation error. Readiness does not run |
+| Runtime Add readiness | A post-commit `InvalidOperationException` preserving the original error. The published handle is available in `Registrations` for recovery or removal |
+| Reload readiness | `NodeManagerReloadCommittedException`. Its `Registration` identifies the published replacement |
+| Initial readiness | The startup error after `StandardServer` awaits shutdown, including dependent registrations. Cleanup errors are also reported |
+
+Keep every successfully added dependency handle, including dependencies added
+before a later readiness failure. Remove those registrations in your manager's
+`DeleteAddressSpaceAsync`. This does not give your manager ownership of injected
+registries, coordinators or stores. Dispose those only if your application owns
+them. After detaching a manager, the host runs its address-space deletion outside
+the lifecycle operation that published or removed it, so deletion can await
+removal of its dependencies. Shadow-retired managers wait for retained
+MonitoredItems and requests to finish before cleanup.
+
+#### WoT registry initialization
+
+`WotRegistryNodeManager` creates its stable registry address space first.
+Readiness then awaits the initial Refresh and reconciles its materialized
+projection. A populated `FileWotRegistryStore` therefore exposes successfully
+materialized projections before startup or runtime `AddAsync` returns.
+This applies to `AddWotRegistryServer` and direct
+`WotRegistryNodeManagerFactory` construction. `AutoRefresh = false` disables
+automatic refresh after content changes, not the initial Refresh.
+
+Failed materializations are recorded in the registry and fail startup with
+`BadConfigurationError`. A runtime Add reports them through its post-commit
+exception, leaving the published parent removable. While startup runs this
+Refresh, a concurrent native `Refresh` returns `BadServerTooBusy`. It does not
+queue behind startup. After success, failure or cancellation, explicit
+`Refresh` calls use normal admission rules. See
+[WoT Connectivity](WoTConnectivity.md#111-architecture) for configuration.
+
+#### Initializing managers in a custom host
+
+If your host does not use `StandardServer`, initialize the address spaces and
+server subsystems, enable runtime lifecycle operations, then await readiness.
+`MasterNodeManager.StartupAsync` and `CreateAddressSpaceAsync` do not perform
+all of these host steps. Capture the initial manager set before callbacks:
+
+```csharp
+ArrayOf<IAsyncNodeManager> initialManagers = [.. master.AsyncNodeManagers];
+
+// Initialize server subsystems and enable runtime lifecycle operations here.
+for (int ii = 0; ii < initialManagers.Count; ii++)
+{
+    if (initialManagers[ii] is INodeManagerReadinessParticipant participant)
+    {
+        await participant.OnServerReadyAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+```
+
+Your host handles startup failure and shuts down initialized managers and their
+dependencies. Use `INodeManagerLifecycle` for runtime additions and reloads.
+Those operations already await readiness, so do not call it a second time.
 
 ### Registration generations
 
@@ -816,19 +926,38 @@ custom Subscription implementation needs the equivalent snapshots from
 
 #### Continuation points
 
-`ShadowReloadAsync` and graceful prepared-batch replacement/removal retain saved Browse continuation
-points even when the old NodeManagers have no MonitoredItems. A point retains both its issuing
-manager and every old-generation owner needed by its remaining targets, including cross-manager
-metadata and filtering. Owners are resolved by exact NodeId against the captured route image, not
-by namespace membership. Two points sharing a target retain that target independently; unrelated
-managers, including other managers in the same namespace, can retire.
-Restoring a point transfers its use to the executing `BrowseNext` without releasing any owner.
-Each page uses the captured routing
-and reference image, preserves the original Browse filters, and rechecks current permissions.
-The continuation's routing view excludes unrelated retired managers while preserving the
-captured type, factory, and reference images. New Browse operations use the active generation.
-Disposal and initial ownership registration are coordinated so a concurrent disposal cannot
-leave a disposed continuation retaining its generation.
+`ShadowReloadAsync` and graceful prepared-batch replacement/removal retain saved
+Browse continuation points even when the old NodeManagers have no MonitoredItems.
+A continuation point keeps its issuing NodeManager alive and also keeps alive
+each old-generation NodeManager needed to return or filter later references.
+The server resolves these dependencies by exact NodeId, not namespace membership.
+Two continuation points that need the same target retain its NodeManager
+independently. Unrelated managers can retire, even in the same namespace.
+
+Restoring a continuation point transfers its use to `BrowseNext` without
+releasing any retained NodeManager. Each page uses the original routing,
+reference, type and encodeable-factory information and Browse filters.
+The server checks current permissions on every page. New Browse requests use
+the active generation.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Old as Original NodeManager
+    participant New as Replacement NodeManager
+    Client->>Server: Browse
+    Server->>Old: Read first page and record dependencies
+    Server-->>Client: References + continuation point
+    Server->>New: Publish replacement
+    Note over Server,Old: Saved continuation keeps original dependencies alive
+    Client->>Server: BrowseNext(continuationPoint)
+    Server->>Server: Check current Session permissions
+    Server->>Old: Read next page using original model
+    Server-->>Client: References + next continuation point
+    Note over Server,Old: Final page or release ends retention
+    Server->>Old: Delete address space after all retained work drains
+```
 
 **Custom browser compatibility:** paginated Browse requires a complete dependency declaration
 through `IBrowseContinuationDependencies` on `ContinuationPoint.Data`. The built-in
@@ -837,25 +966,26 @@ directly. The standard `NodeBrowser` reports its remaining stored references, in
 without advancing. Derived or custom lazy browsers must explicitly implement/override the query
 and include every future target owner they can need, not just currently buffered targets.
 `GetRemainingReferenceTargets()` supplies the stored part for a derived browser's declaration.
-An empty successful declaration promises that only the issuing owner is needed.
+An empty successful declaration means that only the issuing NodeManager is needed.
 If the complete set cannot be declared, paginated Browse returns `BadNotSupported`, with no
 continuation or partial references, instead of guessing, retaining the whole server, or silently
 losing targets later. Unpaged Browse is unchanged. A declaration is captured before first save and
-remains valid for that point's lifetime; arbitrary new external dependencies cannot appear later.
+remains valid for that continuation point's lifetime. New external dependencies cannot appear later.
 
-Final-page completion, explicit release, cache eviction, failed or cancelled `BrowseNext`, and
-Session close/disposal release the corresponding ownership. The cache evicts only available
-points, not points currently executing in a request. Releasing one point does not release another
-point or another manager, and a continuation for an unrelated manager does not prevent cleanup.
-Cleanup is scheduled through the existing lifecycle drain; destruction waits until that owner's
-MonitoredItems, Browse and participating HistoryRead continuations, and captured requests have drained.
+Final-page completion, explicit release, cache eviction, failed or cancelled
+`BrowseNext`, and Session close/disposal release the NodeManagers retained by
+that continuation point. The cache evicts only saved continuation points, not
+those executing in a request. Releasing one continuation point does not release
+the retention held by another. A retired NodeManager is deleted only after its
+MonitoredItems, Browse and participating HistoryRead continuation points, and
+in-flight requests have finished.
 
-The stock historian also retains old-generation HistoryRead points during shadow reload and
-graceful prepared-batch replacement/removal, even with no Browse points or MonitoredItems.
-Each point keeps its exact provider, source Node, requested Node identity, original query and
+The default historian also retains old-generation HistoryRead continuation points during shadow reload and
+graceful prepared-batch replacement/removal, even with no Browse continuation points or MonitoredItems.
+Each continuation point keeps its exact provider, source Node, requested Node identity, original query and
 data selection, and captured routing/type/factory/reference images. Resumed reads recheck the
 calling Session's permissions against the retained source; they do not look up a replacement
-provider or route a token to the new model. A foreign Session cannot consume the point.
+provider or route a token to the new model. A foreign Session cannot consume the continuation point.
 New history reads use the active generation.
 
 For paginated dynamic sources, providers implement `IHistorianContinuationDependencies` and
@@ -868,25 +998,33 @@ incomplete declarations on dynamic sources return `BadNotSupported`, without par
 a continuation. Opaque custom NodeManager history states cannot be made retirement-safe by
 examining their contents and are likewise rejected for dynamic pagination.
 
-Saved and checked-out history states share the session cache's ownership accounting. Final
-pages, explicit release, eviction, failure/cancellation, and Session close/disposal release
-their corresponding uses; a checked-out point is neither an eviction victim nor disposed by
-another request. Failed multi-Node HistoryRead responses discard all undelivered continuations.
-Immediate retirement invalidates points requiring either the source or a dependency, and
-shutdown keeps the existing bounded request drain. The stock cache implements
-`ISessionHistoryContinuationPointLifecycle`; dynamic historian pagination currently requires
-that stock cache, because an arbitrary external cache cannot restore its captured dispatch
-scope. Reporting history ownership alone does not supply that routing capability.
+The default Session cache accounts for both saved and executing history
+continuation points. Completion, release, eviction, failure, cancellation and
+Session teardown end their retention. An executing continuation point cannot be
+evicted or disposed by another request. Failed multi-Node HistoryRead responses
+discard continuation points that the client did not receive.
 
-History persistence and standby envelopes remain metadata-only: they identify the originating
-Session for cleanup, but cannot recreate a provider cursor, source object, or generation on
-another process. Such a mirrored token returns `BadContinuationPointInvalid`.
+Use the cache supplied by `Session` for dynamic historian pagination.
+`ISessionHistoryContinuationPointLifecycle` reports whether a continuation
+point retains a NodeManager and signals its release. Implementing that interface
+does not provide the original routing, type and reference information needed
+to execute a resumed read. The historian dispatcher rejects a replacement
+cache with `BadNotSupported` before saving such a continuation or returning
+partial data. This restriction prevents custom caches from accepting dynamic
+history reads they cannot resume safely.
 
-Normal and immediate reload/removal invalidate points requiring the removed manager, whether it
+Replicated history records identify their original Session so a standby can
+clean them up. They do not recreate the live provider, source Node or old
+NodeManager on that process. Resuming one returns `BadContinuationPointInvalid`.
+The client must start a new history read on the standby. See
+[historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget)
+for provider setup and continuation rules.
+
+Normal and immediate reload/removal invalidate continuation points requiring the removed manager, whether it
 is the source or a dependency. A later `BrowseNext` returns
 `BadContinuationPointInvalid` rather than invoking a disposed generation. An invalidated or
-closed-session point cannot be saved again by a request that was already executing. Shutdown
-discards saved points and retains the existing bounded request-drain and cleanup behavior.
+closed-session continuation point cannot be saved again by a request that was already executing. Shutdown
+discards saved continuation points and waits for the bounded request drain before cleanup.
 
 Custom Session continuation caches can implement `ISessionContinuationPointLifecycle` to report
 exact saved and executing Browse ownership and signal final release. Their ownership and
@@ -930,7 +1068,7 @@ silently discarded by publication. Retired images remain readable but cannot be
 changed. Preparation does not replace the shared schema resolver; that update
 belongs to successful publication.
 
-Before invoking the durable decision, the batch atomically validates and reserves
+Before calling the application's durable commit callback, the batch atomically validates and reserves
 the exact serving routing revision. All routing writers, including public namespace
 registration/unregistration, visibility, startup/reset, and reference-view ownership
 changes, fail with `InvalidOperationException` before routing effects while that
@@ -942,14 +1080,14 @@ After acceptance, the reservation protects the switch and internal host bookkeep
 then releases before committed-state and binding-reconciliation callbacks. Successful
 later writes therefore remain effective, and callbacks can use the normal routing APIs.
 
-Prepared batches require the stock `EncodeableFactory`. An unsupported custom
+Prepared batches require the default `EncodeableFactory`. An unsupported custom
 factory is rejected before candidate creation. When a server stops, a supplied
 private factory retains its committed registrations and can be reused by a later
 server lifetime.
 
 #### Invocation publication units
 
-The stock and hosted lifecycles also implement
+The default and hosted lifecycles also implement
 `INodeManagerPublicationLifecycle`. `CapturePublication` records the serving
 routing, type and factory revisions without changing them. Calling the capture's
 `BeginAsync` reserves one logical invocation; `IsCurrent` reports whether those
@@ -1034,14 +1172,14 @@ filters, modes, SubscriptionIds, and MonitoredItemIds retain their service-speci
 errors; repeated deletion returns `BadMonitoredItemIdInvalid`.
 
 Immediate prepared retirement supports `AsyncCustomNodeManager` sources using
-the stock monitored-node or sampling-group manager and stock `MonitoredItem`
+the default monitored-node or sampling-group manager and default `MonitoredItem`
 queues. Opaque managers, replacement monitored-item implementations, and
 unsupported Core/Subscription providers fail preflight before the durable
 decision rather than silently bypassing cutoff. Custom code that emits outside
 the source-owned reporting APIs is not covered by this contract. An in-progress
 custom item factory prevents immediate preparation; while an immediate decision
 is pending, a new custom factory request returns `BadNotSupported` without
-invoking the factory. Normal stock creation and existing source emissions remain
+invoking the factory. Normal default creation and existing source emissions remain
 usable before publication. Rejection or cancellation releases this reservation,
 including admission for custom factories; graceful retirement does not reserve it.
 
