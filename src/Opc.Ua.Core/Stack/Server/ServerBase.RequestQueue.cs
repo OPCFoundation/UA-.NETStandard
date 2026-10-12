@@ -165,18 +165,27 @@ namespace Opc.Ua
                 bool serverStopped;
                 bool queueFull = false;
 
-                lock (m_workerGate)
+                if (m_fairQueue != null)
                 {
-                    serverStopped = m_stopped;
-                    if (!serverStopped && m_fairQueue == null)
+                    // The fair queue rejects admissions itself once stopped, so the
+                    // worker gate is not needed on this path.
+                    serverStopped = Volatile.Read(ref m_stopped);
+                }
+                else
+                {
+                    lock (m_workerGate)
                     {
-                        queueFull = !m_queue.Writer.TryWrite(new QueuedRequest(request, cancellationToken));
-                        if (!queueFull &&
-                            m_totalThreadCount < m_maxThreadCount &&
-                            m_activeThreadCount >= m_totalThreadCount)
+                        serverStopped = m_stopped;
+                        if (!serverStopped)
                         {
-                            Interlocked.Increment(ref m_totalThreadCount);
-                            m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token), CancellationToken.None));
+                            queueFull = !m_queue.Writer.TryWrite(new QueuedRequest(request, cancellationToken));
+                            if (!queueFull &&
+                                m_totalThreadCount < m_maxThreadCount &&
+                                m_activeThreadCount >= m_totalThreadCount)
+                            {
+                                Interlocked.Increment(ref m_totalThreadCount);
+                                m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token), CancellationToken.None));
+                            }
                         }
                     }
                 }
@@ -242,7 +251,11 @@ namespace Opc.Ua
             /// </summary>
             private void GrowFairWorkers()
             {
-                if (m_fairQueue?.Count > 0)
+                // The counters are re-checked under the gate; the unlocked pre-check keeps the
+                // gate off the per-request path while a worker is idle or the pool is full.
+                if (m_fairQueue?.Count > 0 &&
+                    Volatile.Read(ref m_totalThreadCount) < m_maxThreadCount &&
+                    Volatile.Read(ref m_activeThreadCount) >= Volatile.Read(ref m_totalThreadCount))
                 {
                     lock (m_workerGate)
                     {
@@ -277,15 +290,20 @@ namespace Opc.Ua
                     m_server.m_logger.RequestQueueProcessingFailed(ex);
                 }
                 await Task.WhenAll(workers).ConfigureAwait(false);
-                Task? processing;
+                Task processing;
                 lock (m_workerGate)
                 {
-                    processing = m_processingDrained?.Task;
+                    // Parked handlers may still finish after the workers; the last one to
+                    // finish completes the drain, unless none is left already.
+                    m_processingDrained =
+                        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    if (Volatile.Read(ref m_processingCount) == 0)
+                    {
+                        m_processingDrained.TrySetResult(true);
+                    }
+                    processing = m_processingDrained.Task;
                 }
-                if (processing != null)
-                {
-                    await processing.ConfigureAwait(false);
-                }
+                await processing.ConfigureAwait(false);
                 m_cts.Dispose();
             }
 
@@ -410,14 +428,7 @@ namespace Opc.Ua
                 CancellationToken ct)
             {
                 IEndpointIncomingRequest request = queued.Request;
-                lock (m_workerGate)
-                {
-                    if (m_processingCount++ == 0)
-                    {
-                        m_processingDrained =
-                            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    }
-                }
+                Interlocked.Increment(ref m_processingCount);
                 try
                 {
                     if (entry != null)
@@ -449,11 +460,13 @@ namespace Opc.Ua
                 finally
                 {
                     entry?.Dispose();
-                    lock (m_workerGate)
+                    // Only shutdown waits for the drain, and it starts once every worker
+                    // has exited, so the gate is needed only after the stop.
+                    if (Interlocked.Decrement(ref m_processingCount) == 0 && Volatile.Read(ref m_stopped))
                     {
-                        if (--m_processingCount == 0)
+                        lock (m_workerGate)
                         {
-                            m_processingDrained!.TrySetResult(true);
+                            m_processingDrained?.TrySetResult(true);
                         }
                     }
                 }
@@ -539,7 +552,8 @@ namespace Opc.Ua
             private Task? m_stopTask;
 
             /// <summary>
-            /// Number of handlers that still retain request accounting.
+            /// Number of handlers that still retain request accounting, changed with
+            /// <see cref="Interlocked"/>.
             /// </summary>
             private int m_processingCount;
 
