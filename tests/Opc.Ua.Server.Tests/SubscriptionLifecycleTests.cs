@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Moq;
 using NUnit.Framework;
@@ -149,11 +150,11 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException("Field m_messageQueue not found");
             object messageQueue = queueField.GetValue(subscription)
                 ?? throw new InvalidOperationException("m_messageQueue is null");
-            PropertyInfo sentMessagesProperty = messageQueue.GetType().GetProperty("SentMessages",
-                BindingFlags.Public | BindingFlags.Instance)
-                ?? throw new InvalidOperationException("Property SentMessages not found");
-            var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue)!;
-            sentMessages!.AddRange(messages);
+            FieldInfo sentField = messageQueue.GetType().GetField("m_sent",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_sent not found");
+            var sentMessages = (List<NotificationMessageLease>)sentField.GetValue(messageQueue)!;
+            sentMessages!.AddRange(messages.Select(message => new NotificationMessageLease(message)));
 
             // the injected messages were sent (returned by a Publish response).
             FieldInfo lastSentField = messageQueue.GetType().GetField("m_lastSentMessage",
