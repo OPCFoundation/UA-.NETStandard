@@ -62,9 +62,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             INodeBuilder<MethodState> builder = CreateBuilder(family, root);
             MethodState method = builder.Node;
-            GenericMethodCalledEventHandler2 ordinary = static (_, _, _, _, _) => ServiceResult.Good;
-            GenericMethodCalledEventHandler2Async ordinaryAsync =
-                static (_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            GenericMethodCalledEventHandler2 ordinary = s_ordinaryHandler;
+            GenericMethodCalledEventHandler2Async ordinaryAsync = s_ordinaryHandlerAsync;
 
             void RegisterOrdinary()
             {
@@ -120,9 +119,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 BrowseName = new QualifiedName("Root", kNamespace)
             };
             INodeBuilder<MethodState> builder = CreateBuilder(family, root);
-            GenericMethodCalledEventHandler2 handler = static (_, _, _, _, _) => ServiceResult.Good;
-            GenericMethodCalledEventHandler2Async asyncHandler =
-                static (_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            GenericMethodCalledEventHandler2 handler = s_ordinaryHandler;
+            GenericMethodCalledEventHandler2Async asyncHandler = s_ordinaryHandlerAsync;
 
             INodeBuilder configured = asynchronous ? builder.OnCall(asyncHandler) : builder.OnCall(handler);
 
@@ -195,6 +193,14 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         /// <summary>The namespace used for the authored node graph.</summary>
         private const ushort kNamespace = 2;
+
+        /// <summary>The ordinary synchronous callback used to verify preserved registration identity.</summary>
+        private static readonly GenericMethodCalledEventHandler2 s_ordinaryHandler =
+            static (_, _, _, _, _) => ServiceResult.Good;
+
+        /// <summary>The ordinary asynchronous callback used to verify preserved registration identity.</summary>
+        private static readonly GenericMethodCalledEventHandler2Async s_ordinaryHandlerAsync =
+            static (_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
 
         /// <summary>The complete-result handler whose registration must remain exclusive.</summary>
         private static readonly MethodCalledWithResultEventHandlerAsync s_completeHandler =
