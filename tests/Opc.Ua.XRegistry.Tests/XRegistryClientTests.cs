@@ -498,14 +498,16 @@ namespace Opc.Ua.XRegistry.Tests
 
         /// <summary>
         /// ResourceType is a FileType, so a document is read back through the inherited
-        /// Open/Read/Close methods, chunked until the server returns a short read.
+        /// Open/Read/Close methods until the server returns an empty read.
         /// </summary>
         [Test]
-        public async Task ReadDocumentStreamsTheResourceUntilAShortReadAsync()
+        public async Task ReadDocumentContinuesAfterShortReadsUntilEof()
         {
             Mock<ISession> session = CreateSession();
             var calls = new List<CallMethodRequest>();
-            SetupCall(session, calls);
+            var chunks = new Queue<ByteString>(
+                [ByteString.From([0x0A, 0x0B]), ByteString.From([0x0C]), ByteString.Empty]);
+            SetupCall(session, calls, readChunk: () => chunks.Dequeue());
 
             GenericXRegistryClient client = CreateClient(session);
             ResourceTypeClient resource = client.GetResource(new NodeId(7u, 1));
@@ -515,12 +517,37 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(document.IsNull, Is.False);
-                Assert.That(document.Span.ToArray(), Is.EqualTo(s_readChunk),
-                    "A short read terminates the loop.");
+                Assert.That(document, Is.EqualTo(ByteString.From([0x0A, 0x0B, 0x0C])));
+                Assert.That(chunks, Is.Empty, "Only the empty read signals EOF.");
                 Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Open), Is.EqualTo(1));
                 Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Close), Is.EqualTo(1),
                     "The read handle is always closed.");
             });
+        }
+
+        [Test]
+        public void ReadDocumentFailureAfterShortReadClosesHandle()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            int reads = 0;
+            SetupCall(session, calls, readChunk: () =>
+            {
+                if (++reads == 1)
+                {
+                    return ByteString.From(s_readChunk);
+                }
+                throw new ServiceResultException(StatusCodes.BadCommunicationError);
+            });
+            ResourceTypeClient resource = CreateClient(session).GetResource(new NodeId(7u, 1));
+
+            Assert.That(
+                () => resource.ReadDocumentAsync(chunkSize: 4).AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(reads, Is.EqualTo(2));
+            Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Close), Is.EqualTo(1));
         }
 
         [Test]
@@ -773,8 +800,19 @@ namespace Opc.Ua.XRegistry.Tests
         private static void SetupCall(
             Mock<ISession> session,
             List<CallMethodRequest> calls,
-            bool resourceCreated = true)
+            bool resourceCreated = true,
+            Func<ByteString>? readChunk = null)
         {
+            bool read = false;
+            Func<ByteString> nextRead = readChunk ?? (() =>
+            {
+                if (read)
+                {
+                    return ByteString.Empty;
+                }
+                read = true;
+                return ByteString.From(s_readChunk);
+            });
             session
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader?>(),
@@ -792,7 +830,7 @@ namespace Opc.Ua.XRegistry.Tests
                                 new()
                                 {
                                     StatusCode = StatusCodes.Good,
-                                    OutputArguments = OutputsFor(request, resourceCreated)
+                                    OutputArguments = OutputsFor(request, resourceCreated, nextRead)
                                 }
                             },
                             DiagnosticInfos = [],
@@ -801,7 +839,10 @@ namespace Opc.Ua.XRegistry.Tests
                     });
         }
 
-        private static ArrayOf<Variant> OutputsFor(CallMethodRequest request, bool resourceCreated)
+        private static ArrayOf<Variant> OutputsFor(
+            CallMethodRequest request,
+            bool resourceCreated,
+            Func<ByteString> readChunk)
         {
             // CreateResource/GetOrCreateResource(ResourceId, VersionId, RequestFileOpen) return
             // (ResourceNodeId, AssignedVersionId, FileHandle[, Created]).
@@ -830,7 +871,7 @@ namespace Opc.Ua.XRegistry.Tests
             if (request.InputArguments.Count == 2 &&
                 request.InputArguments[1].TryGetValue(out int _))
             {
-                return new Variant[] { new(ByteString.From(s_readChunk)) };
+                return new Variant[] { new(readChunk()) };
             }
             return [];
         }
