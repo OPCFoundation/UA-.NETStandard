@@ -49,7 +49,7 @@ namespace Opc.Ua.Types.Tests.State
             ArrayOf<int> initial = [1, 2, 3];
             BaseDataVariableState variable = CreateVariable(new Variant(initial));
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
-            StatusCode status = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
+            StatusCode status = clamped ? Ua.StatusCodes.GoodClamped : StatusCodes.Good;
             variable.OnWriteValueAsync = (_, _, range, value, _) =>
             {
                 Assert.That(range.ToString(), Is.EqualTo("1"));
@@ -92,7 +92,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState variable = CreateVariable(staleCache ? new Variant(stale) : Variant.Null);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
             variable.Timestamp = timestamp;
-            StatusCode status = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
+            StatusCode status = clamped ? Ua.StatusCodes.GoodClamped : StatusCodes.Good;
             int writes = 0;
             variable.OnWriteValueAsync = (_, _, _, _, _) =>
             {
