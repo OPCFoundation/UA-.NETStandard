@@ -521,17 +521,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
         /// </summary>
-        public bool HasExpired
-        {
-            get
-            {
-                lock (m_diagnosticsLock)
-                {
-                    return m_timeProvider.GetTimestampMilliseconds() - m_lastContactTickCount >
-                        (long)SessionDiagnostics.ActualSessionTimeout;
-                }
-            }
-        }
+        /// <remarks>
+        /// Checked at admission and dispatch of every request, so it does not take the
+        /// diagnostics lock that every request also takes to update its counters: the
+        /// contact time is written under that lock and read atomically here.
+        /// </remarks>
+        public bool HasExpired =>
+            m_timeProvider.GetTimestampMilliseconds() - ReadLastContactTickCount() >
+                (long)SessionDiagnostics.ActualSessionTimeout;
 
         /// <summary>
         /// The last time the session was contacted by the client.
@@ -551,16 +548,7 @@ namespace Opc.Ua.Server
         /// The monotonic tick count (milliseconds) at the last client contact.
         /// Used for timeout calculations that are immune to system time changes.
         /// </summary>
-        public long LastContactTickCount
-        {
-            get
-            {
-                lock (m_diagnosticsLock)
-                {
-                    return m_lastContactTickCount;
-                }
-            }
-        }
+        public long LastContactTickCount => ReadLastContactTickCount();
 
         /// <summary>
         /// Whether the session has been activated.
@@ -730,7 +718,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
-        public string SecureChannelId { get; private set; }
+        public string SecureChannelId
+        {
+            get => Volatile.Read(ref m_secureChannelId);
+            private set => Volatile.Write(ref m_secureChannelId, value);
+        }
 
         /// <summary>
         /// allow derived classes access
@@ -813,12 +805,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the secure channel is currently valid.
         /// </summary>
+        /// <remarks>
+        /// Checked for every request; the channel id is written under the session lock
+        /// and published with a volatile write, so it is read without the lock.
+        /// </remarks>
         public virtual bool IsSecureChannelValid(string secureChannelId)
         {
-            lock (m_lock)
-            {
-                return SecureChannelId == secureChannelId;
-            }
+            return SecureChannelId == secureChannelId;
         }
 
         /// <summary>
@@ -1166,7 +1159,7 @@ namespace Opc.Ua.Server
                 lock (m_diagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
-                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
+                    WriteLastContactTickCount(m_timeProvider.GetTimestampMilliseconds());
                 }
             }
             retiredUserTokenNonce?.Dispose();
@@ -1758,8 +1751,33 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                m_lastContactTickCount = now;
+                WriteLastContactTickCount(now);
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Reads the contact time without the diagnostics lock; atomic on 32-bit too.
+        /// </summary>
+        private long ReadLastContactTickCount()
+        {
+            return IntPtr.Size == 8
+                ? Volatile.Read(ref m_lastContactTickCount)
+                : Interlocked.Read(ref m_lastContactTickCount);
+        }
+
+        /// <summary>
+        /// Writes the contact time; called under the diagnostics lock.
+        /// </summary>
+        private void WriteLastContactTickCount(long value)
+        {
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref m_lastContactTickCount, value);
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_lastContactTickCount, value);
             }
         }
 
@@ -1779,7 +1797,7 @@ namespace Opc.Ua.Server
                 if (!error)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
-                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
+                    WriteLastContactTickCount(m_timeProvider.GetTimestampMilliseconds());
                 }
 
                 SessionDiagnostics.TotalRequestCount.TotalCount++;
@@ -1972,6 +1990,7 @@ namespace Opc.Ua.Server
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private long m_lastContactTickCount;
+        private string m_secureChannelId = null!;
         private long m_identityGeneration;
         private long m_identityRefreshGeneration;
     }
