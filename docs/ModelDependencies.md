@@ -105,6 +105,38 @@ Encoding lives in
   `(SymbolicNamespace, SymbolicName)` so the produced base64 string is
   byte-reproducible across builds.
 
+### Nested instance declarations
+
+Direct child records retain the existing V1 layout. Producers with explicit
+nested instance declarations append an optional, length-prefixed **nested-child
+trailer** (capability bit `0x02`, trailer version `1`). It records each direct
+child's descendants in declaration order, including their modelling rules,
+qualified browse names, reference types, variable metadata/default-value
+namespace tables and method signatures/identities. Type references are not
+recursively expanded into this trailer: recursive optional types remain finite.
+
+Payloads without nested declarations remain unchanged. A new reader accepts
+older V1 payloads with no trailer and treats their descendant lists as empty.
+Older readers can ignore the new trailer; the writer also includes the existing
+extended-identifier trailer flag so those readers continue to interpret an
+unknown fluent-accessor capability correctly. Unknown nested-trailer versions
+are skipped using their length. Readers validate the frame extent and reject
+inconsistent counts, more than 100 nested levels or more than 100,000 nested
+declarations in one payload.
+
+The consumer materializes and links these descendants before hierarchy merging.
+This preserves mandatory parameters below inherited or redeclared generic
+containers such as DI `ParameterSet`, without materializing unrequested
+optional members. Explicit nested placeholder declarations retain their wire
+identifiers and required properties; they are not confused with recursive
+expansion of an inherited placeholder or created as default runtime instances.
+
+Rebuild model-producing assemblies to publish the richer payload before
+rebuilding consumers that require nested declarations. An older producer's
+flat payload cannot supply descendants it never recorded; the consumer retains
+the previous direct-child behavior rather than inventing missing declarations
+or regenerating the dependency's namespace.
+
 Readers reject unknown versions cleanly and the downstream pipeline falls
 back to explicit `AdditionalFiles` resolution when a payload cannot be
 decoded.

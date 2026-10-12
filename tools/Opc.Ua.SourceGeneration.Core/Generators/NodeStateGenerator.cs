@@ -4088,12 +4088,12 @@ namespace Opc.Ua.SourceGeneration
                 if (node.RootIsTypeDefinition &&
                     !current.ExplicitlyDefined &&
                     current.Inherited &&
-                    current.AdHocInstance)
+                    current.AdHocInstance &&
+                    effectiveRule != ModellingRule.Mandatory)
                 {
-                    // this assumes that ad-hoc instances are not more than one level deep.
-                    // i.e. a type defines folder and adds a few instances but does not
-                    // defined subfolders.
-                    // need a better way to identify when to suppress inherited adhoc instances.
+                    // Required descendants of generic containers such as DI ParameterSet
+                    // must also initialize derived instances. Keep this shallow-level
+                    // suppression only for non-mandatory inherited ad-hoc declarations.
                     if (!node.Path!.Contains(NodeDesign.PathChar, StringComparison.Ordinal))
                     {
                         continue;
