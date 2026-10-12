@@ -65,7 +65,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [OneTimeSetUp]
         public async Task StartAsync()
         {
-            m_root = Path.Combine(Path.GetTempPath(), $"wot-mcp-{Guid.NewGuid():N}");
+            // Keep the transfer root off macOS's symlinked temporary-directory path.
+            m_root = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"wot-mcp-{Guid.NewGuid():N}");
             Directory.CreateDirectory(m_root);
             m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
             {

@@ -512,7 +512,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         {
             public TransferDirectory(RemoteModelTestSession fixture)
             {
-                Path = Directory.CreateTempSubdirectory("mcp-remote-transfer-").FullName;
+                // macOS's temporary root may contain /var, which the transfer policy correctly rejects as a link.
+                Path = Directory.CreateDirectory(System.IO.Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory, $"mcp-remote-transfer-{Guid.NewGuid():N}")).FullName;
                 fixture.Options.TransferRoot = Path;
                 fixture.Options.MaxTransferBytes = 4096;
             }
