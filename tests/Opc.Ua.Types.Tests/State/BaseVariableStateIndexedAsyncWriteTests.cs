@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ArrayOf<int> replacement = [9];
             SystemContext context = CreateContext();
-            variable.ClearChangeMasks(context, false);
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
 
             ServiceResult result = await variable.WriteAttributeAsync(
                 context, Attributes.Value, NumericRange.Parse("1"),
@@ -101,7 +101,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             ArrayOf<int> replacement = [9];
             SystemContext context = CreateContext();
-            variable.ClearChangeMasks(context, false);
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
 
             ServiceResult result = await variable.WriteAttributeAsync(
                 context, Attributes.Value, NumericRange.Parse("2"),
@@ -136,7 +136,7 @@ namespace Opc.Ua.Types.Tests.State
                     new AttributeWriteResult(new ServiceResult(StatusCodes.BadNotWritable)));
             ArrayOf<int> replacement = [9];
             SystemContext context = CreateContext();
-            variable.ClearChangeMasks(context, false);
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
 
             ServiceResult result = await variable.WriteAttributeAsync(
                 context, Attributes.Value, NumericRange.Parse("1"),

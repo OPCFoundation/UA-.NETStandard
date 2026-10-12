@@ -131,6 +131,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dv.SourceTimestamp, Is.EqualTo((DateTime)handlerTimestamp));
         }
 
+        /// <summary>
+        /// Verifies within a bounded wait that the async read handler does not retain the node-instance lock.
+        /// </summary>
         [Test]
         public async Task ReadAttributeAsyncFullSlotReleasesNodeStateLockDuringAwait()
         {
@@ -171,7 +174,8 @@ namespace Opc.Ua.Types.Tests.State
                 }
             });
 
-            Assert.That(lockTask.Wait(TimeSpan.FromSeconds(5)), Is.True,
+            await lockTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(lockTask.Status, Is.EqualTo(TaskStatus.RanToCompletion),
                 "lock(v) was not released during the async handler");
             Assert.That(lockAcquired, Is.True);
 
@@ -219,6 +223,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWaitingForInitialData));
         }
 
+        /// <summary>
+        /// Verifies that caller cancellation reaches the full read hook and is reported as a bad service result.
+        /// </summary>
         [Test]
         public async Task ReadAttributeAsyncWrapsCancellationFromFullSlot()
         {
@@ -236,7 +243,7 @@ namespace Opc.Ua.Types.Tests.State
                         ServiceResult.Good, new Variant(0.0), StatusCodes.Good, DateTimeUtc.Now));
             };
 
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
             var dv = new DataValue();
             // The async hook contract mirrors the sync flow: exceptions
             // (including OperationCanceledException) are caught and surfaced
@@ -359,6 +366,7 @@ namespace Opc.Ua.Types.Tests.State
         public async Task WriteAttributeAsyncReportsChangeWhenCacheCannotAbsorbIndexRangeSlice()
         {
             SystemContext ctx = CreateSystemContext();
+            // The handler owns the data; the cached value was never assigned.
             var v = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("ArrNoCache", 0),
@@ -367,19 +375,18 @@ namespace Opc.Ua.Types.Tests.State
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
                 // the write carries a status code and a source timestamp (Part 3 8.57).
-                AccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                AccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
-                    AccessLevels.TimestampWrite),
-                UserAccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
-                    AccessLevels.TimestampWrite)
+                    AccessLevels.TimestampWrite,
+                OnWriteValueAsync = (c, n, range, value, ct) =>
+                    new ValueTask<AttributeWriteResult>(
+                        new AttributeWriteResult(ServiceResult.Good))
             };
 
-            // the handler owns the data; the cached value was never assigned.
-            v.OnWriteValueAsync = (c, n, range, value, ct) =>
-                new ValueTask<AttributeWriteResult>(
-                    new AttributeWriteResult(ServiceResult.Good));
-            v.ClearChangeMasks(ctx, false);
+            await v.ClearChangeMasksAsync(ctx, false).ConfigureAwait(false);
 
             var sourceTimestamp = new DateTimeUtc(2024, 1, 2, 3, 4, 5);
             var dv = new DataValue(
@@ -395,7 +402,7 @@ namespace Opc.Ua.Types.Tests.State
                 "The slice must not be stored as the whole value.");
             Assert.That(v.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value),
                 "A successful handler write must still raise a value change.");
-            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadWaitingForInitialData),
+            Assert.That(v.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData),
                 "An unmergeable slice invalidates the local cache until a fresh read supplies the whole value.");
             Assert.That(v.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
@@ -440,6 +447,9 @@ namespace Opc.Ua.Types.Tests.State
                 "The simple async write hook does not support index-range writes.");
         }
 
+        /// <summary>
+        /// Verifies that the synchronous simple hook rejects indexed writes before calling the handler.
+        /// </summary>
         [Test]
         public void WriteAttributeRejectsIndexRangeOnSimpleSyncHandler()
         {
@@ -448,7 +458,7 @@ namespace Opc.Ua.Types.Tests.State
             SystemContext ctx = CreateSystemContext();
             BaseDataVariableState v = CreateReadableVariable();
             bool called = false;
-            v.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant _) =>
+            v.OnSimpleWriteValue = (_, _, ref _) =>
             {
                 called = true;
                 return ServiceResult.Good;
