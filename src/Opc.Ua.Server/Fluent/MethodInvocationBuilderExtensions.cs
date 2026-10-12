@@ -132,5 +132,21 @@ namespace Opc.Ua.Server.Fluent
             }
             method.OnCallMethodWithResultAsync = handler;
         }
+
+        /// <summary>
+        /// Rejects ordinary method registration when a complete-result handler is already installed.
+        /// </summary>
+        /// <param name="method">The method whose invocation slot is being configured.</param>
+        /// <exception cref="ServiceResultException">A complete-result handler is already registered.</exception>
+        internal static void ThrowIfCompleteHandlerRegistered(this MethodState method)
+        {
+            if (method.OnCallMethodWithResultAsync is not null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Node '{0}' (id '{1}') already has a complete invocation handler.",
+                    method.BrowseName, method.NodeId);
+            }
+        }
     }
 }

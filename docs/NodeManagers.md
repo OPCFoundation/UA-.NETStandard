@@ -1952,8 +1952,10 @@ retain every supplied input result, including useful diagnostics on Good
 positions, and preserve the original operation diagnostics. They encode input
 diagnostics into the receiving response's string table only when requested.
 Additional information also requires the receiving session's authorization.
-The client cannot supply the internal permission flag: session validation clears
-it before applying the SecurityAdmin or ConfigureAdmin role check.
+The client cannot supply the internal permission flag: request admission clears
+it before pre-session or session-less returns and before session validation can
+fail. An admitted session grants it only after the SecurityAdmin or ConfigureAdmin
+role check; pre-session and session-less requests do not inherit that privilege.
 Final Call assembly retains requested operation text on Good results and
 inner-status-only diagnostics even when no strings are added to the response
 table. Ordinary callbacks retain their null-`ServiceResult` success convention;
