@@ -1530,6 +1530,43 @@ handle modify, monitoring-mode, delete, and manager-lifecycle operations
 normally. `Use(factory, queueInitialValue: true)` additionally performs
 the standard initial attribute read; push-style items omit it by default.
 
+For a source that owns every value notification, use the standard push-item
+factory rather than only skipping the initial read:
+
+```csharp
+builder.Node("Buffers/UInt32")
+    .OnCreateMonitoredItem((request, ct) =>
+        new ValueTask<MonitoredItemCreateDecision>(
+            request.Request.ItemToMonitor.AttributeId == Attributes.Value
+                ? MonitoredItemCreateDecision.Use(
+                    factory => factory.CreatePushMonitoredItem())
+                : MonitoredItemCreateDecision.UseDefault()));
+```
+
+`CreatePushMonitoredItem` retains the normal queue, filtering and lifecycle, but
+node-change callbacks, re-enabling and compatible lifecycle attachment do not
+read the Node on its behalf. The
+source supplies initial and resumed values and must enforce the subscriber's
+Read permissions before queueing them. Combining this factory with
+`queueInitialValue: true` is a configuration error: creation is rolled back and
+the allocated item and queue are disposed under either built-in item manager.
+
+Retained monitored items use `OnMonitoredItemAttached` and
+`OnMonitoredItemDetached` during handoff, not the creation/deletion callbacks.
+Register these hooks when maintaining source membership across compatible
+`ReloadAsync` operations. They run before first/last-subscriber reconciliation
+and also support typed-variable and virtual builders. Multiple handoff handlers
+run in registration order. A graceful `ShadowReloadAsync` instead lets existing
+subscribers drain on the old manager; it does not migrate them to the new source.
+
+The acquisition mode is retained in `MonitoredItemTypeMask.ExternalValueSource`
+and the existing persisted `IStoredMonitoredItem.TypeMask`. Stores must preserve
+all type bits. Test the `DataChange` or `Events` bit rather than comparing the
+entire mask for equality. After restart, the node manager must register the
+source lifecycle again; the persisted bit prevents restoration from silently
+switching to Node reads. Source-managed items also stop accepting values when
+disposed or detached, while preserving the Core missing-Node notification.
+
 An initial read that rejects the attribute or data encoding removes the
 unaccepted monitored item from registration, sampling, and any newly
 acquired component-cache entry. Existing items on that node remain valid.
