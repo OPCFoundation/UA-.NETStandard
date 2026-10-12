@@ -1434,7 +1434,7 @@ There is no reflection, no `Activator.CreateInstance`, no
 `Expression.Compile` — the whole pipeline is NativeAOT-safe.
 
 For methods that need an operation result and per-input diagnostics together,
-see [complete method invocation results](MethodInvocationResults.md). This
+see [complete method invocation results](#complete-method-results-and-diagnostic-forwarding). This
 asynchronous handler is exclusive with ordinary method handlers and also works
 on virtual method families.
 
@@ -1894,11 +1894,58 @@ each shape over a real `Session.CallAsync(...)`.
 #### Complete Method results and diagnostic forwarding
 
 Use `OnCallWithResult` when a Method handler must return operation diagnostics
-and ordered input-argument results as well as output values. Its asynchronous
-handler returns a `MethodInvocationResult` containing resolved `ServiceResult`
-text rather than indexes into a foreign response's string table. See
-[complete method invocation results](MethodInvocationResults.md) for the
-registration and result contracts.
+and ordered input-argument results as well as output values. The ordinary
+`OnCall` handlers remain available for methods that only need an operation result
+and output values.
+
+Configure a predefined method through the fluent node-manager builder:
+
+```csharp
+builder.Node<MethodState>(methodId)
+    .OnCallWithResult(async (context, method, objectId, inputs, ct) =>
+    {
+        MethodInvocationResult result =
+            await device.InvokeAsync(objectId, inputs, ct).ConfigureAwait(false);
+        return result;
+    });
+```
+
+The hook also works on the `IVirtualNodeBuilder` returned by `ResolveNodes`.
+Its handler is applied to each materialized method without replacing an existing
+handler. Typed method builders retain their concrete `INodeBuilder<TState>` type
+when chaining the extension. For direct configuration, assign the same delegate
+to `MethodState.OnCallMethodWithResultAsync`.
+
+Fluent registration rejects duplicate complete-result handlers and mixing
+complete-result and ordinary handlers with `BadConfigurationError`, in either
+registration order. A synchronous call returns `BadNotSupported` rather than
+blocking on a complete-result handler.
+
+`MethodState.CallAsync` validates executability, access, input count, and input
+types before invoking the handler. The handler receives the actual receiver
+`objectId`, supplied inputs, and the caller's cancellation token.
+
+- `OperationResult` must be non-null. Its status and diagnostic text are retained.
+- `OutputArguments` use declaration order. A Good or Uncertain operation result
+  must include every declared output. Bad results do not expose outputs.
+- `InputArgumentResults` may be omitted. When present, it must include one
+  non-null `ServiceResult` for every supplied input, including Good positions.
+  The stack does not fabricate input results omitted by the handler.
+- The result snapshots both argument arrays during construction.
+
+A null callback result, an incomplete input-result array, or an incorrect output
+count for a Good or Uncertain result produces `BadUnexpectedError` without
+copying partial outputs.
+
+Store diagnostic strings in `ServiceResult`, not indexes from another response's
+string table. When forwarding a decoded diagnostic, construct a `ServiceResult`
+with the source response's string table; it resolves namespace URIs, symbolic
+IDs, locale, and localized text before the server encodes them into its own
+response table.
+
+Nested diagnostic text is retained even when the inner status is Good.
+Encoding respects `DiagnosticInfo.MaxInnerDepth`, counting the outer diagnostic
+as one level.
 
 For `BadInvalidArgument`, `AsyncCustomNodeManager` and `CustomNodeManager2`
 retain every supplied input result, including useful diagnostics on Good
@@ -1916,6 +1963,10 @@ a null complete `MethodInvocationResult` remains invalid.
 to enable asynchronous dispatch through `AsyncNodeManagerAdapter`. Without that
 opt-in, a complete-result handler returns `BadNotSupported` on the legacy
 synchronous path; the adapter never blocks on the asynchronous handler.
+
+These contracts complement the OPC UA Part 4 Call service's ordered argument
+results and diagnostics; they do not add remote execution or change node
+ownership.
 
 ### Event sources — typed `Publish<TEvent>` on notifier wrappers
 
