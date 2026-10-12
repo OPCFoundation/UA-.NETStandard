@@ -623,7 +623,10 @@ namespace Opc.Ua
         /// <see cref="WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>
         /// invokes this delegate without holding <c>lock(this)</c>; on
         /// success the framework updates the cached value, status code
-        /// and timestamp.
+        /// and timestamp. Indexed writes merge into the cached value; if the
+        /// cache cannot represent the accepted update, it is invalidated until
+        /// a fresh read rather than storing the replacement slice as a full value.
+        /// Cache invalidation does not change the successful result returned by the handler.
         /// </summary>
         public NodeValueWriteEventHandlerAsync? OnWriteValueAsync;
 
@@ -2204,6 +2207,14 @@ namespace Opc.Ua
         /// <see cref="OnSimpleWriteValueAsync"/> when set; otherwise falls
         /// through to the synchronous write flow under <c>lock(this)</c>.
         /// </summary>
+        /// <param name="context">The system context used to validate access and the value's data type.</param>
+        /// <param name="attributeId">The attribute to write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
+        /// <param name="value">The replacement value and its requested status code and source timestamp.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
+        /// <returns>
+        /// The validation failure or handler result, independent of whether an accepted indexed write can be cached.
+        /// </returns>
         public override async ValueTask<ServiceResult> WriteAttributeAsync(
             ISystemContext context,
             uint attributeId,
@@ -2289,7 +2300,23 @@ namespace Opc.Ua
 
                     lock (m_attributeLock)
                     {
-                        m_value = MergeIndexRange(indexRange, valueToWrite);
+                        if (!indexRange.IsNull)
+                        {
+                            Variant cachedValue = m_value;
+                            ServiceResult cacheResult = indexRange.UpdateRange(ref cachedValue, valueToWrite);
+                            if (ServiceResult.IsBad(cacheResult))
+                            {
+                                // The write already succeeded; a missing or stale local cache needs a fresh read.
+                                valueToWrite = Variant.Null;
+                                statusCode = StatusCodes.BadWaitingForInitialData;
+                                effectiveTimestamp = DateTimeUtc.MinValue;
+                            }
+                            else
+                            {
+                                valueToWrite = cachedValue;
+                            }
+                        }
+                        m_value = valueToWrite;
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;
                         ChangeMasks |= NodeStateChangeMasks.Value;
