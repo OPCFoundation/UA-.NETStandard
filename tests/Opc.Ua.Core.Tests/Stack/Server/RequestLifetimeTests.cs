@@ -321,7 +321,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         barrier.SignalAndWait(timeout.Token);
                     }
                 }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-                await Task.WhenAll(first, second).ConfigureAwait(false);
+                Task workers = Task.WhenAll(first, second);
+                Task finished = await Task.WhenAny(
+                    workers,
+                    Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token)).ConfigureAwait(false);
+                Assert.That(finished, Is.SameAs(workers), "A race worker did not finish before the watchdog.");
+                await workers.ConfigureAwait(false);
 
                 int duplicateOwners = 0;
                 int statusMismatches = 0;
