@@ -132,55 +132,59 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Verifies within a bounded wait that the async read handler does not retain the node-instance lock.
+        /// Verifies within a bounded wait that the node-instance lock is available
+        /// while the async handler is suspended.
         /// </summary>
         [Test]
         public async Task ReadAttributeAsyncFullSlotReleasesNodeStateLockDuringAwait()
         {
             SystemContext ctx = CreateSystemContext();
             BaseDataVariableState v = CreateReadableVariable();
-            using var inHandlerGate = new ManualResetEventSlim(false);
-            using var releaseGate = new ManualResetEventSlim(false);
+            var inHandlerGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             v.OnReadValueAsync = async (c, n, range, encoding, ct) =>
             {
-                inHandlerGate.Set();
-                // Block on a worker thread that takes lock(this) to prove
-                // we are NOT holding it across the await.
-                releaseGate.Wait(TimeSpan.FromSeconds(5), ct);
-                await Task.Yield();
+                inHandlerGate.SetResult(true);
+                await releaseGate.Task.WaitAsync(ct).ConfigureAwait(false);
                 return new AttributeReadResult(
                     ServiceResult.Good, new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now);
             };
 
             var dv = new DataValue();
-            ValueTask<(ServiceResult, DataValue)> readTask = v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
-
-            Assert.That(inHandlerGate.Wait(TimeSpan.FromSeconds(5)), Is.True,
-                "handler did not start");
-
-            // Acquire lock(this) on a worker thread - this only succeeds
-            // if the read path released the lock before awaiting the
-            // handler.
-            bool lockAcquired = false;
-            var lockTask = Task.Run(() =>
+            Task<(ServiceResult, DataValue)> readTask = v.ReadAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).AsTask();
+            ServiceResult result;
+            try
             {
-#pragma warning disable CA2002
-                lock (v)
-#pragma warning restore CA2002
+                Assert.That(await inHandlerGate.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True,
+                    "handler did not start");
+                Assert.That(readTask.IsCompleted, Is.False,
+                    "The read must remain suspended until the test releases the handler.");
+
+                bool lockAcquired = false;
+                var lockTask = Task.Run(() =>
                 {
-                    lockAcquired = true;
-                }
-            });
+#pragma warning disable CA2002
+                    lock (v)
+#pragma warning restore CA2002
+                    {
+                        lockAcquired = true;
+                    }
+                });
 
-            await lockTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            Assert.That(lockTask.Status, Is.EqualTo(TaskStatus.RanToCompletion),
-                "lock(v) was not released during the async handler");
-            Assert.That(lockAcquired, Is.True);
-
-            releaseGate.Set();
-            (ServiceResult result, _) = await readTask.ConfigureAwait(false);
+                await lockTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(lockTask.Status, Is.EqualTo(TaskStatus.RanToCompletion),
+                    "lock(v) was not released during the async handler");
+                Assert.That(lockAcquired, Is.True);
+                Assert.That(readTask.IsCompleted, Is.False,
+                    "Lock acquisition must finish while the handler is still suspended.");
+            }
+            finally
+            {
+                releaseGate.TrySetResult(true);
+                (result, _) = await readTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
