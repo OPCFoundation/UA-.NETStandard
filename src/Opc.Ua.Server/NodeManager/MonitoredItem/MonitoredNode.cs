@@ -333,27 +333,38 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-
-            IFilterTarget eventTarget = e;
-            // Build snapshot so the original event state is preserved when the consumer processes it.
-            if (e is NodeState eventState)
-            {
-                eventTarget = (IFilterTarget)eventState.Clone();
-            }
-
-            var notification = new EventSnapshot
-            {
-                Context = context,
-                EventTargetSnapshot = eventTarget
-            };
-
+            MasterNodeManager.NotificationDispatchLease? emission = null;
             try
             {
+                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
+                {
+                    return;
+                }
+                IFilterTarget eventTarget = e;
+                m_server.EventManager?.AdmitEvent(context, e);
+                // Build snapshot so the original event state is preserved when the consumer processes it.
+                if (e is NodeState eventState)
+                {
+                    eventTarget = (IFilterTarget)eventState.Clone();
+                    m_server.EventManager?.TransferEventIdentity(e, eventTarget);
+                }
+
+                var notification = new EventSnapshot
+                {
+                    Context = context,
+                    EventTargetSnapshot = eventTarget,
+                    SourceEmission = emission
+                };
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
+                emission = null;
             }
             catch (ChannelClosedException)
             {
                 // The channel was completed during shutdown/disposal.
+            }
+            finally
+            {
+                emission?.Dispose();
             }
         }
 
@@ -428,98 +439,109 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-
-            // Collect the distinct attribute IDs being monitored so we can pre-read them.
-            // The raw value is read once without any index range or data encoding; each
-            // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
-            var attributeIds = new HashSet<uint>();
-            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            MasterNodeManager.NotificationDispatchLease? emission = null;
+            try
             {
-                IDataChangeMonitoredItem2 item = kvp.Value;
-                bool isValueAttribute = item.AttributeId == Attributes.Value;
-                if (isValueAttribute && (changes & NodeStateChangeMasks.Value) == 0)
+                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
                 {
-                    continue;
+                    return;
                 }
-                if (!isValueAttribute && (changes & NodeStateChangeMasks.NonValue) == 0)
-                {
-                    continue;
-                }
-                attributeIds.Add(item.AttributeId);
-            }
-
-            var attributeSnapshots = new Dictionary<uint, DataValue>(attributeIds.Count);
-
-            foreach (uint attributeId in attributeIds)
-            {
-                var dataValue = new DataValue(
-                    default,
-                    StatusCodes.Good,
-                    DateTime.MinValue,
-                    m_timeProvider.GetUtcNow().UtcDateTime);
-
-                // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
-                // asynchronous value read handler (OnReadValueAsync) when one is registered and
-                // otherwise completes synchronously. The value is therefore materialised for this
-                // change before it is enqueued (strict enqueue-time snapshot) without blocking.
-                (_, attributeSnapshots[attributeId]) = await node.ReadAttributeAsync(
-                    context,
-                    attributeId,
-                    default,
-                    QualifiedName.Null,
-                    dataValue,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            // The reporter may be denied a value whose user access level depends on the user
-            // (Part 3 5.6.3). A subscriber that may read it must still receive the value of
-            // this change, so it is read now in each subscriber's context.
-            Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
-            if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
-                reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
-                node is BaseVariableState { OnReadUserAccessLevel: not null })
-            {
-                ServerSystemContext serverContext = GetSubscriberContextTemplate(context);
-                long generation = Volatile.Read(ref m_permissionGeneration);
+                // Collect the distinct attribute IDs being monitored so we can pre-read them.
+                // The raw value is read once without any index range or data encoding; each
+                // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
+                var attributeIds = new HashSet<uint>();
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
-                    if (kvp.Value.AttributeId != Attributes.Value)
+                    IDataChangeMonitoredItem2 item = kvp.Value;
+                    if (item is MonitoredItem { UsesExternalValueSource: true })
                     {
                         continue;
                     }
+                    bool isValueAttribute = item.AttributeId == Attributes.Value;
+                    if (isValueAttribute && (changes & NodeStateChangeMasks.Value) == 0)
+                    {
+                        continue;
+                    }
+                    if (!isValueAttribute && (changes & NodeStateChangeMasks.NonValue) == 0)
+                    {
+                        continue;
+                    }
+                    attributeIds.Add(item.AttributeId);
+                }
 
-                    ServerSystemContext subscriberContext = GetOrCreateContext(serverContext, kvp.Value, generation);
-                    (_, DataValue subscriberValue) = await node.ReadAttributeAsync(
-                        subscriberContext,
-                        Attributes.Value,
+                var attributeSnapshots = new Dictionary<uint, DataValue>(attributeIds.Count);
+
+                foreach (uint attributeId in attributeIds)
+                {
+                    var dataValue = new DataValue(
+                        default,
+                        StatusCodes.Good,
+                        DateTime.MinValue,
+                        m_timeProvider.GetUtcNow().UtcDateTime);
+
+                    // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
+                    // asynchronous value read handler (OnReadValueAsync) when one is registered and
+                    // otherwise completes synchronously. The value is therefore materialised for this
+                    // change before it is enqueued (strict enqueue-time snapshot) without blocking.
+                    (_, attributeSnapshots[attributeId]) = await node.ReadAttributeAsync(
+                        context,
+                        attributeId,
                         default,
                         QualifiedName.Null,
-                        new DataValue(
-                            default,
-                            StatusCodes.Good,
-                            DateTime.MinValue,
-                            m_timeProvider.GetUtcNow().UtcDateTime),
+                        dataValue,
                         cancellationToken).ConfigureAwait(false);
-                    (subscriberValueSnapshots ??= [])[kvp.Key] = subscriberValue;
                 }
-            }
 
-            var notification = new DataChangeSnapshot
-            {
-                Context = context,
-                NodeId = node.NodeId,
-                Changes = changes,
-                AttributeSnapshots = attributeSnapshots,
-                SubscriberValueSnapshots = subscriberValueSnapshots
-            };
+                Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
+                if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
+                    reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                    node is BaseVariableState { OnReadUserAccessLevel: not null })
+                {
+                    ServerSystemContext serverContext = GetSubscriberContextTemplate(context);
+                    long generation = Volatile.Read(ref m_permissionGeneration);
+                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+                    {
+                        if (kvp.Value.AttributeId != Attributes.Value ||
+                            kvp.Value is MonitoredItem { UsesExternalValueSource: true })
+                        {
+                            continue;
+                        }
+                        ServerSystemContext subscriberContext = GetOrCreateContext(
+                            serverContext, kvp.Value, generation);
+                        (_, DataValue subscriberValue) = await node.ReadAttributeAsync(
+                            subscriberContext,
+                            Attributes.Value,
+                            default,
+                            QualifiedName.Null,
+                            new DataValue(
+                                default,
+                                StatusCodes.Good,
+                                DateTime.MinValue,
+                                m_timeProvider.GetUtcNow().UtcDateTime),
+                            cancellationToken).ConfigureAwait(false);
+                        (subscriberValueSnapshots ??= [])[kvp.Key] = subscriberValue;
+                    }
+                }
 
-            try
-            {
+                var notification = new DataChangeSnapshot
+                {
+                    Context = context,
+                    NodeId = node.NodeId,
+                    Changes = changes,
+                    AttributeSnapshots = attributeSnapshots,
+                    SubscriberValueSnapshots = subscriberValueSnapshots,
+                    SourceEmission = emission
+                };
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
+                emission = null;
             }
             catch (ChannelClosedException)
             {
                 // The channel was completed during shutdown/disposal.
+            }
+            finally
+            {
+                emission?.Dispose();
             }
         }
 
@@ -560,6 +582,8 @@ namespace Opc.Ua.Server
             {
                 await foreach (INodeNotification notification in m_channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                 {
+                    using var emission = notification.SourceEmission;
+                    using var emissionScope = emission?.EnterSourceEmission();
                     try
                     {
                         if (notification is EventSnapshot eventSnapshot)
@@ -751,6 +775,10 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+                if (monitoredItem is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    continue;
+                }
 
                 if (monitoredItem.AttributeId == Attributes.Value &&
                     (snapshot.Changes & NodeStateChangeMasks.Value) != 0)
@@ -927,6 +955,17 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken = default)
         {
+            if (monitoredItem is MonitoredItem { UsesExternalValueSource: true })
+            {
+                return;
+            }
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             var value = new DataValue(
                 Variant.Null,
                 StatusCodes.Good,
@@ -1229,6 +1268,11 @@ namespace Opc.Ua.Server
                 else
                 {
                     m_consumerCts?.Dispose();
+                }
+
+                while (m_channel.Reader.TryRead(out INodeNotification? pending))
+                {
+                    pending.SourceEmission?.Dispose();
                 }
             }
         }

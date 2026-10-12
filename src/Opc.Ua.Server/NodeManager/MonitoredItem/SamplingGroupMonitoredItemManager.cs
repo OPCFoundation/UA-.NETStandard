@@ -363,7 +363,9 @@ namespace Opc.Ua.Server
             // need to provide an immediate update after enabling. For an item whose node
             // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
             // node must not override it with a Good value.
-            if (enabled && monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
+            if (enabled &&
+                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true } &&
+                monitoredItem is not MonitoredItem { UsesExternalValueSource: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,

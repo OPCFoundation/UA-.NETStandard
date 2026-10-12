@@ -1310,6 +1310,9 @@ namespace Opc.Ua.Server
                             notifications.DispatchState.Notifications = null;
                         }
                         if (notifications.DispatchState.Enabled &&
+                            notifications.DispatchState.BusinessEmissionsEnabled &&
+                            notifications.DispatchState.EmissionCutoffReservations == 0 &&
+                            notifications.DispatchState.CustomSourceCreations == 0 &&
                             notifications.DispatchState.ActiveDispatches == 0)
                         {
                             m_notificationDispatchStates.Remove(notifications.DispatchState);
@@ -1318,6 +1321,9 @@ namespace Opc.Ua.Server
                 }
                 m_notificationDispatchStates.RemoveAll(dispatchState =>
                     dispatchState.Enabled &&
+                    dispatchState.BusinessEmissionsEnabled &&
+                    dispatchState.EmissionCutoffReservations == 0 &&
+                    dispatchState.CustomSourceCreations == 0 &&
                     dispatchState.ActiveDispatches == 0 &&
                     dispatchState.References(nodeManager));
             }
@@ -1571,6 +1577,9 @@ namespace Opc.Ua.Server
                     dispatchesDrained = dispatchState.DispatchesDrained;
                     dispatchState.DispatchesDrained = null;
                     if (dispatchState.Enabled &&
+                        dispatchState.BusinessEmissionsEnabled &&
+                        dispatchState.EmissionCutoffReservations == 0 &&
+                        dispatchState.CustomSourceCreations == 0 &&
                         !m_retiredGenerationNotifications.Any(notifications =>
                             ReferenceEquals(
                                 notifications.DispatchState,
@@ -2521,6 +2530,13 @@ namespace Opc.Ua.Server
 
             public IEventMonitoredItem[] MonitoredItems { get; }
 
+            public bool IsActive => Volatile.Read(ref m_owner) is not null;
+
+            public SourceEmissionScope? EnterSourceEmission()
+            {
+                return m_owner?.EnterSourceEmission(this);
+            }
+
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_owner, null)?
@@ -2570,6 +2586,12 @@ namespace Opc.Ua.Server
             }
 
             public bool Enabled { get; set; } = true;
+
+            public bool BusinessEmissionsEnabled { get; set; } = true;
+
+            public int EmissionCutoffReservations { get; set; }
+
+            public int CustomSourceCreations { get; set; }
 
             public int ActiveDispatches { get; set; }
 
