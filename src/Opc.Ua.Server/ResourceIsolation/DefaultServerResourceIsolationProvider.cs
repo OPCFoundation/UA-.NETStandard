@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
-        IResourceIsolationReassemblyProvider, IDisposable
+        IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -107,6 +107,12 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public bool UseFairScheduling => Plan.Mode != ServerResourceIsolationMode.SharedOnly;
+
+        /// <inheritdoc/>
+        long IResourceIsolationCapacitySource.GetStageCapacity(ResourceIsolationStage stage)
+        {
+            return Plan.GetStage(stage).Capacity;
+        }
 
         /// <inheritdoc/>
         public event Action<ResourceIsolationStage>? CapacityAvailable;
