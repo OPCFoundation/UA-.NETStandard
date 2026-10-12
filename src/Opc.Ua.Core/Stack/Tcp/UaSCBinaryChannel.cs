@@ -1479,21 +1479,22 @@ namespace Opc.Ua.Bindings
         /// <param name="message">The message. Ownership transfers when this
         /// returns <see langword="true"/>.</param>
         /// <param name="state">Reported to <see cref="HandleWriteComplete"/>.</param>
-        /// <param name="startWriterInline">
-        /// Whether an idle writer may run on the caller's thread for one batch
-        /// instead of being queued to the pool. Only for a caller that holds
-        /// neither the gate nor <see cref="SendOrder"/>.
-        /// </param>
         /// <returns><see langword="false"/> when no transport is attached; the
         /// caller still owns the message.</returns>
         /// <remarks>
         /// The caller needs no lock: nothing ordered per channel is decided until
         /// the writer seals the message. See <see cref="SendOrder"/>.
+        /// <para>
+        /// The writer always starts on the pool, never on the caller's thread. Run
+        /// on the thread that produced the first response, it sealed and sent
+        /// batches of one message, which cost more send calls and serialised the
+        /// signing on the producers; on four cores, encrypted, it lost 30 % of the
+        /// throughput a pool-scheduled writer reaches with larger coalesced batches.
+        /// </para>
         /// </remarks>
         private protected bool BeginWriteSymmetricMessage(
             EncodedSymmetricMessage message,
-            object? state,
-            bool startWriterInline)
+            object? state)
         {
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
@@ -1514,17 +1515,7 @@ namespace Opc.Ua.Bindings
                 m_writerRunning = true;
             }
 
-            if (startWriterInline)
-            {
-                // Saves the hop to the pool for a response produced on a worker:
-                // the writer seals and sends on this thread, and hands the rest of
-                // the queue to the pool after one batch (see RunWritesAsync).
-                _ = RunWritesAsync(inline: true);
-            }
-            else
-            {
-                ScheduleWriter();
-            }
+            ScheduleWriter();
             return true;
         }
 
@@ -1546,21 +1537,16 @@ namespace Opc.Ua.Bindings
 
 #if NETCOREAPP3_0_OR_GREATER
         private static readonly Action<UaSCUaBinaryChannel> s_runWrites =
-            static channel => _ = channel.RunWritesAsync(inline: false);
+            static channel => _ = channel.RunWritesAsync();
 #else
         private static readonly WaitCallback s_runWrites =
-            static state => _ = ((UaSCUaBinaryChannel)state!).RunWritesAsync(inline: false);
+            static state => _ = ((UaSCUaBinaryChannel)state!).RunWritesAsync();
 #endif
 
         /// <summary>
         /// Seals and sends the queued writes in order until the queue is empty.
         /// </summary>
-        /// <param name="inline">
-        /// Whether the writer was started on a producer's thread. It then sends
-        /// one batch and hands the rest of the queue to the pool, so a producer is
-        /// not held as the channel's writer.
-        /// </param>
-        private async Task RunWritesAsync(bool inline)
+        private async Task RunWritesAsync()
         {
             List<PendingWrite> batch = m_writeBatch;
             while (true)
@@ -1606,22 +1592,6 @@ namespace Opc.Ua.Bindings
                     // Observe a fault that escaped the write's own error handling, so
                     // that it cannot surface later as an unobserved task exception.
                     _ = pending.Exception;
-
-                    if (inline)
-                    {
-                        lock (m_writeQueueLock)
-                        {
-                            if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
-                            {
-                                m_writerRunning = false;
-                                return;
-                            }
-                        }
-
-                        // the writer stays marked running and continues on the pool.
-                        ScheduleWriter();
-                        return;
-                    }
                     continue;
                 }
                 try
@@ -1637,7 +1607,6 @@ namespace Opc.Ua.Bindings
                 // next write must start on the pool, not on that thread, which may
                 // be one that holds a gate (an in-process peer, for instance).
                 await Task.Yield();
-                inline = false;
             }
         }
 

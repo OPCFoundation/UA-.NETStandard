@@ -195,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     for (int ii = 0; ii < perProducer; ii++)
                     {
                         uint requestId = (uint)((producer * perProducer) + ii + 1);
-                        writer.Send(requestId, CreateResponse(random), startWriterInline: random.Next(2) == 0);
+                        writer.Send(requestId, CreateResponse(random));
                         if (random.Next(3) == 0)
                         {
                             await Task.Delay(random.Next(2)).ConfigureAwait(false);
@@ -765,7 +765,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return VerifySequenceNumber(sequenceNumber, "test");
             }
 
-            public void Send(uint requestId, IServiceResponse response, bool startWriterInline)
+            public void Send(uint requestId, IServiceResponse response)
             {
                 EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
                     TcpMessageType.Message,
@@ -774,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     false,
                     out bool limitsExceeded);
                 Assert.That(limitsExceeded, Is.False);
-                Assert.That(BeginWriteSymmetricMessage(encoded, null, startWriterInline), Is.True);
+                Assert.That(BeginWriteSymmetricMessage(encoded, null), Is.True);
             }
 
             /// <summary>
