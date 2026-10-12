@@ -131,6 +131,18 @@ optional members. Explicit nested placeholder declarations retain their wire
 identifiers and required properties; they are not confused with recursive
 expansion of an inherited placeholder or created as default runtime instances.
 
+Specialized placeholder helpers retain the inherited CLR method signature even
+when the child has a different browse-name namespace. Such helpers explicitly
+hide the base helper with `new`; changing the wire namespace does not make the
+C# method name unique. Unrelated placeholder helpers do not receive `new`.
+
+An explicit NodeSet `MethodDeclarationId` remains the authoritative wire
+identity of a redeclared method. When a dependency payload supplies an inherited
+method's signature and generated state class but not its instance NodeId, the
+consumer resolves the inherited qualified member and attaches the explicit
+identifier to a copy. It neither replaces that identifier with the consumer's
+method NodeId nor modifies the dependency's signature or generated class.
+
 Rebuild model-producing assemblies to publish the richer payload before
 rebuilding consumers that require nested declarations. An older producer's
 flat payload cannot supply descendants it never recorded; the consumer retains

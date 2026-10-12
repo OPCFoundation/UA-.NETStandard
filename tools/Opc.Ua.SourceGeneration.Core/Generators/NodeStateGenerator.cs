@@ -884,7 +884,7 @@ namespace Opc.Ua.SourceGeneration
             if (!instance.IsOverridden())
             {
                 if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
-                    !instance.HidesBaseTypePlaceholder())
+                    !HidesInheritedPlaceholderHelper(instance))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
@@ -908,6 +908,37 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Tests the CLR helper signature rather than the qualified browse name: a placeholder
+        /// in a different wire namespace can still hide the same Add helper on a generated base class.
+        /// </summary>
+        private static bool HidesInheritedPlaceholderHelper(InstanceDesign instance)
+        {
+            if (instance.ModellingRule is not ModellingRule.MandatoryPlaceholder and
+                not ModellingRule.OptionalPlaceholder ||
+                instance.Parent is not TypeDesign declaringType)
+            {
+                return false;
+            }
+            for (TypeDesign? baseType = declaringType.BaseTypeNode; baseType != null; baseType = baseType.BaseTypeNode)
+            {
+                if (baseType.Children?.Items == null)
+                {
+                    continue;
+                }
+                foreach (InstanceDesign child in baseType.Children.Items)
+                {
+                    if (child.ModellingRule is
+                        ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder &&
+                        child.SymbolicName.Name == instance.SymbolicName.Name)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private TemplateString? LoadTemplate_TypedVariableType(ILoadContext context)
