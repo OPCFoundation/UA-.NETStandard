@@ -66,6 +66,7 @@ a server yet, start with [Getting started](GettingStarted.md).
   - [Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed `OnCall` overloads](#methods-with-arguments--typed-oncall-overloads)
+    - [Complete Method results and diagnostic forwarding](#complete-method-results-and-diagnostic-forwarding)
   - [Event sources — typed `Publish<TEvent>` on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
@@ -1875,6 +1876,30 @@ The end-to-end sample lives in
 in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
 in `tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
+
+#### Complete Method results and diagnostic forwarding
+
+Use `OnCallWithResult` when a Method handler must return operation diagnostics
+and ordered input-argument results as well as output values. Its asynchronous
+handler returns a `MethodInvocationResult` containing resolved `ServiceResult`
+text rather than indexes into a foreign response's string table. See
+[complete method invocation results](MethodInvocationResults.md) for the
+registration and result contracts.
+
+For `BadInvalidArgument`, `AsyncCustomNodeManager` and `CustomNodeManager2`
+retain every supplied input result, including useful diagnostics on Good
+positions, and preserve the original operation diagnostics. They encode input
+diagnostics into the receiving response's string table only when requested.
+Additional information also requires the receiving session's authorization.
+Final Call assembly retains requested operation text on Good results and
+inner-status-only diagnostics even when no strings are added to the response
+table. Ordinary callbacks retain their null-`ServiceResult` success convention;
+a null complete `MethodInvocationResult` remains invalid.
+
+`CustomNodeManager2` subclasses must explicitly implement `ICallAsyncNodeManager`
+to enable asynchronous dispatch through `AsyncNodeManagerAdapter`. Without that
+opt-in, a complete-result handler returns `BadNotSupported` on the legacy
+synchronous path; the adapter never blocks on the asynchronous handler.
 
 ### Event sources — typed `Publish<TEvent>` on notifier wrappers
 
