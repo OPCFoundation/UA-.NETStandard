@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Machinery.ProcessValues;
 using Opc.Ua.Machinery.Server.Results;
 using Opc.Ua.PADIM;
 using Opc.Ua.Machinery.Server.StateMachines;
@@ -254,7 +255,9 @@ namespace Opc.Ua.Machinery.Server.Builders
                     "The machine already declares a process value named '{0}'.",
                     name);
             }
-            configure(ProcessValueBuilder.Create(Scope, State, name));
+            ProcessValueBuilder processValue = ProcessValueBuilder.Create(Scope, State, name);
+            m_processValues.Add(processValue.State);
+            configure(processValue);
             return this;
         }
 
@@ -334,13 +337,8 @@ namespace Opc.Ua.Machinery.Server.Builders
             {
                 return default;
             }
-            foreach (QualifiedName processValueName in m_processValueNames)
+            foreach (ProcessValueState processValue in m_processValues)
             {
-                if (State.FindChild(Scope.Context, processValueName) is not BaseInstanceState
-                    processValue)
-                {
-                    continue;
-                }
                 m_processValueSignalSet.AddReference(
                     Opc.Ua.Types.ReferenceTypeIds.HasComponent,
                     false,
@@ -410,6 +408,36 @@ namespace Opc.Ua.Machinery.Server.Builders
         public new IMachineBuilder<TState> Configure(Action<TState, ISystemContext> configure)
         {
             base.Configure(configure);
+            return this;
+        }
+
+        /// <summary>
+        /// Binds an existing companion process value under its original parent.
+        /// </summary>
+        internal IMachineBuilder<TState> BindProcessValue(
+            ProcessValueState state,
+            Action<IProcessValueBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.ProcessValues, "ProcessValue");
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, state);
+            if (m_processValues.Contains(state))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The process value '{0}' is already bound.",
+                    state.BrowseName);
+            }
+            ProcessValueBuilder processValue = ProcessValueBuilder.Adopt(Scope, state);
+            if (ReferenceEquals(state.Parent, State) && !m_processValueNames.Add(state.BrowseName))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameDuplicated,
+                    "The machine already declares a process value named '{0}'.",
+                    state.BrowseName);
+            }
+            m_processValues.Add(state);
+            configure(processValue);
             return this;
         }
 
@@ -488,6 +516,7 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private readonly MachineryItemBlocks m_blocks;
         private readonly HashSet<QualifiedName> m_processValueNames = [];
+        private readonly List<ProcessValueState> m_processValues = [];
         private BaseObjectState? m_processValueDevice;
         private SignalSetState? m_processValueSignalSet;
         private MachineryNotificationsBuilder? m_notifications;

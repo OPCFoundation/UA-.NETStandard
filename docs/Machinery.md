@@ -322,6 +322,28 @@ await oilTemperature.SetValueAsync(70.0);   // percentage, both alarms
 await oilTemperature.SetSetpointAsync(55);  // deviation alarm
 ```
 
+For acquired data, `SetValueAsync(in DataValue, cancellationToken)` preserves
+the original numeric scalar type, quality and acquisition timestamp. An
+unavailable sample can carry `Variant.Null` with a bad status; it is not
+converted into a fresh zero or used to clear the last alarm. Incompatible
+payloads and canceled updates leave the previous sample unchanged. The
+percentage value carries the same quality and source time. Convenience
+double-valued updates use an injected `TimeProvider`, or `TimeProvider.System`
+when no provider is registered.
+
+`MachineryProcessValue.Sample` returns the full signal `DataValue` on the client,
+including uncertain or bad quality and both service timestamps. It complements
+the existing numeric `Value` projection rather than silently normalizing a
+failed or unavailable reading.
+
+`machine.WithProcessValue(existingProcessValue, configure)` adopts a
+companion-derived descendant without replacing either its object or signal.
+The signal must already use the standard `ProcessValueVariableType` subtype
+and keep its PADIM-qualified `AnalogSignal` browse name. A companion builder
+selects that permitted subtype when constructing the instance; an incompatible
+existing signal is rejected rather than replaced. Nested descendants are
+supported and remain under their declared parent.
+
 `WithLimitAlarm()` and `WithDeviationAlarm()` do more than create the objects
 the model declares. Each one mirrors the limits onto the alarm — absolute
 limits from `WithLimits`, deviations from `WithDeviationLimits` — points the

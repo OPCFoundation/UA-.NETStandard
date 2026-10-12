@@ -140,8 +140,8 @@ namespace Opc.Ua.Machinery.Client
     /// <c>AnalogSignal</c>.
     /// </summary>
     /// <remarks>
-    /// Every member but the two NodeIds is optional in the part, so a
-    /// <see langword="null"/> means the server does not publish it.
+    /// Optional model members are nullable when the server does not publish them.
+    /// The client retains the mandatory signal's original reading in <see cref="Sample"/>.
     /// </remarks>
     public sealed record MachineryProcessValue
     {
@@ -154,6 +154,15 @@ namespace Opc.Ua.Machinery.Client
         /// The <c>AnalogSignal</c> variable carrying the reading.
         /// </summary>
         public required NodeId SignalNodeId { get; init; }
+
+        /// <summary>
+        /// The original signal sample, including its numeric type, quality and timestamps.
+        /// </summary>
+        /// <remarks>
+        /// Inspect this value to distinguish unavailable or uncertain data from an absent
+        /// optional property. The legacy numeric <see cref="Value"/> projection remains available.
+        /// </remarks>
+        public DataValue Sample { get; init; }
 
         /// <summary>
         /// The current reading.

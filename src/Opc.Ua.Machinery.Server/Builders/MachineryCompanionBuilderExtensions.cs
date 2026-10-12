@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Machinery.Jobs;
+using Opc.Ua.Machinery.ProcessValues;
 using Opc.Ua.Machinery.Result;
 using Opc.Ua.Machinery.Server.Results;
 
@@ -39,6 +42,61 @@ namespace Opc.Ua.Machinery.Server.Builders
     /// </summary>
     public static class MachineryCompanionBuilderExtensions
     {
+        /// <summary>
+        /// Publishes a numeric sample without losing its scalar type, quality or acquisition timestamp.
+        /// </summary>
+        /// <remarks>
+        /// A bad sample may carry a null value. Server timestamps remain owned by the OPC UA read service.
+        /// Cancellation or an incompatible value leaves the previously published sample unchanged.
+        /// </remarks>
+        /// <param name="handle">The bound process-value handle.</param>
+        /// <param name="value">The acquired sample.</param>
+        /// <param name="cancellationToken">Cancels publication before changing the signal.</param>
+        /// <returns>The publication operation.</returns>
+        /// <exception cref="ArgumentNullException">The handle is null.</exception>
+        /// <exception cref="ServiceResultException">The handle or sample cannot be published.</exception>
+        public static ValueTask SetValueAsync(
+            this IProcessValueHandle handle,
+            in DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(handle);
+            if (handle is not ProcessValueBuilder implementation)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The process-value handle does not support publishing complete samples.");
+            }
+            return implementation.SetValueAsync(value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Binds an existing derived process value without replacing the object or its signal.
+        /// </summary>
+        /// <remarks>
+        /// The existing signal must use ProcessValueVariableType or a subtype so the shared
+        /// limit and percentage facilities remain available. Its PADIM-qualified browse name
+        /// and instance identity are preserved.
+        /// </remarks>
+        /// <typeparam name="TState">The containing machine state type.</typeparam>
+        /// <param name="builder">The machine builder.</param>
+        /// <param name="processValue">The existing process-value descendant.</param>
+        /// <param name="configure">Configures standard process-value behavior.</param>
+        /// <returns>The machine builder.</returns>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="ServiceResultException">The descendant or its signal cannot be bound.</exception>
+        public static IMachineBuilder<TState> WithProcessValue<TState>(
+            this IMachineBuilder<TState> builder,
+            ProcessValueState processValue,
+            Action<IProcessValueBuilder> configure)
+            where TState : BaseObjectState
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(processValue);
+            ArgumentNullException.ThrowIfNull(configure);
+            return builder.GetMachineBuilder().BindProcessValue(processValue, configure);
+        }
+
         /// <summary>
         /// Binds existing companion job management, requiring both control and response providers.
         /// </summary>
@@ -64,13 +122,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             ArgumentNullException.ThrowIfNull(builder);
             ArgumentNullException.ThrowIfNull(management);
             ArgumentNullException.ThrowIfNull(configure);
-            if (builder is not MachineBuilder<TState> implementation)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The machine builder does not support binding companion job-management nodes.");
-            }
-            return implementation.BindJobManagement(management, configure);
+            return builder.GetMachineBuilder().BindJobManagement(management, configure);
         }
 
         /// <summary>
@@ -99,13 +151,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             ArgumentNullException.ThrowIfNull(builder);
             ArgumentNullException.ThrowIfNull(management);
             ArgumentNullException.ThrowIfNull(configure);
-            if (builder is not MachineBuilder<TState> implementation)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The machine builder does not support binding companion result-management nodes.");
-            }
-            return implementation.BindResultManagement(management, configure);
+            return builder.GetMachineBuilder().BindResultManagement(management, configure);
         }
 
         /// <summary>
@@ -160,6 +206,19 @@ namespace Opc.Ua.Machinery.Server.Builders
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
                     "The result-management builder does not support companion result factories.");
+        }
+
+        /// <summary>
+        /// Resolves the built-in machine builder without extending existing implementers' contracts.
+        /// </summary>
+        /// <typeparam name="TState">The machine state type.</typeparam>
+        private static MachineBuilder<TState> GetMachineBuilder<TState>(this IMachineBuilder<TState> builder)
+            where TState : BaseObjectState
+        {
+            return builder as MachineBuilder<TState> ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "The machine builder does not support binding existing companion nodes.");
         }
     }
 }
