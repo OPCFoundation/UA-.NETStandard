@@ -327,6 +327,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        /// <param name="context">The server system context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="monitoringMode">The monitoring mode.</param>
+        /// <param name="handle">The node handle.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,

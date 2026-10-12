@@ -56,6 +56,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="maxQueueSize">The max queue size used to initialize the instance.</param>
+        /// <param name="maxDurableQueueSize">The max durable queue size used to initialize the instance.</param>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
             : this(server, maxQueueSize, maxDurableQueueSize, new EventIdentityAdmissionOptions())
         {
@@ -64,6 +67,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an event manager with a bounded server-wide occurrence admission domain.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="maxQueueSize">The max queue size used to initialize the instance.</param>
+        /// <param name="maxDurableQueueSize">The max durable queue size used to initialize the instance.</param>
+        /// <param name="identityOptions">The identity options used to initialize the instance.</param>
         public EventManager(
             IServerInternal server,
             uint maxQueueSize,

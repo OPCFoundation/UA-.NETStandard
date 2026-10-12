@@ -38,6 +38,9 @@ namespace Opc.Ua.Server
     {
         ISystemContext Context { get; }
 
+        /// <summary>
+        /// Gets the source emission for <c>INodeNotification</c>.
+        /// </summary>
         MasterNodeManager.NotificationDispatchLease? SourceEmission { get; }
     }
 
@@ -47,6 +50,9 @@ namespace Opc.Ua.Server
     internal class DataChangeSnapshot : INodeNotification
     {
         public ISystemContext Context { get; set; } = null!;
+        /// <summary>
+        /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
+        /// </summary>
         public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
         public NodeId NodeId { get; set; }
         public NodeStateChangeMasks Changes { get; set; }
@@ -74,6 +80,9 @@ namespace Opc.Ua.Server
     internal class EventSnapshot : INodeNotification
     {
         public ISystemContext Context { get; set; } = null!;
+        /// <summary>
+        /// Gets or sets the source emission for <c>EventSnapshot</c>.
+        /// </summary>
         public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
     }

@@ -108,6 +108,10 @@ namespace Opc.Ua.Server.Fluent
             return UpdateRegistrationAsync(context, source, monitoredItem, monitoredItem.MonitoringMode);
         }
 
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The node state.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask OnAttachedAsync(
             ISystemContext context,
             NodeState source,
@@ -123,6 +127,10 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The node state.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask OnDetachedAsync(
             ISystemContext context,
             NodeState source,
@@ -417,6 +425,8 @@ namespace Opc.Ua.Server.Fluent
             m_updateLock = new SemaphoreSlim(1, 1);
         }
 
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        /// <param name="attributeId">The attribute ID.</param>
         public void SetFirstSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
         {
             if (handler == null)
@@ -431,16 +441,22 @@ namespace Opc.Ua.Server.Fluent
             m_firstSubscriber = handler;
         }
 
+        /// <param name="handler">The monitored item attachment handler.</param>
         public void AddAttachedHandler(MonitoredItemAttachmentHandler handler)
         {
             m_attachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
         }
 
+        /// <param name="handler">The monitored item attachment handler.</param>
         public void AddDetachedHandler(MonitoredItemAttachmentHandler handler)
         {
             m_detachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
         }
 
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The node state.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask NotifyAttachedAsync(
             ISystemContext context,
             NodeState source,
@@ -453,6 +469,10 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The node state.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask NotifyDetachedAsync(
             ISystemContext context,
             NodeState source,
@@ -465,6 +485,8 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        /// <param name="attributeId">The attribute ID.</param>
         public void SetLastSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
         {
             if (handler == null)
@@ -500,6 +522,7 @@ namespace Opc.Ua.Server.Fluent
             m_minimumPeriod = minimumPeriod;
         }
 
+        /// <param name="nodeId">The node identifier.</param>
         public MonitoredSourceRegistration CreateForNode(NodeId nodeId)
         {
             var registration = new MonitoredSourceRegistration(

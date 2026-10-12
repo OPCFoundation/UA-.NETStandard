@@ -113,6 +113,10 @@ namespace Opc.Ua.Server.Fluent
     /// Invoked when an existing monitored item attaches to or detaches from a
     /// source during node-manager lifecycle handoff.
     /// </summary>
+    /// <param name="context">The system context.</param>
+    /// <param name="source">The node state.</param>
+    /// <param name="monitoredItem">The monitored item.</param>
+    /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
     public delegate ValueTask MonitoredItemAttachmentHandler(
         ISystemContext context,
         NodeState source,

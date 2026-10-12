@@ -607,6 +607,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that push factory rejects node read initialization without leaking items.
+        /// </summary>
+        /// <param name="useSamplingGroups">The use-sampling-groups flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task PushFactoryRejectsNodeReadInitializationWithoutLeakingItems(bool useSamplingGroups)
@@ -632,6 +636,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             queue.Verify(owned => owned.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that subscriber lifecycle rejects unknown attributes.
+        /// </summary>
+        /// <param name="attributeId">The attribute ID used by this test case.</param>
         [TestCase(0u)]
         [TestCase(28u)]
         public void SubscriberLifecycleRejectsUnknownAttributes(uint attributeId)
@@ -644,6 +652,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that subscriber lifecycle rejects mismatched first and last attributes.
+        /// </summary>
         [Test]
         public void SubscriberLifecycleRejectsMismatchedFirstAndLastAttributes()
         {
@@ -657,6 +668,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that push source mode survives stored item restoration.
+        /// </summary>
+        /// <param name="useSamplingGroups">The use-sampling-groups flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task PushSourceModeSurvivesStoredItemRestoration(bool useSamplingGroups)
@@ -798,6 +813,8 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public FakeTimeProvider Time { get; }
 
+            /// <param name="useSamplingGroups">The use-sampling-groups flag supplied by the caller.</param>
+            /// <param name="queues">The monitored item queue factory.</param>
             public static async ValueTask<MonitoredItemHarness> CreateAsync(
                 Action<INodeManagerBuilder> configure,
                 bool useSamplingGroups = false,
@@ -856,6 +873,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return (errors[0], monitoredItems[0]);
             }
 
+            /// <param name="stored">The stored monitored item.</param>
             public async ValueTask<IMonitoredItem> RestoreAsync(IStoredMonitoredItem stored)
             {
                 var items = new List<IMonitoredItem> { null! };

@@ -281,6 +281,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem(actual, expectedItem);
         }
 
+        /// <summary>
+        /// Verifies that store and restore round trips filtered retain condition IDs.
+        /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()
         {

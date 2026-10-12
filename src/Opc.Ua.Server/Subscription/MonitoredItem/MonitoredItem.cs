@@ -141,6 +141,25 @@ namespace Opc.Ua.Server
         /// <see cref="TimeProvider"/> so the monotonic sampling clock can be
         /// mocked in tests.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="nodeManager">The node manager used to initialize the instance.</param>
+        /// <param name="managerHandle">The manager handle used to initialize the instance.</param>
+        /// <param name="subscriptionId">The subscription ID used to initialize the instance.</param>
+        /// <param name="id">The ID used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="itemToMonitor">The item to monitor used to initialize the instance.</param>
+        /// <param name="diagnosticsMasks">The diagnostics masks used to initialize the instance.</param>
+        /// <param name="timestampsToReturn">The timestamps to return used to initialize the instance.</param>
+        /// <param name="monitoringMode">The monitoring mode used to initialize the instance.</param>
+        /// <param name="clientHandle">The client handle used to initialize the instance.</param>
+        /// <param name="originalFilter">The original filter used to initialize the instance.</param>
+        /// <param name="filterToUse">The filter to use used to initialize the instance.</param>
+        /// <param name="range">The range used to initialize the instance.</param>
+        /// <param name="samplingInterval">The sampling interval used to initialize the instance.</param>
+        /// <param name="queueSize">The queue size used to initialize the instance.</param>
+        /// <param name="discardOldest">The discard-oldest flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="sourceSamplingInterval">The source sampling interval used to initialize the instance.</param>
+        /// <param name="createDurable">The create-durable flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="timeProvider">The time provider used to initialize the instance.</param>
         public MonitoredItem(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -394,6 +413,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
 
+        /// <summary>
+        /// Gets or sets the source metadata for <c>MonitoredItem</c>.
+        /// </summary>
         internal NodeState? SourceMetadata { get; private set; }
 
         /// <inheritdoc/>
@@ -1633,6 +1655,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="instance"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="instance">The filter target.</param>
+        /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
             if (instance == null)
@@ -1715,6 +1739,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
+        /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
             bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);

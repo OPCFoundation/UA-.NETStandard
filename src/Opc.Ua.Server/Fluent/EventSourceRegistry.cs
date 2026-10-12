@@ -358,6 +358,8 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <param name="source">The node state.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask WaitUntilReadyAsync(NodeState source, CancellationToken cancellationToken)
         {
             return ReconcileAsync(source, true, cancellationToken);
@@ -366,6 +368,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Completes the zero-subscriber transition before another subscription can reactivate the source.
         /// </summary>
+        /// <param name="source">The node state.</param>
         public ValueTask WaitUntilReconciledAsync(NodeState source)
         {
             return ReconcileAsync(source, false, CancellationToken.None);
@@ -1190,9 +1193,6 @@ namespace Opc.Ua.Server.Fluent
         private int m_disposed;
     }
 
-    /// <summary>
-    /// Source-generated log messages for EventSourceRegistry.
-    /// </summary>
     /// <summary>
     /// Releases the event sources when the owning node manager tears down.
     /// </summary>
