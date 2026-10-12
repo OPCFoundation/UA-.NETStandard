@@ -86,6 +86,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the complete remaining dependency set, or false when it cannot be determined.
         /// </summary>
+        /// <param name="targetIds">The complete remaining dependency targets when determined.</param>
+        /// <returns><c>true</c> if the dependency set is complete; <c>false</c> if it cannot be determined.</returns>
         bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds);
     }
 
@@ -367,6 +369,7 @@ namespace Opc.Ua
         /// Copies the remaining stored targets, including the pushed-back reference, without advancing.
         /// Derived browsers must also account for targets they produce outside this stored set.
         /// </summary>
+        /// <returns>The remaining stored reference targets.</returns>
         protected ArrayOf<ExpandedNodeId> GetRemainingReferenceTargets()
         {
             var targets = new HashSet<ExpandedNodeId>();

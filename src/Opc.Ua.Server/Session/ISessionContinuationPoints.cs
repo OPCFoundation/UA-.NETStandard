@@ -131,6 +131,8 @@ namespace Opc.Ua.Server
         /// Implementations must include dependencies by using <see cref="ContinuationPoint.RequiresManager"/>.
         /// Restoring a point transfers its use to the request without releasing any of its owners.
         /// </summary>
+        /// <param name="nodeManager">The exact manager to look for.</param>
+        /// <returns><c>true</c> if a saved or restored Browse continuation requires the manager.</returns>
         bool HasBrowseForManager(IAsyncNodeManager nodeManager);
     }
 
@@ -147,6 +149,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports saved and checked-out history uses requiring the exact manager, including dependency owners.
         /// </summary>
+        /// <param name="nodeManager">The exact manager to look for.</param>
+        /// <returns><c>true</c> if a saved or checked-out history use requires the manager.</returns>
         bool HasHistoryForManager(IAsyncNodeManager nodeManager);
     }
 }

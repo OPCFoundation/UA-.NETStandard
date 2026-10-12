@@ -5675,6 +5675,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
         /// </summary>
+        /// <param name="server">The server whose custom data types are loaded.</param>
+        /// <param name="additionalNodeManager">An additional NodeManager to read types from, if any.</param>
+        /// <param name="publishResolver">Whether to publish the resolver on the server.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The refreshed resolver, or null when complex-type loading is disabled.</returns>
         internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,

@@ -49,6 +49,8 @@ namespace Opc.Ua.Server
         /// Reports whether the exact manager is the source or a captured dependency of this point.
         /// Session ownership trackers must use this query rather than compare only <see cref="Manager"/>.
         /// </summary>
+        /// <param name="nodeManager">The node manager to look for.</param>
+        /// <returns><c>true</c> if the manager is the source or a captured dependency.</returns>
         public bool RequiresManager(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)

@@ -45,6 +45,12 @@ namespace Opc.Ua.Server.Historian
         /// Declares every additional local Node needed by this token and all its successor pages.
         /// The framework never interprets the opaque token. Dependencies must not grow on later pages.
         /// </summary>
+        /// <param name="sourceNodeId">The history source Node the read was requested for.</param>
+        /// <param name="resumeToken">The opaque resume token of the page being saved.</param>
+        /// <param name="dependencies">The additional local Nodes required by all remaining pages.</param>
+        /// <returns>
+        /// <c>true</c> if the dependencies were declared completely; <c>false</c> if pagination is not supported.
+        /// </returns>
         bool TryGetContinuationDependencies(
             NodeId sourceNodeId,
             HistorianResumeToken resumeToken,

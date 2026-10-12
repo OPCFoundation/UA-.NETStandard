@@ -43,6 +43,9 @@ namespace Opc.Ua.Server
         /// The change sequence is copied before the operation can yield.
         /// The returned owner must be committed or asynchronously disposed.
         /// </summary>
+        /// <param name="changes">The additions, replacements and retirements to prepare.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit, which owns all resources acquired while preparing.</returns>
         ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             CancellationToken cancellationToken = default);
@@ -61,6 +64,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures the current routing, type and factory revisions without reserving publication.
         /// </summary>
+        /// <returns>The capture holding the observed revisions.</returns>
         INodeManagerPublicationCapture CapturePublication();
     }
 
@@ -73,6 +77,8 @@ namespace Opc.Ua.Server
         /// Reserves one invocation. Conflicting lifecycle work is rejected before effects.
         /// A stale capture returns an invocation whose IsCurrent is false and cannot prepare units.
         /// </summary>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The invocation that retains publication admission until disposed.</returns>
         ValueTask<INodeManagerPublication> BeginAsync(CancellationToken cancellationToken = default);
     }
 
@@ -90,6 +96,9 @@ namespace Opc.Ua.Server
         /// Prepares a unit on the existing lifecycle owner. Dispose each unit before the invocation.
         /// Ordinary lifecycle mutations, including mutations from callbacks, must retry after the invocation.
         /// </summary>
+        /// <param name="changes">The additions, replacements and retirements to prepare.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit.</returns>
         ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken = default);
 
@@ -97,6 +106,9 @@ namespace Opc.Ua.Server
         /// Prepares immutable read state without replacing any NodeManager.
         /// At least one image is required; publication uses the same decision and routing switch as other units.
         /// </summary>
+        /// <param name="images">The read images to publish.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit carrying the images.</returns>
         ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
             ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default);
     }
@@ -110,6 +122,10 @@ namespace Opc.Ua.Server
         /// Prepares and inspects a private candidate, then disposes it without publishing.
         /// The candidate is valid only during the inspection callback and cannot be committed.
         /// </summary>
+        /// <param name="changes">The additions, replacements and retirements to validate.</param>
+        /// <param name="inspectAsync">The callback inspecting the private candidate.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>A task that completes when the candidate has been inspected and disposed.</returns>
         ValueTask ValidateAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
@@ -136,6 +152,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the image for an exact owner, or null when no state has been published for that owner.
         /// </summary>
+        /// <param name="owner">The exact NodeManager that owns the state.</param>
+        /// <returns>The image for the owner, or null if none has been published.</returns>
         INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner);
     }
 
@@ -159,6 +177,7 @@ namespace Opc.Ua.Server
         /// Binds immutable application state before commit. The sequence is copied and may be bound only once.
         /// Each image must belong to a distinct NodeManager in the resulting routing image.
         /// </summary>
+        /// <param name="images">The read images to bind, one per NodeManager.</param>
         void BindReadImages(ArrayOf<INodeManagerReadImage> images);
 
         /// <summary>
@@ -172,6 +191,9 @@ namespace Opc.Ua.Server
         /// including when it returns a cleanup warning. Disposal is then optional and idempotent.
         /// An uncommitted unit must still be disposed after a failed commit attempt.
         /// </summary>
+        /// <param name="decideAsync">The callback performing the durable decision.</param>
+        /// <param name="cancellationToken">The token to cancel the operation before the decision.</param>
+        /// <returns>The committed registrations and any post-commit cleanup failure.</returns>
         /// <exception cref="InvalidOperationException">
         /// Routing changed after preparation; the durable decision is not invoked.
         /// </exception>
@@ -185,6 +207,10 @@ namespace Opc.Ua.Server
         /// The publication callback must perform no I/O or additional durable decision.
         /// A callback failure occurs after commit and cannot make the batch uncommitted.
         /// </summary>
+        /// <param name="decideAsync">The callback performing the durable decision.</param>
+        /// <param name="publishCommittedState">The callback publishing the prepared in-memory state.</param>
+        /// <param name="cancellationToken">The token to cancel the operation before the decision.</param>
+        /// <returns>The committed registrations and any post-commit cleanup failure.</returns>
         ValueTask<NodeManagerBatchResult> CommitAsync(
             Func<CancellationToken, ValueTask> decideAsync,
             Action publishCommittedState,
@@ -231,6 +257,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a new privately prepared owner.
         /// </summary>
+        /// <param name="factory">The factory creating the new owner.</param>
+        /// <returns>The addition change.</returns>
         public static NodeManagerBatchChange Add(IAsyncNodeManagerFactory factory)
         {
             return new NodeManagerBatchChange(
@@ -240,6 +268,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces an exact registration while preserving its logical identity.
         /// </summary>
+        /// <param name="current">The exact registration being replaced.</param>
+        /// <param name="factory">The factory creating the replacement owner.</param>
+        /// <param name="immediate">Whether old monitored sources are invalidated instead of gracefully
+        /// retained.</param>
+        /// <returns>The replacement change.</returns>
         public static NodeManagerBatchChange Replace(
             NodeManagerRegistration current,
             IAsyncNodeManagerFactory factory,
@@ -254,6 +287,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Retires an exact registration in the same switch as the other changes.
         /// </summary>
+        /// <param name="current">The exact registration being retired.</param>
+        /// <param name="immediate">Whether old monitored sources are invalidated instead of gracefully
+        /// retained.</param>
+        /// <returns>The retirement change.</returns>
         public static NodeManagerBatchChange Remove(
             NodeManagerRegistration current,
             bool immediate = false)

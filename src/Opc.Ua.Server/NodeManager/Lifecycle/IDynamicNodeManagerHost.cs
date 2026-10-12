@@ -242,27 +242,37 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
         /// </summary>
+        /// <returns>A scope that restores the previous routing when disposed.</returns>
         IDisposable UseLiveRouting();
 
         /// <summary>
         /// Uses a private type image while preparing or discarding a candidate.
         /// </summary>
+        /// <param name="typeTree">The private type tree to use.</param>
+        /// <param name="factory">The private encodeable factory to use.</param>
+        /// <returns>A scope that restores the previous type image when disposed.</returns>
         IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
         /// <summary>
         /// Releases the current binding admission while a callback waits for and executes lifecycle work.
         /// Async disposal resumes admission after lifecycle serialization has been released.
         /// </summary>
+        /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
         IAsyncDisposable SuspendBindingAdmission();
 
         /// <summary>
         /// Checks whether the admitted operation is already removing this exact monitored item.
         /// </summary>
+        /// <param name="monitoredItem">The monitored item to check.</param>
+        /// <returns><c>true</c> if the admitted operation is removing the item.</returns>
         bool IsRemovingBinding(IMonitoredItem monitoredItem);
 
         /// <summary>
         /// Dispatches Session activation and its notifications against the published bindings.
         /// </summary>
+        /// <param name="activateAsync">The callback performing the Session activation.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The server nonce and activation status produced by <paramref name="activateAsync"/>.</returns>
         ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
             Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
             CancellationToken cancellationToken);
@@ -271,6 +281,23 @@ namespace Opc.Ua.Server
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
         /// A null decision validates and releases the reservations without changing the serving image.
         /// </summary>
+        /// <param name="candidates">The prepared node managers to add or replace.</param>
+        /// <param name="removed">The node managers removed by the batch.</param>
+        /// <param name="immediateRetirements">The removed managers that retire without draining.</param>
+        /// <param name="routingRevision">The routing image the batch was prepared against.</param>
+        /// <param name="typeTree">The candidate type tree.</param>
+        /// <param name="originalTypes">The type tree the batch was prepared against.</param>
+        /// <param name="typeRevision">The revision of the type tree the batch was prepared against.</param>
+        /// <param name="factory">The candidate encodeable factory.</param>
+        /// <param name="originalFactory">The encodeable factory the batch was prepared against.</param>
+        /// <param name="factoryRevision">The revision of the factory the batch was prepared against.</param>
+        /// <param name="readImages">The read images to bind when the batch is published.</param>
+        /// <param name="decideAsync">The callback deciding whether to publish, or null to validate only.</param>
+        /// <param name="published">The callback invoked after the candidate has been published.</param>
+        /// <param name="reconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
+        /// <param name="reportCleanupFailure">The callback receiving cleanup failures.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>A task that completes when the batch has been validated or published.</returns>
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,

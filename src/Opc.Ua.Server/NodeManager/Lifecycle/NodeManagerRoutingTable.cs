@@ -944,6 +944,9 @@ namespace Opc.Ua.Server
         /// Gets whether two entries denote the same NodeManager. Two adapters that wrap the same
         /// synchronous NodeManager count as the same NodeManager.
         /// </summary>
+        /// <param name="left">The first manager.</param>
+        /// <param name="right">The second manager.</param>
+        /// <returns><c>true</c> if both denote the same NodeManager; otherwise <c>false</c>.</returns>
         internal static bool AreSameManager(
             IAsyncNodeManager left,
             IAsyncNodeManager right)
@@ -1140,6 +1143,8 @@ namespace Opc.Ua.Server
             /// Keeps the captured images but limits continuation dispatch to its retained owners.
             /// The first two infrastructure managers keep their fixed dispatcher indexes.
             /// </summary>
+            /// <param name="owners">The retained owners that continuation dispatch is limited to.</param>
+            /// <returns>A snapshot limited to the retained owners.</returns>
             internal RoutingSnapshot ForContinuation(ArrayOf<IAsyncNodeManager> owners)
             {
                 IAsyncNodeManager[] managers =
