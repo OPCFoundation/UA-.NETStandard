@@ -575,12 +575,14 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.XRegistry",
                 "Opc.Ua.WotCon",
                 "Opc.Ua.Vision.OpenUsd",
+                "Opc.Ua.CranesHoists",
                 "Opc.Ua.Robotics",
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
                 "Opc.Ua.AI",
                 "Opc.Ua.Mcp.Robotics",
+                "Opc.Ua.Mcp.CranesHoists",
                 "Opc.Ua.OpenUsd.Connector",
                 "Opc.Ua.OpenUsd.Connector.Viewer"
             ];
@@ -1470,6 +1472,56 @@ namespace Opc.Ua.Tools.Tests
             }
 
             throw new InvalidOperationException("Could not find the repository root.");
+        }
+
+        /// <summary>
+        /// All companion suite package variants share the intended build-time and validator classification.
+        /// </summary>
+        [Test]
+        public async Task CompanionSuitePoliciesMatchActualMsBuildAndPowerShellAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            (string Id, bool Preview)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool.Server", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool.Client", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS.Server", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS.Client", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoistsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoistsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Debug.Debug", false)
+            ];
+            (string Root, string Preview)[] versions =
+            [
+                ("2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1+build5", "2.0.0-preview.rc.1+build5"),
+                ("2.0.0-gabc123def0", "2.0.0-preview.0.gabc123def0"),
+                ("2.0.0+build5", $"2.0.0-preview.{buildNumber}+build5")
+            ];
+            string[] suffixes = [string.Empty, ".Debug"];
+            PackageVersionCase[] cases =
+            [
+                .. packages.SelectMany(package => suffixes.SelectMany(suffix =>
+                    versions.Select(version => new PackageVersionCase(
+                        package.Id + suffix,
+                        version.Root,
+                        package.Preview,
+                        package.Preview ? version.Preview : version.Root))))
+            ];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
         }
 
         [Test]
