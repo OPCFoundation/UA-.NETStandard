@@ -795,6 +795,7 @@ namespace Opc.Ua.Server
         /// Validates requested diagnostic flags against the session's server-authorized roles.
         /// </summary>
         /// <param name="requestHeader">The request header whose diagnostic flags must be validated.</param>
+        /// <exception cref="ArgumentNullException">The request header is null.</exception>
         public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
         {
             if (requestHeader is null)

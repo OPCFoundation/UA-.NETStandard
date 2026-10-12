@@ -102,11 +102,11 @@ namespace Opc.Ua.Server
         {
             return input is not null &&
                 (input.StatusCode != StatusCodes.Good ||
-                input.SymbolicId != StatusCodes.Good.SymbolicId ||
-                !string.IsNullOrEmpty(input.NamespaceUri) ||
-                !input.LocalizedText.IsNullOrEmpty ||
-                input.AdditionalInfo is not null ||
-                input.InnerResult is not null);
+                    input.SymbolicId != StatusCodes.Good.SymbolicId ||
+                    !string.IsNullOrEmpty(input.NamespaceUri) ||
+                    !input.LocalizedText.IsNullOrEmpty ||
+                    input.AdditionalInfo is not null ||
+                    input.InnerResult is not null);
         }
     }
 }

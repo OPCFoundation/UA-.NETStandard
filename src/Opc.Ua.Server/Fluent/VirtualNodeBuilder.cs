@@ -165,6 +165,10 @@ namespace Opc.Ua.Server.Fluent
         /// <paramref name="predicate"/> and materialized asynchronously by
         /// <paramref name="resolver"/>.
         /// </summary>
+        /// <param name="builder">The fluent node-manager builder.</param>
+        /// <param name="predicate">The inexpensive virtual-family ownership test.</param>
+        /// <param name="resolver">The asynchronous resolver for a recognized node identifier.</param>
+        /// <exception cref="ArgumentNullException">The predicate or resolver is null.</exception>
         public static IVirtualNodeBuilder ResolveNodes(
             this INodeManagerBuilder builder,
             VirtualNodeIdPredicate predicate,
@@ -294,6 +298,7 @@ namespace Opc.Ua.Server.Fluent
         /// Registers an exclusive complete-result handler for the virtual-node family.
         /// </summary>
         /// <param name="handler">The asynchronous complete-result handler.</param>
+        /// <exception cref="ServiceResultException">The family already has an invocation handler.</exception>
         public IVirtualNodeBuilder OnCallWithResult(MethodCalledWithResultEventHandlerAsync handler)
         {
             Owner.ThrowIfSealed();
@@ -397,6 +402,9 @@ namespace Opc.Ua.Server.Fluent
         /// Applies the family's handlers to a materialized node without replacing occupied slots.
         /// </summary>
         /// <param name="node">The materialized node.</param>
+        /// <exception cref="ServiceResultException">
+        /// A callback slot is occupied or the materialized node has the wrong node class.
+        /// </exception>
         public void Apply(NodeState node)
         {
             lock (m_applyLock)
@@ -456,7 +464,7 @@ namespace Opc.Ua.Server.Fluent
 
                     if (m_callWithResultAsync is not null)
                     {
-                        MethodInvocationBuilderExtensions.RegisterHandler(method, m_callWithResultAsync);
+                        method.RegisterHandler(m_callWithResultAsync);
                     }
                     else
                     {
@@ -509,6 +517,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Rejects ordinary method registration when a complete-result handler is already registered.
         /// </summary>
+        /// <exception cref="ServiceResultException">The family already has a complete-result handler.</exception>
         private void ThrowIfCompleteCallRegistered()
         {
             if (m_callWithResultAsync is not null)

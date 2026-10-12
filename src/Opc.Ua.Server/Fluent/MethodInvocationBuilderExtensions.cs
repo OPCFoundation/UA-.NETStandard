@@ -41,6 +41,8 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         /// <param name="builder">The node builder.</param>
         /// <param name="handler">The method called with result event handler async.</param>
+        /// <exception cref="ArgumentNullException">The builder or handler is null.</exception>
+        /// <exception cref="ServiceResultException">The node is not a method or registration is invalid.</exception>
         public static INodeBuilder OnCallWithResult(
             this INodeBuilder builder, MethodCalledWithResultEventHandlerAsync handler)
         {
@@ -54,13 +56,14 @@ namespace Opc.Ua.Server.Fluent
             }
             if (builder.Node is not MethodState method)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A Method handler requires a Method Node.");
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "A Method handler requires a Method Node.");
             }
             NodeManagerBuilder? manager = builder.Builder is NodeManagerBuilder concrete
                 ? concrete
                 : FluentNodeManagerBase.TryResolveAttachedBuilder(builder.Builder);
             manager?.ThrowIfSealed();
-            RegisterHandler(method, handler);
+            method.RegisterHandler(handler);
             return builder;
         }
 
@@ -70,6 +73,10 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TState">The concrete Method state type.</typeparam>
         /// <param name="builder">The typed method node builder.</param>
         /// <param name="handler">The method called with result event handler async.</param>
+        /// <exception cref="ArgumentNullException">The builder or handler is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The method already has a handler or the builder is sealed.
+        /// </exception>
         public static INodeBuilder<TState> OnCallWithResult<TState>(
             this INodeBuilder<TState> builder, MethodCalledWithResultEventHandlerAsync handler)
             where TState : MethodState
@@ -83,6 +90,11 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         /// <param name="builder">The virtual node builder.</param>
         /// <param name="handler">The method called with result event handler async.</param>
+        /// <exception cref="ArgumentNullException">The builder or handler is null.</exception>
+        /// <exception cref="ArgumentException">The builder was not created by ResolveNodes.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The family already has a handler or the builder is sealed.
+        /// </exception>
         public static IVirtualNodeBuilder OnCallWithResult(
             this IVirtualNodeBuilder builder, MethodCalledWithResultEventHandlerAsync handler)
         {
@@ -107,10 +119,13 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         /// <param name="method">The method state.</param>
         /// <param name="handler">The method called with result event handler async.</param>
-        internal static void RegisterHandler(MethodState method, MethodCalledWithResultEventHandlerAsync handler)
+        /// <exception cref="ServiceResultException">The method already has an invocation handler.</exception>
+        internal static void RegisterHandler(this MethodState method, MethodCalledWithResultEventHandlerAsync handler)
         {
-            if (method.OnCallMethodWithResultAsync is not null || method.OnCallMethod2Async is not null ||
-                method.OnCallMethod2 is not null || method.OnCallMethod is not null)
+            if (method.OnCallMethodWithResultAsync is not null ||
+                method.OnCallMethod2Async is not null ||
+                method.OnCallMethod2 is not null ||
+                method.OnCallMethod is not null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError, "The Method already has an invocation handler.");

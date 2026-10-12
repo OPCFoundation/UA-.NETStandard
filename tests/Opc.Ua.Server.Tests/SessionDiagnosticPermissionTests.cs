@@ -68,6 +68,7 @@ namespace Opc.Ua.Server.Tests
         /// <param name="role">Zero for an ordinary user, one for SecurityAdmin, or two for ConfigureAdmin.</param>
         /// <param name="requested">Whether the request asks for additional information.</param>
         /// <param name="forged">Whether the client supplies the internal permission flag.</param>
+        /// <exception cref="ArgumentOutOfRangeException">The role is not a supported test case.</exception>
         [TestCase(0, false, true)]
         [TestCase(0, true, true)]
         [TestCase(0, true, false)]

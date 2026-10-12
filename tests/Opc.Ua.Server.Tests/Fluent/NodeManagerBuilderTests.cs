@@ -153,7 +153,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             else
             {
                 RegisterOrdinary();
-                ServiceResultException? error = Assert.Throws<ServiceResultException>(() => builder.OnCallWithResult(rich));
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                    () => builder.OnCallWithResult(rich));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(method.OnCallMethodWithResultAsync, Is.Null);
             }

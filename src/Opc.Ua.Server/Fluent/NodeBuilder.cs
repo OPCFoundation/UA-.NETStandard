@@ -164,6 +164,7 @@ namespace Opc.Ua.Server.Fluent
         /// Registers a synchronous method handler without replacing a complete-result handler.
         /// </summary>
         /// <param name="handler">The method invocation handler.</param>
+        /// <exception cref="ArgumentNullException">The handler is null.</exception>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
@@ -177,6 +178,7 @@ namespace Opc.Ua.Server.Fluent
         /// Registers an asynchronous method handler without replacing a complete-result handler.
         /// </summary>
         /// <param name="handler">The asynchronous method invocation handler.</param>
+        /// <exception cref="ArgumentNullException">The handler is null.</exception>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
         {
             MethodState m = RequireMethod("OnCallAsync");
@@ -445,6 +447,9 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Rejects handler registration after sealing or when the callback slot is already occupied.
         /// </summary>
+        /// <param name="existing">The callback already assigned to the slot.</param>
+        /// <param name="what">The name of the callback registration.</param>
+        /// <exception cref="ServiceResultException">The callback slot is occupied or the builder is sealed.</exception>
         private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
             m_parent.ThrowIfSealed();

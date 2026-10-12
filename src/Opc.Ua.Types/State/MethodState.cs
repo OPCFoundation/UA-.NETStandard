@@ -831,11 +831,13 @@ namespace Opc.Ua
             ServiceResult result;
             try
             {
+                if (sync && OnCallMethodWithResultAsync is not null)
+                {
+                    return new ServiceResult(StatusCodes.BadNotSupported);
+                }
                 if (sync)
                 {
-                    result = OnCallMethodWithResultAsync is null
-                        ? Call(context, objectId, inputs, outputs)
-                        : new ServiceResult(StatusCodes.BadNotSupported);
+                    result = Call(context, objectId, inputs, outputs);
                 }
                 else if (OnCallMethodWithResultAsync is { } complete)
                 {

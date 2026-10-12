@@ -218,7 +218,9 @@ namespace Opc.Ua.Server.Tests
         /// Verifies final Call assembly preserves requested Good-operation details through the public dispatcher.
         /// </summary>
         /// <param name="diagnostics">Whether operation diagnostics are requested.</param>
-        /// <param name="innerStatusOnly">Whether the operation has only an inner status and no diagnostic strings.</param>
+        /// <param name="innerStatusOnly">
+        /// Whether the operation has only an inner status and no diagnostic strings.
+        /// </param>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]

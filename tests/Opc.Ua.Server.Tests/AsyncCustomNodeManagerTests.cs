@@ -10298,9 +10298,11 @@ namespace Opc.Ua.Server.Tests
             {
                 TestableCustomNodeManager2 cnm2 = asynchronousLegacyCall
                     ? new AsyncCallTestNodeManager(
-                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri)
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri)
                     : new TestableCustomNodeManager2(
-                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri);
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri);
                 var adapter = new AsyncNodeManagerAdapter(cnm2);
                 var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
                 SetupMasterNodeManager(adapterWrapper);

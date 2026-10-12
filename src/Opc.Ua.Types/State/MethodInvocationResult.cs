@@ -45,6 +45,8 @@ namespace Opc.Ua
         /// <param name="operationResult">The operation result used to initialize the instance.</param>
         /// <param name="outputArguments">The output arguments used to initialize the instance.</param>
         /// <param name="inputArgumentResults">The input argument results used to initialize the instance.</param>
+        /// <exception cref="ArgumentNullException">The operation result is null.</exception>
+        /// <exception cref="ArgumentException">An input result is null.</exception>
         public MethodInvocationResult(
             ServiceResult operationResult,
             ArrayOf<Variant> outputArguments = default,
