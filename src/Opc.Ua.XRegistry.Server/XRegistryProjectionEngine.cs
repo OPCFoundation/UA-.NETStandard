@@ -132,6 +132,7 @@ namespace Opc.Ua.XRegistry.Server
         /// advancing or diffing event state. Supplied immutable transitions
         /// remain the sole authority for event ordering.
         /// </summary>
+        /// <param name="ct">Cancels reconciliation.</param>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
             return ReconcileCoreAsync(
@@ -1391,6 +1392,8 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Mirrors the selected Version's inherited FileType Properties onto its logical Resource.
         /// </summary>
+        /// <param name="target">The logical Resource that receives the mirrored Properties.</param>
+        /// <param name="source">The selected default Version that owns the Properties.</param>
         internal static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
         {
             if (source.Size is not null)

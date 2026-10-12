@@ -70,6 +70,12 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public sealed class XRegistryResourceFileReservation : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a reservation over a prepared exact-Version write handle.
+        /// </summary>
+        /// <param name="fileHandle">The session-owned write handle prepared by the engine.</param>
+        /// <param name="release">Abandons the clean reservation and releases the handle.</param>
+        /// <param name="untrack">Removes this reservation from the engine's tracking table.</param>
         internal XRegistryResourceFileReservation(
             uint fileHandle,
             Func<ValueTask> release,
@@ -147,6 +153,9 @@ namespace Opc.Ua.XRegistry.Server
         /// Reconcile the previously committed generation first. New entries are not registered
         /// until normal reconciliation adopts them after the provider's durable commit.
         /// </summary>
+        /// <param name="resource">The exact Version whose file and write handle are prepared.</param>
+        /// <param name="context">The system context of the Session that owns the reservation.</param>
+        /// <param name="cancellationToken">Cancels preparation before a reservation is returned.</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<XRegistryResourceFileReservation> ReserveResourceWriteAsync(

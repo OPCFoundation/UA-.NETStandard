@@ -261,6 +261,11 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Opens and fully initializes a handle before it is returned to the caller.
         /// </summary>
+        /// <param name="context">The system context of the calling Session.</param>
+        /// <param name="method">The FileType Open method being forwarded.</param>
+        /// <param name="objectId">The projected file object being opened.</param>
+        /// <param name="mode">The requested OPC UA file open mode flags.</param>
+        /// <param name="cancellationToken">Cancels the open before the handle is returned.</param>
         ValueTask<OpenMethodStateResult> ForwardOpenAsync(
             ISystemContext context,
             MethodState method,
@@ -293,6 +298,8 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Reserves a writer only while the exact Version is contentless, after any provider preparation.
         /// </summary>
+        /// <param name="context">The system context of the calling Session.</param>
+        /// <param name="cancellationToken">Cancels the claim before a writer is reserved.</param>
         ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
             ISystemContext context,
             CancellationToken cancellationToken);

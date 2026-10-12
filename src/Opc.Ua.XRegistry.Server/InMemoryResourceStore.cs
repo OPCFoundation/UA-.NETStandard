@@ -113,6 +113,9 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <inheritdoc/>
+        /// <param name="resourceKey">The store key of the resource.</param>
+        /// <param name="document">The complete replacement document.</param>
+        /// <param name="ct">Cancels preparation before publication.</param>
         public ValueTask ReplaceAsync(
             string resourceKey,
             ByteString document,

@@ -863,6 +863,9 @@ namespace Opc.Ua.XRegistry.Server
         /// check: a caller that read the resource at an older epoch is rejected rather than silently
         /// deleting someone else's newer version.
         /// </summary>
+        /// <param name="resource">The Resource or exact Version being deleted.</param>
+        /// <param name="expectedEpoch">The caller's epoch guard; zero disables the check.</param>
+        /// <param name="cancellationToken">Cancels the deletion.</param>
         internal async ValueTask<DeleteMethodStateResult> OnDeleteResourceAsync(
             ResourceState resource,
             uint expectedEpoch,
@@ -978,6 +981,9 @@ namespace Opc.Ua.XRegistry.Server
         /// Handles <c>GroupType.Delete(ExpectedEpoch)</c>, removing the group and every resource
         /// version it owns.
         /// </summary>
+        /// <param name="group">The Group being deleted.</param>
+        /// <param name="expectedEpoch">The caller's epoch guard; zero disables the check.</param>
+        /// <param name="cancellationToken">Cancels the deletion.</param>
         internal async ValueTask<DeleteMethodStateResult> OnDeleteGroupAsync(
             GroupState group,
             uint expectedEpoch,
@@ -3346,6 +3352,9 @@ namespace Opc.Ua.XRegistry.Server
         /// Handles <c>AttributesType.AddAttribute(Key, Value, ExpectedEpoch)</c>, adding or
         /// replacing a label on the owning node.
         /// </summary>
+        /// <param name="labels">The label container that owns the mutation.</param>
+        /// <param name="expectedEpoch">The caller's epoch guard; zero disables the check.</param>
+        /// <param name="cancellationToken">Cancels the mutation.</param>
         internal async ValueTask<AddAttributeMethodStateResult> OnAddAttributeAsync(
             AttributesState labels,
             PropertyState<uint>? epoch,
