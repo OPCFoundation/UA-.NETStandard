@@ -1037,13 +1037,18 @@ namespace Opc.Ua
                     return entry.AcquireLease(participantFactory);
                 }
                 catch (ServiceResultException sre) when (
-                    !created &&
                     sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                    entry.IsClosing)
+                    entry.IsClosing &&
+                    (!created ||
+                        (!entry.InitialOpenFaulted && Volatile.Read(ref m_disposed) == 0)))
                 {
                     // The last lease on the shared entry was released and its
                     // teardown began after the lookup: the next lookup replaces
-                    // the closing entry with a fresh one.
+                    // the closing entry with a fresh one. The creator holds no
+                    // lease while it opens the entry, so other participants that
+                    // attached meanwhile can release theirs and close the entry
+                    // under the open; an open that faulted on its own, or that
+                    // manager disposal closed, fails the creator.
                 }
                 catch
                 {
