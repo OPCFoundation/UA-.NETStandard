@@ -182,6 +182,20 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(set.Count, Is.EqualTo(1));
             Assert.That(set.Contains(McpToolProfile.Vision), Is.True);
         }
+
+        [TestCase("machinetool", 8)]
+        [TestCase("gms", 9)]
+        [TestCase("craneshoists", 10)]
+        public void CompanionProfileNamesParseWithoutReusingExistingNumericValues(string name, int value)
+        {
+            McpToolProfileSet set = McpToolProfileSet.Parse(name);
+
+            Assert.That(set.Enumerate(), Is.EqualTo(new[] { (McpToolProfile)value }));
+            Assert.That(McpToolProfileSet.Parse(set.ToString()), Is.EqualTo(set));
+            Assert.That((int)McpToolProfile.Full, Is.EqualTo(7));
+            Assert.That((int)McpToolProfile.Vision, Is.EqualTo(6));
+            Assert.That((int)McpToolProfile.Robotics, Is.EqualTo(5));
+        }
     }
 }
 #endif

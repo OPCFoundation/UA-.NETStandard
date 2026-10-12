@@ -87,7 +87,7 @@ namespace Opc.Ua.Mcp
                         // connection tools can open one, so the bounded robotics catalogue has to
                         // carry them to be usable at all. Full already gets them from the core
                         // package, so adding them there would register the same tools twice.
-                        mcpServerBuilder.WithTools<ConnectionTools>();
+                        mcpServerBuilder.WithOpcUaConnectionTools();
                     }
 
                     break;
@@ -97,6 +97,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

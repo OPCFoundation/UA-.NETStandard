@@ -192,6 +192,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
@@ -323,6 +326,9 @@ namespace Opc.Ua.Mcp
                 toolProfiles.Contains(McpToolProfile.Diagnostics) ||
                 toolProfiles.Contains(McpToolProfile.Robotics) ||
                 toolProfiles.Contains(McpToolProfile.Vision) ||
+                toolProfiles.Contains(McpToolProfile.MachineTool) ||
+                toolProfiles.Contains(McpToolProfile.Gms) ||
+                toolProfiles.Contains(McpToolProfile.CranesHoists) ||
                 toolProfiles.Contains(McpToolProfile.Full);
         }
 #pragma warning restore RCS1224
@@ -432,7 +438,7 @@ namespace Opc.Ua.Mcp
             mcpServerBuilder
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>();
         }
 
@@ -442,7 +448,7 @@ namespace Opc.Ua.Mcp
                 .WithTools<AttributeServiceTools>()
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>()
                 .WithTools<DiscoveryServiceTools>()
                 .WithTools<MethodServiceTools>()
@@ -457,7 +463,7 @@ namespace Opc.Ua.Mcp
             mcpServerBuilder
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<NodeSetExportTools>()
                 .WithTools<PkiTools>();
         }
@@ -468,7 +474,7 @@ namespace Opc.Ua.Mcp
                 .WithTools<AttributeServiceTools>()
                 .WithTools<ConfigurationTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>()
                 .WithTools<DiscoveryServiceTools>()
                 .WithTools<MethodServiceTools>()

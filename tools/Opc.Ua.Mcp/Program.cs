@@ -60,7 +60,8 @@ var portOption = new Option<int>("--port", "-p")
 var profileOption = new Option<string?>("--profile")
 {
     Description = "Tool profiles: one profile or a comma-separated list of profiles - " +
-        "core, services, administration, pubsub, diagnostics, robotics, vision, or full (default). " +
+        "core, services, administration, pubsub, diagnostics, robotics, vision, machinetool, gms, " +
+        "craneshoists, or full (default). " +
         "Compose profiles with ',' or '+', e.g. --profile vision,robotics for a vision-guided agent."
 };
 

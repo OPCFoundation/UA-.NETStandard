@@ -73,6 +73,21 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
-        Full
+        Full = 7,
+
+        /// <summary>
+        /// MachineTool and Wireless Machine Tool Peripheral discovery, monitoring and configured workflows.
+        /// </summary>
+        MachineTool = 8,
+
+        /// <summary>
+        /// Geometric measurement system equipment, production monitoring and result workflows.
+        /// </summary>
+        Gms = 9,
+
+        /// <summary>
+        /// Crane and hoist monitoring and explicitly configured limit requests.
+        /// </summary>
+        CranesHoists = 10
     }
 }
