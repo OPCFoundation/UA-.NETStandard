@@ -66,7 +66,7 @@ namespace Opc.Ua.XRegistry.Tests
                 XRegistryFederationTarget target = context.CreateTarget();
 
                 await context.Client.VerifyLogicalResourceAsync(
-                    target, context.Session.Endpoint.EndpointUrl, context.Token).ConfigureAwait(false);
+                    target, context.EndpointUrl, context.Token).ConfigureAwait(false);
 
                 Assert.That(context.Session.Connected, Is.True, "Verification must not close the owner session.");
             }).ConfigureAwait(false);
@@ -84,7 +84,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 await AssertStatusAsync(
                     context.Client.VerifyLogicalResourceAsync(
-                        target, context.Session.Endpoint.EndpointUrl, context.Token).AsTask(),
+                        target, context.EndpointUrl, context.Token).AsTask(),
                     StatusCodes.BadSecurityChecksFailed).ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
@@ -118,7 +118,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 await AssertStatusAsync(
                     context.Client.VerifyLogicalResourceAsync(
-                        target, context.Session.Endpoint.EndpointUrl, context.Token).AsTask(),
+                        target, context.EndpointUrl, context.Token).AsTask(),
                     StatusCodes.BadSecurityChecksFailed).ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
@@ -135,7 +135,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 Assert.ThrowsAsync<ServiceResultException>(
                     async () => await context.Client.VerifyLogicalResourceAsync(
-                        target, context.Session.Endpoint.EndpointUrl, context.Token).ConfigureAwait(false));
+                        target, context.EndpointUrl, context.Token).ConfigureAwait(false));
                 await Task.CompletedTask.ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 Assert.ThrowsAsync<ServiceResultException>(
                     async () => await context.Client.VerifyLogicalResourceAsync(
-                        target, context.Session.Endpoint.EndpointUrl, context.Token).ConfigureAwait(false));
+                        target, context.EndpointUrl, context.Token).ConfigureAwait(false));
                 await Task.CompletedTask.ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
@@ -166,7 +166,7 @@ namespace Opc.Ua.XRegistry.Tests
             await WithRegistryAsync(async context =>
             {
                 XRegistryFederationTarget target = context.CreateTarget();
-                string endpointUrl = context.Session.Endpoint.EndpointUrl;
+                string endpointUrl = context.EndpointUrl;
                 await context.Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
                 Assert.ThrowsAsync<ServiceResultException>(
@@ -175,11 +175,11 @@ namespace Opc.Ua.XRegistry.Tests
             }).ConfigureAwait(false);
         }
 
-        private static async Task AssertStatusAsync(Task action, uint expected)
+        private static async Task AssertStatusAsync(Task action, StatusCode expected)
         {
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await action.ConfigureAwait(false));
-            Assert.That(ex!.StatusCode, Is.EqualTo(expected));
+            Assert.That(ex!.StatusCode, Is.EqualTo(expected.Code));
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
@@ -262,6 +262,8 @@ namespace Opc.Ua.XRegistry.Tests
 
             public CancellationToken Token { get; }
 
+            public string EndpointUrl => Session.Endpoint.EndpointUrl!;
+
             public XRegistryFederationTarget CreateTarget(
                 string? serverUri = null,
                 uint? registryIdentifier = null,
@@ -270,7 +272,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 ushort registryNamespace = (ushort)Session.NamespaceUris.GetIndex(
                     XRegistryWellKnown.XRegistryNamespaceUri);
-                string applicationUri = serverUri ?? Session.Endpoint.Server.ApplicationUri;
+                string applicationUri = serverUri ?? Session.Endpoint.Server.ApplicationUri!;
                 var origin = new RegistryOriginDataType
                 {
                     OriginUri = string.Empty,
