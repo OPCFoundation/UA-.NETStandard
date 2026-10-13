@@ -1031,6 +1031,9 @@ namespace Opc.Ua.Wot
             return normalized.ToString();
         }
 
+        /// <summary>
+        /// Normalizes a qualified element name by resolving its namespace prefix.
+        /// </summary>
         /// <param name="resolvePrefix">The resolve prefix.</param>
         /// <param name="element">The qualified element name to normalize.</param>
         internal static string NormalizeQualifiedElement(

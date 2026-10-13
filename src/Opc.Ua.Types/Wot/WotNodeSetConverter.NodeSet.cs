@@ -665,6 +665,9 @@ namespace Opc.Ua.Wot
                 definition.GetProperty("@language").ValueKind == JsonValueKind.Null;
         }
 
+        /// <summary>
+        /// Determines whether a term definition is an alias of the LocalizedText IRI.
+        /// </summary>
         /// <param name="definition">The JSON element.</param>
         /// <param name="iri">The IRI the term definition must name.</param>
         internal static bool IsLocalizedTextAlias(JsonElement definition, string iri)
@@ -2652,6 +2655,9 @@ namespace Opc.Ua.Wot
             return WotPortableIdentity.AllocateName(candidate, used);
         }
 
+        /// <summary>
+        /// Gets the local part of a browse name.
+        /// </summary>
         /// <param name="browseName">The browse name.</param>
         internal static string? LocalName(string? browseName)
         {

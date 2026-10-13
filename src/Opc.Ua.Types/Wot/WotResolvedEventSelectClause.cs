@@ -314,6 +314,9 @@ namespace Opc.Ua.Wot
             return TypeDefinitionId + "#" + BrowsePath;
         }
 
+        /// <summary>
+        /// Creates a copy of the clause with the resolved declaration or failure reason.
+        /// </summary>
         /// <param name="declaration">The WoT type declaration.</param>
         /// <param name="failure">The reason the declaration could not be resolved, or <c>null</c>.</param>
         internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)

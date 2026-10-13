@@ -403,6 +403,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// Attempts to expand the semantic identity of an owner element to a full IRI.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="owner">The JSON element.</param>
         /// <param name="vocabulary">The vocabulary flag supplied by the caller.</param>

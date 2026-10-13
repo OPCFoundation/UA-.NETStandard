@@ -316,6 +316,9 @@ namespace Opc.Ua
             return path;
         }
 
+        /// <summary>
+        /// Parses the portable text form of a relative path.
+        /// </summary>
         /// <param name="text">The portable relative path text.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="resolvePrefix">The resolve prefix.</param>
@@ -515,6 +518,9 @@ namespace Opc.Ua
                 return Parse(reader, null, null);
             }
 
+            /// <summary>
+            /// Parses one path element from the reader.
+            /// </summary>
             /// <param name="reader">The string reader.</param>
             /// <param name="namespaceUris">The namespace URIs.</param>
             /// <param name="resolvePrefix">The resolve prefix.</param>

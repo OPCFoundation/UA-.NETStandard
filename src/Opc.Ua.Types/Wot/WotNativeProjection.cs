@@ -54,6 +54,9 @@ namespace Opc.Ua.Wot
                 !string.Equals(version, ProfileVersion, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Writes the native projection of a node set.
+        /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="diagnostics">Collects diagnostics reported while writing the projection.</param>
@@ -105,6 +108,9 @@ namespace Opc.Ua.Wot
             return output.ToArray();
         }
 
+        /// <summary>
+        /// Reads the native projection back into a node set.
+        /// </summary>
         /// <param name="projection">The JSON element.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="diagnostics">Collects diagnostics reported while reading the projection.</param>

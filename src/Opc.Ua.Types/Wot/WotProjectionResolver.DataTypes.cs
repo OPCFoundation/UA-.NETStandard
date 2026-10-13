@@ -745,14 +745,17 @@ namespace Opc.Ua.Wot
                 /// Gets the graph IDs for <c>DataTypeIndex</c>.
                 /// </summary>
                 public Dictionary<string, DataTypeEntry> GraphIds { get; } = new(StringComparer.Ordinal);
+
                 /// <summary>
                 /// Gets the locations for <c>DataTypeIndex</c>.
                 /// </summary>
                 public Dictionary<string, DataTypeEntry> Locations { get; } = new(StringComparer.Ordinal);
+
                 /// <summary>
                 /// Gets the native IDs for <c>DataTypeIndex</c>.
                 /// </summary>
                 public Dictionary<string, DataTypeEntry> NativeIds { get; } = new(StringComparer.Ordinal);
+
                 /// <summary>
                 /// Gets the names for <c>DataTypeIndex</c>.
                 /// </summary>

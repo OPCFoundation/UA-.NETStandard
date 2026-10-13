@@ -63,18 +63,22 @@ namespace Opc.Ua.Wot
             /// The none value of <c>EncodingPresence</c>.
             /// </summary>
             None = 0,
+
             /// <summary>
             /// The binary value of <c>EncodingPresence</c>.
             /// </summary>
             Binary = 1,
+
             /// <summary>
             /// The XML value of <c>EncodingPresence</c>.
             /// </summary>
             Xml = 2,
+
             /// <summary>
             /// The JSON value of <c>EncodingPresence</c>.
             /// </summary>
             Json = 4,
+
             /// <summary>
             /// The all value of <c>EncodingPresence</c>.
             /// </summary>
@@ -265,6 +269,9 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Reads every data schema occurrence declared by a document.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         internal static ArrayOf<JsonElement> ReadDataSchemaOccurrences(WotDocument document)
         {
@@ -681,12 +688,18 @@ namespace Opc.Ua.Wot
             return sources.ToArrayOf();
         }
 
+        /// <summary>
+        /// Reads every data type definition occurrence below a root element.
+        /// </summary>
         /// <param name="root">The JSON element.</param>
         internal static ArrayOf<JsonElement> ReadDataTypeDefinitionOccurrences(JsonElement root)
         {
             return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
         }
 
+        /// <summary>
+        /// Reads every data type definition below a root element together with its JSON pointer.
+        /// </summary>
         /// <param name="root">The JSON element.</param>
         internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(
             JsonElement root)
@@ -818,6 +831,9 @@ namespace Opc.Ua.Wot
                     : throw new FormatException($"The DataType graph identity '{raw}' cannot be expanded in its context.");
         }
 
+        /// <summary>
+        /// Determines whether a definition only references another data type.
+        /// </summary>
         /// <param name="definition">The JSON element.</param>
         internal static bool IsReferenceOnlyDefinition(JsonElement definition)
         {
@@ -870,6 +886,9 @@ namespace Opc.Ua.Wot
             return DeriveDataTypeNodeId(document, name, nodeSet, diagnostics, definition);
         }
 
+        /// <summary>
+        /// Validates a reference to a standard data type.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="reference">The JSON element.</param>
         /// <param name="diagnostics">Collects diagnostics for an invalid standard DataType reference.</param>
@@ -2969,6 +2988,9 @@ namespace Opc.Ua.Wot
             public Dictionary<string, (bool Valid, string Terminal)> ScalarTerminals { get; } =
                 new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Determines whether a document is the one that emits the definition.
+            /// </summary>
             /// <param name="document">The WoT document.</param>
             /// <param name="definitionOwner">The definition owner.</param>
             public bool IsEmissionOwner(WotDocument document, WotDocument definitionOwner)
@@ -2977,6 +2999,9 @@ namespace Opc.Ua.Wot
                     document, emissionOwners.Contains(definitionOwner) ? definitionOwner : primaryOwner);
             }
 
+            /// <summary>
+            /// Records the name and identity emitted for a schema.
+            /// </summary>
             /// <param name="document">The WoT document.</param>
             /// <param name="schema">The JSON element.</param>
             /// <param name="name">The DataType name to register.</param>

@@ -50,6 +50,9 @@ namespace Opc.Ua.Wot
             AddTarget(reference, nodeId is null ? null : new WotResolvedNode(nodeId, WotExpectedNodeClass.Any));
         }
 
+        /// <summary>
+        /// Adds the resolved target of a reference.
+        /// </summary>
         /// <param name="target">The WoT resolved node.</param>
         /// <param name="reference">The reference text that identifies the target.</param>
         public void AddTarget(string reference, WotResolvedNode? target)
@@ -80,6 +83,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// Attempts to peek the resolved target of a reference without consuming it.
+        /// </summary>
         /// <param name="target">The WoT resolved node.</param>
         /// <param name="reference">The reference text that identifies the target.</param>
         public bool TryPeekTarget(string reference, out WotResolvedNode? target)

@@ -237,6 +237,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// Attempts to resolve a qualified name carried by a node to its portable identity.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="carryingNode">The carrying node.</param>
         /// <param name="qualifiedName">The qualified name.</param>
@@ -540,6 +543,9 @@ namespace Opc.Ua.Wot
                 : key;
         }
 
+        /// <summary>
+        /// Gets the local part of a browse name.
+        /// </summary>
         /// <param name="browseName">The browse name.</param>
         internal static string? LocalName(string? browseName)
         {

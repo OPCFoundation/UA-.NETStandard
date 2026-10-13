@@ -902,6 +902,9 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Determines whether a definition is generated event definition data.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="data">The JSON element.</param>

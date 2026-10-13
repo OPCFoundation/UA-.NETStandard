@@ -125,6 +125,9 @@ namespace Opc.Ua.Wot
                 : FieldOrder[index];
         }
 
+        /// <summary>
+        /// Gets the schema of one method argument.
+        /// </summary>
         /// <param name="sourceSchema">The source schema.</param>
         /// <param name="index">The zero-based index of the method argument.</param>
         internal JsonElement GetArgumentSchema(JsonElement sourceSchema, int index)

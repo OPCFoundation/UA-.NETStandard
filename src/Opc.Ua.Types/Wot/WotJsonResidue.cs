@@ -121,6 +121,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// Replaces the retained JSON residue of a document with the one derived from the node set.
+        /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="document">The WoT document.</param>
         /// <param name="options">The WoT node set converter options.</param>
@@ -282,6 +285,9 @@ namespace Opc.Ua.Wot
             return true;
         }
 
+        /// <summary>
+        /// Applies the retained JSON residue of a node set to generated JSON.
+        /// </summary>
         /// <param name="generatedJson">The generated JSON.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>

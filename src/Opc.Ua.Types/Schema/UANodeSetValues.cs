@@ -38,6 +38,9 @@ namespace Opc.Ua.Export
     /// </summary>
     public partial class UANodeSet
     {
+        /// <summary>
+        /// Rebases the namespace indexes of a value element onto the target node set.
+        /// </summary>
         /// <param name="source">The XML element.</param>
         /// <param name="target">The UA node set.</param>
         /// <param name="context">The service message context.</param>

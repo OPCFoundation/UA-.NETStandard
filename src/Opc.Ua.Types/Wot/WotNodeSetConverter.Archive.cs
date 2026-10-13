@@ -38,6 +38,9 @@ namespace Opc.Ua.Wot
 {
     public static partial class WotNodeSetConverter
     {
+        /// <summary>
+        /// Validates that the readable facts preserved in the baseline node set are still present.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="baseline">The UA node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
@@ -729,6 +732,9 @@ namespace Opc.Ua.Wot
                 GetElementInt32(comment, ValueRankTerm) == ScalarValueRank;
         }
 
+        /// <summary>
+        /// Determines whether the authored argument schemas match those preserved from the baseline.
+        /// </summary>
         /// <param name="authoredDocument">The authored document.</param>
         /// <param name="authoredAction">The authored action.</param>
         /// <param name="generatedDocument">The generated document.</param>

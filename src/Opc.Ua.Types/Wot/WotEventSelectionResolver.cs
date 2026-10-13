@@ -1459,6 +1459,9 @@ namespace Opc.Ua.Wot
                     : default;
             }
 
+            /// <summary>
+            /// Gets the document and schema that own the payload a schema refers to.
+            /// </summary>
             /// <param name="referring">The WoT document.</param>
             /// <param name="schema">The JSON element.</param>
             public (WotDocument Document, JsonElement Schema) GetPayloadOwner(WotDocument referring, JsonElement schema)

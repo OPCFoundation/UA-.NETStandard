@@ -817,6 +817,9 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        /// <summary>
+        /// Creates the declaration of the standard EventId property for a queried event type.
+        /// </summary>
         /// <param name="queryTypeNodeId">The query type node ID.</param>
         internal static WotTypeDeclaration StandardEventIdDeclaration(string queryTypeNodeId)
         {

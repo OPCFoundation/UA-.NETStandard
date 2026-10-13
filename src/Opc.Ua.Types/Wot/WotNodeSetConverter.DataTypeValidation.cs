@@ -850,18 +850,22 @@ namespace Opc.Ua.Wot
             /// The simple value of <c>ValidationDataTypeKind</c>.
             /// </summary>
             Simple,
+
             /// <summary>
             /// The enumeration value of <c>ValidationDataTypeKind</c>.
             /// </summary>
             Enumeration,
+
             /// <summary>
             /// The option set value of <c>ValidationDataTypeKind</c>.
             /// </summary>
             OptionSet,
+
             /// <summary>
             /// The structure value of <c>ValidationDataTypeKind</c>.
             /// </summary>
             Structure,
+
             /// <summary>
             /// The union value of <c>ValidationDataTypeKind</c>.
             /// </summary>

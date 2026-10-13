@@ -92,6 +92,9 @@ namespace Opc.Ua.Wot
 
         private sealed class PreservedLiteralConverter : JsonConverter<PreservedLiteral>
         {
+            /// <summary>
+            /// Reads a preserved literal from JSON.
+            /// </summary>
             /// <param name="reader">The utf 8 JSON reader.</param>
             /// <param name="typeToConvert">The type to convert, always the preserved literal.</param>
             /// <param name="options">The serializer options in effect.</param>
@@ -102,6 +105,9 @@ namespace Opc.Ua.Wot
                 return new PreservedLiteral(document.RootElement.Clone());
             }
 
+            /// <summary>
+            /// Writes a preserved literal as JSON.
+            /// </summary>
             /// <param name="writer">The utf 8 JSON writer.</param>
             /// <param name="value">The preserved literal.</param>
             /// <param name="options">The serializer options in effect.</param>

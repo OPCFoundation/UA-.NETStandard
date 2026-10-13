@@ -192,6 +192,9 @@ namespace Opc.Ua.Wot
             return names;
         }
 
+        /// <summary>
+        /// Gets the references of a node.
+        /// </summary>
         /// <param name="node">The UA node.</param>
         public ArrayOf<Reference> GetReferences(UANode node)
         {
@@ -200,6 +203,9 @@ namespace Opc.Ua.Wot
                 : new ArrayOf<Reference>(node.References ?? []);
         }
 
+        /// <summary>
+        /// Determines whether a reference type is abstract.
+        /// </summary>
         /// <param name="referenceType">The reference type.</param>
         public bool IsAbstract(string referenceType)
         {
@@ -207,6 +213,9 @@ namespace Opc.Ua.Wot
                 (NodeSetStandardAliases.IsAbstractReferenceType(identity) || m_abstractTypes.Contains(identity));
         }
 
+        /// <summary>
+        /// Determines whether a reference type expresses ownership.
+        /// </summary>
         /// <param name="referenceType">The reference type.</param>
         public bool IsOwnershipReference(string? referenceType)
         {
@@ -214,6 +223,9 @@ namespace Opc.Ua.Wot
                 (identity == WotVocabulary.HasProperty || IsHasComponentReference(identity));
         }
 
+        /// <summary>
+        /// Determines whether a reference type is HasComponent.
+        /// </summary>
         /// <param name="referenceType">The reference type.</param>
         public bool IsHasComponentReference(string? referenceType)
         {

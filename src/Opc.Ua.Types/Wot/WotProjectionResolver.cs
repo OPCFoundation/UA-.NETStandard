@@ -2545,10 +2545,12 @@ namespace Opc.Ua.Wot
             /// The mismatch value of <c>PredicateMatch</c>.
             /// </summary>
             Mismatch,
+
             /// <summary>
             /// The match value of <c>PredicateMatch</c>.
             /// </summary>
             Match,
+
             /// <summary>
             /// The unknown value of <c>PredicateMatch</c>.
             /// </summary>
@@ -2673,6 +2675,9 @@ namespace Opc.Ua.Wot
                 return Taken(kind).Add(name);
             }
 
+            /// <summary>
+            /// Determines whether an affordance name is already claimed for a kind.
+            /// </summary>
             /// <param name="kind">The WoT affordance kind.</param>
             /// <param name="name">The affordance name to look up.</param>
             public bool IsClaimed(WotAffordanceKind kind, string name)
@@ -2680,6 +2685,9 @@ namespace Opc.Ua.Wot
                 return Taken(kind).Contains(name);
             }
 
+            /// <summary>
+            /// Adds an affordance and claims its name.
+            /// </summary>
             /// <param name="kind">The WoT affordance kind.</param>
             /// <param name="value">The JSON object.</param>
             /// <param name="source">The resolved source.</param>
@@ -2711,6 +2719,9 @@ namespace Opc.Ua.Wot
                 return member;
             }
 
+            /// <summary>
+            /// Attempts to locate the affordance resolved for a source pointer.
+            /// </summary>
             /// <param name="source">The resolved source.</param>
             /// <param name="member">The resolved affordance.</param>
             /// <param name="pointer">The JSON pointer that identifies the affordance within the source.</param>
@@ -2719,6 +2730,9 @@ namespace Opc.Ua.Wot
                 return m_locations.TryGetValue((source.DocumentHref, pointer), out member);
             }
 
+            /// <summary>
+            /// Allocates a unique name for a supporting affordance.
+            /// </summary>
             /// <param name="kind">The WoT affordance kind.</param>
             /// <param name="source">The resolved source.</param>
             /// <param name="name">The preferred name of the supporting affordance.</param>

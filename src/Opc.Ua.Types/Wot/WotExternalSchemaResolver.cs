@@ -450,6 +450,10 @@ namespace Opc.Ua.Wot
             return FindIncompatibility(external, canonical, canonicalDataType, out _, maxDepth);
         }
 
+        /// <summary>
+        /// Finds the first incompatibility between an external schema and its canonical counterpart
+        /// and reports where the mismatch occurred.
+        /// </summary>
         /// <param name="external">The JSON element.</param>
         /// <param name="canonical">The JSON element.</param>
         /// <param name="canonicalDataType">The canonical data type.</param>

@@ -215,6 +215,9 @@ namespace Opc.Ua.Wot
                 node.Value.NodeClass != WotExpectedNodeClass.ReferenceType;
         }
 
+        /// <summary>
+        /// Determines whether a reference type is abstract.
+        /// </summary>
         /// <param name="nodeId">The node ID.</param>
         public bool IsAbstract(string nodeId)
         {
@@ -223,6 +226,9 @@ namespace Opc.Ua.Wot
                 node?.IsAbstract == true;
         }
 
+        /// <summary>
+        /// Determines whether a reference type is HasComponent or one of its subtypes.
+        /// </summary>
         /// <param name="nodeId">The node ID.</param>
         public bool IsHasComponentSubtype(string nodeId)
         {

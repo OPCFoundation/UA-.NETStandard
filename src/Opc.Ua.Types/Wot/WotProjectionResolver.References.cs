@@ -122,6 +122,9 @@ namespace Opc.Ua.Wot
                     projectionDocument, documentLocation ?? projectionDocument.Id ?? string.Empty, null);
             }
 
+            /// <summary>
+            /// Closes the resolution, observing cancellation.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public void Close(CancellationToken cancellationToken)
             {

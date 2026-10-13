@@ -393,6 +393,9 @@ namespace Opc.Ua.Wot
             writer.WriteEndObject();
         }
 
+        /// <summary>
+        /// Determines whether a context entry is the generated unit LocalizedText override.
+        /// </summary>
         /// <param name="context">The JSON element.</param>
         internal static bool IsGeneratedUnitLocalizedTextOverride(JsonElement context)
         {

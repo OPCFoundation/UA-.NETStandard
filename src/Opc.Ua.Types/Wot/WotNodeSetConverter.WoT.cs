@@ -3141,6 +3141,9 @@ namespace Opc.Ua.Wot
             rootReferences.Add(new Reference { ReferenceType = referenceType, Value = nodeId });
         }
 
+        /// <summary>
+        /// Determines whether a declaration maps to a component.
+        /// </summary>
         /// <param name="declaration">The JSON element.</param>
         internal static bool MapsComponentDeclaration(JsonElement declaration)
         {
@@ -3197,6 +3200,9 @@ namespace Opc.Ua.Wot
                 StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Normalizes an expanded NodeId string to its canonical form.
+        /// </summary>
         /// <param name="nodeId">The node ID.</param>
         internal static string NormalizeExpandedNodeId(string nodeId)
         {

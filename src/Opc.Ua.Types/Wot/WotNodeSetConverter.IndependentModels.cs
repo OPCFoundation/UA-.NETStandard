@@ -508,6 +508,9 @@ namespace Opc.Ua.Wot
             INodeSetAliasResolver aliases,
             int serverCount)
         {
+            /// <summary>
+            /// Normalizes NodeId text to a canonical form.
+            /// </summary>
             /// <param name="allowRemote">The allow-remote flag supplied by the caller.</param>
             /// <param name="text">The NodeId text to normalize, or <c>null</c>.</param>
             public string? NodeId(string? text, bool allowRemote = false)

@@ -326,6 +326,9 @@ namespace Opc.Ua.Wot
             return values.ToArrayOf();
         }
 
+        /// <summary>
+        /// Describes a resolved node of a WoT document element.
+        /// </summary>
         /// <param name="element">The JSON element.</param>
         /// <param name="nodeId">The node ID.</param>
         /// <param name="nodeClass">The node class.</param>
@@ -348,6 +351,9 @@ namespace Opc.Ua.Wot
                 };
         }
 
+        /// <summary>
+        /// Describes a node set type as a resolved node.
+        /// </summary>
         /// <param name="node">The UA node.</param>
         /// <param name="nodeSet">The node set.</param>
         internal static WotResolvedNode DescribeNativeType(UANode node, UANodeSet nodeSet)
@@ -374,6 +380,9 @@ namespace Opc.Ua.Wot
             };
         }
 
+        /// <summary>
+        /// Describes the declarations of a node set type.
+        /// </summary>
         /// <param name="type">The UA node.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="references">The WoT reference type names.</param>

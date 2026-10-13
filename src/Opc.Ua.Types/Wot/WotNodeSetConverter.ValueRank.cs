@@ -142,6 +142,9 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Determines whether a schema is a JSON type that maps to a ranked value.
+        /// </summary>
         /// <param name="schema">The JSON element.</param>
         /// <param name="member">The schema member whose JSON type is checked against the value rank.</param>
         internal static bool MapsRankedJsonType(JsonElement schema, string member)
