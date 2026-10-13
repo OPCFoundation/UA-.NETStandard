@@ -10,6 +10,11 @@ configuration notes. Read that file before a run and treat the failures it lists
 investigate what is not in it. When you find a new CTT defect, file it in Mantis and add the failing test, a
 short abstract and the Mantis link there.
 
+**In CI.** `.github/workflows/ctt.yml` ("CTT regression") runs the full CTT weekly on master and on pull
+requests a maintainer labels `ctt`. The CTT is member-only software, so the run itself happens in a private
+OPC Foundation repository; this repository only receives the result counts and the test cases that changed
+against the baseline (commit status `CTT`, PR comment, README badge).
+
 ## Setup
 
 Placeholders used below:
