@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
             }
-            if (m_services.GetService<ISessionBindingProvider>() is { } sessionBindingProvider)
+            if (m_services.GetService<IServerSessionBindingProvider>() is { } sessionBindingProvider)
             {
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }

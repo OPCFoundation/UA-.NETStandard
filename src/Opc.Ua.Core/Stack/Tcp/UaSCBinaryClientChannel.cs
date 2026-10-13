@@ -367,7 +367,11 @@ namespace Opc.Ua.Bindings
 
             using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
-            using (Gate.Enter())
+
+            // a request that waits for the gate (another request or a response is being
+            // processed) must not block its thread: a blocking wait spins first, and with
+            // many concurrent requests on one channel the spinning took a fifth of the CPU.
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)

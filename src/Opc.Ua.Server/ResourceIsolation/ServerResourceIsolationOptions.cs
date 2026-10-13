@@ -37,7 +37,9 @@ namespace Opc.Ua.Server
     /// Configures server-scoped, nonblocking resource admission and decoded-request fairness.
     /// </summary>
     /// <remarks>
-    /// Reserved floors remain inside existing totals. Unknown anonymous callers receive shared,
+    /// Reserved floors remain inside existing totals, except at the RequestQueue, RequestQueueBytes and
+    /// ParkedRequest stages: their default totals add the floors on top, so established Sessions keep the
+    /// full MaxQueuedRequestCount as shared capacity. Unknown anonymous callers receive shared,
     /// best-effort service; guaranteed pre-authentication access requires an explicit ingress classifier.
     /// StandardServer's SharedOnly mode does not install or validate a default runtime provider;
     /// existing unlimited capacities, aggregate limits and FIFO behavior remain in effect.
@@ -330,7 +332,6 @@ namespace Opc.Ua.Server
             {
                 ResourceIsolationStageOptions? item = overrides[ii];
                 long unit = GetStageUnit((ResourceIsolationStage)ii, footprint, quotas.MaxMessageSize);
-                long capacity = item?.Capacity ?? totals[ii];
                 long floorDefault = Mode is ServerResourceIsolationMode.Balanced or
                     ServerResourceIsolationMode.TrustedReservations ? unit : 0;
                 long bootstrapFloor = item?.BootstrapReserved ??
@@ -339,8 +340,22 @@ namespace Opc.Ua.Server
                     (ii == (int)ResourceIsolationStage.ReassemblyBytes ? reconnect : floorDefault);
                 long controlFloor = item?.ControlReserved ??
                     (ii >= (int)ResourceIsolationStage.RequestQueue ? floorDefault : 0);
+                long total = totals[ii];
+                if (IsAdditiveStage((ResourceIsolationStage)ii))
+                {
+                    // MaxQueuedRequestCount is what established Sessions can queue: the protected
+                    // floors of the decoded-request admission stages are added on top of it.
+                    // Negative floors are rejected by ValidateFloor below.
+                    total = checked(total + Math.Max(0, bootstrapFloor) + Math.Max(0, reconnectFloor) +
+                        Math.Max(0, controlFloor));
+                    foreach (TrustedOwnerPlan owner in trusted.Values)
+                    {
+                        total = checked(total + Math.Max(0, owner.Floors[ii]));
+                    }
+                }
+                long capacity = item?.Capacity ?? total;
                 long hardLimit = item?.OwnerHardLimit ?? capacity;
-                if (capacity <= 0 || capacity > totals[ii] || hardLimit < unit || hardLimit > capacity)
+                if (capacity <= 0 || capacity > total || hardLimit < unit || hardLimit > capacity)
                 {
                     throw new ArgumentException($"Invalid capacity or owner ceiling for {(ResourceIsolationStage)ii}.");
                 }
@@ -446,6 +461,19 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(stage));
             }
+        }
+
+        /// <summary>
+        /// Decoded-request stages that reject a request when full. Their protected floors are
+        /// added to the configured total, so ordinary callers keep the full configured queue.
+        /// RequestExecution keeps its floors inside the worker limit, so an idle worker remains
+        /// for protected requests.
+        /// </summary>
+        private static bool IsAdditiveStage(ResourceIsolationStage stage)
+        {
+            return stage is ResourceIsolationStage.RequestQueue or
+                ResourceIsolationStage.RequestQueueBytes or
+                ResourceIsolationStage.ParkedRequest;
         }
 
         private static long GetStageUnit(ResourceIsolationStage stage, long footprint, int maxMessageSize)

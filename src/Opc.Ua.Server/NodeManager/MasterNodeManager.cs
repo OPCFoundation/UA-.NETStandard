@@ -1622,7 +1622,8 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId> nodeIds)
         {
-            if (!Server.IsRunning)
+            // only items that are detached or marked deleted are recovered.
+            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
             {
                 return;
             }
@@ -1693,7 +1694,8 @@ namespace Opc.Ua.Server
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
-            if (!Server.IsRunning)
+            // only items that are detached or marked deleted are recovered.
+            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
             {
                 return;
             }

@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SessionManager : ISessionManager, ISessionBindingProvider
+    public class SessionManager : ISessionManager, IServerSessionBindingProvider
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -1573,6 +1573,10 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
+        /// <param name="requestHeader">The untrusted request header to validate.</param>
+        /// <param name="secureChannelContext">The channel carrying the request.</param>
+        /// <param name="requestType">The requested service.</param>
+        /// <param name="requestLifetime">The cancellation and lifetime of the request.</param>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<OperationContext> ValidateRequestAsync(
@@ -1586,6 +1590,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             ISession? session = null;
 
             try

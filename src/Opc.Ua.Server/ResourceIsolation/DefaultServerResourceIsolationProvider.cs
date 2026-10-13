@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
@@ -50,7 +51,7 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
-        IResourceIsolationReassemblyProvider, IDisposable
+        IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -59,7 +60,7 @@ namespace Opc.Ua.Server
         public DefaultServerResourceIsolationProvider(
             ServerResourceIsolationPlan plan,
             ITelemetryContext telemetry,
-            ISessionBindingProvider? sessionBindings = null,
+            IServerSessionBindingProvider? sessionBindings = null,
             IResourceIsolationClassifier? classifier = null)
         {
             Plan = plan ?? throw new ArgumentNullException(nameof(plan));
@@ -109,21 +110,18 @@ namespace Opc.Ua.Server
         public bool UseFairScheduling => Plan.Mode != ServerResourceIsolationMode.SharedOnly;
 
         /// <inheritdoc/>
+        long IResourceIsolationCapacitySource.GetStageCapacity(ResourceIsolationStage stage)
+        {
+            return Plan.GetStage(stage).Capacity;
+        }
+
+        /// <inheritdoc/>
         public event Action<ResourceIsolationStage>? CapacityAvailable;
 
         /// <summary>
         /// Number of keys with active leases. Released keys are removed immediately.
         /// </summary>
-        public int TrackedOwnerCount
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    return m_owners.Count;
-                }
-            }
-        }
+        public int TrackedOwnerCount => Volatile.Read(ref m_ownerCount);
 
         /// <inheritdoc/>
         public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
@@ -323,12 +321,8 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(amount));
             }
-            ResourceIsolationFailureReason reason;
-            lock (m_lock)
-            {
-                ThrowIfDisposed();
-                reason = AcquireUnderLock(stage, owner, amount, out lease);
-            }
+            ThrowIfDisposed();
+            ResourceIsolationFailureReason reason = Acquire(stage, owner, amount, out lease);
             failure = new ResourceIsolationFailure(
                 reason, reason == ResourceIsolationFailureReason.None ? TimeSpan.Zero : TimeSpan.FromSeconds(1));
             if (reason != ResourceIsolationFailureReason.None)
@@ -355,10 +349,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(stage));
             }
-            lock (m_lock)
-            {
-                return m_stages[(int)stage].Used;
-            }
+            return Interlocked.Read(ref m_stages[(int)stage].Used);
         }
 
         /// <inheritdoc/>
@@ -390,19 +381,29 @@ namespace Opc.Ua.Server
         private IEnumerable<Measurement<long>> ObserveUsage()
         {
             var values = new Measurement<long>[kStageCount];
-            lock (m_lock)
+            for (int ii = 0; ii < values.Length; ii++)
             {
-                for (int ii = 0; ii < values.Length; ii++)
-                {
-                    values[ii] = new Measurement<long>(
-                        m_stages[ii].Used,
-                        new KeyValuePair<string, object?>("stage", ((ResourceIsolationStage)ii).ToString()));
-                }
+                values[ii] = new Measurement<long>(
+                    Interlocked.Read(ref m_stages[ii].Used),
+                    new KeyValuePair<string, object?>("stage", ((ResourceIsolationStage)ii).ToString()));
             }
             return values;
         }
 
-        private ResourceIsolationFailureReason AcquireUnderLock(
+        /// <summary>
+        /// Admits a lease without a server-wide lock when the owner already holds a lease of the
+        /// same accounting class. Owner-table changes (a new owner, a class appearing or
+        /// disappearing) take the table lock.
+        /// </summary>
+        /// <remarks>
+        /// Each counter is reserved with a compare-and-swap that never passes its limit, and the
+        /// counters already reserved are returned when a later one is full. Two acquisitions
+        /// racing for the last units may therefore both be rejected where a serialized order would
+        /// admit one; no limit is ever exceeded.
+        /// A class count of an owner only crosses zero under the table lock, so the owner's
+        /// exclusive class and the protected table slots stay consistent with its leases.
+        /// </remarks>
+        private ResourceIsolationFailureReason Acquire(
             ResourceIsolationStage stage,
             ResourceIsolationOwner owner,
             long amount,
@@ -419,9 +420,76 @@ namespace Opc.Ua.Server
             }
             int index = (int)stage;
             StageState state = m_stages[index];
-            m_owners.TryGetValue(owner.Key, out OwnerState? accounting);
-            long ownerUsed = accounting?.Usage[index] ?? 0;
-            if (amount > owner.GetHardLimit(stage) - ownerUsed)
+            ResourceIsolationClass accountingClass = identity.OnlyStage.HasValue
+                ? ResourceIsolationClass.Established : owner.Class;
+            ResourceIsolationFailureReason reason;
+            long fromReserved;
+
+            if (m_owners.TryGetValue(owner.Key, out OwnerState? accounting) &&
+                TryAddClassLease(accounting, accountingClass))
+            {
+                // The owner's set of active classes does not change, so neither does its
+                // exclusive class nor the number of protected table slots.
+                reason = Reserve(state, accounting, owner, identity, stage, amount, out fromReserved);
+                if (reason != ResourceIsolationFailureReason.None)
+                {
+                    ReleaseClassLease(accounting, accountingClass);
+                    return reason;
+                }
+                lease = new Lease(this, accounting, stage, owner.Class, accountingClass, amount, fromReserved);
+                return ResourceIsolationFailureReason.None;
+            }
+
+            lock (m_tableLock)
+            {
+                m_owners.TryGetValue(owner.Key, out accounting);
+                OwnerState target = accounting ?? new OwnerState(owner.Key);
+                reason = Reserve(state, target, owner, identity, stage, amount, out fromReserved);
+                if (reason != ResourceIsolationFailureReason.None)
+                {
+                    return reason;
+                }
+                ResourceIsolationClass? nextExclusiveClass =
+                    accounting == null || accounting.ExclusiveClass == accountingClass ? accountingClass : null;
+                // A mixed-class key cannot fill a protected table slot: its ordinary leases
+                // may outlive every protected lease without releasing the entry.
+                int protectedSlots = GetReservedOwnerSlots(accounting?.ExclusiveClass, nextExclusiveClass);
+                long projectedOwnerCount = (long)m_ownerCount + (accounting == null ? 1 : 0);
+                if (projectedOwnerCount > Plan.MaxTrackedOwners - protectedSlots)
+                {
+                    Unreserve(state, target, owner.Class, stage, amount, fromReserved);
+                    return ResourceIsolationFailureReason.OwnerTableFull;
+                }
+                if (accounting == null)
+                {
+                    m_owners[owner.Key] = target;
+                    Volatile.Write(ref m_ownerCount, m_ownerCount + 1);
+                }
+                if (Interlocked.Increment(ref target.ClassLeases[(int)accountingClass]) == 1)
+                {
+                    UpdateExclusiveClassLocked(target);
+                }
+                lease = new Lease(this, target, stage, owner.Class, accountingClass, amount, fromReserved);
+                return ResourceIsolationFailureReason.None;
+            }
+        }
+
+        /// <summary>
+        /// Reserves the owner's ceiling, its protected floor and the stage capacity,
+        /// in the order the rejection reasons are reported.
+        /// </summary>
+        private static ResourceIsolationFailureReason Reserve(
+            StageState state,
+            OwnerState accounting,
+            ResourceIsolationOwner owner,
+            OwnerIdentity identity,
+            ResourceIsolationStage stage,
+            long amount,
+            out long fromReserved)
+        {
+            fromReserved = 0;
+            int index = (int)stage;
+            if (!TryAddBounded(ref accounting.Usage[index], amount, owner.GetHardLimit(stage)))
             {
                 return ResourceIsolationFailureReason.OwnerLimit;
             }
@@ -433,95 +501,175 @@ namespace Opc.Ua.Server
                 ResourceIsolationClass.Trusted => identity.Trusted!.Floors[index],
                 _ => 0
             };
-            long reservedUsed = owner.Class switch
+            if (floor > 0)
             {
-                ResourceIsolationClass.Bootstrap => state.BootstrapUsed,
-                ResourceIsolationClass.Reconnect => state.ReconnectUsed,
-                ResourceIsolationClass.Control => state.ControlUsed,
-                ResourceIsolationClass.Trusted => accounting?.TrustedUsage[index] ?? 0,
-                _ => 0
-            };
-            long fromReserved = Math.Min(amount, floor - reservedUsed);
+                ref long reservedUsed = ref GetReservedCounter(state, accounting, owner.Class, index);
+                while (true)
+                {
+                    long used = Interlocked.Read(ref reservedUsed);
+                    long available = Math.Min(amount, floor - used);
+                    if (available <= 0 ||
+                        Interlocked.CompareExchange(ref reservedUsed, used + available, used) == used)
+                    {
+                        fromReserved = Math.Max(available, 0);
+                        break;
+                    }
+                }
+            }
             long fromShared = amount - fromReserved;
-            if (amount > state.Plan.Capacity - state.Used ||
-                fromShared > state.Plan.SharedCapacity - state.SharedUsed)
+            bool admitted = TryAddBounded(ref state.Used, amount, state.Plan.Capacity);
+            if (admitted && fromShared > 0 &&
+                !TryAddBounded(ref state.SharedUsed, fromShared, state.Plan.SharedCapacity))
             {
+                Interlocked.Add(ref state.Used, -amount);
+                admitted = false;
+            }
+            if (!admitted)
+            {
+                if (fromReserved > 0)
+                {
+                    Interlocked.Add(
+                        ref GetReservedCounter(state, accounting, owner.Class, index), -fromReserved);
+                }
+                Interlocked.Add(ref accounting.Usage[index], -amount);
+                fromReserved = 0;
                 return ResourceIsolationFailureReason.Capacity;
             }
-            ResourceIsolationClass accountingClass = identity.OnlyStage.HasValue
-                ? ResourceIsolationClass.Established : owner.Class;
-            ResourceIsolationClass? nextExclusiveClass =
-                accounting == null || accounting.ExclusiveClass == accountingClass ? accountingClass : null;
-            // A mixed-class key cannot fill a protected table slot: its ordinary leases
-            // may outlive every protected lease without releasing the entry.
-            int protectedSlots = GetReservedOwnerSlots(accounting?.ExclusiveClass, nextExclusiveClass);
-            long projectedOwnerCount = (long)m_owners.Count + (accounting == null ? 1 : 0);
-            if (projectedOwnerCount > Plan.MaxTrackedOwners - protectedSlots)
+            return ResourceIsolationFailureReason.None;
+        }
+
+        /// <summary>
+        /// Adds <paramref name="amount"/> unless the counter would exceed <paramref name="limit"/>;
+        /// the counter never shows more than the limit, not even transiently.
+        /// </summary>
+        private static bool TryAddBounded(ref long counter, long amount, long limit)
+        {
+            while (true)
             {
-                return ResourceIsolationFailureReason.OwnerTableFull;
+                long current = Interlocked.Read(ref counter);
+                if (amount > limit - current)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref counter, current + amount, current) == current)
+                {
+                    return true;
+                }
             }
-            if (accounting == null)
+        }
+
+        /// <summary>
+        /// Returns the counters of a successful reservation.
+        /// </summary>
+        private static void Unreserve(
+            StageState state,
+            OwnerState accounting,
+            ResourceIsolationClass ownerClass,
+            ResourceIsolationStage stage,
+            long amount,
+            long fromReserved)
+        {
+            int index = (int)stage;
+            if (amount > fromReserved)
             {
-                accounting = new OwnerState(owner.Key);
-                m_owners.Add(owner.Key, accounting);
+                Interlocked.Add(ref state.SharedUsed, fromReserved - amount);
             }
-            var acquired = new Lease(this, accounting, stage, owner.Class, accountingClass, amount, fromReserved);
-            accounting.Usage[index] += amount;
-            accounting.ActiveLeases++;
-            UpdateOwnerClasses(accounting, accountingClass, 1);
-            state.Used += amount;
-            state.SharedUsed += fromShared;
-            switch (owner.Class)
+            Interlocked.Add(ref state.Used, -amount);
+            if (fromReserved > 0)
+            {
+                Interlocked.Add(ref GetReservedCounter(state, accounting, ownerClass, index), -fromReserved);
+            }
+            Interlocked.Add(ref accounting.Usage[index], -amount);
+        }
+
+        /// <summary>
+        /// The protected-floor counter a class draws from; only called for classes with a floor.
+        /// </summary>
+        private static ref long GetReservedCounter(
+            StageState state,
+            OwnerState accounting,
+            ResourceIsolationClass ownerClass,
+            int index)
+        {
+            switch (ownerClass)
             {
                 case ResourceIsolationClass.Bootstrap:
-                    state.BootstrapUsed += fromReserved;
-                    break;
+                    return ref state.BootstrapUsed;
                 case ResourceIsolationClass.Reconnect:
-                    state.ReconnectUsed += fromReserved;
-                    break;
-                case ResourceIsolationClass.Trusted:
-                    accounting.TrustedUsage[index] += fromReserved;
-                    break;
+                    return ref state.ReconnectUsed;
                 case ResourceIsolationClass.Control:
-                    state.ControlUsed += fromReserved;
-                    break;
+                    return ref state.ControlUsed;
+                case ResourceIsolationClass.Trusted:
+                    return ref accounting.TrustedUsage[index];
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(ownerClass));
             }
-            lease = acquired;
-            return ResourceIsolationFailureReason.None;
         }
 
         private void Release(Lease lease)
         {
-            lock (m_lock)
+            Unreserve(
+                m_stages[(int)lease.Stage], lease.Owner, lease.Class, lease.Stage, lease.Amount, lease.Reserved);
+            ReleaseClassLease(lease.Owner, lease.AccountingClass);
+            CapacityAvailable?.Invoke(lease.Stage);
+        }
+
+        /// <summary>
+        /// Adds a lease to a class the owner already holds, without changing its set of classes.
+        /// </summary>
+        private static bool TryAddClassLease(OwnerState owner, ResourceIsolationClass ownerClass)
+        {
+            ref long count = ref owner.ClassLeases[(int)ownerClass];
+            while (true)
             {
-                int index = (int)lease.Stage;
-                StageState state = m_stages[index];
-                OwnerState owner = lease.Owner;
-                owner.Usage[index] -= lease.Amount;
-                state.Used -= lease.Amount;
-                state.SharedUsed -= lease.Amount - lease.Reserved;
-                switch (lease.Class)
+                long current = Interlocked.Read(ref count);
+                if (current <= 0)
                 {
-                    case ResourceIsolationClass.Bootstrap:
-                        state.BootstrapUsed -= lease.Reserved;
-                        break;
-                    case ResourceIsolationClass.Reconnect:
-                        state.ReconnectUsed -= lease.Reserved;
-                        break;
-                    case ResourceIsolationClass.Trusted:
-                        owner.TrustedUsage[index] -= lease.Reserved;
-                        break;
-                    case ResourceIsolationClass.Control:
-                        state.ControlUsed -= lease.Reserved;
-                        break;
+                    return false;
                 }
-                UpdateOwnerClasses(owner, lease.AccountingClass, -1);
-                if (--owner.ActiveLeases == 0)
+                if (Interlocked.CompareExchange(ref count, current + 1, current) == current)
                 {
-                    m_owners.Remove(owner.Key);
+                    return true;
                 }
             }
-            CapacityAvailable?.Invoke(lease.Stage);
+        }
+
+        /// <summary>
+        /// Removes a lease from an owner class; the last lease of a class is removed under the
+        /// table lock, which also drops the owner entry once no lease remains.
+        /// </summary>
+        private void ReleaseClassLease(OwnerState owner, ResourceIsolationClass ownerClass)
+        {
+            ref long count = ref owner.ClassLeases[(int)ownerClass];
+            while (true)
+            {
+                long current = Interlocked.Read(ref count);
+                if (current <= 1)
+                {
+                    break;
+                }
+                if (Interlocked.CompareExchange(ref count, current - 1, current) == current)
+                {
+                    return;
+                }
+            }
+            lock (m_tableLock)
+            {
+                if (Interlocked.Decrement(ref count) != 0)
+                {
+                    return;
+                }
+                UpdateExclusiveClassLocked(owner);
+                for (int ii = 0; ii < owner.ClassLeases.Length; ii++)
+                {
+                    if (Interlocked.Read(ref owner.ClassLeases[ii]) != 0)
+                    {
+                        return;
+                    }
+                }
+                m_owners.TryRemove(owner.Key, out _);
+                Volatile.Write(ref m_ownerCount, m_ownerCount - 1);
+            }
         }
 
         private int GetReservedOwnerSlots(
@@ -557,17 +705,20 @@ namespace Opc.Ua.Server
                 (next == ownerClass ? 1 : 0);
         }
 
-        private void UpdateOwnerClasses(OwnerState owner, ResourceIsolationClass ownerClass, int change)
+        /// <summary>
+        /// Recomputes the owner's sole active class after one of its class counts crossed zero.
+        /// Concurrent lock-free changes never cross zero, so the result is stable under the lock.
+        /// </summary>
+        private void UpdateExclusiveClassLocked(OwnerState owner)
         {
             if (owner.ExclusiveClass is { } previous)
             {
                 m_exclusiveOwners[(int)previous]--;
             }
-            owner.ClassLeases[(int)ownerClass] += change;
             ResourceIsolationClass? exclusive = null;
             for (int ii = 0; ii < owner.ClassLeases.Length; ii++)
             {
-                if (owner.ClassLeases[ii] == 0)
+                if (Interlocked.Read(ref owner.ClassLeases[ii]) == 0)
                 {
                     continue;
                 }
@@ -670,6 +821,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Tracks total, shared and protected usage for one resource stage.
+        /// The counters are fields so they can be updated with <see cref="Interlocked"/>.
         /// </summary>
         private sealed class StageState(ResourceIsolationStagePlan plan)
         {
@@ -681,27 +833,27 @@ namespace Opc.Ua.Server
             /// <summary>
             /// All currently leased capacity.
             /// </summary>
-            public long Used { get; set; }
+            public long Used;
 
             /// <summary>
             /// Leased capacity drawn from the unreserved pool.
             /// </summary>
-            public long SharedUsed { get; set; }
+            public long SharedUsed;
 
             /// <summary>
             /// Leased bootstrap floor.
             /// </summary>
-            public long BootstrapUsed { get; set; }
+            public long BootstrapUsed;
 
             /// <summary>
             /// Leased reconnect floor.
             /// </summary>
-            public long ReconnectUsed { get; set; }
+            public long ReconnectUsed;
 
             /// <summary>
             /// Leased control-work floor.
             /// </summary>
-            public long ControlUsed { get; set; }
+            public long ControlUsed;
         }
 
         /// <summary>
@@ -715,12 +867,13 @@ namespace Opc.Ua.Server
             public string Key { get; } = key;
 
             /// <summary>
-            /// The sole active class, or null when leases span classes.
+            /// The sole active class, or null when leases span classes; changed under the table lock.
             /// </summary>
             public ResourceIsolationClass? ExclusiveClass { get; set; }
 
             /// <summary>
-            /// Counts outstanding leases by class for protected tracking-table capacity.
+            /// Counts outstanding leases by class for protected tracking-table capacity. A count
+            /// crosses zero only under the table lock; the entry is dropped when all are zero.
             /// </summary>
             public long[] ClassLeases { get; } = new long[kClassCount];
 
@@ -733,11 +886,6 @@ namespace Opc.Ua.Server
             /// Amounts drawn from this owner's provisioned floors.
             /// </summary>
             public long[] TrustedUsage { get; } = new long[kStageCount];
-
-            /// <summary>
-            /// Keeps the owner entry alive until its last reservation is released.
-            /// </summary>
-            public long ActiveLeases { get; set; }
         }
 
         /// <summary>
@@ -958,13 +1106,17 @@ namespace Opc.Ua.Server
             private DefaultServerResourceIsolationProvider? m_provider = provider;
         }
 
-        private readonly Lock m_lock = new();
+        /// <summary>
+        /// Serializes owner-table changes: owner entries, exclusive classes and protected slots.
+        /// </summary>
+        private readonly Lock m_tableLock = new();
         private const int kStageCount = (int)ResourceIsolationStage.ParkedRequest + 1;
         private const int kClassCount = (int)ResourceIsolationClass.Control + 1;
         private readonly StageState[] m_stages = new StageState[kStageCount];
-        private readonly Dictionary<string, OwnerState> m_owners = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, OwnerState> m_owners = new(StringComparer.Ordinal);
+        private int m_ownerCount;
         private readonly ConditionalWeakTable<ResourceIsolationOwner, OwnerIdentity> m_classifications = new();
-        private readonly ISessionBindingProvider? m_sessionBindings;
+        private readonly IServerSessionBindingProvider? m_sessionBindings;
         private readonly IResourceIsolationClassifier? m_classifier;
         private readonly Meter m_meter;
         private readonly Counter<long> m_rejections;

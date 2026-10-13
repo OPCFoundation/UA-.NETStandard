@@ -78,6 +78,41 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
         }
 
         [Test]
+        public async Task HandleAsyncReleasesTheResponseOnceAfterEncodingAsync(
+            [Values(false, true)] bool unexpectedType)
+        {
+            // a Publish response owns a reference to the server's retained notification
+            // message, released by Reuse() once the response was encoded or abandoned.
+            var dispatched = new CountingPublishResponse
+            {
+                SubscriptionId = 7,
+                NotificationMessage = new NotificationMessage { SequenceNumber = 3 }
+            };
+            var server = new StubServer { ResponseFactory = _ => dispatched };
+            DefaultHttpContext context = BuildContext("/publish", server);
+            WriteJsonBody(context.Request, "{}");
+
+            if (unexpectedType)
+            {
+                await WebApiEndpointDispatcher
+                    .HandleAsync<ReadRequest, ReadResponse>(context)
+                    .ConfigureAwait(false);
+                Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+            }
+            else
+            {
+                await WebApiEndpointDispatcher
+                    .HandleAsync<PublishRequest, PublishResponse>(context)
+                    .ConfigureAwait(false);
+                Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+                Assert.That(ReadResponseBody(context.Response), Does.Contain("\"SubscriptionId\":7"),
+                    "the response is encoded before it is released");
+            }
+
+            Assert.That(dispatched.ReuseCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task HandleAsyncMapsDecodeFailureToBadRequestAsync()
         {
             var server = new StubServer();
@@ -309,6 +344,19 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
             response.Body.Position = 0;
             using var reader = new StreamReader(response.Body, Encoding.UTF8);
             return reader.ReadToEnd();
+        }
+
+        /// <summary>
+        /// Counts releases instead of returning the instance to the shared pool.
+        /// </summary>
+        private sealed class CountingPublishResponse : PublishResponse
+        {
+            public int ReuseCount { get; private set; }
+
+            protected override void ReuseCore()
+            {
+                ReuseCount++;
+            }
         }
 
         private sealed class StubServer : IWebApiServer
