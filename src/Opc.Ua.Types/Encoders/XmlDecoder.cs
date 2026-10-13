@@ -874,7 +874,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <param name="fieldName">The field name.</param>
         public XmlElement ReadXmlElement(string? fieldName)
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
@@ -893,7 +892,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <param name="fieldName">The field name.</param>
         public NodeId ReadNodeId(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -933,7 +931,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <param name="fieldName">The field name.</param>
         public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -1032,7 +1029,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <param name="fieldName">The field name.</param>
         public QualifiedName ReadQualifiedName(string? fieldName)
         {
             if (BeginField(fieldName, true))
@@ -1085,7 +1081,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <param name="fieldName">The field name.</param>
         public Variant ReadVariant(string? fieldName)
         {
             CheckAndIncrementNestingLevel();
@@ -3424,12 +3419,16 @@ namespace Opc.Ua
             SetMappingTables(namespaceUris, null);
             m_serverMappings = Context.ServerUris?.CreateMapping(
                 serverUris, false, preserveLocalServerIndex: preserveRemoteServerIdentity);
-            if (m_serverMappings is { Length: > 0 })
+            if (m_serverMappings != null && m_serverMappings.Length > 0)
             {
                 m_serverMappings[0] = 0;
             }
         }
 
+        /// <summary>
+        /// Rejects an index that the source did not declare when a complete value is required.
+        /// </summary>
+        /// <param name="index">The namespace index read from the source.</param>
         private void ValidateNamespaceMapping(ushort index)
         {
             if (RequireCompleteValue &&
@@ -3441,6 +3440,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Rejects attributes on the current element other than namespace declarations and xsi:nil.
+        /// </summary>
         private void ValidateValueAttributes()
         {
             if (m_reader.MoveToFirstAttribute())

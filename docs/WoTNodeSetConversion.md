@@ -1,7 +1,12 @@
 # WoT / NodeSet conversion
 
-Conversion guidance is consolidated into [WoT bindings and conversion](WotBindings.md).
-The anchors below preserve existing links; the linked sections are authoritative.
+`Opc.Ua.Wot.WotNodeSetConverter` converts OPC UA NodeSet2 documents to
+WoT Thing Models / Thing Descriptions and materializes WoT documents back
+to NodeSet2. The sections of the conversion guidance live in
+[WoT bindings and conversion](WotBindings.md); the anchors below preserve
+existing links.
+
+## Contents
 
 <a id="contents"></a>
 <a id="which-specification-revision-this-tracks"></a>
