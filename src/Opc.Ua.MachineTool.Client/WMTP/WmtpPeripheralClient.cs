@@ -286,7 +286,8 @@ namespace Opc.Ua.MachineTool.Client
                     counters[0], counters[1]], cancellationToken).ConfigureAwait(false);
             return new WmtpMeasurementReading
             {
-                NodeId = id, BrowseName = browseName, Sample = values[0], TypeOfMeasurement = values[1],
+                NodeId = id, ValueNodeId = nodes[0], BrowseName = browseName,
+                Sample = values[0], TypeOfMeasurement = values[1],
                 TypeOfSample = values[2], TriggerSettings = values[3], DeltaCondition = values[4],
                 Timestamp = values[5], Index = values[6], MeasurementPeriod = values[7],
                 InternalUpdateInterval = values[8], RelativeUncertainty = values[9], AbsoluteUncertainty = values[10],

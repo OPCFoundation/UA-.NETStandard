@@ -40,6 +40,12 @@ namespace Opc.Ua.MachineTool.WMTP
         public NodeId NodeId { get; init; }
 
         /// <summary>
+        /// Gets the actual inherited AnalogSignal variable for bounded value observation.
+        /// This is distinct from the measurement object targeted by configuration methods.
+        /// </summary>
+        public NodeId ValueNodeId { get; init; }
+
+        /// <summary>
         /// Gets its namespace-qualified application name.
         /// </summary>
         public QualifiedName BrowseName { get; init; }
