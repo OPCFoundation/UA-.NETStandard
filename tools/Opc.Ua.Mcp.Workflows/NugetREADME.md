@@ -6,9 +6,9 @@ model proxies, file clients, alarm operations and historian.
 
 ```csharp
 services.AddOpcUaMcpCore(options);
-services.AddOpcUaMcpClientWorkflows();
+services.AddOpcUaMcpWorkflows();
 services.AddMcpServer()
-    .WithOpcUaClientWorkflowTools(
+    .WithOpcUaWorkflowTools(
         new McpToolProfileSet([McpToolProfile.Files, McpToolProfile.History]));
 ```
 
@@ -200,7 +200,7 @@ the protocol runtime registry and never consume WoT/PubSub capabilities.
 
 ## Session generation safety
 
-The default `IClientWorkflowSessionFactory` captures the SDK's
+The default `IWorkflowSessionFactory` captures the SDK's
 `SessionRequestContext`. Its borrowed session binds each actual service dispatch
 to the original authentication token, physical transport, namespace mapping and
 managed-session generation. A saved reference to `ManagedSession.InnerSession`
@@ -214,5 +214,5 @@ the context never closes the host's real session or shared subscription.
 
 The default capture supports stack `ManagedSession` instances, including the
 sessions opened by MCP connection tools. Other embedding hosts must implement
-`IClientWorkflowSessionFactory` with equivalent dispatch-generation guarantees;
+`IWorkflowSessionFactory` with equivalent dispatch-generation guarantees;
 there is no unsafe fallback for an arbitrary `ISession`.

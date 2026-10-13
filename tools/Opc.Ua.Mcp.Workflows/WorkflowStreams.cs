@@ -39,7 +39,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Borrows the host's streaming subscription; callers own only their returned observation enumerators.
     /// </summary>
-    public interface IClientWorkflowStreams
+    public interface IWorkflowStreams
     {
         /// <summary>
         /// Gets the selected session's borrowed streaming subscription.
@@ -57,7 +57,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Default adapter to managed sessions and the SDK's event-stream lifecycle.
     /// </summary>
-    public sealed class ClientWorkflowStreams : IClientWorkflowStreams
+    public sealed class WorkflowStreams : IWorkflowStreams
     {
         /// <inheritdoc/>
         public IStreamingSubscription GetStreaming(ISession session)

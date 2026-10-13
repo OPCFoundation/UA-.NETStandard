@@ -44,7 +44,7 @@ using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Exercises encrypted local server bindings, file effects, history and actual managed refresh lifecycle.
@@ -53,7 +53,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
     [Category("Mcp")]
     [Category("Integration")]
     [NonParallelizable]
-    public sealed class ClientWorkflowLiveTests
+    public sealed class WorkflowLiveTests
     {
         /// <summary>
         /// Gets the session manager owned and disposed by the dependency-injection container.
@@ -94,13 +94,13 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
                     [
                         new McpCallerGrant
                         {
-                            Caller = ClientWorkflowTestContext.Owner,
+                            Caller = WorkflowTestContext.Owner,
                             Capabilities = [McpCapability.IdentityAdministration],
                             SessionNames = ["workflow-live"]
                         }
                     ]
                 }
-            }).AddOpcUaMcpClientWorkflows();
+            }).AddOpcUaMcpWorkflows();
             services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
             m_services = services.BuildServiceProvider();
             using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -143,7 +143,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
             Assert.That(page.GetProperty("items").GetArrayLength(), Is.EqualTo(1));
             Assert.That(page.GetProperty("items")[0].GetProperty("expandedNodeId").GetString(), Is.Not.Empty);
             using IDisposable caller = m_services.GetRequiredService<McpCallerContext>()
-                .EnterTrustedCaller(ClientWorkflowTestContext.Owner);
+                .EnterTrustedCaller(WorkflowTestContext.Owner);
             CallToolResult refused = await m_services.GetRequiredService<UserWorkflowTools>()
                 .RemoveAsync("nonexistent-workflow-test-user", "workflow-live").ConfigureAwait(false);
             RemoteModelTestSession.Error(refused, StatusCodes.BadUserAccessDenied);
@@ -200,7 +200,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
             var node = new NodeId("Scalar_Static_Double", checked((ushort)index));
             HistoryWorkflowTools history = m_services.GetRequiredService<HistoryWorkflowTools>();
             using IDisposable caller = m_services.GetRequiredService<McpCallerContext>()
-                .EnterTrustedCaller(ClientWorkflowTestContext.Owner);
+                .EnterTrustedCaller(WorkflowTestContext.Owner);
             JsonElement values = Success(await history.ReadRawAsync(node.ToString(),
                 "2000-01-01T00:00:00Z", "2099-01-01T00:00:00Z", maxResults: 2,
                 retainCursor: true, sessionName: "workflow-live").ConfigureAwait(false));

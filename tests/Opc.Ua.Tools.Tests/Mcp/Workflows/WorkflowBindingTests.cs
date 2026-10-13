@@ -40,14 +40,14 @@ using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Tests the consolidated package's real registration, published schemas and invocation binding.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowBindingTests
+    public sealed class WorkflowBindingTests
     {
         /// <summary>
         /// Keeps every profile bounded and existing enum ordinals stable.
@@ -60,7 +60,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task SingleProfilesExposeExactBoundedCatalogueAsync(
             McpToolProfile profile, int ordinal, string prefix, int count)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
                 profiles: new McpToolProfileSet(profile)).ConfigureAwait(false);
             string[] names = [.. fixture.Services.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
             Assert.That((int)profile, Is.EqualTo(ordinal));
@@ -76,17 +76,17 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task ComposedRegistrationIsIdempotentAndPreservesHostOptionsAsync()
         {
             var services = new ServiceCollection();
-            var options = new ClientWorkflowOptions { MaxItems = 17 };
-            services.AddOpcUaMcpCore().AddOpcUaMcpClientWorkflows(options).AddOpcUaMcpClientWorkflows();
+            var options = new WorkflowOptions { MaxItems = 17 };
+            services.AddOpcUaMcpCore().AddOpcUaMcpWorkflows(options).AddOpcUaMcpWorkflows();
             services.AddMcpServer().WithStreamServerTransport(Stream.Null, Stream.Null)
-                .WithOpcUaClientWorkflowTools(McpToolProfile.Roles)
-                .WithOpcUaClientWorkflowTools(new McpToolProfileSet([McpToolProfile.Users, McpToolProfile.Roles]))
-                .WithOpcUaClientWorkflowTools(McpToolProfile.Full);
+                .WithOpcUaWorkflowTools(McpToolProfile.Roles)
+                .WithOpcUaWorkflowTools(new McpToolProfileSet([McpToolProfile.Users, McpToolProfile.Roles]))
+                .WithOpcUaWorkflowTools(McpToolProfile.Full);
             await using ServiceProvider provider = services.BuildServiceProvider();
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
             Assert.That(names, Has.Length.EqualTo(78));
             Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(78));
-            Assert.That(provider.GetRequiredService<ClientWorkflowOptions>(), Is.SameAs(options));
+            Assert.That(provider.GetRequiredService<WorkflowOptions>(), Is.SameAs(options));
         }
 
         /// <summary>
@@ -95,13 +95,13 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DisabledHostHidesIdentityAdministrationButRetainsRoleReadToolsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(enabled: false).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(enabled: false).ConfigureAwait(false);
             ListToolsResult list = await fixture.ListAsync().ConfigureAwait(false);
             Assert.That(list.Tools.Select(tool => tool.Name), Does.Contain("roles_list"));
             Assert.That(list.Tools.Select(tool => tool.Name), Does.Not.Contain("users_policy"));
             Assert.That(list.Tools.Select(tool => tool.Name), Does.Contain("files_upload"));
-            Assert.That(list.Tools.Any(tool => ClientWorkflowFilters.RequiresIdentityAdministration(tool.Name)),
+            Assert.That(list.Tools.Any(tool => WorkflowFilters.RequiresIdentityAdministration(tool.Name)),
                 Is.False);
             Assert.That(list.Tools, Has.Count.EqualTo(62));
         }
@@ -112,8 +112,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task PublishedInputSchemasContainConcreteArraysAndHostIndependentHardCeilingsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             McpServerTool values = fixture.Services.GetServices<McpServerTool>()
                 .Single(tool => tool.ProtocolTool.Name == "history_insert_values");
             JsonElement schema = values.ProtocolTool.InputSchema;
@@ -145,8 +145,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task SdkBinderPreservesTypedDataValueQualityAndExactUtcOffsetAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.InvokeAsync("history_insert_values", new JsonObject
             {
                 ["nodeId"] = fixture.Remote.Id("historian").ToString(),
@@ -201,8 +201,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AdvertisedWorkflowParametersMatchPinnedGraderDepthAndDescriptionRulesAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             McpServerTool[] tools = [.. fixture.Services.GetServices<McpServerTool>()
                 .Where(tool => tool.ProtocolTool.Name.StartsWith("roles_", StringComparison.Ordinal) ||
                     tool.ProtocolTool.Name.StartsWith("users_", StringComparison.Ordinal) ||
@@ -234,8 +234,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task UnknownRootArgumentIsRefusedBeforeAnyRemoteWorkAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.InvokeAsync("roles_create", new JsonObject
             {
                 ["roleName"] = "Maintenance",
@@ -255,7 +255,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(501, false)]
         public void PageCeilingConfigurationHasExactBoundaries(int limit, bool accepted)
         {
-            var options = new ClientWorkflowOptions { MaxItems = limit };
+            var options = new WorkflowOptions { MaxItems = limit };
             if (accepted)
             {
                 Assert.That(options.Validate, Throws.Nothing);
@@ -274,8 +274,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(4, true)]
         public async Task CallerCannotRaiseHostPageLimitAsync(int requested, bool refused)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
             CallToolResult result = await fixture.Roles.ListAsync(requested, sessionName: "selected")
                 .ConfigureAwait(false);
             Assert.That(result.IsError, Is.EqualTo(refused));
@@ -291,12 +291,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DefaultScopeFactoryRefusesUnmanagedSessionWithoutUnsafeFallbackAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            var factory = new ClientWorkflowSessionFactory();
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            var factory = new WorkflowSessionFactory();
             await Assert.ThatAsync(async () =>
             {
-                IClientWorkflowSessionScope scope = await factory.CaptureAsync(
+                IWorkflowSessionScope scope = await factory.CaptureAsync(
                     fixture.Manager.GetSessionInfoOrThrow("selected")).ConfigureAwait(false);
                 await scope.DisposeAsync().ConfigureAwait(false);
             }, Throws.InstanceOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))

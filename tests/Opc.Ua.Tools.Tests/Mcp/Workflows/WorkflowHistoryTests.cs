@@ -36,14 +36,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Tests the historian's actual query/update payloads and per-item outcomes independently of cursor ownership.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowHistoryTests
+    public sealed class WorkflowHistoryTests
     {
         /// <summary>
         /// Raw and modified reads remain distinct and preserve their real audit/quality metadata.
@@ -52,8 +52,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task RawAndModifiedReadsPreserveUtcQueryAndQualityWithoutConflatingAuditInfoAsync(bool modified)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             DataValue data = Data(4.5, StatusCodes.Uncertain);
             fixture.HistoryPages.Enqueue(new HistoryReadResult
             {
@@ -111,8 +111,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task HistoricalReadEnforcesHostDecodedPageLimitAndReleasesContinuationAsync(
             int count, bool modified)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
             NodeId node = fixture.Remote.Id("bounded-history");
             var point = ByteString.From(new byte[] { 9, 7 });
             var values = Enumerable.Range(1, count).Select(index => Data(index)).ToArrayOf();
@@ -161,8 +161,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AtTimeReadPreservesOrderedUtcTimesAndSimpleBoundsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryPages.Enqueue(Page([Data(1), Data(2)]));
             CallToolResult result = await fixture.History.ReadAtTimeAsync(
                 fixture.Remote.Id("signal").ToString(),
@@ -181,8 +181,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task ProcessedReadRequiresRealAggregateAndPreservesItsExactIdentifierAsync(bool advertised)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId folder = fixture.Remote.Id("aggregates");
             NodeId aggregate = fixture.Remote.Id("custom-aggregate");
             fixture.Remote.Child(ObjectIds.HistoryServerCapabilities, new QualifiedName(BrowseNames.AggregateFunctions),
@@ -218,8 +218,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task EventReadPreservesExactNamespaceSelectOrderAndTypedFieldsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             var input = new WorkflowHistoryEventsInput
             {
                 Select =
@@ -266,8 +266,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AnnotationReadUsesActualPropertyAndRetainsUncertainQualityAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId variable = fixture.Remote.Id("signal");
             NodeId annotationNode = fixture.Remote.Id("annotations");
             fixture.Remote.Child(variable, new QualifiedName(BrowseNames.Annotations), annotationNode);
@@ -294,8 +294,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(PerformUpdateType.Update)]
         public async Task EveryDataUpdatePreservesExactTypedPayloadAndMixedStatusesAsync(PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.GoodClamped, StatusCodes.BadOutOfRange];
             var input = new WorkflowDataValuesInput
             {
@@ -345,8 +345,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(PerformUpdateType.Update)]
         public async Task EveryEventUpdatePreservesTypedFieldsAndPerEventStatusAsync(PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.Good, StatusCodes.BadEntryExists];
             WorkflowHistoryEventsInput input = EventInput();
             string node = fixture.Remote.Id("notifier").ToString();
@@ -383,8 +383,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(PerformUpdateType.Update)]
         public async Task EveryAnnotationUpdateUsesExactPropertyStructureAndStatusesAsync(PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId signal = fixture.Remote.Id("signal");
             NodeId annotationNode = fixture.Remote.Id("annotations");
             fixture.Remote.Child(signal, new QualifiedName(BrowseNames.Annotations), annotationNode);
@@ -425,8 +425,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task RangeDeletePreservesExactTargetTimesAndModifiedFlagAsync(bool modified)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryUpdateStatus = StatusCodes.BadUserAccessDenied;
             fixture.HistoryOperationResults = [];
             NodeId node = fixture.Remote.Id("signal");
@@ -446,8 +446,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AtTimeDeletePreservesExactTimestampArrayAndMixedResultsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.Good, StatusCodes.BadNoEntryExists];
             NodeId node = fixture.Remote.Id("signal");
             CallToolResult result = await fixture.History.DeleteAtTimeAsync(
@@ -465,8 +465,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task EventDeletePreservesBinaryIdentifiersAndOrderedServerResultsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.BadNoEntryExists, StatusCodes.Good];
             NodeId node = fixture.Remote.Id("notifier");
             CallToolResult result = await fixture.History.DeleteEventsAsync(
@@ -485,8 +485,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AnnotationDeleteUsesRemoveOnActualAnnotationPropertyAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId node = fixture.Remote.Id("signal");
             NodeId annotations = fixture.Remote.Id("annotations");
             fixture.Remote.Child(node, new QualifiedName(BrowseNames.Annotations), annotations);
@@ -512,8 +512,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("2026-01-01T00:00:00+2")]
         public async Task HistoryRefusesAmbiguousOrInvalidTimesBeforeRemoteWorkAsync(string time)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.History.ReadRawAsync(
                 fixture.Remote.Id("signal").ToString(), time, kEnd, sessionName: "selected").ConfigureAwait(false);
             RemoteModelTestSession.ArgumentError(result);
@@ -529,8 +529,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(501, false)]
         public async Task HistoryBatchSizeHasExactBoundariesAsync(int count, bool accepted)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = Enumerable.Repeat(StatusCodes.Good, count).ToArrayOf();
             var input = new WorkflowDataValuesInput
             {
@@ -582,7 +582,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Decodes the value envelope without depending on incidental JSON formatting.
         /// </summary>
-        private static DataValue DecodeData(JsonElement value, ClientWorkflowTestContext fixture)
+        private static DataValue DecodeData(JsonElement value, WorkflowTestContext fixture)
         {
             using var decoder = new JsonDecoder("{\"value\":" + value.GetRawText() + "}", fixture.Remote.Context);
             return decoder.ReadDataValue("value");

@@ -39,14 +39,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Tests explicit file targets, stream limits, protected paths and owned-handle terminal behavior.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowFileTests
+    public sealed class WorkflowFileTests
     {
         /// <summary>
         /// File creation never asks for an open raw handle, and directory creation is a separate typed method.
@@ -55,8 +55,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task CreatesUseExactParentTypedMethodAndNoImplicitOpenAsync(bool directory)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, _) = fixture.FileTree();
             NodeId created = fixture.Remote.Id("created");
             fixture.Remote.Reply(StatusCodes.GoodCompletesAsynchronously, Variant.From(created), Variant.From(71u));
@@ -80,8 +80,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task MoveAndCopyPreserveSourceDestinationNameAndActualStatusAsync(bool copy)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, NodeId source) = fixture.FileTree();
             NodeId target = fixture.Remote.Id("target");
             fixture.Remote.Type(target, ObjectTypeIds.FileDirectoryType);
@@ -103,8 +103,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DeleteRefusesForeignChildBeforeInvokingServerMethodAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, _) = fixture.FileTree();
             NodeId foreign = fixture.Remote.Id("foreign-file");
             fixture.Remote.Type(foreign, ObjectTypeIds.FileType);
@@ -120,8 +120,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DeleteUsesExactChildAndPreservesServerDenialAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, NodeId source) = fixture.FileTree();
             fixture.Remote.Reply(StatusCodes.BadUserAccessDenied);
             CallToolResult result = await fixture.Files.DeleteAsync(
@@ -137,8 +137,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task NonemptyDirectoryRequiresExplicitRecursiveScopeAsync(bool recursive)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, NodeId child) = fixture.FileTree();
             fixture.Remote.Type(child, ObjectTypeIds.FileDirectoryType);
             fixture.Remote.Browse(child, ReferenceTypeIds.HasComponent,
@@ -164,8 +164,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("2:prefixed")]
         public async Task CreationRejectsPathsInsteadOfSilentlyCreatingParentsAsync(string name)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.Files.CreateFileAsync("ns=1;s=directory", name, "selected")
                 .ConfigureAwait(false);
             RemoteModelTestSession.ArgumentError(result);
@@ -178,8 +178,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task CreationRefusesVisibleDestinationCollisionAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, _) = fixture.FileTree();
             CallToolResult result = await fixture.Files.CreateFileAsync(parent.ToString(), "source.bin", "selected")
                 .ConfigureAwait(false);
@@ -194,8 +194,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task ProtectedTrustListOrConfigurationDescendantIsRefusedAsync(bool descendant)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId file = fixture.Remote.Id("protected");
             if (descendant)
             {
@@ -226,7 +226,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task ProtectedFileRequiresDedicatedWorkflowEvenWithCertificateGrantAsync(bool descendant)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
                 certificateAdministration: true).ConfigureAwait(false);
             NodeId file = fixture.Remote.Id("protected-granted-file");
             if (descendant)
@@ -247,7 +247,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
             }
             using IDisposable caller = fixture.Enter();
             Assert.That(fixture.Manager.OperationPolicy.RequireSession(
-                McpCapability.CertificateAdministration, "selected"), Is.EqualTo(ClientWorkflowTestContext.Owner));
+                McpCapability.CertificateAdministration, "selected"), Is.EqualTo(WorkflowTestContext.Owner));
             CallToolResult result = await fixture.Files.MetadataAsync(file.ToString(), "selected")
                 .ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadUserAccessDenied);
@@ -261,8 +261,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ListingPreservesSubtypeNamespaceAndReleasesEarlyContinuationAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (NodeId parent, NodeId file) = fixture.FileTree();
             NodeId subtype = fixture.Remote.Id("vendor-file-type");
             fixture.Remote.Subtype(subtype, ObjectTypeIds.FileType);
@@ -293,8 +293,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(8193, true)]
         public async Task UploadByteCeilingHasExactBoundaryBeforeRemoteOpenAsync(int length, bool refused)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             (_, NodeId file) = fixture.FileTree();
             await File.WriteAllBytesAsync(Path.Combine(fixture.Root!, "input.bin"), new byte[length])
                 .ConfigureAwait(false);
@@ -323,8 +323,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task UploadRefusesImplicitOverwriteBeforeAnyServerOperationAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             CallToolResult result = await fixture.Files.UploadAsync(
                 "ns=1;s=file", "input.bin", false, "selected").ConfigureAwait(false);
             RemoteModelTestSession.ArgumentError(result);
@@ -338,8 +338,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DownloadStreamsShortChunksWithoutOverwriteAndClosesOwnedHandleAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             (_, NodeId file) = fixture.FileTree();
             SetupFileTransfer(fixture,
                 new Queue<ByteString>(
@@ -366,8 +366,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task OversizedDownloadDeletesPartialArtifactAndClosesExactlyOnceAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             (_, NodeId file) = fixture.FileTree();
             SetupFileTransfer(fixture, new Queue<ByteString>(
                 [ByteString.From(new byte[4096]), ByteString.From(new byte[4096]), ByteString.From(new byte[1])]));
@@ -384,8 +384,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task FailedUploadReportsPossiblePartialRemoteEffectsAndClosesOwnHandleAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             (_, NodeId file) = fixture.FileTree();
             await File.WriteAllBytesAsync(Path.Combine(fixture.Root!, "input.bin"), [3, 4])
                 .ConfigureAwait(false);
@@ -404,8 +404,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task TemporaryWriteCommitsOncePreservesPendingMetadataAndLateCancellationAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             NodeId transfer = fixture.Remote.Id("transfer");
             NodeId generated = fixture.Remote.Id("generated");
             NodeId completion = fixture.Remote.Id("completion");
@@ -465,8 +465,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task TemporaryReadUsesGeneratedHandleAndPreservesGenerationStatusAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             NodeId transfer = fixture.Remote.Id("transfer");
             NodeId generated = fixture.Remote.Id("generated");
             fixture.Remote.Type(transfer, ObjectTypeIds.TemporaryFileTransferType);
@@ -511,8 +511,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task TemporaryWriteRefusesProtectedGeneratedTargetAndClosesOnlyItsAllocatedHandleAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             NodeId transfer = fixture.Remote.Id("transfer");
             NodeId generated = fixture.Remote.Id("protected-generated");
             fixture.Remote.Type(transfer, ObjectTypeIds.TemporaryFileTransferType);
@@ -547,8 +547,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task TemporaryReadDeadlineReportsTimeoutAndReleasesGeneratedHandleAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-options: new ClientWorkflowOptions { MaxDurationMilliseconds = 1 }, files: true)
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+options: new WorkflowOptions { MaxDurationMilliseconds = 1 }, files: true)
                 .ConfigureAwait(false);
             NodeId transfer = fixture.Remote.Id("transfer");
             NodeId file = fixture.Remote.Id("generated");
@@ -587,7 +587,7 @@ options: new ClientWorkflowOptions { MaxDurationMilliseconds = 1 }, files: true)
         /// Implements only the fixed FileType operations used by transfer tests.
         /// </summary>
         private static void SetupFileTransfer(
-            ClientWorkflowTestContext fixture, Queue<ByteString>? reads = null, StatusCode writeStatus = default)
+            WorkflowTestContext fixture, Queue<ByteString>? reads = null, StatusCode writeStatus = default)
         {
             fixture.Remote.OnCall = request =>
             {

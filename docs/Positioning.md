@@ -16,7 +16,6 @@ depends on RSL.
 - [Minimal standalone server](#minimal-standalone-server)
 - [Server authoring](#server-authoring)
 - [Client](#client)
-- [MCP tools](#mcp-tools)
 - [Transform conventions](#transform-conventions)
 - [Robot and OpenUSD sample](#robot-and-openusd-sample)
 
@@ -229,10 +228,6 @@ depth. `ObserveFrameAsync`, `ObservePositionFrameAsync`,
 GPOS structured types are registered with both the session and message-context
 encodeable factories before reads, so binary `ExtensionObject` values decode to
 the generated types.
-
-## MCP tools
-
-See the [Positioning MCP tool catalogue](McpServer.md#positioning-tools). Package API and JSON references are linked there.
 
 ## Transform conventions
 

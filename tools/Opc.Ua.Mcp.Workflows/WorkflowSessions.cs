@@ -37,7 +37,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// A borrowed, generation-bound service scope; disposal never owns the real UA session or channel.
     /// </summary>
-    public interface IClientWorkflowSessionScope : IAsyncDisposable
+    public interface IWorkflowSessionScope : IAsyncDisposable
     {
         /// <summary>
         /// Gets the original named registration, used only for ownership and registration-generation checks.
@@ -63,22 +63,22 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Host extension point for obtaining an actually generation-bound client service scope.
     /// </summary>
-    public interface IClientWorkflowSessionFactory
+    public interface IWorkflowSessionFactory
     {
         /// <summary>
         /// Captures service dispatch identity without opening another UA session or exposing a lock.
         /// </summary>
-        ValueTask<IClientWorkflowSessionScope> CaptureAsync(
+        ValueTask<IWorkflowSessionScope> CaptureAsync(
             OpcUaSessionManager.SessionInfo registration, CancellationToken ct = default);
     }
 
     /// <summary>
     /// Uses the SDK's guarded request context rather than an unsafe InnerSession object snapshot.
     /// </summary>
-    public sealed class ClientWorkflowSessionFactory : IClientWorkflowSessionFactory
+    public sealed class WorkflowSessionFactory : IWorkflowSessionFactory
     {
         /// <inheritdoc/>
-        public async ValueTask<IClientWorkflowSessionScope> CaptureAsync(
+        public async ValueTask<IWorkflowSessionScope> CaptureAsync(
             OpcUaSessionManager.SessionInfo registration, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(registration);
@@ -90,7 +90,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Adapts the SDK context to named MCP authority without transferring session ownership.
         /// </summary>
-        private sealed class Scope : IClientWorkflowSessionScope
+        private sealed class Scope : IWorkflowSessionScope
         {
             /// <summary>
             /// Keeps original registration identity separate from guarded service access.

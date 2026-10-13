@@ -54,13 +54,13 @@ namespace Opc.Ua.Mcp
         /// Creates alarm tools with an injectable adapter to the existing managed streaming subscription.
         /// </summary>
         public AlarmWorkflowTools(
-            OpcUaSessionManager sessions, ClientWorkflowOptions options, IClientWorkflowStreams? streams = null,
-            IClientWorkflowSessionFactory? scopes = null)
+            OpcUaSessionManager sessions, WorkflowOptions options, IWorkflowStreams? streams = null,
+            IWorkflowSessionFactory? scopes = null)
         {
             m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
-            m_streams = streams ?? new ClientWorkflowStreams();
-            m_scopes = scopes ?? new ClientWorkflowSessionFactory();
+            m_streams = streams ?? new WorkflowStreams();
+            m_scopes = scopes ?? new WorkflowSessionFactory();
             options.Validate();
         }
 
@@ -79,7 +79,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -130,7 +130,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -461,7 +461,7 @@ namespace Opc.Ua.Mcp
                 ArgumentOutOfRangeException.ThrowIfGreaterThan(
                     durationMilliseconds, m_options.MaxDurationMilliseconds);
                 OpcUaSessionManager.SessionInfo registration = m_sessions.GetSessionInfoOrThrow(sessionName);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(registration, token)
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(registration, token)
                     .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -644,7 +644,7 @@ namespace Opc.Ua.Mcp
                 {
                     throw new ArgumentException("An occurrence EventId must not be empty.");
                 }
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -740,7 +740,7 @@ namespace Opc.Ua.Mcp
             string conditionId, ExpandedNodeId method, ArrayOf<Variant> arguments,
             string? sessionName, CancellationToken ct)
         {
-            IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+            IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                 m_sessions.GetSessionInfoOrThrow(sessionName), ct).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
             ISession session = scope.Access.Session;
@@ -757,7 +757,7 @@ namespace Opc.Ua.Mcp
             string conditionId, ExpandedNodeId method, ArrayOf<Variant> arguments,
             string? sessionName, CancellationToken ct)
         {
-            IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+            IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                 m_sessions.GetSessionInfoOrThrow(sessionName), ct).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
             ISession session = scope.Access.Session;
@@ -785,9 +785,9 @@ namespace Opc.Ua.Mcp
         }
 
         private readonly OpcUaSessionManager m_sessions;
-        private readonly ClientWorkflowOptions m_options;
-        private readonly IClientWorkflowStreams m_streams;
-        private readonly IClientWorkflowSessionFactory m_scopes;
+        private readonly WorkflowOptions m_options;
+        private readonly IWorkflowStreams m_streams;
+        private readonly IWorkflowSessionFactory m_scopes;
 
         private static readonly string[] s_methods =
         [

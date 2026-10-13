@@ -34,7 +34,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Host-owned ceilings for client workflows; no tool can increase these limits.
     /// </summary>
-    public sealed record ClientWorkflowOptions
+    public sealed record WorkflowOptions
     {
         /// <summary>
         /// Gets the maximum page or mutation batch size, at most 500.

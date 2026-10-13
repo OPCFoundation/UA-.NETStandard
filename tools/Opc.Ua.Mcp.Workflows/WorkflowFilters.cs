@@ -44,7 +44,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Publishes closed, bounded workflow contracts and hides host-disabled identity administration.
     /// </summary>
-    internal static class ClientWorkflowFilters
+    internal static class WorkflowFilters
     {
         /// <summary>
         /// Wraps registration-time schemas while keeping the original SDK argument binder.

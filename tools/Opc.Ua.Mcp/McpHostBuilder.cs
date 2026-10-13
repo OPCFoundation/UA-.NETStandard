@@ -74,7 +74,7 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpWotCon(wotOptions);
             services.AddOpcUaMcpSchema();
             services.AddOpcUaMcpGds();
-            services.AddOpcUaMcpClientWorkflows();
+            services.AddOpcUaMcpWorkflows();
             services.AddOpcUaMcpWotRuntime();
             services.AddOpcUaMcpDiagnostics(options =>
             {
@@ -217,7 +217,7 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaWotConTools(toolProfile)
                 .WithOpcUaSchemaTools(toolProfile)
                 .WithOpcUaGdsTools(toolProfile)
-                .WithOpcUaClientWorkflowTools(toolProfile)
+                .WithOpcUaWorkflowTools(toolProfile)
                 .WithOpcUaWotRuntimeTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
@@ -271,7 +271,7 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaWotConTools(toolProfiles)
                 .WithOpcUaSchemaTools(toolProfiles)
                 .WithOpcUaGdsTools(toolProfiles)
-                .WithOpcUaClientWorkflowTools(toolProfiles)
+                .WithOpcUaWorkflowTools(toolProfiles)
                 .WithOpcUaWotRuntimeTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);

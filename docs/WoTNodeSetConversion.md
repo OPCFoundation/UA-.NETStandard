@@ -7,7 +7,6 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
-For agent-facing tools, see the [WoT document catalogue](McpServer.md#wot-document-tools).
 For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
 `WotDocumentSet` with caller-supplied thing/schema resolution while preserving
 set-local precedence. It performs no transport I/O itself.
@@ -21,7 +20,6 @@ set-local precedence. It performs no transport I/O itself.
 - [Portable identity and preservation semantics](#portable-identity-and-preservation-semantics)
   - [Verified linked document sets](#verified-linked-document-sets)
   - [Generated document-set limits](#generated-document-set-limits)
-  - [MCP document-set artifacts](#mcp-document-set-artifacts)
   - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
   - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
   - [Unmapped reference vocabulary is residue](#unmapped-reference-vocabulary-is-residue)
@@ -269,10 +267,6 @@ document count, containment depth and cumulative JSON bytes are checked during
 conversion, including preservation partitions. Defaults impose no additional
 set-wide ceiling, preserving existing large companion-model conversions.
 Hosts processing untrusted input should set all three limits.
-
-### MCP document-set artifacts
-
-See the [WoT document MCP tool catalogue](McpServer.md#wot-document-tools). Package API and JSON references are linked there.
 
 ### Generated NodeIds follow Annex G.1
 

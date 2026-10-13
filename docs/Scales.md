@@ -32,7 +32,6 @@ Integration and OPC 30050 PackML.
 - [Known limitations](#known-limitations)
 - [Model provenance](#model-provenance)
 - [Where the specification and the NodeSet disagree](#where-the-specification-and-the-nodeset-disagree)
-- [MCP tools](#mcp-tools)
 - [See also](#see-also)
 
 ## Library layout
@@ -687,10 +686,6 @@ differ:
 - **No `GeneratesEvent` or `HasNotifier`.** The NodeSet has neither, so the
   notifier wiring described in
   [Where a scale lives](#where-a-scale-lives) is the server's own.
-
-## MCP tools
-
-See the [Scales MCP tool catalogue](McpServer.md#scales-tools). Package API and JSON references are linked there.
 
 ## See also
 

@@ -25,9 +25,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestHttpServer.cs"
-             Link="Mcp\Support\TestHttpServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+             Link="Mcp\WotCon\Support\TestHttpServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
     <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestModbusServer.cs"
-             Link="Mcp\Support\TestModbusServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+             Link="Mcp\WotCon\Support\TestModbusServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj"

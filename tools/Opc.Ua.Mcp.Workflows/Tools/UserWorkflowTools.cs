@@ -53,13 +53,13 @@ namespace Opc.Ua.Mcp
         /// Creates tools using the host-selected secret gateway.
         /// </summary>
         public UserWorkflowTools(
-            OpcUaSessionManager sessions, ClientWorkflowOptions options, McpSecretReferences secrets,
-            IClientWorkflowSessionFactory? scopes = null)
+            OpcUaSessionManager sessions, WorkflowOptions options, McpSecretReferences secrets,
+            IWorkflowSessionFactory? scopes = null)
         {
             m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
-            m_scopes = scopes ?? new ClientWorkflowSessionFactory();
+            m_scopes = scopes ?? new WorkflowSessionFactory();
             options.Validate();
         }
 
@@ -75,7 +75,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -104,7 +104,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -185,7 +185,7 @@ namespace Opc.Ua.Mcp
             return SecretOperationAsync(async token =>
             {
                 ValidateUser(userName, description);
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -223,7 +223,7 @@ namespace Opc.Ua.Mcp
                 {
                     throw new ArgumentException("At least one explicit user field must be supplied.");
                 }
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -255,7 +255,7 @@ namespace Opc.Ua.Mcp
             return SecretOperationAsync(async token =>
             {
                 ValidateUser(userName, null);
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -281,7 +281,7 @@ namespace Opc.Ua.Mcp
         {
             return SecretOperationAsync(async token =>
             {
-                IClientWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
+                IWorkflowSessionScope scope = await WorkflowJson.IdentityScopeAsync(
                     m_sessions, m_scopes, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -377,9 +377,9 @@ namespace Opc.Ua.Mcp
         }
 
         private readonly OpcUaSessionManager m_sessions;
-        private readonly ClientWorkflowOptions m_options;
+        private readonly WorkflowOptions m_options;
         private readonly McpSecretReferences m_secrets;
-        private readonly IClientWorkflowSessionFactory m_scopes;
+        private readonly IWorkflowSessionFactory m_scopes;
         private static readonly UTF8Encoding s_utf8 = new(false, true);
     }
 }

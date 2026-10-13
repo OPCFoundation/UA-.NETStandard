@@ -685,8 +685,7 @@ UaExpert relies on.
 The OPC UA packet-capture feature records UA traffic, stores the
 secure-channel keys needed for offline decoding, reconstructs service
 calls, and replays captured conversations. The reusable engine ships
-as `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`. For agent-facing access,
-see the [MCP diagnostics catalogue](McpServer.md#packet-capture-tools).
+as `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`.
 Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
@@ -1515,10 +1514,6 @@ on host shutdown:
 | --- | --- |
 | `OPCUA_PUBSUB_PCAP_FILE` | Auto-start capture; write to this `.pcap` / `.pcapng` on stop. |
 
-### MCP tools
-
-See the [PubSub MCP tool catalogue](McpServer.md#pubsub-tools).
-
 ### Security considerations
 
 The captured key log contains **live security keys** in plaintext JSON-lines.
@@ -1535,7 +1530,6 @@ unchanged.
   `IServiceCollection`.
 - [Sessions](Sessions.md) — the central
   `IClientChannelManager` that packet capture decorates.
-- [MCP Server](McpServer.md#packet-capture-tools) — agent-facing diagnostics catalogue.
 - [Migration Guide](MigrationGuide.md) — previous releases used
   static `Utils.SetLogger` / `Utils.Trace*` instead of
   `ITelemetryContext`. The migration appendix lists every breaking

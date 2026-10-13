@@ -6,9 +6,6 @@ The subsystem is deliberately layered so the model remains transport-neutral whi
 
 This document starts with the bindings that ship today and how to register them, then describes the contributor workflow for adding your own binding.
 
-For agent-facing planning and execution, see the
-[WoT MCP tool catalogue](McpServer.md#wot-and-registry-tools).
-
 ## Table of contents
 
 - [Bindings that ship today](#bindings-that-ship-today)

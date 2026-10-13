@@ -39,14 +39,14 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Proves explicit alarm methods, occurrence identity and borrowed-stream cleanup.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowAlarmTests
+    public sealed class WorkflowAlarmTests
     {
         /// <summary>
         /// Every exposed condition command dispatches exactly the published standard method.
@@ -55,8 +55,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task EveryAlarmCommandPreservesTypedMethodTargetArgumentsAndStatusAsync(
             string name, ExpandedNodeId method, JsonObject extra, ArrayOf<Variant> expected, bool shelving)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId condition = fixture.Remote.Id("condition");
             NodeId target = condition;
             if (shelving)
@@ -84,8 +84,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("alarms_acknowledge", true)]
         public async Task OccurrenceMutationsPreserveEventIdentityAndServerRefusalAsync(string tool, bool denied)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId condition = fixture.Remote.Id("condition");
             fixture.Remote.Reply(denied ? StatusCodes.BadEventIdUnknown : StatusCodes.Good);
             CallToolResult result = await fixture.InvokeAsync(tool, new JsonObject
@@ -117,8 +117,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task AcknowledgementRefreshesEventIdOnlyForTheSameBranchAsync(bool wrongBranch)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId condition = fixture.Remote.Id("condition");
             NodeId branch = fixture.Remote.Id("branch");
             fixture.Remote.Property(condition, new QualifiedName(BrowseNames.BranchId),
@@ -146,8 +146,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AcknowledgementCommitIsNotMaskedByLateCallerCancellationAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             fixture.Remote.OnCall = _ =>
             {
@@ -169,8 +169,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ObservationPreservesOccurrenceSourceAndReleasesOwnedEnumeratorAtCountLimitAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             EventNotification notification = Condition(fixture);
             fixture.Streams.Notifications.Enqueue(notification);
             fixture.Streams.Notifications.Enqueue(Condition(fixture));
@@ -197,8 +197,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task RefreshSnapshotUsesRealMarkersAndNeverClaimsOverflowedCompletenessAsync(bool overflow)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Streams.Notifications.Enqueue(Marker(ObjectTypeIds.RefreshStartEventType));
             fixture.Streams.Notifications.Enqueue(Condition(fixture));
             if (overflow)
@@ -225,8 +225,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RefreshWithoutEndMarkerIsExplicitlyIncompleteAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Streams.Notifications.Enqueue(Marker(ObjectTypeIds.RefreshStartEventType));
             fixture.Streams.Notifications.Enqueue(Condition(fixture));
             CallToolResult result = await fixture.Alarms.RefreshAsync(sessionName: "selected").ConfigureAwait(false);
@@ -243,8 +243,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task CancelledObservationDisposesOnlyOwnedEnumeratorAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Streams.WaitAfterSequence = true;
             using var cancellation = new CancellationTokenSource();
             Task<CallToolResult> observation = fixture.Alarms.ObserveAsync(
@@ -262,8 +262,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ObservationTimeoutIsExplicitAndCleansUpAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Streams.WaitAfterSequence = true;
             CallToolResult result = await fixture.Alarms.ObserveAsync(
                 durationMilliseconds: 10, sessionName: "selected").ConfigureAwait(false);
@@ -282,8 +282,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(30001, false)]
         public async Task ObservationDurationHasExactBoundariesAsync(int duration, bool accepted)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.Alarms.ObserveAsync(
                 durationMilliseconds: duration, sessionName: "selected").ConfigureAwait(false);
             Assert.That(result.IsError, Is.EqualTo(!accepted));
@@ -296,8 +296,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task MissingShelvingStateIsRefusedWithoutWrongTargetFallbackAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.Alarms.UnshelveAsync(
                 fixture.Remote.Id("condition").ToString(), "selected").ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadNotSupported);
@@ -357,7 +357,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Supplies all fixed observation fields with intentionally distinct condition/branch/source identities.
         /// </summary>
-        private static EventNotification Condition(ClientWorkflowTestContext fixture)
+        private static EventNotification Condition(WorkflowTestContext fixture)
         {
             return new EventNotification(null,
                 [
@@ -387,7 +387,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Uses the stack decoder to assert typed identity instead of relying on encoder formatting.
         /// </summary>
-        private static Variant Decode(JsonElement value, ClientWorkflowTestContext fixture)
+        private static Variant Decode(JsonElement value, WorkflowTestContext fixture)
         {
             using var decoder = new JsonDecoder("{\"value\":" + value.GetRawText() + "}", fixture.Remote.Context);
             return decoder.ReadVariant("value");

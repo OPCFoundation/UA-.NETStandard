@@ -36,14 +36,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Covers each workflow's independent metadata/read outcomes, including bad quality versus optional absence.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowMetadataTests
+    public sealed class WorkflowMetadataTests
     {
         /// <summary>
         /// Role inspection does not turn unreadable exclusion flags into misleading default booleans.
@@ -51,8 +51,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RoleReadPreservesBadQualityOptionalAbsenceAndExplicitFalseAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Role();
             fixture.Remote.Property(role, new QualifiedName(BrowseNames.ApplicationsExclude),
                 DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied));
@@ -76,8 +76,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(4)]
         public async Task RoleReadEnforcesHostMappingLimitAtExactBoundaryAsync(int count)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxItems = 3 }).ConfigureAwait(false);
             NodeId role = fixture.Role();
             var rules = Enumerable.Range(1, count).Select(_ =>
                 new IdentityMappingRuleType
@@ -111,8 +111,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RoleListIncludesRealSubtypesAndReleasesUnconsumedBrowsePointAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId subtype = fixture.Remote.Id("custom-role-type");
             fixture.Remote.Subtype(subtype, ObjectTypeIds.RoleType);
             var point = ByteString.From(new byte[] { 4 });
@@ -140,8 +140,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task PermissionReadKeepsDeclaredEffectiveAndAccessRestrictionAttributesDistinctAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId node = fixture.Remote.Id("node");
             fixture.Remote.Values[(node, Attributes.RolePermissions)] = new DataValue(Variant.FromStructure(
                 [new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Observer,
@@ -168,8 +168,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task PasswordPolicyPreservesRangeBadOptionsAndAbsentRestrictionsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             fixture.Remote.Property(ObjectIds.UserManagement, new QualifiedName(BrowseNames.PasswordLength),
                 Variant.FromStructure(new Range { Low = 12, High = 128 }));
@@ -196,8 +196,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task UserListUsesBoundedServerIndexRangeAndReportsNextOffsetAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             NodeId users = fixture.Remote.Property(ObjectIds.UserManagement, new QualifiedName(BrowseNames.Users),
                 Variant.FromStructure(
@@ -228,8 +228,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task UserListRangeFailureNeverTriggersUnboundedFallbackAsync(bool error)
         {
             StatusCode code = error ? StatusCodes.BadIndexRangeInvalid : StatusCodes.BadIndexRangeNoData;
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             fixture.Remote.Property(ObjectIds.UserManagement, new QualifiedName(BrowseNames.Users),
                 DataValue.FromStatusCode(code));
@@ -248,8 +248,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task FileRootsRecognizeActualSubtypesButRejectNamespaceLookalikesAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId subtype = fixture.Remote.Id("subtype");
             fixture.Remote.Subtype(subtype, ObjectTypeIds.FileDirectoryType);
             fixture.Remote.Browse(ObjectIds.ObjectsFolder, ReferenceTypeIds.HierarchicalReferences,
@@ -272,8 +272,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task FileMetadataPreservesSizeQualityFalseWritableAndMissingMimeAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             (_, NodeId file) = fixture.FileTree();
             fixture.Remote.Property(file, new QualifiedName(BrowseNames.Size),
                 new DataValue(Variant.From(123UL), StatusCodes.Uncertain, kTime, kTime));
@@ -295,8 +295,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task FileCompletionReadsRealStateWithoutDrivingTheMachineAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId completion = fixture.Remote.Id("completion");
             fixture.Remote.Type(completion, ObjectTypeIds.FileTransferStateMachineType);
             fixture.Remote.Property(completion, new QualifiedName(BrowseNames.CurrentState),
@@ -317,8 +317,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AlarmInspectionPreservesOptionalCapabilityAndUserExecutableFalseAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId condition = fixture.Remote.Id("condition");
             fixture.Remote.Type(condition, ObjectTypeIds.ConditionType);
             NodeId enable = fixture.Remote.Id("enable");
@@ -342,8 +342,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AlarmGroupsUseTypedClientAndPreserveExactGroupNamespaceAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId condition = fixture.Remote.Id("condition");
             NodeId group = fixture.Remote.Id("group");
             fixture.Remote.Reply(StatusCodes.Good, Variant.From([group, fixture.Remote.Id("next")]));
@@ -363,8 +363,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task HistoryCapabilitiesPreserveFalseBadQualityAndActualAggregateCatalogueAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Remote.Property(ObjectIds.HistoryServerCapabilities,
                 new QualifiedName(BrowseNames.InsertDataCapability), Variant.From(false));
             fixture.Remote.Property(ObjectIds.HistoryServerCapabilities,
@@ -398,8 +398,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task HistoryConfigurationPreservesActualLinksAggregateDefaultsAndEventTypesAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId node = fixture.Remote.Id("historian");
             NodeId configuration = fixture.Remote.Id("configuration");
             NodeId aggregate = fixture.Remote.Id("aggregate-defaults");
@@ -432,8 +432,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AbsentHistoryConfigurationReturnsUnsupportedWithoutInventedDefaultsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.History.ConfigurationAsync(
                 fixture.Remote.Id("signal").ToString(), sessionName: "selected").ConfigureAwait(false);
             JsonElement json = RemoteModelTestSession.Payload(result);
@@ -445,7 +445,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Gets one supported quality-bearing property.
         /// </summary>
-        private static DataValue ReadProperty(JsonElement properties, string name, ClientWorkflowTestContext fixture)
+        private static DataValue ReadProperty(JsonElement properties, string name, WorkflowTestContext fixture)
         {
             JsonElement property = properties.GetProperty(name);
             Assert.That(property.GetProperty("supported").GetBoolean(), Is.True);
@@ -455,7 +455,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Decodes UA values independently of the projection helper used by production.
         /// </summary>
-        private static DataValue Decode(JsonElement value, ClientWorkflowTestContext fixture)
+        private static DataValue Decode(JsonElement value, WorkflowTestContext fixture)
         {
             using var decoder = new JsonDecoder("{\"value\":" + value.GetRawText() + "}", fixture.Remote.Context);
             return decoder.ReadDataValue("value");

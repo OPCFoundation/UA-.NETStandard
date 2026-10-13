@@ -26,7 +26,6 @@ production equipment adds depending on its use case.
 - [Abstract event types](#abstract-event-types)
 - [State machines are server-driven](#state-machines-are-server-driven)
 - [Client](#client)
-- [MCP tools](#mcp-tools)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier tables and repairs](#model-sources-identifier-tables-and-repairs)
 - [Generator gaps found while adding these models](#generator-gaps-found-while-adding-these-models)
@@ -720,10 +719,6 @@ means success, independently of the UA service status.
 `TemporaryFileTransferClient` and leaves the destination open. The ByteString
 overload shares that implementation. Advanced callers can use
 `OpenResultStreamAsync` and must asynchronously dispose its `UaFileStream`.
-
-## MCP tools
-
-See the [Machinery MCP tool catalogue](McpServer.md#machinery-tools). Package API and JSON references are linked there.
 
 ## Conformance matrix
 

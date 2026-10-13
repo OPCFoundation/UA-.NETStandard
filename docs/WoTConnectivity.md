@@ -16,8 +16,6 @@ target version `1.02.0`, publication 2025-12-05.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
-For agent-facing access, use the [WoT and xRegistry MCP profiles](McpServer.md#wot-and-registry-tools).
-
 ## Contents
 
 - [1. Hosting a WoT Connectivity server](#1-hosting-a-wot-connectivity-server)

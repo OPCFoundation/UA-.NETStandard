@@ -44,7 +44,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Validates a caller-selected page against the host ceiling before any server work.
         /// </summary>
-        internal static void Page(ClientWorkflowOptions options, int maxResults, int offset = 0)
+        internal static void Page(WorkflowOptions options, int maxResults, int offset = 0)
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(maxResults, 1);
             ArgumentOutOfRangeException.ThrowIfGreaterThan(maxResults, options.MaxItems);
@@ -252,13 +252,13 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Requires host authorization for the actual selected session, then encrypted transport.
         /// </summary>
-        internal static async ValueTask<IClientWorkflowSessionScope> IdentityScopeAsync(
-            OpcUaSessionManager manager, IClientWorkflowSessionFactory scopes,
+        internal static async ValueTask<IWorkflowSessionScope> IdentityScopeAsync(
+            OpcUaSessionManager manager, IWorkflowSessionFactory scopes,
             string? sessionName, CancellationToken ct)
         {
             OpcUaSessionManager.SessionInfo info = manager.GetSessionInfoOrThrow(sessionName);
             _ = manager.OperationPolicy.RequireSession(McpCapability.IdentityAdministration, info.Name);
-            IClientWorkflowSessionScope scope = await scopes.CaptureAsync(info, ct).ConfigureAwait(false);
+            IWorkflowSessionScope scope = await scopes.CaptureAsync(info, ct).ConfigureAwait(false);
             try
             {
                 McpModelAccess.RequireSecureMutation(scope.Access.Session);

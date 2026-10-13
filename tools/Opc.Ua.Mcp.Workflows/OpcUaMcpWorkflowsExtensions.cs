@@ -39,26 +39,26 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Registers one consolidated package with five independently composable client workflow profiles.
     /// </summary>
-    public static class OpcUaMcpClientWorkflowsExtensions
+    public static class OpcUaMcpWorkflowsExtensions
     {
         /// <summary>
         /// Registers bounded workflow services without replacing host-selected policy, secrets, streams or time.
         /// </summary>
-        public static IServiceCollection AddOpcUaMcpClientWorkflows(
-            this IServiceCollection services, ClientWorkflowOptions? options = null)
+        public static IServiceCollection AddOpcUaMcpWorkflows(
+            this IServiceCollection services, WorkflowOptions? options = null)
         {
             ArgumentNullException.ThrowIfNull(services);
-            options ??= new ClientWorkflowOptions();
+            options ??= new WorkflowOptions();
             options.Validate();
             services.TryAddSingleton(options);
             services.AddOpcUaMcpSecretReferenceDefaults();
-            services.TryAddSingleton<IClientWorkflowStreams, ClientWorkflowStreams>();
-            services.TryAddSingleton<IClientWorkflowSessionFactory, ClientWorkflowSessionFactory>();
+            services.TryAddSingleton<IWorkflowStreams, WorkflowStreams>();
+            services.TryAddSingleton<IWorkflowSessionFactory, WorkflowSessionFactory>();
             services.TryAddSingleton(provider => new HistoryCursorRegistry(
                 provider.GetRequiredService<OpcUaSessionManager>(),
-                provider.GetRequiredService<ClientWorkflowOptions>(),
+                provider.GetRequiredService<WorkflowOptions>(),
                 provider.GetService<TimeProvider>() ?? TimeProvider.System,
-                provider.GetRequiredService<IClientWorkflowSessionFactory>()));
+                provider.GetRequiredService<IWorkflowSessionFactory>()));
             services.TryAddTransient<RoleWorkflowTools>();
             services.TryAddTransient<UserWorkflowTools>();
             services.TryAddTransient<FileWorkflowTools>();
@@ -70,16 +70,16 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Selects one workflow catalogue without granting authority.
         /// </summary>
-        public static IMcpServerBuilder WithOpcUaClientWorkflowTools(
+        public static IMcpServerBuilder WithOpcUaWorkflowTools(
             this IMcpServerBuilder builder, McpToolProfile profile = McpToolProfile.Full)
         {
-            return builder.WithOpcUaClientWorkflowTools(new McpToolProfileSet(profile));
+            return builder.WithOpcUaWorkflowTools(new McpToolProfileSet(profile));
         }
 
         /// <summary>
         /// Composes selected workflow profiles with deduplicated connection tools and exact input contracts.
         /// </summary>
-        public static IMcpServerBuilder WithOpcUaClientWorkflowTools(
+        public static IMcpServerBuilder WithOpcUaWorkflowTools(
             this IMcpServerBuilder builder, McpToolProfileSet profiles)
         {
             ArgumentNullException.ThrowIfNull(builder);
@@ -97,7 +97,7 @@ namespace Opc.Ua.Mcp
             int first = builder.Services.Count;
             if (AddMarker<FilterMarker>(builder.Services))
             {
-                builder.WithRequestFilters(filters => filters.AddListToolsFilter(ClientWorkflowFilters.Catalogue));
+                builder.WithRequestFilters(filters => filters.AddListToolsFilter(WorkflowFilters.Catalogue));
             }
             if (roles && AddMarker<RolesMarker>(builder.Services))
             {
@@ -126,7 +126,7 @@ namespace Opc.Ua.Mcp
                     descriptor.ImplementationFactory is { } factory)
                 {
                     builder.Services[index] = ServiceDescriptor.Describe(typeof(McpServerTool),
-                        services => ClientWorkflowFilters.Wrap((McpServerTool)factory(services)), descriptor.Lifetime);
+                        services => WorkflowFilters.Wrap((McpServerTool)factory(services)), descriptor.Lifetime);
                 }
             }
             return builder;

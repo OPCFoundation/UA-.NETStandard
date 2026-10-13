@@ -54,14 +54,14 @@ namespace Opc.Ua.Mcp
         /// Creates file tools without owning another UA session.
         /// </summary>
         public FileWorkflowTools(
-            OpcUaSessionManager sessions, ClientWorkflowOptions options,
-            OpcUaMcpOptions hostOptions, McpFileTransfers transfers, IClientWorkflowSessionFactory? scopes = null)
+            OpcUaSessionManager sessions, WorkflowOptions options,
+            OpcUaMcpOptions hostOptions, McpFileTransfers transfers, IWorkflowSessionFactory? scopes = null)
         {
             m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_hostOptions = hostOptions ?? throw new ArgumentNullException(nameof(hostOptions));
             m_transfers = transfers ?? throw new ArgumentNullException(nameof(transfers));
-            m_scopes = scopes ?? new ClientWorkflowSessionFactory();
+            m_scopes = scopes ?? new WorkflowSessionFactory();
             options.Validate();
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -110,7 +110,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(directoryId, ObjectTypeIds.FileDirectoryType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -134,7 +134,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(fileId, ObjectTypeIds.FileType, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -234,7 +234,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                (IClientWorkflowSessionScope scope, NodeId parent) =
+                (IWorkflowSessionScope scope, NodeId parent) =
                     await TargetAsync(directoryId, ObjectTypeIds.FileDirectoryType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -273,7 +273,7 @@ namespace Opc.Ua.Mcp
                 {
                     throw new ArgumentException("Explicit replaceExistingContent=true is required for an upload.");
                 }
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(fileId, ObjectTypeIds.FileType, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -319,7 +319,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 m_transfers.ValidateDownloadPath(filePath);
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(fileId, ObjectTypeIds.FileType, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -353,7 +353,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 m_transfers.ValidateDownloadPath(filePath);
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(transferId, ObjectTypeIds.TemporaryFileTransferType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -422,7 +422,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(transferId, ObjectTypeIds.TemporaryFileTransferType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -505,7 +505,7 @@ namespace Opc.Ua.Mcp
         {
             return McpCompanionTools.ExecuteAsync(async token =>
             {
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(completionId, ObjectTypeIds.FileTransferStateMachineType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -525,7 +525,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 Leaf(name);
-                (IClientWorkflowSessionScope scope, NodeId node) =
+                (IWorkflowSessionScope scope, NodeId node) =
                     await TargetAsync(directoryId, ObjectTypeIds.FileDirectoryType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -557,7 +557,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 Leaf(name);
-                (IClientWorkflowSessionScope scope, NodeId parent) =
+                (IWorkflowSessionScope scope, NodeId parent) =
                     await TargetAsync(directoryId, ObjectTypeIds.FileDirectoryType, sessionName, token)
                         .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
@@ -590,10 +590,10 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Resolves and classifies the exact operation target.
         /// </summary>
-        private async ValueTask<(IClientWorkflowSessionScope Scope, NodeId Node)> TargetAsync(
+        private async ValueTask<(IWorkflowSessionScope Scope, NodeId Node)> TargetAsync(
             string identifier, ExpandedNodeId type, string? sessionName, CancellationToken ct)
         {
-            IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+            IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                 m_sessions.GetSessionInfoOrThrow(sessionName), ct).ConfigureAwait(false);
             try
             {
@@ -925,9 +925,9 @@ namespace Opc.Ua.Mcp
         }
 
         private readonly OpcUaSessionManager m_sessions;
-        private readonly ClientWorkflowOptions m_options;
+        private readonly WorkflowOptions m_options;
         private readonly OpcUaMcpOptions m_hostOptions;
         private readonly McpFileTransfers m_transfers;
-        private readonly IClientWorkflowSessionFactory m_scopes;
+        private readonly IWorkflowSessionFactory m_scopes;
     }
 }

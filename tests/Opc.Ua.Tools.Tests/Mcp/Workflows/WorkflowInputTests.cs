@@ -36,14 +36,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Tests typed value partitions, namespace refusal and exact scalar/inline ceilings at the workflow boundary.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowInputTests
+    public sealed class WorkflowInputTests
     {
         /// <summary>
         /// Typed numeric arrays remain arrays even at their empty/singleton boundaries.
@@ -53,9 +53,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("[-1,0,2147483647]", 3)]
         public async Task TypedIntegerArrayPreservesEmptySingletonAndInteriorPartitionsAsync(string json, int count)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            WorkflowDataValuesInput input = Values(ClientWorkflowHistoryTests.Value(BuiltInType.Int32, json));
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            WorkflowDataValuesInput input = Values(WorkflowHistoryTests.Value(BuiltInType.Int32, json));
             CallToolResult result = await InsertAsync(fixture, input).ConfigureAwait(false);
             Assert.That(result.IsError, Is.False);
             Assert.That(fixture.HistoryUpdates[0].TryGetValue(out UpdateDataDetails? details), Is.True);
@@ -78,9 +78,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(BuiltInType.String, "\"\"")]
         public async Task TypedScalarPartitionsAreNotConflatedAsync(BuiltInType type, string json)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            CallToolResult result = await InsertAsync(fixture, Values(ClientWorkflowHistoryTests.Value(type, json)))
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            CallToolResult result = await InsertAsync(fixture, Values(WorkflowHistoryTests.Value(type, json)))
                 .ConfigureAwait(false);
             Assert.That(result.IsError, Is.False);
             Assert.That(fixture.HistoryUpdates[0].TryGetValue(out UpdateDataDetails? details), Is.True);
@@ -104,10 +104,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("\"-Infinity\"")]
         public async Task NonFiniteFloatingTokensPreserveTheirIeeeMeaningAsync(string json)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await InsertAsync(
-                fixture, Values(ClientWorkflowHistoryTests.Value(BuiltInType.Double, json))).ConfigureAwait(false);
+                fixture, Values(WorkflowHistoryTests.Value(BuiltInType.Double, json))).ConfigureAwait(false);
             Assert.That(result.IsError, Is.False);
             Assert.That(fixture.HistoryUpdates[0].TryGetValue(out UpdateDataDetails? details), Is.True);
             Assert.That(details!.UpdateValues[0].WrappedValue.TryGetValue(out double value), Is.True);
@@ -135,9 +135,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(BuiltInType.Double, "\"1.0\"")]
         public async Task InvalidTypedValuePartitionsFailBeforeDispatchAsync(BuiltInType type, string json)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            CallToolResult result = await InsertAsync(fixture, Values(ClientWorkflowHistoryTests.Value(type, json)))
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            CallToolResult result = await InsertAsync(fixture, Values(WorkflowHistoryTests.Value(type, json)))
                 .ConfigureAwait(false);
             Assert.That(result.IsError, Is.True);
             Assert.That(fixture.HistoryUpdates, Is.Empty);
@@ -152,10 +152,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("-1", false)]
         public async Task ByteValueChecksExactRangeBoundaryAsync(string json, bool accepted)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await InsertAsync(
-                fixture, Values(ClientWorkflowHistoryTests.Value(BuiltInType.Byte, json))).ConfigureAwait(false);
+                fixture, Values(WorkflowHistoryTests.Value(BuiltInType.Byte, json))).ConfigureAwait(false);
             Assert.That(result.IsError, Is.EqualTo(!accepted));
             Assert.That(fixture.HistoryUpdates, Has.Count.EqualTo(accepted ? 1 : 0));
             if (accepted)
@@ -174,11 +174,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(1, true)]
         public async Task InlineBatchCeilingHasExactBoundaryAndImmediateNeighborsAsync(int difference, bool accepted)
         {
-            WorkflowDataValuesInput input = Values(ClientWorkflowHistoryTests.Value(BuiltInType.String, "\"é\""));
+            WorkflowDataValuesInput input = Values(WorkflowHistoryTests.Value(BuiltInType.String, "\"é\""));
             int encodedBytes = JsonSerializer.SerializeToUtf8Bytes(
                 input, WorkflowInputJsonContext.Default.WorkflowDataValuesInput).Length;
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxInlineBytes = encodedBytes + difference })
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxInlineBytes = encodedBytes + difference })
                 .ConfigureAwait(false);
             CallToolResult result = await InsertAsync(fixture, input).ConfigureAwait(false);
             Assert.That(result.IsError, Is.EqualTo(!accepted));
@@ -191,8 +191,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task MissingAnnotationTargetRefusesWithoutWritingOriginalVariableAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             CallToolResult result = await fixture.History.DeleteAnnotationsAsync(
                 fixture.Remote.Id("signal").ToString(), ["2026-01-01T00:00:00Z"], "selected").ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadNotSupported);
@@ -205,8 +205,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ProtectedAnnotationTargetCannotBypassSharedGuardAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId signal = fixture.Remote.Id("signal");
             NodeId target = fixture.Remote.Id("protected-annotations");
             fixture.Remote.Type(target, ObjectTypeIds.ServerConfigurationType);
@@ -224,8 +224,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DuplicatePermissionRoleIsRefusedBeforeWriteAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             string role = fixture.Remote.Id("role").ToString();
             CallToolResult result = await fixture.Roles.WritePermissionsAsync(
@@ -244,8 +244,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ExplicitEmptyPermissionArrayClearsExactlyTheDeclaredAttributeAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.Roles.WritePermissionsAsync(
                 fixture.Remote.Id("variable").ToString(), [], "selected")
@@ -286,7 +286,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// Crosses the real flat tool interface while sharing only repetitive test input setup.
         /// </summary>
         private static Task<CallToolResult> InsertAsync(
-            ClientWorkflowTestContext fixture, WorkflowDataValuesInput input)
+            WorkflowTestContext fixture, WorkflowDataValuesInput input)
         {
             return fixture.History.InsertValuesAsync(fixture.Remote.Id("signal").ToString(),
                 input.Values, input.ArrayElements, "selected");

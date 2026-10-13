@@ -47,7 +47,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         /// <typeparam name="T">A source-generated workflow input type.</typeparam>
         /// <exception cref="InvalidOperationException"></exception>
-        internal static void ValidateInline<T>(T value, ClientWorkflowOptions options)
+        internal static void ValidateInline<T>(T value, WorkflowOptions options)
             where T : class
         {
             ArgumentNullException.ThrowIfNull(value);
@@ -61,7 +61,7 @@ namespace Opc.Ua.Mcp
         /// Parses built-in scalar and one-dimensional values without boxed Variant access.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        internal static Variant Parse(ISession session, WorkflowValueInput input, ClientWorkflowOptions options)
+        internal static Variant Parse(ISession session, WorkflowValueInput input, WorkflowOptions options)
         {
             ArgumentNullException.ThrowIfNull(input);
             if (Encoding.UTF8.GetByteCount(input.Value.GetRawText()) > options.MaxInlineBytes)
@@ -105,7 +105,7 @@ namespace Opc.Ua.Mcp
         /// <exception cref="ArgumentException"></exception>
         internal static Dictionary<int, JsonElement[]> Arrays(
             int valueCount, Func<int, int?> length, ArrayOf<WorkflowArrayElementInput> elements,
-            ClientWorkflowOptions options)
+            WorkflowOptions options)
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThan(elements.Count, options.MaxItems);
             int total = 0;
@@ -156,7 +156,7 @@ namespace Opc.Ua.Mcp
         /// <exception cref="ArgumentException"></exception>
         internal static Variant Flat(
             ISession session, BuiltInType type, JsonElement value, int index,
-            Dictionary<int, JsonElement[]> arrays, ClientWorkflowOptions options)
+            Dictionary<int, JsonElement[]> arrays, WorkflowOptions options)
         {
             if (arrays.TryGetValue(index, out JsonElement[]? elements))
             {
@@ -289,7 +289,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         private static Variant ParseArray(
-            ISession session, BuiltInType type, JsonElement[] values, ClientWorkflowOptions options)
+            ISession session, BuiltInType type, JsonElement[] values, WorkflowOptions options)
         {
             return type switch
             {

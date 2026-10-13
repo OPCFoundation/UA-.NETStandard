@@ -8,7 +8,6 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
-- [MCP privileged and live execution](#mcp-privileged-and-live-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
@@ -43,14 +42,6 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
-
-## MCP privileged and live execution
-
-**Behavior change:** profiles no longer grant permission for protected
-administration or live execution. See the
-[MCP execution policy](McpServer.md#privileged-and-live-execution-policy) for tool
-behavior and the [Core package migration/embedding contract](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#host-policy-and-configuration)
-for host grants, secret references and custom-session requirements.
 
 ## Empty LocalizedText fields in 2.0
 

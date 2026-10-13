@@ -23,7 +23,6 @@ plugs it together.
 - [Lock service](#lock-service)
 - [Software update](#software-update)
 - [Client helpers](#client-helpers)
-- [MCP tools](#mcp-tools)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
 - [See also](#see-also)
 
@@ -970,10 +969,6 @@ public sealed class MyMonitor(
     }
 }
 ```
-
-## MCP tools
-
-See the [Device Integration MCP tool catalogue](McpServer.md#device-integration-tools). Package API and JSON references are linked there.
 
 ## What is supported (OPC 10000-100)
 

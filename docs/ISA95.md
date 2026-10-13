@@ -13,7 +13,6 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 - [Job Control (V1 and V2)](#job-control-v1-and-v2)
 - [GeoSpatialLocationType provider seam](#geospatiallocationtype-provider-seam)
 - [Client](#client)
-- [MCP tools](#mcp-tools)
 - [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier mappings, and normative repairs](#model-sources-identifier-mappings-and-normative-repairs)
@@ -228,10 +227,6 @@ await foreach (ISA95JobOrderStatusEventTypeRecord record in
 ```
 
 `AddIsa95Client` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`) registers `ITelemetryContext` and the injectable `IIsa95ClientFactory`. `Create` wraps an existing session; when `Isa95ClientOptions.LazyConnect` is true (the default), `ConnectAsync` lazily acquires the `ManagedSession` registered by `AddClient` on first use and caches the resulting client.
-
-## MCP tools
-
-See the [ISA-95 MCP tool catalogue](McpServer.md#isa-95-tools). Package API and JSON references are linked there.
 
 ## In-memory limitations and HA guidance
 

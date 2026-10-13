@@ -36,14 +36,14 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Crosses the actual SDK binder with the shallow wire contract, never JSON strings hiding a nested document.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowFlatBindingTests
+    public sealed class WorkflowFlatBindingTests
     {
         /// <summary>
         /// Flat values and indexed elements preserve scalar/array distinctions, quality, timestamps and result order.
@@ -54,8 +54,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task FlatValueArraysBindToExactDataValuesAndPerItemStatusesAsync(
             string name, PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.GoodClamped, StatusCodes.BadOutOfRange, StatusCodes.Good];
             NodeId node = fixture.Remote.Id("signal");
             var arguments = new JsonObject
@@ -112,8 +112,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("unknownField")]
         public async Task FlatValueContractRejectsUndeclaredOrAmbiguousShapesBeforeDispatchAsync(string invalid)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             JsonObject arguments = JsonNode.Parse("""
                 {"values":[{"type":"Int32","arrayLength":1,"sourceTimestamp":"2026-01-01T00:00:00Z"}],
                  "arrayElements":[{"valueIndex":0,"elementIndex":0,"value":7}]}
@@ -178,8 +178,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task FlatEventReadPathsPreserveSelectedNamespacesAndOrderAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryPages.Enqueue(new HistoryReadResult
             {
                 StatusCode = StatusCodes.Good,
@@ -224,8 +224,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task FlatEventCellsBindExactRowsAndStandardFieldTypesAsync(
             string name, PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.HistoryOperationResults = [StatusCodes.Good, StatusCodes.BadEntryExists];
             var arguments = new JsonObject
             {
@@ -281,8 +281,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task RootAnnotationArrayBindsExactStructureAndTimestampAsync(
             string name, PerformUpdateType operation)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId node = fixture.Remote.Id("signal");
             NodeId annotations = fixture.Remote.Id("annotations");
             fixture.Remote.Child(node, new QualifiedName(BrowseNames.Annotations), annotations);
@@ -316,8 +316,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("unknownNamespace")]
         public async Task FlatEventPathErrorsRefuseBeforeHistoryReadAsync(string invalid)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             JsonObject arguments = JsonNode.Parse("""
                 {"startTime":"2026-01-01T00:00:00Z","endTime":"2026-01-02T00:00:00Z",
                  "select":[{"typeDefinitionId":"i=2782"}],
@@ -357,8 +357,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase("null")]
         public async Task TemporaryGenerationBindsFlatOptionDiscriminatorAndArrayAsync(string form)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(files: true).ConfigureAwait(false);
             NodeId transfer = fixture.Remote.Id("transfer");
             NodeId file = fixture.Remote.Id("generated");
             fixture.Remote.Type(transfer, ObjectTypeIds.TemporaryFileTransferType);

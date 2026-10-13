@@ -6,8 +6,6 @@ identity**, an **Opaque-NodeId content fast path** that resolves a document in a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
-For agent-facing access, see the [xRegistry MCP catalogue](McpServer.md#wot-and-registry-tools).
-
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses
 everything else. The PubSub Schema Registry and WoT Connectivity registry are concrete
@@ -577,7 +575,6 @@ via the generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes. The mo
 
 ## Related documentation
 
-* [MCP server](McpServer.md#wot-and-registry-tools) — agent-facing registry operations and deletion/concurrency semantics.
 * [Source generation](../tools/Opc.Ua.SourceGeneration/readme.md) — how the companion model and its typed proxies are compiled into the assembly.
 * [Node management](NodeManagement.md) — the node manager model the three managers build on.
 * [PubSub (Part 14)](PubSub.md) — the PubSub Schema Registry specialization of this model.

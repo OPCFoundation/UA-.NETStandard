@@ -48,15 +48,15 @@ using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Mcp;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Exercises real workflow tools/generated proxies/MCP binding above a deterministic UA service boundary.
     /// </summary>
-    internal sealed class ClientWorkflowTestContext : IAsyncDisposable
+    internal sealed class WorkflowTestContext : IAsyncDisposable
     {
-        private ClientWorkflowTestContext(
-            RemoteModelTestSession remote, bool enabled, ClientWorkflowOptions? workflowOptions, bool files,
+        private WorkflowTestContext(
+            RemoteModelTestSession remote, bool enabled, WorkflowOptions? workflowOptions, bool files,
             McpToolProfileSet profiles, bool certificateAdministration)
         {
             Remote = remote;
@@ -113,8 +113,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore(Options);
             services.AddSingleton<TimeProvider>(Clock);
-            services.AddSingleton<IClientWorkflowStreams>(Streams);
-            services.AddSingleton<IClientWorkflowSessionFactory>(SessionScopes);
+            services.AddSingleton<IWorkflowStreams>(Streams);
+            services.AddSingleton<IWorkflowSessionFactory>(SessionScopes);
             string resource = "opcua:urn:workflow:test-server#" +
                 NodeId.ToExpandedNodeId(ObjectIds.UserManagement, Remote.Context.NamespaceUris);
             services.AddOpcUaMcpSecrets(SecretRegistry.Object,
@@ -123,9 +123,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
                     new McpSecretAlias("new", new SecretIdentifier("new", "workflow-test"), resource),
                     new McpSecretAlias("foreign", new SecretIdentifier("foreign", "workflow-test"), "urn:foreign")
                 ]);
-            services.AddOpcUaMcpClientWorkflows(workflowOptions);
+            services.AddOpcUaMcpWorkflows(workflowOptions);
             services.AddMcpServer().WithStreamServerTransport(Stream.Null, Stream.Null)
-                .WithOpcUaClientWorkflowTools(profiles);
+                .WithOpcUaWorkflowTools(profiles);
             Services = services.BuildServiceProvider();
             Manager = Services.GetRequiredService<OpcUaSessionManager>();
             SetupHistoryAndWrites();
@@ -184,7 +184,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Gets test-only scopes; local integration tests use the real SDK implementation instead.
         /// </summary>
-        internal ClientWorkflowTestSessionFactory SessionScopes { get; } = new();
+        internal WorkflowTestSessionFactory SessionScopes { get; } = new();
 
         /// <summary>
         /// Gets the mock secret-provider boundary.
@@ -269,14 +269,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Creates an encrypted registered session without network traffic.
         /// </summary>
-        internal static async Task<ClientWorkflowTestContext> CreateAsync(
+        internal static async Task<WorkflowTestContext> CreateAsync(
             bool enabled = true, MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt,
-            ClientWorkflowOptions? options = null, bool files = false, McpToolProfileSet? profiles = null,
+            WorkflowOptions? options = null, bool files = false, McpToolProfileSet? profiles = null,
             bool certificateAdministration = false)
         {
             RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
                 includeWot: false, includeRegistry: false, mode: mode).ConfigureAwait(false);
-            var fixture = new ClientWorkflowTestContext(remote, enabled, options, files,
+            var fixture = new WorkflowTestContext(remote, enabled, options, files,
                 profiles ??
                 new McpToolProfileSet(
                     [
@@ -333,7 +333,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
                 Services.GetRequiredService<McpServer>(),
                 new JsonRpcRequest { Method = "tools/list", Id = new RequestId("workflow-list") },
                 new ListToolsRequestParams());
-            return await ClientWorkflowFilters.Catalogue((_, _) => ValueTask.FromResult(new ListToolsResult
+            return await WorkflowFilters.Catalogue((_, _) => ValueTask.FromResult(new ListToolsResult
             {
                 Tools = [.. Services.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool)]
             }))(request, CancellationToken.None).ConfigureAwait(false);
@@ -501,7 +501,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
     /// <summary>
     /// Deterministic observation source whose returned enumerator, but not borrowed stream, is owned by a tool.
     /// </summary>
-    internal sealed class WorkflowTestStreams : IClientWorkflowStreams
+    internal sealed class WorkflowTestStreams : IWorkflowStreams
     {
         /// <summary>
         /// Gets the borrowed stream mock, which fails if tools attempt to dispose it.

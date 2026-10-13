@@ -34,7 +34,6 @@ them and reads them back into records.
 - [Known limitations](#known-limitations)
 - [Model provenance](#model-provenance)
 - [Generator gaps this model uncovered](#generator-gaps-this-model-uncovered)
-- [MCP tools](#mcp-tools)
 - [See also](#see-also)
 
 ## Library layout
@@ -604,10 +603,6 @@ gap; two known ones apply as well:
   override `StateTable`, `TransitionTable` and `TransitionMappings`. The server
   drives it with tables built from the generated
   `MaintenanceEventStateMachineTypeIds`.
-
-## MCP tools
-
-See the [AMB MCP tool catalogue](McpServer.md#amb-tools). Package API and JSON references are linked there.
 
 ## See also
 

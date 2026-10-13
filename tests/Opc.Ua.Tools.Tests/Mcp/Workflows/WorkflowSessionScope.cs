@@ -36,27 +36,27 @@ using Moq;
 using Opc.Ua.Client;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Test-only service-scope provider for deterministic proxy/binder contracts.
-    /// Real dispatch fencing is covered by the SDK's context tests and ClientWorkflowLiveTests.
+    /// Real dispatch fencing is covered by the SDK's context tests and WorkflowLiveTests.
     /// </summary>
-    internal sealed class ClientWorkflowTestSessionFactory : IClientWorkflowSessionFactory
+    internal sealed class WorkflowTestSessionFactory : IWorkflowSessionFactory
     {
         /// <summary>
         /// Gets every borrowed test scope for ownership assertions.
         /// </summary>
-        internal List<ClientWorkflowTestSessionScope> Scopes { get; } = [];
+        internal List<WorkflowTestSessionScope> Scopes { get; } = [];
 
         /// <inheritdoc/>
-        public ValueTask<IClientWorkflowSessionScope> CaptureAsync(
+        public ValueTask<IWorkflowSessionScope> CaptureAsync(
             OpcUaSessionManager.SessionInfo registration, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
-            var scope = new ClientWorkflowTestSessionScope(registration);
+            var scope = new WorkflowTestSessionScope(registration);
             Scopes.Add(scope);
-            return ValueTask.FromResult<IClientWorkflowSessionScope>(scope);
+            return ValueTask.FromResult<IWorkflowSessionScope>(scope);
         }
     }
 
@@ -64,12 +64,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
     /// Forwards only the service calls needed by this suite, with independent namespace/identity capture.
     /// It is not a substitute for the production ManagedSession authentication-token fence.
     /// </summary>
-    internal sealed class ClientWorkflowTestSessionScope : IClientWorkflowSessionScope
+    internal sealed class WorkflowTestSessionScope : IWorkflowSessionScope
     {
         /// <summary>
         /// Captures a distinct session façade, making accidental use of the unscoped registration observable.
         /// </summary>
-        internal ClientWorkflowTestSessionScope(OpcUaSessionManager.SessionInfo registration)
+        internal WorkflowTestSessionScope(OpcUaSessionManager.SessionInfo registration)
         {
             Registration = registration;
             SessionId = registration.Session.SessionId;

@@ -53,13 +53,13 @@ namespace Opc.Ua.Mcp
         /// Creates historian tools with an independently owned historical cursor registry.
         /// </summary>
         public HistoryWorkflowTools(
-            OpcUaSessionManager sessions, ClientWorkflowOptions options, HistoryCursorRegistry cursors,
-            IClientWorkflowSessionFactory? scopes = null)
+            OpcUaSessionManager sessions, WorkflowOptions options, HistoryCursorRegistry cursors,
+            IWorkflowSessionFactory? scopes = null)
         {
             m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_cursors = cursors ?? throw new ArgumentNullException(nameof(cursors));
-            m_scopes = scopes ?? new ClientWorkflowSessionFactory();
+            m_scopes = scopes ?? new WorkflowSessionFactory();
             options.Validate();
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -130,7 +130,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 WorkflowJson.Page(m_options, maxResults, offset);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -558,7 +558,7 @@ namespace Opc.Ua.Mcp
                 {
                     throw new ArgumentException("A delete range must have startTime before endTime.");
                 }
-                (IClientWorkflowSessionScope scope, NodeId node, HistoryClient client) =
+                (IWorkflowSessionScope scope, NodeId node, HistoryClient client) =
                     await OpenMutationAsync(nodeId, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -583,7 +583,7 @@ namespace Opc.Ua.Mcp
             return McpCompanionTools.ExecuteAsync(async token =>
             {
                 ArrayOf<DateTime> times = Times(timestamps);
-                (IClientWorkflowSessionScope scope, NodeId node, HistoryClient client) =
+                (IWorkflowSessionScope scope, NodeId node, HistoryClient client) =
                     await OpenMutationAsync(nodeId, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -618,7 +618,7 @@ namespace Opc.Ua.Mcp
                         throw new ArgumentException("A historical event id must not be empty.");
                     }
                 }
-                (IClientWorkflowSessionScope scope, NodeId node, HistoryClient client) =
+                (IWorkflowSessionScope scope, NodeId node, HistoryClient client) =
                     await OpenMutationAsync(nodeId, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -647,7 +647,7 @@ namespace Opc.Ua.Mcp
                 {
                     annotations[index] = new Annotation { AnnotationTime = times[index], Message = string.Empty };
                 }
-                (IClientWorkflowSessionScope scope, NodeId node, HistoryClient client) =
+                (IWorkflowSessionScope scope, NodeId node, HistoryClient client) =
                     await OpenMutationAsync(nodeId, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -733,7 +733,7 @@ namespace Opc.Ua.Mcp
                 }
                 Dictionary<int, JsonElement[]> arrays = WorkflowValues.Arrays(
                     input.Values.Count, index => input.Values[index].ArrayLength, input.ArrayElements, m_options);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -776,7 +776,7 @@ namespace Opc.Ua.Mcp
                 ArgumentNullException.ThrowIfNull(input);
                 WorkflowJson.Page(m_options, input.Events.Count);
                 WorkflowValues.ValidateInline(input, m_options);
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                     m_sessions.GetSessionInfoOrThrow(sessionName), token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 OpcUaSessionManager.SessionInfo info = scope.Access;
@@ -866,7 +866,7 @@ namespace Opc.Ua.Mcp
                         UserName = item.UserName
                     };
                 }
-                (IClientWorkflowSessionScope scope, NodeId node, HistoryClient client) =
+                (IWorkflowSessionScope scope, NodeId node, HistoryClient client) =
                     await OpenMutationAsync(nodeId, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable lease = scope.ConfigureAwait(false);
                 ISession session = scope.Access.Session;
@@ -903,11 +903,11 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Captures a single exact session and applies shared semantic target guards before updates.
         /// </summary>
-        private async ValueTask<(IClientWorkflowSessionScope Scope, NodeId Node, HistoryClient Client)>
+        private async ValueTask<(IWorkflowSessionScope Scope, NodeId Node, HistoryClient Client)>
             OpenMutationAsync(
             string nodeId, string? sessionName, CancellationToken ct)
         {
-            IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(
+            IWorkflowSessionScope scope = await m_scopes.CaptureAsync(
                 m_sessions.GetSessionInfoOrThrow(sessionName), ct).ConfigureAwait(false);
             try
             {
@@ -1043,8 +1043,8 @@ namespace Opc.Ua.Mcp
         }
 
         private readonly OpcUaSessionManager m_sessions;
-        private readonly ClientWorkflowOptions m_options;
+        private readonly WorkflowOptions m_options;
         private readonly HistoryCursorRegistry m_cursors;
-        private readonly IClientWorkflowSessionFactory m_scopes;
+        private readonly IWorkflowSessionFactory m_scopes;
     }
 }

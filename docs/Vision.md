@@ -6,8 +6,7 @@ sensors, inference, media, and coordinate frames. Applications can use the model
 independently or combine them on one OPC UA server.
 
 Part 1 and Perception contracts are in `Opc.Ua.Vision`; Part 2 contracts are in
-`Opc.Ua.MachineVision`. Each has client and server packages. Agent-facing access
-is documented in the [MCP catalogue](McpServer.md#machine-vision-tools). The generated
+`Opc.Ua.MachineVision`. Each has client and server packages. The generated
 Perception types live in `Opc.Ua.Vision.Perception` and use the wire namespace
 `http://opcfoundation.org/UA/Vision/`.
 
@@ -21,12 +20,10 @@ a model's specification status are separate: the Perception model is provisional
 - [Models and provenance](#models-and-provenance)
 - [Opt-in hosting](#opt-in-hosting)
 - [Control and acquisition providers](#control-and-acquisition-providers)
-- [MCP tools for Machine Vision](#mcp)
 - [Perception model](#perception-model)
 - [Packages](#packages)
 - [Perception hosting](#minimal-hosted-server)
 - [Perception client interfaces](#using-the-client-libraries)
-- [Perception MCP tools](#mcp-tools)
 - [Bin-picking sample](#sample-bin-picking)
 - [Visual inspection](#visual-inspection-a-cross-companion-cell)
 
@@ -421,10 +418,6 @@ metadata handles and preserve both errors if transfer and release fail.
 The [client sample](../samples/Vision/MachineVisionClient) demonstrates secure discovery,
 upload, preparation, execution, state waiting, results, the draft/native bridge, and assets.
 
-## MCP
-
-See the [Machine Vision MCP tool catalogue](McpServer.md#machine-vision-tools). Package API and JSON references are linked there.
-
 ## Implementation and conformance map
 
 This map identifies implementation surfaces; it is **not a certification claim**.
@@ -469,7 +462,7 @@ fixes preserve the upstream models rather than modifying their declarations to c
 - [OPC 40100-2](https://reference.opcfoundation.org/specs/OPC-40100-2)
 - [RepresentsSameEntityAs](https://reference.opcfoundation.org/specs/OPC-10000-23/4.8)
 - [Machinery hosting](Machinery.md), [model dependencies](ModelDependencies.md),
-  [Perception model](#perception-model), and [MCP hosting](McpServer.md)
+  [Perception model](#perception-model)
 
 ## Perception model
 
@@ -494,7 +487,7 @@ released Machine Vision models.
 | `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server` | Asset builders, information add-ins, conformance, runtime updates, and Part 2 hosting registration | `Opc.Ua.Vision.Server`, `Opc.Ua.MachineVision`, `Opc.Ua.Machinery.Server` |
 | `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client` | Part 2 asset discovery, snapshots, and relationship extensions in `Opc.Ua.Vision.Client` | `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Types`, native OpenUSD renderer payload (optional per-RID) |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | [Agent-facing catalogue](McpServer.md#perception-tools) | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Agent-facing tools | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision.Client` |
 
 ```mermaid
 graph TD
@@ -1269,10 +1262,6 @@ await foreach (VisionDetectionResultSnapshot snapshot in
 `ObserveInspectionAsync` and `ObserveSegmentationAsync` do the same for
 inspection and segmentation results.
 
-## MCP tools
-
-See the [Perception MCP tool catalogue](McpServer.md#perception-tools). Package API and JSON references are linked there.
-
 ## Sample: bin-picking
 
 [`samples/Robotics/BinPickingCell`](../samples/Robotics/BinPickingCell) is
@@ -1292,12 +1281,9 @@ rather than substituting the Location centre.
 
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,
-`--mcp` exposes the [composed MCP catalogue](McpServer.md#vision-guided-robotics) for a language-model
+`--mcp` exposes the composed MCP catalogue for a language-model
 agent, and `--view` opens the in-process OpenUSD viewport so a human
 sees the same scene the agent sees.
-
-The agent-facing workflow is documented under
-[Vision-guided Robotics](McpServer.md#vision-guided-robotics).
 
 ### Scene lighting
 
@@ -1598,8 +1584,6 @@ takes the same line.
 - [OpenUSD guide](OpenUsd.md) — the OpenUSD connector and scene
   materialisation used to bind the Vision sample cell to a live USD
   stage.
-- [MCP Server guide](McpServer.md) — the `vision` MCP profile and its
-  composition with `robotics`.
 - [AI Model Management developer guide](AI.md) — the
   companion that owns the model, dataset and deployment a Vision
   pipeline's `Deployment` and `LearningJob` point at, and the counter

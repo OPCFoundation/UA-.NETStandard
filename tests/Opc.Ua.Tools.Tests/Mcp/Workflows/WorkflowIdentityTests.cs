@@ -38,14 +38,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Proves exact identity-administration wire contracts, host/server denials and secret confidentiality.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowIdentityTests
+    public sealed class WorkflowIdentityTests
     {
         /// <summary>
         /// Every fixed mapping tool resolves the qualified method and passes the exact typed argument.
@@ -59,8 +59,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task MappingMutationsPreserveExactTypedTargetArgumentsAndNonDefaultStatusAsync(
             string tool, string method, string kind)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Role();
             fixture.Remote.Reply(StatusCodes.GoodCompletesAsynchronously);
             using IDisposable caller = fixture.Enter();
@@ -103,8 +103,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task RoleCreationAndRemovalPreserveExactStandardRoleSetCallAsync(bool remove)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Role();
             fixture.Remote.Reply(StatusCodes.Good, Variant.From(role));
             using IDisposable caller = fixture.Enter();
@@ -129,8 +129,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ReservedRoleServerRefusalIsPreservedWithoutFallbackOrRetryAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Role();
             fixture.Remote.Reply(StatusCodes.BadUserAccessDenied);
             using IDisposable caller = fixture.Enter();
@@ -146,8 +146,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RoleFlagsPreserveFalseOmissionOrderingAndServerWriteStatusAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Role();
             NodeId exclude = fixture.Remote.Property(role, new QualifiedName(BrowseNames.ApplicationsExclude),
                 Variant.From(true));
@@ -174,8 +174,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task DeclaredPermissionUpdatePreservesRoleMaskAndServerDenialAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId target = fixture.Remote.Id("variable");
             NodeId role = fixture.Role();
             fixture.WriteStatus = StatusCodes.BadNotWritable;
@@ -203,8 +203,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         public async Task EveryIdentityMutationRefusesHostDisabledBeforeRemoteEffectsAsync(
             string tool, JsonObject arguments)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(enabled: false).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(enabled: false).ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.InvokeAsync(tool, (JsonObject)arguments.DeepClone())
                 .ConfigureAwait(false);
@@ -220,9 +220,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task WrongCallerSessionScopeRefusesAdministrationBeforeSecretResolutionAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            using IDisposable caller = fixture.Enter(ClientWorkflowTestContext.WrongSession);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter(WorkflowTestContext.WrongSession);
             CallToolResult result = await fixture.Users.AddAsync(
                 "alice", "alias:new", sessionName: "selected").ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadUserAccessDenied);
@@ -237,8 +237,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(MessageSecurityMode.Sign)]
         public async Task AdministrationRefusesNonEncryptedSessionsAsync(MessageSecurityMode mode)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync(mode: mode).ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync(mode: mode).ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             RemoteModelTestSession.Error(await fixture.Users.RemoveAsync("alice", "selected").ConfigureAwait(false),
                 StatusCodes.BadSecurityModeInsufficient);
@@ -253,8 +253,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task AddUserBindsSecretReferenceAndNeverReturnsUnexpectedSecretOutputAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Remote.Reply(StatusCodes.GoodClamped, Variant.From("new-test-only"));
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.InvokeAsync("users_add", new JsonObject
@@ -279,8 +279,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ModifyUserDistinguishesUnchangedPasswordFromExplicitClearedDescriptionAndZeroFlagsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Remote.Reply(StatusCodes.Good);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.Users.ModifyAsync("alice",
@@ -298,8 +298,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ModifyUserPasswordReferenceDoesNotModifyOmittedFieldsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Remote.Reply(StatusCodes.Good);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.Users.ModifyAsync(
@@ -316,8 +316,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RemoveUserPreservesExactTargetAndServerSelfLockoutRefusalAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             fixture.Remote.Reply(StatusCodes.BadUserAccessDenied);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.Users.RemoveAsync("alice", "selected").ConfigureAwait(false);
@@ -332,8 +332,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task SelfPasswordChangePreservesCommitAfterLateCancellationAndUsesOnlyTwoSecretArgumentsAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             fixture.Remote.OnCall = _ =>
             {
@@ -356,8 +356,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ForeignSecretResourceIsRefusedBeforeServerCallAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             CallToolResult result = await fixture.Users.AddAsync(
                 "alice", "alias:foreign", sessionName: "selected").ConfigureAwait(false);
@@ -373,8 +373,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(true)]
         public async Task SecretProviderAndServerFailureMessagesAreNeverReturnedAsync(bool server)
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             const string sensitive = "not-a-real-password-should-never-appear";
             if (server)
             {
@@ -397,8 +397,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RoleMappingRejectsSameNameInDifferentNamespaceAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             NodeId role = fixture.Remote.Id("role");
             fixture.Remote.Type(role, ObjectTypeIds.RoleType);
             fixture.Remote.Child(role, new QualifiedName(BrowseNames.AddApplication, fixture.Remote.InstanceNamespace),

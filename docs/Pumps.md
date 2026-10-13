@@ -25,7 +25,6 @@ them back into typed snapshots. Both sides share one set of contracts.
 - [Troubleshooting](#troubleshooting)
 - [Model provenance](#model-provenance)
 - [Generator gap this model uncovered](#generator-gap-this-model-uncovered)
-- [MCP tools](#mcp-tools)
 - [See also](#see-also)
 
 ## Library layout
@@ -731,10 +730,6 @@ instance declaration on the type, copying `ReferenceTypeId`,
 `TypeDefinitionId`, `DataType`, `ValueRank`, access levels and sampling
 interval before registering it, and filling only members the generic path
 left unset. `PumpsClientServerE2eTests` is what catches a regression here.
-
-## MCP tools
-
-See the [Pumps MCP tool catalogue](McpServer.md#pumps-tools). Package API and JSON references are linked there.
 
 ## See also
 

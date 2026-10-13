@@ -69,7 +69,6 @@ OPC 10000-100 Device Integration, or another companion model.
   - [Pose maths](#pose-maths)
   - [Handling refusal](#handling-refusal)
   - [Monitoring and direct control for agents](#monitoring-and-direct-control-for-agents)
-  - [MCP tools for Robot Intent](#mcp-tools-for-robot-intent)
   - [Facets in code](#facets-in-code)
   - [Limitations](#limitations)
   - [Why a submission is not a method call](#why-a-submission-is-not-a-method-call)
@@ -124,8 +123,6 @@ resolution and classification helpers over the generated `ObjectTypeIds` /
 The generated Robot Intent types live in `Opc.Ua.RobotIntent`. The hand-written server APIs live in
 `Opc.Ua.Robotics.Server` and `Opc.Ua.Robotics.Server.Builders`; the hand-written client APIs live in
 `Opc.Ua.Robotics.Client.Intent`.
-
-For agent-facing access, see the [Robot Intent MCP catalogue](McpServer.md#robot-intent-tools).
 
 ## Minimal hosted server
 
@@ -1523,10 +1520,6 @@ The same client carries the explicit control methods: `CancelIntentAsync`, `Canc
 `PauseAsync`, `ResumeAsync`, `RetryAsync` and `ReleaseControlAsync`. Each returns the server's outcome.
 No helper retries, converts a refusal into a different command, or obtains command authority as a side
 effect.
-
-### MCP tools for Robot Intent
-
-See the [Robot Intent MCP tool catalogue](McpServer.md#robot-intent-tools). Package API and JSON references are linked there.
 
 ### Facets in code
 

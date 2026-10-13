@@ -46,14 +46,14 @@ namespace Opc.Ua.Mcp
         /// Creates an owner/session-bound registry with deterministic host-supplied time.
         /// </summary>
         public HistoryCursorRegistry(
-            OpcUaSessionManager sessions, ClientWorkflowOptions options, TimeProvider? timeProvider = null,
-            IClientWorkflowSessionFactory? scopes = null)
+            OpcUaSessionManager sessions, WorkflowOptions options, TimeProvider? timeProvider = null,
+            IWorkflowSessionFactory? scopes = null)
         {
             m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             options.Validate();
             m_time = timeProvider ?? TimeProvider.System;
-            m_scopes = scopes ?? new ClientWorkflowSessionFactory();
+            m_scopes = scopes ?? new WorkflowSessionFactory();
             m_timer = new PeriodicTimer(TimeSpan.FromSeconds(1), m_time);
             m_sweeper = SweepLoopAsync();
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Mcp
                     throw new ServiceResultException(StatusCodes.BadTooManyOperations,
                         "The host's historical cursor quota is full; release a cursor before opening another.");
                 }
-                IClientWorkflowSessionScope scope = await m_scopes.CaptureAsync(session, ct).ConfigureAwait(false);
+                IWorkflowSessionScope scope = await m_scopes.CaptureAsync(session, ct).ConfigureAwait(false);
                 var lifetime = new CancellationTokenSource();
                 Cursor cursor;
                 try
@@ -482,7 +482,7 @@ namespace Opc.Ua.Mcp
             internal Cursor(
                 OpcUaSessionManager.SessionInfo session, McpCallerIdentity? owner, DateTimeOffset created,
                 CancellationTokenSource lifetime, IAsyncEnumerator<JsonNode?> enumerator,
-                IClientWorkflowSessionScope scope)
+                IWorkflowSessionScope scope)
             {
                 Session = session;
                 SessionId = scope.SessionId;
@@ -532,7 +532,7 @@ namespace Opc.Ua.Mcp
             /// <summary>
             /// Gets the guarded SDK session context retained across every resumed read and cleanup.
             /// </summary>
-            internal IClientWorkflowSessionScope Scope { get; }
+            internal IWorkflowSessionScope Scope { get; }
 
             /// <summary>
             /// Gets or sets a single look-ahead value without replaying a server query.
@@ -551,9 +551,9 @@ namespace Opc.Ua.Mcp
         }
 
         private readonly OpcUaSessionManager m_sessions;
-        private readonly ClientWorkflowOptions m_options;
+        private readonly WorkflowOptions m_options;
         private readonly TimeProvider m_time;
-        private readonly IClientWorkflowSessionFactory m_scopes;
+        private readonly IWorkflowSessionFactory m_scopes;
         private readonly PeriodicTimer m_timer;
         private readonly Task m_sweeper;
         private readonly SemaphoreSlim m_gate = new(1, 1);

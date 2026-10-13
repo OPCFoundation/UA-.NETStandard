@@ -1324,7 +1324,7 @@ namespace Opc.Ua.Aot.Tests
                 services.AddSingleton<IServiceMessageContext>(Context);
                 services.AddSingleton<IMcpPubSubTransportProvider>(PubSubTransports);
                 services.AddSingleton<IWotRuntimeExecutorFactory>(WotExecutors);
-                services.AddOpcUaMcpGds().AddOpcUaMcpClientWorkflows().AddOpcUaMcpSchema()
+                services.AddOpcUaMcpGds().AddOpcUaMcpWorkflows().AddOpcUaMcpSchema()
                     .AddOpcUaMcpPubSub().AddOpcUaMcpWotRuntime();
                 IMcpServerBuilder builder = services.AddMcpServer()
                     .WithStreamServerTransport(Stream.Null, Stream.Null).WithOpcUaConnectionTools();
@@ -1462,7 +1462,7 @@ namespace Opc.Ua.Aot.Tests
 
             private static void Register(IMcpServerBuilder builder, McpToolProfileSet profiles)
             {
-                builder.WithOpcUaGdsTools(profiles).WithOpcUaClientWorkflowTools(profiles)
+                builder.WithOpcUaGdsTools(profiles).WithOpcUaWorkflowTools(profiles)
                     .WithOpcUaSchemaTools(profiles).WithOpcUaPubSubTools(profiles)
                     .WithOpcUaWotRuntimeTools(profiles);
             }

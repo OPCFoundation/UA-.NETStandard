@@ -40,14 +40,14 @@ using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
 
-namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
+namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
 {
     /// <summary>
     /// Proves exact server-continuation ownership, bounded lifetime and deterministic cleanup.
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    public sealed class ClientWorkflowCursorTests
+    public sealed class WorkflowCursorTests
     {
         /// <summary>
         /// Stateless reads work without caller identity and release their own unconsumed server continuation.
@@ -55,8 +55,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task StatelessReadWorksWithoutCallerAndReleasesUnconsumedContinuationAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             CallToolResult result = await ReadAsync(fixture, retain: false).ConfigureAwait(false);
             JsonElement json = RemoteModelTestSession.Payload(result);
@@ -73,8 +73,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RetainedReadRequiresTrustedCallerBeforeReadingServerAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             CallToolResult result = await ReadAsync(fixture, retain: true).ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadUserAccessDenied);
@@ -87,11 +87,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ReadNextUsesExactServerContinuationAndExhaustionReleasesRegistryEntryAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page(
-                [ClientWorkflowHistoryTests.Data(1), ClientWorkflowHistoryTests.Data(2)], kPoint));
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page([ClientWorkflowHistoryTests.Data(3)]));
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page(
+                [WorkflowHistoryTests.Data(1), WorkflowHistoryTests.Data(2)], kPoint));
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page([WorkflowHistoryTests.Data(3)]));
             using IDisposable caller = fixture.Enter();
             string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
             CallToolResult next = await fixture.History.NextAsync(cursor, 2).ConfigureAwait(false);
@@ -115,12 +115,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ForeignCallerCannotReadOrReleaseOwnedHistoryCursorAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             using IDisposable owner = fixture.Enter();
             string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
-            using (fixture.Enter(ClientWorkflowTestContext.Other))
+            using (fixture.Enter(WorkflowTestContext.Other))
             {
                 RemoteModelTestSession.Error(await fixture.History.NextAsync(cursor).ConfigureAwait(false),
                     StatusCodes.BadContinuationPointInvalid);
@@ -141,8 +141,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [TestCase(1, true)]
         public async Task CursorIdleExpiryHasExactClockControlledBoundaryAsync(int relativeMilliseconds, bool expired)
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions
                 {
                     HistoryCursorIdleTimeout = TimeSpan.FromSeconds(60),
                     HistoryCursorLifetime = TimeSpan.FromMinutes(2)
@@ -171,14 +171,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task CursorUseDoesNotExtendAbsoluteLeaseAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions
                 {
                     HistoryCursorIdleTimeout = TimeSpan.FromSeconds(40),
                     HistoryCursorLifetime = TimeSpan.FromSeconds(60)
                 }).ConfigureAwait(false);
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page(
-                Enumerable.Range(1, 8).Select(index => ClientWorkflowHistoryTests.Data(index)).ToArrayOf(), kPoint));
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page(
+                Enumerable.Range(1, 8).Select(index => WorkflowHistoryTests.Data(index)).ToArrayOf(), kPoint));
             using IDisposable caller = fixture.Enter();
             string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
             fixture.Clock.Advance(TimeSpan.FromSeconds(39));
@@ -197,8 +197,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ChangedUaSessionGenerationRefusesCursorWithoutReleasingPointOnReplacementAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             using IDisposable caller = fixture.Enter();
             string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
@@ -215,8 +215,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task ReplacedRegistrationInvalidatesCursorEvenWithUnchangedSessionIdAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             using IDisposable caller = fixture.Enter();
             string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
@@ -233,15 +233,15 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task PerCallerCursorQuotaIsIndependentWithinHostCapacityAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxHistoryCursors = 2, MaxHistoryCursorsPerCaller = 1 })
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxHistoryCursors = 2, MaxHistoryCursorsPerCaller = 1 })
                 .ConfigureAwait(false);
             Seed(fixture);
             using IDisposable owner = fixture.Enter();
             string first = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
             RemoteModelTestSession.Error(await ReadAsync(fixture, true).ConfigureAwait(false),
                 StatusCodes.BadTooManyOperations);
-            using (fixture.Enter(ClientWorkflowTestContext.Other))
+            using (fixture.Enter(WorkflowTestContext.Other))
             {
                 Seed(fixture);
                 string second = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
@@ -258,8 +258,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task CursorQuotaRefusesBeforeServerReadAndReleaseRestoresCapacityAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxHistoryCursors = 1, MaxHistoryCursorsPerCaller = 1 })
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxHistoryCursors = 1, MaxHistoryCursorsPerCaller = 1 })
                 .ConfigureAwait(false);
             Seed(fixture);
             using IDisposable caller = fixture.Enter();
@@ -279,9 +279,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task HistoryFailureReleasesCurrentContinuationAndPreservesBadStatusAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page([ClientWorkflowHistoryTests.Data(1)], kPoint));
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page([WorkflowHistoryTests.Data(1)], kPoint));
             var failedPoint = ByteString.From("\t\t"u8.ToArray());
             fixture.HistoryPages.Enqueue(new HistoryReadResult
             {
@@ -299,10 +299,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task HistoryPageBudgetStopsEmptyContinuationLoopAndReleasesAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxHistoryPages = 2 }).ConfigureAwait(false);
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page([], kPoint));
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page([], kPoint));
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxHistoryPages = 2 }).ConfigureAwait(false);
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page([], kPoint));
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page([], kPoint));
             CallToolResult result = await ReadAsync(fixture, false).ConfigureAwait(false);
             RemoteModelTestSession.Error(result, StatusCodes.BadTimeout);
             Assert.That(fixture.HistoryReads.Count(read => !read.Release), Is.EqualTo(2));
@@ -315,8 +315,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RegistryDisposalReleasesRetainedContinuationExactlyOnceAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
             using IDisposable caller = fixture.Enter();
             _ = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
@@ -331,8 +331,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task CancelledActiveCursorReadDisposesSourceAndRestoresCapacityAsync()
         {
-            await using ClientWorkflowTestContext fixture = await ClientWorkflowTestContext.CreateAsync(
-                options: new ClientWorkflowOptions { MaxHistoryCursors = 1, MaxHistoryCursorsPerCaller = 1 })
+            await using WorkflowTestContext fixture = await WorkflowTestContext.CreateAsync(
+                options: new WorkflowOptions { MaxHistoryCursors = 1, MaxHistoryCursorsPerCaller = 1 })
                 .ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             using var cancellation = new CancellationTokenSource();
@@ -355,8 +355,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         [Test]
         public async Task RegistryShutdownCancelsAndJoinsActiveReadWithoutAbandonedSourceAsync()
         {
-            await using ClientWorkflowTestContext fixture =
-                await ClientWorkflowTestContext.CreateAsync().ConfigureAwait(false);
+            await using WorkflowTestContext fixture =
+                await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var disposed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -391,19 +391,19 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Supplies enough values to retain buffered data without an unnecessary second server page.
         /// </summary>
-        private static void Seed(ClientWorkflowTestContext fixture)
+        private static void Seed(WorkflowTestContext fixture)
         {
-            fixture.HistoryPages.Enqueue(ClientWorkflowHistoryTests.Page(
+            fixture.HistoryPages.Enqueue(WorkflowHistoryTests.Page(
                 [
-                    ClientWorkflowHistoryTests.Data(1), ClientWorkflowHistoryTests.Data(2),
-                    ClientWorkflowHistoryTests.Data(3), ClientWorkflowHistoryTests.Data(4)
+                    WorkflowHistoryTests.Data(1), WorkflowHistoryTests.Data(2),
+                    WorkflowHistoryTests.Data(3), WorkflowHistoryTests.Data(4)
                 ], kPoint));
         }
 
         /// <summary>
         /// Starts a one-item raw read through the real tool.
         /// </summary>
-        private static Task<CallToolResult> ReadAsync(ClientWorkflowTestContext fixture, bool retain)
+        private static Task<CallToolResult> ReadAsync(WorkflowTestContext fixture, bool retain)
         {
             return fixture.History.ReadRawAsync(fixture.Remote.Id("signal").ToString(),
                 "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", maxResults: 1,
@@ -424,7 +424,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.ClientWorkflows
         /// <summary>
         /// Proves cleanup used the real point, its original node and an uncancelled independent token.
         /// </summary>
-        private static void AssertRelease(ClientWorkflowTestContext fixture, ByteString expected)
+        private static void AssertRelease(WorkflowTestContext fixture, ByteString expected)
         {
             WorkflowHistoryRead[] releases = [.. fixture.HistoryReads.Where(read => read.Release)];
             Assert.That(releases, Has.Length.EqualTo(1));
