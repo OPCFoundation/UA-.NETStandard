@@ -394,7 +394,7 @@ namespace Opc.Ua.XRegistry.Client
                     StatusCodes.BadTypeMismatch, $"{name} must declare the required scalar federation DataType.");
             }
             DataValue value = await session.ReadValueAsync(property, cancellationToken).ConfigureAwait(false);
-            if (StatusCode.IsBad(value.StatusCode))
+            if (StatusCode.IsNotGood(value.StatusCode))
             {
                 throw new ServiceResultException(value.StatusCode);
             }

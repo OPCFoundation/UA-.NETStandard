@@ -102,7 +102,7 @@ namespace Opc.Ua.XRegistry
                 {
                     if (character is not ((>= 'A' and <= 'Z') or
                         (>= 'a' and <= 'z') or
-                        (>= '0' and <= '9') or '_' or '.' or '-'))
+                        (>= '0' and <= '9') or '_' or '.' or '-' or ':' or '~' or '@'))
                     {
                         throw new ArgumentException("The Resource Xid contains an invalid identifier.",
                             nameof(resourceXid));

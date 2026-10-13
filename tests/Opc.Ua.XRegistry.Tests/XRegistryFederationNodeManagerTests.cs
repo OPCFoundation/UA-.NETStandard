@@ -437,6 +437,24 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
+        /// Verifies that locally valid Resource identifiers containing colons can be federated.
+        /// </summary>
+        [TestCase("urn:doc")]
+        [TestCase("a~b@c")]
+        public void ResourceIdentifiersWithColonAreAccepted(string resourceId)
+        {
+            XRegistryFederationTarget valid = CreateFederationOptions().FederationTarget!;
+
+            var target = new XRegistryFederationTarget(
+                valid.OriginRegistry,
+                valid.ServerUri,
+                valid.ResourceNodeId,
+                $"/groups/schemas/resources/{resourceId}");
+
+            Assert.That(target.ResourceId, Is.EqualTo(resourceId));
+        }
+
+        /// <summary>
         /// Verifies that origin URI spelling is never normalized into trust.
         /// </summary>
         [TestCase("https://Example.org/Registry%2fA", "https://example.org/Registry%2fA")]
