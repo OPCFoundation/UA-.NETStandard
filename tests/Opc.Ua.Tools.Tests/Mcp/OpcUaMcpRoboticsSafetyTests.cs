@@ -139,7 +139,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Diagnostics,
                     McpToolProfile.Robotics,
                     McpToolProfile.Vision,
-                    McpToolProfile.Full
+                    McpToolProfile.Full,
+                    McpToolProfile.MachineTool,
+                    McpToolProfile.Gms,
+                    McpToolProfile.CranesHoists
                 }));
 
             foreach (McpToolProfile profile in profiles)

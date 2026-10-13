@@ -191,9 +191,9 @@ namespace CompanionSuite
                 address = IPAddress.Loopback;
                 endpoint.Host = address.ToString();
             }
-            else
+            else if (!IPAddress.TryParse(requested.DnsSafeHost, out address))
             {
-                IPAddress.TryParse(requested.DnsSafeHost, out address);
+                address = null;
             }
             if (DemoTrust && (address == null || !IPAddress.IsLoopback(address)))
             {
