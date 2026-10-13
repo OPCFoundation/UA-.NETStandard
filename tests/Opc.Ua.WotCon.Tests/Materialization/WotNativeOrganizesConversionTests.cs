@@ -88,10 +88,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 item => NodeId.Parse(item.NodeId!) == ExpandedNodeId.ToNodeId(output.RootNodeId, namespaces));
             Reference organizes = root.References!.Single(
                 reference => reference.IsForward && reference.ReferenceType is "Organizes" or "i=35");
-            NodeId target = NodeId.Parse(organizes.Value);
+            NodeId target = NodeId.Parse(organizes.Value!);
 
             Assert.That(namespaces.GetString(target.NamespaceIndex), Is.EqualTo(DiNamespace));
-            Assert.That(target.Identifier, Is.EqualTo(15034u));
+            Assert.That(target.TryGetValue(out uint identifier), Is.True);
+            Assert.That(identifier, Is.EqualTo(15034u));
         }
 
         private static async Task<WotResource> UpsertAsync(

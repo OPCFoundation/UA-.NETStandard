@@ -302,7 +302,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(metadata.Error, Is.Empty);
             if (nodeIdTarget)
             {
-                Assert.That(metadata.References.Count, Is.EqualTo(0));
+                Assert.That(metadata.References.Count, Is.Zero);
                 return;
             }
             Assert.That(metadata.References.Count, Is.EqualTo(1));
