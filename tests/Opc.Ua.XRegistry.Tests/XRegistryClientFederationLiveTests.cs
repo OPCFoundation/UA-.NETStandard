@@ -418,7 +418,7 @@ namespace Opc.Ua.XRegistry.Tests
                     manager.SystemContext, null!, group.GroupNodeId, "doc", "1", true, timeout.Token)
                     .ConfigureAwait(false);
                 var resource = (ResourceState)manager.Find(created.ResourceNodeId)!;
-                string resourceXid = resource.Xid!.Value;
+                string resourceXid = string.Join("/", resource.Xid!.Value.Split('/'), 0, 5);
 
                 await using var connection = new ClientFixture(telemetry);
                 await connection.LoadClientConfigurationAsync(root, "XRegistryFederationClient")
