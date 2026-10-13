@@ -1,0 +1,115 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using ModelContextProtocol;
+using Opc.Ua.Mcp.Serialization;
+
+namespace Opc.Ua.Mcp
+{
+    /// <summary>
+    /// Combines workflow input contracts with the MCP SDK's protocol and scalar serialization contracts.
+    /// </summary>
+    internal static class WorkflowToolJson
+    {
+        /// <summary>
+        /// Gets immutable tool options without modifying either source-generated context's original options.
+        /// </summary>
+        internal static JsonSerializerOptions Options { get; } = CreateOptions();
+
+        /// <summary>
+        /// Keeps workflow converters first while retaining the SDK's generated MCP return and primitive metadata.
+        /// </summary>
+        private static JsonSerializerOptions CreateOptions()
+        {
+            var options = new JsonSerializerOptions(WorkflowInputJsonContext.Default.Options)
+            {
+                TypeInfoResolver = JsonTypeInfoResolver.Combine(
+                    new ArrayResolver(), WorkflowInputJsonContext.Default,
+                    McpJsonUtilities.DefaultOptions.TypeInfoResolver)
+            };
+            options.MakeReadOnly();
+            return options;
+        }
+
+        /// <summary>
+        /// Binds concrete root arrays without reflecting over ArrayOf memory properties.
+        /// </summary>
+        private sealed class ArrayResolver : IJsonTypeInfoResolver
+        {
+            /// <inheritdoc/>
+            public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
+            {
+                if (type == typeof(ArrayOf<WorkflowDataValueInput>))
+                {
+                    return Array<WorkflowDataValueInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowArrayElementInput>))
+                {
+                    return Array<WorkflowArrayElementInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowEventFieldInput>))
+                {
+                    return Array<WorkflowEventFieldInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowEventPathInput>))
+                {
+                    return Array<WorkflowEventPathInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowHistoryEventInput>))
+                {
+                    return Array<WorkflowHistoryEventInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowAnnotationInput>))
+                {
+                    return Array<WorkflowAnnotationInput>(options);
+                }
+                if (type == typeof(ArrayOf<WorkflowRolePermissionInput>))
+                {
+                    return Array<WorkflowRolePermissionInput>(options);
+                }
+                return type == typeof(ArrayOf<string>)
+                    ? JsonMetadataServices.CreateValueInfo<ArrayOf<string>>(options, new McpStringArrayJsonConverter())
+                    : null;
+            }
+
+            /// <summary>
+            /// Creates a converter-backed value contract for a known concrete request element.
+            /// </summary>
+            /// <typeparam name="T">A source-generated workflow element.</typeparam>
+            private static JsonTypeInfo<ArrayOf<T>> Array<T>(JsonSerializerOptions options)
+                where T : class
+            {
+                return JsonMetadataServices.CreateValueInfo<ArrayOf<T>>(options, new WorkflowInputArrayConverter<T>());
+            }
+        }
+    }
+}

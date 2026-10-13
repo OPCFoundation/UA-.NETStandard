@@ -321,6 +321,7 @@ namespace Opc.Ua.PubSub.Udp
                 {
                     return default;
                 }
+                m_options.GetDatagramPolicy()?.RequireOpen(Endpoint, Direction, m_networkInterface);
                 Socket socket = new(
                     Endpoint.Address.AddressFamily,
                     SocketType.Dgram,
@@ -383,7 +384,7 @@ namespace Opc.Ua.PubSub.Udp
             {
                 try
                 {
-                    loopCts.Cancel();
+                    await loopCts.CancelAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -649,6 +650,15 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
+            IPEndPoint? actualDestination = isConnectedSocket
+                ? socket.RemoteEndPoint as IPEndPoint
+                : destination;
+            if (m_options.GetDatagramPolicy() is { } policy)
+            {
+                policy.RequireSend(actualDestination ??
+                    throw new InvalidOperationException("A policy-controlled datagram requires a destination."),
+                    payload.Length);
+            }
             try
             {
                 if (isConnectedSocket)
@@ -714,17 +724,17 @@ namespace Opc.Ua.PubSub.Udp
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    SocketReceiveFromResult result;
+                    SocketReceiveMessageFromResult result;
                     try
                     {
 #if NET8_0_OR_GREATER
-                        result = await socket.ReceiveFromAsync(
+                        result = await socket.ReceiveMessageFromAsync(
                             receiveBuffer,
                             SocketFlags.None,
                             anyEndPoint,
                             cancellationToken).ConfigureAwait(false);
 #else
-                        result = await socket.ReceiveFromAsync(
+                        result = await socket.ReceiveMessageFromAsync(
                             new ArraySegment<byte>(receiveBuffer, 0, maxFrameSize),
                             SocketFlags.None,
                             anyEndPoint).ConfigureAwait(false);
@@ -756,6 +766,13 @@ namespace Opc.Ua.PubSub.Udp
                     {
                         m_diagnostics?.Increment(
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                        continue;
+                    }
+                    if (m_options.GetDatagramPolicy() is { } policy &&
+                        (result.RemoteEndPoint is not IPEndPoint remote ||
+                            !policy.AcceptReceive(remote, result.PacketInformation.Interface, result.ReceivedBytes)))
+                    {
+                        m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                         continue;
                     }
                     byte[] copy = new byte[result.ReceivedBytes];
@@ -925,7 +942,7 @@ namespace Opc.Ua.PubSub.Udp
                     }
                 }
             }
-            catch (SocketException ex)
+            catch (SocketException ex) when (m_options.GetDatagramPolicy() is null)
             {
                 m_logger.SettingMulticastInterfaceFailed(ex, m_connection.Name);
             }
@@ -1045,8 +1062,17 @@ namespace Opc.Ua.PubSub.Udp
         /// loopback address avoids both. Non-loopback endpoints keep binding to the wildcard address
         /// so datagrams can arrive on any interface.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private IPAddress SelectUnicastBindAddress()
         {
+            if (m_options.GetLocalAddress() is { } local)
+            {
+                if (local.AddressFamily != Endpoint.Address.AddressFamily)
+                {
+                    throw new InvalidOperationException("The local bind address has a different address family.");
+                }
+                return local;
+            }
             if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 return IPAddress.IsLoopback(Endpoint.Address)
@@ -1076,7 +1102,8 @@ namespace Opc.Ua.PubSub.Udp
 
         private void JoinStandardDiscoveryGroupIfNeeded(Socket socket)
         {
-            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
+            if (m_options.GetDatagramPolicy()?.AllowStandardDiscovery == false ||
+                !ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
@@ -1103,7 +1130,8 @@ namespace Opc.Ua.PubSub.Udp
                     socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
                 }
             }
-            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
+            if (m_options.GetDatagramPolicy()?.AllowStandardDiscovery == false ||
+                !ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
@@ -1450,5 +1478,4 @@ namespace Opc.Ua.PubSub.Udp
             Exception exception,
             string? connection);
     }
-
 }

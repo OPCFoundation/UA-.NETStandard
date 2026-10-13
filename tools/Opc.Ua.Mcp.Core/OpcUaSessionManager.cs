@@ -80,7 +80,23 @@ namespace Opc.Ua.Mcp
             m_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             m_clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            OperationPolicy = serviceProvider.GetService<IMcpOperationPolicy>() ??
+                new McpExecutionPolicy(
+                    serviceProvider.GetService<OpcUaMcpOptions>()?.Execution ?? new McpExecutionOptions(),
+                    serviceProvider.GetService<McpCallerContext>() ?? new McpCallerContext(),
+                    telemetry);
+            UaOperationGuard = new McpUaOperationGuard(OperationPolicy);
         }
+
+        /// <summary>
+        /// Gets the injected host authority shared by semantic operations and generic UA request guards.
+        /// </summary>
+        public IMcpOperationPolicy OperationPolicy { get; }
+
+        /// <summary>
+        /// Gets the shared protected-model guard used before generic UA mutations.
+        /// </summary>
+        public McpUaOperationGuard UaOperationGuard { get; }
 
         /// <summary>
         /// Holds information about a named OPC UA session.
@@ -181,11 +197,22 @@ namespace Opc.Ua.Mcp
         /// <exception cref="InvalidOperationException">Not connected or ambiguous session.</exception>
         public ISession GetSessionOrThrow(string? name = null)
         {
+            return GetSessionInfoOrThrow(name).Session;
+        }
+
+        /// <summary>
+        /// Resolves a connected session and its actual registered name as one ownership snapshot.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The requested session is missing, disconnected or ambiguous.
+        /// </exception>
+        public SessionInfo GetSessionInfoOrThrow(string? name = null)
+        {
             if (name != null)
             {
                 if (m_sessions.TryGetValue(name, out SessionInfo? info) && info.IsConnected)
                 {
-                    return info.Session;
+                    return info;
                 }
 
                 throw new InvalidOperationException(
@@ -204,7 +231,7 @@ namespace Opc.Ua.Mcp
                 SessionInfo single = m_sessions.Values.First();
                 if (single.IsConnected)
                 {
-                    return single.Session;
+                    return single;
                 }
 
                 throw new InvalidOperationException(
@@ -230,6 +257,14 @@ namespace Opc.Ua.Mcp
         public SessionInfo? GetSessionInfo(string name)
         {
             return m_sessions.GetValueOrDefault(name);
+        }
+
+        /// <summary>
+        /// Resolves the optional host contract for fixed custom sessions without changing managed-session capture.
+        /// </summary>
+        internal IMcpFixedSessionContract? GetFixedSessionContract()
+        {
+            return m_serviceProvider.GetService<IMcpFixedSessionContract>();
         }
 
         /// <summary>
@@ -578,7 +613,10 @@ namespace Opc.Ua.Mcp
             }
             finally
             {
-                certificateManager?.Dispose();
+                if (certificateManager is not null)
+                {
+                    await certificateManager.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -622,7 +660,7 @@ namespace Opc.Ua.Mcp
             m_configuration = config;
         }
 
-        private async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
+        private static async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
             ApplicationConfiguration configuration,
             string discoveryUrl,
             CancellationToken ct)

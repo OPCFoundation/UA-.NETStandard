@@ -393,8 +393,10 @@ that always sorts above every already-published preview — see
 same policy applies to the Robotics MCP extension, the Vision.OpenUsd renderer,
 and the OpenUSD connector tools. The Vision and MachineVision model/client/server
 packages and the Vision MCP package follow the root version without a
-forced-preview override; development versions
-remain prereleases. The package validation manifest
+forced-preview override. The industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, Device Integration, ISA-95 and Positioning), plus the WoT and
+xRegistry MCP extensions, also follow the root release channel. Development
+versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.

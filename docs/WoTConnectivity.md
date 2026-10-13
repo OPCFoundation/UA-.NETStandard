@@ -959,6 +959,20 @@ refresh.EnsureSuccess();
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
 
+Bounded consumers can use the stream overload of
+`UploadNewVersionAndGetResultAsync` with `maxBytes`; pending structural versions
+are claimed before consuming a non-seekable source, without buffering it for
+replay. The returned version id and NodeId identify the bytes actually written.
+`WotRegistryRefreshResult.MethodStatus` retains the actual method completion
+status alongside the summary and per-resource outcomes.
+
+For the legacy file workflow, `UploadAndUpdateWithResultAsync` returns the
+consumed byte count and actual `CloseAndUpdate` status, including
+`GoodResultsMayBeIncomplete`. `ValidateWithResultAsync` on a generated document
+proxy validates that exact node and returns the method status plus the typed
+outcome. These result-bearing helpers do not replace completed results with
+late cancellation.
+
 ## 12. Conformance to WoT Connectivity 1.1
 
 This clause describes what the model requires and what this implementation

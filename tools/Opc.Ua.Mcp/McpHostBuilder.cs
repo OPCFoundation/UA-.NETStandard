@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
 
 namespace Opc.Ua.Mcp
@@ -53,7 +53,8 @@ namespace Opc.Ua.Mcp
         public static void ConfigureServices(
             IServiceCollection services,
             PcapOptions pcapOptions,
-            OpcUaMcpOptions? OpcUaMcpOptions = null)
+            OpcUaMcpOptions? OpcUaMcpOptions = null,
+            WotMcpOptions? wotOptions = null)
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(pcapOptions);
@@ -62,6 +63,19 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpPubSub();
             services.AddOpcUaMcpRobotics();
             services.AddOpcUaMcpVision();
+            services.AddOpcUaMcpAmb();
+            services.AddOpcUaMcpMachinery();
+            services.AddOpcUaMcpScales();
+            services.AddOpcUaMcpPumps();
+            services.AddOpcUaMcpDi();
+            services.AddOpcUaMcpIsa95();
+            services.AddOpcUaMcpPositioning();
+            services.AddOpcUaMcpXRegistry();
+            services.AddOpcUaMcpWotCon(wotOptions);
+            services.AddOpcUaMcpSchema();
+            services.AddOpcUaMcpGds();
+            services.AddOpcUaMcpWorkflows();
+            services.AddOpcUaMcpWotRuntime();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -85,6 +99,7 @@ namespace Opc.Ua.Mcp
         /// expressed as a comma or plus separated list of profile names, so a host can compose
         /// several bounded profiles - <c>vision,robotics</c>, for instance - into one MCP server.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static OpcUaMcpOptions CreateOpcUaMcpOptions(
             IConfiguration configuration,
             string? toolProfileOverride)
@@ -92,6 +107,18 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
+            options.Execution = McpExecutionConfiguration.Read(configuration);
+            options.TransferRoot = configuration["McpServer:TransferRoot"] ?? options.TransferRoot;
+            string? configuredLimit = configuration["McpServer:MaxTransferBytes"];
+            if (configuredLimit != null)
+            {
+                if (!long.TryParse(configuredLimit, NumberStyles.None, CultureInfo.InvariantCulture, out long limit) ||
+                    limit <= 0)
+                {
+                    throw new InvalidOperationException("McpServer:MaxTransferBytes must be a positive integer.");
+                }
+                options.MaxTransferBytes = limit;
+            }
             if (!string.IsNullOrWhiteSpace(toolProfileOverride))
             {
                 ApplyConfiguredProfile(options, toolProfileOverride);
@@ -179,10 +206,21 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPubSubTools(toolProfile)
                 .WithOpcUaRoboticsTools(toolProfile)
                 .WithOpcUaVisionTools(toolProfile)
+                .WithOpcUaAmbTools(toolProfile)
+                .WithOpcUaMachineryTools(toolProfile)
+                .WithOpcUaScalesTools(toolProfile)
+                .WithOpcUaPumpsTools(toolProfile)
+                .WithOpcUaDiTools(toolProfile)
+                .WithOpcUaIsa95Tools(toolProfile)
+                .WithOpcUaPositioningTools(toolProfile)
+                .WithOpcUaXRegistryTools(toolProfile)
+                .WithOpcUaWotConTools(toolProfile)
+                .WithOpcUaSchemaTools(toolProfile)
+                .WithOpcUaGdsTools(toolProfile)
+                .WithOpcUaWorkflowTools(toolProfile)
+                .WithOpcUaWotRuntimeTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
-
-            mcpServerBuilder.WithResources<SessionResources>();
         }
 
         /// <summary>
@@ -222,10 +260,21 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPubSubTools(toolProfiles)
                 .WithOpcUaRoboticsTools(toolProfiles)
                 .WithOpcUaVisionTools(toolProfiles)
+                .WithOpcUaAmbTools(toolProfiles)
+                .WithOpcUaMachineryTools(toolProfiles)
+                .WithOpcUaScalesTools(toolProfiles)
+                .WithOpcUaPumpsTools(toolProfiles)
+                .WithOpcUaDiTools(toolProfiles)
+                .WithOpcUaIsa95Tools(toolProfiles)
+                .WithOpcUaPositioningTools(toolProfiles)
+                .WithOpcUaXRegistryTools(toolProfiles)
+                .WithOpcUaWotConTools(toolProfiles)
+                .WithOpcUaSchemaTools(toolProfiles)
+                .WithOpcUaGdsTools(toolProfiles)
+                .WithOpcUaWorkflowTools(toolProfiles)
+                .WithOpcUaWotRuntimeTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
-
-            mcpServerBuilder.WithResources<SessionResources>();
         }
 
         /// <summary>
