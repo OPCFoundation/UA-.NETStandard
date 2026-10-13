@@ -439,7 +439,7 @@ namespace Opc.Ua.XRegistry.Client
             return (ushort)index;
         }
 
-        private static ValueTask<ISessionClient> CaptureFederationBindingAsync(
+        private static async ValueTask<ISessionClient> CaptureFederationBindingAsync(
             ISessionClient session,
             CancellationToken ct)
         {
@@ -449,7 +449,14 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "Federation requires a generation-bound session provider.");
             }
-            return provider.CreateBindingAsync(ct);
+            try
+            {
+                return await provider.CreateBindingAsync(ct).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
         }
 
         private static async ValueTask CloseBindingAsync(ISessionClient binding)
