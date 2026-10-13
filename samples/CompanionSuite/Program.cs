@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +68,11 @@ namespace CompanionSuite
             Console.CancelKeyPress += Cancel;
             try
             {
+                if (args.Length == 1 && args[0] == "--verify-endpoint-config")
+                {
+                    EndpointConfigurationChecks.Verify();
+                    return 0;
+                }
                 SuiteOptions options = SuiteOptions.Parse(ArrayOf.Wrapped(args));
                 Console.WriteLine("SIMULATION ONLY: no hardware controller, Bluetooth connection or physical effects.");
                 if (options.Mode == SuiteMode.Client)
@@ -103,14 +106,7 @@ namespace CompanionSuite
         /// </summary>
         private static async Task RunServerAsync(SuiteOptions options, CancellationToken cancellationToken)
         {
-            var endpoint = new UriBuilder(options.Endpoint) { Port = options.EndpointPort };
-            if (endpoint.Port == 0)
-            {
-                using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-                endpoint.Port = ((IPEndPoint)socket.LocalEndPoint!).Port;
-            }
-            string url = endpoint.Uri.AbsoluteUri;
+            string url = options.CreateListenerEndpoint();
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             ConfigureLogging(builder);
             builder.Services.AddSingleton(options);
@@ -172,6 +168,10 @@ namespace CompanionSuite
                     cancellationToken, lifetime.ApplicationStopping);
                 if (options.Mode == SuiteMode.SelfCheck)
                 {
+                    if (options.DemoTrust)
+                    {
+                        EndpointConfigurationChecks.VerifyLoopbackListener(url);
+                    }
                     await RunClientAsync(options, url, running.Token).ConfigureAwait(false);
                 }
                 else

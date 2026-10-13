@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Tests
         private void SetupTranslate(NodeId resolved)
         {
             BrowsePathResult result = resolved.IsNull
-                ? new BrowsePathResult { StatusCode = StatusCodes.Good, Targets = default }
+                ? new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = default }
                 : new BrowsePathResult
                 {
                     StatusCode = StatusCodes.Good,

@@ -63,6 +63,8 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpRobotics();
             services.AddOpcUaMcpVision();
             services.AddOpcUaMcpCranesHoists();
+            services.AddOpcUaMcpMachineTool();
+            services.AddOpcUaMcpGms();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -181,6 +183,8 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaRoboticsTools(toolProfile)
                 .WithOpcUaVisionTools(toolProfile)
                 .WithOpcUaCranesHoistsTools(toolProfile)
+                .WithOpcUaMachineToolTools(toolProfile)
+                .WithOpcUaGmsTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
 
@@ -225,6 +229,8 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaRoboticsTools(toolProfiles)
                 .WithOpcUaVisionTools(toolProfiles)
                 .WithOpcUaCranesHoistsTools(toolProfiles)
+                .WithOpcUaMachineToolTools(toolProfiles)
+                .WithOpcUaGmsTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
 

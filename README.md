@@ -49,6 +49,11 @@ across industrial control, manufacturing, energy, and IoT systems.
   Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
   (PA-DIM), OPC 40010-1 (Robotics), OPC 40100-1/-2
   ([Machine Vision control and asset management](docs/Vision.md)),
+  OPC 40501-1 and OPC 40505
+  ([Machine Tools and independent wireless peripherals](docs/MachineTool.md)),
+  OPC 40210 ([Geometric Measurement Systems](docs/GMS.md), with its documented
+  upstream Production-facet exception), OPC 40020-1
+  ([Cranes and Hoists](docs/CranesHoists.md)),
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
@@ -90,12 +95,14 @@ only through a manually approved promotion from a `release/<major>.<minor>`
 branch — that is where the `2.0.0-preview.N` packages already on nuget.org
 came from, via the earlier `release/2.0.0` line. To use those, enable
 prerelease packages and float with `2.0.0-preview.*` until `2.0.0` is
-released. The XRegistry, WoT Connectivity, Robotics,
+released. The XRegistry, WoT Connectivity, Robotics, CranesHoists,
 Redundancy, Positioning, OpenUSD, and AI package families, the Vision.OpenUsd
 renderer, and the Robotics MCP extension remain
 preview packages when the root version is promoted to a stable version, and
-keep their own `-preview.N` versions on nuget.org. The Vision and MachineVision
-model/client/server packages and the Vision MCP package follow the root version
+keep their own `-preview.N` versions on nuget.org. This includes all CranesHoists
+model/server/client/MCP packages and their Debug variants.
+The Vision, MachineVision, MachineTool (including WMTP), and GMS
+model/client/server packages and their MCP packages follow the root version
 without a preview-only override;
 development builds still inherit the root prerelease version. See
 [docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable

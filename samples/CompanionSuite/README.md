@@ -55,6 +55,29 @@ trust in the application certificate stores before connecting. Never commit
 the generated PKI or reuse demonstration certificates as production secrets.
 The sample exposes no arbitrary host directory through OPC UA.
 
+The sample converts `localhost` to numeric `127.0.0.1` **before listener
+registration**, not merely before discovery. The transport treats DNS names
+as wildcard bind requests, so validating the hostname alone is insufficient.
+Explicit numeric IPv4 and IPv6 addresses retain their selected address family;
+automatic port selection uses that same family. Without `--demo-trust`,
+explicit nonloopback/DNS endpoints keep their existing transport binding intent.
+The self-check connects to the exact registered URL. With demo trust enabled
+it also checks the operating system's listener table and fails if the selected
+port has a wildcard/nonloopback listener or lacks the requested loopback socket.
+
+Run the bounded configuration regression without starting an application
+host, certificate store or listener:
+
+```powershell
+dotnet run --project samples\CompanionSuite\CompanionSuite.csproj -f net10.0 -- `
+  --verify-endpoint-config
+```
+
+It covers default/explicit loopback URLs, both address families, automatic
+ports, rejected wildcard demo configurations, and unchanged strict-trust
+nonloopback intent. For a real IPv6 self-check, supply
+`--endpoint "opc.tcp://[::1]:0/CompanionSuite"` with `--selfcheck --demo-trust`.
+
 ## What the client actually verifies
 
 | Family | Acquired state and typed workflow |

@@ -51,6 +51,78 @@ namespace Opc.Ua.GMS.Tests
     public sealed class GmsEquipmentTests
     {
         /// <summary>
+        /// Both released rack types expose their own native identity and acquired availability over a real session.
+        /// </summary>
+        [TestCase(GmsAccessoryKind.SensorExchangeRack, false)]
+        [TestCase(GmsAccessoryKind.SensorExchangeRack, true)]
+        [TestCase(GmsAccessoryKind.TipExchangeRack, false)]
+        [TestCase(GmsAccessoryKind.TipExchangeRack, true)]
+        public async Task ExchangeRackIdentityAndAvailabilityAreNativeOverTcpAsync(
+            GmsAccessoryKind kind, bool available)
+        {
+            await using var fixture = new GmsResultServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineryBuildContext context = GmsSystemTests.Context(fixture);
+            var accessory = new GmsAccessory
+            {
+                Key = "Rack", Kind = kind,
+                Identification = new GmsItemIdentification(new LocalizedText("Rack manufacturer"), "Rack-1"),
+                IsAvailable = Sample(Variant.From(available), StatusCodes.UncertainSensorNotAccurate)
+            };
+            var provider = new InMemoryGmsProvider(new GmsSystemSnapshot { Accessories = [accessory] });
+            await using GmsHandle handle = await GmsSystemTests.Builder(context, "RackGms", provider)
+                .WithOptions(new GmsSystemOptions { Features = GmsFeatures.Accessories })
+                .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()))
+                .BuildAsync().ConfigureAwait(false);
+            BaseInstanceState? rack = handle.State.Equipment!.Accessories!.FindChild(
+                context.Context, new QualifiedName("Rack", context.InstanceNamespaceIndex));
+            PropertyState<bool> availability;
+            ExpandedNodeId expected;
+            if (kind == GmsAccessoryKind.SensorExchangeRack)
+            {
+                Assert.That(rack, Is.TypeOf<SensorExchangeRackState>());
+                availability = ((SensorExchangeRackState)rack!).IsAvailable!;
+                expected = ObjectTypeIds.SensorExchangeRackType;
+            }
+            else
+            {
+                Assert.That(rack, Is.TypeOf<TipExchangeRackState>());
+                availability = ((TipExchangeRackState)rack!).IsAvailable!;
+                expected = ObjectTypeIds.TipExchangeRackType;
+            }
+            Assert.That(availability, Is.Not.Null);
+            ISession session = await fixture.ConnectAsync().ConfigureAwait(false);
+            INode wireNode = await session.NodeCache.GetNodeAsync(rack!.NodeId).ConfigureAwait(false);
+            Assert.That(wireNode.NodeClass, Is.EqualTo(NodeClass.Object));
+            Assert.That(ExpandedNodeId.ToNodeId(wireNode.TypeDefinitionId, session.NamespaceUris),
+                Is.EqualTo(ExpandedNodeId.ToNodeId(expected, session.NamespaceUris)));
+            DataValue initial = await session.ReadValueAsync(availability.NodeId).ConfigureAwait(false);
+            Assert.That(initial.WrappedValue.TryGetValue(out bool actual), Is.True);
+            Assert.That(actual, Is.EqualTo(available));
+            Assert.That(initial.StatusCode, Is.EqualTo(StatusCodes.UncertainSensorNotAccurate));
+            Assert.That(initial.SourceTimestamp, Is.EqualTo(AcquisitionTime));
+
+            DateTimeUtc later = AcquisitionTime.AddMilliseconds(500);
+            await provider.SetSnapshotAsync(new GmsSystemSnapshot
+            {
+                Accessories = [accessory with
+                {
+                    IsAvailable = new DataValue(Variant.From(!available), StatusCodes.Good, later)
+                }]
+            }).ConfigureAwait(false);
+            await handle.RefreshAsync().ConfigureAwait(false);
+            DataValue changed = await session.ReadValueAsync(availability.NodeId).ConfigureAwait(false);
+            Assert.That(changed.WrappedValue.TryGetValue(out actual), Is.True);
+            Assert.That(actual, Is.EqualTo(!available));
+            Assert.That(changed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(changed.SourceTimestamp, Is.EqualTo(later));
+            await using var facade = new GmsClient(session, NUnitTelemetryContext.Create());
+            GmsEquipmentReadSnapshot inventory = await facade.ReadEquipmentAsync(handle.NodeId).ConfigureAwait(false);
+            Assert.That(inventory.Accessories.Count, Is.EqualTo(1));
+            Assert.That(inventory.Accessories[0].NodeId, Is.EqualTo(rack.NodeId));
+        }
+
+        /// <summary>
         /// Native qualification is a meaningful Double countdown, not the contradictory XML true default.
         /// </summary>
         [Test]

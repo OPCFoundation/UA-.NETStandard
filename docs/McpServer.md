@@ -10,6 +10,7 @@ automation systems through natural language.
 
 - [What It Does](#what-it-does)
 - [Tool Profiles](#tool-profiles)
+  - [MachineTool, WMTP, GMS and CranesHoists](#machinetool-wmtp-gms-and-craneshoists)
   - [Vision-guided Robotics](#vision-guided-robotics)
 - [Resources](#resources)
   - [Multi-Session Support](#multi-session-support)
@@ -39,7 +40,7 @@ automation systems through natural language.
 
 ## What It Does
 
-The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile currently registers every tool below; running a narrower profile (`core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`, or `vision`) exposes only the subset relevant to that workflow. The tables below list the complete tool surface, organized by OPC UA Part 4 service set:
+The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile registers every tool below; narrower profiles select relevant Part 4, PubSub, diagnostics or typed companion workflows.
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -94,6 +95,9 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
 | `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
 | `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | Perception-driven agents and Machine Vision control/management workflows — see [Vision](Vision.md) and [Machine Vision](Vision.md#mcp) |
+| `machinetool` | Connection, MachineTool monitoring/production/jobs/files and bundled WMTP tools | OPC 40501-1 machines and independently hosted OPC 40505 peripherals |
+| `gms` | Connection, typed systems/equipment/results and bounded observation | OPC 40210 monitoring and result workflows, without invented acquisition/control verbs |
+| `craneshoists` | Connection, native crane inventory/snapshots/observation and authorized limit requests | OPC 40020-1 equipment monitoring, not physical motion control |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -105,6 +109,64 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 **Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 81-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
 
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
+
+### MachineTool, WMTP, GMS and CranesHoists
+
+| Tools | Workflow |
+| --- | --- |
+| `machinetool_list_devices`, `machinetool_read_machine` | Subtype-aware machine/peripheral discovery, raw monitoring and actual capability declarations |
+| `machinetool_read_equipment`, `machinetool_read_production`, `machinetool_read_prognoses` | Native tools/life, retained production and forecasts |
+| `machinetool_observe_values`, `machinetool_observe_machine`, `machinetool_observe_events` | Private bounded data/event/retained-condition observations |
+| `machinetool_query_jobs`, `machinetool_control_job` | Actual ISA95 V2 order/response services, including all eleven standard control verbs |
+| `machinetool_list_files`, `machinetool_read_file`, `machinetool_change_file` | Bounded remote FileSystem or qualified WorkMasters workflows |
+| `wmtp_read_peripheral`, `wmtp_count_records`, `wmtp_report_records` | Status/measurements and independent nonconsuming work/service queries |
+| `wmtp_configure_measurement`, `wmtp_configure_peripheral` | Explicit trigger/delta, calibration and UTC/time-zone requests |
+| `wmtp_delete_records`, `wmtp_abort_operation`, `wmtp_transfer` | Explicit record deletion, authorized peripheral abort and provider byte transfer |
+| `gms_list_systems`, `gms_read_system`, `gms_read_results` | Native GMS inventory, equipment/production, metadata, characteristics and corrections |
+| `gms_download_result`, `gms_observe`, `gms_acknowledge_results` | Bounded transfer/observation and separate consented result acknowledgment |
+
+WMTP belongs to the MachineTool package/profile, not a separate profile.
+`machinetool_list_devices` works without a fictitious machine on WMTP-only
+endpoints. Measurement `nodeId` targets configuration; `valueNodeId` identifies
+the actual AnalogSignal variable for `machinetool_observe_values`.
+
+DataValue replies preserve quality, source/server time and numeric type.
+Optional absence remains distinct from unavailable acquired data. Whole
+inventory/report/byte limits reject excess data rather than silently paging it.
+Queries use native JSON objects/arrays, not JSON embedded in strings.
+
+Mutation tools require explicit confirmation, and still enforce actual
+session/server/provider authorization. ISA95 ReturnStatus is a UInt64 bitmap
+whose success bit is **1**, not UA Good=0. Accepted job requests do not prove
+physical execution. File paths are provider-root-relative OPC UA paths, not
+local host paths; writes do not silently create files or overwrite a different
+destination.
+
+File-change `options` groups `destination`, `contentBase64`, `maximumBytes`
+and `recursive`; those are not separate top-level parameters. GMS result
+queries similarly group `filterField`, `filterValue` and `orderBy` under a
+native `query` object. Both reject unknown or duplicate fields before I/O.
+
+WMTP count/report never consumes records. Count selects all/time; report
+supports all/time/index/first/last; deletion selects all/time/index.
+Trigger/delta configuration preserves the both-not-zero invariant and checked
+numeric representation. Firmware/licence success means provider acceptance,
+not installation or activation. Cancellation/timeouts never implicitly send
+AbortOperation, retry uncertain writes, or compensate equipment effects.
+
+GMS tools do not invent measurement-start, calibration-execution, GMS job-start
+or correction-control methods. Result acknowledgment is distinct from condition
+acknowledgment. Complete GMS Production-facet claims remain withheld for the
+documented undefined upstream statistics CU.
+
+Crane tools expose observed systems/axes/motors/protections/loads and only the
+standard authorized speed-limit setpoint/enable requests. They do not actuate
+crane motion or convert an accepted setpoint into reported active hardware
+state. See [CranesHoists](CranesHoists.md) for its catalog.
+
+Every parameter, default, enum, consent flag and bound is present in the live
+MCP schema. See [MachineTool/WMTP](MachineTool.md) and [GMS](GMS.md) for typed
+providers, client lifetimes and conformance boundaries.
 
 ### Vision-guided Robotics
 
@@ -197,9 +259,10 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 
 After installation, the `opcua-mcp` command is available globally.
 
-The tool includes every [tool profile](#tool-profiles), including `robotics`,
-`vision`, and the composed `vision,robotics` profile. The Robotics embedding
-library remains preview-only. The Vision embedding library follows the normal
+The tool includes every [tool profile](#tool-profiles), including composed
+sets such as `vision,robotics` or `machinetool,gms,craneshoists`.
+Robotics and CranesHoists embedding libraries remain preview-only.
+Vision, MachineTool and GMS embedding libraries follow the normal
 root release version; see [Packages](#packages).
 
 ### Option 3: Run from source
@@ -585,10 +648,14 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, typed control/missions, paged monitoring, Vision-guided Pick | Core + `Opc.Ua.Robotics.Client` + `Opc.Ua.Vision.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, monitoring, seeing, inference, feedback and poses; released Machine Vision capabilities, topology, bounded events/conditions, control and complete file workflows | Core + `Opc.Ua.Vision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool` | MachineTool and bundled WMTP workflows | Core + `Opc.Ua.MachineTool.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS` | GMS systems, results, downloads and observations | Core + `Opc.Ua.GMS.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists` | Native crane monitoring and authorized limit requests | Core + `Opc.Ua.CranesHoists.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
-`net10.0`. `Mcp.Robotics` remains preview-only. `Mcp.Vision`, the other
+`net10.0`. `Mcp.Robotics` and `Mcp.CranesHoists` remain preview-only,
+including their Debug variants. `Mcp.Vision`, `Mcp.MachineTool`, `Mcp.GMS`, the other
 libraries, and the `opcua-mcp` tool follow the normal root version and can ship
 without a prerelease suffix on an approved stable release. Development builds
 retain the root preview version.
@@ -620,12 +687,18 @@ builder.Services.AddOpcUaMcpDiagnostics();
 builder.Services.AddOpcUaMcpPubSubDiagnostics();
 builder.Services.AddOpcUaMcpRobotics();
 builder.Services.AddOpcUaMcpVision();
+builder.Services.AddOpcUaMcpMachineTool();
+builder.Services.AddOpcUaMcpGms();
+builder.Services.AddOpcUaMcpCranesHoists();
 
 mcp.WithOpcUaPubSubTools(profile)
    .WithOpcUaDiagnosticsTools(profile, diagnosticsEnabled)
    .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled)
    .WithOpcUaRoboticsTools(profile)
-   .WithOpcUaVisionTools(profile);
+   .WithOpcUaVisionTools(profile)
+   .WithOpcUaMachineToolTools(profile)
+   .WithOpcUaGmsTools(profile)
+   .WithOpcUaCranesHoistsTools(profile);
 ```
 
 `WithOpcUaMcpFilters` registers the request and schema filters that make tool
@@ -645,9 +718,9 @@ composed through the `McpToolProfileSet` overloads (for example the
 [`vision,robotics` composition](Vision.md#mcp-tools) the BinPickingClient
 sample runs), the corresponding `WithOpcUaCoreTools(McpToolProfileSet)`
 overload owns and deduplicates `ConnectionTools` across every package.
-Each Vision or Robotics package's `McpToolProfileSet` overload never
-registers `ConnectionTools` directly, so the composed catalog contains
-one Connection surface, not several.
+The shared idempotent connection-registration helper also lets the companion
+packages compose without requiring a separate Core-tools catalog selection.
+Several packages can request connection tools without adding duplicates.
 
 The capture tool classes stay `internal` and are reachable only through their
 registration extensions.
@@ -664,12 +737,27 @@ registration extensions.
 Contributors can run the same deterministic static and live-probe grading used in CI:
 
 ```powershell
-./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
+.\tools\Opc.Ua.Mcp\Test-McpGrade.ps1
 ```
 
 The script builds the server, checks out `mcpgrade` at the reviewed commit pinned in the script,
-grades the `core` and `full` Streamable HTTP catalogs, and probes the full stdio catalog. Reports
-are written under `artifacts/mcpgrade` by default.
+grades the `core`, `full`, `machinetool`, `gms`, and `craneshoists` Streamable HTTP catalogs,
+and probes the full stdio catalog. Reports are written under `artifacts/mcpgrade` by default.
+Bounded profiles must score at least 98 with no warning or error findings; the existing
+full-catalog threshold remains 95 with only T001/S007 allowances, and C003/C004 probe
+findings remain failures.
+
+Use `-Profiles` for a focused catalog check. An already-built assembly in an isolated
+artifact directory can be selected without rebuilding:
+
+```powershell
+.\tools\Opc.Ua.Mcp\Test-McpGrade.ps1 -SkipBuild `
+    -AssemblyPath 'C:\build\Opc.Ua.Mcp.dll' -Profiles craneshoists `
+    -ResultsDirectory 'C:\build\mcpgrade'
+```
+
+The full stdio probe runs whenever `full` is among the selected profiles. A focused
+check does not replace the complete default matrix.
 
 The repository `.mcpgraderc.json` disables N002 after descriptions have been disambiguated.
 `RegisterServer`/`RegisterServer2` are OPC UA standard service names, while

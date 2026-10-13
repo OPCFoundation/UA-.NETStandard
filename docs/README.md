@@ -152,6 +152,8 @@ needs.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
+- [Final-value publication](FinalValuePublication.md) — await terminal Value
+  notifications in real Publish responses before removing dynamic subtrees.
 - [Model change tracking](ModelChangeTracking.md) — keep client caches current
   when the address space changes.
 - [NodeSet export](NodeSetExport.md) — export a server's address space to
@@ -187,6 +189,15 @@ models that each model depends on.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.
+- [MachineTool and wireless peripherals](MachineTool.md) (OPC 40501-1 and
+  OPC 40505) — machine monitoring, tools, production/jobs/files and independently
+  hosted wireless measurements, configuration and records in one package family.
+- [Geometric Measurement Systems](GMS.md) (OPC 40210) — native measurement
+  equipment, qualification/calibration, production observations and results.
+  The guide documents the upstream undefined Production-statistics CU exception.
+- [Cranes and Hoists](CranesHoists.md) (OPC 40020-1; preview packages) —
+  Robotics-derived crane systems, equipment observations and explicitly
+  authorized speed-limit requests.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.

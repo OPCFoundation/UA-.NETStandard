@@ -1,20 +1,58 @@
-# OPC UA GMS result server
+# OPC UA Geometric Measurement Systems server
 
-Result-management bindings for the released OPC 40210 model (reference edition
-1.0.1, NodeSet version 1.0.0). This package composes an existing generated
-`GMSState` and its `GMSResultManagementState` with the Machinery/DI owner; it does
-not register a second root or implement another result-transfer protocol.
+Provider-backed systems and results for OPC 40210 reference edition 1.0.1,
+using the normative released model 1.0.0. Native GMS types compose with
+MachineTool and Machinery services on one DI/Machinery owner, without a second
+root or duplicate protocol.
 
-The bounded result slice covers GMS result variables, characteristics and
-tolerances, calculated corrections, intermediate-result events, and the shared
-Machinery store/query/metadata-handle/file services. Providers are per instance.
-Optional structures are configured explicitly. Correction values describe
-calculated deviations; they do not issue a machine correction command.
+## Native systems
 
-This package's result binding alone is not a complete GMS machine builder or
-an assertion of GMS Basic, Production or security-profile conformance.
+Use `AddGms` / `ConfigureGms` for standalone hosting, or `AddGmsToMachinery` /
+`ConfigureGmsFor<TNodeManager>` with an existing compatible owner. Its
+MachineTool/Result dependency closure does not enable WMTP.
 
-## Bind an existing GMS instance
+Every system requires explicit identification, `IGmsProvider` and
+`IGmsResultStore`. Inside an awaited configuration callback:
+
+```csharp
+using Opc.Ua;
+using Opc.Ua.GMS.Contracts;
+using Opc.Ua.GMS.Server;
+
+var provider = new InMemoryGmsProvider(new GmsSystemSnapshot());
+var store = new InMemoryGmsResultStore(context.Context.AsMessageContext());
+GmsHandle system = await context.AddGms("InspectionCell")
+    .WithProvider(provider)
+    .WithIdentification(identity =>
+    {
+        identity.Manufacturer = new LocalizedText("Example manufacturer");
+        identity.SerialNumber = "CMM-001";
+        identity.ProductInstanceUri = "urn:example:inspection:CMM-001";
+    })
+    .WithResults(store)
+    .BuildAsync(cancellationToken);
+```
+
+Keep the handle for acquisition. Initial observations are unavailable, not
+fabricated measurements. Options select native sensors/multi-sensors,
+workspaces, loading/tool monitoring, accessories/additional sensors,
+calibration, production and warnings.
+
+Qualification is remaining Double hours with Qualified/Time/IsCountingUp=false.
+SensorWarningAlarmType uses an additional environmental sensor's actual
+measurement, not primary probe qualification. Separate inherited alerts can
+represent other application conditions.
+
+`RefreshAsync` shares MachineTool's prepare/commit/publication transaction.
+Rejected acquisitions do not replace accepted indexes. `RetryPublicationAsync`
+retries retained publication, not equipment effects.
+
+`system.Results` provides result variables, characteristics/tolerances,
+corrections, intermediate events and shared store/query/metadata/file
+workflows. Optional behavior is explicit; the default system binding does not
+enable file transfer. Correction values are observations, not commands.
+
+## Advanced result binding
 
 Load `GmsModelProvider` through the existing Machinery owner's
 `AddMachineryModel<GmsModelProvider>()` registration. Select
@@ -24,6 +62,9 @@ The application or a higher-level companion builder supplies the already-staged
 `IMachineBuilder<GMSState>`, including its required non-result configuration.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua;
 using Opc.Ua.GMS;
 using Opc.Ua.GMS.Contracts;
 using Opc.Ua.GMS.Server;
@@ -88,6 +129,12 @@ monitoring values without adding nodes or issuing a machine-control command.
 Changing an identifier's characteristic reference or optional-node shape
 requires rebuilding that instance.
 
-These APIs implement defined result behavior only. The undefined
+The advanced result binding alone is not a full GMS system. The undefined
 `GMS_ProductionStatisticsType` mentioned in the Production conformance unit is
-not fabricated, and this result binding does not advertise that facet.
+not fabricated, and the complete GMS Production facet is withheld. Defined
+GMS jobs/parts and inherited statistics remain implemented. GMS adds no
+measurement-start, calibration-execution, GMS job-start or correction-control
+protocol.
+
+See the [GMS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GMS.md)
+for complete system interfaces, lifetimes and the upstream conformance exception.

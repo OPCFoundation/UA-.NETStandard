@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using Opc.Ua;
 
 namespace CompanionSuite
@@ -164,8 +165,8 @@ namespace CompanionSuite
                 throw new ArgumentException("Supply an explicit port; zero is allowed only for server/selfcheck.");
             }
             result = result with { EndpointPort = port };
-            bool loopback = string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-                (IPAddress.TryParse(endpoint.Host, out IPAddress? address) && IPAddress.IsLoopback(address));
+            bool loopback = string.Equals(endpoint.DnsSafeHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                (IPAddress.TryParse(endpoint.DnsSafeHost, out IPAddress? address) && IPAddress.IsLoopback(address));
             if (result.DemoTrust && !loopback)
             {
                 throw new ArgumentException("--demo-trust is restricted to explicit loopback endpoints.");
@@ -178,6 +179,37 @@ namespace CompanionSuite
         }
 
         /// <summary>
+        /// Resolves the exact listener URL used by server registration and the same-process TCP client.
+        /// </summary>
+        internal string CreateListenerEndpoint()
+        {
+            var requested = new Uri(Endpoint);
+            var endpoint = new UriBuilder(requested) { Port = EndpointPort };
+            IPAddress? address;
+            if (string.Equals(requested.DnsSafeHost, "localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                address = IPAddress.Loopback;
+                endpoint.Host = address.ToString();
+            }
+            else
+            {
+                IPAddress.TryParse(requested.DnsSafeHost, out address);
+            }
+            if (DemoTrust && (address == null || !IPAddress.IsLoopback(address)))
+            {
+                throw new ArgumentException("A demo-trust listener requires a numeric loopback address.");
+            }
+            if (endpoint.Port == 0)
+            {
+                IPAddress probeAddress = address ?? IPAddress.Loopback;
+                using var socket = new Socket(probeAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                socket.Bind(new IPEndPoint(probeAddress, 0));
+                endpoint.Port = ((IPEndPoint)socket.LocalEndPoint!).Port;
+            }
+            return endpoint.Uri.AbsoluteUri;
+        }
+
+        /// <summary>
         /// Shows bounded, noninteractive commands without generating trust automatically.
         /// </summary>
         internal static void PrintHelp()
@@ -187,6 +219,7 @@ namespace CompanionSuite
             Console.WriteLine("  --instances 1..2  --seconds 1..300  --pki-root PATH");
             Console.WriteLine("  --demo-trust     Explicit loopback-only trust for disposable local demonstrations.");
             Console.WriteLine("  --exercise       Opt in to one standard simulated MachineVision job per system.");
+            Console.WriteLine("  --verify-endpoint-config  Check listener URL selection without starting a server.");
             Console.WriteLine(
                 "Defaults: finite server, one instance/family, 20 seconds, SignAndEncrypt, strict trust.");
         }

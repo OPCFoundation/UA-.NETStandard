@@ -17,8 +17,9 @@ dnx OPCFoundation.NetStandard.Opc.Ua.Mcp
 dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
-The tool includes every profile, including `robotics`, `vision`, and the
-composed `vision,robotics` profile.
+The tool includes every profile, including `robotics`, `vision`, `machinetool`,
+`gms`, and `craneshoists`, and composed selections such as
+`vision,robotics` or `machinetool,gms,craneshoists`.
 
 ## Usage
 
@@ -39,7 +40,7 @@ opcua-mcp --transport http --port 5100
 
 The server exposes tools through a **tool profile** — a bounded, named catalog
 selected with
-`--profile core|services|administration|pubsub|diagnostics|robotics|vision|full`.
+`--profile core|services|administration|pubsub|diagnostics|robotics|vision|machinetool|gms|craneshoists|full`.
 Profiles can be composed, for example `--profile vision,robotics`. `full` is the
 default; the other profiles expose smaller focused subsets. See the
 [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles)
@@ -60,6 +61,12 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
   bounded operation/mission waits, and same-session `robotics_vision_pick`
 - **Vision**: image capture, structured one-shot inference, result monitoring,
   feedback and frame-graph composition
+- **MachineTool/WMTP**: native monitoring, tools/life, production/jobs, remote
+  files, independent peripheral measurements, records and explicit configuration
+- **GMS**: native equipment/qualification/calibration and result workflows,
+  bounded observations and consented result acknowledgment
+- **CranesHoists**: observed topology and raw measurements with authorized
+  standard speed-limit requests, never physical motion commands
 
 ## Embedding
 
@@ -84,9 +91,15 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool` | MachineTool and bundled wireless-peripheral workflows |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS` | GMS systems, results, downloads and observations |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists` | Crane monitoring and authorized limit requests |
 
-The Robotics and Vision libraries are preview packages; the other libraries are
-stable.
+Robotics and CranesHoists libraries remain preview-only, including Debug
+variants. Vision, MachineTool and GMS follow the normal root-version policy.
+WMTP has no separate package/profile. A development root version can still be
+prerelease. Conformance depends on actual endpoints/providers; GMS's documented
+undefined Production-statistics CU does not justify advertising that full facet.
 
 ## Documentation
 

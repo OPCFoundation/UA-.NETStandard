@@ -1,8 +1,32 @@
-# OPC UA GMS result client
+# OPC UA Geometric Measurement Systems client
 
-Typed, bounded result workflows for the released OPC 40210 model. Clients use
-generated GMS/Machinery proxies and the shared OPC UA temporary-file client.
-There is no server-runtime dependency.
+Typed, bounded discovery, equipment/qualification/calibration, production,
+result and observation workflows for released OPC 40210. Generated GMS proxies
+reuse MachineTool/Machinery clients with no server-runtime dependency or
+duplicate subscription/file protocol.
+
+## System workflows
+
+```csharp
+using Opc.Ua.GMS.Client;
+
+await using GmsClient gms = session.CreateGmsClient(telemetry);
+var systems = await gms.DiscoverAsync(cancellationToken);
+var state = await gms.ReadSnapshotAsync(gmsNodeId, cancellationToken);
+var equipment = await gms.ReadEquipmentAsync(gmsNodeId, cancellationToken);
+var calibration = await gms.ReadCalibrationAsync(gmsNodeId, cancellationToken);
+var production = await gms.ReadProductionAsync(gmsNodeId, cancellationToken);
+```
+
+`AddGmsClient` registers `IGmsClientFactory` on the existing client builder.
+Factory-opened sessions are owned; supplied sessions remain caller owned.
+`GetProxy` exposes advanced generated operations.
+
+Discovery recognizes vendor subtypes and releases continuation points. Reads
+retain identity, optional presence and numeric types, rejecting overflow rather
+than truncating a claimed complete result. Separate reads are not atomic
+equipment history. Bounded data/events/condition observations do not execute
+measurements, calibrate, start GMS jobs or change corrections.
 
 Result metadata handles and download streams belong to the calling session and
 are released on success, failure and cancellation. Domain result codes remain
@@ -10,12 +34,13 @@ distinct from UA service failures. Missing optional variables are not replaced
 with successful zero-valued measurements; raw data quality and acquisition
 timestamps are retained.
 
-These workflows cover the results slice, not complete GMS equipment, production
-or profile conformance.
+Use `gms.GetResults(gmsNodeId)` on that same session, or construct the result
+workflow directly as below.
 
 ## Result workflows
 
 ```csharp
+using Opc.Ua;
 using Opc.Ua.GMS.Client;
 using Opc.Ua.GMS.Contracts;
 using Opc.Ua.Machinery.Result;
@@ -65,6 +90,8 @@ the generated standard record plus those characteristic fields.
 `ObserveIntermediateResultsAsync` composes an existing `IStreamingSubscription`
 with bounded event count, queue size and response bytes. Its enumerator removes
 only its monitored item; the caller retains ownership of the shared subscription.
+The readiness-callback overload verifies actual server-side creation before
+signaling readiness. Failed setup is not a successful empty observation.
 
 Event fields are `Variant` values, not acquisition `DataValue` samples. The
 client does not manufacture per-field quality or timestamps that the event
@@ -75,3 +102,10 @@ Use `AddGmsResultsClient()` on the existing `IOpcUaClientBuilder` to register
 `IGmsResultClientFactory`. Its `CreateAsync(gmsNodeId, cancellationToken)` method
 uses the already-configured managed session. Direct construction and an
 injectable `GmsResultClientFactory` session accessor remain available.
+
+A successful result read is not proof that the remote endpoint implements
+every GMS facet. The complete Production facet remains withheld for the
+documented upstream undefined statistics CU.
+
+See the [GMS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GMS.md)
+for full-system workflows and conformance boundaries.
