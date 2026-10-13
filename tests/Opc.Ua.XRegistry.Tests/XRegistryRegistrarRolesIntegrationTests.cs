@@ -2135,6 +2135,7 @@ namespace Opc.Ua.XRegistry.Tests
         private const int kOperationTimeout = 10000;
 
         private static readonly string[] s_documentChanged = ["epoch", "modifiedat", "resource"];
+
         private static readonly string[] s_defaultSwitchChanged =
         [
             "createdat", "epoch", "format", "labels", "meta.defaultversionid", "meta.epoch",
