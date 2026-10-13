@@ -251,6 +251,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The expiry checks read the session timeout without the diagnostics lock; a
+        /// timeout changed through UpdateDiagnostics must still take effect for them.
+        /// </summary>
+        [Test]
+        public async Task SessionTimeoutChangedThroughDiagnosticsAppliesToExpiryAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var channel = new SecureChannelContext(kChannelId, harness.Endpoint, RequestEncoding.Binary);
+
+            session.UpdateDiagnostics(d => d.ActualSessionTimeout = 5_000);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(session.HasExpired, Is.False);
+            session.ValidateRequest(
+                new RequestHeader { AuthenticationToken = created.AuthenticationToken },
+                channel,
+                RequestType.Read);
+
+            session.UpdateDiagnostics(d => d.ActualSessionTimeout = 1_000);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(session.HasExpired, Is.True);
+        }
+
+        /// <summary>
         /// LC-1 / LC-2: a session that is being closed admits no new requests.
         /// </summary>
         [Test]

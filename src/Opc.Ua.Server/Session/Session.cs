@@ -185,6 +185,7 @@ namespace Opc.Ua.Server
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
             m_lastContactUtcTicks = now.Ticks;
+            m_sessionTimeoutMs = (long)sessionTimeout;
             m_foldedContactUtcTicks = now.Ticks;
             SessionDiagnostics = new SessionDiagnosticsDataType
             {
@@ -450,6 +451,7 @@ namespace Opc.Ua.Server
             {
                 FoldPendingDiagnosticsLocked();
                 update.Invoke(SessionDiagnostics);
+                PublishSessionTimeoutLocked();
             }
         }
 
@@ -542,7 +544,7 @@ namespace Opc.Ua.Server
                         return true;
                     }
                     if (m_timeProvider.GetTimestampMilliseconds() - contact <=
-                        (long)SessionDiagnostics.ActualSessionTimeout)
+                        ReadSessionTimeout())
                     {
                         return false;
                     }
@@ -1796,7 +1798,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
                 long now = m_timeProvider.GetTimestampMilliseconds();
-                if (now - contact > (long)SessionDiagnostics.ActualSessionTimeout)
+                if (now - contact > ReadSessionTimeout())
                 {
                     if (Interlocked.CompareExchange(
                             ref m_lastContactTickCount, contact | kExpiredFlag, contact) == contact)
@@ -1826,6 +1828,39 @@ namespace Opc.Ua.Server
             return IntPtr.Size == 8
                 ? Volatile.Read(ref m_lastContactTickCount)
                 : Interlocked.Read(ref m_lastContactTickCount);
+        }
+
+        /// <summary>
+        /// The session timeout in milliseconds, read without the diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SessionDiagnostics"/> may be changed under the diagnostics lock
+        /// (<see cref="UpdateDiagnostics"/>), so the expiry checks do not read its
+        /// ActualSessionTimeout directly: the value is republished as an atomic integer
+        /// after every update.
+        /// </remarks>
+        private long ReadSessionTimeout()
+        {
+            return IntPtr.Size == 8
+                ? Volatile.Read(ref m_sessionTimeoutMs)
+                : Interlocked.Read(ref m_sessionTimeoutMs);
+        }
+
+        /// <summary>
+        /// Republishes ActualSessionTimeout for <see cref="ReadSessionTimeout"/>; called
+        /// under the diagnostics lock after the diagnostics were updated.
+        /// </summary>
+        private void PublishSessionTimeoutLocked()
+        {
+            long timeout = (long)SessionDiagnostics.ActualSessionTimeout;
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref m_sessionTimeoutMs, timeout);
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_sessionTimeoutMs, timeout);
+            }
         }
 
         /// <summary>
@@ -2043,6 +2078,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private long m_lastContactTickCount;
         private long m_lastContactUtcTicks;
+        private long m_sessionTimeoutMs;
         private long m_foldedContactUtcTicks;
 
         /// <summary>
