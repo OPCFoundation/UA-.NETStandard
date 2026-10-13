@@ -255,7 +255,10 @@ namespace Opc.Ua
             [NotNullWhen(true)] out Entry? entry)
         {
             entry = null;
+            // The queued count is read first: a selection counts itself in flight
+            // before its take uncounts the head as queued, so either read sees it.
             if (Volatile.Read(ref m_count) != 0 ||
+                Volatile.Read(ref m_selectionsInFlight) != 0 ||
                 Volatile.Read(ref m_stopped) != 0 ||
                 cancellationToken.IsCancellationRequested ||
                 IsSessionEstablishment(request.Request) ||
@@ -332,6 +335,7 @@ namespace Opc.Ua
                 }
                 catch
                 {
+                    Interlocked.Decrement(ref m_selectionsInFlight);
                     EndSelection();
                     executionLease?.Dispose();
                     Pulse();
@@ -344,6 +348,7 @@ namespace Opc.Ua
                 {
                     candidate.SetExecutionLease(executionLease!);
                     executionLease = null;
+                    Interlocked.Decrement(ref m_selectionsInFlight);
                     EndSelection();
                     Pulse();
                     candidate.ReleaseQueueLease();
@@ -368,6 +373,7 @@ namespace Opc.Ua
 
                 if (StatusCode.IsBad(error))
                 {
+                    Interlocked.Decrement(ref m_selectionsInFlight);
                     EndSelection();
                     Pulse();
                     candidate.Dispose();
@@ -376,8 +382,10 @@ namespace Opc.Ua
                 }
 
                 // Execution capacity is exhausted: the head returns to the front of its FIFO and
-                // the owner is not retried before capacity or membership changes.
+                // the owner is not retried before capacity or membership changes. It is counted
+                // as queued again before it stops counting as in flight.
                 StatusCode terminal = Relink(candidate, version);
+                Interlocked.Decrement(ref m_selectionsInFlight);
                 // global FIFO: the next selection starts only once the head is back in place
                 EndFifoSelection();
                 if (StatusCode.IsBad(terminal))
@@ -555,10 +563,13 @@ namespace Opc.Ua
                 // The turn is accounted before the head is claimed, so the owner's next turn
                 // is queued in token order.
                 TakeTurnToken(owner);
+                // in flight before the take uncounts it as queued: see TryAdmitInline.
+                Interlocked.Increment(ref m_selectionsInFlight);
                 if (TryTake(owner, out entry))
                 {
                     return true;
                 }
+                Interlocked.Decrement(ref m_selectionsInFlight);
                 // A request being linked is counted before it is visible; keep a turn for it.
                 if (Volatile.Read(ref owner.Retired) == 0 && Volatile.Read(ref owner.Queued) > 0)
                 {
@@ -1487,6 +1498,13 @@ namespace Opc.Ua
         /// waits for it, weighted mode selects concurrently.
         /// </summary>
         private int m_selecting;
+
+        /// <summary>
+        /// Heads taken from their FIFO whose execution admission has not been decided
+        /// yet. A request run inline would overtake them, so
+        /// <see cref="TryAdmitInline"/> waits for none to be in flight.
+        /// </summary>
+        private int m_selectionsInFlight;
 
         /// <summary>
         /// 1 once admissions and dispatch have stopped.
