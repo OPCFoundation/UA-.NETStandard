@@ -267,15 +267,6 @@ External implementations may be provided by integrators (e.g. backed by SQL, LDA
 
 `Opc.Ua.Client.Roles.RoleManagementClient` is a strongly-typed async client over the standard `Server.ServerCapabilities.RoleSet` object:
 
-To bound a role snapshot, construct
-`new RoleManagementClient(session, maxMappingEntries: 1000)`. The limit applies
-separately to identity, application and endpoint mappings and is checked before
-client-side decoded-array/list copies. Zero and the existing one-argument
-constructor preserve legacy behavior. This does not bound `ListRolesAsync`.
-For policy-sensitive workflows, use a
-[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) session for classification
-and the subsequent role calls.
-
 ```csharp
 using Opc.Ua.Client.Roles;
 
@@ -311,6 +302,21 @@ subtypes, resolving derived types through the session's node cache. Other
 object types under the RoleSet are excluded.
 
 All mutator methods require the calling session to hold the `SecurityAdmin` role and use a `SignAndEncrypt` secure channel; otherwise the server returns `Bad_UserAccessDenied` / `Bad_SecurityModeInsufficient` which surfaces as a `ServiceResultException`.
+
+### Bounded role snapshots
+
+Use `new RoleManagementClient(session, maxMappingEntries: 1000)` to limit a role
+snapshot. The limit applies separately to identity, application and endpoint
+mapping collections, before client-side decoded-array/list copies. Zero and the
+existing one-argument constructor preserve legacy behavior. This does not bound
+the separate `ListRolesAsync` traversal.
+
+When a target check and subsequent role calls must use the same server session,
+capture a [`SessionRequestContext`](Sessions.md#generation-bound-client-requests)
+first. Resolve the target through `context.Session` and use
+`new RoleManagementClient(context.Session, maxMappingEntries: 1000)` until the
+operation is finished. Recovery then refuses later calls instead of silently
+moving the operation to a replacement session.
 
 ## GDS
 

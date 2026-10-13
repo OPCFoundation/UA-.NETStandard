@@ -79,3 +79,16 @@ request its identifier. Mismatched CRS identifiers are rejected, not silently
 treated as WGS84. Raw server numeric CRS codes are returned unchanged and
 are distinct from the transformer identifier. ZoneTransform reports the
 selected dimension, rank, residuals, determinant and invertibility.
+
+Fit modes are `Rigid`, `Similarity` and `Affine`. The control points determine
+2D versus 3D; missing elevation is not fabricated. WorldFrame results include
+the base-frame chain, row-major rotation matrix, translation and frame
+representation. Supply the server's actual RSL orientation units when resolving
+WorldFrame; raw Frame/PositionFrame reads do not convert them.
+
+Missing optional nodes remain service errors, distinct from a successful empty
+observation. The raw status code, source node, type and CRS are preserved where
+applicable.
+
+See the [tool catalogue](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#positioning-tools)
+for tool behavior.

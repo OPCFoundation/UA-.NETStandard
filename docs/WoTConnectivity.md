@@ -17,9 +17,6 @@ target version `1.02.0`, publication 2025-12-05.
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
 For agent-facing access, use the [WoT and xRegistry MCP profiles](McpServer.md#wot-and-registry-tools).
-They reuse these clients on the current named session, keep legacy management
-separate from registry support, and make mutations explicit. Generic registry
-operations are shared rather than repeated in the WoT catalogue.
 
 ## Contents
 

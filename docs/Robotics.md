@@ -125,11 +125,7 @@ The generated Robot Intent types live in `Opc.Ua.RobotIntent`. The hand-written 
 `Opc.Ua.Robotics.Server` and `Opc.Ua.Robotics.Server.Builders`; the hand-written client APIs live in
 `Opc.Ua.Robotics.Client.Intent`.
 
-The Robot Intent client is also exposed as an MCP tool package for agent hosts:
-`OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` registers discovery, monitoring, direct-control and
-mission tools over an already connected OPC UA Session. The tools are an adapter over
-`RobotIntentClient` and `RobotIntentControllerClient`; they do not implement an independent robot
-state machine.
+For agent-facing access, see the [Robot Intent MCP catalogue](McpServer.md#robot-intent-tools).
 
 ## Minimal hosted server
 
@@ -1530,104 +1526,7 @@ effect.
 
 ### MCP tools for Robot Intent
 
-`OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` packages the client surface above as Model Context
-Protocol tools for an LLM host. Register it beside the core OPC UA MCP package and select the Robotics
-profile when the host should expose robot tools:
-
-```csharp
-using ModelContextProtocol.Server;
-using Opc.Ua.Mcp;
-
-builder.Services.AddOpcUaMcpCore();
-builder.Services.AddOpcUaMcpRobotics();
-
-builder.Services.AddMcpServer()
-    .WithStdioServerTransport()
-    .WithOpcUaMcpFilters()
-    .WithOpcUaCoreTools(McpToolProfile.Robotics)
-    .WithOpcUaRoboticsTools(McpToolProfile.Robotics)
-    .WithTools<MyApplicationTools>();
-```
-
-`McpToolProfile.Robotics` gates registration. Passing the same profile to every OPC UA MCP package is
-safe: packages whose tools are not selected contribute nothing instead of failing. The Robotics package
-adds four tool groups:
-
-* discovery: list controllers and read a controller's declared `SupportedIntents`, `SupportedFacets`
-  and lookup tables;
-* monitoring: read live state, page/filter concise operation and mission summaries, and wait for an
-  operation or mission with a bounded timeout;
-* direct control: request and release authority, cancel, pause, resume, retry, and submit one tool per
-  intent kind;
-* missions: submit, update the horizon of, and cancel missions.
-
-Every controller argument is a selector: a NodeId remains valid, while an exact,
-unambiguous published name avoids copying NodeIds between calls. Tool, frame,
-location, output and program selectors inside an intent are resolved from the
-controller snapshot read for that call. Resolution is read-only and ambiguity
-is an error; it never requests command authority or submits exploratory work.
-
-Intent payloads are structured MCP objects rather than JSON text embedded in a
-string:
-
-```json
-{
-  "controller": "BinPickingController",
-  "input": {
-    "intentId": "pick-red",
-    "source": "Bin",
-    "tool": "ParallelGripper",
-    "objectClass": "RedCube"
-  }
-}
-```
-
-Mission `steps` and `transitions` are typed arrays. Each step carries a closed
-`kind` discriminator and exactly one matching payload. The server preserves a
-caller-supplied step IntentId, generates one only when omitted, and publishes
-the resulting `StepId -> IntentId -> operation NodeId -> state` correlation.
-`robotics_wait_mission` observes the mission operation NodeId returned by
-submission; it does not rediscover work through mutable active state.
-
-The list tools return bounded pages. Summary detail omits poses and full output
-payloads; request Full detail only for the page that needs it. A timeout from
-either wait tool is not a failure: it returns `completed=false` and a refreshed
-snapshot.
-
-When Vision and Robotics are composed, `robotics_vision_pick` runs one
-detection inference, applies exact class/detection filters and a confidence
-threshold, and deterministically chooses the highest-confidence candidate. It
-submits one Pick when no destination is supplied, or a two-step Pick/Place
-mission when a destination is supplied, then returns detection provenance and
-the authoritative submission handles. It never takes authority, retries,
-waits, cancels or converts a refusal into a success-shaped result.
-
-The sample `IntentViewerClient --mcp` is one host for these tools. In headless mode it defaults to MCP
-stdio. With `--view`, it automatically uses Streamable HTTP because MCP stdio carries protocol frames
-on stdout and the in-process OpenUSD viewport shares that stream. An explicit `--transport stdio
---view` is honoured for diagnostics but warned about.
-
-The safe agent pattern is not a longer tool catalogue; it is a contract:
-
-1. Read `SupportedIntents` and `SupportedFacets` before commanding. The declaration is how the server
-   tells the truth about itself. Asking for an undeclared intent, buffer mode, facet or mission feature
-   is refused rather than probed into existence.
-2. Request command authority explicitly. Observation is open, but commanding is arbitrated between
-   sessions. Authority is never acquired as a side effect of submitting an intent or mission.
-3. Treat a refusal as information, not a transient failure. `NotPermittedInMode`,
-   `SafetyLimitExceeded`, `ControlNotOwned` and `CapabilityNotSupported` are decisions by the server:
-   mode selection, safety state, command ownership and capability are not things an agent should
-   brute-force. The MCP tools deliberately never retry on the agent's behalf.
-
-Those rules are load-bearing because clauses 9 and 10 of the Robot Intent draft make the server's
-honesty about capabilities and safety awareness part of the safety case. A server that declares only
-what it can perform and refuses what it cannot lets a planner re-plan, escalate to an operator, or stop.
-An agent that hides refusals in a retry loop turns that honesty back into an unsafe black box.
-
-The boundary remains the same whether the caller is a person, a program, or an LLM. Robot Intent
-commands a robot at the level of task intent. It does not change operational mode, clear stops, command
-safe motion functions, satisfy a safety-rated single-point-of-control requirement, stream cyclic servo
-samples, or bypass the robot controller's path planning and safety system.
+See the [Robot Intent MCP tool catalogue](McpServer.md#robot-intent-tools). Package API and JSON references are linked there.
 
 ### Facets in code
 

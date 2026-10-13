@@ -1003,14 +1003,28 @@ HistoryClient historian = new HistoryClient(session, new HistoryClientOptions
 });
 ```
 
-The decoded-page limit is checked before modified-value copies or any page
-items are yielded; it does not replace transport decoding quotas. Generation
-binding keeps pagination and continuation cleanup on the original real session.
-For a cursor retained across calls, capture
-[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) before target resolution,
-construct the historian with `context.Session`, and dispose the cursor before
-the context. Recovery invalidates the cursor instead of sending its old
-continuation point to a replacement.
+### Bounded pages and session lifetime
+
+Set `HistoryClientOptions.MaxDecodedPageItems` to bound each decoded raw,
+modified or event page. An oversized page fails with
+`BadEncodingLimitsExceeded` before yielding any item. Both arrays of a modified
+page are checked before modified-value copies are made. Zero preserves the
+legacy unbounded behavior. This is not a wire decoder quota: configure transport
+message and array limits separately.
+
+`BindSessionGeneration = true` keeps each enumeration and its continuation
+cleanup on the original server session. Recovery invalidates the enumeration
+instead of sending its old continuation point to a replacement.
+
+If you must resolve or check the target before starting the read, capture
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) first
+and construct `HistoryClient(context.Session, options)`. Keep that context alive
+across all `MoveNextAsync` and `DisposeAsync` calls, and dispose the cursor
+before the context.
+
+Early disposal and cancellation release the last known continuation point on
+the original session when possible; a replacement never receives the old point.
+Cleanup failures are logged without discarding the original read failure.
 
 ### Reads — `IAsyncEnumerable<T>` with automatic continuation handling
 

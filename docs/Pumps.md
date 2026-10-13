@@ -734,32 +734,7 @@ left unset. `PumpsClientServerE2eTests` is what catches a regression here.
 
 ## MCP tools
 
-`opcua-mcp --profile pumps` exposes eight read-only tools: discovery,
-nameplate, markings, finite semantic groups, ports, value sets, snapshots
-and type classification. It does not invent pump start/stop operations.
-
-Discover with `pumps_list_pumps`, then call `pumps_read_group` with the
-returned pump NodeId and a facet such as `Measurements`, `Supervision` or
-`Maintenance`. `pumps_list_markings` takes the **markings folder** NodeId
-returned by `pumps_read_nameplate`, not the pump NodeId.
-
-```json
-{
-  "pumpNodeId": "ns=2;s=Pump1",
-  "facet": "Measurements",
-  "includeMetadata": true,
-  "includeTimestamps": true,
-  "sessionName": "plant"
-}
-```
-
-Values preserve UA type, quality, engineering units and timestamps.
-Discovery deduplicates pumps visible under both `DeviceSet` and `Machines`.
-Paged results describe a live enumeration, not a durable snapshot.
-
-Embed `Opc.Ua.Mcp.Pumps` with `AddOpcUaMcpPumps()` and `WithOpcUaPumpsTools(...)`.
-See [industrial companion MCP tools](McpServer.md#industrial-companion-tools) for composition and
-session/error contracts.
+See the [Pumps MCP tool catalogue](McpServer.md#pumps-tools). Package API and JSON references are linked there.
 
 ## See also
 

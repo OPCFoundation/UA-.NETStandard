@@ -22,5 +22,26 @@ Discovery/read lists and observations are bounded. Missing weight capability
 is distinct from a valid scale's uninitialized `"NaN"` measurement. Units,
 quality, timestamps and server refusals remain visible.
 
+## Arguments and results
+
+Use a NodeId returned by `scales_list`:
+
+```json
+{
+  "nodeId": "ns=2;s=Scale1",
+  "facet": "CurrentWeight",
+  "sessionName": "plant"
+}
+```
+
+`scales_read` reports `available=false` for an object without a weight item.
+A published but uninitialized measurement remains available with `"NaN"`,
+not zero. Standard scale, vehicle and recipe commands use finite enum
+selectors; arbitrary vendor method names are not accepted.
+
+`scales_add_recipe_element` takes `input.previousElements` as a JSON array of
+NodeId strings, bounded to 1..500 entries, not the CLR `ArrayOf` representation.
+Creating a recipe or element does not start it.
+
 See the [companion MCP guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools)
 and [Scales guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Scales.md).

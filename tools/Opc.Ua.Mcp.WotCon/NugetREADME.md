@@ -36,6 +36,133 @@ See the [MCP server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob
 for profiles, configuration, embedding and workflow details. Draft model
 maturity is independent of this package's release channel.
 
+## Document input and artifact contract
+
+The five document tools take root `source.text` **or** `source.filePath`.
+Inline text is limited to 64 KiB of UTF-8; files and outputs are confined to the
+existing `TransferRoot`. Sources, dependency arrays and refresh selectors are
+top-level arguments, with scalar settings in `options`, not an extra `input`
+envelope. Direct callers retain `WotDocumentInput` and `WotRefreshInput`.
+
+For example, `wot_from_nodeset` accepts:
+
+```json
+{
+  "source": { "filePath": "pump.xml" },
+  "outputPath": "pump-documents.zip",
+  "rootHref": "pump"
+}
+```
+
+The ZIP preserves every linked document in flat `document-NNNN.json` entries.
+Its `manifest.json` contains `format: "opcua-mcp-wot-document-set"`, `version: 1`,
+the exact `rootHref`, and `documents` records with `href`, `entry` and `sha256`.
+This is an MCP artifact, not new WoT vocabulary. Hrefs are metadata and members
+are not extracted. Duplicate, path-bearing, missing, unlisted and
+digest-mismatched members fail validation.
+
+Pass the whole artifact back to `wot_to_nodeset`:
+
+```json
+{
+  "source": { "filePath": "pump-documents.zip" },
+  "options": { "documentSetArchive": true },
+  "outputPath": "reconstructed.xml"
+}
+```
+
+Publication is atomic and never overwrites. Results contain byte counts, SHA-256
+and bounded diagnostics/provenance, not document bodies. JSON caps at 16 MiB,
+XML at 64 MiB, and stricter host/transfer budgets also count manifests,
+decompressed members and compressed/decompressed dependencies. Cancellation or
+failure leaves no partial destination.
+
+The host maps `MaxDocuments`, `MaxResolverDepth`, `MaxTotalBytes` to the
+converter's independent `MaxDocumentSetDocuments`, `MaxDocumentSetDepth`,
+`MaxDocumentSetBytes` ceilings. Counts, depth and cumulative bytes are checked
+during conversion, including preservation partitions.
+
+Consumer mode preserves unknown vocabulary. `options.strictAuthoring: true`
+enables authoring checks; `requiredConformance` requires that choice. An
+unannotated W3C TD may have `kind: Unknown`; validation then reports JSON syntax
+only, not W3C certification or a verified Binding projection. An explicit
+`ThingDescription` / `ThingModel` planning kind does not guarantee conversion.
+Plans retain planner versions/maturity and never activate an executor.
+
+`dependencies` entries take `reference` and exactly one text/file source.
+`options.baseUri` is a document identity, not a URL to fetch. Relative references
+are associated with their owning document; ambiguous aliases fail. Absolute
+references remove that ambiguity. Inspection never retrieves dependencies or
+executes JSON-LD contexts.
+
+### Remote dependency policy
+
+Remote retrieval needs both `options.resolveRemoteDependencies: true` and the
+host's exact HTTPS-origin allowlist:
+
+```json
+{
+  "McpServer": {
+    "ToolProfile": "wot-documents",
+    "TransferRoot": "C:\\opcua-mcp-transfer",
+    "Wot": {
+      "AllowedDependencyOrigins": [
+        "https://models.example.org",
+        "https://schemas.example.org:8443"
+      ],
+      "AllowPrivateDependencyAddresses": false,
+      "MaxDocumentBytes": 16777216,
+      "MaxTotalBytes": 67108864,
+      "MaxDocuments": 256,
+      "MaxResolverDepth": 16,
+      "OperationTimeoutMilliseconds": 30000,
+      "MaxConcurrentOperations": 2
+    }
+  }
+}
+```
+
+`OPCUA_MCP_WOT_DEPENDENCY_ORIGINS` accepts comma/semicolon-separated origins;
+`OPCUA_MCP_WOT_ALLOW_PRIVATE_DEPENDENCIES` takes an explicit Boolean.
+Configuration values take precedence. Callers cannot raise host ceilings.
+
+Origins match normalized hostname and effective port, not URL prefixes. Paths,
+queries, fragments, credentials and non-HTTPS schemes are invalid allowlist
+entries. Redirects, cookies, ambient credentials and proxies are disabled.
+Every resolved address is checked before connecting to that IP; private
+addresses require host permission and loopback is blocked. An injected HTTP
+transport is trusted host code and must preserve these guarantees.
+
+The deadline covers all requests. Declared and actual decompressed sizes,
+cycles and resolver depth are bounded. Credential-bearing URLs are unsuitable
+for logs. `CreateWotMcpOptions(configuration)` shares the executable's
+reflection-free binding; do not add credentials, proxies or redirects to its
+dedicated named dependency client.
+
+### Composing registry tools
+
+```csharp
+McpToolProfileSet profiles = McpToolProfileSet.Parse("core,wot,xregistry,wot-documents");
+builder.Services
+    .AddOpcUaMcpCore(new OpcUaMcpOptions { TransferRoot = "C:\\opcua-mcp-transfer" })
+    .AddOpcUaMcpWotCon(new WotMcpOptions
+    {
+        AllowedDependencyOrigins = ["https://models.example.org"]
+    })
+    .AddOpcUaMcpXRegistry();
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(profiles)
+    .WithOpcUaWotConTools(profiles)
+    .WithOpcUaXRegistryTools(profiles);
+```
+
+`wot_refresh` takes explicit selectors or `allResources: true`, returns partial
+outcomes and generation, and may truncate detail at the requested item limit.
+There is no continuation that would re-run the mutation. Registry operations
+share the xRegistry package's Resource/Version and epoch contract.
+
 ## Live protocol execution
 
 Ten explicitly authorized tools form the independent `wot-runtime` catalogue.

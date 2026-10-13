@@ -16,4 +16,17 @@ concurrency tokens. Files must remain below the host's configured transfer root.
 Tools do not follow federation links, create extra sessions, or automatically
 refresh or promote uploaded documents.
 
+## Identity and concurrency contract
+
+A logical Resource and concrete Version are distinct even though both use
+`ResourceType`. Resource deletion removes its versions and uses `MetaEpoch`;
+version deletion uses that version's `Epoch`. Ambiguous legacy flat layouts
+remain inspectable but cannot disguise whole-resource deletion.
+
+Methods that support expected epoch/generation arguments require them
+explicitly; zero requires an explicit unconditional-operation opt-in. FileType
+writes have no atomic epoch argument, so a metadata pre-read does not provide
+one. Uploads target concrete versions, not mutable default-version aliases.
+Server-side automatic behavior is not overridden.
+
 See the [MCP server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md).

@@ -6,8 +6,8 @@ sensors, inference, media, and coordinate frames. Applications can use the model
 independently or combine them on one OPC UA server.
 
 Part 1 and Perception contracts are in `Opc.Ua.Vision`; Part 2 contracts are in
-`Opc.Ua.MachineVision`. Each has client and server packages. One
-`Opc.Ua.Mcp.Vision` package exposes tools for all three models. The generated
+`Opc.Ua.MachineVision`. Each has client and server packages. Agent-facing access
+is documented in the [MCP catalogue](McpServer.md#machine-vision-tools). The generated
 Perception types live in `Opc.Ua.Vision.Perception` and use the wire namespace
 `http://opcfoundation.org/UA/Vision/`.
 
@@ -423,107 +423,7 @@ upload, preparation, execution, state waiting, results, the draft/native bridge,
 
 ## MCP
 
-The Vision, Full, and composed profiles expose these seventeen Machine Vision tools:
-
-| Tool | Purpose |
-| --- | --- |
-| `vision_machine_list` | Discover released control systems or assets. |
-| `vision_machine_read_state` | Read control and automatic states; opt into status and step details. |
-| `vision_machine_command` | Explicit control, simulation, synchronization, or ConfirmAll. |
-| `vision_machine_read_asset` | Read bounded, namespace-qualified inventory/health values. |
-| `vision_machine_recipes` | Recipe/product management and metadata handles. |
-| `vision_machine_configurations` | Configuration management and metadata handles. |
-| `vision_machine_results` | Result metadata and handle release. |
-| `vision_machine_report_safety` | Report safety information. |
-| `vision_machine_file` | Explicit transfer/FileType operations and completion-state inspection/waiting. |
-| `vision_machine_recipe_object` | Per-recipe preparation and product links. |
-| `vision_machine_condition` | Condition acknowledgement, confirmation, and comments. |
-| `vision_machine_capabilities` | Independent model support and actual optional interfaces/method executability. |
-| `vision_machine_relationships` | Paged same-entity, optical, data-transmission, and interface references. |
-| `vision_machine_observe` | Bounded event/condition collection with owned-subscription cleanup. |
-| `vision_machine_upload_recipe` | Register/upload a complete small recipe and wait for commit, without preparation. |
-| `vision_machine_upload_configuration` | Register/upload a complete small configuration, without activation. |
-| `vision_machine_download_result` | Download complete small result content and release file/metadata handles. |
-
-Metadata pages are limited to 100 entries, asset snapshots to 1,024 values,
-file chunks to 1 MiB, and serialized responses to 2 MiB of UTF-8 JSON. Oversized responses
-fail explicitly; request a smaller page, narrower asset root, or file chunks.
-The tools never acquire a new mode or retry mutations as a discovery side effect.
-`vision_machine_command` accepts a `parametersJson` object containing a UA Variant
-`Parameters` array and an optional `ExternalRecipeId` structure for a version/hash-qualified
-job recipe. Recipe/configuration tools accept `identifierJson` for complete
-binary identifiers, including version and hash metadata. The result tool's
-`filtersJson` accepts the typed `MeasId`, `PartId`, recipe/configuration identifiers,
-`ProductId`, and `JobId`; its `Components` operation exposes every result component.
-These inputs use the same UA JSON representation written by `JsonEncoder`, with
-a one-MiB input bound. Conflicting scalar and structured identifier selectors are rejected.
-Keep mutating tool access behind the host's normal session/authentication policy.
-MCP tool-catalog NativeAOT limitations are those documented by the MCP host;
-the UA model encoders do not require reflection-based JSON serialization.
-
-### Discover, inspect, and observe
-
-Start with `vision_machine_capabilities` without a system selector to distinguish
-Part 1 and Part 2 namespace support. Supply a discovered `systemNodeId` to resolve
-actual management, transfer, safety, and step objects and their instance methods.
-Namespace presence does not imply that every optional interface is available.
-
-`vision_machine_read_state` returns control and automatic states by default. With
-`includeDetails: true`, it also returns `DiagnosticLevel`, `SystemState`, active
-configuration and safety readings, plus available step states. Missing optional
-values retain their resolution status rather than becoming zero or empty measurements.
-
-`vision_machine_relationships` takes `relationship: "SameEntity"`, `"OpticalPath"`,
-`"DataTransmission"`, or `"Interface"`, and `direction: "Forward"`, `"Inverse"`,
-or `"Both"`. It returns at most 100 unique references and a `nextIndex`; offsets
-are limited to 10,000. Expand one hop at a time. Separate pages are live views,
-not a snapshot immune to concurrent topology edits.
-
-For example, collect retained conditions and subsequent condition notifications:
-
-```json
-{
-  "notifierNodeId": "ns=4;s=Inspection",
-  "mode": "Conditions",
-  "refreshConditions": true,
-  "durationSeconds": 5,
-  "maximumNotifications": 50
-}
-```
-
-The observation call defaults to 5 seconds/50 notifications and rejects requests
-over 60 seconds/100 notifications. It owns and disposes its subscription; other
-callers' subscriptions and the session remain open. It uses the options-based
-subscription engine available on MCP managed sessions.
-
-The response includes `completionReason`, `refreshComplete`,
-`droppedNotifications`, namespace-qualified `fieldPaths`, and each event's fields.
-An empty field path selects the condition's NodeId attribute. Exact
-`eventIdBase64` and `conditionNodeId` selectors can be passed to
-`vision_machine_condition`. Observation never acknowledges or confirms anything.
-`refreshComplete` records receipt of a refresh start/end pair, not a guarantee
-that no notifications were lost: also inspect the completion reason and drop count.
-Caller cancellation and setup/refresh failures remain errors, not empty successful results.
-
-### Complete small-file workflows
-
-For a recipe of at most 1 MiB, call `vision_machine_upload_recipe` with a system
-NodeId, `externalId` (or complete `identifierJson`), optional `productId`, and
-`dataBase64`. The configuration variant accepts the corresponding configuration
-identifier. Both reuse the typed client workflow, transfer only when the server
-requests it, and wait for asynchronous commit completion. Preparation and activation
-remain separate explicit operations.
-
-`vision_machine_download_result` accepts `systemNodeId`, `resultId`, and optional
-`maximumBytes` (1-1,048,576). It either returns the entire file as a UA ByteString or
-fails; it never returns truncated content. File and metadata handles are released
-on success, cancellation, and download failure.
-
-Larger content continues to use `vision_machine_file` chunks. After `Commit`, use
-its returned completion-state-machine NodeId with `ReadCompletion` or
-`WaitForCompletion`. A null completion NodeId means the commit completed synchronously.
-The wait operation is capped at 60 seconds and rejects Error, unavailable state,
-or timeout. It never retries a commit.
+See the [Machine Vision MCP tool catalogue](McpServer.md#machine-vision-tools). Package API and JSON references are linked there.
 
 ## Implementation and conformance map
 
@@ -558,7 +458,6 @@ from Part 2 table 74.
 | Part 2 categories, identity, and health | Asset and declared-member builders | `AssetBuilderPublishesEveryComponentCategoryAndLiveHealthAsync` |
 | Component sharing and root identity | Reference-based adoption and root-name reservation | `AssetsCanShareAComponentWithoutReparentingOrReplacingItAsync`, `TwoStagedAssetsCannotPublishTheSameRootNameAsync` |
 | Standalone/Machinery ownership, both models, and TCP workflows | Hosting adapters and typed clients | `CompositionSupportsBothPartsAndSessionFileCleanupOverTcpAsync` |
-| MCP registration and bounds | `VisionMachineTools`, profile extensions | `VisionMachineToolsTests`, `McpToolProfileCompositionTests` |
 
 The source generator also has regressions for recursive optional declarations, a
 ResultState child/type name collision, and narrowed proxy method signatures. Those
@@ -595,7 +494,7 @@ released Machine Vision models.
 | `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server` | Asset builders, information add-ins, conformance, runtime updates, and Part 2 hosting registration | `Opc.Ua.Vision.Server`, `Opc.Ua.MachineVision`, `Opc.Ua.Machinery.Server` |
 | `OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client` | Part 2 asset discovery, snapshots, and relationship extensions in `Opc.Ua.Vision.Client` | `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision` |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | `ISceneCameraCaptureProvider` implementation that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully when no graphics device is available | `Opc.Ua.Types`, native OpenUSD renderer payload (optional per-RID) |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | 39 MCP tools: Perception plus Machine Vision control/asset workflows, with the `vision` bounded profile and composition entry point | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | [Agent-facing catalogue](McpServer.md#perception-tools) | `Opc.Ua.Mcp.Core`, `Opc.Ua.Vision.Client`, `Opc.Ua.MachineVision.Client` |
 
 ```mermaid
 graph TD
@@ -1372,46 +1271,7 @@ inspection and segmentation results.
 
 ## MCP tools
 
-The `Opc.Ua.Mcp.Vision` package contributes 22 Perception tools in the six categories
-below plus 17 [Machine Vision tools](#mcp), and the bounded `vision` profile in `docs/McpServer.md`
-carries them plus the four `ConnectionTools` — every Vision tool
-resolves a named OPC UA session, and only the connection tools can open
-one.
-
-- Discovery — `vision_list_sensors`, `vision_list_pipelines`,
-  `vision_list_frames`, `vision_list_calibrations`.
-- Monitoring — `vision_read_sensor`, `vision_read_extrinsic_calibration`,
-  `vision_read_pipeline`, `vision_read_detection_result`,
-  `vision_read_inspection_result`, `vision_read_segmentation_result`.
-- Seeing — `vision_get_frame` (returns the encoded still as an MCP
-  `ImageContentBlock` with the correct MIME type, so a model actually
-  sees pixels rather than a description of them), `vision_get_frame_metadata`.
-- Inference — `vision_run_inference`, `vision_start_continuous_inference`,
-  `vision_stop_inference`.
-- Feedback — `vision_submit_detections`, `vision_submit_inspection_result`,
-  `vision_submit_correction`, `vision_submit_image_reference`.
-- Geometry — `vision_read_frame`, `vision_compose_pose`,
-  `vision_compose_transform`.
-
-`vision_run_inference` accepts one structured `request`. Its `pipeline`
-selector is an exact BrowseName, DisplayName or NodeId; `expectedKind` can
-require a Detection, Inspection or Segmentation result; and `detail=Summary`
-returns a bounded typed summary together with the ResultId, result NodeId,
-sensor, requested/published pipeline, model and frame provenance. Use
-`detail=HandleOnly` when only the addressable result is needed, or call a
-`vision_read_*_result` tool for the complete payload.
-
-Profiles compose. A host that wires the `Vision` and `Robotics` profile
-sets together — the [BinPickingClient sample](../samples/Robotics/BinPickingClient)
-does this — exposes 81 tools in total, measured as
-`39 Vision + 4 Connection + 42 Robotics − 4 shared Connection = 81`.
-The `WithOpcUaVisionTools(McpToolProfileSet)` overload never registers
-`ConnectionTools` directly; the corresponding
-`WithOpcUaCoreTools(McpToolProfileSet)` overload owns and deduplicates
-that registration across every OPC UA MCP package a host references.
-
-See [`docs/McpServer.md`](McpServer.md) for the full profile table and
-composition rules.
+See the [Perception MCP tool catalogue](McpServer.md#perception-tools). Package API and JSON references are linked there.
 
 ## Sample: bin-picking
 
@@ -1432,16 +1292,12 @@ rather than substituting the Location centre.
 
 [`samples/Robotics/BinPickingClient`](../samples/Robotics/BinPickingClient)
 is the paired client: `--demo` runs the whole loop without an agent,
-`--mcp` exposes the composed 81-tool MCP catalogue for a language-model
+`--mcp` exposes the [composed MCP catalogue](McpServer.md#vision-guided-robotics) for a language-model
 agent, and `--view` opens the in-process OpenUSD viewport so a human
 sees the same scene the agent sees.
 
-The composed Robotics package also contributes `robotics_vision_pick`. It runs
-one inference through the Vision client, selects one detection
-deterministically, and submits either a Pick operation or a two-step Pick/Place
-mission. It returns the selected detection provenance and the authoritative
-operation or mission handles. Command authority remains explicit: the helper
-never requests ownership, retries, waits, cancels or hides a refusal.
+The agent-facing workflow is documented under
+[Vision-guided Robotics](McpServer.md#vision-guided-robotics).
 
 ### Scene lighting
 

@@ -607,33 +607,7 @@ gap; two known ones apply as well:
 
 ## MCP tools
 
-`opcua-mcp --profile amb` exposes the AMB client as twelve tools: local
-asset discovery, alias search/browse, category/version inspection, finite
-asset-facet reads, location browsing, bounded observations, asset-ID changes,
-acknowledgements and documentation-link add/write/remove operations.
-
-Start with `amb_discover_assets` or `amb_find_assets`, then pass the returned
-NodeId to `amb_read_asset`. Choose a finite `facet`, such as `Identification`,
-`HealthAlarms`, `Maintenance`, `Documentation` or `Snapshot`. Collection facets
-are paged; snapshots are live sequential reads, not atomic plant snapshots.
-The read tools never acknowledge conditions or change identifiers.
-
-```json
-{
-  "assetNodeId": "ns=2;s=Asset1",
-  "facet": "Identification",
-  "sessionName": "plant"
-}
-```
-
-`amb_acknowledge` requires the exact condition ID and base64 event ID returned
-by a read/observation. Remote alias and sub-asset identities are retained but
-not followed. There is no historical health or maintenance tool where the
-current typed client has no history implementation.
-
-Embed `Opc.Ua.Mcp.AMB` with `AddOpcUaMcpAmb()` and `WithOpcUaAmbTools(...)`.
-See [industrial companion MCP tools](McpServer.md#industrial-companion-tools) for profiles, session
-selection, result/error contracts and embedding.
+See the [AMB MCP tool catalogue](McpServer.md#amb-tools). Package API and JSON references are linked there.
 
 ## See also
 

@@ -7,10 +7,7 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
-The [WoT document MCP profile](McpServer.md#wot-and-registry-tools) exposes
-inspection, validation, binding planning and both conversion directions. It
-retains linked document sets in bounded artifacts and supports dependencies
-only through the [host's explicit policy](McpServer.md#wot-document-dependency-policy).
+For agent-facing tools, see the [WoT document catalogue](McpServer.md#wot-document-tools).
 For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
 `WotDocumentSet` with caller-supplied thing/schema resolution while preserving
 set-local precedence. It performs no transport I/O itself.
@@ -23,6 +20,7 @@ set-local precedence. It performs no transport I/O itself.
 - [WoT to NodeSet defaults](#wot-to-nodeset-defaults)
 - [Portable identity and preservation semantics](#portable-identity-and-preservation-semantics)
   - [Verified linked document sets](#verified-linked-document-sets)
+  - [Generated document-set limits](#generated-document-set-limits)
   - [MCP document-set artifacts](#mcp-document-set-artifacts)
   - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
   - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
@@ -263,76 +261,18 @@ against that baseline and conflicts are reported rather than overwritten.
 Routing-only enrichment does not grant permission to add or replace archived
 model facts.
 
+### Generated document-set limits
+
+Converter callers can set `MaxDocumentSetDocuments`, `MaxDocumentSetDepth` and
+`MaxDocumentSetBytes` independently of external resolver limits. Generated
+document count, containment depth and cumulative JSON bytes are checked during
+conversion, including preservation partitions. Defaults impose no additional
+set-wide ceiling, preserving existing large companion-model conversions.
+Hosts processing untrusted input should set all three limits.
+
 ### MCP document-set artifacts
 
-The `wot-documents` profile does not need a UA connection. Its five tools are
-`wot_inspect_document`, `wot_validate_document`, `wot_plan_bindings`,
-`wot_to_nodeset`, and `wot_from_nodeset`. All accept top-level fields with
-`source.text` **or** `source.filePath`. Text is limited to 64 KiB of UTF-8;
-files and outputs must be beneath the host's existing `TransferRoot`.
-
-For example, `wot_from_nodeset` accepts:
-
-```json
-{
-  "source": { "filePath": "pump.xml" },
-  "outputPath": "pump-documents.zip",
-  "rootHref": "pump"
-}
-```
-
-The resulting ZIP holds **every** linked document, using flat
-`document-NNNN.json` entries. `manifest.json` has `format`
-`opcua-mcp-wot-document-set`, `version: 1`, the exact `rootHref`, and a
-`documents` array of `{ "href", "entry", "sha256" } records. This packaging is
-an MCP artifact, not a new WoT model or vocabulary. Hrefs are metadata; archive
-paths are never extracted. Duplicate, path-bearing, missing, unlisted, or
-digest-mismatched members are rejected.
-
-Pass the complete artifact to `wot_to_nodeset` without selecting only its root:
-
-```json
-{
-  "source": { "filePath": "pump-documents.zip" },
-  "options": { "documentSetArchive": true },
-  "outputPath": "reconstructed.xml"
-}
-```
-
-Generated artifacts are atomically published without overwriting, and results
-include byte counts, SHA-256 and bounded diagnostics/provenance rather than
-inline document bodies. JSON is capped at 16 MiB and XML at 64 MiB; the stricter
-host/transfer cumulative budget also counts archive manifests, decompressed
-members and compressed/decompressed HTTP dependencies. Failed conversion or
-cancelled publication leaves no partial destination.
-
-Generated document count, containment depth and cumulative JSON bytes are
-checked during conversion, before an entire set or its preservation partitions
-can accumulate. The MCP host maps `MaxDocuments`, `MaxResolverDepth` and
-`MaxTotalBytes` to the converter's `MaxDocumentSetDocuments`,
-`MaxDocumentSetDepth` and `MaxDocumentSetBytes` options. Direct converter callers
-can set those options independently of external-resolution limits. Their
-defaults impose no additional set-wide ceiling, preserving existing large
-companion-model conversions; hosts processing untrusted inputs should set all
-three.
-
-Consumer mode preserves unknown vocabulary. `options.strictAuthoring: true`
-opts into authoring checks; `requiredConformance` requires that choice.
-An unannotated W3C TD can have `kind: Unknown`: validation then explicitly
-reports **JSON syntax only**, not W3C certification or a verified Binding
-projection. Planning can take an explicit `kind` of `ThingDescription` or
-`ThingModel`, but this does not make a document convertible. Plans report the
-shipped planners' versions and maturity and always remain non-executable.
-
-Explicit dependencies use `dependencies` with a `reference` and exactly
-one text/file source. `options.baseUri` identifies the primary document address,
-not an endpoint to fetch. Relative dependency references are associated with
-their owning document; ambiguous aliases fail rather than selecting an
-arbitrary document. Absolute references remove that ambiguity. Network
-retrieval additionally requires `options.resolveRemoteDependencies: true` and
-the [host's exact HTTPS origin allowlist](McpServer.md#wot-document-dependency-policy).
-Inspection never retrieves dependencies. No document tool activates a protocol
-executor or interprets arbitrary JSON-LD contexts as executable instructions.
+See the [WoT document MCP tool catalogue](McpServer.md#wot-document-tools). Package API and JSON references are linked there.
 
 ### Generated NodeIds follow Annex G.1
 

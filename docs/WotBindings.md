@@ -6,12 +6,8 @@ The subsystem is deliberately layered so the model remains transport-neutral whi
 
 This document starts with the bindings that ship today and how to register them, then describes the contributor workflow for adding your own binding.
 
-The [WoT document MCP tools](McpServer.md#wot-and-registry-tools) reuse these
-planners to explain supported forms, identities, maturity and diagnostics.
-They deliberately register no binding executors. Optional HTTPS retrieval of
-document dependencies is a separate, bounded resolver under
-[host policy](McpServer.md#wot-document-dependency-policy), not permission to
-execute a TD's HTTP, MQTT, Modbus or OPC UA interactions.
+For agent-facing planning and execution, see the
+[WoT MCP tool catalogue](McpServer.md#wot-and-registry-tools).
 
 ## Table of contents
 

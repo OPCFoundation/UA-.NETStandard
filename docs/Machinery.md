@@ -695,50 +695,9 @@ as not carried. Optional fields of the generated ISA-95 structures, such as
 `JobOrderParameters` and `Subparameters`, only reach the wire when their
 `EncodingMask` bit is set.
 
-## MCP tools
+### Job endpoints and streamed results
 
-`OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` adds 19 tools, all with the
-`machinery_` prefix and an optional `sessionName`. Each call resolves the current
-session; tool instances do not cache clients, endpoint IDs or subscriptions.
-The `machinery` profile includes connection tools but does not implicitly enable
-ISA-95 controls. Compose `machinery,isa95` when explicit job control is needed.
-
-```csharp
-services.AddOpcUaMcpCore(new OpcUaMcpOptions
-{
-    TransferRoot = configuredResultDirectory,
-    MaxTransferBytes = 16 * 1024 * 1024
-});
-services.AddOpcUaMcpMachinery();
-services.AddOpcUaMcpIsa95();
-services.AddMcpServer()
-    .WithOpcUaMcpFilters()
-    .WithOpcUaMachineryTools(McpToolProfile.Machinery)
-    .WithOpcUaIsa95Tools(McpToolProfile.Isa95);
-```
-
-| Tools | Scope |
-|---|---|
-| `machinery_list_machines`, `machinery_list_components`, `machinery_list_building_blocks` | Actual machine, component and advertised building-block identities |
-| `machinery_read` | Finite `Identification`, `Health`, `OperationCounters`, `ItemState`, `OperationMode` facets |
-| `machinery_list_lifetime_counters`, `machinery_list_equipment` | Lifetime thresholds and equipment identity/life |
-| `machinery_list_process_values`, `machinery_read_process_value` | Process readings, setpoints, limits, status, units and ranges |
-| `machinery_zero_point_adjustment` | Explicit calibration-changing control, marked destructive |
-| `machinery_list_energy`, `machinery_read_meter` | Resources, metering points, `Contains` sub-meters and typed readings |
-| `machinery_list_jobs`, `machinery_read_job_parameters`, `machinery_get_job_endpoints` | Published orders/responses, predefined and original typed parameters, real role endpoints |
-| `machinery_list_results`, `machinery_read_result`, `machinery_list_published_results` | Result filtering, metadata/content and published result variables |
-| `machinery_download_result` | Byte-bounded streaming to a new file beneath the host transfer root |
-| `machinery_observe` | Bounded item-state, operation-mode, result-ready, notification or zero-adjustment events |
-
-There are **no state/mode setters**. Observations use the selected
-`ManagedSession`'s borrowed streaming subscription, last at most 30 seconds and
-collect at most 500 items. They release their enumerator, not the shared
-subscription. Live list pages allow at most 500 entries and report `nextOffset`;
-offsets are not snapshot cursors. Result-ID queries instead return `limitReached`:
-narrow the exact job/part and inclusive creation-time filters if that is true.
-Result query/read handles are released before the tool returns.
-
-`GetJobManagementEndpointsAsync` is the additive client API for actual roles:
+`GetJobManagementEndpointsAsync` returns the machine's actual job roles:
 
 ```csharp
 MachineryJobManagementEndpoints endpoints =
@@ -751,21 +710,20 @@ if (!endpoints.JobResponseProviderId.IsNull)
 }
 ```
 
-Missing roles are `NodeId.Null`. Machinery defines **no response receiver**.
-The existing three-role `JobManagementAsync` client retains its historical
-fallback behavior for compatibility; new MCP controls use only the actual
-role-specific endpoint from discovery. ISA-95 return codes are UInt64 bitmaps:
-only `1` is success, including when the UA Call service itself reports Good.
+Missing roles are `NodeId.Null`; Machinery defines no response receiver.
+The existing three-role `JobManagementAsync` helper retains its historical
+fallback behavior for compatibility. Use the actual role-specific endpoint
+when that distinction matters. ISA-95 return codes are UInt64 bitmaps; only `1`
+means success, independently of the UA service status.
 
 `DownloadResultAsync(machine, resultId, destination, ct)` streams through
-`TemporaryFileTransferClient` and leaves the caller's destination open. The
-existing ByteString overload shares this implementation. Advanced callers can
-use `OpenResultStreamAsync` and must asynchronously dispose the returned
-`UaFileStream`. MCP downloads never overwrite existing files, require a configured
-`TransferRoot`, enforce `MaxTransferBytes`, and remove incomplete local artifacts.
-Their tool annotation is not read-only because they create a local file.
+`TemporaryFileTransferClient` and leaves the destination open. The ByteString
+overload shares that implementation. Advanced callers can use
+`OpenResultStreamAsync` and must asynchronously dispose its `UaFileStream`.
 
-See [Companion MCP modules](McpServer.md#industrial-companion-tools) for the shared host policies.
+## MCP tools
+
+See the [Machinery MCP tool catalogue](McpServer.md#machinery-tools). Package API and JSON references are linked there.
 
 ## Conformance matrix
 

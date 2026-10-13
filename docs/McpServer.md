@@ -6,11 +6,18 @@ assistants such as Claude, GitHub Copilot, VS Code Copilot, and Cursor can
 use these tools to connect to OPC UA servers and interact with industrial
 automation systems through natural language.
 
+This is the user-facing tool catalogue: what to call, what it does and how to
+interpret the outcome. C# registration, request fields and JSON examples belong
+to the owning package's `NugetREADME.md`, linked from each catalogue below.
+
 ## Contents
 
 - [What It Does](#what-it-does)
 - [Tool Profiles](#tool-profiles)
   - [Vision-guided Robotics](#vision-guided-robotics)
+  - [Robot Intent tools](#robot-intent-tools)
+  - [Perception tools](#perception-tools)
+  - [Machine Vision tools](#machine-vision-tools)
   - [Industrial companion tools](#industrial-companion-tools)
   - [WoT and registry tools](#wot-and-registry-tools)
   - [Stack workflow tools](#stack-workflow-tools)
@@ -68,29 +75,33 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 | **Convenience** | `ReadValue`, `ReadValues`, `WriteValue`, `BrowseAll`, `CallMethod`, `ReadNode`, `Cancel` | Simplified high-level operations |
 | **Packet Capture** | `list_interfaces`, `start_capture`, `stop_capture`, `list_captures`, `get_capture`, `capture_now`, `list_active_channels`, `dump_keys`, `decode_pcap_with_keys`, `summarize_service_calls`, `replay_pcap`, `stop_replay`, `list_replays` | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
 
-All OPC UA types (NodeId, DataValue, Variant, StatusCode, etc.) are represented as JSON for LLM-friendly interaction. Variant serialization dispatches by `BuiltInType`, so scalar defaults such as Boolean `false` and numeric `0` remain JSON `false` / `0` instead of being confused with `Variant.Null`.
+Values preserve UA types, quality and timestamps. Missing values are not
+confused with Boolean false or numeric zero. See the
+[Core API/JSON reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results).
 
-The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md#4-packet-capture-dissection-and-replay). For convenience the per-tool surface is:
+### Packet capture tools
 
-| Tool | Description | Parameters |
-|---|---|---|
-| `list_interfaces` | Enumerates NICs available to SharpPcap; `linkType` may be `null` because enumeration does not open adapters. | None |
-| `start_capture` | Starts a capture session. | `source`: `nic \| inproc-client \| inproc-server \| replay`; optional interface, filter, endpoint, limits, folder |
-| `stop_capture` | Stops an active session and finalizes artifacts. | `sessionId` |
-| `list_captures` | Lists capture sessions. | Optional `state` |
-| `get_capture` | Returns an artifact or formatted analysis. | `sessionId`; `format`: `pcap \| pcapng \| json \| csv \| text \| service-timeline`; optional packet/partial controls |
-| `capture_now` | Starts, waits, stops, and returns output. | Capture options plus the same output `format` values |
-| `list_active_channels` | Lists in-process secure channels with current tokens. | None |
-| `dump_keys` | Emits keylog data. | Optional `sessionId`, `format`, `includeExpired` |
-| `decode_pcap_with_keys` | Decodes an existing pcap and keylog offline. | `pcapPath`, `keylogPath`, `format`, optional `maxFrames` |
-| `summarize_service_calls` | Reports service counts, latency, and errors. | `sessionId` or `pcapPath` + `keylogPath`, optional `top` |
-| `replay_pcap` | Replays as a mock server or mock client. | `pcapPath`, `keylogPath`, `mode`, endpoints, `speed` |
-| `stop_replay` | Stops an active replay session. | `sessionId` |
-| `list_replays` | Lists active and recently-completed replay sessions. | None |
+| Tool | What it does |
+|---|---|
+| `list_interfaces` | Lists capture-capable network interfaces without opening them. |
+| `start_capture` | Starts capture from a network interface or in-process channel. |
+| `stop_capture` | Stops capture and finalizes its artifacts. |
+| `list_captures` | Lists active and retained captures. |
+| `get_capture` | Returns a capture artifact or formatted analysis. |
+| `capture_now` | Captures for a bounded interval and returns the output. |
+| `list_active_channels` | Lists in-process secure channels and current token information. |
+| `dump_keys` | Exports sensitive channel-key material for authorized diagnostics. |
+| `decode_pcap_with_keys` | Decodes a capture offline using its key log. |
+| `summarize_service_calls` | Summarizes service counts, latency and errors. |
+| `replay_pcap` | Replays a conversation as a mock server or explicitly authorized mock client. |
+| `stop_replay` | Stops an active replay. |
+| `list_replays` | Lists active and recently completed replays. |
 
-The canonical hyphenated values above are emitted on output. CLR enum
-names such as `InProcessClient` and `ServiceTimeline` remain accepted
-on input.
+Key export, decode and replay are disabled until the host opts in. Treat
+capture/key-log output as secret material, not ordinary logs. Caller-supplied
+paths stay within the capture root; replay does not grant arbitrary outbound
+access. For registration, selectors, paths and output formats, see the
+[Diagnostics package reference](../tools/Opc.Ua.Mcp.Diagnostics/NugetREADME.md).
 
 ## Tool Profiles
 
@@ -104,7 +115,7 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
 | `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
-| `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | Perception-driven agents and Machine Vision control/management workflows — see [Vision](Vision.md) and [Machine Vision](Vision.md#mcp) |
+| `vision` | Connection, draft perception tools, and released OPC 40100 control/asset tools | [Perception](#perception-tools) and [Machine Vision](#machine-vision-tools) workflows |
 | `amb` | Connection plus asset discovery, reads, observations and explicit asset changes | Asset inventory, health, maintenance and documentation |
 | `machinery` | Connection plus machine building blocks, process values, energy, job information and results | Machine monitoring and result retrieval; compose with `isa95` for job commands |
 | `scales` | Connection plus weights, products, recipes and scale/PackML commands | Weighing workflows; compose with `di` for explicit product locking |
@@ -128,7 +139,11 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 - The `McpServer:ToolProfile` configuration value
 - The `OPCUA_MCP_TOOL_PROFILE` environment variable
 
-**Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 81-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
+**Profiles compose.** Select several with a comma-separated `--profile`, such
+as `vision,robotics`. The host includes shared connection tools only once.
+The [BinPickingClient sample](../samples/Robotics/BinPickingClient) uses this
+composition; see the [Vision package reference](../tools/Opc.Ua.Mcp.Vision/NugetREADME.md#composed-with-robotics)
+for embedding it.
 
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
 
@@ -141,24 +156,8 @@ profiles keep their tool sets. Profiles select a catalog, not permissions.
 
 `robotics_vision_pick` closes the common perception-to-action path without
 making an agent copy a result NodeId and several resource NodeIds between tool
-calls. It runs one detection inference through `Opc.Ua.Vision.Client`, on the
-same named OPC UA session as the Robot Intent controller, then submits either
-one Pick or a two-step Pick/Place mission:
-
-```json
-{
-  "request": {
-    "controller": "BinPickingController",
-    "pipeline": "BinPickingPipeline",
-    "source": "Bin",
-    "tool": "ParallelGripper",
-    "destination": "Fixture",
-    "classLabel": "RedCube",
-    "minimumConfidence": 0.9,
-    "missionId": "place-red-cube"
-  }
-}
-```
+calls. It runs one detection inference on the controller's named session, then
+submits either one Pick or a two-step Pick/Place mission.
 
 Detection selection is deterministic: exact DetectionId/ClassLabel filters and
 the confidence threshold are applied first, then highest confidence wins with
@@ -166,6 +165,92 @@ ordinal DetectionId and original result order as tie-breakers. The result
 contains Vision result/pipeline/sensor/model/frame provenance, the selected
 pose, and the authoritative intent or mission handle. The helper does not
 request authority, wait, retry, cancel, or reinterpret a server refusal.
+See the [Robotics request contract](../tools/Opc.Ua.Mcp.Robotics/NugetREADME.md)
+for structured selectors and JSON examples.
+
+### Robot Intent tools
+
+Read capabilities before commanding and request authority explicitly. A refusal
+such as a safety limit, unsupported capability, wrong mode or another control
+owner is a server decision, not a reason for an automatic retry. These tools
+do not change operational mode, clear stops, implement safety-rated control or
+bypass the robot's path planning and safety system.
+
+| Tools | What they do |
+| --- | --- |
+| `robotics_list_controllers`, `robotics_read_controller` | Discover controllers and read supported intents, facets and lookup tables. |
+| `robotics_read_state` | Read live controller state. |
+| `robotics_list_operations`, `robotics_list_missions` | Return filtered, bounded work summaries. |
+| `robotics_wait_operation`, `robotics_wait_mission` | Wait for the selected submitted operation, bounded by a timeout; timeout returns current state, not a fabricated failure. |
+| `robotics_request_control`, `robotics_release_control` | Explicitly obtain or release command authority. |
+| `robotics_cancel_intent`, `robotics_cancel_all` | Cancel the selected intent or all applicable work. |
+| `robotics_pause`, `robotics_resume`, `robotics_retry` | Issue the corresponding explicit control command. |
+| `robotics_submit_joint_move`, `robotics_submit_linear_move`, `robotics_submit_circular_move` | Submit a joint, linear or circular motion intent. |
+| `robotics_submit_trajectory`, `robotics_submit_cartesian_path` | Submit a trajectory or Cartesian path intent. |
+| `robotics_submit_force`, `robotics_submit_arc_weld`, `robotics_submit_spot_weld` | Submit a supported force or welding intent. |
+| `robotics_submit_dispense`, `robotics_submit_fasten`, `robotics_submit_surface_finish` | Submit a supported process intent. |
+| `robotics_submit_palletise`, `robotics_submit_grasp`, `robotics_submit_release`, `robotics_submit_pick`, `robotics_submit_place` | Submit the selected material-handling intent. |
+| `robotics_submit_tool_change`, `robotics_submit_set_output`, `robotics_submit_call_program`, `robotics_submit_wait` | Submit an explicit tool, output, program or wait intent. |
+| `robotics_submit_mission`, `robotics_update_mission`, `robotics_cancel_mission` | Submit a mission, update its horizon or cancel it. |
+| `robotics_vision_pick` | Run detection and submit a deterministic Pick or Pick/Place, retaining provenance and submission handles. |
+
+Resolution by published name is read-only; ambiguous names fail rather than
+selecting a controller or target arbitrarily. No tool acquires control as a
+side effect. See the [Robotics API/JSON reference](../tools/Opc.Ua.Mcp.Robotics/NugetREADME.md).
+
+### Perception tools
+
+| Tools | What they do |
+| --- | --- |
+| `vision_list_sensors`, `vision_list_pipelines`, `vision_list_frames`, `vision_list_calibrations` | Discover sensors, inference pipelines, coordinate frames and calibrations. |
+| `vision_read_sensor`, `vision_read_pipeline`, `vision_read_extrinsic_calibration` | Inspect selected sensor, pipeline and calibration metadata. |
+| `vision_read_detection_result`, `vision_read_inspection_result`, `vision_read_segmentation_result` | Retrieve the corresponding complete result. |
+| `vision_get_frame` | Return an encoded image as MCP image content with its MIME type, or an actionable rendering failure. |
+| `vision_get_frame_metadata` | Inspect the frame without transferring its pixels. |
+| `vision_run_inference` | Run one inference and return its identity, kind, provenance and a bounded summary or handle. |
+| `vision_start_continuous_inference`, `vision_stop_inference` | Explicitly start or stop continuous inference. |
+| `vision_submit_detections`, `vision_submit_inspection_result` | Submit off-server perception results. |
+| `vision_submit_correction`, `vision_submit_image_reference` | Provide correction feedback or a referenced image. |
+| `vision_read_frame`, `vision_compose_pose`, `vision_compose_transform` | Inspect frames and compose a pose or transform between them. |
+
+The tools use an existing named session. Request a full result only when needed;
+inference already returns enough identity and provenance to follow up. See the
+[Vision API/JSON reference](../tools/Opc.Ua.Mcp.Vision/NugetREADME.md).
+
+### Machine Vision tools
+
+| Tool | What it does |
+| --- | --- |
+| `vision_machine_list` | Discover released control systems or assets. |
+| `vision_machine_read_state` | Read control/automatic states, with optional status and step details. |
+| `vision_machine_command` | Issue an explicit control, simulation, synchronization or ConfirmAll command. |
+| `vision_machine_read_asset` | Read bounded, namespace-qualified inventory and health values. |
+| `vision_machine_recipes` | Manage recipes/products and their metadata handles. |
+| `vision_machine_configurations` | Manage configurations and their metadata handles. |
+| `vision_machine_results` | Read result metadata/components and release metadata handles. |
+| `vision_machine_report_safety` | Report safety information without bypassing controller safety. |
+| `vision_machine_file` | Transfer chunks and inspect or wait for file-commit completion. |
+| `vision_machine_recipe_object` | Prepare a selected recipe or manage its product links. |
+| `vision_machine_condition` | Explicitly acknowledge, confirm or comment on an exact condition occurrence. |
+| `vision_machine_capabilities` | Distinguish model support from actual optional interfaces and executable methods. |
+| `vision_machine_relationships` | Page same-entity, optical, data-transmission and interface references one hop at a time. |
+| `vision_machine_observe` | Collect bounded events or refreshed conditions, then clean up its own subscription. |
+| `vision_machine_upload_recipe` | Register/upload a complete small recipe and wait for commit, without preparing it. |
+| `vision_machine_upload_configuration` | Register/upload a complete small configuration without activating it. |
+| `vision_machine_download_result` | Download complete small result content and release file/metadata handles. |
+
+Namespace presence does not prove optional functionality. Start with
+capabilities, then inspect state or relationships. Observations never acknowledge
+anything and leave other subscriptions open; a completed refresh does not
+guarantee that no notifications were dropped. Cancellation and failed setup
+remain errors.
+
+Metadata pages cap at 100 entries; complete-file tools handle at most 1 MiB.
+Use chunked file operations for larger content. Downloads return a complete
+file or fail, never a truncated success. Upload, preparation, activation and
+acquisition remain separate actions. Commit waits cap at 60 seconds and do not
+retry a commit. See the [Vision API/JSON reference](../tools/Opc.Ua.Mcp.Vision/NugetREADME.md#machine-vision-json-contract)
+for bounds, structured identifiers and result fields.
 
 ### Industrial companion tools
 
@@ -205,6 +290,150 @@ for cross-family handoffs, [file transfers](#companion-file-transfers) for host
 policy, and [embedding industrial companions](#embedding-industrial-companions)
 for library registration.
 
+#### AMB tools
+
+| Tools | What they do |
+| --- | --- |
+| `amb_discover_assets`, `amb_find_assets` | Discover local assets or find them through aliases. |
+| `amb_list_aliases`, `amb_read_category` | Browse aliases and inspect their category/version information. |
+| `amb_read_asset` | Read identification, health, maintenance, documentation or a live snapshot. |
+| `amb_browse_locations` | Browse an asset's location relationships. |
+| `amb_observe` | Observe selected asset changes for a bounded interval. |
+| `amb_write_asset_id` | Explicitly change an asset identifier. |
+| `amb_acknowledge` | Acknowledge the exact condition/event occurrence selected by the caller. |
+| `amb_add_documentation_link`, `amb_write_documentation_link`, `amb_remove_documentation_link` | Explicitly add, edit or remove an asset documentation link. |
+
+Reads never acknowledge alarms or change identifiers. Remote references are
+returned but not followed. Snapshots are sequential live reads, not atomic
+plant snapshots; no unsupported AMB historical interface is invented.
+[API/JSON reference](../tools/Opc.Ua.Mcp.AMB/NugetREADME.md).
+
+#### Machinery tools
+
+| Tools | What they do |
+| --- | --- |
+| `machinery_list_machines`, `machinery_list_components`, `machinery_list_building_blocks` | Discover actual machine, component and advertised building-block identities. |
+| `machinery_read` | Read identification, health, counters or current item/operating state. |
+| `machinery_list_lifetime_counters`, `machinery_list_equipment` | Inspect lifetime thresholds and equipment identity/life. |
+| `machinery_list_process_values`, `machinery_read_process_value` | Discover process values and read measurements, setpoints, limits, units and quality. |
+| `machinery_zero_point_adjustment` | Explicitly request calibration-changing zero-point adjustment. |
+| `machinery_list_energy`, `machinery_read_meter` | Discover resources/meters/sub-meters and read typed measurements. |
+| `machinery_list_jobs`, `machinery_read_job_parameters` | Read published orders/responses and their typed parameters. |
+| `machinery_get_job_endpoints` | Return actual order-receiver and optional response-provider endpoints for ISA-95 follow-up. |
+| `machinery_list_results`, `machinery_read_result`, `machinery_list_published_results` | Find results, read metadata/content and inspect published result variables. |
+| `machinery_download_result` | Stream a bounded result into a new local artifact. |
+| `machinery_observe` | Collect bounded state, result-ready, notification or zero-adjustment events. |
+
+There are no item-state or operating-mode setters. Missing job roles are not
+substituted, and Machinery has no response receiver. Result searches that reach
+their limit must be narrowed; completed handles are released.
+[API/JSON reference](../tools/Opc.Ua.Mcp.Machinery/NugetREADME.md).
+
+#### Scales tools
+
+| Tools | What they do |
+| --- | --- |
+| `scales_list`, `scales_read`, `scales_observe` | Discover scales, inspect weights/products/recipes/facets and observe bounded changes. |
+| `scales_set_zero`, `scales_set_tare`, `scales_clear_tare`, `scales_set_preset_tare` | Explicitly adjust zero or tare state. |
+| `scales_register_weight` | Register a weight using the selected scale's operation. |
+| `scales_add_product`, `scales_remove_product` | Add or remove a product. |
+| `scales_select_product`, `scales_deselect_product`, `scales_switch_product` | Explicitly change the selected product. |
+| `scales_packml_command`, `scales_standard_command` | Invoke a supported, finite PackML or standard scale command. |
+| `scales_set_reference_piece_weight`, `scales_set_number_of_reference_pieces`, `scales_start_reference` | Configure or start reference weighing. |
+| `scales_set_draft_shields` | Set the supported draft-shield state. |
+| `scales_weigh_vehicle` | Invoke a selected vehicle-weighing operation. |
+| `scales_set_feeder_speed` | Explicitly set feeder speed. |
+| `scales_add_recipe`, `scales_add_recipe_element`, `scales_process_recipe` | Create a recipe/element or explicitly process a recipe. |
+
+An absent weight capability is distinct from an uninitialized measurement.
+Creating a recipe does not start it. For a lock-protected product, compose
+`scales,di` and use the discovered Lock child; no scale command takes or breaks
+the lock implicitly.
+[API/JSON reference](../tools/Opc.Ua.Mcp.Scales/NugetREADME.md).
+
+#### Pumps tools
+
+| Tool | What it does |
+| --- | --- |
+| `pumps_list_pumps` | Discover pumps, deduplicating those visible through multiple folders. |
+| `pumps_read_nameplate` | Read identity and discover markings. |
+| `pumps_list_markings` | Page markings from the returned markings folder, not the pump itself. |
+| `pumps_read_group` | Read a selected measurement, supervision or maintenance group. |
+| `pumps_list_ports` | Inspect pump ports. |
+| `pumps_read_value_set` | Read typed values with their quality and units. |
+| `pumps_read_snapshot` | Read a live pump snapshot. |
+| `pumps_classify_type` | Classify the pump's actual type. |
+
+These tools are read-only and do not invent start/stop controls.
+[API/JSON reference](../tools/Opc.Ua.Mcp.Pumps/NugetREADME.md).
+
+#### Device Integration tools
+
+| Tools | What they do |
+| --- | --- |
+| `di_discover_devices`, `di_browse_topology` | Discover devices/subtypes and browse selected topology roots. |
+| `di_read_device` | Read identification and discover optional lock, transfer and update objects. |
+| `di_read_property`, `di_read_functional_group`, `di_read_lock` | Inspect exact properties, group children or lock state. |
+| `di_write_property` | Explicitly change only AssetId or ComponentName. |
+| `di_acquire_lock`, `di_renew_lock`, `di_release_lock`, `di_break_lock` | Invoke the requested lock operation, never a fallback to another one. |
+| `di_transfer_to_device`, `di_transfer_from_device` | Start a parameter transfer; reading from the device also changes its offline parameter set. |
+| `di_fetch_transfer_results` | Fetch one bounded result chunk, retaining continuation and diagnostics. |
+| `di_read_software_update`, `di_observe_software_update` | Inspect package/state information or observe one update state machine. |
+| `di_prepare_software_update`, `di_abort_prepare` | Explicitly prepare or abort preparation. |
+| `di_upload_software_package` | Stream and commit a host-approved software artifact. |
+| `di_install_software_package`, `di_install_files` | Explicitly install a package or already uploaded server files. |
+| `di_uninstall_software`, `di_resume_installation`, `di_confirm_software_update` | Explicitly uninstall, resume or confirm an update. |
+
+Use the discovered Lock child and retain the same named session while holding
+it. Only zero is a successful device lock return status; a Good Call response
+does not imply lock acquisition. Transfer initiation is not completion: fetch
+results until the device reports completion.
+
+Discover update support, prepare if required, upload, and then deliberately
+choose installation/confirmation. These actions are never chained. Upload does
+not invoke Installation, but DirectLoading devices may apply software at commit.
+There is no reboot/power-cycle command. Observations last at most 30 seconds and
+do not turn missing state machines into empty successful results.
+[API/JSON reference](../tools/Opc.Ua.Mcp.Di/NugetREADME.md).
+
+#### ISA-95 tools
+
+| Tools | What they do |
+| --- | --- |
+| `isa95_list_common_objects`, `isa95_read_common_object` | Discover common-model objects/classes and read typed properties. |
+| `isa95_discover_job_endpoints` | Discover actual V1/V2 order-receiver, response-provider and response-receiver roles. |
+| `isa95_v1_receive_order` | Issue a selected V1 store/start/update/stop/cancel/clear command. |
+| `isa95_v1_query_responses`, `isa95_v1_receive_response` | Query a V1 provider or submit a response to its receiver. |
+| `isa95_v2_store`, `isa95_v2_store_and_start`, `isa95_v2_update` | Submit a complete typed V2 order for the requested action. |
+| `isa95_v2_start`, `isa95_v2_stop`, `isa95_v2_pause`, `isa95_v2_resume` | Issue one explicit V2 lifecycle command. |
+| `isa95_v2_abort`, `isa95_v2_revoke_start`, `isa95_v2_cancel`, `isa95_v2_clear` | Issue the selected abort/revoke/cancel/clear action. |
+| `isa95_v2_query_responses`, `isa95_v2_receive_response` | Query a V2 response provider or submit a response to its receiver. |
+| `isa95_v2_observe_status` | Observe typed job-status events for at most 30 seconds/500 events. |
+
+Call the actual role discovered for the operation; never substitute an order
+receiver for a missing response role. Only bitmap value `1` means model success.
+Zero, mixed failure bits and unknown vendor bits remain refusals even when the
+UA service call succeeds. Compose `machinery,isa95` for Machinery job handoffs.
+[API/JSON reference](../tools/Opc.Ua.Mcp.ISA95/NugetREADME.md).
+
+#### Positioning tools
+
+| Tool | What it does |
+| --- | --- |
+| `positioning_rsl_list` | Discover spatial-object lists, objects and frames. |
+| `positioning_rsl_read` | Read a position/frame or resolve its world-frame chain. |
+| `positioning_rsl_observe` | Observe positions, frames or list-version changes. |
+| `positioning_gpos_list` | Discover zones in GlobalLocations. |
+| `positioning_gpos_read` | Read global positions/locations or inspect a zone transform and fit quality. |
+| `positioning_gpos_transform` | Convert global/local coordinates using the selected zone's control points. |
+| `positioning_gpos_observe` | Observe bounded global position/location changes. |
+
+All tools are read-only. Use the actual server units and CRS; unsupported
+transformers fail rather than silently substituting WGS84. Raw readings retain
+optional fields and quality. World-frame results retain their base chain;
+zone fits report dimension, rank, residuals and invertibility.
+[API/JSON reference](../tools/Opc.Ua.Mcp.Positioning/NugetREADME.md).
+
 ### WoT and registry tools
 
 The WoT and xRegistry modules contribute 35 domain tools. The `wot` profile
@@ -243,10 +472,9 @@ NodeIds and action argument metadata. Compose with `core` or `services` and use
 the existing read/write/call tools; the WoT module does not create a second
 generic service catalogue.
 
-Registry operations preserve the distinction between a logical Resource and a
-concrete Version, even though both use `ResourceType`. Deleting a Resource
-removes its versions and uses `MetaEpoch`; deleting one Version uses that
-Version's `Epoch`. Tools verify the hierarchy before dispatch. Ambiguous legacy
+Registry operations distinguish a logical Resource from a concrete Version.
+Deleting a Resource removes its versions; deleting a Version removes only that
+version. Tools check the hierarchy and concurrency token before dispatch. Ambiguous legacy
 flat layouts remain inspectable but cannot be used to disguise a whole-resource
 deletion as a single-version deletion.
 
@@ -258,27 +486,33 @@ Uploads target concrete versions rather than mutable default-version aliases.
 No tool implicitly enables, refreshes, promotes, retries or acquires a lock.
 Configured server-side automatic behavior is not overridden.
 
-`wot_validate_resource` is a server mutation: validation updates stored state.
-It is different from `wot_validate_document`, which checks document processing
-without modifying a UA server. `wot_refresh` requires explicit selectors or
-`allResources: true`. It preserves partial outcomes and the returned generation.
-Detailed refresh results can be truncated explicitly at the requested item
-limit; they have no continuation cursor that would re-run the mutation.
+`wot_validate_resource` changes stored server state, unlike offline document
+validation. `wot_refresh` preserves partial outcomes and never re-runs a mutation
+to retrieve more result detail. Upload does not implicitly enable, promote or
+refresh content.
 
-Document tools reuse the existing [WoT converter](WoTNodeSetConversion.md) and
-[binding planners](WotBindings.md). Consumer conversion preserves unknown
-vocabulary and residue; strict authoring validation is explicit. A syntactically
-readable document is not automatically a convertible WoT Binding projection.
-Binding analysis reports supported forms and diagnostics but never opens a
-protocol channel or activates an executor.
+See the [WoT API/JSON reference](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md)
+and [xRegistry contract](../tools/Opc.Ua.Mcp.XRegistry/NugetREADME.md).
 
-Inline text is limited to 64 KiB. Larger documents and generated artifacts use
-the configured transfer root, with host byte/count/depth limits and no overwrite.
-Linked document sets are kept together as a document-set ZIP with a manifest of
-exact hrefs and SHA-256 digests; this is an MCP transfer artifact, not a new WoT
-vocabulary. The archive is read without extracting member paths. It can be
-supplied back with `documentSetArchive: true`, so nested documents are not
-silently flattened or dropped.
+#### WoT document tools
+
+| Tool | What it does |
+| --- | --- |
+| `wot_inspect_document` | Identify a supplied document and report bounded metadata without fetching dependencies. |
+| `wot_validate_document` | Validate supported content; distinguish syntax-only results from authoring/conformance checks. |
+| `wot_plan_bindings` | Explain supported forms, binder versions/maturity and diagnostics without executing them. |
+| `wot_to_nodeset` | Convert a document or verified complete document set into a new NodeSet artifact. |
+| `wot_from_nodeset` | Convert a NodeSet into an artifact containing every linked WoT document. |
+
+These tools need no UA session. Consumer conversion preserves unknown vocabulary;
+readable JSON is not automatically a convertible Binding projection or certified
+W3C TD. Planning never activates HTTP, MQTT, Modbus or OPC UA interactions.
+
+Linked sets round-trip together rather than silently dropping non-root members.
+Artifacts are verified by digest, bounded and published without overwrite;
+failures leave no partial output. Remote dependencies require both request
+opt-in and host permission. For archive format, source selectors, limits and
+examples, see the [WoT document contract](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md#document-input-and-artifact-contract).
 
 ### Stack workflow tools
 
@@ -310,60 +544,24 @@ secret references rather than credentials. Files and generated artifacts use
 `TransferRoot`; histories retain private caller/session-bound cursors, not raw
 continuation points that can be replayed against a different session.
 
-Tool inputs retain their advertised typed JSON shapes. For example,
-`history_insert_values` accepts `nodeId`, a root `values` array, and the selected
-`sessionName`:
-
-```json
-{
-  "nodeId": "nsu=urn:plant;s=Temperature",
-  "values": [
-    { "type": "Double", "value": 21.5, "sourceTimestamp": "2026-01-01T12:00:00Z" }
-  ],
-  "sessionName": "historian"
-}
-```
-
-An array-valued sample declares `arrayLength` and supplies indexed scalar cells
-in `arrayElements`; an explicit zero length represents an empty typed array.
 Mutation results retain ordered server statuses and do not imply an atomic
 batch, automatic retry, successful credential persistence, or completed remote
 configuration activation.
+The package references above document registration APIs, JSON request/response
+contracts and examples.
 
 ## Resources
 
-The MCP server exposes connected sessions as **MCP resources**, enabling the LLM to discover, inspect, and subscribe to session state.
-
-| Resource URI | Type | Description |
-|---|---|---|
-| `opcua://sessions` | Direct | List all active sessions with connection status |
-| `opcua://sessions/{name}` | Template | Full details of a named session (endpoint, security, namespaces) |
-| `opcua://sessions/{name}/namespaces` | Template | Server namespace table for a session |
+The host exposes connected sessions as MCP resources for inspection of status,
+security and namespace tables. URI templates and protocol details are in the
+[Core reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results).
 
 ### Multi-Session Support
 
-The server supports **multiple simultaneous sessions** to different OPC UA servers. Each session is identified by a name.
-
-```
-Tool: Connect
-  endpointUrl: "opc.tcp://server1:62541/ReferenceServer"
-  name: "refserver"          (optional — auto-generated from hostname if omitted)
-  autoAcceptCerts: true
-
-Tool: Connect
-  endpointUrl: "opc.tcp://plc1:4840"
-  name: "plc1"
-
-Tool: Browse
-  nodeId: "i=85"
-  sessionName: "refserver"   (optional — uses the only session if there's just one)
-
-Tool: ReadValue
-  nodeId: "ns=2;s=Temperature"
-  sessionName: "plc1"
-```
-
-Sessions are listed via `resources/list` and detailed via `resources/read`.
+Use `Connect` to create a named session and select that name on subsequent
+operations. Omission is valid only when one session is connected. Connecting to
+another server does not close existing sessions, and `Disconnect` affects only
+the selected session.
 
 ## Installation
 
@@ -418,68 +616,24 @@ explicitly.
 
 ### Run on demand without a global installation
 
-MCP clients that accept an executable and argument array can launch the tool
-through `dotnet tool exec`. Put MCP tool arguments after `--`:
-
-```json
-{
-  "mcpServers": {
-    "opcua": {
-      "command": "dotnet",
-      "args": [
-        "tool",
-        "exec",
-        "OPCFoundation.NetStandard.Opc.Ua.Mcp",
-        "--",
-        "--profile",
-        "core"
-      ]
-    }
-  }
-}
-```
+Launch through `dotnet tool exec` or `dnx`, with tool arguments after `--`.
+See the [executable's client configuration examples](../tools/Opc.Ua.Mcp/McpREADME.md#client-configuration).
 
 ### Claude Desktop
 
-Add to your `claude_desktop_config.json` (typically at `%APPDATA%\Claude\claude_desktop_config.json` on Windows or `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "opcua": {
-      "command": "opcua-mcp"
-    }
-  }
-}
-```
+Configure `opcua-mcp` in `claude_desktop_config.json`; see the
+[client configuration examples](../tools/Opc.Ua.Mcp/McpREADME.md#client-configuration).
 
 ### VS Code / GitHub Copilot
 
-Add to your workspace `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "opcua": {
-      "command": "opcua-mcp"
-    }
-  }
-}
-```
+Configure the executable in `.vscode/mcp.json`; see the
+[client configuration examples](../tools/Opc.Ua.Mcp/McpREADME.md#client-configuration).
 
 ### Cursor
 
-Add to your Cursor MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "opcua": {
-      "command": "opcua-mcp"
-    }
-  }
-}
-```
+Use the executable's
+[client configuration examples](../tools/Opc.Ua.Mcp/McpREADME.md#client-configuration)
+in Cursor's MCP settings.
 
 ### HTTP Transport (for remote clients)
 
@@ -503,10 +657,9 @@ $env:OPCUA_MCP_MAX_TRANSFER_BYTES = '67108864'
 opcua-mcp --profile di,machinery
 ```
 
-An embedding application can set `OpcUaMcpOptions.TransferRoot` and
-`MaxTransferBytes`; the executable also accepts configuration keys
-`McpServer:TransferRoot` and `McpServer:MaxTransferBytes`. The default byte limit
-is 64 MiB. A caller cannot raise it through a tool argument.
+The default byte limit is 64 MiB; callers cannot raise the host's limit.
+Embedding and configuration keys are documented in the
+[Core transfer contract](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#transfer-paths).
 
 Tool paths must resolve beneath the root. Symlinks, junctions, path escapes
 and Windows alternate data streams are rejected. The host must keep the root
@@ -527,102 +680,32 @@ profile may apply the software when the upload commits.
 
 Document processing starts with explicitly supplied text/files and dependencies.
 It does not fetch URLs merely because they occur in a document. Remote
-dependencies require both `resolveRemoteDependencies: true` on that invocation
+dependencies require both explicit opt-in on that invocation
 and an exact host-configured HTTPS origin allowlist. An empty allowlist denies
 all remote retrieval.
 
-```json
-{
-  "McpServer": {
-    "ToolProfile": "wot-documents",
-    "TransferRoot": "C:\\opcua-mcp-transfer",
-    "Wot": {
-      "AllowedDependencyOrigins": [
-        "https://models.example.org",
-        "https://schemas.example.org:8443"
-      ],
-      "AllowPrivateDependencyAddresses": false,
-      "MaxDocumentBytes": 16777216,
-      "MaxTotalBytes": 67108864,
-      "MaxDocuments": 256,
-      "MaxResolverDepth": 16,
-      "OperationTimeoutMilliseconds": 30000,
-      "MaxConcurrentOperations": 2
-    }
-  }
-}
-```
-
-The host can also set `OPCUA_MCP_WOT_DEPENDENCY_ORIGINS` to a comma- or
-semicolon-separated origin list and `OPCUA_MCP_WOT_ALLOW_PRIVATE_DEPENDENCIES`
-to an explicit Boolean. Configuration values take precedence. Tool arguments
-cannot change these settings or raise host resource ceilings.
-
-Origins include the normalized host and effective port, not an arbitrary URL
-prefix. Paths, query strings, fragments, credentials and non-HTTPS schemes
-are rejected in allowlist entries. Every dependency is checked; redirects are
-rejected, cookies and ambient credentials are disabled, and no system proxy is
-used. DNS addresses are checked before connecting to those exact addresses,
-without a second resolution. Private addresses require explicit host policy;
-loopback is blocked. A custom injected HTTP transport is trusted host code and
-must retain these guarantees.
-
-The whole-operation deadline covers the source and every dependency request.
-Declared sizes and actual decompressed bytes are both bounded. Cycle, depth and
-document limits apply across the operation, including generated linked-document
-sets and their preservation partitions. Results carry provenance and
-digests rather than large inline document bodies; credential-bearing URL
-details are not suitable for logs.
-
-Document sources, dependency arrays and refresh selectors are top-level MCP
-arguments; scalar settings live in `options`, without an extra `input`
-envelope. This keeps schemas shallow and argument counts small without
-stringifying arrays or hiding them behind references. Embedding C# callers
-continue to use `WotDocumentInput` and `WotRefreshInput`; the registered MCP
-adapter binds the advertised fields to those same typed methods.
+Redirects, ambient credentials, proxies and loopback are blocked. Private
+addresses require host permission. Size, count, depth and deadline limits cover
+the whole operation, including linked sets and dependencies. Results provide
+provenance and digests, not large inline documents. See the
+[WoT host/API reference](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md#remote-dependency-policy)
+for settings, network validation and JSON examples.
 
 ### Privileged and live execution policy
 
 **Selecting `full` or an administrative profile does not grant authority.**
-`McpServer:Execution` contains independent host capabilities, exact caller
-grants and network rules. Generic `Call`, `CallMethod`, `Write`, `WriteValue`,
+The host requires independent capabilities, exact caller grants and network
+rules. Generic `Call`, `CallMethod`, `Write`, `WriteValue`,
 node/reference changes and relevant history/file paths also enforce protected
 model authority. A disabled administrative workflow cannot be reached through
 a less-specific tool. Untyped secret-returning methods require a typed,
 secret-safe workflow even when issuance is enabled.
 
-An isolated stdio host uses subject `stdio`, issuer
-`urn:opcfoundation:mcp:local-host`, and `IsLocal: true`. Enabling a capability
-still requires an explicit matching caller grant. HTTP hosting cannot use
-`LocalCallerId`: an embedding host must authenticate requests and supply a
-stable subject and issuer. Anonymous HTTP calls cannot acquire privileged
-authority or another caller's retained handles.
-
-For example, an operator can grant a local caller role administration on one
-named session without granting certificates, credentials or protocol execution:
-
-```json
-{
-  "McpServer": {
-    "ToolProfile": "roles,users",
-    "Execution": {
-      "EnabledCapabilities": [ "IdentityAdministration" ],
-      "CallerGrants": [
-        {
-          "Caller": {
-            "Subject": "stdio",
-            "Issuer": "urn:opcfoundation:mcp:local-host",
-            "IsLocal": true
-          },
-          "Capabilities": [ "IdentityAdministration" ],
-          "SessionNames": [ "maintenance" ],
-          "SecretAliases": []
-        }
-      ]
-    }
-  }
-}
-```
+HTTP calls need authenticated identity; anonymous callers cannot gain
+privileged authority or another caller's retained handles. Local stdio identity
+also needs an explicit grant. See the
+[Core host-policy reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#host-policy-and-configuration)
+for configuration and embedding.
 
 The remote server's permissions, identities and security mode remain additional
 requirements; host grants do not create a `SecurityAdmin` role or trust a
@@ -631,12 +714,9 @@ and history continuation points to their actual UA generation. Reconnection
 must fail or invalidate the old operation, not send an old handle to a new
 session.
 
-For host-supplied custom `ISession` implementations, generic mutations require
-an explicit `IMcpFixedSessionContract` for the registered instance. The contract
-warrants that transport, authentication, namespaces and type metadata remain
-fixed across classification and dispatch; it does not grant a capability.
-Undeclared custom sessions fail closed. Stack `ManagedSession` connections
-always use the generation-bound request context, regardless of that contract.
+Generic mutation tools refuse unsupported session lifetimes instead of risking
+dispatch to a replacement. Custom-session embedding requirements are documented
+in the [Core package](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#generic-mutations-and-session-lifetime).
 
 Live TCP network grants identify an exact scheme, host, port, operation and
 resource plus permitted CIDR addresses. Empty grants deny all. DNS is checked
@@ -658,12 +738,8 @@ The pre-existing UDP convenience runtime retains its explicit until-stop
 lifetime, with the new host execution gate.
 
 Credential, password, token, private-key and SKS inputs are references, not
-plaintext tool arguments. An embedding host supplies its existing
-`ISecretRegistry`, exact `McpSecretAlias` bindings and an explicitly selected
-`ISecretStore` through `AddOpcUaMcpSecrets` before module registration. No
-writable store is implicitly selected, including an in-memory store.
-Reference capacity is reserved before a remote finish operation. Results
-distinguish remote issuance from local persistence, so a failed store operation
+plaintext tool arguments. The host must choose its secret store explicitly.
+Results distinguish remote issuance from local persistence, so a failed store operation
 does not imply the remote request rolled back or may safely be repeated.
 Private material never belongs in `TransferRoot`.
 
@@ -712,19 +788,16 @@ state machines have no standard client cause methods. Pumps and Positioning
 remain observational. AMB history is not promised where the typed client has
 no history implementation.
 
-Creation-time bounds passed to `machinery_list_results` must include `Z` or
-an explicit UTC offset. For example, `2026-01-01T00:00:00Z` and
-`2026-01-01T02:00:00+02:00` identify the same instant. Timezone-less timestamps
-are rejected instead of being interpreted in the MCP host's local timezone.
+`machinery_list_results` rejects timezone-less creation-time bounds rather than
+interpreting them in the host's local timezone. See its package contract for
+formats and examples.
 
 ### Companion results, errors and bounds
 
-Companion tools return matching textual JSON and MCP structured content.
-UA values retain their type, quality and timestamps where the client contract
-provides them. Non-finite numbers are explicit `"NaN"`, `"Infinity"` or
-`"-Infinity"` strings, not zero or an absent measurement. Structured UA values
-use their generated encoding implementation instead of reflective property
-enumeration or a `ToString()` summary.
+Companion results retain UA types, quality and timestamps. Uninitialized or
+non-finite measurements are not reported as zero or absence; see the
+[Core JSON contract](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results)
+for encoding.
 
 A service failure is an MCP error with its original status. Model-specific
 return codes, including ISA-95 job and DI lock statuses, are not confused
@@ -738,8 +811,7 @@ result, late cancellation does not replace that result with a cancellation
 error: a mutation or software-package commit may already have taken effect.
 Downloads still honor cancellation before publishing their local destination.
 
-Paged lists return `items`, `offset`, `nextOffset`, `hasMore` and
-`consistency: "live"`. The default page size is 100, with a maximum of 500.
+Most companion lists default to 100 entries, with a maximum of 500.
 Offsets are bounded and refer to a fresh live enumeration, not a durable
 snapshot. Concurrent server changes can shift entries between pages.
 
@@ -752,165 +824,32 @@ session's shared streaming subscription.
 
 ### Typical Workflow
 
-**1. Discover endpoints (no session required):**
+Discover endpoints with `GetEndpoints`, then `Connect` using the intended
+security and identity. Browse with `BrowseAll` before using discovered nodes
+in `ReadValue`, `WriteValue` or `CallMethod`. For persistent notification
+workflows, create a subscription and monitored items, then retrieve queued
+notifications with `Publish`.
 
-```
-Tool: GetEndpoints
-  endpointUrl: "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
-```
-
-**2. Connect to an OPC UA server (auto-select most secure, anonymous):**
-
-```
-Tool: Connect
-  endpointUrl: "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
-  autoAcceptCerts: true
-```
-
-**Or connect with specific security and authentication:**
-
-```
-Tool: Connect
-  endpointUrl: "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
-  securityMode: "SignAndEncrypt"
-  securityPolicy: "Basic256Sha256"
-  authType: "Username"
-  username: "admin"
-  password: "password"
-  autoAcceptCerts: true
-```
-
-**2. Explore the address space:**
-
-```
-Tool: BrowseAll
-  nodeId: "i=85"     (Objects folder)
-  maxDepth: 2
-  maxResults: 50
-```
-
-**3. Read values:**
-
-```
-Tool: ReadValue
-  nodeId: "ns=2;s=MyTemperatureSensor"
-```
-
-**4. Write values:**
-
-```
-Tool: WriteValue
-  nodeId: "ns=2;s=MySetpoint"
-  value: "72.5"
-  dataType: "Double"
-```
-
-**5. Call a method:**
-
-```
-Tool: CallMethod
-  objectId: "ns=2;s=MyMachine"
-  methodId: "ns=2;s=StartProcess"
-  inputArguments: ["fast", "true"]
-```
-
-**6. Monitor changes:**
-
-```
-Tool: CreateSubscription
-  publishingInterval: 1000
-
-Tool: CreateMonitoredItems
-  subscriptionId: <from above>
-  nodeIds: ["ns=2;s=Temperature", "ns=2;s=Pressure"]
-
-Tool: Publish
-  (retrieves queued notifications)
-```
-
-**7. Manage PKI (trust rejected certificates):**
-
-```
-Tool: ListCertificates
-  store: "Rejected"
-
-Tool: TrustCertificate
-  thumbprint: "A1B2C3..."    (from ListCertificates results)
-
-Tool: GetPkiStorePaths
-  (shows where certificate stores are located on disk)
-```
-
-**8. Adjust configuration for current session:**
-
-```
-Tool: GetConfiguration
-  (view current settings)
-
-Tool: SetConfiguration
-  operationTimeout: 60000
-  maxArrayLength: 131072
-  autoAcceptUntrustedCertificates: true
-```
-
-**9. Export the server's address space to NodeSet2 XML:**
-
-```
-Tool: ExportNodeSet
-  filePath: "C:\\export\\server-nodeset.xml"
-  startingNodeId: "i=85"     (Objects folder)
-  exportMode: "Complete"     (includes values)
-```
-
-Or export split by namespace (one file per companion spec):
-
-```
-Tool: ExportNodeSetPerNamespace
-  outputDirectory: "C:\\export\\namespaces"
-```
-
-**10. Disconnect:**
-
-```
-Tool: Disconnect
-```
+Use `ListCertificates` to inspect trust before an explicit `TrustCertificate`;
+do not auto-accept certificates in production. Inspect configuration before
+changing it. `ExportNodeSet` writes an address-space export, while
+`ExportNodeSetPerNamespace` splits it by namespace. Finish with `Disconnect`
+for the selected session.
 
 ### NodeId Formats
 
-The MCP server accepts NodeIds in standard OPC UA string format:
-
-| Format | Example | Description |
-|---|---|---|
-| Numeric | `i=2258` | Numeric identifier in namespace 0 |
-| Numeric with namespace | `ns=2;i=1001` | Numeric identifier in namespace 2 |
-| String | `ns=2;s=MyVariable` | String identifier |
-| GUID | `ns=2;g=12345678-1234-1234-1234-123456789abc` | GUID identifier |
-| Opaque | `ns=2;b=Base64EncodedData` | ByteString identifier |
+Use identifiers returned by discovery. Supported notation and examples are in
+the [Core argument reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results).
 
 ### Common Well-Known NodeIds
 
-| NodeId | Description |
-|---|---|
-| `i=84` | Root node |
-| `i=85` | Objects folder |
-| `i=86` | Types folder |
-| `i=87` | Views folder |
-| `i=2253` | Server object |
-| `i=2258` | Server/ServerStatus/CurrentTime |
+The [Core reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results)
+lists standard Root, Objects, Types, Views, Server and CurrentTime identifiers.
 
 ### Error Handling
 
-When an OPC UA service returns an error, tools return a structured JSON response:
-
-```json
-{
-  "error": true,
-  "statusCode": "BadNodeIdUnknown",
-  "message": "The node id refers to a node that does not exist in the server address space."
-}
-```
-
-This is normal behavior — not all servers support all services. Common status codes:
+Tools return errors rather than pretending an unsupported or refused operation
+succeeded. Not all servers support all services:
 
 | Status Code | Meaning |
 |---|---|
@@ -928,16 +867,11 @@ In addition to the client services above, the server exposes OPC UA PubSub
 [Diagnostics.md §5](Diagnostics.md#5-pubsub-packet-capture-and-dissection) for
 the capture / dissection details.
 
-**Configuration and Security Key Service methods.** PubSub configuration
-(`AddConnection`, `AddWriterGroup`, `AddReaderGroup`, `AddDataSetWriter`,
-`AddDataSetReader`, `Status.Enable` / `Disable`) and the Security Key Service
-(`GetSecurityKeys`, `AddSecurityGroup` / `RemoveSecurityGroup`) are standard
-server-side `PublishSubscribe` object methods, so they are invoked with the
-generic [`Call`](#usage) tool rather than dedicated wrappers — pass the
-`PublishSubscribe` object NodeId (or the target connection / group NodeId) and
-the corresponding method NodeId (e.g. `i=14443` for
-`PublishSubscribe_AddConnection`, `i=15215` for
-`PublishSubscribe_GetSecurityKeys`).
+**Configuration and Security Key Service workflows** have dedicated profiles.
+Use those tools for typed, authorized mutations and secret-safe key handling;
+generic Call is not a bypass for protected or secret-returning operations.
+The [PubSub package reference](../tools/Opc.Ua.Mcp.PubSub/NugetREADME.md)
+contains registration, transport selectors and JSON contracts.
 
 **In-process publish/subscribe runtime:**
 
@@ -982,64 +916,6 @@ The MCP tools ship as eighteen libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
-```
-tools/
-├── Opc.Ua.Mcp.Core/                     # Part 4 service tools, session manager, options, filters
-│   ├── OpcUaMcpCoreExtensions.cs        # AddOpcUaMcpCore, WithOpcUaCoreTools, WithOpcUaMcpFilters
-│   ├── OpcUaSessionManager.cs           # OPC UA client session lifecycle
-│   ├── McpCapturePath.cs                # Path-traversal guard shared by the capture packages
-│   ├── Tools/
-│   │   ├── ConnectionTools.cs           # GetEndpoints, Connect, Disconnect, GetConnectionStatus
-│   │   ├── AttributeServiceTools.cs     # Read, Write, HistoryRead, HistoryUpdate
-│   │   ├── ViewServiceTools.cs          # Browse, BrowseNext, TranslateBrowsePaths, etc.
-│   │   ├── NodeManagementServiceTools.cs# AddNodes, AddReferences, DeleteNodes, etc.
-│   │   ├── MethodServiceTools.cs        # Call
-│   │   ├── SubscriptionServiceTools.cs  # CreateSubscription, Publish, etc.
-│   │   ├── MonitoredItemServiceTools.cs # CreateMonitoredItems, etc.
-│   │   ├── DiscoveryServiceTools.cs     # FindServers, RegisterServer, etc.
-│   │   ├── PkiTools.cs                  # ListCertificates, TrustCertificate, etc.
-│   │   ├── ConfigurationTools.cs        # Full-profile compatibility configuration tools
-│   │   ├── ConfigurationReadTools.cs    # Profile-safe configuration reader
-│   │   ├── ConfigurationUpdateTools.cs  # Focused transport/client/security setters
-│   │   ├── NodeSetExportTools.cs        # ExportNodeSet, ExportNodeSetPerNamespace
-│   │   └── ConvenienceTools.cs          # ReadValue, BrowseAll, CallMethod, etc.
-│   └── Serialization/
-│       └── OpcUaJsonHelper.cs           # OPC UA ↔ JSON type conversion
-├── Opc.Ua.Mcp.PubSub/                   # PubSub transports, configuration, bridges, SKS, actions and discovery
-│   ├── PubSubRuntimeManager.cs
-│   └── Tools/{PubSubRuntime,PubSubAction,PubSubDiscovery}Tools.cs
-├── Opc.Ua.Mcp.Diagnostics/              # UA-TCP capture, decode and replay
-│   └── Tools/{PacketCapture,PacketDecode,PacketReplay}Tools.cs
-├── Opc.Ua.Mcp.PubSub.Diagnostics/       # PubSub capture and decode
-│   └── Tools/{PubSubCapture,PubSubDecode}Tools.cs
-├── Opc.Ua.Mcp.Robotics/                 # Robot Intent plus same-session Vision-guided picking
-│   ├── RoboticsIntentManager.cs
-│   ├── VisionGuidedRoboticsManager.cs
-│   └── Tools/Robotics{Discovery,Monitoring,Control,Mission,Vision}Tools.cs
-├── Opc.Ua.Mcp.Vision/                   # Vision discovery, monitoring, seeing, inference, feedback, geometry
-│   ├── VisionClientAccessor.cs
-│   └── Tools/Vision{Discovery,Monitoring,Seeing,Inference,Feedback,Geometry}Tools.cs
-├── Opc.Ua.Mcp.AMB/                      # Asset inventory, health, maintenance and documentation
-├── Opc.Ua.Mcp.Machinery/                # Machine monitoring, process values, energy, jobs and results
-├── Opc.Ua.Mcp.Scales/                   # Weighing, products, recipes and PackML
-├── Opc.Ua.Mcp.Pumps/                    # Pump measurements, supervision and maintenance
-├── Opc.Ua.Mcp.Di/                       # Device topology, locking, transfers and software updates
-├── Opc.Ua.Mcp.ISA95/                    # Common objects and V1/V2 job control
-├── Opc.Ua.Mcp.Positioning/              # Spatial frames, global locations and transforms
-├── Opc.Ua.Mcp.WotCon/                   # WoT management, documents and independently registered live runtimes
-│   ├── Runtime/                        # Explicit live binding execution and lifetime support
-│   └── Tools/                          # Management, document and runtime tool classes
-├── Opc.Ua.Mcp.XRegistry/                # Generic registry/version/label/file operations
-├── Opc.Ua.Mcp.Gds/                      # Directory, certificates, credentials/tokens and onboarding
-├── Opc.Ua.Mcp.Workflows/                # Roles/users, files, alarms and historical access
-├── Opc.Ua.Mcp.Schema/                   # Bounded types, XSD/BSD/JSON, PubSub and OpenAPI artifacts
-└── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
-    ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
-    ├── McpHostBuilder.cs                # Composes the tool libraries
-    ├── Opc.Ua.Mcp.Config.xml            # OPC UA client application config
-    └── .mcp/server.json                 # MCP server manifest for NuGet discovery
-```
-
 ### Packages
 
 | Package | Tools | Depends on |
@@ -1076,137 +952,48 @@ stable versions, while development builds retain the root prerelease version.
 
 ### Embedding the tools in your own MCP server
 
-An application that wants OPC UA tools *and* its own application-level tools
-composes them rather than shelling out to `opcua-mcp`:
+Embedding APIs, profile composition and JSON contracts are documented in each
+package README, not in this tool catalogue. Start with the
+[Core registration guide](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#usage), then use
+the owning package's reference:
 
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Opc.Ua.Mcp;
+| Area | API/JSON reference |
+| --- | --- |
+| Core services, authority and shared transfers | [Core](../tools/Opc.Ua.Mcp.Core/NugetREADME.md) |
+| Capture and replay | [Diagnostics](../tools/Opc.Ua.Mcp.Diagnostics/NugetREADME.md) |
+| PubSub transport/configuration/bridges/SKS | [PubSub](../tools/Opc.Ua.Mcp.PubSub/NugetREADME.md) |
+| PubSub capture | [PubSub diagnostics](../tools/Opc.Ua.Mcp.PubSub.Diagnostics/NugetREADME.md) |
+| Robot Intent | [Robotics](../tools/Opc.Ua.Mcp.Robotics/NugetREADME.md) |
+| Perception and Machine Vision | [Vision](../tools/Opc.Ua.Mcp.Vision/NugetREADME.md) |
+| Asset management | [AMB](../tools/Opc.Ua.Mcp.AMB/NugetREADME.md) |
+| Machines and results | [Machinery](../tools/Opc.Ua.Mcp.Machinery/NugetREADME.md) |
+| Weighing | [Scales](../tools/Opc.Ua.Mcp.Scales/NugetREADME.md) |
+| Pump inspection | [Pumps](../tools/Opc.Ua.Mcp.Pumps/NugetREADME.md) |
+| Device integration | [DI](../tools/Opc.Ua.Mcp.Di/NugetREADME.md) |
+| Jobs | [ISA-95](../tools/Opc.Ua.Mcp.ISA95/NugetREADME.md) |
+| Coordinates | [Positioning](../tools/Opc.Ua.Mcp.Positioning/NugetREADME.md) |
+| WoT management, documents and live runtime | [WoTCon](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md) |
+| Registry operations | [xRegistry](../tools/Opc.Ua.Mcp.XRegistry/NugetREADME.md) |
+| Directory, certificates, credentials and onboarding | [GDS](../tools/Opc.Ua.Mcp.Gds/NugetREADME.md) |
+| Roles/users, files, alarms and history | [Workflows](../tools/Opc.Ua.Mcp.Workflows/NugetREADME.md) |
+| Type/schema artifacts | [Schema](../tools/Opc.Ua.Mcp.Schema/NugetREADME.md) |
 
-builder.Services.AddOpcUaMcpCore();
-
-builder.Services.AddMcpServer()
-    .WithStdioServerTransport()
-    .WithOpcUaMcpFilters()
-    .WithOpcUaCoreTools(McpToolProfile.Services)
-    .WithTools<MyApplicationTools>();
-```
-
-Add any of the other packages the same way — each contributes a service
-registration and a tool registration:
-
-```csharp
-builder.Services.AddOpcUaMcpPubSub();
-builder.Services.AddOpcUaMcpDiagnostics();
-builder.Services.AddOpcUaMcpPubSubDiagnostics();
-builder.Services.AddOpcUaMcpRobotics();
-builder.Services.AddOpcUaMcpVision();
-
-mcp.WithOpcUaPubSubTools(profile)
-   .WithOpcUaDiagnosticsTools(profile, diagnosticsEnabled)
-   .WithOpcUaPubSubDiagnosticsTools(profile, diagnosticsEnabled)
-   .WithOpcUaRoboticsTools(profile)
-   .WithOpcUaVisionTools(profile);
-```
-
-`WithOpcUaMcpFilters` registers the request and schema filters that make tool
-errors actionable and tool schemas explicit. Call it once per server, even when
-several OPC UA tool packages are composed.
-
-`McpToolProfile` is shared vocabulary that lives in Core, and each package maps
-the profile to its own tools. A profile a package does not own contributes
-nothing rather than failing, so the same profile value can be passed to every
-package a host references — `Full` in a host that never referenced
-`Opc.Ua.Mcp.Diagnostics` simply yields no capture tools.
-
-Bounded profiles that own their own connection tools — `Vision` in the
-example above — carry `ConnectionTools` themselves in the single-profile
-overload of `WithOpcUa...Tools`. When two or more bounded profiles are
-composed through the `McpToolProfileSet` overloads (for example the
-[`vision,robotics` composition](Vision.md#mcp-tools) the BinPickingClient
-sample runs), the corresponding `WithOpcUaCoreTools(McpToolProfileSet)`
-overload owns and deduplicates `ConnectionTools` across every package.
-Each Vision or Robotics package's `McpToolProfileSet` overload never
-registers `ConnectionTools` directly, so the composed catalog contains
-one Connection surface, not several.
-
-The capture tool classes stay `internal` and are reachable only through their
-registration extensions.
+See [Core's NativeAOT limitations](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#trimming-and-native-aot)
+before selecting an ahead-of-time host; reflection-free model encoding is not
+the same as complete host registration support.
 
 ### Embedding industrial companions
 
-Each industrial family is a separate
-`OPCFoundation.NetStandard.Opc.Ua.Mcp.<Family>` package, so an embedding host
-only needs to reference and register the modules it uses:
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Opc.Ua.Mcp;
-
-var profiles = McpToolProfileSet.Parse("machinery,isa95");
-
-builder.Services.AddOpcUaMcpCore();
-builder.Services.AddOpcUaMcpMachinery();
-builder.Services.AddOpcUaMcpIsa95();
-builder.Services.AddMcpServer()
-    .WithStdioServerTransport()
-    .WithOpcUaMcpFilters()
-    .WithOpcUaCoreTools(profiles)
-    .WithOpcUaMachineryTools(profiles)
-    .WithOpcUaIsa95Tools(profiles);
-```
-
-Register filters once. Connection tools are registered once even when multiple
-families need them. A model/package dependency does not silently enable its
-MCP catalog. Accessors can also be constructed directly with an existing
-`OpcUaSessionManager`; they do not own the sessions.
-
-New value projections avoid JSON reflection, but the MCP SDK's existing
-tool-registration path still requires JSON reflection. This feature does not
-make the complete MCP executable NativeAOT-compatible. The repository's MCP
-AOT tests pin that limitation explicitly.
+Each family is a separate package. The
+[Machinery composition example](../tools/Opc.Ua.Mcp.Machinery/NugetREADME.md#composed-registration)
+shows the Machinery/ISA-95 combination. Adding a model dependency does not
+implicitly enable another catalogue.
 
 ### Embedding WoT and xRegistry
 
-Each module can be embedded without the executable host. Register its services,
-then select the required catalogue. The document profile does not open a UA
-session, and registration itself performs no network I/O.
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Opc.Ua.Mcp;
-
-McpToolProfileSet profiles = McpToolProfileSet.Parse("core,wot,xregistry,wot-documents");
-
-builder.Services
-    .AddOpcUaMcpCore(new OpcUaMcpOptions
-    {
-        TransferRoot = "C:\\opcua-mcp-transfer"
-    })
-    .AddOpcUaMcpWotCon(new WotMcpOptions
-    {
-        AllowedDependencyOrigins = ["https://models.example.org"]
-    })
-    .AddOpcUaMcpXRegistry();
-
-builder.Services.AddMcpServer()
-    .WithStdioServerTransport()
-    .WithOpcUaMcpFilters()
-    .WithOpcUaCoreTools(profiles)
-    .WithOpcUaWotConTools(profiles)
-    .WithOpcUaXRegistryTools(profiles);
-```
-
-Use `OpcUaMcpWotConExtensions.CreateWotMcpOptions(configuration)` to share the
-executable's reflection-free configuration binding. The module registers a
-dedicated named HTTP client for controlled dependencies; do not attach
-credentials or redirect/proxy handlers to it.
-
-The same `Opc.Ua.Mcp.WotCon` package also contains live execution, but registration
-remains separate: opt in with `AddOpcUaMcpWotRuntime` and
-`WithOpcUaWotRuntimeTools`. `AddOpcUaMcpWotCon` and `WithOpcUaWotConTools` retain
-their management/document-only behavior. Sharing a package does not activate
-executors, select `wot-runtime`, or grant execution authority.
+The [WoT package reference](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md#composing-registry-tools)
+shows registry composition and the separate live registration. Sharing a package
+does not activate executors, select `wot-runtime`, or grant execution authority.
 
 ### Remaining tooling gaps
 
@@ -1234,7 +1021,8 @@ introduced.
   configured and are limited to 64 MiB by default. See
   [file transfer policy](#companion-file-transfers).
 - Companion commands preserve server permissions and refusals. Discovery never
-  requests authority or takes locks; software upload never implicitly installs.
+  requests authority or takes locks. Upload does not invoke Installation, but
+  DirectLoading devices may apply software when the upload commits.
 - Privileged/live capabilities default off, independently of the selected tool
   catalogue. See [execution policy](#privileged-and-live-execution-policy).
 - The `autoAcceptCerts` parameter is for **testing only**. In production, configure proper certificate trust using the OPC UA certificate stores under `%LocalApplicationData%/OPC Foundation/pki/`.

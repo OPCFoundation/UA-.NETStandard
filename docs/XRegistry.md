@@ -6,10 +6,7 @@ identity**, an **Opaque-NodeId content fast path** that resolves a document in a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
-The [xRegistry MCP profile](McpServer.md#wot-and-registry-tools) exposes generic
-discovery, metadata, versions, labels, bounded document transfers and explicit
-lifecycle operations. Compose it with `wot` for WoT-specific validation and
-materialization; the generic registry catalogue is not duplicated.
+For agent-facing access, see the [xRegistry MCP catalogue](McpServer.md#wot-and-registry-tools).
 
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses

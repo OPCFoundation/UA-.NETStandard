@@ -39,6 +39,50 @@ opcua-mcp --transport http --port 5100
 # --transport sse is a deprecated alias for --transport http
 ```
 
+## Client configuration
+
+For on-demand execution, clients supporting command/argument arrays can use:
+
+```json
+{
+  "mcpServers": {
+    "opcua": {
+      "command": "dotnet",
+      "args": ["tool", "exec", "OPCFoundation.NetStandard.Opc.Ua.Mcp", "--", "--profile", "core"]
+    }
+  }
+}
+```
+
+After global installation, Claude Desktop and Cursor can use:
+
+```json
+{
+  "mcpServers": {
+    "opcua": { "command": "opcua-mcp" }
+  }
+}
+```
+
+Claude's file is typically `%APPDATA%\Claude\claude_desktop_config.json` on
+Windows or `~/Library/Application Support/Claude/claude_desktop_config.json`
+on macOS. Use the corresponding MCP settings in Cursor.
+
+VS Code / GitHub Copilot uses `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "opcua": { "command": "opcua-mcp" }
+  }
+}
+```
+
+Host authority and shared transfer configuration are documented in the
+[Core package reference](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.Mcp.Core/NugetREADME.md#host-policy-and-configuration);
+document dependency configuration is in the
+[WoT package reference](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.Mcp.WotCon/NugetREADME.md#remote-dependency-policy).
+
 ## Tools
 
 The server exposes tools through a **tool profile** — a bounded, named catalog
