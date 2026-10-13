@@ -1215,6 +1215,620 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             });
         }
 
+        /// <summary>
+        /// An owner's turn holds one token per queued request up to its weight, so a large
+        /// weight costs no more scheduling state than the backlog.
+        /// </summary>
+        [Test]
+        public void TurnTokensAreBoundedByTheBacklogNotTheWeight()
+        {
+            var provider = new TestProvider();
+            NodeId heavy = provider.AddOwner("heavy", weight: 1_000_000);
+            NodeId light = provider.AddOwner("light", weight: 2);
+            using var queue = CreateQueue(provider);
+            for (uint ii = 1; ii <= 3; ii++)
+            {
+                Enqueue(queue, new TestRequest(heavy, ii));
+            }
+            for (uint ii = 4; ii <= 6; ii++)
+            {
+                Enqueue(queue, new TestRequest(light, ii));
+            }
+            Assert.That(queue.ReadyTokenCount, Is.EqualTo(5));
+
+            List<uint> order = [];
+            while (queue.TryDequeue(out FairRequestQueue.Entry? entry))
+            {
+                order.Add(entry.Request.Request.RequestHeader.RequestHandle);
+                entry.Dispose();
+            }
+            Assert.That(order, Is.EqualTo(new uint[] { 1, 2, 3, 4, 5, 6 }));
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Cancelled requests leave no turn tokens behind once the queue is empty, even when no
+        /// worker passes over them.
+        /// </summary>
+        [Test]
+        public void CancellingTheLastQueuedRequestsDiscardsTheirTurnTokens()
+        {
+            var provider = new TestProvider();
+            NodeId a = provider.AddOwner("A", weight: 3);
+            NodeId b = provider.AddOwner("B");
+            using var queue = CreateQueue(provider);
+            using var cancellation = new CancellationTokenSource();
+            for (uint ii = 1; ii <= 4; ii++)
+            {
+                Enqueue(queue, new TestRequest(ii % 2 == 0 ? a : b, ii), cancellation.Token);
+            }
+            Assert.That(queue.ReadyTokenCount, Is.EqualTo(3));
+            cancellation.Cancel();
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A turn granted just before its owner is retired, or before the queue stops, and
+        /// published after their cleanup ran, is dropped instead of retaining the retired owner.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TurnPublishedAfterRetirementOrStopIsDiscarded(bool stop)
+        {
+            var provider = new TestProvider();
+            NodeId a = provider.AddOwner("A");
+            FairRequestQueue queue = CreateQueue(provider);
+            using var cancellation = new CancellationTokenSource();
+            var request = new TestRequest(a, 1);
+            int hooked = 0;
+            queue.BeforePublishTurn = () =>
+            {
+                // the turn is granted; retire the owner (or stop) before its token is published
+                if (Interlocked.Increment(ref hooked) == 1)
+                {
+                    if (stop)
+                    {
+                        queue.Dispose();
+                    }
+                    else
+                    {
+                        cancellation.Cancel();
+                    }
+                }
+            };
+
+            Assert.That(queue.TryEnqueue(request, cancellation.Token, out _), Is.True);
+
+            Assert.That(hooked, Is.GreaterThanOrEqualTo(1));
+            Assert.That(request.CompletionCount, Is.EqualTo(1));
+            Assert.That(request.Status, Is.EqualTo(
+                stop ? StatusCodes.BadServerHalted : StatusCodes.BadRequestCancelledByClient));
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+            queue.Dispose();
+        }
+
+        /// <summary>
+        /// A selector whose turn grant races the cancellation of the owner's last request leaves
+        /// no turn token behind once the queue is empty.
+        /// </summary>
+        [Test]
+        public void TurnGrantedBySelectionRacingCancellationIsDiscarded()
+        {
+            var provider = new TestProvider();
+            NodeId a = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            using var cancellation = new CancellationTokenSource();
+            Enqueue(queue, new TestRequest(a, 1));
+            var cancelled = new TestRequest(a, 2);
+            Enqueue(queue, cancelled, cancellation.Token);
+            int hooked = 0;
+            queue.BeforePublishTurn = () =>
+            {
+                // the selector took the last token and granted the next turn for request 2
+                if (Interlocked.Increment(ref hooked) == 1)
+                {
+                    cancellation.Cancel();
+                }
+            };
+
+            using FairRequestQueue.Entry first = Dequeue(queue);
+
+            Assert.That(first.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(1));
+            Assert.That(cancelled.CompletionCount, Is.EqualTo(1));
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
+            Assert.That(queue.TryDequeue(out _), Is.False);
+        }
+
+        /// <summary>
+        /// Two backlogged owners with weights 1 and 3 are served about 1:3 while several
+        /// workers dequeue concurrently.
+        /// </summary>
+        [Test]
+        public async Task WeightedServiceHoldsUnderConcurrentWorkersAsync()
+        {
+            const int perOwner = 450;
+            const int measured = 400;
+            var provider = new TestProvider(executionCapacity: 1000);
+            NodeId light = provider.AddOwner("light", weight: 1, queueLimit: 1000);
+            NodeId heavy = provider.AddOwner("heavy", weight: 3, queueLimit: 1000);
+            using var queue = CreateQueue(provider, maxQueued: 1000);
+            for (uint ii = 0; ii < perOwner; ii++)
+            {
+                Enqueue(queue, new TestRequest(light, ii));
+                Enqueue(queue, new TestRequest(heavy, ii));
+            }
+
+            int dispatched = 0;
+            int lightServed = 0;
+            int heavyServed = 0;
+            using var start = new ManualResetEventSlim();
+            Task[] workers = new Task[8];
+            for (int w = 0; w < workers.Length; w++)
+            {
+                workers[w] = Task.Run(() =>
+                {
+                    start.Wait();
+                    while (Volatile.Read(ref dispatched) < measured &&
+                        queue.TryDequeue(out FairRequestQueue.Entry? entry))
+                    {
+                        if (Interlocked.Increment(ref dispatched) <= measured)
+                        {
+                            if (entry.Owner.Key == "light")
+                            {
+                                Interlocked.Increment(ref lightServed);
+                            }
+                            else
+                            {
+                                Interlocked.Increment(ref heavyServed);
+                            }
+                        }
+                        entry.Dispose();
+                    }
+                });
+            }
+            start.Set();
+            await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            // both owners stay backlogged for the whole measured window
+            Assert.That(lightServed + heavyServed, Is.EqualTo(measured));
+            double ratio = (double)heavyServed / lightServed;
+            Assert.That(ratio, Is.InRange(2.5, 3.5), $"light={lightServed} heavy={heavyServed}");
+
+            while (queue.TryDequeue(out FairRequestQueue.Entry? rest))
+            {
+                rest.Dispose();
+            }
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Producers and waiting workers race on many owners: every admitted request is
+        /// dispatched exactly once and no worker is left waiting with work queued.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task NoWakeupIsLostBetweenProducersAndWaitingWorkersAsync(bool useFairScheduling)
+        {
+            const int producers = 4;
+            const int perProducer = 1500;
+            var provider = new TestProvider(executionCapacity: 1000) { UseFairScheduling = useFairScheduling };
+            NodeId[] owners = new NodeId[8];
+            for (int ii = 0; ii < owners.Length; ii++)
+            {
+                owners[ii] = provider.AddOwner($"owner-{ii}", weight: 1 + (ii % 3), queueLimit: 1000);
+            }
+            using var queue = CreateQueue(provider, maxQueued: 1000);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var seen = new System.Collections.Concurrent.ConcurrentDictionary<TestRequest, int>();
+            int total = producers * perProducer;
+            int dispatched = 0;
+            var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task[] workers = new Task[8];
+            for (int w = 0; w < workers.Length; w++)
+            {
+                workers[w] = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            FairRequestQueue.Entry entry =
+                                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                            Assert.That(seen.TryAdd((TestRequest)entry.Request, 0), Is.True, "dispatched twice");
+                            entry.Dispose();
+                            if (Interlocked.Increment(ref dispatched) == total)
+                            {
+                                drained.TrySetResult(true);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // stopped
+                    }
+                });
+            }
+
+            Task[] producerTasks = new Task[producers];
+            for (int p = 0; p < producers; p++)
+            {
+                int producer = p;
+                producerTasks[p] = Task.Run(() =>
+                {
+                    for (int ii = 0; ii < perProducer; ii++)
+                    {
+                        var request = new TestRequest(
+                            owners[(producer + ii) % owners.Length], (uint)((producer * perProducer) + ii));
+                        StatusCode status;
+                        while (!queue.TryEnqueue(request, default, out status))
+                        {
+                            // full: the workers make room
+                            Assert.That(status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+                            Thread.Yield();
+                        }
+                        if (ii % 64 == 0)
+                        {
+                            Thread.Yield();
+                        }
+                    }
+                });
+            }
+
+            await Task.WhenAll(producerTasks).WaitAsync(deadline.Token).ConfigureAwait(false);
+            await drained.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            queue.Dispose();
+            await Task.WhenAll(workers).WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(dispatched, Is.EqualTo(total));
+            Assert.That(seen, Has.Count.EqualTo(total));
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Cancellation racing a dequeue completes each request at most once, never both
+        /// dispatches and completes it, and returns every lease exactly once.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task CancellationRacingDequeueReleasesLeasesExactlyOnceAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider(executionCapacity: 1000) { UseFairScheduling = useFairScheduling };
+            NodeId a = provider.AddOwner("A", weight: 2, queueLimit: 1000);
+            NodeId b = provider.AddOwner("B", queueLimit: 1000);
+            using var queue = CreateQueue(provider, maxQueued: 1000);
+            for (int round = 0; round < 200; round++)
+            {
+                var cancellations = new CancellationTokenSource[8];
+                var requests = new TestRequest[8];
+                for (int ii = 0; ii < requests.Length; ii++)
+                {
+                    cancellations[ii] = new CancellationTokenSource();
+                    requests[ii] = new TestRequest(ii % 2 == 0 ? a : b, (uint)ii, park: ii % 3 == 0);
+                    Enqueue(queue, requests[ii], cancellations[ii].Token);
+                }
+                var dispatched = new System.Collections.Concurrent.ConcurrentBag<FairRequestQueue.Entry>();
+                Task cancel = Task.Run(() =>
+                {
+                    for (int ii = requests.Length - 1; ii >= 0; ii--)
+                    {
+                        cancellations[ii].Cancel();
+                    }
+                });
+                Task[] dequeuers = new Task[3];
+                for (int d = 0; d < dequeuers.Length; d++)
+                {
+                    dequeuers[d] = Task.Run(() =>
+                    {
+                        while (queue.TryDequeue(out FairRequestQueue.Entry? entry))
+                        {
+                            dispatched.Add(entry);
+                        }
+                    });
+                }
+                await Task.WhenAll(dequeuers).ConfigureAwait(false);
+                await cancel.ConfigureAwait(false);
+                while (queue.TryDequeue(out FairRequestQueue.Entry? late))
+                {
+                    dispatched.Add(late);
+                }
+
+                var dispatchedRequests = new HashSet<IEndpointIncomingRequest>();
+                foreach (FairRequestQueue.Entry entry in dispatched)
+                {
+                    Assert.That(dispatchedRequests.Add(entry.Request), Is.True, "dispatched twice");
+                    entry.Dispose();
+                    entry.Dispose();
+                }
+                foreach (TestRequest request in requests)
+                {
+                    bool wasDispatched = dispatchedRequests.Contains(request);
+                    Assert.That(request.CompletionCount, Is.EqualTo(wasDispatched ? 0 : 1), $"round {round}");
+                    if (!wasDispatched)
+                    {
+                        Assert.That(request.Status, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                    }
+                }
+                foreach (CancellationTokenSource cancellation in cancellations)
+                {
+                    cancellation.Dispose();
+                }
+                Assert.That(queue.Count, Is.Zero, $"round {round}");
+                Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
+            }
+            Assert.That(queue.OwnerCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Stopping the queue while workers wait and admissions race completes every admitted
+        /// request exactly once and wakes every waiting worker.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task StopWhileWorkersWaitAndAdmissionsRaceAsync(bool useFairScheduling)
+        {
+            for (int round = 0; round < 50; round++)
+            {
+                var provider = new TestProvider(executionCapacity: 1) { UseFairScheduling = useFairScheduling };
+                NodeId a = provider.AddOwner("A");
+                NodeId b = provider.AddOwner("B", weight: 2);
+                FairRequestQueue queue = CreateQueue(provider, maxQueued: 1000);
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+                // one request runs, so the waiting workers find the rest blocked
+                Enqueue(queue, new TestRequest(a, 0));
+                FairRequestQueue.Entry running = Dequeue(queue);
+                Task<FairRequestQueue.Entry>[] waiters = new Task<FairRequestQueue.Entry>[4];
+                for (int w = 0; w < waiters.Length; w++)
+                {
+                    waiters[w] = queue.DequeueAsync(deadline.Token).AsTask();
+                }
+                var requests = new System.Collections.Concurrent.ConcurrentBag<(TestRequest Request, bool Admitted)>();
+                Task[] producers = new Task[3];
+                for (int p = 0; p < producers.Length; p++)
+                {
+                    int producer = p;
+                    producers[p] = Task.Run(() =>
+                    {
+                        for (int ii = 0; ii < 20; ii++)
+                        {
+                            var request = new TestRequest(ii % 2 == 0 ? a : b, (uint)((producer * 100) + ii + 1));
+                            requests.Add((request, queue.TryEnqueue(request, default, out _)));
+                        }
+                    });
+                }
+                Task stop = Task.Run(queue.Dispose);
+                await Task.WhenAll(producers).WaitAsync(deadline.Token).ConfigureAwait(false);
+                await stop.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+                foreach (Task<FairRequestQueue.Entry> waiter in waiters)
+                {
+                    Assert.CatchAsync<OperationCanceledException>(
+                        async () => await waiter.WaitAsync(deadline.Token).ConfigureAwait(false));
+                    Assert.That(deadline.IsCancellationRequested, Is.False, "the stop must wake the waiter");
+                }
+                running.Dispose();
+                foreach ((TestRequest request, bool admitted) in requests)
+                {
+                    // a rejected admission is completed by its caller, an admitted one by the queue
+                    Assert.That(request.CompletionCount, Is.EqualTo(admitted ? 1 : 0), $"round {round}");
+                    if (admitted)
+                    {
+                        Assert.That(request.Status, Is.EqualTo(StatusCodes.BadServerHalted));
+                    }
+                }
+                Assert.That(queue.Count, Is.Zero, $"round {round}");
+                Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
+            }
+        }
+
+        /// <summary>
+        /// Many owners, workers and cancellations: every request ends exactly once, all leases
+        /// return and no queue or scheduling state remains.
+        /// </summary>
+        [Test]
+        public async Task ManyOwnersAndWorkersStressLeavesNoStateAsync()
+        {
+            const int ownerCount = 50;
+            const int total = 6000;
+            var provider = new TestProvider(executionCapacity: 16);
+            NodeId[] owners = new NodeId[ownerCount];
+            for (int ii = 0; ii < ownerCount; ii++)
+            {
+                owners[ii] = provider.AddOwner($"owner-{ii}", weight: 1 + (ii % 4), queueLimit: 1000);
+            }
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var requests = new TestRequest[total];
+            var cancellations = new CancellationTokenSource[total];
+            int dispatched = 0;
+            int ended = 0;
+            var allEnded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void End()
+            {
+                if (Interlocked.Increment(ref ended) == total)
+                {
+                    allEnded.TrySetResult(true);
+                }
+            }
+            // a request ends once: dispatched to a worker, or completed by the queue
+            using var queue = new FairRequestQueue(
+                provider, 1000, 10, true,
+                (request, status) =>
+                {
+                    request.OperationCompleted(null, status);
+                    End();
+                });
+
+            Task[] workers = new Task[16];
+            for (int w = 0; w < workers.Length; w++)
+            {
+                workers[w] = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            FairRequestQueue.Entry entry =
+                                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                            Interlocked.Increment(ref dispatched);
+                            if (entry.Request is TestRequest { ParkSink: not null })
+                            {
+                                entry.ReleaseExecution();
+                            }
+                            await Task.Yield();
+                            entry.Dispose();
+                            End();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // stopped
+                    }
+                });
+            }
+
+            Task[] producers = new Task[4];
+            for (int p = 0; p < producers.Length; p++)
+            {
+                int producer = p;
+                producers[p] = Task.Run(() =>
+                {
+                    for (int ii = producer; ii < total; ii += producers.Length)
+                    {
+                        cancellations[ii] = new CancellationTokenSource();
+                        requests[ii] = new TestRequest(owners[ii % ownerCount], (uint)ii, park: ii % 7 == 0);
+                        StatusCode status;
+                        while (!queue.TryEnqueue(requests[ii], cancellations[ii].Token, out status))
+                        {
+                            Assert.That(status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+                            Thread.Yield();
+                        }
+                        // cancel some requests that may be queued, selected or running
+                        if (ii % 5 == 0)
+                        {
+                            CancellationTokenSource victim = cancellations[ii];
+                            ThreadPool.QueueUserWorkItem(_ =>
+                            {
+                                try
+                                {
+                                    victim.Cancel();
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    // the request ended and the test finished first
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            await Task.WhenAll(producers).WaitAsync(deadline.Token).ConfigureAwait(false);
+            await allEnded.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            queue.Dispose();
+            await Task.WhenAll(workers).WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            int cancelledInQueue = 0;
+            for (int ii = 0; ii < total; ii++)
+            {
+                Assert.That(requests[ii].CompletionCount, Is.LessThanOrEqualTo(1), $"request {ii}");
+                cancelledInQueue += requests[ii].CompletionCount;
+                cancellations[ii].Dispose();
+            }
+            Assert.That(dispatched + cancelledInQueue, Is.EqualTo(total));
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Clients keep a fixed number of requests in flight per owner, refilled as they complete:
+        /// with one in flight every owner FIFO is retired after almost every dispatch, with many
+        /// in flight several workers select from one owner at once. No request may be stranded.
+        /// </summary>
+        [TestCase(64, 1, 300, 1000)]
+        [TestCase(10, 100, 30, 1000)]
+        [TestCase(10, 100, 30, 4)]
+        [TestCase(64, 1, 300, 4)]
+        [TestCase(1, 200, 20, 1000)]
+        [TestCase(1, 200, 20, 4)]
+        public async Task OwnersWithRequestsInFlightStrandNoRequestAsync(
+            int ownerCount,
+            int inFlight,
+            int rounds,
+            int executionCapacity)
+        {
+            var provider = new TestProvider(executionCapacity: executionCapacity);
+            NodeId[] owners = new NodeId[ownerCount];
+            for (int ii = 0; ii < ownerCount; ii++)
+            {
+                owners[ii] = provider.AddOwner($"owner-{ii}", weight: 1 + (ii % 3), queueLimit: 1000);
+            }
+            using var queue = CreateQueue(provider, maxQueued: 1000);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            int dispatched = 0;
+
+            Task[] workers = new Task[16];
+            for (int w = 0; w < workers.Length; w++)
+            {
+                workers[w] = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            FairRequestQueue.Entry entry =
+                                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                            Interlocked.Increment(ref dispatched);
+                            entry.Dispose();
+                            ((TestRequest)entry.Request).OperationCompleted(null, StatusCodes.Good);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // stopped
+                    }
+                });
+            }
+
+            // each client keeps inFlight requests of its owner in flight, like a session pipeline
+            Task[] clients = new Task[ownerCount * inFlight];
+            for (int c = 0; c < clients.Length; c++)
+            {
+                NodeId owner = owners[c % ownerCount];
+                clients[c] = Task.Run(async () =>
+                {
+                    for (int ii = 0; ii < rounds; ii++)
+                    {
+                        var request = new TestRequest(owner, (uint)ii);
+                        Assert.That(queue.TryEnqueue(request, default, out StatusCode status), Is.True, status.ToString());
+                        await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                    }
+                });
+            }
+
+            await Task.WhenAll(clients).WaitAsync(deadline.Token).ConfigureAwait(false);
+            queue.Dispose();
+            await Task.WhenAll(workers).WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(dispatched, Is.EqualTo(ownerCount * inFlight * rounds));
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         private static FairRequestQueue CreateQueue(
             IServerResourceIsolationProvider provider,
             int maxQueued = 100,
