@@ -316,6 +316,7 @@ namespace Opc.Ua
             return path;
         }
 
+        /// <param name="text">The portable relative path text.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="resolvePrefix">The resolve prefix.</param>
         /// <param name="maxElements">The max elements.</param>

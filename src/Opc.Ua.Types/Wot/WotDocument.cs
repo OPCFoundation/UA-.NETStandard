@@ -193,6 +193,7 @@ namespace Opc.Ua.Wot
         /// Looks up a term in the carrying object's original active context.
         /// A present null definition is returned rather than replaced by a fallback.
         /// </summary>
+        /// <param name="term">The context term.</param>
         /// <param name="definition">The JSON element.</param>
         /// <param name="carryingNode">The carrying node.</param>
         public bool TryGetContextTerm(
@@ -256,6 +257,7 @@ namespace Opc.Ua.Wot
             return contexts.ToArrayOf();
         }
 
+        /// <param name="term">The context term.</param>
         /// <param name="definition">The JSON element.</param>
         /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
         /// <param name="carryingNode">The carrying node.</param>
@@ -273,6 +275,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="scope">The context binding scope.</param>
+        /// <param name="term">The context term.</param>
         /// <param name="definition">The JSON element.</param>
         /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
         /// <param name="definedAt">The defined at.</param>
@@ -286,6 +289,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="scope">The context binding scope.</param>
+        /// <param name="prefix">The context prefix.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
         /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
         /// <param name="definedAt">The defined at.</param>
@@ -304,6 +308,7 @@ namespace Opc.Ua.Wot
             return namespaceUri.Length != 0;
         }
 
+        /// <param name="term">The context term.</param>
         /// <param name="carryingNode">The carrying node.</param>
         internal bool IsContextIndexMap(string term, JsonElement carryingNode)
         {
@@ -412,6 +417,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="context">The JSON element.</param>
+        /// <param name="prefix">The context prefix.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
         internal static bool TryGetContextPrefix(
             JsonElement context,
@@ -449,6 +455,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="context">The JSON element.</param>
+        /// <param name="term">The context term.</param>
         /// <param name="definition">The JSON element.</param>
         internal static bool TryGetLocalContextTerm(JsonElement context, string term, out JsonElement definition)
         {
@@ -1341,6 +1348,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="element">The JSON element.</param>
+        /// <param name="name">The property name.</param>
         internal static List<string> ReadStringTokens(JsonElement element, string name)
         {
             var tokens = new List<string>();
@@ -1458,6 +1466,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="element">The JSON element.</param>
+        /// <param name="name">The property name.</param>
         internal static List<JsonElement> ReadArray(JsonElement element, string name)
         {
             var items = new List<JsonElement>();
