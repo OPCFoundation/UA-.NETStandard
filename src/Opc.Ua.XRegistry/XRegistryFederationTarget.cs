@@ -57,6 +57,8 @@ namespace Opc.Ua.XRegistry
                 throw new ArgumentNullException(nameof(originRegistry));
             }
             RequireAbsoluteUri(serverUri, nameof(serverUri));
+            resourceNodeId = XRegistryNodeIdCopy.Own(resourceNodeId);
+            ExpandedNodeId registryNodeId = XRegistryNodeIdCopy.Own(originRegistry.RegistryNodeId);
             RequirePortableNodeId(resourceNodeId, nameof(resourceNodeId));
 
             string originUri = originRegistry.OriginUri ??
@@ -67,7 +69,7 @@ namespace Opc.Ua.XRegistry
             if (uriOrigin)
             {
                 RequireAbsoluteUri(originUri, nameof(originRegistry));
-                if (originServerUri.Length != 0 || !originRegistry.RegistryNodeId.IsNull)
+                if (originServerUri.Length != 0 || !registryNodeId.IsNull)
                 {
                     throw new ArgumentException(
                         "Exactly one origin form must be authoritative.", nameof(originRegistry));
@@ -76,9 +78,9 @@ namespace Opc.Ua.XRegistry
             else
             {
                 RequireAbsoluteUri(originServerUri, nameof(originRegistry));
-                RequirePortableNodeId(originRegistry.RegistryNodeId, nameof(originRegistry));
+                RequirePortableNodeId(registryNodeId, nameof(originRegistry));
                 if (!string.Equals(originServerUri, serverUri, StringComparison.Ordinal) ||
-                    originRegistry.RegistryNodeId == resourceNodeId)
+                    registryNodeId == resourceNodeId)
                 {
                     throw new ArgumentException(
                         "The application/root origin must agree with the server and differ from the Resource.",
@@ -112,7 +114,7 @@ namespace Opc.Ua.XRegistry
 
             m_originUri = originUri;
             m_originServerUri = originServerUri;
-            m_registryNodeId = originRegistry.RegistryNodeId;
+            m_registryNodeId = registryNodeId;
             ServerUri = serverUri;
             ResourceNodeId = resourceNodeId;
             ResourceXid = resourceXid!;

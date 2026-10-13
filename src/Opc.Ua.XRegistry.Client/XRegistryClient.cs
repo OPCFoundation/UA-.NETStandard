@@ -123,7 +123,7 @@ namespace Opc.Ua.XRegistry.Client
             NamespaceIndex = (ushort)index;
             RegistryNodeId = registryNodeId.IsNull
                 ? new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex)
-                : registryNodeId;
+                : XRegistryNodeIdCopy.Own(registryNodeId);
             m_registryIdentity = NodeId.ToExpandedNodeId(RegistryNodeId, session.NamespaceUris);
         }
 
