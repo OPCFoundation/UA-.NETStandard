@@ -383,6 +383,8 @@ namespace Opc.Ua.Server.Tests
             long completed = 1;
             int closed = 0;
             int lookups = 0;
+            int readersRunning = 0;
+            var allReadersRunning = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var errors = new ConcurrentQueue<string>();
             using var stop = new CancellationTokenSource();
 
@@ -408,7 +410,10 @@ namespace Opc.Ua.Server.Tests
                         {
                             continue;
                         }
-                        found++;
+                        if (found++ == 0 && Interlocked.Increment(ref readersRunning) == kReaders)
+                        {
+                            allReadersRunning.TrySetResult(true);
+                        }
                         long sequence = binding!.ActivationSequence;
                         string expectedChannel = (sequence & 1) == 1 ? "a" : "b";
                         if (closedBefore ||
@@ -431,6 +436,10 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
+                // Race only once every reader runs and has seen the committed binding: on
+                // a runner with few cores the transfers can otherwise finish before some
+                // readers were ever scheduled.
+                await allReadersRunning.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 for (int i = 1; i <= kTransfers; i++)
                 {
                     await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
