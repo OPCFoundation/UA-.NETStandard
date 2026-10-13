@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -342,6 +343,129 @@ namespace Opc.Ua.Server.Tests
             Assert.That(binding, Is.Null);
             Assert.That(GetBinding(created, channel).ActivationSequence, Is.EqualTo(original.ActivationSequence + 1));
             Assert.That(m_manager.HasSession("one"), Is.True);
+        }
+
+        /// <summary>
+        /// Between Session.Activate and the binding commit the session already carries the
+        /// new activation, so the previous binding must not be handed out for dispatch.
+        /// </summary>
+        [Test]
+        public async Task LookupDuringActivationCommitReturnsNoBindingAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext original = GetBinding(created, channel);
+            bool? classifiedDuringCommit = null;
+            m_manager.OnNextSessionActivated = () => classifiedDuringCommit = m_manager.TryGetSessionContext(
+                created.AuthenticationToken, channel.ChannelContext!, out _);
+
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+
+            Assert.That(classifiedDuringCommit, Is.False);
+            Assert.That(GetBinding(created, channel).ActivationSequence, Is.EqualTo(original.ActivationSequence + 1));
+        }
+
+        /// <summary>
+        /// The lookup takes no server-wide lock, so lookups racing with transfers between
+        /// two channels and a final close must still only return a committed binding of the
+        /// channel they ask for, never one older than an activation that already completed,
+        /// and nothing once the close completed.
+        /// </summary>
+        [Test]
+        public async Task LookupRacingTransfersAndCloseReturnsOnlyCommittedBindingsAsync()
+        {
+            const int kTransfers = 1000;
+            const int kReaders = 4;
+            OperationContext[] channels = [CreateContext("a"), CreateContext("b")];
+            CreateSessionResult created = await CreateAsync(channels[0]).ConfigureAwait(false);
+            await ActivateAsync(created, channels[0]).ConfigureAwait(false);
+            long completed = 1;
+            int closed = 0;
+            int lookups = 0;
+            int readersRunning = 0;
+            var allReadersRunning = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var errors = new ConcurrentQueue<string>();
+            using var stop = new CancellationTokenSource();
+
+            var readers = new Task<int>[kReaders];
+            for (int r = 0; r < kReaders; r++)
+            {
+                int reader = r;
+                readers[r] = Task.Run(() =>
+                {
+                    int found = 0;
+                    int attempt = 0;
+                    long lastSequence = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        bool closedBefore = Volatile.Read(ref closed) != 0;
+                        long floor = Volatile.Read(ref completed);
+                        OperationContext channel = channels[(reader + attempt++) & 1];
+                        bool ok = m_manager.TryGetSessionContext(
+                            created.AuthenticationToken, channel.ChannelContext!, out SessionBindingContext? binding);
+                        long ceiling = Volatile.Read(ref completed) + 1;
+                        Interlocked.Increment(ref lookups);
+                        if (!ok)
+                        {
+                            continue;
+                        }
+                        if (found++ == 0 && Interlocked.Increment(ref readersRunning) == kReaders)
+                        {
+                            allReadersRunning.TrySetResult(true);
+                        }
+                        long sequence = binding!.ActivationSequence;
+                        string expectedChannel = (sequence & 1) == 1 ? "a" : "b";
+                        if (closedBefore ||
+                            binding.SecureChannelId != channel.ChannelContext!.SecureChannelId ||
+                            binding.SecureChannelId != expectedChannel ||
+                            sequence < floor ||
+                            sequence > ceiling ||
+                            sequence < lastSequence)
+                        {
+                            errors.Enqueue(
+                                $"closed={closedBefore} asked={channel.ChannelContext!.SecureChannelId} " +
+                                $"got={binding.SecureChannelId} seq={sequence} floor={floor} " +
+                                $"ceiling={ceiling} last={lastSequence}");
+                        }
+                        lastSequence = sequence;
+                    }
+                    return found;
+                });
+            }
+
+            try
+            {
+                // Race only once every reader runs and has seen the committed binding: on
+                // a runner with few cores the transfers can otherwise finish before some
+                // readers were ever scheduled.
+                await allReadersRunning.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                for (int i = 1; i <= kTransfers; i++)
+                {
+                    await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
+                    Volatile.Write(ref completed, i + 1);
+                }
+                await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+                Volatile.Write(ref closed, 1);
+                // Let the readers run against the closed session for a while too.
+                int target = Volatile.Read(ref lookups) + (kReaders * 1000);
+                while (Volatile.Read(ref lookups) < target && errors.IsEmpty)
+                {
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+            }
+            int[] found = await Task.WhenAll(readers).ConfigureAwait(false);
+
+            Assert.That(errors, Is.Empty, string.Join(Environment.NewLine, errors));
+            Assert.That(found, Has.All.GreaterThan(0), "Every reader must have seen a committed binding.");
+            AssertNoBinding(created.AuthenticationToken, channels[0]);
+            AssertNoBinding(created.AuthenticationToken, channels[1]);
+            Assert.That(m_manager.HasSession("a"), Is.False);
+            Assert.That(m_manager.HasSession("b"), Is.False);
         }
 
         [Test]
@@ -702,6 +826,7 @@ namespace Opc.Ua.Server.Tests
             {
                 m_server = server;
                 m_certificate = certificate;
+                m_clock = clock;
             }
 
             public bool RejectAuthentication { get; set; }
@@ -823,8 +948,59 @@ namespace Opc.Ua.Server.Tests
                 return session;
             }
 
+            /// <summary>
+            /// Runs once on the activating thread after Session.Activate returned and
+            /// before the activation commits its binding.
+            /// </summary>
+            public Action? OnNextSessionActivated { get; set; }
+
+            protected override ISession CreateSession(
+                OperationContext context, IServerInternal server, Certificate serverCertificate,
+                NodeId sessionCookie, ByteString clientNonce, Nonce serverNonce, string sessionName,
+                ApplicationDescription clientDescription, string endpointUrl, Certificate clientCertificate,
+                CertificateCollection clientCertificateChain, double sessionTimeout,
+                uint maxResponseMessageSize, int maxRequestAge, int maxContinuationPoints)
+            {
+                return new HookSession(
+                    this, context, server, serverCertificate, sessionCookie, clientNonce, serverNonce,
+                    sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
+                    sessionTimeout, m_clock);
+            }
+
+            private sealed class HookSession : Opc.Ua.Server.Session, ISession
+            {
+                public HookSession(
+                    BindingSessionManager manager, OperationContext context, IServerInternal server,
+                    Certificate serverCertificate, NodeId authenticationToken, ByteString clientNonce,
+                    Nonce serverNonce, string sessionName, ApplicationDescription clientDescription,
+                    string endpointUrl, Certificate clientCertificate, CertificateCollection clientCertificateChain,
+                    double sessionTimeout, TimeProvider clock)
+                    : base(
+                        context, server, serverCertificate, authenticationToken, clientNonce, serverNonce,
+                        sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
+                        sessionTimeout, 10, 10, clock)
+                {
+                    m_manager = manager;
+                }
+
+                bool ISession.Activate(
+                    OperationContext context, IUserIdentityTokenHandler identityToken, IUserIdentity identity,
+                    IUserIdentity effectiveIdentity, ArrayOf<string> localeIds, Nonce serverNonce)
+                {
+                    bool changed = Activate(
+                        context, identityToken, identity, effectiveIdentity, localeIds, serverNonce);
+                    Action? hook = m_manager.OnNextSessionActivated;
+                    m_manager.OnNextSessionActivated = null;
+                    hook?.Invoke();
+                    return changed;
+                }
+
+                private readonly BindingSessionManager m_manager;
+            }
+
             private readonly IServerInternal m_server;
             private readonly Certificate m_certificate;
+            private readonly TimeProvider m_clock;
             private bool m_delayCallback;
             private bool m_delayAuthentication;
         }
