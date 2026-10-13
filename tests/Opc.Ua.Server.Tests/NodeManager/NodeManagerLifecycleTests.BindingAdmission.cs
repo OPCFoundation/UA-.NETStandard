@@ -581,7 +581,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(finished, Is.Not.SameAs(activation), "Activation inherited the delete admission.");
                 Assert.That(Volatile.Read(ref activations), Is.Zero);
-                HashSet<NodeId> known = new HashSet<NodeId>(manager.ActivatedSessionIds.ToList());
+                var known = manager.ActivatedSessionIds.ToList();
 
                 deleteRelease.TrySetResult(true);
                 DeleteMonitoredItemsResponse response = await delete.WaitAsync(timeout.Token).ConfigureAwait(false);
