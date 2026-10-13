@@ -160,6 +160,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that planner enforces the exact path element bound.
         /// </summary>
+        /// <param name="limit">The configured maximum number of browse path elements.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(2, true)]
         [TestCase(1, false)]

@@ -779,8 +779,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class StockViewSourceConverter : IWotDocumentConverter
         {
+            /// <inheritdoc/>
             /// <param name="resource">The WoT resource.</param>
             /// <param name="content">The byte string.</param>
+            /// <param name="snapshot">The WoT registry snapshot.</param>
+            /// <param name="contents">The content of the other registry resources keyed by resource identifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource, ByteString content, WotRegistrySnapshot snapshot,

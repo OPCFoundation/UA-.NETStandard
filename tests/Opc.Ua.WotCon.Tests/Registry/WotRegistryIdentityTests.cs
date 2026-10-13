@@ -620,6 +620,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Creates an upsert request for a resource with a readable title in the group.
+        /// </summary>
         /// <param name="group">The WoT resource group.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="sourceId">The source ID.</param>
@@ -663,14 +666,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             /// Gets the resource store for <c>ObservedStore</c>.
             /// </summary>
             public IXRegistryResourceStore ResourceStore { get; }
+
             /// <summary>
             /// Gets or sets the commit count for <c>ObservedStore</c>.
             /// </summary>
             public int CommitCount { get; private set; }
+
             /// <summary>
             /// Gets or sets the fail next commit for <c>ObservedStore</c>.
             /// </summary>
             public bool FailNextCommit { get; set; }
+
             /// <summary>
             /// Gets the commit entered for <c>ObservedStore</c>.
             /// </summary>
@@ -685,6 +691,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 return m_inner.LoadAsync(cancellationToken);
             }
 
+            /// <summary>
+            /// Counts the commit and commits the snapshot, injecting a failure when configured.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask CommitAsync(

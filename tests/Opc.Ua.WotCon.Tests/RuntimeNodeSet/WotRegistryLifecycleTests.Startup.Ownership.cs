@@ -230,6 +230,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             public CancellationToken ReadinessToken { get; private set; }
 
+            /// <summary>
+            /// Creates the node manager for the server.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -242,6 +245,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return new ValueTask<IAsyncNodeManager>(CreateManager(server, configuration));
             }
 
+            /// <summary>
+            /// Creates the synchronous adapter over the node manager.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
@@ -249,6 +255,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return new SyncNodeManagerAdapter(CreateManager(server, configuration));
             }
 
+            /// <summary>
+            /// Counts the readiness call and waits until the test releases it.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask ReadyAsync(CancellationToken cancellationToken)
             {
@@ -277,6 +286,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             int value) : AsyncCustomNodeManager(server, configuration, probe.NamespaceUri),
             INodeManagerReadinessNotification
         {
+            /// <summary>
+            /// Signals the readiness probe that the server is ready.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
             {

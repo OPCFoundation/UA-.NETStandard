@@ -419,6 +419,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionBindingRuntime owner,
             ArrayOf<WotProjectedEventBinding> bindings) : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
         {
+            /// <summary>
+            /// Returns an enumerator over the ready projected events; the stream can only be enumerated once.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public IAsyncEnumerator<BaseEventState> GetAsyncEnumerator(CancellationToken cancellationToken = default)
             {

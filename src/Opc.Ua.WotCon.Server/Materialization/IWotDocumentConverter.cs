@@ -242,6 +242,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="resource">The WoT resource.</param>
         /// <param name="content">The byte string.</param>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="contents">The related resource contents keyed by resource identifier.</param>
         public async ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ByteString content,

@@ -534,12 +534,19 @@ namespace Opc.Ua.WotCon.Server.Assets
             public Stream Stream { get; }
             public bool Writing { get; }
 
+            /// <summary>
+            /// Opens a read-only handle over a snapshot of the file content.
+            /// </summary>
             /// <param name="sessionId">The session identifier.</param>
+            /// <param name="snapshot">The file content snapshot to read.</param>
             public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
             {
                 return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
             }
 
+            /// <summary>
+            /// Opens a writable handle over an empty buffer.
+            /// </summary>
             /// <param name="sessionId">The session identifier.</param>
             public static Handle OpenWrite(NodeId sessionId)
             {

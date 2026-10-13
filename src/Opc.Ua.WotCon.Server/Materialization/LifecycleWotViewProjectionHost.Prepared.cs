@@ -59,6 +59,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Preparation must not mutate the currently live View image.
         /// </summary>
         /// <inheritdoc/>
+        /// <param name="updates">The View projection requests to plan.</param>
+        /// <param name="removals">The View projection handles to remove.</param>
         /// <param name="expectedPublication">The expected publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IWotPreparedViewPublication> PrepareAsync(
@@ -208,12 +210,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     owner.m_retirementPolicy == WotProjectionRetirementPolicy.Immediate)];
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
+
             /// <summary>
             /// Gets the allow lifecycle from request callback for <c>PreparedViewPublication</c>.
             /// </summary>
             public bool AllowLifecycleFromRequestCallback => true;
             public NodeManagerRegistration? ExpectedRegistration => previous?.Registration;
 
+            /// <summary>
+            /// Binds the prepared source image that the View factory builds from.
+            /// </summary>
             /// <param name="sources">The WoT prepared source image.</param>
             public void BindSourceImage(WotPreparedSourceImage sources)
             {
@@ -225,6 +231,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_sources = sources;
             }
 
+            /// <summary>
+            /// Creates the View node manager from the bound prepared source image.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

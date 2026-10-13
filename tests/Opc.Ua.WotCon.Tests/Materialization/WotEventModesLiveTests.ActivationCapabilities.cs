@@ -470,6 +470,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public Func<WotEventSource, CancellationToken, ValueTask>? AfterCapture { get; init; }
 
+            /// <inheritdoc/>
             /// <param name="form">The WoT compiled form.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotBindingChannel> OpenChannelAsync(
@@ -512,6 +513,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public int DisposeCount { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<WotEventSource> CaptureEventSourceAsync(CancellationToken cancellationToken = default)
             {
@@ -528,6 +530,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return Source;
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotCapturedConditionAction> CaptureConditionActionAsync(
                 CancellationToken cancellationToken = default)
@@ -535,6 +538,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return ((IWotCapturedConditionActionChannel)inner).CaptureConditionActionAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="captureConditionFields">The capture-condition-fields flag supplied by the caller.</param>
             /// <param name="onEvent">The on event.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -547,6 +551,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     captureConditionFields, onEvent, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="coreEventType">The core event type.</param>
             /// <param name="onEvent">The on event.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -559,12 +564,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     coreEventType, onEvent, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.ReadAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="value">The data value.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotWriteResult> WriteAsync(DataValue value, CancellationToken cancellationToken = default)
@@ -572,6 +579,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.WriteAsync(value, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotInvokeResult> InvokeAsync(
                 IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
@@ -579,6 +587,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.InvokeAsync(inputs, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="onNotification">The on notification.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotSubscription> ObserveAsync(
@@ -587,6 +596,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.ObserveAsync(onNotification, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="onEvent">The on event.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotSubscription> SubscribeEventAsync(

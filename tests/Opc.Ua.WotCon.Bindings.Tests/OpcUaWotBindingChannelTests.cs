@@ -625,6 +625,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// </remarks>
         private sealed class BaseEventTypeResolver : IWotThingResolver
         {
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,

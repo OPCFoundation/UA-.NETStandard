@@ -94,6 +94,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that executing registry enforces its own path bounds.
         /// </summary>
+        /// <param name="bound">The name of the path bound under test.</param>
+        /// <param name="boundary">The value configured for the bound under test.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("elements", 64, true)]
         [TestCase("elements", 65, false)]
@@ -142,6 +144,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that in place session configuration changes invalidate path admission.
         /// </summary>
+        /// <param name="transition">The in-place session configuration change under test.</param>
         /// <param name="expectedWrites">The expected writes asserted by the test.</param>
         [TestCase("unchanged", 1)]
         [TestCase("before", 0)]

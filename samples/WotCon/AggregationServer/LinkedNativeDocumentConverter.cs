@@ -357,16 +357,19 @@ namespace AggregationServer
             /// </summary>
             /// <param name="key">The resource key to look up in the captured contents.</param>
             public ByteString this[string key] => contents[key];
-            /// <summary>
-            /// Gets the keys for <c>ReadableDefinitions</c>.
+
+                        /// <summary>
+                        /// Gets the keys for <c>ReadableDefinitions</c>.
             /// </summary>
             public IEnumerable<string> Keys => contents.Keys;
-            /// <summary>
-            /// Gets the captured document content values.
+
+                        /// <summary>
+                        /// Gets the captured document content values.
             /// </summary>
             public IEnumerable<ByteString> Values => contents.Values;
-            /// <summary>
-            /// Gets the count for <c>ReadableDefinitions</c>.
+
+                        /// <summary>
+                        /// Gets the count for <c>ReadableDefinitions</c>.
             /// </summary>
             public int Count => contents.Count;
 

@@ -49,6 +49,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the edges for <c>DependencyGraphDto</c>.
             /// </summary>
             public DependencyEdgeDto[]? Edges { get; set; }
+
             /// <summary>
             /// Gets or sets the targets for <c>DependencyGraphDto</c>.
             /// </summary>
@@ -57,6 +58,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private sealed class DependencyGraphWriter
         {
+            /// <summary>
+            /// Gets the index of a dependency snapshot among the recorded graph sources, adding it when absent.
+            /// </summary>
             /// <param name="snapshot">The WoT dependency snapshot.</param>
             public int GetIndex(WotDependencySnapshot snapshot)
             {
@@ -131,6 +135,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private sealed class DependencyGraphReader(DependencyGraphDto[]? graphs)
         {
+            /// <summary>
+            /// Reads and validates the dependency graph recorded in a dependency snapshot.
+            /// </summary>
             /// <param name="observation">The dependency snapshot dto.</param>
             public WotDependencySnapshot.ValidatedGraph Read(
                 DependencySnapshotDto observation)

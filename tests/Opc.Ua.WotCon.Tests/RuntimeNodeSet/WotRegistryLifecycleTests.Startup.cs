@@ -135,6 +135,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return new DeadlineCapture(this, inner.CapturePublication());
             }
 
+            /// <summary>
+            /// Prepares the projection publication for the changes under the deadline.
+            /// </summary>
+            /// <param name="changes">The projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -148,6 +152,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return new DeadlinePublication(this, prepared);
             }
 
+            /// <summary>
+            /// Adds the projection document under the deadline.
+            /// </summary>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotProjectionHandle> AddAsync(
@@ -157,6 +164,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return WithDeadlineAsync(token => inner.AddAsync(document, token), cancellationToken);
             }
 
+            /// <summary>
+            /// Reloads the projection document with a shadow generation under the deadline.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -167,6 +177,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.ShadowReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Reloads the projection document immediately under the deadline.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -177,6 +190,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Removes the projection.
+            /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
@@ -219,6 +235,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 DeadlineProjectionHost owner, IWotProjectionPublicationCapture capture)
                 : IWotProjectionPublicationCapture
             {
+                /// <summary>
+                /// Begins a projection publication under the deadline.
+                /// </summary>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public async ValueTask<IWotProjectionPublication> BeginAsync(
                     CancellationToken cancellationToken = default)
@@ -237,6 +256,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 /// </summary>
                 public bool IsCurrent => inner.IsCurrent;
 
+                /// <summary>
+                /// Prepares the projection publication for the changes under the deadline.
+                /// </summary>
+                /// <param name="changes">The projection changes to prepare.</param>
                 /// <param name="views">The WoT prepared view publication.</param>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -250,6 +273,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     return new DeadlinePublication(owner, prepared);
                 }
 
+                /// <summary>
+                /// Prepares the projection publication for the read images under the deadline.
+                /// </summary>
+                /// <param name="images">The node manager read images to publish.</param>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
                     ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
@@ -259,6 +286,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     return new DeadlinePublication(owner, prepared);
                 }
 
+                /// <summary>
+                /// Validates the projection changes under the deadline.
+                /// </summary>
+                /// <param name="changes">The projection changes to validate.</param>
                 /// <param name="inspectAsync">The inspect async.</param>
                 /// <param name="views">The WoT prepared view publication.</param>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -292,14 +323,17 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 /// Gets the projections for <c>DeadlinePublication</c>.
                 /// </summary>
                 public ArrayOf<WotProjectionHandle> Projections => inner.Projections;
+
                 /// <summary>
                 /// Gets the view graph for <c>DeadlinePublication</c>.
                 /// </summary>
                 public WotPreparedViewGraphState? ViewGraph => inner.ViewGraph;
+
                 /// <summary>
                 /// Gets the is committed for <c>DeadlinePublication</c>.
                 /// </summary>
                 public bool IsCommitted => inner.IsCommitted;
+
                 /// <summary>
                 /// Gets the cleanup failure for <c>DeadlinePublication</c>.
                 /// </summary>
@@ -310,6 +344,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     inner.BindReadImages(images);
                 }
 
+                /// <summary>
+                /// Commits the publication under the deadline.
+                /// </summary>
                 /// <param name="decideAsync">The decide async.</param>
                 /// <param name="publishCommittedState">The publish committed state.</param>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

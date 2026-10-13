@@ -191,6 +191,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Projects a WoT notification into an event state, or returns null when nothing is emitted.
+        /// </summary>
         /// <param name="notification">The WoT notification.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<BaseEventState?> ProjectAsync(
@@ -249,12 +252,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return m_routeRegistry.Resolve(this, localEventId, out originalEventId);
         }
 
+        /// <summary>
+        /// Registers a captured condition action under an action name.
+        /// </summary>
+        /// <param name="action">The action name.</param>
         /// <param name="captured">The WoT captured condition action.</param>
         public void RegisterAction(string action, WotCapturedConditionAction captured)
         {
             m_actions.Add(action, captured);
         }
 
+        /// <summary>
+        /// Tries to get the captured condition action registered under an action name.
+        /// </summary>
+        /// <param name="action">The action name.</param>
         /// <param name="captured">The WoT captured condition action.</param>
         public bool TryGetAction(string action, out WotCapturedConditionAction? captured)
         {
@@ -269,7 +280,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return false;
         }
 
+        /// <summary>
+        /// Resolves a captured condition action for an event identifier and action name.
+        /// </summary>
         /// <param name="eventId">The event ID.</param>
+        /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
         public ServiceResult ResolveAction(
@@ -281,7 +296,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return m_routeRegistry.ResolveAction(this, eventId, action, out occurrence, out capturedAction);
         }
 
+        /// <summary>
+        /// Resolves a captured condition action when the event identifier is owned by this binding.
+        /// </summary>
         /// <param name="eventId">The event ID.</param>
+        /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
         public bool TryResolveOwnAction(
@@ -307,6 +326,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return false;
         }
 
+        /// <summary>
+        /// Tries to resolve the original event identifier when the local identifier is owned by this binding.
+        /// </summary>
         /// <param name="localEventId">The local event ID.</param>
         /// <param name="originalEventId">The original event ID.</param>
         public bool TryResolveOwnEventId(ByteString localEventId, out ByteString originalEventId)
@@ -1135,6 +1157,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             private bool Transparent { get; } = transparent;
 
+            /// <summary>
+            /// Determines whether another identity source refers to the same captured occurrence.
+            /// </summary>
             /// <param name="other">The event identity source.</param>
             public bool IsSameOccurrence(IEventIdentitySource other)
             {

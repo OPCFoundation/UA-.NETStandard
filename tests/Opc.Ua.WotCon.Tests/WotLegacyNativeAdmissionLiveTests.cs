@@ -611,28 +611,36 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the session for <c>Fixture</c>.
             /// </summary>
             public ClientSession Session { get; private set; } = null!;
+
             /// <summary>
             /// Gets or sets the client for <c>Fixture</c>.
             /// </summary>
             public WotConnectivityClient Client { get; private set; } = null!;
+
             /// <summary>
             /// Gets the server for <c>Fixture</c>.
             /// </summary>
             public IServerInternal Server => m_server.CurrentInstance;
+
             /// <summary>
             /// Gets or sets the WoT connectivity server options for <c>Fixture</c>.
             /// </summary>
             public WotConnectivityServerOptions Options { get; private set; } = null!;
+
             /// <summary>
             /// Gets the counting provider for <c>Fixture</c>.
             /// </summary>
             public CountingProvider Provider { get; } = new();
+
             /// <summary>
             /// Gets or sets the recorder for <c>Fixture</c>.
             /// </summary>
             public RecordingConverter Recorder { get; private set; } = null!;
             public ushort ModelNamespaceIndex => Session.NamespaceUris.GetIndexOrAppend(ModelUri);
 
+            /// <summary>
+            /// Starts a fixture with the optional model and namespaces.
+            /// </summary>
             /// <param name="useDi">The use-di flag supplied by the caller.</param>
             /// <param name="modelXml">The model XML.</param>
             /// <param name="modelNamespaces">The model namespaces.</param>
@@ -656,6 +664,9 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
+            /// <summary>
+            /// Browses the type definition of the node.
+            /// </summary>
             /// <param name="node">The node.</param>
             public async Task<NodeId> TypeAsync(NodeId node)
             {
@@ -673,7 +684,11 @@ namespace Opc.Ua.WotCon.Tests
                 return ExpandedNodeId.ToNodeId(result.Results[0].References[0].NodeId, Session.NamespaceUris);
             }
 
+            /// <summary>
+            /// Reads the attributes of the node.
+            /// </summary>
             /// <param name="node">The node.</param>
+            /// <param name="attributes">The attribute identifiers to read.</param>
             public async Task<ArrayOf<DataValue>> ReadAttributesAsync(NodeId node, ArrayOf<uint> attributes)
             {
                 ReadResponse result = await Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
@@ -686,7 +701,11 @@ namespace Opc.Ua.WotCon.Tests
                 return result.Results;
             }
 
+            /// <summary>
+            /// Reads the arguments of the named method of the node.
+            /// </summary>
             /// <param name="method">The method.</param>
+            /// <param name="name">The browse name of the argument property of the method.</param>
             public async Task<ArrayOf<Argument>> ArgumentsAsync(NodeId method, string name)
             {
                 TranslateBrowsePathsToNodeIdsResponse paths = await Session.TranslateBrowsePathsToNodeIdsAsync(
@@ -709,6 +728,9 @@ namespace Opc.Ua.WotCon.Tests
                 return arguments;
             }
 
+            /// <summary>
+            /// Removes and restarts the node manager, optionally replacing the mapped document.
+            /// </summary>
             /// <param name="replacement">The byte string.</param>
             /// <param name="factory">The async node manager factory.</param>
             public async Task RestartManagerAsync(
@@ -879,18 +901,24 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the calls for <c>RecordingConverter</c>.
             /// </summary>
             public int Calls { get; private set; }
+
             /// <summary>
             /// Gets or sets the observed published owner for <c>RecordingConverter</c>.
             /// </summary>
             public bool ObservedPublishedOwner { get; set; }
+
             /// <summary>
             /// Gets or sets the last content for <c>RecordingConverter</c>.
             /// </summary>
             public ByteString LastContent { get; private set; }
 
+            /// <summary>
+            /// Converts the resource through the inner converter.
+            /// </summary>
             /// <param name="resource">The WoT resource.</param>
             /// <param name="content">The byte string.</param>
             /// <param name="snapshot">The WoT registry snapshot.</param>
+            /// <param name="contents">The related resource contents keyed by resource identifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource, ByteString content, WotRegistrySnapshot snapshot,
@@ -916,16 +944,21 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the connects for <c>CountingProvider</c>.
             /// </summary>
             public int Connects { get; private set; }
+
             /// <summary>
             /// Gets the supported bindings for <c>CountingProvider</c>.
             /// </summary>
             public IReadOnlyCollection<string> SupportedBindings => m_inner.SupportedBindings;
+
             /// <summary>
             /// Delegates <c>CanHandle</c> to the <c>SimulatedWotAssetProviderFactory</c> test collaborator.
             /// </summary>
             /// <param name="thingDescription">The thing description.</param>
             public bool CanHandle(ThingDescription thingDescription) => m_inner.CanHandle(thingDescription);
 
+            /// <summary>
+            /// Counts the connection and connects through the inner provider.
+            /// </summary>
             /// <param name="thingDescription">The thing description.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotAssetProvider> ConnectAsync(ThingDescription thingDescription, CancellationToken ct)

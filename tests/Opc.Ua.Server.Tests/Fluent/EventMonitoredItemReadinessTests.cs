@@ -494,6 +494,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             /// </summary>
             public ArrayOf<string> NamespacesUris { get; }
 
+            /// <inheritdoc/>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             public ValueTask<IAsyncNodeManager> CreateAsync(
@@ -532,6 +533,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 m_sources = sources;
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public override async ValueTask CreateAddressSpaceAsync(
                 IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -682,18 +684,23 @@ namespace Opc.Ua.Server.Tests.Fluent
             public TaskCompletionSource<bool> Stopped { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask WaitUntilReadyAsync(CancellationToken cancellationToken = default)
             {
                 return new ValueTask(Ready.Task.WaitAsync(cancellationToken));
             }
 
+            /// <summary>
+            /// Queues an event occurrence for delivery to the stream's consumer.
+            /// </summary>
             /// <param name="occurrence">The base event state.</param>
             public ValueTask EmitAsync(BaseEventState occurrence)
             {
                 return m_events.Writer.WriteAsync(occurrence);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public IAsyncEnumerator<BaseEventState> GetAsyncEnumerator(CancellationToken cancellationToken = default)
             {

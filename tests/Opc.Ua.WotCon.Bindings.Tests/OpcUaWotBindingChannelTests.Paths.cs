@@ -460,6 +460,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             public bool Disposed => m_timer?.Disposed == true;
 
+            /// <inheritdoc/>
             /// <param name="callback">The timer callback.</param>
             public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
             {

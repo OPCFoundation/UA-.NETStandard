@@ -251,12 +251,16 @@ namespace Opc.Ua.WotCon.Server
             }
 
             public uint FileHandle => m_reservation?.FileHandle ?? 0;
+
             /// <summary>
             /// Gets the cancellation token for <c>ResourcePreparation</c>.
             /// </summary>
             public CancellationToken CancellationToken => m_transactionCancellation.Token;
             public bool SessionClosed => m_reservation?.SessionClosedToken.IsCancellationRequested == true;
 
+            /// <summary>
+            /// Prepares the resource write by reserving it in the projection engine.
+            /// </summary>
             /// <param name="resource">The WoT resource.</param>
             /// <param name="version">The WoT resource version.</param>
             /// <param name="lease">The WoT registry version lease.</param>

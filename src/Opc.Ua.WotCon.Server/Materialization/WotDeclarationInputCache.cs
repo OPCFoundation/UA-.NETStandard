@@ -56,7 +56,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Gets the data type definitions declared by a resource and its members, caching parsed documents.
+        /// </summary>
         /// <param name="source">The WoT resource.</param>
+        /// <param name="members">The member resources of the conversion unit.</param>
         /// <param name="ownsResolutionDefinitions">The owns-resolution-definitions flag supplied by the caller.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -140,8 +144,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotDocument Document, ArrayOf<WotDataTypeDefinitionSource> Definitions);
     }
 
+    /// <summary>
+    /// Exposes the related resource contents of one conversion together with its shared declaration inputs.
+    /// </summary>
+    /// <param name="contents">The related resource contents keyed by resource identifier.</param>
     /// <param name="declarations">The WoT declaration input cache.</param>
     /// <param name="source">The WoT resource.</param>
+    /// <param name="members">The member resources of the conversion unit.</param>
     /// <param name="ownsResolutionDefinitions">The owns-resolution-definitions flag supplied by the caller.</param>
     internal sealed class WotDocumentConversionContents(
         IReadOnlyDictionary<string, ByteString> contents,
@@ -151,16 +160,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
         bool ownsResolutionDefinitions) : IReadOnlyDictionary<string, ByteString>, IWotDocumentConversionContext
     {
         public ByteString this[string key] => contents[key];
+
         /// <summary>
         /// Gets the keys for <c>WotDocumentConversionContents</c>.
         /// </summary>
         public IEnumerable<string> Keys => contents.Keys;
         public IEnumerable<ByteString> Values => contents.Values;
+
         /// <summary>
         /// Gets the count for <c>WotDocumentConversionContents</c>.
         /// </summary>
         public int Count => contents.Count;
 
+        /// <summary>
+        /// Resolves the declared data type definitions for the document being converted.
+        /// </summary>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ArrayOf<WotDataTypeDefinitionSource> GetDataTypeDefinitions(
@@ -174,6 +188,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return contents.ContainsKey(key);
         }
 
+        /// <summary>
+        /// Tries to get the content stored under the specified key.
+        /// </summary>
+        /// <param name="key">The resource key.</param>
         /// <param name="value">The byte string.</param>
         public bool TryGetValue(string key, [MaybeNullWhen(false)] out ByteString value)
         {

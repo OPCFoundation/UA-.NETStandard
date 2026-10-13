@@ -161,6 +161,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public string? ValidatedVersionXid { get; private set; }
 
+        /// <summary>
+        /// Sets the validation identity from a validation change, when one is supplied.
+        /// </summary>
         /// <param name="validation">The WoT validation change.</param>
         internal void SetValidationIdentity(WotValidationChange? validation)
         {

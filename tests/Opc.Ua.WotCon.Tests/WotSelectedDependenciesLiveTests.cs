@@ -446,18 +446,22 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets the group for <c>Registered</c>.
             /// </summary>
             public WotRegistryGroupClient Group { get; }
+
             /// <summary>
             /// Gets the allocation for <c>Registered</c>.
             /// </summary>
             public WotRegistryResourceAllocation Allocation { get; }
+
             /// <summary>
             /// Gets the content for <c>Registered</c>.
             /// </summary>
             public ByteString Content { get; }
+
             /// <summary>
             /// Gets the version for <c>Registered</c>.
             /// </summary>
             public NodeId Version => Allocation.Version.ResourceNodeId;
+
             /// <summary>
             /// Gets the logical for <c>Registered</c>.
             /// </summary>
@@ -480,18 +484,22 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the client for <c>LiveFixture</c>.
             /// </summary>
             public WotRegistryClient Client { get; private set; } = null!;
+
             /// <summary>
             /// Gets or sets the registry for <c>LiveFixture</c>.
             /// </summary>
             public WotRegistryService Registry { get; private set; } = null!;
+
             /// <summary>
             /// Gets or sets the WoT registry server options for <c>LiveFixture</c>.
             /// </summary>
             public WotRegistryServerOptions Options { get; private set; } = null!;
+
             /// <summary>
             /// Gets the blobs for <c>LiveFixture</c>.
             /// </summary>
             public ObservedBlobs Blobs { get; } = new();
+
             /// <summary>
             /// Gets or sets the host for <c>LiveFixture</c>.
             /// </summary>
@@ -499,6 +507,9 @@ namespace Opc.Ua.WotCon.Tests
             public WotMaterializationCoordinator Coordinator =>
                 m_services!.GetRequiredService<WotMaterializationCoordinator>();
 
+            /// <summary>
+            /// Starts a live fixture with the maximum number of versions.
+            /// </summary>
             /// <param name="maxVersions">The max versions.</param>
             public static async Task<LiveFixture> CreateAsync(int maxVersions = 8)
             {
@@ -543,6 +554,10 @@ namespace Opc.Ua.WotCon.Tests
                 return new Registered(group, allocation, content, version);
             }
 
+            /// <summary>
+            /// Refreshes the selected resources and returns the summary and results.
+            /// </summary>
+            /// <param name="selection">The resource selectors to refresh.</param>
             /// <param name="requestId">The request ID.</param>
             /// <param name="dryRun">The dry-run flag supplied by the caller.</param>
             /// <param name="force">The force flag supplied by the caller.</param>
@@ -558,7 +573,11 @@ namespace Opc.Ua.WotCon.Tests
                     }, 0, requestId);
             }
 
+            /// <summary>
+            /// Gets the node identifier of the named property of the owner.
+            /// </summary>
             /// <param name="owner">The node identifier.</param>
+            /// <param name="name">The browse name of the property.</param>
             /// <param name="namespaceUri">The namespace URI.</param>
             public Task<NodeId> PropertyAsync(NodeId owner, string name, string namespaceUri = Namespaces.WotCon)
             {
@@ -570,13 +589,20 @@ namespace Opc.Ua.WotCon.Tests
                     .AsTask();
             }
 
+            /// <summary>
+            /// Reads the value of the named property of the owner.
+            /// </summary>
             /// <param name="owner">The node identifier.</param>
+            /// <param name="name">The browse name of the property.</param>
             /// <param name="namespaceUri">The namespace URI.</param>
             public async Task<DataValue> ReadAsync(NodeId owner, string name, string namespaceUri = Namespaces.WotCon)
             {
                 return await ReadNodeAsync(await PropertyAsync(owner, name, namespaceUri));
             }
 
+            /// <summary>
+            /// Reads the value attribute of the node.
+            /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             public async Task<DataValue> ReadNodeAsync(NodeId nodeId)
             {
@@ -587,7 +613,11 @@ namespace Opc.Ua.WotCon.Tests
                 return result.Results[0];
             }
 
+            /// <summary>
+            /// Reads the named property of the owner as a string.
+            /// </summary>
             /// <param name="owner">The node identifier.</param>
+            /// <param name="name">The browse name of the property.</param>
             /// <param name="namespaceUri">The namespace URI.</param>
             public async Task<string> StringAsync(
                 NodeId owner, string name, string namespaceUri = Namespaces.WotCon)
@@ -598,6 +628,9 @@ namespace Opc.Ua.WotCon.Tests
                 return text;
             }
 
+            /// <summary>
+            /// Reads the dependency snapshot or the last dependency attempt of the owner.
+            /// </summary>
             /// <param name="owner">The node identifier.</param>
             /// <param name="attempt">The attempt flag supplied by the caller.</param>
             public async Task<WoTDependencySnapshotDataType> SnapshotAsync(NodeId owner, bool attempt = false)
@@ -744,10 +777,12 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets the reads for <c>ObservedBlobs</c>.
             /// </summary>
             public ConcurrentQueue<string> Reads { get; } = new();
+
             /// <summary>
             /// Gets or sets the fail next digest for <c>ObservedBlobs</c>.
             /// </summary>
             public string? FailNextDigest { get; set; }
+
             /// <summary>
             /// Gets the supports immutable content leases for <c>ObservedBlobs</c>.
             /// </summary>
@@ -757,6 +792,8 @@ namespace Opc.Ua.WotCon.Tests
             /// Delegates <c>ReadAsync</c> to the <c>Registry.RecordingLeasedResourceStore</c> test collaborator.
             /// </summary>
             /// <param name="resourceKey">The resource key.</param>
+            /// <param name="offset">The byte offset into the resource content.</param>
+            /// <param name="count">The number of bytes to read.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ByteString> ReadAsync(string resourceKey, long offset, int count, CancellationToken ct)
             {
@@ -767,6 +804,7 @@ namespace Opc.Ua.WotCon.Tests
             /// Delegates <c>WriteAsync</c> to the <c>Registry.RecordingLeasedResourceStore</c> test collaborator.
             /// </summary>
             /// <param name="resourceKey">The resource key.</param>
+            /// <param name="offset">The byte offset into the resource content.</param>
             /// <param name="data">The byte string.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask WriteAsync(string resourceKey, long offset, ByteString data, CancellationToken ct)

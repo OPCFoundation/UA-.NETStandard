@@ -265,6 +265,7 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="kind">The wo t document kind enum.</param>
+            /// <param name="name">The optional name of the group.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResourceGroup> GetOrCreateGroupAsync(
                 string groupId,
@@ -280,6 +281,7 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="kind">The wo t document kind enum.</param>
+            /// <param name="name">The optional name of the group.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResourceGroup?> TryCreateGroupAsync(
                 string groupId,
@@ -386,6 +388,8 @@ namespace Opc.Ua.WotCon.Tests
             /// Delegates <c>ReadContentChunkAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
             /// <param name="digestHex">The digest hex.</param>
+            /// <param name="offset">The byte offset into the content.</param>
+            /// <param name="count">The number of bytes to read.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<ByteString> ReadContentChunkAsync(
                 string digestHex,
@@ -469,6 +473,8 @@ namespace Opc.Ua.WotCon.Tests
             /// <summary>
             /// Delegates <c>AddRegistryLabelAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
+            /// <param name="key">The label key.</param>
+            /// <param name="value">The label value.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> AddRegistryLabelAsync(
@@ -487,6 +493,7 @@ namespace Opc.Ua.WotCon.Tests
             /// <summary>
             /// Delegates <c>RemoveRegistryLabelAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
+            /// <param name="key">The label key.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> RemoveRegistryLabelAsync(
@@ -501,6 +508,8 @@ namespace Opc.Ua.WotCon.Tests
             /// Delegates <c>AddGroupLabelAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
             /// <param name="groupId">The group ID.</param>
+            /// <param name="key">The label key.</param>
+            /// <param name="value">The label value.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> AddGroupLabelAsync(
@@ -522,6 +531,7 @@ namespace Opc.Ua.WotCon.Tests
             /// Delegates <c>RemoveGroupLabelAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
             /// <param name="groupId">The group ID.</param>
+            /// <param name="key">The label key.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> RemoveGroupLabelAsync(
@@ -542,6 +552,8 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
+            /// <param name="key">The label key.</param>
+            /// <param name="value">The label value.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> AddResourceLabelAsync(
@@ -566,6 +578,7 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
+            /// <param name="key">The label key.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> RemoveResourceLabelAsync(
@@ -586,6 +599,7 @@ namespace Opc.Ua.WotCon.Tests
             /// <summary>
             /// Delegates <c>ApplyProjectionResultsAsync</c> to the <c>IWotRegistryService</c> test collaborator.
             /// </summary>
+            /// <param name="projections">The projection results to apply.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask ApplyProjectionResultsAsync(
                 IReadOnlyList<WotResourceProjection> projections,

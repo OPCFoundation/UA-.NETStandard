@@ -583,6 +583,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Verifies that affordance reference rejects missing or ambiguous local declarations.
         /// </summary>
         /// <param name="mapName">The map name used by this test case.</param>
+        /// <param name="declarations">The number of local declarations in the document.</param>
         [TestCase("properties", 0)]
         [TestCase("properties", 2)]
         [TestCase("actions", 0)]

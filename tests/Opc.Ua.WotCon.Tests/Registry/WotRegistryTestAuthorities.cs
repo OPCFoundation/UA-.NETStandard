@@ -45,6 +45,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
         }
 
+        /// <summary>
+        /// Finds a resource in the snapshot by group identifier and resource alias.
+        /// </summary>
         /// <param name="snapshot">The WoT registry snapshot.</param>
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceAlias">The resource alias.</param>

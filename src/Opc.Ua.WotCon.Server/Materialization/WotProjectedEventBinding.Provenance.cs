@@ -43,7 +43,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed partial class WotProjectedEventBinding
     {
+        /// <summary>
+        /// Initializes the event descriptor node under the node manager supplied by the builder.
+        /// </summary>
         /// <param name="builder">The node manager builder.</param>
+        /// <param name="name">The descriptor name.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask InitializeDescriptorAsync(
             INodeManagerBuilder builder, string name, CancellationToken cancellationToken)
@@ -141,6 +145,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Records a failure status for the binding and reports it to the event descriptor.
+        /// </summary>
         /// <param name="status">The status code.</param>
         public void ReportFailure(StatusCode status)
         {

@@ -561,15 +561,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class ViewSourceConverter : IWotDocumentConverter
         {
+            /// <summary>
+            /// Marks a resource whose conversion is forwarded to the real converter instead of the unmapped one.
+            /// </summary>
             /// <param name="resourceId">The resource ID.</param>
             public void UseMappedSource(string resourceId)
             {
                 m_mapped.Add(resourceId);
             }
 
+            /// <summary>
+            /// Converts a resource with the real converter when its source is mapped, otherwise with the unmapped
+            /// converter.
+            /// </summary>
             /// <param name="resource">The WoT resource.</param>
             /// <param name="content">The byte string.</param>
             /// <param name="snapshot">The WoT registry snapshot.</param>
+            /// <param name="contents">The related resource contents keyed by resource identifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource,

@@ -292,6 +292,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class NativeConditionEvents(ISession session, Subscription subscription) : IAsyncDisposable
         {
+            /// <summary>
+            /// Opens an event subscription on the notifier and wraps it for reading condition events.
+            /// </summary>
+            /// <param name="session">The session used to create the subscription.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             /// <param name="eventNotifier">The event notifier.</param>
             /// <param name="selection">The WoT event selection.</param>
@@ -352,6 +356,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Reads the next received event field set.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ArrayOf<Variant>> ReadAsync(CancellationToken ct)
             {

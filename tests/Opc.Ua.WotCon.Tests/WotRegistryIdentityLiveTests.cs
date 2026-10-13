@@ -595,22 +595,27 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets the blobs for <c>NativeStore</c>.
             /// </summary>
             public CountingBlobs Blobs { get; } = new();
+
             /// <summary>
             /// Gets the resource store for <c>NativeStore</c>.
             /// </summary>
             public IXRegistryResourceStore ResourceStore => Blobs;
+
             /// <summary>
             /// Gets or sets the fail next commit for <c>NativeStore</c>.
             /// </summary>
             public bool FailNextCommit { get; set; }
+
             /// <summary>
             /// Gets or sets the commit count for <c>NativeStore</c>.
             /// </summary>
             public int CommitCount { get; private set; }
+
             /// <summary>
             /// Gets or sets the successful commits for <c>NativeStore</c>.
             /// </summary>
             public int SuccessfulCommits { get; private set; }
+
             /// <summary>
             /// Gets the commit entered for <c>NativeStore</c>.
             /// </summary>
@@ -625,6 +630,9 @@ namespace Opc.Ua.WotCon.Tests
                 return m_inner.LoadAsync(cancellationToken);
             }
 
+            /// <summary>
+            /// Counts the commit, pausing before or after it is applied as configured.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask CommitAsync(
@@ -650,6 +658,9 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
+            /// <summary>
+            /// Pauses the next commit before or after it is applied.
+            /// </summary>
             /// <param name="afterCommit">The after-commit flag supplied by the caller.</param>
             public void PauseNextCommit(bool afterCommit = false)
             {
@@ -689,12 +700,18 @@ namespace Opc.Ua.WotCon.Tests
         {
             public int Reads => Volatile.Read(ref m_reads);
             public int Writes => Volatile.Read(ref m_writes);
+
             /// <summary>
             /// Gets or sets the fail next read for <c>CountingBlobs</c>.
             /// </summary>
             public bool FailNextRead { get; set; }
 
+            /// <summary>
+            /// Records the read and returns the requested range of the inner store content.
+            /// </summary>
             /// <param name="resourceKey">The resource key.</param>
+            /// <param name="offset">The byte offset into the resource content.</param>
+            /// <param name="count">The number of bytes to read.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ByteString> ReadAsync(string resourceKey, long offset, int count, CancellationToken ct)
             {
@@ -708,7 +725,11 @@ namespace Opc.Ua.WotCon.Tests
                 return m_inner.ReadAsync(resourceKey, offset, count, ct);
             }
 
+            /// <summary>
+            /// Records the write and forwards it to the inner store.
+            /// </summary>
             /// <param name="resourceKey">The resource key.</param>
+            /// <param name="offset">The byte offset into the resource content.</param>
             /// <param name="data">The byte string.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask WriteAsync(string resourceKey, long offset, ByteString data, CancellationToken ct)

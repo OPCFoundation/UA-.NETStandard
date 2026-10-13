@@ -813,6 +813,10 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public FakeTimeProvider Time { get; }
 
+            /// <summary>
+            /// Creates a harness hosting a node manager configured through the fluent builder.
+            /// </summary>
+            /// <param name="configure">The callback that configures the node manager builder.</param>
             /// <param name="useSamplingGroups">The use-sampling-groups flag supplied by the caller.</param>
             /// <param name="queues">The monitored item queue factory.</param>
             public static async ValueTask<MonitoredItemHarness> CreateAsync(
@@ -873,6 +877,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return (errors[0], monitoredItems[0]);
             }
 
+            /// <summary>
+            /// Restores a monitored item from its stored representation.
+            /// </summary>
             /// <param name="stored">The stored monitored item.</param>
             public async ValueTask<IMonitoredItem> RestoreAsync(IStoredMonitoredItem stored)
             {

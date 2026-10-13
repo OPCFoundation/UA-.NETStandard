@@ -61,6 +61,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that native event modes preserve occurrence facts.
         /// </summary>
+        /// <param name="mode">The event identity mode under test.</param>
         /// <param name="managed">The managed flag for this test case.</param>
         [TestCase("local-re-emission", false)]
         [TestCase("transparent-forwarding", false)]
@@ -220,6 +221,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public int OpenCount { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="form">The WoT compiled form.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotBindingChannel> OpenChannelAsync(
@@ -251,6 +253,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public string EndpointUrl => $"opc.tcp://localhost:{m_fixture.Port}";
 
+            /// <summary>
+            /// Starts the server fixture and connects a session using the given security policy.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             /// <param name="securityPolicy">The security policy.</param>
             /// <param name="managed">The managed flag supplied by the caller.</param>
@@ -273,6 +278,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Session.KeepAliveInterval = 1000;
             }
 
+            /// <summary>
+            /// Adds the node set to the running server as a runtime node set.
+            /// </summary>
             /// <param name="nodes">The UA node set.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async Task InstallAsync(UANodeSet nodes, CancellationToken ct)
@@ -289,12 +297,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }, null, ct).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Refreshes the session namespace tables from the server.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async Task RefreshNamespaceTableAsync(CancellationToken ct)
             {
                 await Session.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Reports a base event with the given event identifier from the server.
+            /// </summary>
             /// <param name="eventId">The event ID.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async Task ReportAsync(ByteString eventId, CancellationToken ct)
@@ -358,6 +372,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_subscription = subscription;
             }
 
+            /// <summary>
+            /// Opens an event subscription on the notifier and wraps it for reading events.
+            /// </summary>
+            /// <param name="session">The session used to create the subscription.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             /// <param name="eventNotifier">The event notifier.</param>
             public static async Task<NativeEvents> OpenAsync(
@@ -415,6 +433,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Reads the next received event field set.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ArrayOf<Variant>> ReadAsync(CancellationToken ct)
             {

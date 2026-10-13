@@ -376,6 +376,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             public List<(string Action, WotBindingPlan? Plan)> Events { get; } = [];
 
+            /// <summary>
+            /// Records an action, optionally associated with the binding plan it applied to.
+            /// </summary>
+            /// <param name="action">The name of the action that occurred.</param>
             /// <param name="plan">The WoT binding plan.</param>
             public void Record(string action, WotBindingPlan? plan = null)
             {
@@ -385,6 +389,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Returns the index of the first recorded event matching the action and, when given, the plan.
+            /// </summary>
+            /// <param name="action">The name of the action to look for.</param>
             /// <param name="plan">The WoT binding plan.</param>
             public int IndexOf(string action, WotBindingPlan? plan = null)
             {

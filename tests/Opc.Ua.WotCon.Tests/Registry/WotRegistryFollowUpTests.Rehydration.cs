@@ -319,6 +319,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private sealed class RehydratingLeaseStore(FileWotRegistryStore inner) : IWotRegistryStore
         {
+            /// <summary>
+            /// Replaces the delegate used to read version content.
+            /// </summary>
             /// <param name="readContent">The read content.</param>
             public void SetContentReader(
                 Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent)
@@ -326,6 +329,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 m_readContent = readContent ?? throw new ArgumentNullException(nameof(readContent));
             }
 
+            /// <summary>
+            /// Configures the next commit to fail.
+            /// </summary>
             /// <param name="commitBeforeFailure">The commit-before-failure flag supplied by the caller.</param>
             /// <param name="indeterminate">The indeterminate flag supplied by the caller.</param>
             public void FailNextCommit(bool commitBeforeFailure, bool indeterminate)
@@ -335,12 +341,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 m_indeterminate = indeterminate;
             }
 
+            /// <summary>
+            /// Loads the snapshot from the inner store.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.LoadAsync(cancellationToken);
             }
 
+            /// <summary>
+            /// Commits the snapshot to the inner store, injecting a failure when one is queued.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask CommitAsync(

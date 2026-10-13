@@ -179,6 +179,9 @@ namespace Opc.Ua.WotCon.Server
             return new NodeId($"Assets/{assetName}/{category}/{childName}", AssetNamespaceIndex);
         }
 
+        /// <summary>
+        /// Allocates the node identifier of an asset node in the asset namespace.
+        /// </summary>
         /// <param name="assetName">The asset name.</param>
         internal NodeId AllocateAssetNodeId(string assetName)
         {

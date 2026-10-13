@@ -943,6 +943,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .WithConditionInvocation(form.ConditionInvocation);
             }
 
+            /// <summary>
+            /// Replaces the event selection of the named affordance and returns the updated compiled form.
+            /// </summary>
+            /// <param name="name">The affordance name.</param>
             /// <param name="selection">The WoT event selection.</param>
             public WotCompiledForm SetSelection(string name, WotEventSelection selection)
             {
@@ -1030,6 +1034,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Opens an enumerator over the events captured for the notifier.
+            /// </summary>
             /// <param name="notifier">The notifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public IAsyncEnumerator<BaseEventState> Open(NodeId notifier, CancellationToken cancellationToken = default)
@@ -1037,6 +1044,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return OpenStream(notifier, cancellationToken).GetAsyncEnumerator(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="notifier">The notifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public IAsyncEnumerable<BaseEventState> OpenStream(

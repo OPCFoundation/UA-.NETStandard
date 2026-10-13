@@ -54,7 +54,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue for a new subscription (next sequence number 1, no sent messages).
         /// </summary>
-        /// <param name="subscriptionIdProvider">Returns the owning subscription's id (read lazily so it is current).</param>
+        /// <param name="subscriptionIdProvider">
+        /// Returns the owning subscription's id (read lazily so it is current).
+        /// </param>
         /// <param name="maxMessageCount">The maximum number of sent messages retained for republish.</param>
         /// <param name="retransmissionStore">
         /// Optional store that mirrors retransmission state across a <c>RedundantServerSet</c>; <c>null</c> when the
@@ -191,7 +193,9 @@ namespace Opc.Ua.Server
         /// Returns the next already-queued (but not yet published) message, or <c>null</c> when none is queued.
         /// </summary>
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
-        /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
+        /// <param name="hasItemsToPublish">
+        /// Whether the subscription still has monitored-item notifications pending.
+        /// </param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
         /// <remarks>
         /// The returned message is shared with the queue and is never recycled to the pools.
@@ -212,7 +216,9 @@ namespace Opc.Ua.Server
         /// Returns the next already-queued (but not yet published) message, or <c>null</c> when none is queued.
         /// </summary>
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
-        /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
+        /// <param name="hasItemsToPublish">
+        /// Whether the subscription still has monitored-item notifications pending.
+        /// </param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
         /// <param name="lease">
         /// Receives a reference on the returned message that the caller must release once it no

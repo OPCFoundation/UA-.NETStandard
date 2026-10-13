@@ -185,6 +185,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the contents for <c>WotMaterializationSnapshot</c>.
         /// </summary>
         internal ImmutableDictionary<string, ByteString> Contents { get; }
+
         /// <summary>
         /// Gets the declaration inputs for <c>WotMaterializationSnapshot</c>.
         /// </summary>
@@ -247,6 +248,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="registry">The WoT registry service.</param>
+        /// <param name="selectors">The resource selectors identifying the resources to capture.</param>
         /// <param name="includeDependents">The include-dependents flag supplied by the caller.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         public static ValueTask<WotMaterializationSnapshot> CaptureAsync(
@@ -259,7 +261,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return CapturePublicationAsync(registry, selectors, includeDependents, maxJsonDepth, [], cancellationToken);
         }
 
+        /// <summary>
+        /// Captures a publication snapshot for the selected resources, optionally against committed inputs
+        /// or a pending registry mutation.
+        /// </summary>
         /// <param name="registry">The WoT registry service.</param>
+        /// <param name="selectors">The resource selectors identifying the resources to capture.</param>
         /// <param name="includeDependents">The include-dependents flag supplied by the caller.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         /// <param name="replacementClosures">The replacement closures.</param>
@@ -500,6 +507,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// using only the registry's immutable metadata.
         /// </summary>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="selectors">The resource selectors identifying the resources to select.</param>
         /// <param name="includeDependents">The include-dependents flag supplied by the caller.</param>
         public static ArrayOf<WotSelectedResource> SelectResources(
             WotRegistrySnapshot snapshot,
@@ -614,6 +622,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return selected.Values.OrderBy(selection => selection.Resource.Xid, StringComparer.Ordinal).ToArrayOf();
         }
 
+        /// <summary>
+        /// Builds the xid of a resource version from the resource xid and the version identifier.
+        /// </summary>
         /// <param name="resource">The WoT resource.</param>
         /// <param name="version">The WoT resource version.</param>
         internal static string VersionXid(WotResource resource, WotResourceVersion version)

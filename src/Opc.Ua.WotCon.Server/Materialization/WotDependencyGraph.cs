@@ -511,6 +511,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Resolves a WoT reference href to a stored resource, or <c>null</c>.
         /// </summary>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="href">The reference href to resolve.</param>
         public static WotResource? Resolve(WotRegistrySnapshot snapshot, string href)
         {
             return Resolve(snapshot, href, null);
@@ -592,6 +593,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Extracts the outgoing dependency references of a single document.
         /// </summary>
+        /// <param name="document">The document content to scan.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         public static IReadOnlyList<(string Href, string RefType)> ExtractReferences(
             ReadOnlyMemory<byte> document,
@@ -609,6 +611,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="selected">The resources to build closures for.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         /// <param name="readContent">The read content.</param>
         public static ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
@@ -621,7 +624,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return BuildClosuresAsync(snapshot, selected, maxJsonDepth, readContent, [], cancellationToken);
         }
 
+        /// <summary>
+        /// Builds the dependency closures for the selected resources, reusing replacement closures where given.
+        /// </summary>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="selected">The resources to build closures for.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         /// <param name="readContent">The read content.</param>
         /// <param name="replacementClosures">The replacement closures.</param>
@@ -1029,6 +1036,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 components);
         }
 
+        /// <summary>
+        /// Splits a closure into the part required to activate the specified resources.
+        /// </summary>
         /// <param name="closure">The WoT dependency closure.</param>
         /// <param name="activationXids">The activation xids.</param>
         internal static WotDependencyClosure PartitionClosure(

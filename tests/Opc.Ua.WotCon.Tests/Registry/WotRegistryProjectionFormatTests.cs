@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <summary>
         /// Verifies that plans require both explicit projection format fields.
         /// </summary>
+        /// <param name="format">The projection format text.</param>
         /// <param name="contentType">The content type used by this test case.</param>
         [TestCase("WoT-TD/1.1", "application/td+json")]
         [TestCase("WoT-TM/1.1", "application/tm+json")]
@@ -273,6 +274,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <summary>
         /// Verifies that restored plan admission runs before any runtime publication.
         /// </summary>
+        /// <param name="format">The projection format text.</param>
         /// <param name="contentType">The content type used by this test case.</param>
         /// <param name="storedKind">The stored kind used by this test case.</param>
         [TestCase("WoT-TD/1.1", "application/td+json", WoTDocumentKindEnum.ThingDescription)]
@@ -513,12 +515,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
             /// </summary>
             public IXRegistryResourceStore ResourceStore { get; } = resourceStore;
 
+            /// <summary>
+            /// Loads the snapshot from the inner store.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.LoadAsync(cancellationToken);
             }
 
+            /// <summary>
+            /// Commits the snapshot to the inner store.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask CommitAsync(

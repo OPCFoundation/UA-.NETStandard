@@ -148,6 +148,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         /// Verifies that startup enforces configured file count.
         /// </summary>
         /// <param name="useDependencyInjection">The use-dependency-injection flag for this test case.</param>
+        /// <param name="limit">The configured maximum persisted file count.</param>
         [TestCase(false, 0)]
         [TestCase(false, 1)]
         [TestCase(true, 0)]
@@ -490,7 +491,11 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             /// </summary>
             public WotConnectivityClient Client { get; private set; } = null!;
 
+            /// <summary>
+            /// Starts a server with the configured WoT connectivity options.
+            /// </summary>
             /// <param name="useDependencyInjection">The use-dependency-injection flag supplied by the caller.</param>
+            /// <param name="configure">The callback that configures the connectivity server options.</param>
             /// <param name="prepareDocuments">The prepare documents.</param>
             public static async Task<ConfiguredServer> StartAsync(
                 bool useDependencyInjection,

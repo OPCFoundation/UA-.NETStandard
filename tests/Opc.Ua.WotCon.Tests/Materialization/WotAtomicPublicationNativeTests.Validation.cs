@@ -596,21 +596,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the fail next capture for <c>ValidationCaptureStore</c>.
             /// </summary>
             public bool FailNextCapture { get; set; }
+
             /// <summary>
             /// Gets the supports prepared commits for <c>ValidationCaptureStore</c>.
             /// </summary>
             public bool SupportsPreparedCommits => inner.SupportsPreparedCommits;
+
             /// <summary>
             /// Gets the resource store for <c>ValidationCaptureStore</c>.
             /// </summary>
             public IXRegistryResourceStore ResourceStore => ((IWotRegistryResourceStoreProvider)inner).ResourceStore;
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.LoadAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask CommitAsync(WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)
@@ -618,6 +622,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.CommitAsync(snapshot, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotRegistryValidatedGeneration> CaptureValidatedGenerationAsync(
                 CancellationToken cancellationToken = default)
@@ -630,6 +635,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.CaptureValidatedGenerationAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="intendedSnapshot">The intended snapshot.</param>
             /// <param name="expectedGeneration">The expected generation.</param>
             /// <param name="scope">The WoT registry commit scope.</param>
@@ -641,6 +647,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.PrepareCommitAsync(intendedSnapshot, expectedGeneration, scope, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="expectedGeneration">The expected generation.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(

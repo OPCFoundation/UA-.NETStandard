@@ -51,6 +51,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public List<WotCompiledForm> OpenedForms { get; } = [];
 
+        /// <summary>
+        /// Registers the channel returned when the form is opened.
+        /// </summary>
         /// <param name="form">The WoT compiled form.</param>
         /// <param name="channel">The WoT binding channel.</param>
         public void SetChannel(WotCompiledForm form, IWotBindingChannel channel)
@@ -58,19 +61,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_openers[form] = _ => new ValueTask<IWotBindingChannel>(channel);
         }
 
+        /// <summary>
+        /// Registers a parameterless opener that produces the channel when the form is opened.
+        /// </summary>
         /// <param name="form">The WoT compiled form.</param>
+        /// <param name="opener">The delegate that opens the channel.</param>
         public void SetOpener(WotCompiledForm form, Func<ValueTask<IWotBindingChannel>> opener)
         {
             m_openers[form] = _ => opener();
         }
 
+        /// <summary>
+        /// Registers a cancellable opener that produces the channel when the form is opened.
+        /// </summary>
         /// <param name="form">The WoT compiled form.</param>
+        /// <param name="opener">The delegate that opens the channel.</param>
         public void SetOpener(
             WotCompiledForm form, Func<CancellationToken, ValueTask<IWotBindingChannel>> opener)
         {
             m_openers[form] = opener;
         }
 
+        /// <inheritdoc/>
         /// <param name="form">The WoT compiled form.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotBindingChannel> OpenChannelAsync(
@@ -153,6 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? throw new NotSupportedException();
         }
 
+        /// <inheritdoc/>
         /// <param name="onNotification">The on notification.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotSubscription> ObserveAsync(
@@ -412,6 +425,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new TestRootStructure();
         }
 
+        /// <inheritdoc/>
         /// <param name="namespaceUris">The namespace URIs.</param>
         public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
         {
@@ -589,6 +603,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public string StructTypeNodeIdText => $"ns={Ns};i={TestRootType.NumericId}";
 
+        /// <summary>
+        /// Imports the node set into the harness and tracks the imported nodes.
+        /// </summary>
         /// <param name="nodeSet">The node set.</param>
         public void Import(UANodeSet nodeSet)
         {
@@ -690,6 +707,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private int m_nextId = 10000;
         }
 
+        /// <summary>
+        /// Creates a compiled form for the operation that targets the given mapping.
+        /// </summary>
         /// <param name="operation">The wo t binding capability enum.</param>
         /// <param name="mapping">The WoT target mapping descriptor.</param>
         /// <param name="affordanceName">The affordance name.</param>

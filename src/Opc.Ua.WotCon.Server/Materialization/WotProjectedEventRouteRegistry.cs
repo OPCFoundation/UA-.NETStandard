@@ -41,6 +41,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed partial class WotProjectedEventRouteRegistry
     {
+        /// <summary>
+        /// Gets the event bindings registered for a notifier.
+        /// </summary>
         /// <param name="notifierId">The notifier identifier.</param>
         public ArrayOf<WotProjectedEventBinding> GetDescriptorBindings(NodeId notifierId)
         {
@@ -65,6 +68,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Removes a binding and releases its transparent registrations.
+        /// </summary>
         /// <param name="binding">The WoT projected event binding.</param>
         public void Remove(WotProjectedEventBinding binding)
         {
@@ -107,8 +113,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new ServiceResult(StatusCodes.BadEventIdUnknown);
         }
 
+        /// <summary>
+        /// Resolves a captured condition action requested by a binding.
+        /// </summary>
         /// <param name="requester">The WoT projected event binding.</param>
         /// <param name="eventId">The event ID.</param>
+        /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
         public ServiceResult ResolveAction(

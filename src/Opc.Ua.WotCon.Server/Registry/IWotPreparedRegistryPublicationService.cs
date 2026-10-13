@@ -107,6 +107,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// The publication generation is assigned by the coordinator, not by this method.
         /// </summary>
         /// <param name="expectedSnapshot">The expected snapshot.</param>
+        /// <param name="projections">The resource projections to publish.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -144,6 +145,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Prepares the next sequential unit against the exact current snapshot.
         /// </summary>
         /// <param name="expectedSnapshot">The expected snapshot.</param>
+        /// <param name="projections">The resource projections to publish.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

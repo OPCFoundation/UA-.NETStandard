@@ -76,6 +76,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that converted declaration retains its explicit mode.
         /// </summary>
+        /// <param name="mode">The event identity mode text declared by the document.</param>
         /// <param name="expected">The expected wo t event identity mode enum asserted by the test.</param>
         [TestCase("local-re-emission", WoTEventIdentityModeEnum.LocalReEmission)]
         [TestCase("transparent-forwarding", WoTEventIdentityModeEnum.TransparentForwarding)]

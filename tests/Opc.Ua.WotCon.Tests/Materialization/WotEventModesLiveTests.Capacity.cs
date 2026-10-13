@@ -272,6 +272,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class CapacityObservedPublisher : IWotNativeProjectionEventPublisher
         {
+            /// <inheritdoc/>
             /// <param name="builder">The node manager builder.</param>
             /// <param name="notifier">The base object state.</param>
             /// <param name="registerAsRootNotifier">The register-as-root-notifier flag supplied by the caller.</param>
@@ -285,6 +286,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     token => new ObservedStream(source(token), m_observations.Writer), registerAsRootNotifier);
             }
 
+            /// <summary>
+            /// Reads the next observation recorded by the publisher.
+            /// </summary>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask<ProjectionObservation> ReadAsync(CancellationToken ct)
             {
@@ -296,6 +300,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ChannelWriter<ProjectionObservation> observations)
                 : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
             {
+                /// <inheritdoc/>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public IAsyncEnumerator<BaseEventState> GetAsyncEnumerator(
                     CancellationToken cancellationToken = default)
@@ -303,6 +308,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     return ObserveAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
                 }
 
+                /// <inheritdoc/>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public ValueTask WaitUntilReadyAsync(CancellationToken cancellationToken = default)
                 {

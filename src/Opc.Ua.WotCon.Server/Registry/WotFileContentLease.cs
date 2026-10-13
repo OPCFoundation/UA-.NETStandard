@@ -51,6 +51,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the resource key for <c>WotFileContentLease</c>.
         /// </summary>
         public string ResourceKey { get; }
+
         /// <summary>
         /// Gets the content length for <c>WotFileContentLease</c>.
         /// </summary>
@@ -59,6 +60,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         // POSIX advisory sharing is not an authoritative lease against other filesystem writers.
         internal static bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
+        /// <summary>
+        /// Reads a range of the protected immutable content.
+        /// </summary>
+        /// <param name="offset">The zero-based byte offset at which to start reading.</param>
+        /// <param name="count">The maximum number of bytes to read.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<ByteString> ReadAsync(
             long offset,
@@ -122,6 +128,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Opens a protected immutable content lease over a registry content file.
+        /// </summary>
+        /// <param name="path">The content file path.</param>
         /// <param name="resourceKey">The resource key.</param>
         internal static IWotRegistryContentLease Open(string path, string resourceKey)
         {

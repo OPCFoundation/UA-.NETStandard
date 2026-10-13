@@ -831,7 +831,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public INodeBuilder? ObservedNode { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="builder">The node manager builder.</param>
+            /// <param name="plans">The binding plans to record.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IAsyncDisposable?> CreateAsync(
                 INodeManagerBuilder builder,

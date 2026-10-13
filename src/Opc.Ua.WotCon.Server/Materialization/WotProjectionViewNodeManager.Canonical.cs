@@ -76,6 +76,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_preparedSources = sources;
         }
 
+        /// <summary>
+        /// Creates the canonical address space from the captured view state.
+        /// </summary>
         /// <param name="externalReferences">The external references.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -228,6 +231,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Prepares the replacement node manager for reload and returns the references to carry over.
+        /// </summary>
         /// <param name="replacement">The async node manager.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         public ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
@@ -331,6 +337,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 members.Contains(Local(reference.TargetId));
         }
 
+        /// <summary>
+        /// Gets the namespace URIs used by the nodes of a canonical view state.
+        /// </summary>
         /// <param name="state">The WoT canonical view state.</param>
         internal static string[] CanonicalNamespaces(WotCanonicalViewState state)
         {
@@ -342,6 +351,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return uris.OrderBy(uri => uri, StringComparer.Ordinal).ToArray();
         }
 
+        /// <summary>
+        /// Validates that the server matches the one this canonical node manager belongs to.
+        /// </summary>
         /// <param name="server">The server internal.</param>
         internal void ValidateCanonicalServer(IServerInternal server)
         {
@@ -351,6 +363,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Validates that a canonical view state is a valid successor of the current canonical state.
+        /// </summary>
         /// <param name="state">The WoT canonical view state.</param>
         internal void ValidateCanonicalSuccessor(WotCanonicalViewState state)
         {

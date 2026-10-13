@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that default condition methods forward without overwriting application handlers.
         /// </summary>
+        /// <param name="action">The condition action under test.</param>
         /// <param name="applicationHandler">The application-handler flag for this test case.</param>
         [TestCase("Enable", false)]
         [TestCase("Disable", false)]
@@ -249,6 +250,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public int ApplicationCalls { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="builder">The node manager builder.</param>
             /// <param name="notifier">The base object state.</param>
             /// <param name="declaration">The WoT projected affordance.</param>

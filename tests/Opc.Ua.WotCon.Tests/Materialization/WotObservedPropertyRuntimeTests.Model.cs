@@ -212,6 +212,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return new ObservedRange();
             }
 
+            /// <inheritdoc/>
             /// <param name="namespaceUris">The namespace URIs.</param>
             public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
             {

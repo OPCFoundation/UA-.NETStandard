@@ -57,6 +57,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_native = new WotNativeOwnershipIndex(maxNodes);
         }
 
+        /// <summary>
+        /// Registers a node set for a resource together with its root node and serialized document.
+        /// </summary>
         /// <param name="resourceXid">The resource xid.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="root">The root.</param>
@@ -127,6 +130,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_declarations.Clear();
         }
 
+        /// <summary>
+        /// Determines whether a resource's node set contains a node.
+        /// </summary>
         /// <param name="resourceXid">The resource xid.</param>
         /// <param name="nodeId">The node identifier.</param>
         public bool ContainsNode(string resourceXid, ExpandedNodeId nodeId)
@@ -135,6 +141,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 nodes.Contains(nodeId);
         }
 
+        /// <summary>
+        /// Determines whether the resource's root node can generate events of a type.
+        /// </summary>
         /// <param name="resourceXid">The resource xid.</param>
         /// <param name="nodeId">The node identifier.</param>
         public bool ContainsEventType(string resourceXid, ExpandedNodeId nodeId)
@@ -143,6 +152,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_native.CanGenerateEvent(root, nodeId);
         }
 
+        /// <summary>
+        /// Gets the nodes registered for a resource.
+        /// </summary>
         /// <param name="resourceXid">The resource xid.</param>
         public ArrayOf<ExpandedNodeId> GetNodes(string resourceXid)
         {

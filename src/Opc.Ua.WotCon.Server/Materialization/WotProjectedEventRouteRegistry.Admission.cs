@@ -41,6 +41,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed partial class WotProjectedEventRouteRegistry
     {
+        /// <summary>
+        /// Prepares the transparent event source of a binding and records it for sharing checks.
+        /// </summary>
         /// <param name="binding">The WoT projected event binding.</param>
         /// <param name="source">The WoT event source.</param>
         public void PrepareTransparentSource(WotProjectedEventBinding binding, WotEventSource source)
@@ -60,6 +63,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Validates that a captured event is consistent with the transparent source of a binding.
+        /// </summary>
         /// <param name="binding">The WoT projected event binding.</param>
         /// <param name="captured">The WoT captured event.</param>
         public void ValidateTransparentSource(WotProjectedEventBinding binding, WotCapturedEvent captured)
@@ -70,6 +76,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Admits a captured event for a transparent binding and reports whether it was newly admitted.
+        /// </summary>
         /// <param name="binding">The WoT projected event binding.</param>
         /// <param name="captured">The WoT captured event.</param>
         public bool AdmitTransparentEvent(WotProjectedEventBinding binding, WotCapturedEvent captured)
@@ -109,6 +118,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Releases the transparent event admission held by a binding for an event identifier.
+        /// </summary>
         /// <param name="binding">The WoT projected event binding.</param>
         /// <param name="eventId">The event ID.</param>
         public void ReleaseTransparentEvent(WotProjectedEventBinding binding, ByteString eventId)
@@ -194,10 +206,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// Gets the captured for <c>EventClaim</c>.
             /// </summary>
             public WotCapturedEvent Captured { get; } = captured;
+
             /// <summary>
             /// Gets the nodes for <c>EventClaim</c>.
             /// </summary>
             public ArrayOf<ExpandedNodeId> Nodes { get; } = nodes;
+
             /// <summary>
             /// Gets the owners for <c>EventClaim</c>.
             /// </summary>
@@ -210,6 +224,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// Gets the WoT event source for <c>NodeClaim</c>.
             /// </summary>
             public WotEventSource Source { get; } = source;
+
             /// <summary>
             /// Gets or sets the references for <c>NodeClaim</c>.
             /// </summary>

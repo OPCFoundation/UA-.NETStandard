@@ -53,6 +53,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed partial class WotRegistryService
     {
+        /// <summary>
+        /// Registers the single materialization coordinator that hosts registry lifecycle operations.
+        /// </summary>
         /// <param name="coordinator">The WoT materialization coordinator.</param>
         internal IDisposable RegisterLifecycleCoordinator(WotMaterializationCoordinator coordinator)
         {
@@ -65,6 +68,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Interlocked.CompareExchange(ref m_lifecycleCoordinator, null, coordinator));
         }
 
+        /// <summary>
+        /// Determines whether a resource deletion recovered after a restart is confirmed by the current snapshot.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="previousGeneration">The previous generation.</param>
@@ -85,6 +91,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Plans the deletion of one exact version against the current snapshot.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="versionId">The version ID.</param>
@@ -162,6 +171,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Plans the deletion of a group against the current snapshot.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="policy">The wo t delete policy enum.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>

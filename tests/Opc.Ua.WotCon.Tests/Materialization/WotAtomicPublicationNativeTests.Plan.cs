@@ -48,6 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Verifies that final plan precedes every native switch and dry run leaves it unchanged.
         /// </summary>
         /// <param name="atomicity">The wo t atomicity enum.</param>
+        /// <param name="units">The number of units published in the plan.</param>
         [TestCase(WoTAtomicityEnum.PerResource, 2)]
         [TestCase(WoTAtomicityEnum.PerGroup, 1)]
         [TestCase(WoTAtomicityEnum.PerClosure, 2)]

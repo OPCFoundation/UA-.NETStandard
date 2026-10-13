@@ -77,10 +77,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the previous for <c>WotRegistryMutationImage</c>.
         /// </summary>
         public WotRegistrySnapshot Previous { get; }
+
         /// <summary>
         /// Gets the desired for <c>WotRegistryMutationImage</c>.
         /// </summary>
         public WotRegistrySnapshot Desired { get; }
+
         /// <summary>
         /// Gets the changed resource xids for <c>WotRegistryMutationImage</c>.
         /// </summary>
@@ -101,7 +103,11 @@ namespace Opc.Ua.WotCon.Server.Registry
 
     internal interface IWotRegistryMutationPublication : IWotRegistryPublication
     {
+        /// <summary>
+        /// Prepares a registry mutation image together with its resource projections.
+        /// </summary>
         /// <param name="mutation">The WoT registry mutation image.</param>
+        /// <param name="projections">The resource projections to publish.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

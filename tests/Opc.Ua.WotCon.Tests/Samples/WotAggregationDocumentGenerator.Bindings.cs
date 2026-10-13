@@ -49,6 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// identity. A missing declaration is an error, never an implicit node.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <param name="documents">The sample documents to bind.</param>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public static async Task<ArrayOf<SampleDocument>> BindPumpDocumentsAsync(
             ArrayOf<SampleDocument> documents,
@@ -418,6 +419,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// self-contained. The complete document set validates those claims.
         /// </summary>
         /// <param name="document">The WoT document.</param>
+        /// <param name="origin">The origin identifier of the owned partition.</param>
         public static UANodeSet ReadOwnedPartition(WotDocument document, string origin)
         {
             bool native = document.RootElement.TryGetProperty("uav:nodes", out JsonElement projection);

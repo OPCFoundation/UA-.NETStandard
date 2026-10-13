@@ -365,6 +365,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <param name="SchemaVersion">The schema version.</param>
     /// <param name="LogicalServerUri">The logical server URI.</param>
     /// <param name="AllocationNamespaceUri">The allocation namespace URI.</param>
+    /// <param name="Definitions">The canonical view definitions.</param>
+    /// <param name="Sources">The canonical view sources.</param>
+    /// <param name="Views">The canonical view records.</param>
+    /// <param name="Nodes">The canonical node records.</param>
+    /// <param name="References">The canonical reference records.</param>
     internal sealed record CanonicalGraphDto(
         int SchemaVersion,
         string LogicalServerUri,
@@ -385,6 +390,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <param name="Active">The active flag supplied by the caller.</param>
     /// <param name="ViewVersion">The view version.</param>
     /// <param name="MembershipDigest">The membership digest.</param>
+    /// <param name="Membership">The canonical identities of the view members.</param>
+    /// <param name="Omissions">The canonical identities of the omitted members.</param>
     /// <param name="MaterializedNodeCount">The materialized node count.</param>
     internal sealed record CanonicalViewDto(
         string ResourceXid, string ResourceNodeId, string ViewNodeId, bool Requested, bool Active,

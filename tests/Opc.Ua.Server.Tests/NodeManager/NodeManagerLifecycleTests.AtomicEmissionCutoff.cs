@@ -423,12 +423,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed partial class TrackingLifecycleNodeManager
         {
+            /// <summary>
+            /// Returns the monitored node that acts as the emission source for the node.
+            /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             public MonitoredNode2 GetEmissionSource(NodeId nodeId)
             {
                 return m_monitoredItemManager.MonitoredNodes[nodeId];
             }
 
+            /// <summary>
+            /// Reports an event owned by this node manager from the root node.
+            /// </summary>
+            /// <param name="message">The event message text.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask ReportOwnedEmissionAsync(string message, CancellationToken cancellationToken)
             {

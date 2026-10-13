@@ -3174,34 +3174,42 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the source version ID for <c>DependencySnapshotDto</c>.
             /// </summary>
             public string? SourceVersionId { get; set; }
+
             /// <summary>
             /// Gets or sets the generation for <c>DependencySnapshotDto</c>.
             /// </summary>
             public uint Generation { get; set; }
+
             /// <summary>
             /// Gets or sets the request ID for <c>DependencySnapshotDto</c>.
             /// </summary>
             public string? RequestId { get; set; }
+
             /// <summary>
             /// Gets or sets the resolved at for <c>DependencySnapshotDto</c>.
             /// </summary>
             public string? ResolvedAt { get; set; }
+
             /// <summary>
             /// Gets or sets the is committed for <c>DependencySnapshotDto</c>.
             /// </summary>
             public bool IsCommitted { get; set; }
+
             /// <summary>
             /// Gets or sets the effective input digest for <c>DependencySnapshotDto</c>.
             /// </summary>
             public string? EffectiveInputDigest { get; set; }
+
             /// <summary>
             /// Gets or sets the graph index for <c>DependencySnapshotDto</c>.
             /// </summary>
             public int? GraphIndex { get; set; }
+
             /// <summary>
             /// Gets or sets the edges for <c>DependencySnapshotDto</c>.
             /// </summary>
             public DependencyEdgeDto[]? Edges { get; set; }
+
             /// <summary>
             /// Gets or sets the targets for <c>DependencySnapshotDto</c>.
             /// </summary>
@@ -3214,18 +3222,22 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the source xid for <c>DependencyEdgeDto</c>.
             /// </summary>
             public string? SourceXid { get; set; }
+
             /// <summary>
             /// Gets or sets the target href for <c>DependencyEdgeDto</c>.
             /// </summary>
             public string? TargetHref { get; set; }
+
             /// <summary>
             /// Gets or sets the target xid for <c>DependencyEdgeDto</c>.
             /// </summary>
             public string? TargetXid { get; set; }
+
             /// <summary>
             /// Gets or sets the ref type for <c>DependencyEdgeDto</c>.
             /// </summary>
             public string? RefType { get; set; }
+
             /// <summary>
             /// Gets or sets the resolved for <c>DependencyEdgeDto</c>.
             /// </summary>
@@ -3238,22 +3250,27 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the edge index for <c>DependencyTargetDto</c>.
             /// </summary>
             public uint EdgeIndex { get; set; }
+
             /// <summary>
             /// Gets or sets the origin registry for <c>DependencyTargetDto</c>.
             /// </summary>
             public RegistryOriginDto? OriginRegistry { get; set; }
+
             /// <summary>
             /// Gets or sets the version xid for <c>DependencyTargetDto</c>.
             /// </summary>
             public string? VersionXid { get; set; }
+
             /// <summary>
             /// Gets or sets the document URI for <c>DependencyTargetDto</c>.
             /// </summary>
             public string? DocumentUri { get; set; }
+
             /// <summary>
             /// Gets or sets the version node ID for <c>DependencyTargetDto</c>.
             /// </summary>
             public string? VersionNodeId { get; set; }
+
             /// <summary>
             /// Gets or sets the content digest for <c>DependencyTargetDto</c>.
             /// </summary>
@@ -3266,10 +3283,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the origin URI for <c>RegistryOriginDto</c>.
             /// </summary>
             public string? OriginUri { get; set; }
+
             /// <summary>
             /// Gets or sets the server URI for <c>RegistryOriginDto</c>.
             /// </summary>
             public string? ServerUri { get; set; }
+
             /// <summary>
             /// Gets or sets the registry node ID for <c>RegistryOriginDto</c>.
             /// </summary>
@@ -3285,34 +3304,42 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the index version for <c>DependenciesDto</c>.
             /// </summary>
             public int IndexVersion { get; set; }
+
             /// <summary>
             /// Gets or sets the content digest for <c>DependenciesDto</c>.
             /// </summary>
             public string? ContentDigest { get; set; }
+
             /// <summary>
             /// Gets or sets the references for <c>DependenciesDto</c>.
             /// </summary>
             public DependencyReferenceDto[]? References { get; set; }
+
             /// <summary>
             /// Gets or sets the owned model URIs for <c>DependenciesDto</c>.
             /// </summary>
             public string[]? OwnedModelUris { get; set; }
+
             /// <summary>
             /// Gets or sets the required model URIs for <c>DependenciesDto</c>.
             /// </summary>
             public string[]? RequiredModelUris { get; set; }
+
             /// <summary>
             /// Gets or sets the defined node IDs for <c>DependenciesDto</c>.
             /// </summary>
             public string[]? DefinedNodeIds { get; set; }
+
             /// <summary>
             /// Gets or sets the data type definition IDs for <c>DependenciesDto</c>.
             /// </summary>
             public string[]? DataTypeDefinitionIds { get; set; }
+
             /// <summary>
             /// Gets or sets the data type definition names for <c>DependenciesDto</c>.
             /// </summary>
             public string[]? DataTypeDefinitionNames { get; set; }
+
             /// <summary>
             /// Gets or sets the error for <c>DependenciesDto</c>.
             /// </summary>
@@ -3328,18 +3355,22 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the target URI for <c>DependencyReferenceDto</c>.
             /// </summary>
             public string? TargetUri { get; set; }
+
             /// <summary>
             /// Gets or sets the lookup URI for <c>DependencyReferenceDto</c>.
             /// </summary>
             public string? LookupUri { get; set; }
+
             /// <summary>
             /// Gets or sets the ref type for <c>DependencyReferenceDto</c>.
             /// </summary>
             public string? RefType { get; set; }
+
             /// <summary>
             /// Gets or sets the requires ordering for <c>DependencyReferenceDto</c>.
             /// </summary>
             public bool RequiresOrdering { get; set; }
+
             /// <summary>
             /// Gets or sets the lookup for <c>DependencyReferenceDto</c>.
             /// </summary>

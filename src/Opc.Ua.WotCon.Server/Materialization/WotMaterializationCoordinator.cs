@@ -2614,6 +2614,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public ImmutableArray<WoTResourceLoadResultDataType> Results { get; }
             public List<WotResourceProjection> Projections { get; }
             public int Retired { get; }
+
             /// <summary>
             /// Gets the effective input digest for <c>ClosureOutcome</c>.
             /// </summary>

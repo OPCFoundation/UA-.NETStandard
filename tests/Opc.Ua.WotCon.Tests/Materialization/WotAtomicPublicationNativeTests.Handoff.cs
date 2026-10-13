@@ -718,50 +718,62 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the before decision async for <c>HandoffProbe</c>.
             /// </summary>
             public Func<CancellationToken, ValueTask>? BeforeDecisionAsync { get; set; }
+
             /// <summary>
             /// Gets or sets the after decision async for <c>HandoffProbe</c>.
             /// </summary>
             public Func<CancellationToken, ValueTask>? AfterDecisionAsync { get; set; }
+
             /// <summary>
             /// Gets or sets the publication failure for <c>HandoffProbe</c>.
             /// </summary>
             public Exception? PublicationFailure { get; set; }
+
             /// <summary>
             /// Gets or sets the reject read images for <c>HandoffProbe</c>.
             /// </summary>
             public bool RejectReadImages { get; set; }
+
             /// <summary>
             /// Gets or sets the on runtime created for <c>HandoffProbe</c>.
             /// </summary>
             public Action? OnRuntimeCreated { get; set; }
+
             /// <summary>
             /// Gets the changes for <c>HandoffProbe</c>.
             /// </summary>
             public List<ArrayOf<WotProjectionChange>> Changes { get; } = [];
+
             /// <summary>
             /// Gets the publications for <c>HandoffProbe</c>.
             /// </summary>
             public List<IWotPreparedProjectionPublication> Publications { get; } = [];
+
             /// <summary>
             /// Gets or sets the decision count for <c>HandoffProbe</c>.
             /// </summary>
             public int DecisionCount { get; set; }
+
             /// <summary>
             /// Gets or sets the accepted count for <c>HandoffProbe</c>.
             /// </summary>
             public int AcceptedCount { get; set; }
+
             /// <summary>
             /// Gets or sets the publication count for <c>HandoffProbe</c>.
             /// </summary>
             public int PublicationCount { get; set; }
+
             /// <summary>
             /// Gets or sets the disposal count for <c>HandoffProbe</c>.
             /// </summary>
             public int DisposalCount { get; set; }
+
             /// <summary>
             /// Gets or sets the runtime created count for <c>HandoffProbe</c>.
             /// </summary>
             public int RuntimeCreatedCount { get; set; }
+
             /// <summary>
             /// Gets or sets the runtime disposed count for <c>HandoffProbe</c>.
             /// </summary>

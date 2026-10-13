@@ -623,8 +623,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             public bool Disposed => Volatile.Read(ref m_disposed) != 0;
 
+            /// <summary>
+            /// Creates the startup readiness node manager for the server.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -643,6 +647,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 StartupReadinessProbe owner) : AsyncCustomNodeManager(server, configuration, kNamespaceUri),
                 INodeManagerReadinessNotification
             {
+                /// <summary>
+                /// Records the cancellation token received when the server becomes ready.
+                /// </summary>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
                 {
@@ -652,6 +659,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     throw owner.Failure;
                 }
 
+                /// <summary>
+                /// Records the delete call and the cancellation token it received.
+                /// </summary>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
                 {
@@ -694,6 +704,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             public CancellationToken ReceivedToken { get; private set; }
 
+            /// <summary>
+            /// Signals entry, waits for the test to release it and then creates the projection node manager
+            /// registration.
+            /// </summary>
+            /// <param name="builder">The node manager builder.</param>
+            /// <param name="bindingPlans">The binding plans to materialize.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IAsyncDisposable?> CreateAsync(
                 INodeManagerBuilder builder,
@@ -743,6 +759,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.CapturePublication();
             }
 
+            /// <summary>
+            /// Prepares the projection publication for the changes.
+            /// </summary>
+            /// <param name="changes">The projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -753,6 +773,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.PrepareAsync(changes, views, cancellationToken);
             }
 
+            /// <summary>
+            /// Adds the projection document.
+            /// </summary>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotProjectionHandle> AddAsync(
@@ -761,6 +784,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.AddAsync(document, cancellationToken);
             }
 
+            /// <summary>
+            /// Reloads the projection document with a shadow generation.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -771,6 +797,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.ShadowReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Reloads the projection document immediately.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -781,6 +810,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Counts the removal and removes the projection under a five-second deadline.
+            /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask RemoveAsync(

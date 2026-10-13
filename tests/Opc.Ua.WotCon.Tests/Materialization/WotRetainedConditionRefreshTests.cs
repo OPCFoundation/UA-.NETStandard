@@ -79,6 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that rejected private validation can retry without owning capacity.
         /// </summary>
+        /// <param name="mode">The event identity mode under test.</param>
         /// <param name="firstInput">The first-input flag for this test case.</param>
         /// <param name="invalidNamespace">The invalid-namespace flag for this test case.</param>
         [TestCase("local-re-emission", false, false)]
@@ -187,6 +188,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that core configuration property refresh preserves identity.
         /// </summary>
+        /// <param name="mode">The event identity mode under test.</param>
         /// <param name="propertyName">The property name used by this test case.</param>
         [TestCaseSource(nameof(NonStateCorePropertyCases))]
         public async Task CoreConfigurationPropertyRefreshPreservesIdentityAsync(string mode, string propertyName)
@@ -343,6 +345,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Creates a retained limit alarm with the supplied identity and timestamps.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="typeId">The type identifier.</param>
         /// <param name="conditionId">The condition identifier.</param>
@@ -540,6 +545,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public List<LimitAlarmState> Conditions { get; } = [];
 
+            /// <summary>
+            /// Projects the event fields of the alarm through the resolved select clauses.
+            /// </summary>
             /// <param name="missingCapturedField">The missing captured field.</param>
             /// <param name="invalidNamespace">The invalid-namespace flag supplied by the caller.</param>
             public ValueTask<BaseEventState?> ProjectAsync(

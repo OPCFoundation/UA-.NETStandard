@@ -255,6 +255,9 @@ namespace Opc.Ua.WotCon.Tests
                 await m_queue.WhenIdleAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Creates a Thing Model version in the group and returns its file state.
+            /// </summary>
             /// <param name="group">The group state.</param>
             /// <param name="versionId">The version ID.</param>
             public async ValueTask<ThingModelFileState> CreateVersionAsync(GroupState group, string versionId)
@@ -287,7 +290,11 @@ namespace Opc.Ua.WotCon.Tests
                 return version;
             }
 
+            /// <summary>
+            /// Uploads the model title and version to the file version.
+            /// </summary>
             /// <param name="version">The thing model file state.</param>
+            /// <param name="title">The model title.</param>
             /// <param name="modelVersion">The model version.</param>
             public async ValueTask UploadAsync(ThingModelFileState version, string title, string modelVersion)
             {

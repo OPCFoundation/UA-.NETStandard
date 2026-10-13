@@ -194,6 +194,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verifies that detached data filters use source capability snapshot.
         /// </summary>
+        /// <param name="text">Whether the filter under test is a text filter.</param>
         /// <param name="range">The range flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]

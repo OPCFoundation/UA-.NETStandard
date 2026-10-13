@@ -98,6 +98,7 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Finds the exact Version used as a WoT failure source without substituting an ancestor.
         /// </summary>
+        /// <param name="xid">The resource identifier.</param>
         /// <param name="versionId">The version ID.</param>
         public NodeState EventSourceForFailure(string? xid, string? versionId)
         {
@@ -120,6 +121,9 @@ namespace Opc.Ua.WotCon.Server
             return source;
         }
 
+        /// <summary>
+        /// Gets the node identifier of a resource version in the projection.
+        /// </summary>
         /// <param name="resource">The WoT resource.</param>
         /// <param name="version">The WoT resource version.</param>
         internal ExpandedNodeId GetVersionNodeId(WotResource resource, WotResourceVersion version)
@@ -756,6 +760,9 @@ namespace Opc.Ua.WotCon.Server
                 return CreateEventSnapshot(m_projection.m_registry.Current);
             }
 
+            /// <summary>
+            /// Creates the event snapshot of the registry projection.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             public XRegistryProjectionEventSnapshot CreateEventSnapshot(
                 WotRegistrySnapshot snapshot)
@@ -869,6 +876,9 @@ namespace Opc.Ua.WotCon.Server
                     ((IResourceAdapter)resource).Resource);
             }
 
+            /// <summary>
+            /// Configures a group node from its projection group.
+            /// </summary>
             /// <param name="node">The group state.</param>
             /// <param name="group">The x registry projection group.</param>
             public void ConfigureGroupNode(GroupState node, IXRegistryProjectionGroup group)
@@ -876,6 +886,9 @@ namespace Opc.Ua.WotCon.Server
                 m_projection.ConfigureTypedGroupNode(node, ((GroupAdapter)group).Group);
             }
 
+            /// <summary>
+            /// Configures a resource node from its projection resource.
+            /// </summary>
             /// <param name="node">The resource state.</param>
             /// <param name="resource">The x registry projection resource.</param>
             public void ConfigureResourceNode(ResourceState node, IXRegistryProjectionResource resource)
@@ -916,6 +929,9 @@ namespace Opc.Ua.WotCon.Server
 
             protected bool SupportsVersions => m_projection.UsesVersionedProjection;
 
+            /// <summary>
+            /// Creates a group through the registry coordinator.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<IXRegistryProjectionGroup?> CreateGroupAsync(
@@ -934,6 +950,9 @@ namespace Opc.Ua.WotCon.Server
                 return group is null ? null : new GroupAdapter(group);
             }
 
+            /// <summary>
+            /// Gets a group, creating it when it does not exist.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<(IXRegistryProjectionGroup Group, bool Created)> GetOrCreateGroupAsync(
@@ -968,6 +987,9 @@ namespace Opc.Ua.WotCon.Server
                 return resource is null ? null : new LegacyResourceAdapter(resource);
             }
 
+            /// <summary>
+            /// Creates a resource and its version through the registry service.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="versionId">The version ID.</param>
@@ -1025,6 +1047,9 @@ namespace Opc.Ua.WotCon.Server
                 return (new LegacyResourceAdapter(resource), created);
             }
 
+            /// <summary>
+            /// Gets a resource and its version, creating them when they do not exist.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="versionId">The version ID.</param>
@@ -1070,8 +1095,12 @@ namespace Opc.Ua.WotCon.Server
                 return ToServiceResult(result);
             }
 
+            /// <summary>
+            /// Deletes a logical resource through the delete coordinator.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
+            /// <param name="epoch">The expected epoch of the resource, if any.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<ServiceResult> DeleteResourceAsync(
                 string groupId,
@@ -1088,10 +1117,14 @@ namespace Opc.Ua.WotCon.Server
                     result.Delete.Outcome, null, result.Delete.Generation, [], result.Delete.Message));
             }
 
+            /// <summary>
+            /// Deletes a projected version or, when requested, the whole logical resource.
+            /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="versionId">The version ID.</param>
             /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
+            /// <param name="epoch">The expected epoch of the entity, if any.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
                 string groupId,
@@ -1431,6 +1464,7 @@ namespace Opc.Ua.WotCon.Server
 
             public WotResource Resource { get; }
             public WotResourceVersion Version { get; }
+
             /// <summary>
             /// Gets the prepared lease for <c>ResourceAdapter</c>.
             /// </summary>
@@ -1524,6 +1558,9 @@ namespace Opc.Ua.WotCon.Server
                 return m_file.TryOpenWriteHandle(sessionId, out fileHandle);
             }
 
+            /// <summary>
+            /// Opens the file for a write that preserves the existing content.
+            /// </summary>
             /// <param name="context">The system context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
@@ -1533,6 +1570,9 @@ namespace Opc.Ua.WotCon.Server
                 return m_file.OpenPreservingWriteAsync(context, cancellationToken);
             }
 
+            /// <summary>
+            /// Opens the file of a specific resource for a write that preserves the existing content.
+            /// </summary>
             /// <param name="resource">The x registry projection resource.</param>
             /// <param name="context">The system context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -1555,6 +1595,9 @@ namespace Opc.Ua.WotCon.Server
                 return m_file.TryOpenContentlessWriteHandle(sessionId, out fileHandle);
             }
 
+            /// <summary>
+            /// Opens the file for a write that starts without the existing content.
+            /// </summary>
             /// <param name="context">The system context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
@@ -1578,6 +1621,9 @@ namespace Opc.Ua.WotCon.Server
                 m_file.Dispose();
             }
 
+            /// <summary>
+            /// Discards the write handles held by a closing session.
+            /// </summary>
             /// <param name="sessionId">The session identifier.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
             public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)

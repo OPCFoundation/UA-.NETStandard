@@ -192,6 +192,9 @@ namespace Opc.Ua.WotCon.Tests
 
         private sealed partial class Fixture
         {
+            /// <summary>
+            /// Creates a materialization coordinator over the registry and the lifecycle projection host.
+            /// </summary>
             /// <param name="registry">The WoT registry service.</param>
             public WotMaterializationCoordinator CreateRegistryCoordinator(WotRegistryService registry)
             {

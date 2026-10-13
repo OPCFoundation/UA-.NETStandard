@@ -185,6 +185,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Reads the protected version for integrity validation. Callers must validate these bytes
         /// before using the lease as evidence for a metadata-only commit.
         /// </summary>
+        /// <param name="offset">The zero-based byte offset at which to start reading.</param>
+        /// <param name="count">The maximum number of bytes to read.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<ByteString> ReadAsync(
             long offset,

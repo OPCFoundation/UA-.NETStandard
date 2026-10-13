@@ -627,6 +627,9 @@ namespace Opc.Ua.WotCon.Tests
                                 Context, File.SetPosition, _objectId, fileHandle, position);
             }
 
+            /// <summary>
+            /// Calls the file CloseAndUpdate method for the file handle.
+            /// </summary>
             /// <param name="fileHandle">The file handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<ServiceResult> CloseAndUpdateAsync(

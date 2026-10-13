@@ -85,6 +85,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         /// <summary>
         /// Verifies that small native condition composition can refresh two generations.
         /// </summary>
+        /// <param name="change">The number of changes applied in each generation.</param>
         /// <param name="transparent">The transparent flag for this test case.</param>
         [TestCase(0, false)]
         [TestCase(1, false)]

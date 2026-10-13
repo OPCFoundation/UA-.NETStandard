@@ -484,6 +484,9 @@ namespace Opc.Ua.WotCon.Tests
                     }, null);
             }
 
+            /// <summary>
+            /// Adds a node manager whose reference add is rejected or throws and returns its node identifier.
+            /// </summary>
             /// <param name="status">The status code.</param>
             /// <param name="throws">The throws flag supplied by the caller.</param>
             /// <param name="adapted">The adapted flag supplied by the caller.</param>
@@ -500,8 +503,12 @@ namespace Opc.Ua.WotCon.Tests
         {
             public ArrayOf<string> NamespacesUris => [RejectingPeerNamespaceUri];
 
+            /// <summary>
+            /// Creates the rejecting peer node manager, adapted to the async model when configured.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
@@ -516,6 +523,9 @@ namespace Opc.Ua.WotCon.Tests
         {
             public ArrayOf<string> NamespacesUris => [options.AssetNamespaceUri, Namespaces.WotCon];
 
+            /// <summary>
+            /// Creates the rejecting peer node manager.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -546,6 +556,9 @@ namespace Opc.Ua.WotCon.Tests
                 m_throws = throws;
             }
 
+            /// <summary>
+            /// Creates the address space and adds the RejectingPeer object.
+            /// </summary>
             /// <param name="externalReferences">The external references.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public override async ValueTask CreateAddressSpaceAsync(
@@ -562,6 +575,9 @@ namespace Opc.Ua.WotCon.Tests
                 }, cancellationToken);
             }
 
+            /// <summary>
+            /// Adds the reference, or fails it with the configured status or exception.
+            /// </summary>
             /// <param name="context">The operation context.</param>
             /// <param name="item">The add references item.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

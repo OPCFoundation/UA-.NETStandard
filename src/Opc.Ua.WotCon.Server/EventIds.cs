@@ -48,18 +48,22 @@ namespace Opc.Ua
         public const int WotConnectivityNodeManager = 50;
         public const int WotRegistryNodeManager = 60;
         public const int WotProjectionViewNodeManager = 70;
+
         /// <summary>
         /// The WoT observed property source used by <c>WotConServerEventIds</c>.
         /// </summary>
         public const int WotObservedPropertySource = 80;
+
         /// <summary>
         /// The WoT structured property observation used by <c>WotConServerEventIds</c>.
         /// </summary>
         public const int WotStructuredPropertyObservation = 90;
+
         /// <summary>
         /// The WoT projection binding runtime used by <c>WotConServerEventIds</c>.
         /// </summary>
         public const int WotProjectionBindingRuntime = 100;
+
         /// <summary>
         /// The WoT registry projection used by <c>WotConServerEventIds</c>.
         /// </summary>

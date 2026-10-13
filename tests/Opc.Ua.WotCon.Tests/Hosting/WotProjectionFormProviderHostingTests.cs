@@ -145,6 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             /// </summary>
             public int Calls { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="context">The WoT projection form context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<ArrayOf<JsonElement>> GetFormsAsync(
@@ -166,6 +167,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
         private sealed class SourceResolver : IWotThingResolver
         {
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string href, WotResolutionContext context, CancellationToken cancellationToken = default)

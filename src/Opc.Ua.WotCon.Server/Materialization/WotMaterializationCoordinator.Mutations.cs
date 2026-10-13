@@ -85,6 +85,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 outcome.Delete.Generation, [], outcome.Delete.Message);
         }
 
+        /// <summary>
+        /// Deletes a single version of a resource.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="versionId">The version ID.</param>
@@ -100,6 +103,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_registry.Current.FindResource(groupId, resourceId), outcome.Delete.Generation, [], outcome.Delete.Message);
         }
 
+        /// <summary>
+        /// Deletes a group and the resources it contains.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

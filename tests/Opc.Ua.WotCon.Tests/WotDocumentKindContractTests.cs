@@ -49,6 +49,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <summary>
         /// Verifies that document kind is distinct from the selector domain.
         /// </summary>
+        /// <param name="value">The document kind value under test.</param>
         /// <param name="document">The document flag for this test case.</param>
         [TestCase(-1, false)]
         [TestCase(0, true)]
@@ -98,6 +99,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <summary>
         /// Verifies that non document creation kinds fail before any snapshot mutation.
         /// </summary>
+        /// <param name="operation">The registry operation under test.</param>
         /// <param name="exists">The exists flag for this test case.</param>
         [Test]
         public async Task NonDocumentCreationKindsFailBeforeAnySnapshotMutation(
@@ -123,6 +125,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <summary>
         /// Verifies that non document upsert kinds are rejected without publishing.
         /// </summary>
+        /// <param name="value">The numeric document kind value under test.</param>
         /// <param name="exists">The exists flag for this test case.</param>
         [Test]
         public async Task NonDocumentUpsertKindsAreRejectedWithoutPublishing(

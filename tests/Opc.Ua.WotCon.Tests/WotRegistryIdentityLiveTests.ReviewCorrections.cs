@@ -621,6 +621,7 @@ namespace Opc.Ua.WotCon.Tests
             public NodeId Version;
             public uint Handle;
             public int Calls;
+
             /// <summary>
             /// The cancellation observed used by <c>NativeCallTrace</c>.
             /// </summary>

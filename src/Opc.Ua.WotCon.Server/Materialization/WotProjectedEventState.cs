@@ -49,6 +49,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_fields.Add((path, value));
         }
 
+        /// <summary>
+        /// Gets an attribute value of the projected event, resolving it from the captured event fields.
+        /// </summary>
         /// <param name="context">The filter context.</param>
         /// <param name="typeDefinitionId">The type definition identifier.</param>
         /// <param name="relativePath">The relative path.</param>

@@ -119,6 +119,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Privately prepares source changes together with a graph-wide View participant.
         /// The View participant remains caller-owned and contributes no independent decision.
         /// </summary>
+        /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -169,6 +170,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Prepares one unit using the same corrected prepared publication owner.
         /// </summary>
+        /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -179,6 +181,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Prepares a read-metadata-only unit without replacing source or View owners.
         /// </summary>
+        /// <param name="images">The read images to prepare.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
             ArrayOf<INodeManagerReadImage> images,
@@ -195,6 +198,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// The candidate is valid only during the callback and cannot be committed.
         /// No serving mappings, routing, bindings or notification intent are published.
         /// </summary>
+        /// <param name="changes">The source projection changes to validate.</param>
         /// <param name="inspectAsync">The inspect async.</param>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

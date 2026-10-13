@@ -190,6 +190,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the data type definition IDs for <c>WotResourceDependencies</c>.
         /// </summary>
         internal ArrayOf<string> DataTypeDefinitionIds { get; }
+
         /// <summary>
         /// Gets the data type definition names for <c>WotResourceDependencies</c>.
         /// </summary>
@@ -207,10 +208,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// The document value of <c>WotResourceReferenceLookup</c>.
         /// </summary>
         Document,
+
         /// <summary>
         /// The data type name value of <c>WotResourceReferenceLookup</c>.
         /// </summary>
         DataTypeName,
+
         /// <summary>
         /// The data type node ID value of <c>WotResourceReferenceLookup</c>.
         /// </summary>

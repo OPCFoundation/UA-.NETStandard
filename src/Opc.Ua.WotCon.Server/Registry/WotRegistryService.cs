@@ -180,6 +180,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="groupId">The group ID.</param>
         /// <param name="kind">The wo t document kind enum.</param>
+        /// <param name="name">The optional display name.</param>
         public async ValueTask<WotResourceGroup> GetOrCreateGroupAsync(
             string groupId,
             WoTDocumentKindEnum kind,
@@ -229,6 +230,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="groupId">The group ID.</param>
         /// <param name="kind">The wo t document kind enum.</param>
+        /// <param name="name">The optional display name.</param>
         public async ValueTask<WotResourceGroup?> TryCreateGroupAsync(
             string groupId,
             WoTDocumentKindEnum kind,
@@ -1552,6 +1554,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             return plan.Result;
         }
 
+        /// <summary>
+        /// Plans the lifecycle change of one resource against the current snapshot.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="delete">The delete flag supplied by the caller.</param>
@@ -2235,6 +2240,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="versionId">The version ID.</param>
+        /// <param name="key">The label key.</param>
+        /// <param name="value">The label value.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
         public ValueTask<WotRegistryMutationResult> AddVersionLabelAsync(
             string groupId,
@@ -2277,6 +2284,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="versionId">The version ID.</param>
+        /// <param name="key">The label key.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
         public ValueTask<WotRegistryMutationResult> RemoveVersionLabelAsync(
             string groupId,
@@ -2312,6 +2320,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// projection-only change and never re-triggers materialization.
         /// </summary>
         /// <inheritdoc/>
+        /// <param name="projections">The resource projection results to record.</param>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask ApplyProjectionResultsAsync(
             IReadOnlyList<WotResourceProjection> projections,
@@ -3164,6 +3173,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                         : WotRegistryGroups.ThingDescriptions;
         }
 
+        /// <summary>
+        /// Normalizes a user-supplied identifier into a registry path segment.
+        /// </summary>
+        /// <param name="value">The identifier to normalize.</param>
         /// <param name="paramName">The param name.</param>
         internal static string NormalizeSegment(string value, string paramName)
         {

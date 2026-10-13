@@ -124,6 +124,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 groupId, kind, sourceId, versionId, true, null, cancellationToken);
         }
 
+        /// <summary>
+        /// Provisions the group bound to a configured identity, optionally creating it.
+        /// </summary>
         /// <param name="suppliedId">The supplied ID.</param>
         /// <param name="getOrCreate">The get-or-create flag supplied by the caller.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -163,6 +166,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Provisions the resource bound to a configured identity, optionally creating it.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="suppliedId">The supplied ID.</param>
         /// <param name="versionId">The version ID.</param>
@@ -209,6 +215,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Provisions the resource for a source identity in a group, optionally creating it.
+        /// </summary>
         /// <param name="groupId">The group ID.</param>
         /// <param name="kind">The wo t document kind enum.</param>
         /// <param name="sourceId">The source ID.</param>

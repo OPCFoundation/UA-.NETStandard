@@ -49,6 +49,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_maxEdges = (long)maxNodes * 8;
         }
 
+        /// <summary>
+        /// Adds the nodes of a node set to the index under a root and returns the root node identifier.
+        /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="rootIdentifier">The root identifier.</param>
         /// <param name="fallbackRoot">The fallback root.</param>
@@ -165,6 +168,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return false;
         }
 
+        /// <summary>
+        /// Determines whether the root node can generate events of the given event type.
+        /// </summary>
         /// <param name="root">The root.</param>
         /// <param name="eventType">The event type.</param>
         public bool CanGenerateEvent(ExpandedNodeId root, ExpandedNodeId eventType)
@@ -282,14 +288,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public NodeClass NodeClass { get; init; }
             public HashSet<OwnershipEdge> Parents { get; } = [];
             public HashSet<OwnershipEdge> ReferenceParents { get; } = [];
+
             /// <summary>
             /// Gets the type definitions for <c>NodeEvidence</c>.
             /// </summary>
             public HashSet<OwnershipEdge> TypeDefinitions { get; } = [];
+
             /// <summary>
             /// Gets the type parents for <c>NodeEvidence</c>.
             /// </summary>
             public HashSet<OwnershipEdge> TypeParents { get; } = [];
+
             /// <summary>
             /// Gets the events for <c>NodeEvidence</c>.
             /// </summary>

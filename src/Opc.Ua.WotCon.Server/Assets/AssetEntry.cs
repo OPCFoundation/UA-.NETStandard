@@ -123,6 +123,7 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// <param name="Registry">The WoT registry service.</param>
     /// <param name="GroupId">The group ID.</param>
     /// <param name="ResourceId">The resource ID.</param>
+    /// <param name="Generation">The registry generation.</param>
     internal sealed record AssetRegistryMirror(
         IWotRegistryService Registry, string GroupId, string ResourceId, long Generation);
 }

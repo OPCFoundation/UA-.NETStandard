@@ -54,6 +54,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Shared children, role-keyed wrappers and every affected ancestor belong to the same candidate.
         /// Preparation must not mutate the currently live View image.
         /// </summary>
+        /// <param name="updates">The View projection requests to plan.</param>
+        /// <param name="removals">The View projection handles to remove.</param>
         /// <param name="expectedPublication">The expected publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedViewPublication> PrepareAsync(

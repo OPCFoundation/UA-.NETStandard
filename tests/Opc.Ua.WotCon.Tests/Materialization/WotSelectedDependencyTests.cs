@@ -656,47 +656,60 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets the registry for <c>SelectionFixture</c>.
             /// </summary>
             public WotRegistryService Registry { get; }
+
             /// <summary>
             /// Gets the coordinator for <c>SelectionFixture</c>.
             /// </summary>
             public WotMaterializationCoordinator Coordinator { get; }
+
             /// <summary>
             /// Gets the operations for <c>SelectionFixture</c>.
             /// </summary>
             public List<HostOperation> Operations { get; } = [];
+
             /// <summary>
             /// Gets the converter for <c>SelectionFixture</c>.
             /// </summary>
             public FakeWotDocumentConverter Converter { get; } = new();
+
             /// <summary>
             /// Gets the reads for <c>SelectionFixture</c>.
             /// </summary>
             public List<WotResourceVersion> Reads { get; } = [];
+
             /// <summary>
             /// Gets the converted for <c>SelectionFixture</c>.
             /// </summary>
             public List<string> Converted { get; } = [];
+
             /// <summary>
             /// Gets the prepared for <c>SelectionFixture</c>.
             /// </summary>
             public List<string> Prepared { get; } = [];
+
             /// <summary>
             /// Gets the activated for <c>SelectionFixture</c>.
             /// </summary>
             public List<string> Activated { get; } = [];
+
             /// <summary>
             /// Gets the deactivated for <c>SelectionFixture</c>.
             /// </summary>
             public List<string> Deactivated { get; } = [];
+
             /// <summary>
             /// Gets or sets the failed document for <c>SelectionFixture</c>.
             /// </summary>
             public string? FailedDocument { get; set; }
+
             /// <summary>
             /// Gets or sets the before read for <c>SelectionFixture</c>.
             /// </summary>
             public Func<WotResourceVersion, Task>? BeforeRead { get; set; }
 
+            /// <summary>
+            /// Starts a fixture over a prepared WoT test runtime with the supplied persistence bounds.
+            /// </summary>
             /// <param name="bounds">The WoT registry persistence bounds.</param>
             public static async Task<SelectionFixture> CreateAsync(WotRegistryPersistenceBounds? bounds = null)
             {
@@ -712,9 +725,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Registers a resource version with the supplied content in the registry.
+            /// </summary>
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="kind">The wo t document kind enum.</param>
             /// <param name="versionId">The version ID.</param>
+            /// <param name="content">The document content of the version.</param>
             /// <param name="groupId">The group ID.</param>
             public async Task<WotResource> RegisterAsync(
                 string resourceId,

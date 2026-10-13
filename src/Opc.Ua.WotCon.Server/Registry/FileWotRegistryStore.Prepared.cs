@@ -204,6 +204,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Validates that the registry metadata recovered from storage matches the runtime snapshot.
+        /// </summary>
         /// <param name="expected">The WoT registry snapshot.</param>
         /// <param name="runtime">The WoT registry snapshot.</param>
         internal static void ValidateRecoveryMetadata(
@@ -249,6 +252,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Validates that the projection metadata of the expected snapshot matches the intended snapshot.
+        /// </summary>
         /// <param name="expected">The WoT registry snapshot.</param>
         /// <param name="intended">The WoT registry snapshot.</param>
         internal static void ValidateProjectionMetadata(
@@ -549,22 +555,27 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets the owner ID for <c>CapturedGeneration</c>.
             /// </summary>
             public Guid OwnerId { get; } = ownerId;
+
             /// <summary>
             /// Gets the capture revision for <c>CapturedGeneration</c>.
             /// </summary>
             public long CaptureRevision { get; } = captureRevision;
+
             /// <summary>
             /// Gets the WoT registry snapshot for <c>CapturedGeneration</c>.
             /// </summary>
             public WotRegistrySnapshot Snapshot { get; } = snapshot;
+
             /// <summary>
             /// Gets the stamp for <c>CapturedGeneration</c>.
             /// </summary>
             public ManifestStamp Stamp { get; } = stamp;
+
             /// <summary>
             /// Gets the manifest bytes for <c>CapturedGeneration</c>.
             /// </summary>
             public byte[] ManifestBytes { get; } = manifestBytes;
+
             /// <summary>
             /// Gets the contents for <c>CapturedGeneration</c>.
             /// </summary>
@@ -667,23 +678,30 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets the intended snapshot for <c>PreparedFileCommit</c>.
             /// </summary>
             public WotRegistrySnapshot IntendedSnapshot { get; } = intendedSnapshot;
+
             /// <summary>
             /// Gets the captured generation for <c>PreparedFileCommit</c>.
             /// </summary>
             public CapturedGeneration Expected { get; } = expected;
+
             /// <summary>
             /// Gets the validated for <c>PreparedFileCommit</c>.
             /// </summary>
             public ValidatedCommit Validated { get; } = validated;
+
             /// <summary>
             /// Gets the scope for <c>PreparedFileCommit</c>.
             /// </summary>
             public WotRegistryCommitScope Scope { get; } = scope;
+
             /// <summary>
             /// Gets or sets the committed generation for <c>PreparedFileCommit</c>.
             /// </summary>
             public CapturedGeneration? CommittedGeneration { get; set; }
 
+            /// <summary>
+            /// Commits the prepared registry publication to storage; it can only be committed once.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask CommitAsync(CancellationToken cancellationToken = default)
             {

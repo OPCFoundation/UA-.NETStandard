@@ -1433,6 +1433,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public ArrayOf<NodeManagerRegistration> Registrations => m_server!.NodeManagerLifecycle.Registrations;
 
+            /// <summary>
+            /// Creates a harness, starts the native server and registry, and disposes it again if startup fails.
+            /// </summary>
             /// <param name="withGraphResources">The with-graph-resources flag supplied by the caller.</param>
             /// <param name="rebaseNamespaces">The rebase-namespaces flag supplied by the caller.</param>
             /// <param name="retirementPolicy">The retirement policy.</param>
@@ -1453,7 +1456,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Creates a node identifier in the given namespace, registering the namespace when needed.
+            /// </summary>
             /// <param name="namespaceUri">The namespace URI.</param>
+            /// <param name="identifier">The string identifier of the node.</param>
             public NodeId Identity(string namespaceUri, string identifier)
             {
                 return new NodeId(
@@ -1476,7 +1483,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "urn:c2:native-server", "urn:c2:native-allocation", NamespaceUris, sources);
             }
 
+            /// <summary>
+            /// Builds a canonical view projection request for the resource with the given members and links.
+            /// </summary>
+            /// <param name="resource">The identifier of the registry resource.</param>
             /// <param name="view">The view.</param>
+            /// <param name="members">The nodes that belong to the view.</param>
+            /// <param name="links">The canonical view links.</param>
             public WotViewProjectionRequest GraphRequest(
                 string resource, NodeId view, ArrayOf<NodeId> members, ArrayOf<WotCanonicalViewLink> links)
             {
@@ -1493,6 +1506,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return factory.Created;
             }
 
+            /// <summary>
+            /// Reads the projection membership digest property of the registry document for the resource.
+            /// </summary>
+            /// <param name="resource">The identifier of the registry resource.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<AttributeSimpleReadResult> ReadMembershipDigestAsync(
                 string resource, CancellationToken cancellationToken = default)
@@ -1510,6 +1527,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return snapshot.CanonicalViewGraphState;
             }
 
+            /// <summary>
+            /// Prepares and commits a view graph publication together with matching registry metadata.
+            /// </summary>
+            /// <param name="updates">The view projections to add or update.</param>
+            /// <param name="removals">The view projections to remove.</param>
             /// <param name="expected">The WoT committed publication state.</param>
             /// <param name="onPublished">The on published.</param>
             public async Task<WotCommittedPublicationState> PublishPreparedGraphAsync(
@@ -1559,6 +1581,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Publishes the canonical view node manager by adding it or shadow-reloading the previous one.
+            /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
             public async Task<NodeManagerRegistration> PublishCanonicalAsync(
@@ -1570,6 +1595,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     : await m_server!.NodeManagerLifecycle.ShadowReloadAsync(previous, factory).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Adds the canonical view node manager as an additional registration.
+            /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
             public ValueTask<NodeManagerRegistration> AddCanonicalAsync(
@@ -1579,6 +1607,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
             }
 
+            /// <summary>
+            /// Prepares a batch that adds the canonical view node manager and disposes it without committing.
+            /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
             public async Task PrepareCanonicalAdditionAsync(
@@ -1592,6 +1623,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await prepared.DisposeAsync().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Replaces the previous canonical view node manager through a prepared batch and commits it.
+            /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
             /// <param name="immediate">The immediate flag supplied by the caller.</param>
@@ -1610,6 +1644,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <summary>
+            /// Determines whether the registration is still registered with the node manager lifecycle.
+            /// </summary>
             /// <param name="registration">The node manager registration.</param>
             public bool IsCurrent(NodeManagerRegistration registration)
             {
@@ -1617,8 +1654,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     current => ReferenceEquals(current, registration));
             }
 
+            /// <summary>
+            /// Browses the organized children of the node through the view at the given version.
+            /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             /// <param name="viewId">The view identifier.</param>
+            /// <param name="version">The view version used for the browse.</param>
             /// <param name="maximumReferences">The maximum references.</param>
             public async Task<BrowseResult> BrowseInViewAsync(
                 NodeId nodeId, NodeId viewId, uint version, uint maximumReferences = 0)
@@ -1639,12 +1680,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return response.Results[0];
             }
 
+            /// <summary>
+            /// Resolves the target node identifier of a reference description.
+            /// </summary>
             /// <param name="reference">The reference description.</param>
             public NodeId Target(ReferenceDescription reference)
             {
                 return ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
             }
 
+            /// <summary>
+            /// Browses the references of the given type from the node and returns them.
+            /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             /// <param name="referenceType">The reference type.</param>
             /// <param name="direction">The browse direction.</param>
@@ -1668,6 +1715,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return response.Results[0].References;
             }
 
+            /// <summary>
+            /// Reads the view version property value of the view.
+            /// </summary>
             /// <param name="viewId">The view identifier.</param>
             public async Task<uint> ReadViewVersionAsync(NodeId viewId)
             {
@@ -1678,6 +1728,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return version;
             }
 
+            /// <summary>
+            /// Finds the node identifier of the view version property of the view.
+            /// </summary>
             /// <param name="viewId">The view identifier.</param>
             public async Task<NodeId> ViewVersionIdAsync(NodeId viewId)
             {
@@ -1853,8 +1906,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             public ArrayOf<string> NamespacesUris => [namespaceUri];
 
+            /// <inheritdoc/>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
@@ -1874,13 +1929,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         internal sealed class BlockingSourceFactory : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris => ["urn:c2:blocked-source"];
+
             /// <summary>
             /// Gets or sets the created for <c>BlockingSourceFactory</c>.
             /// </summary>
             public BlockingSource Created { get; private set; } = null!;
 
+            /// <inheritdoc/>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
@@ -1922,6 +1980,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_resume.TrySetResult(true);
             }
 
+            /// <inheritdoc/>
             /// <param name="externalReferences">The external references.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public override async ValueTask CreateAddressSpaceAsync(

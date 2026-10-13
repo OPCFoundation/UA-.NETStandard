@@ -817,6 +817,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         private sealed class GroupState
         {
             public NodeId NodeId;
+
             /// <summary>
             /// The identifier node ID used by <c>GroupState</c>.
             /// </summary>
@@ -830,6 +831,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         private sealed class ResourceState
         {
             public NodeId NodeId;
+
             /// <summary>
             /// The identifier node ID used by <c>ResourceState</c>.
             /// </summary>

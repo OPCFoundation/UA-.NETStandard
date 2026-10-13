@@ -58,6 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="activeDefinition">The active-definition flag for this test case.</param>
         /// <param name="sharedDefinition">The shared-definition flag for this test case.</param>
         /// <param name="perResource">The per-resource flag for this test case.</param>
+        /// <param name="restart">The number of restarts performed before verification.</param>
         /// <param name="decorated">The decorated flag for this test case.</param>
         [TestCase(0, false, false, false, 0, false)]
         [TestCase(1, false, false, false, 0, false)]

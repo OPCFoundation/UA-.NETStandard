@@ -39,6 +39,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// Carries the WoT publication plan data.
     /// </summary>
     /// <param name="AppliedAtomicity">The applied atomicity.</param>
+    /// <param name="Units">The dependency closures grouped into atomic publication units.</param>
     internal sealed record WotPublicationPlan(
         WoTAtomicityEnum AppliedAtomicity,
         ArrayOf<ArrayOf<WotDependencyClosure>> Units);
@@ -53,7 +54,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
     internal static class WotPublicationPlanner
     {
+        /// <summary>
+        /// Creates the publication plan that groups dependency closures into atomic units.
+        /// </summary>
+        /// <param name="closures">The dependency closures to publish.</param>
         /// <param name="atomicity">The wo t atomicity enum.</param>
+        /// <param name="previous">The footprints of the previously published closures.</param>
         public static WotPublicationPlan Create(
             ArrayOf<WotDependencyClosure> closures,
             WoTAtomicityEnum atomicity,

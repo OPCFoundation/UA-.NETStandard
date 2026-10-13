@@ -124,6 +124,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that native event activation does not require notifications or subscribers.
         /// </summary>
+        /// <param name="mode">The event identity mode under test.</param>
         /// <param name="expectedChannels">The expected channels asserted by the test.</param>
         [TestCase("transparent-forwarding", 1)]
         [TestCase("local-re-emission", 0)]

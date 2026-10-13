@@ -40,8 +40,12 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     internal static class WotProjectionAdmission
     {
+        /// <summary>
+        /// Gets the admission error for a projection document, or null when it is admissible or not a projection.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="kind">The wo t document kind enum.</param>
+        /// <param name="format">The stored format.</param>
         /// <param name="contentType">The content type.</param>
         /// <param name="compatibilityMode">The compatibility mode.</param>
         public static string? GetError(
@@ -87,6 +91,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             return null;
         }
 
+        /// <summary>
+        /// Determines whether the format or content type identifies an unresolved projection.
+        /// </summary>
+        /// <param name="format">The stored format.</param>
         /// <param name="contentType">The content type.</param>
         public static bool UsesProjectionFormat(string format, string contentType)
         {

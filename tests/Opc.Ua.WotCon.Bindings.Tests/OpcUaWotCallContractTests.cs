@@ -542,6 +542,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that direct and di condition calls insert typed null instead of the JSON default.
         /// </summary>
+        /// <param name="action">The condition action under test.</param>
         /// <param name="dependencyInjection">The dependency-injection flag for this test case.</param>
         [TestCase("Acknowledge", false)]
         [TestCase("Acknowledge", true)]
@@ -679,6 +680,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             /// <summary>
             /// Initializes a new <c>CallHarness</c> instance.
             /// </summary>
+            /// <param name="input">
+            /// The JSON schema of the input, or <c>null</c> when the form declares no input.
+            /// </param>
+            /// <param name="output">
+            /// The JSON schema of the output, or <c>null</c> when the form declares no output.
+            /// </param>
             /// <param name="dependencyInjection">
             /// The dependency-injection flag used to initialize <c>CallHarness</c>.
             /// </param>

@@ -985,19 +985,23 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the current for <c>ControlledRegistryStore</c>.
             /// </summary>
             public WotRegistrySnapshot Current { get; private set; } = WotRegistrySnapshot.Empty;
+
             /// <summary>
             /// Gets or sets the before commit for <c>ControlledRegistryStore</c>.
             /// </summary>
             public Action<WotRegistrySnapshot, CancellationToken>? BeforeCommit { get; set; }
+
             /// <summary>
             /// Gets or sets the after commit for <c>ControlledRegistryStore</c>.
             /// </summary>
             public Action<WotRegistrySnapshot, CancellationToken>? AfterCommit { get; set; }
+
             /// <summary>
             /// Gets or sets the commit count for <c>ControlledRegistryStore</c>.
             /// </summary>
             public int CommitCount { get; private set; }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
@@ -1005,6 +1009,7 @@ namespace Opc.Ua.WotCon.Tests
                 return new ValueTask<WotRegistrySnapshot>(Current);
             }
 
+            /// <inheritdoc/>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask CommitAsync(

@@ -164,9 +164,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Creates a canonical plan whose publication token is assigned by graph preparation, not by refresh counters.
         /// </summary>
+        /// <param name="scenario">The <c>uav:scenario</c> IRI naming the purpose the view serves.</param>
         /// <param name="documentKind">The document kind.</param>
         /// <param name="organizedNodeIds">The organized node IDs.</param>
         /// <param name="organizingLinks">The organizing links.</param>
+        /// <param name="omissions">The omitted-item descriptions reported with the plan.</param>
         public static WotViewProjectionPlan CreateCanonical(
             string scenario,
             WotDocumentKind documentKind,

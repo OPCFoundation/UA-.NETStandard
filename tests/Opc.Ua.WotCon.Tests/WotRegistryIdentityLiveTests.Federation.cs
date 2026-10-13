@@ -1022,6 +1022,9 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             public XRegistryFederationNodeManager? Manager { get; private set; }
 
+            /// <summary>
+            /// Creates the node manager for the server.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -1052,6 +1055,9 @@ namespace Opc.Ua.WotCon.Tests
 
             public ArrayOf<string> NamespacesUris => [kFederationContentNamespace];
 
+            /// <summary>
+            /// Creates the node manager for the server.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

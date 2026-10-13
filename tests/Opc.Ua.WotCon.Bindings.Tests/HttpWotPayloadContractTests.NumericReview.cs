@@ -43,6 +43,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that finite JSON numbers cannot overflow native floating point.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="response">The JSON response carrying the finite number.</param>
         /// <param name="array">The array flag for this test case.</param>
         [TestCase("i=10", "1e39", false)]
         [TestCase("i=10", "-1e39", false)]
@@ -70,6 +71,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that native floating point accepts finite extremes.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="response">The JSON response carrying the finite extreme.</param>
+        /// <param name="expected">The expected native floating point value.</param>
         [TestCase("i=10", "3.4028234663852886e38", (double)float.MaxValue)]
         [TestCase("i=10", "-3.4028234663852886e38", (double)-float.MaxValue)]
         [TestCase("i=11", "1.7976931348623157e308", double.MaxValue)]
@@ -106,6 +109,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that string schemas retain explicit native ieee special values.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="special">The IEEE special value text used for the string-typed element.</param>
         [TestCase("i=10", "NaN")]
         [TestCase("i=10", "Infinity")]
         [TestCase("i=10", "-Infinity")]
@@ -177,7 +181,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that numeric bounds compare exact JSON magnitudes.
         /// </summary>
         /// <param name="boundName">The bound name used by this test case.</param>
+        /// <param name="bound">The JSON text of the declared numeric bound.</param>
+        /// <param name="response">The JSON response carrying the compared value.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
+        /// <param name="expected">The expected native floating point value when the response is accepted.</param>
         [TestCase("maximum", "1000", "1e100", false, 0)]
         [TestCase("maximum", "1000", "1000", true, 1000)]
         [TestCase("maximum", "1000", "1001", false, 0)]
@@ -233,6 +240,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that numeric bounds preserve adjacent u int 64 values.
         /// </summary>
         /// <param name="boundName">The bound name used by this test case.</param>
+        /// <param name="bound">The JSON text of the declared numeric bound.</param>
+        /// <param name="response">The JSON response carrying the compared value.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("maximum", "18446744073709551614", "18446744073709551615", false)]
         [TestCase("minimum", "18446744073709551615", "18446744073709551614", false)]
@@ -284,7 +293,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that structure array limit is checked before decoding elements.
         /// </summary>
+        /// <param name="response">The JSON response carrying the array of structures.</param>
+        /// <param name="limit">The configured maximum array length.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
+        /// <param name="count">The number of array elements in the response.</param>
         [TestCase("null", 1, true, 0)]
         [TestCase("[]", 1, true, 0)]
         [TestCase(/*lang=json,strict*/ "[{\"Value\":1}]", 1, true, 1)]
@@ -331,7 +343,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that ordinary array retains the same native length limit.
         /// </summary>
+        /// <param name="response">The JSON response carrying the array.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
+        /// <param name="count">The number of array elements in the response.</param>
         [TestCase("[]", true, 0)]
         [TestCase("[1]", true, 1)]
         [TestCase("[1,2]", false, 0)]

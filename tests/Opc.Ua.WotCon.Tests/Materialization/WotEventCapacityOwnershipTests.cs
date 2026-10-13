@@ -296,6 +296,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public List<ConditionState> Conditions { get; } = [];
 
+            /// <summary>
+            /// Creates and registers an event binding for the given event identity mode.
+            /// </summary>
+            /// <param name="mode">The event identity mode, such as transparent forwarding.</param>
             /// <param name="isCondition">The condition flag supplied by the caller.</param>
             /// <param name="createCondition">The create condition.</param>
             public WotProjectedEventBinding CreateBinding(
@@ -330,6 +334,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return binding;
             }
 
+            /// <summary>
+            /// Creates a condition state with the given node identifier and tracks it.
+            /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             public ConditionState CreateCondition(NodeId nodeId)
             {
@@ -340,8 +347,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return condition;
             }
 
+            /// <summary>
+            /// Builds a source notification whose captured event carries the required select clauses.
+            /// </summary>
+            /// <param name="id">The final byte of the event identifier.</param>
             /// <param name="isCondition">The condition flag supplied by the caller.</param>
             /// <param name="branch">The branch flag supplied by the caller.</param>
+            /// <param name="severity">The event severity.</param>
             public WotNotification Notification(
                 byte id, bool branch = false, ushort severity = 412, bool isCondition = true)
             {
@@ -376,6 +388,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .WithCapturedEvent(WotCapturedEvent.Capture(m_source, clauses, values));
             }
 
+            /// <summary>
+            /// Clears the binding and removes it from the registry.
+            /// </summary>
             /// <param name="binding">The WoT projected event binding.</param>
             public void Remove(WotProjectedEventBinding binding)
             {

@@ -36,6 +36,9 @@ using Opc.Ua.WotCon.Server.Materialization;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
+    /// <summary>
+    /// Wraps an invocation projection host and lets tests block activation of prepared publications.
+    /// </summary>
     /// <param name="inner">The WoT invocation projection host.</param>
     internal sealed class PausableWotProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
     {
@@ -43,10 +46,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Gets the supports prepared publication for <c>PausableWotProjectionHost</c>.
         /// </summary>
         public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
+
         /// <summary>
         /// Gets the supported atomicities for <c>PausableWotProjectionHost</c>.
         /// </summary>
         public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
+
         /// <summary>
         /// Gets the documents for <c>PausableWotProjectionHost</c>.
         /// </summary>
@@ -57,6 +62,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new Capture(inner.CapturePublication(), this);
         }
 
+        /// <inheritdoc/>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -69,6 +75,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotProjectionHandle> AddAsync(
@@ -79,6 +86,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return await inner.AddAsync(document, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         /// <param name="current">The WoT projection handle.</param>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -90,6 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return await inner.ShadowReloadAsync(current, document, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         /// <param name="current">The WoT projection handle.</param>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -101,6 +110,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return await inner.ImmediateReloadAsync(current, document, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         /// <param name="handle">The WoT projection handle.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
@@ -192,6 +202,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private sealed class Capture(
             IWotProjectionPublicationCapture inner, PausableWotProjectionHost owner) : IWotProjectionPublicationCapture
         {
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
             {
@@ -207,6 +218,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public bool IsCurrent => inner.IsCurrent;
 
+            /// <inheritdoc/>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -219,6 +231,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
             }
 
+            /// <inheritdoc/>
             /// <param name="inspectAsync">The inspect async.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -235,6 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return validation.ValidateAsync(changes, inspectAsync, views, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
                 ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)

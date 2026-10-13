@@ -298,7 +298,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="digest">The byte string.</param>
         /// <param name="contentLength">The content length.</param>
         /// <param name="contentType">The content type.</param>
+        /// <param name="format">The stored format.</param>
         /// <param name="modifiedAt">The modified at.</param>
+        /// <param name="epoch">The metadata epoch.</param>
+        /// <param name="labels">The labels.</param>
         /// <param name="validation">The wo t validation outcome data type.</param>
         /// <param name="clearValidation">The clear-validation flag supplied by the caller.</param>
         /// <param name="incarnationId">The incarnation ID.</param>
@@ -351,7 +354,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
+        /// <summary>
+        /// Creates a copy with the document metadata of the Version replaced.
+        /// </summary>
         /// <param name="documentId">The document ID.</param>
+        /// <param name="title">The document title.</param>
         /// <param name="baseUri">The base URI.</param>
         /// <param name="modelVersion">The model version.</param>
         /// <param name="dependencies">The WoT resource dependencies.</param>
@@ -699,7 +706,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="lastRefreshTime">The last refresh time.</param>
         /// <param name="materializedNodeCount">The materialized node count.</param>
         /// <param name="rootNodeId">The root node identifier.</param>
+        /// <param name="name">The name.</param>
+        /// <param name="description">The description.</param>
         /// <param name="thingId">The thing ID.</param>
+        /// <param name="title">The title.</param>
+        /// <param name="labels">The labels.</param>
         /// <param name="clearActiveVersion">The clear-active-version flag supplied by the caller.</param>
         /// <param name="clearValidation">The clear-validation flag supplied by the caller.</param>
         /// <param name="clearRootNodeId">The clear-root-node-ID flag supplied by the caller.</param>
@@ -764,6 +775,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
+        /// <summary>
+        /// Creates a copy of this resource with its metadata epoch, labels and modification time replaced.
+        /// </summary>
+        /// <param name="epoch">The metadata epoch.</param>
+        /// <param name="labels">The labels.</param>
         /// <param name="modifiedAt">The modified at.</param>
         internal WotResource WithMeta(
             long epoch,
@@ -801,7 +817,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
+        /// <summary>
+        /// Creates a copy of this resource with the document ID and title of the selected version applied.
+        /// </summary>
         /// <param name="documentId">The document ID.</param>
+        /// <param name="title">The document title.</param>
         internal WotResource WithSelectedVersionMetadata(
             string? documentId,
             string? title)
@@ -836,6 +856,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
+        /// <summary>
+        /// Creates a copy of this resource carrying the committed version of the active identity.
+        /// </summary>
         /// <param name="version">The WoT resource version.</param>
         internal WotResource WithCommittedVersion(WotResourceVersion? version)
         {
@@ -1136,6 +1159,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <param name="group">The WoT resource group.</param>
+        /// <param name="generation">The registry generation.</param>
         public WotRegistrySnapshot WithGroup(WotResourceGroup group, long generation)
         {
             if (group is null)
@@ -1151,6 +1175,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Produces a new snapshot with a group removed.
         /// </summary>
         /// <param name="groupId">The group ID.</param>
+        /// <param name="generation">The registry generation.</param>
         public WotRegistrySnapshot WithoutGroup(string groupId, long generation)
         {
             return new WotRegistrySnapshot(
@@ -1171,6 +1196,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Produces the metadata image of one materialization decision. Null graph input preserves
         /// the existing graph; Empty supplies an explicitly empty graph. The caller supplies the committed generations.
         /// </summary>
+        /// <param name="generation">The registry generation.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
         public WotRegistrySnapshot WithPublicationState(

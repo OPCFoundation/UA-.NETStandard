@@ -1511,11 +1511,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             public WotResourceFileManager Manager { get; }
 
+            /// <summary>
+            /// Calls the file Open method with the supplied mode.
+            /// </summary>
+            /// <param name="mode">The file open mode.</param>
             /// <param name="fileHandle">The file handle.</param>
             /// <param name="context">The system context.</param>
             public ServiceResult Open(byte mode, ref uint fileHandle, ISystemContext? context = null)
                 => File.Open!.OnCall!.Invoke(context ?? Context, File.Open, m_objectId, mode, ref fileHandle);
 
+            /// <summary>
+            /// Calls the file Close method asynchronously for the file handle.
+            /// </summary>
             /// <param name="fileHandle">The file handle.</param>
             /// <param name="context">The system context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -1534,7 +1541,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 return result.ServiceResult;
             }
 
+            /// <summary>
+            /// Calls the file Read method and returns the status and the data read.
+            /// </summary>
             /// <param name="fileHandle">The file handle.</param>
+            /// <param name="length">The maximum number of bytes to read.</param>
             /// <param name="context">The system context.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<(ServiceResult Status, ByteString Data)> ReadAsync(
@@ -1554,6 +1565,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 return (result.ServiceResult, result.Data);
             }
 
+            /// <summary>
+            /// Calls the file Write method with the supplied data.
+            /// </summary>
             /// <param name="fileHandle">The file handle.</param>
             /// <param name="data">The byte string.</param>
             /// <param name="context">The system context.</param>

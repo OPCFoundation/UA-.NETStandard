@@ -52,6 +52,9 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </summary>
     internal sealed partial class AssetRegistry
     {
+        /// <summary>
+        /// Restores a persisted asset from its thing description and stored content.
+        /// </summary>
         /// <param name="assetName">The asset name.</param>
         /// <param name="td">The thing description.</param>
         /// <param name="content">The byte string.</param>
@@ -630,6 +633,9 @@ namespace Opc.Ua.WotCon.Server.Assets
                 m_preserveIdentities = preserveIdentities;
             }
 
+            /// <summary>
+            /// Creates the node identifier for a node being added.
+            /// </summary>
             /// <param name="context">The system context.</param>
             /// <param name="node">The node state.</param>
             public NodeId New(ISystemContext context, NodeState node)
@@ -688,23 +694,28 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Gets the root for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public BaseObjectState Root { get; }
+
         /// <summary>
         /// Gets the nodes for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public ArrayOf<NodeState> Nodes { get; }
+
         /// <summary>
         /// Gets the properties for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public Dictionary<BaseDataVariableState, WotProjectedAffordance> Properties { get; }
-        /// <summary>
+
+                /// <summary>
         /// Gets the actions for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public Dictionary<MethodState, WotProjectedAffordance> Actions { get; }
-        /// <summary>
+
+                /// <summary>
         /// Gets the root references for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public List<IReference> RootReferences { get; } = [];
-        /// <summary>
+
+                /// <summary>
         /// Gets the reciprocal references for <c>WotLegacyPreparedGraph</c>.
         /// </summary>
         public List<LocalReference> ReciprocalReferences { get; } = [];

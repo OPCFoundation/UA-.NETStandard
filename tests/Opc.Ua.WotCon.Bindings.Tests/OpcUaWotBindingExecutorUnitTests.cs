@@ -143,6 +143,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that relative forms resolve before selection and direct compilation.
         /// </summary>
+        /// <param name="href">The form href, possibly relative to the document base.</param>
         /// <param name="expectedEndpoint">The expected endpoint asserted by the test.</param>
         [TestCase("?id=i%3D2258", "opc.tcp://example.test:4841/UA/Pump/")]
         [TestCase("/?id=i%3D2258", "opc.tcp://example.test:4841")]

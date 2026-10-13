@@ -120,6 +120,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="source">The UA node set.</param>
         /// <param name="resourcePrefix">The resource prefix.</param>
+        /// <param name="title">The title of the generated document set.</param>
         /// <param name="nodeResolver">The node resolver.</param>
         public static async Task<ArrayOf<SampleDocument>> GenerateVerifiedDocumentSetAsync(
             UANodeSet source,
@@ -275,6 +276,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Restores linked pump documents with their complete native/readable context.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="documents">The sample documents to read.</param>
         /// <param name="nodeResolver">The node resolver.</param>
         public static async Task<UANodeSet> ReadPumpDocumentSetAsync(
             ArrayOf<SampleDocument> documents,

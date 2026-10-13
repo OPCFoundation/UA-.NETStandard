@@ -224,6 +224,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Replaces the persisted inline content and updates its digest and MIME type.
+        /// </summary>
+        /// <param name="content">The content bytes.</param>
         /// <param name="mimeType">The mime type.</param>
         public void UpdatePersistedContent(byte[] content, string? mimeType)
         {
@@ -265,6 +269,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Opens a write handle that preserves the current content as the write baseline.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         /// <param name="preparedLease">The prepared lease.</param>
@@ -386,6 +393,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Opens a write handle without content, regardless of the current content.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
@@ -1120,15 +1130,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string BaselineContentKey { get; }
             public Guid? BaselineVersionIncarnation { get; }
             public bool HasAcceptedWrite { get; set; }
+
             /// <summary>
             /// Gets or sets the ready for <c>Handle</c>.
             /// </summary>
             public bool Ready { get; set; } = true;
+
             /// <summary>
             /// Gets or sets the position revision for <c>Handle</c>.
             /// </summary>
             public long PositionRevision { get; set; }
             public long Length => Writing ? Stream.Length : m_length;
+
             /// <summary>
             /// Gets the baseline length for <c>Handle</c>.
             /// </summary>
@@ -1150,8 +1163,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Creates a handle for reading content identified by a store key.
+            /// </summary>
             /// <param name="sessionId">The session identifier.</param>
             /// <param name="storeKey">The store key.</param>
+            /// <param name="length">The content length.</param>
             /// <param name="lease">The WoT registry version lease.</param>
             public static Handle OpenRead(
                 NodeId sessionId, string storeKey, long length, IWotRegistryVersionLease? lease = null)
@@ -1167,6 +1184,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     lease);
             }
 
+            /// <summary>
+            /// Creates a handle for writing against a baseline content version.
+            /// </summary>
             /// <param name="sessionId">The session identifier.</param>
             /// <param name="baselineContentKey">The baseline content key.</param>
             /// <param name="baselineLength">The baseline length.</param>
@@ -1190,6 +1210,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     lease);
             }
 
+            /// <summary>
+            /// Runs a read against the handle while tracking the active read for disposal.
+            /// </summary>
+            /// <param name="read">The read operation to run.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<ReadMethodStateResult> ReadAsync(
                 Func<ValueTask<ReadMethodStateResult>> read,

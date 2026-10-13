@@ -43,14 +43,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// Gets the supports immutable content leases for <c>RecordingLeasedResourceStore</c>.
         /// </summary>
         public bool SupportsImmutableContentLeases => true;
+
         /// <summary>
         /// Gets or sets the corrupt next write for <c>RecordingLeasedResourceStore</c>.
         /// </summary>
         public bool CorruptNextWrite { get; set; }
+
         /// <summary>
         /// Gets or sets the next lease fault for <c>RecordingLeasedResourceStore</c>.
         /// </summary>
         public string? NextLeaseFault { get; set; }
+
         /// <summary>
         /// Gets or sets the read observed for <c>RecordingLeasedResourceStore</c>.
         /// </summary>
@@ -72,7 +75,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <summary>
+        /// Records the read and returns the requested range of the inner store content.
+        /// </summary>
         /// <param name="resourceKey">The resource key.</param>
+        /// <param name="offset">The byte offset into the resource content.</param>
+        /// <param name="count">The number of bytes to read.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         public ValueTask<ByteString> ReadAsync(
             string resourceKey, long offset, int count, CancellationToken ct = default)
@@ -81,7 +89,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
             return m_inner.ReadAsync(resourceKey, offset, count, ct);
         }
 
+        /// <summary>
+        /// Writes the data at the offset to the inner store while holding the store gate.
+        /// </summary>
         /// <param name="resourceKey">The resource key.</param>
+        /// <param name="offset">The byte offset into the resource content.</param>
         /// <param name="data">The byte string.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         public async ValueTask WriteAsync(
@@ -125,6 +137,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             return m_inner.GetLengthAsync(resourceKey, ct);
         }
 
+        /// <summary>
+        /// Deletes the resource from the inner store after verifying that it is not leased.
+        /// </summary>
         /// <param name="resourceKey">The resource key.</param>
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         public async ValueTask<bool> DeleteAsync(string resourceKey, CancellationToken ct = default)
@@ -141,6 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <summary>
+        /// Acquires a content lease for the resource from the inner store.
+        /// </summary>
         /// <param name="resourceKey">The resource key.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IWotRegistryContentLease> AcquireContentLeaseAsync(
@@ -245,11 +263,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             /// Gets the resource key for <c>ContentLease</c>.
             /// </summary>
             public string ResourceKey { get; } = resourceKey;
+
             /// <summary>
             /// Gets the content length for <c>ContentLease</c>.
             /// </summary>
             public long ContentLength => length;
 
+            /// <summary>
+            /// Reads the requested range of the leased content; the lease must not be released.
+            /// </summary>
+            /// <param name="offset">The byte offset into the content.</param>
+            /// <param name="count">The number of bytes to read.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<ByteString> ReadAsync(
                 long offset, int count, CancellationToken cancellationToken = default)

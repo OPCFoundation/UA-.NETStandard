@@ -1217,55 +1217,70 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// Gets the closures for <c>PublicationCapture</c>.
             /// </summary>
             public Dictionary<string, ClosureState> Closures { get; }
-            /// <summary>
+
+                        /// <summary>
             /// Gets the namespaces for <c>PublicationCapture</c>.
             /// </summary>
             public HashSet<string> Namespaces { get; }
-            /// <summary>
+
+                        /// <summary>
             /// Gets the changes for <c>PublicationCapture</c>.
             /// </summary>
             public List<CapturedProjection> Changes { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the view updates for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotViewProjectionRequest> ViewUpdates { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the view removals for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotViewProjectionHandle> ViewRemovals { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the bindings for <c>PublicationCapture</c>.
             /// </summary>
             public List<BindingAction> Bindings { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the events for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotMaterializationEventArgs> Events { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the projections for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotResourceProjection> Projections { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the retired resources for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotResource> RetiredResources { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the retired metadata for <c>PublicationCapture</c>.
             /// </summary>
             public Dictionary<(string GroupId, string ResourceId), WotResourceProjection> RetiredMetadata { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets the source roots for <c>PublicationCapture</c>.
             /// </summary>
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
-            /// <summary>
+
+                        /// <summary>
             /// Gets the preview units for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotDependencyClosure> PreviewUnits { get; } = [];
-            /// <summary>
+
+                        /// <summary>
             /// Gets or sets the recovery generation for <c>PublicationCapture</c>.
             /// </summary>
             public uint? RecoveryGeneration { get; init; }
 
+            /// <summary>
+            /// Copies the captured state of a preview candidate into this capture.
+            /// </summary>
             /// <param name="candidate">The publication capture.</param>
             public void AcceptPreview(PublicationCapture candidate)
             {
@@ -1300,6 +1315,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private sealed class ProjectionCaptureAdapter(
             IWotProjectionHost inner, Func<PublicationCapture?> capture) : IWotProjectionHost
         {
+            /// <summary>
+            /// Captures the projection addition for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotProjectionHandle> AddAsync(
@@ -1310,6 +1328,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : inner.AddAsync(document, cancellationToken);
             }
 
+            /// <summary>
+            /// Captures a shadow reload for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -1322,6 +1343,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : inner.ShadowReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Captures an immediate-retirement reload for the pending publication, or forwards it when none is
+            /// pending.
+            /// </summary>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -1335,6 +1360,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 
+            /// <summary>
+            /// Captures the projection removal for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
@@ -1360,6 +1388,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private sealed class ViewCaptureAdapter(
             IWotViewProjectionHost inner, Func<PublicationCapture?> capture) : IWotViewProjectionHost
         {
+            /// <summary>
+            /// Captures the view projection for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="request">The WoT view projection request.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotViewProjectionHandle> ApplyAsync(
@@ -1375,6 +1406,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     omissions: request.Plan.Omissions));
             }
 
+            /// <summary>
+            /// Captures the view removal for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="handle">The WoT view projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask RemoveAsync(
@@ -1396,9 +1430,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// Gets the capabilities for <c>BinderCaptureAdapter</c>.
             /// </summary>
             public IReadOnlyList<WoTBindingCapabilityDataType> Capabilities => inner.Capabilities;
+
+            /// <summary>
+            /// Prepares a binding plan on the wrapped binder registry.
+            /// </summary>
             /// <param name="request">The WoT binding plan request.</param>
             public WotBindingPlan Prepare(WotBindingPlanRequest request) => inner.Prepare(request);
 
+            /// <summary>
+            /// Captures the binding activation for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="plan">The WoT binding plan.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask ActivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
@@ -1411,6 +1452,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return default;
             }
 
+            /// <summary>
+            /// Captures the binding deactivation for the pending publication, or forwards it when none is pending.
+            /// </summary>
             /// <param name="plan">The WoT binding plan.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask DeactivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)

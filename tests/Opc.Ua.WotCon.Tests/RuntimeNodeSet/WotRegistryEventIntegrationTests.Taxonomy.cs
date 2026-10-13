@@ -518,6 +518,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         /// <summary>
         /// Verifies that failure source lookup rejects missing or unknown identity.
         /// </summary>
+        /// <param name="xid">The source identifier, or <c>null</c> for a missing identity.</param>
         /// <param name="versionId">The version ID used by this test case.</param>
         /// <param name="unknown">The unknown flag for this test case.</param>
         [TestCase(null, "v1", false)]

@@ -45,6 +45,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that native identity enforcement starts at transparent activation.
         /// </summary>
+        /// <param name="mode">The event identity mode under test.</param>
         /// <param name="removeBeforePublication">The remove-before-publication flag for this test case.</param>
         [TestCase("local-re-emission", false)]
         [TestCase("transparent-forwarding", false)]

@@ -812,8 +812,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     "\"}");
             }
 
+            /// <summary>
+            /// Converts the resource through the inner converter.
+            /// </summary>
             /// <param name="resource">The WoT resource.</param>
             /// <param name="content">The byte string.</param>
+            /// <param name="snapshot">The WoT registry snapshot.</param>
+            /// <param name="contents">The related resource contents keyed by resource identifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource,

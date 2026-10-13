@@ -46,6 +46,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that custom codec outputs respect UA native type and rank semantics.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="rank">The value rank of the declared output.</param>
         /// <param name="valueKind">The value kind used by this test case.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("i=5", -1, "UInt16", true)]
@@ -184,6 +185,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that custom codec namespace indexes must resolve in their actual context.
         /// </summary>
+        /// <param name="shape">The shape of the custom codec output under test.</param>
         /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase("NodeId", false)]
         [TestCase("NodeId", true)]

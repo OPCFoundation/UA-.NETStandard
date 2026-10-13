@@ -74,6 +74,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -237,6 +238,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private sealed class PublicationCapture(
             LifecycleWotProjectionHost owner, INodeManagerPublicationCapture capture) : IWotProjectionPublicationCapture
         {
+            /// <summary>
+            /// Begins a publication invocation on the captured source-owner revisions.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotProjectionPublication> BeginAsync(
                 CancellationToken cancellationToken = default)
@@ -254,6 +258,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// </summary>
             public bool IsCurrent => publication.IsCurrent;
 
+            /// <summary>
+            /// Prepares one unit on the captured publication.
+            /// </summary>
+            /// <param name="changes">The source projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -264,6 +272,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
             }
 
+            /// <summary>
+            /// Prepares a read-metadata-only unit on the captured publication.
+            /// </summary>
+            /// <param name="images">The read images to prepare.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
                 ArrayOf<INodeManagerReadImage> images,
@@ -274,6 +286,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new PreparedPublication(batch, [], null, []);
             }
 
+            /// <summary>
+            /// Prepares and validates a private candidate, passing it to the inspection callback before release.
+            /// </summary>
+            /// <param name="changes">The source projection changes to validate.</param>
             /// <param name="inspectAsync">The inspect async.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -302,14 +318,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// Gets the projections for <c>PreparedPublication</c>.
             /// </summary>
             public ArrayOf<WotProjectionHandle> Projections { get; } = projections;
+
             /// <summary>
             /// Gets the view graph for <c>PreparedPublication</c>.
             /// </summary>
             public WotPreparedViewGraphState? ViewGraph { get; } = graph;
+
             /// <summary>
             /// Gets the is committed for <c>PreparedPublication</c>.
             /// </summary>
             public bool IsCommitted => batch.IsCommitted;
+
             /// <summary>
             /// Gets or sets the cleanup failure for <c>PreparedPublication</c>.
             /// </summary>
@@ -320,6 +339,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 batch.BindReadImages(images);
             }
 
+            /// <summary>
+            /// Commits the prepared batch after the caller's decision and publishes the committed state.
+            /// </summary>
             /// <param name="decideAsync">The decide async.</param>
             /// <param name="publishCommittedState">The publish committed state.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

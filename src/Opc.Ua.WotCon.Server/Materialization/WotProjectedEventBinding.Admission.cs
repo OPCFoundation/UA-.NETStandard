@@ -42,6 +42,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed partial class WotProjectedEventBinding
     {
+        /// <summary>
+        /// Prepares a transparent event binding against the node manager builder.
+        /// </summary>
         /// <param name="builder">The node manager builder.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask PrepareTransparentAsync(INodeManagerBuilder builder, CancellationToken cancellationToken)

@@ -61,8 +61,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Starts observing a structured property group and delivers notifications to the callback.
+        /// </summary>
         /// <param name="state">The WoT structured group state.</param>
         /// <param name="context">The system context.</param>
+        /// <param name="notification">The callback that receives the WoT notifications.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public static async ValueTask<IAsyncDisposable> StartAsync(
             WotStructuredGroupState state,

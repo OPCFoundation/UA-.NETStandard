@@ -38,18 +38,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     internal interface IWotPreparedViewSourceConsumer
     {
+        /// <summary>
+        /// Binds the prepared source image to a consumer.
+        /// </summary>
         /// <param name="sources">The WoT prepared source image.</param>
         void BindSourceImage(WotPreparedSourceImage sources);
     }
 
     internal sealed class WotPreparedSourceImage
     {
+        /// <summary>
+        /// Marks a node manager as removed so it is not considered an owner when resolving live handles.
+        /// </summary>
         /// <param name="owner">The async node manager.</param>
         internal void Exclude(IAsyncNodeManager owner)
         {
             m_removed.Add(owner);
         }
 
+        /// <summary>
+        /// Wraps a node manager factory so the managers it creates are captured as candidate owners.
+        /// </summary>
         /// <param name="factory">The async node manager factory.</param>
         internal IAsyncNodeManagerFactory Capture(IAsyncNodeManagerFactory factory)
         {
@@ -82,6 +91,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Finds the node manager handle and owner of a node among the candidates, falling back to the live server.
+        /// </summary>
         /// <param name="server">The server internal.</param>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -128,6 +140,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public bool AllowLifecycleFromRequestCallback =>
                 inner is IRequestCallbackSafeNodeManagerFactory { AllowLifecycleFromRequestCallback: true };
 
+            /// <summary>
+            /// Creates the wrapped node manager and records it as a candidate owner in the prepared image.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

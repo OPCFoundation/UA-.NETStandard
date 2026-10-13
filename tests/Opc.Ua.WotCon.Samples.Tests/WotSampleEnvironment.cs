@@ -92,6 +92,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public string DocumentsDirectory => FindDocumentsDirectory();
 
+        /// <summary>
+        /// Starts the sample server environment.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
         public static async Task<WotSampleEnvironment> StartAsync(
@@ -512,6 +515,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public WotRegistryClient Registry { get; }
 
+        /// <summary>
+        /// Creates and connects an aggregation client with the supplied options.
+        /// </summary>
         /// <param name="options">The aggregation client options.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public static async Task<WotClientConnection> CreateAsync(

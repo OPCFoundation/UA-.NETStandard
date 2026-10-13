@@ -143,6 +143,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that namespace zero event ID controls occurrence deduplication.
         /// </summary>
+        /// <param name="path">The event identifier select path under test.</param>
         /// <param name="derivedQueryType">The derived-query-type flag for this test case.</param>
         [Test]
         public async Task NamespaceZeroEventIdControlsOccurrenceDeduplication(

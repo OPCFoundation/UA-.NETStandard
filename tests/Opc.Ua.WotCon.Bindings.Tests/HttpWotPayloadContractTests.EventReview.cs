@@ -53,6 +53,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that event numeric overflow fails without partial selected fields.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="response">The JSON response carrying the out-of-range number.</param>
         /// <param name="array">The array flag for this test case.</param>
         [TestCase("i=10", "1e39", false)]
         [TestCase("i=11", "-1e309", false)]
@@ -72,6 +73,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that default event codec retains explicit ieee special values.
         /// </summary>
         /// <param name="dataTypeId">The data type ID used by this test case.</param>
+        /// <param name="special">The IEEE special value text used for the string-typed element.</param>
         [TestCase("i=10", "NaN")]
         [TestCase("i=10", "Infinity")]
         [TestCase("i=11", "-Infinity")]
@@ -108,6 +110,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that event array elements honor exact numeric bounds.
         /// </summary>
+        /// <param name="maximum">The JSON text of the declared maximum bound.</param>
+        /// <param name="value">The JSON text of the event array element.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("1e100", "1e101", false)]
         [TestCase("1e100", "1e100", true)]
@@ -139,7 +143,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that event structure arrays honor the native outer limit.
         /// </summary>
+        /// <param name="response">The JSON response carrying the array of structures.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
+        /// <param name="count">The number of array elements in the response.</param>
         [TestCase("null", true, 0)]
         [TestCase("[]", true, 0)]
         [TestCase(/*lang=json,strict*/ "[{\"Value\":1}]", true, 1)]
@@ -177,6 +183,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that custom event codec selected values must match native contracts.
         /// </summary>
+        /// <param name="shape">The shape of the custom codec output under test.</param>
         /// <param name="invalid">The invalid flag for this test case.</param>
         [TestCase("scalar", false)]
         [TestCase("scalar", true)]

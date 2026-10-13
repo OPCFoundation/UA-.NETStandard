@@ -38,6 +38,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// An organizing link to a canonical projection Resource.
     /// </summary>
     /// <param name="ResourceXid">The resource xid.</param>
+    /// <param name="Key">The key identifying the link within the view.</param>
     public readonly record struct WotCanonicalViewLink(string ResourceXid, string Key);
 
     /// <summary>
@@ -108,6 +109,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public ArrayOf<WotCanonicalViewSource> Sources { get; }
 
+        /// <summary>
+        /// Converts a node identifier to its namespace-independent portable form.
+        /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         internal string Portable(NodeId nodeId)
         {
@@ -532,6 +536,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <param name="ViewNodeId">The view node ID.</param>
     /// <param name="DocumentKind">The document kind.</param>
     /// <param name="Requested">The requested flag supplied by the caller.</param>
+    /// <param name="Scenario">The scenario IRI naming the purpose the view serves.</param>
+    /// <param name="Members">The canonical identities of the view members.</param>
+    /// <param name="Links">The organizing links to canonical projection resources.</param>
+    /// <param name="Omissions">The canonical identities of the omitted members.</param>
     internal sealed record CanonicalViewDefinition(
         string ResourceXid,
         string ResourceNodeId,

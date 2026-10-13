@@ -889,15 +889,18 @@ namespace Opc.Ua.WotCon.Samples.Tests
             : IReadOnlyDictionary<string, ByteString>, IWotDocumentConversionContext
         {
             public ByteString this[string key] => contents[key];
+
             /// <summary>
             /// Gets the keys for <c>ConversionContents</c>.
             /// </summary>
             public IEnumerable<string> Keys => contents.Keys;
             public IEnumerable<ByteString> Values => contents.Values;
+
             /// <summary>
             /// Gets the count for <c>ConversionContents</c>.
             /// </summary>
             public int Count => contents.Count;
+
             /// <summary>
             /// Gets or sets the definition requests for <c>ConversionContents</c>.
             /// </summary>
@@ -916,6 +919,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 return contents.ContainsKey(key);
             }
 
+            /// <inheritdoc/>
             /// <param name="value">The byte string.</param>
             public bool TryGetValue(string key, out ByteString value)
             {

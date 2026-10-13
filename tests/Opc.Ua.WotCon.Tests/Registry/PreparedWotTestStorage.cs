@@ -61,6 +61,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// </summary>
         public IXRegistryResourceStore? ContentStore => m_content;
 
+        /// <summary>
+        /// Opens a file registry store over the storage root and its content store.
+        /// </summary>
         /// <param name="directorySyncFailureInjector">The directory sync failure injector.</param>
         /// <param name="manifestReplace">The manifest replace.</param>
         public FileWotRegistryStore OpenStore(

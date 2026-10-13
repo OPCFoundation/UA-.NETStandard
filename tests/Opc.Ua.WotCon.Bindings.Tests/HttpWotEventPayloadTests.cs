@@ -298,6 +298,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that event byte limit is exact including trailing whitespace.
         /// </summary>
+        /// <param name="padding">The number of trailing whitespace characters appended to the event payload.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(0, true)]
         [TestCase(1, true)]
@@ -332,6 +333,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that event depth limit also bounds unselected members.
         /// </summary>
+        /// <param name="depth">The nesting depth of the event payload.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(2, true)]
         [TestCase(3, true)]
@@ -604,6 +606,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             /// </summary>
             public HttpClient Client => m_client;
 
+            /// <summary>
+            /// Compiles the default event form using the given content type.
+            /// </summary>
             /// <param name="contentType">The content type.</param>
             public WotCompiledForm DefaultForm(string contentType = "application/json")
             {

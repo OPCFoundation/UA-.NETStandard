@@ -61,24 +61,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Gets the host for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public LifecycleWotProjectionHost Host { get; }
+
         /// <summary>
         /// Gets the namespaces for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public NamespaceTable Namespaces => m_server.CurrentInstance.NamespaceUris;
+
         /// <summary>
         /// Gets the lifecycle for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
+
         /// <summary>
         /// Gets the port for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public int Port => m_fixture.Port;
         public string StorageFolder => Path.Combine(m_root, "configured-registry");
+
         /// <summary>
         /// Gets the configured resource store for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public IXRegistryResourceStore? ConfiguredResourceStore => m_configuredStorage.ContentStore;
 
+        /// <summary>
+        /// Starts a runtime that hosts the prepared WoT publication pipeline.
+        /// </summary>
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
         public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
         {
@@ -94,6 +101,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new PreparedWotTestRuntime(root, fixture, server, forceLeasedContent);
         }
 
+        /// <summary>
+        /// Creates a registry service backed by the runtime's stores and projection host.
+        /// </summary>
         /// <param name="bounds">The WoT registry persistence bounds.</param>
         /// <param name="compatibilityMode">The compatibility mode.</param>
         public async Task<WotRegistryService> CreateRegistryAsync(
@@ -155,6 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets the supports prepared publication for <c>ObservedHost</c>.
             /// </summary>
             public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
+
             /// <summary>
             /// Gets the supported atomicities for <c>ObservedHost</c>.
             /// </summary>
@@ -165,6 +176,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return new ObservedCapture(inner.CapturePublication(), published, validate, prepare);
             }
 
+            /// <inheritdoc/>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -177,6 +189,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return new ObservedUnit(unit, changes, published);
             }
 
+            /// <inheritdoc/>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotProjectionHandle> AddAsync(
@@ -185,6 +198,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.AddAsync(document, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -195,6 +209,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.ShadowReloadAsync(current, document, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="current">The WoT projection handle.</param>
             /// <param name="document">The WoT projection document.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -205,6 +220,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
@@ -221,6 +237,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Action<ArrayOf<WotProjectionChange>>? prepare)
             : IWotProjectionPublicationCapture
         {
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
             {
@@ -241,6 +258,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public bool IsCurrent => inner.IsCurrent;
 
+            /// <inheritdoc/>
             /// <param name="inspectAsync">The inspect async.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -258,6 +276,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return validation.ValidateAsync(changes, inspectAsync, views, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -275,6 +294,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.DisposeAsync();
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
                 ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
@@ -294,14 +314,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets the projections for <c>ObservedUnit</c>.
             /// </summary>
             public ArrayOf<WotProjectionHandle> Projections => inner.Projections;
+
             /// <summary>
             /// Gets the view graph for <c>ObservedUnit</c>.
             /// </summary>
             public WotPreparedViewGraphState? ViewGraph => inner.ViewGraph;
+
             /// <summary>
             /// Gets the is committed for <c>ObservedUnit</c>.
             /// </summary>
             public bool IsCommitted => inner.IsCommitted;
+
             /// <summary>
             /// Gets the cleanup failure for <c>ObservedUnit</c>.
             /// </summary>
@@ -312,6 +335,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 inner.BindReadImages(images);
             }
 
+            /// <inheritdoc/>
             /// <param name="decideAsync">The decide async.</param>
             /// <param name="publishCommittedState">The publish committed state.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

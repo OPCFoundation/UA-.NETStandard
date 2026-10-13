@@ -322,6 +322,7 @@ namespace Opc.Ua.WotCon.Server
         /// <param name="context">The operation context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">The delete-subscriptions flag supplied by the caller.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public override async ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
@@ -373,6 +374,10 @@ namespace Opc.Ua.WotCon.Server
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Dispatches a projection operation through the reconcile queue.
+        /// </summary>
+        /// <param name="operation">The operation to run.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         internal ValueTask DispatchProjectionAsync(
             Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
@@ -937,6 +942,9 @@ namespace Opc.Ua.WotCon.Server
             m_reconcile = reconcile ?? throw new ArgumentNullException(nameof(reconcile));
         }
 
+        /// <summary>
+        /// Queues the reconciliation of a registry change.
+        /// </summary>
         /// <param name="change">The WoT registry changed event args.</param>
         public void Enqueue(WotRegistryChangedEventArgs change)
         {
@@ -952,6 +960,10 @@ namespace Opc.Ua.WotCon.Server
             TryEnqueue(new ReconcileOperation(operation));
         }
 
+        /// <summary>
+        /// Queues an operation and completes when it has run, observing the caller's cancellation while waiting.
+        /// </summary>
+        /// <param name="operation">The operation to run.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask EnqueueAsync(
             Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
@@ -983,6 +995,9 @@ namespace Opc.Ua.WotCon.Server
             return new ValueTask(completion.Task.WaitAsync(cancellationToken));
         }
 
+        /// <summary>
+        /// Waits until all queued reconcile work has completed.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask WhenIdleAsync(CancellationToken cancellationToken = default)
         {

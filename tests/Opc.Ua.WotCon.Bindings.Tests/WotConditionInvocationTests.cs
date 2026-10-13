@@ -46,6 +46,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that omitted optional comment is sent as the second null localized text.
         /// </summary>
+        /// <param name="action">The condition action under test.</param>
         /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase("Acknowledge", false)]
         [TestCase("Acknowledge", true)]
@@ -105,6 +106,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that required comments and ordinary actions are not defaulted.
         /// </summary>
+        /// <param name="action">The action under test.</param>
         /// <param name="required">The required flag for this test case.</param>
         [TestCase("Acknowledge", true)]
         [TestCase("Ordinary", false)]

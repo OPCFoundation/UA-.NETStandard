@@ -52,6 +52,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         public WotCompiledForm Form { get; }
 
+        /// <summary>
+        /// Captures the event source from the binding channel.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotEventSource> CaptureAsync(CancellationToken cancellationToken)
         {
@@ -64,6 +67,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return await capturing.CaptureEventSourceAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Requires that the event type provides the condition fields needed by the captured source.
+        /// </summary>
         /// <param name="types">The type table.</param>
         /// <param name="eventTypeId">The event type identifier.</param>
         public void RequireConditionFields(ITypeTable types, NodeId eventTypeId)
@@ -80,6 +86,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Attaches a listener to the event source and returns a handle that detaches it when disposed.
+        /// </summary>
+        /// <param name="listener">The notification listener.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IAsyncDisposable> AttachAsync(
             Action<WotNotification> listener, CancellationToken cancellationToken)
@@ -178,6 +188,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Determines whether a compiled form can share this event source.
+        /// </summary>
         /// <param name="form">The WoT compiled form.</param>
         public bool CanShare(WotCompiledForm form)
         {

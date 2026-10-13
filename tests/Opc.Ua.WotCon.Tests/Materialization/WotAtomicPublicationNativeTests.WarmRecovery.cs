@@ -396,17 +396,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets the resource store for <c>EvidenceStoreAdapter</c>.
             /// </summary>
             public IXRegistryResourceStore ResourceStore => resourceStore;
+
             /// <summary>
             /// Gets the supports prepared commits for <c>EvidenceStoreAdapter</c>.
             /// </summary>
             public bool SupportsPreparedCommits => inner.SupportsPreparedCommits;
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.LoadAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask CommitAsync(
@@ -415,6 +418,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.CommitAsync(snapshot, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotRegistryValidatedGeneration> CaptureValidatedGenerationAsync(
                 CancellationToken cancellationToken = default)
@@ -422,6 +426,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.CaptureValidatedGenerationAsync(cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="intendedSnapshot">The intended snapshot.</param>
             /// <param name="expectedGeneration">The expected generation.</param>
             /// <param name="scope">The WoT registry commit scope.</param>
@@ -433,6 +438,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.PrepareCommitAsync(intendedSnapshot, expectedGeneration, scope, cancellationToken);
             }
 
+            /// <inheritdoc/>
             /// <param name="expectedGeneration">The expected generation.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(

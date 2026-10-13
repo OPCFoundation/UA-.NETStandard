@@ -162,6 +162,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that registry conversion rejects supplied standard ancestry.
         /// </summary>
+        /// <param name="fact">The standard-ancestry fact supplied by the registry document.</param>
         /// <param name="standardPin">The standard-pin flag for this test case.</param>
         [TestCase("cycle", false)]
         [TestCase("cycle", true)]
@@ -330,6 +331,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         /// <param name="archive">The archive flag for this test case.</param>
         /// <param name="reverse">The reverse flag for this test case.</param>
+        /// <param name="fact">The kind of conflicting declaration fact under test.</param>
         [Test]
         public async Task ResidualRegistryDeclarationsRejectConflictsInEitherOrderAsync(
             [Values(false, true)] bool archive,
@@ -662,6 +664,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public Dictionary<string, ByteString> Contents { get; } = new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Stores the document content and upserts it as a registry resource of the given kind.
+            /// </summary>
+            /// <param name="id">The resource identifier.</param>
             /// <param name="document">The WoT document.</param>
             /// <param name="kind">The wo t document kind enum.</param>
             public async Task<WotResource> StoreAsync(string id, WotDocument document, WoTDocumentKindEnum kind)

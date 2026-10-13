@@ -53,6 +53,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed partial class WotProjectionViewBuilder
     {
+        /// <summary>
+        /// Builds the canonical view projection for a document against a registry snapshot.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="snapshot">The WoT registry snapshot.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -101,6 +104,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return CreateCanonicalNodeManagerFactory(state, previous, null);
         }
 
+        /// <summary>
+        /// Creates a node manager factory for a canonical view state, optionally reusing a previous registration
+        /// and a prepared source image.
+        /// </summary>
         /// <param name="state">The WoT canonical view state.</param>
         /// <param name="previous">The node manager registration.</param>
         /// <param name="sources">The WoT prepared source image.</param>
@@ -129,6 +136,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="context">The WoT canonical view graph context.</param>
         /// <param name="expected">The WoT canonical view state.</param>
+        /// <param name="updates">The view projection requests to add or replace.</param>
+        /// <param name="removals">The identifiers of the views to remove.</param>
         public static WotCanonicalViewPreparation PrepareCanonicalGraph(
             WotCanonicalViewGraphContext context,
             WotCanonicalViewState? expected,
@@ -424,6 +433,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 sources.Values.OrderBy(source => source.NodeId, StringComparer.Ordinal).ToArrayOf());
         }
 
+        /// <summary>
+        /// Restores a canonical view state by rebuilding its definitions from the captured state.
+        /// </summary>
         /// <param name="captured">The WoT canonical view state.</param>
         internal static WotCanonicalViewState RestoreCanonicalGraph(WotCanonicalViewState captured)
         {
@@ -532,7 +544,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Builds the canonical identifier of a role node from the namespace, role and key elements.
+        /// </summary>
         /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="role">The role name of the node.</param>
+        /// <param name="elements">The key elements encoded into the identifier.</param>
         internal static string CanonicalRoleId(string namespaceUri, string role, params string[] elements)
         {
             return "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";s=WoT/" + role + "/" +
@@ -645,15 +662,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ArrayOf<string> NamespacesUris =>
                 WotProjectionViewNodeManager.CanonicalNamespaces(m_state).ToArrayOf();
+
             /// <summary>
             /// Gets the allow lifecycle from request callback for <c>CanonicalNodeManagerFactory</c>.
             /// </summary>
             public bool AllowLifecycleFromRequestCallback => true;
+
             /// <summary>
             /// Gets the expected registration for <c>CanonicalNodeManagerFactory</c>.
             /// </summary>
             public NodeManagerRegistration? ExpectedRegistration => m_previous;
 
+            /// <summary>
+            /// Creates the canonical view node manager, validating that the previous registration belongs to the
+            /// same server.
+            /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

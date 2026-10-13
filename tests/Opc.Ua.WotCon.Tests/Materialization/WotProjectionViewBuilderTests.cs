@@ -60,6 +60,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that modern projection plan carries its declared kind into the view.
         /// </summary>
+        /// <param name="kind">The document kind text declared by the plan.</param>
         /// <param name="expected">The expected WoT document kind asserted by the test.</param>
         [TestCase("ThingDescription", WotDocumentKind.ThingDescription)]
         [TestCase("ThingModel", WotDocumentKind.ThingModel)]

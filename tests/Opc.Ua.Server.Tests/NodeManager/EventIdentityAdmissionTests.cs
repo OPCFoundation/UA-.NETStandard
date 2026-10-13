@@ -735,6 +735,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed class Origin : IEventIdentitySource
         {
+            /// <inheritdoc/>
             /// <param name="other">The event identity source.</param>
             public bool IsSameOccurrence(IEventIdentitySource other)
             {

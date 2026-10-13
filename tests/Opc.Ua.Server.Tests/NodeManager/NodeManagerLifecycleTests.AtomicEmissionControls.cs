@@ -452,6 +452,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Func<PermissionType, CancellationToken, ValueTask>? EmissionPermissionCallback { get; set; }
 
+            /// <inheritdoc/>
             /// <param name="operationContext">The operation context.</param>
             /// <param name="nodeId">The node identifier.</param>
             /// <param name="requestedPermission">The requested permission.</param>

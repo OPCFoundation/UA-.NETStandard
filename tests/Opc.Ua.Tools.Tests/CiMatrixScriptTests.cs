@@ -630,7 +630,14 @@ namespace Opc.Ua.Tools.Tests
         /// <param name="TimeoutMinutes">The timeout minutes.</param>
         /// <param name="PackedMinutes">The packed minutes.</param>
         /// <param name="HangTimeout">The hang timeout.</param>
+        /// <param name="Id">The matrix entry identifier.</param>
+        /// <param name="Os">The operating system of the runner.</param>
+        /// <param name="Profile">The test profile of the entry.</param>
+        /// <param name="Tier">The test tier of the entry.</param>
+        /// <param name="Framework">The target framework of the entry.</param>
+        /// <param name="Filter">The test filter expression of the entry.</param>
         /// <param name="Coverage">The coverage flag supplied by the caller.</param>
+        /// <param name="Projects">The test projects run by the entry.</param>
         public sealed record MatrixEntry(
             string Id,
             string Os,

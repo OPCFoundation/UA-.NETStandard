@@ -76,6 +76,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         /// <summary>
         /// Verifies that configured independent mode reaches the registry merge.
         /// </summary>
+        /// <param name="route">The route used to configure independent mode.</param>
         /// <param name="forceLeasedContent">The force-leased-content flag for this test case.</param>
         [TestCase("fluent", false)]
         [TestCase("configuration", false)]

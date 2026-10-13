@@ -150,6 +150,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await disposing.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Translates a WoT notification into a data value, resolving context-dependent values.
+        /// </summary>
         /// <param name="notification">The WoT notification.</param>
         /// <param name="context">The system context.</param>
         internal static DataValue TranslateNotification(WotNotification notification, ISystemContext context)

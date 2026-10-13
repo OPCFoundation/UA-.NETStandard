@@ -78,6 +78,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             return true;
         }
 
+        /// <summary>
+        /// Reads the unambiguous source identifier ("id" or "@id") from a document root.
+        /// </summary>
         /// <param name="root">The JSON element.</param>
         public static string? ReadSourceId(JsonElement root)
         {
@@ -98,6 +101,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             return sourceId;
         }
 
+        /// <summary>
+        /// Validates the group, catalogue and resource identities of a registry snapshot.
+        /// </summary>
         /// <param name="snapshot">The WoT registry snapshot.</param>
         public static void ValidateSnapshot(WotRegistrySnapshot snapshot)
         {

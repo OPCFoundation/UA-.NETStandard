@@ -428,7 +428,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class EndpointNativeChannels(Dictionary<string, ISession> sessions) : IWotBindingChannelFactory
         {
-            /// <param name="form">The WoT compiled form.</param>
+                    /// <inheritdoc/>
+                    /// <param name="form">The WoT compiled form.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotBindingChannel> OpenChannelAsync(
                 WotCompiledForm form, CancellationToken cancellationToken = default)
@@ -448,7 +449,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public ISession Session { get; set; } = session;
 
-            /// <param name="form">The WoT compiled form.</param>
+                        /// <inheritdoc/>
+                        /// <param name="form">The WoT compiled form.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotBindingChannel> OpenChannelAsync(
                 WotCompiledForm form, CancellationToken cancellationToken = default)

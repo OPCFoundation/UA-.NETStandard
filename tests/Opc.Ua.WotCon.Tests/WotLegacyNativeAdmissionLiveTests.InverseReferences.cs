@@ -135,6 +135,7 @@ namespace Opc.Ua.WotCon.Tests
         /// Verifies that conflicting native placement fails before provider effects.
         /// </summary>
         /// <param name="component">The component flag for this test case.</param>
+        /// <param name="path">The conflicting native placement path.</param>
         [TestCase(false, "upload")]
         [TestCase(true, "upload")]
         [TestCase(false, "discovery")]

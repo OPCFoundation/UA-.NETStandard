@@ -270,6 +270,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that request byte limit is exact and failure does not send.
         /// </summary>
+        /// <param name="bytes">The size of the request payload in bytes.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(7, true)]
         [TestCase(8, true)]
@@ -295,6 +296,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that response byte limit is exact and cannot hide failure.
         /// </summary>
+        /// <param name="bytes">The size of the response payload in bytes.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(7, true)]
         [TestCase(8, true)]
@@ -388,6 +390,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that declared u int 16 output enforces native range and JSON kind.
         /// </summary>
+        /// <param name="response">The JSON response carrying the output value.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase("0", true)]
         [TestCase("65535", true)]
@@ -706,6 +709,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that request JSON depth limit includes the root and rejects before sending.
         /// </summary>
+        /// <param name="depth">The nesting depth of the request JSON.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(2, true)]
         [TestCase(3, true)]
@@ -732,6 +736,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// <summary>
         /// Verifies that response JSON depth limit includes the root and fails the whole operation.
         /// </summary>
+        /// <param name="depth">The nesting depth of the response JSON.</param>
         /// <param name="accepted">The accepted flag for this test case.</param>
         [TestCase(2, true)]
         [TestCase(3, true)]
@@ -1304,6 +1309,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             /// <summary>
             /// Initializes a new <c>Harness</c> instance.
             /// </summary>
+            /// <param name="input">
+            /// The JSON schema of the input, or <c>null</c> when the form declares no input.
+            /// </param>
+            /// <param name="output">
+            /// The JSON schema of the output, or <c>null</c> when the form declares no output.
+            /// </param>
             /// <param name="response">The response used to initialize the instance.</param>
             /// <param name="bounds">The bounds used to initialize the instance.</param>
             /// <param name="codecs">The codecs used to initialize the instance.</param>

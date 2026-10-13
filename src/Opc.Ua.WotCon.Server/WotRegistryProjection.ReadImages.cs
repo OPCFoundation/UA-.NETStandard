@@ -42,6 +42,9 @@ namespace Opc.Ua.WotCon.Server
     /// </summary>
     internal sealed partial class WotRegistryProjection
     {
+        /// <summary>
+        /// Prepares the read image of the registry for the intended snapshot.
+        /// </summary>
         /// <param name="previous">The WoT registry snapshot.</param>
         /// <param name="intended">The WoT registry snapshot.</param>
         internal INodeManagerReadImage PrepareReadImage(
@@ -59,6 +62,9 @@ namespace Opc.Ua.WotCon.Server
             return new RegistryReadImage(m_manager, intended);
         }
 
+        /// <summary>
+        /// Binds the published registry properties to read-only access.
+        /// </summary>
         /// <param name="registry">The wo t registry state.</param>
         internal void BindPublishedRegistryProperties(WoTRegistryState registry)
         {
@@ -192,11 +198,16 @@ namespace Opc.Ua.WotCon.Server
             /// Gets the async node manager for <c>RegistryReadImage</c>.
             /// </summary>
             public IAsyncNodeManager Owner { get; } = owner;
+
             /// <summary>
             /// Gets the refresh generation for <c>RegistryReadImage</c>.
             /// </summary>
             public uint RefreshGeneration { get; } = snapshot.RefreshGeneration;
 
+            /// <summary>
+            /// Tries to get the read image of a resource by its group and resource identity.
+            /// </summary>
+            /// <param name="identity">The group and resource identifiers.</param>
             /// <param name="resource">The resource read image.</param>
             public bool TryGetResource((string, string) identity, out ResourceReadImage resource)
             {
@@ -215,6 +226,9 @@ namespace Opc.Ua.WotCon.Server
             WoTLoadStateEnum LoadState,
             DateTimeUtc LastRefreshTime)
         {
+            /// <summary>
+            /// Captures an immutable read image of a resource.
+            /// </summary>
             /// <param name="resource">The WoT resource.</param>
             public static ResourceReadImage Capture(WotResource resource)
             {

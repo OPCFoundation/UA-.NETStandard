@@ -188,6 +188,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         /// <inheritdoc/>
         /// <param name="expectedSnapshot">The expected snapshot.</param>
+        /// <param name="projections">The resource projections to publish.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -467,47 +468,60 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets the previous snapshot for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public WotRegistrySnapshot PreviousSnapshot { get; } = previous;
+
             /// <summary>
             /// Gets the intended snapshot for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public WotRegistrySnapshot IntendedSnapshot { get; } = intended;
+
             /// <summary>
             /// Gets the read images for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public ArrayOf<INodeManagerReadImage> ReadImages { get; } = readImages;
+
             /// <summary>
             /// Gets the projection only for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public bool ProjectionOnly { get; } = projectionOnly;
+
             /// <summary>
             /// Gets the changed for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public ArrayOf<string> Changed { get; } = changed;
+
             /// <summary>
             /// Gets the decision for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public IWotRegistryPreparedCommit Decision { get; } = decision;
+
             /// <summary>
             /// Gets the invocation for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public RegistryPublicationInvocation? Invocation { get; } = invocation;
+
             /// <summary>
             /// Gets or sets the is committed for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public bool IsCommitted { get; set; }
+
             /// <summary>
             /// Gets or sets the is published for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public bool IsPublished { get; set; }
+
             /// <summary>
             /// Gets or sets the owns mutation for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public bool OwnsMutation { get; set; }
+
             /// <summary>
             /// Gets or sets the durability warning for <c>PreparedRegistryPublication</c>.
             /// </summary>
             public WotRegistryCommitDurabilityUncertainException? DurabilityWarning { get; set; }
 
+            /// <summary>
+            /// Decides the prepared publication; it can only be consumed once.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask DecideAsync(CancellationToken cancellationToken = default)
             {
@@ -581,11 +595,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets the runtime snapshot for <c>PreparedRegistryRecovery</c>.
             /// </summary>
             public WotRegistrySnapshot RuntimeSnapshot => runtime;
+
             /// <summary>
             /// Gets the read images for <c>PreparedRegistryRecovery</c>.
             /// </summary>
             public ArrayOf<INodeManagerReadImage> ReadImages => readImages;
 
+            /// <summary>
+            /// Validates the recovery against the runtime snapshot; it can only be consumed once.
+            /// </summary>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask ValidateAsync(CancellationToken cancellationToken = default)
             {
@@ -733,6 +751,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         private sealed class RecoveryProjectionRegistration(
             WotRegistryService owner, IWotRegistryRecoveryProjection projection) : IDisposable
         {
+            /// <summary>
+            /// Prepares the read image of the node manager for the intended snapshot, when one is attached.
+            /// </summary>
             /// <param name="previous">The WoT registry snapshot.</param>
             /// <param name="intended">The WoT registry snapshot.</param>
             public INodeManagerReadImage? PrepareReadImage(
@@ -743,6 +764,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     : null;
             }
 
+            /// <summary>
+            /// Synchronizes the recovery projection with the supplied snapshot, when one is attached.
+            /// </summary>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             public ValueTask SynchronizeAsync(WotRegistrySnapshot snapshot)
             {
@@ -772,7 +796,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// </summary>
             public WotRegistrySnapshot Current => owner.Current;
 
+            /// <summary>
+            /// Prepares the next sequential publication unit within this invocation.
+            /// </summary>
             /// <param name="expectedSnapshot">The expected snapshot.</param>
+            /// <param name="projections">The resource projections to publish.</param>
             /// <param name="refreshGeneration">The refresh generation.</param>
             /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -802,6 +830,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Prepares a recovery unit within this invocation.
+            /// </summary>
             /// <param name="expectedSnapshot">The expected snapshot.</param>
             /// <param name="runtimeSnapshot">The runtime snapshot.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -824,7 +855,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Prepares a registry mutation unit within this invocation.
+            /// </summary>
             /// <param name="mutation">The WoT registry mutation image.</param>
+            /// <param name="projections">The resource projections to publish.</param>
             /// <param name="refreshGeneration">The refresh generation.</param>
             /// <param name="canonicalViewGraphState">The canonical view graph state.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -855,6 +890,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Requires the supplied unit to be the active unit of an open invocation.
+            /// </summary>
             /// <param name="publication">The async disposable.</param>
             public void RequireActive(IAsyncDisposable publication)
             {
@@ -867,6 +905,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Releases the unit when it is the currently active unit of the invocation.
+            /// </summary>
             /// <param name="publication">The async disposable.</param>
             public void ReleaseUnit(IAsyncDisposable publication)
             {
@@ -879,6 +920,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            /// <summary>
+            /// Moves the recovery to the synchronized state against the supplied snapshot.
+            /// </summary>
             /// <param name="publication">The prepared registry recovery.</param>
             /// <param name="snapshot">The WoT registry snapshot.</param>
             public async ValueTask SynchronizeRecoveryAsync(

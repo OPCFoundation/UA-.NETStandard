@@ -44,6 +44,9 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </summary>
     internal sealed partial class AssetRegistry
     {
+        /// <summary>
+        /// Restores persisted deletion intents that were not completed before shutdown.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         internal async ValueTask RestorePendingDeletionsAsync(CancellationToken cancellationToken)
         {
@@ -137,5 +140,6 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </summary>
     /// <param name="GroupId">The group ID.</param>
     /// <param name="ResourceId">The resource ID.</param>
+    /// <param name="Generation">The registry generation.</param>
     internal sealed record AssetRegistryDeletionIntent(string GroupId, string ResourceId, long Generation);
 }
