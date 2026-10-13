@@ -524,6 +524,90 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await VerifyCallbackAdmissionCompletionAsync(rejectDecision, false, true).ConfigureAwait(false);
         }
 
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task IndependentActivationDoesNotInheritHeldDeleteAdmissionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
+            {
+                OperationTimeout = 60000,
+                SessionTimeout = 60000
+            };
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
+            uint itemId = await CreateEventMonitoredItemAsync(
+                services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
+            var deleteEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var deleteRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int activations = 0;
+            manager.AllEventsCallback = async (_, unsubscribe, token) =>
+            {
+                if (unsubscribe)
+                {
+                    deleteEntered.TrySetResult(true);
+                    await deleteRelease.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+            };
+            manager.SessionActivatedCallback = _ =>
+            {
+                Interlocked.Increment(ref activations);
+                return default;
+            };
+            Task<DeleteMonitoredItemsResponse>? delete = null;
+            Task<Opc.Ua.Client.ISession>? activation = null;
+            Opc.Ua.Client.ISession? activatedSession = null;
+            try
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                delete = services.DeleteMonitoredItemsAsync(
+                    m_requestHeader, subscription.SubscriptionId, [itemId]).AsTask();
+                await deleteEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                activation = client.ConnectAsync(
+                    new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
+
+                // Control, not a deterministic RED: the activation is an independent request that must wait at
+                // the binding gate of the held delete instead of inheriting its admission.
+                Task finished = await Task.WhenAny(activation, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token))
+                    .ConfigureAwait(false);
+                Assert.That(finished, Is.Not.SameAs(activation), "Activation inherited the delete admission.");
+                Assert.That(Volatile.Read(ref activations), Is.Zero);
+
+                deleteRelease.TrySetResult(true);
+                DeleteMonitoredItemsResponse response = await delete.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+                activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref activations), Is.GreaterThanOrEqualTo(1));
+            }
+            finally
+            {
+                deleteRelease.TrySetResult(true);
+                manager.AllEventsCallback = (_, _, _) => default;
+                manager.SessionActivatedCallback = _ => default;
+                if (delete is not null)
+                {
+                    await delete.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                activatedSession ??= activation is null ? null : await activation.WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                if (activatedSession is not null)
+                {
+                    await activatedSession.CloseAsync(timeout.Token).ConfigureAwait(false);
+                    activatedSession.Dispose();
+                }
+                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task PreparedBatchAllowsAdmittedSessionCallbackToAddAsync(bool rejectDecision)
