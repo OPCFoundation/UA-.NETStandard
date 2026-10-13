@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -73,8 +74,6 @@ namespace Opc.Ua
             MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
             MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            NamespaceUris = new NamespaceTable();
-            ServerUris = new StringTable();
         }
 
         /// <summary>
@@ -150,31 +149,48 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris
         {
-            get;
+            get
+            {
+                lock (m_mappingGate)
+                {
+                    return m_namespaceUris;
+                }
+            }
             set
             {
-                if (value == null)
+                lock (m_mappingGate)
                 {
-                    field = new NamespaceTable();
-                    return;
+                    value ??= new NamespaceTable();
+                    if (!ReferenceEquals(m_namespaceUris, value))
+                    {
+                        m_namespaceUris = value;
+                        m_mappingVersion++;
+                    }
                 }
-                field = value;
             }
         }
 
         /// <inheritdoc/>
         public StringTable ServerUris
         {
-            get;
+            get
+            {
+                lock (m_mappingGate)
+                {
+                    return m_serverUris;
+                }
+            }
             set
             {
-                if (value == null)
+                lock (m_mappingGate)
                 {
-                    field = new StringTable();
-                    return;
+                    value ??= new StringTable();
+                    if (!ReferenceEquals(m_serverUris, value))
+                    {
+                        m_serverUris = value;
+                        m_mappingVersion++;
+                    }
                 }
-
-                field = value;
             }
         }
 
@@ -195,5 +211,24 @@ namespace Opc.Ua
                 field = value;
             }
         }
+
+        /// <summary>
+        /// Gets the monotonic version of the namespace/server table holders.
+        /// </summary>
+        internal long MappingVersion
+        {
+            get
+            {
+                lock (m_mappingGate)
+                {
+                    return m_mappingVersion;
+                }
+            }
+        }
+
+        private readonly Lock m_mappingGate = new();
+        private NamespaceTable m_namespaceUris = new();
+        private StringTable m_serverUris = new();
+        private long m_mappingVersion;
     }
 }
