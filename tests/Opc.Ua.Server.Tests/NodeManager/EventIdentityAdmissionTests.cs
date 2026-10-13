@@ -410,6 +410,119 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that the identity stays registered until the last lease reference is released.
+        /// </summary>
+        [Test]
+        public void IdentityIsReleasedOnlyByTheLastLeaseReference()
+        {
+            using var fixture = new IdentityFixture(1);
+            using MonitoredItem item = fixture.CreateItem();
+            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            SentMessageQueue sent = NewQueue(fixture, 4);
+            NotificationMessage message = NewMessage(sent, published);
+
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+            Assert.That(sent.TryAcknowledge(message.SequenceNumber), Is.True);
+            AssertIdentityHeld(fixture);
+
+            lease.Release();
+            AssertIdentityReleased(fixture);
+            GC.KeepAlive(published);
+        }
+
+        /// <summary>
+        /// Verifies that unsent messages dropped on queue overflow release their identity.
+        /// </summary>
+        [Test]
+        public void UnsentOverflowDropReleasesIdentity()
+        {
+            using var fixture = new IdentityFixture(1);
+            using MonitoredItem item = fixture.CreateItem();
+            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            SentMessageQueue sent = NewQueue(fixture, 1);
+            NotificationMessage dropped = NewMessage(sent, published);
+            NotificationMessage kept = NewMessage(sent, null);
+
+            _ = sent.Enqueue([dropped, kept], [], out _, out uint discarded, out NotificationMessageLease lease);
+
+            Assert.That(discarded, Is.EqualTo(1u));
+            AssertIdentityReleased(fixture);
+            lease.Release();
+            GC.KeepAlive(published);
+        }
+
+        /// <summary>
+        /// Verifies that eviction from the retransmission queue releases the identity once the response is done.
+        /// </summary>
+        [Test]
+        public void RetransmissionEvictionReleasesIdentity()
+        {
+            using var fixture = new IdentityFixture(1);
+            using MonitoredItem item = fixture.CreateItem();
+            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            SentMessageQueue sent = NewQueue(fixture, 1);
+            _ = sent.Enqueue([NewMessage(sent, published)], [], out _, out _, out NotificationMessageLease first);
+            AssertIdentityHeld(fixture);
+
+            _ = sent.Enqueue([NewMessage(sent, null)], [], out _, out _, out NotificationMessageLease second);
+            AssertIdentityHeld(fixture);
+
+            first.Release();
+            AssertIdentityReleased(fixture);
+            second.Release();
+            GC.KeepAlive(published);
+        }
+
+        /// <summary>
+        /// Verifies that restored cloned messages do not release identity registered by another owner.
+        /// </summary>
+        [Test]
+        public void RestoredMessageCloneDoesNotReleaseUnownedIdentity()
+        {
+            using var fixture = new IdentityFixture(1);
+            using MonitoredItem item = fixture.CreateItem();
+            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            SentMessageQueue restored = SentMessageQueue.CreateRestored(
+                () => 1, 4, null,
+                fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(),
+                [NewMessage(NewQueue(fixture, 4), published)],
+                nextSequenceNumber: 10,
+                lastSentMessage: 1,
+                fixture.Manager);
+
+            Assert.That(restored.TryAcknowledge(1), Is.True);
+            restored.Clear();
+
+            AssertIdentityHeld(fixture);
+            GC.KeepAlive(published);
+        }
+
+        /// <summary>
+        /// Verifies that keep-alive style messages without events are safe to enqueue, acknowledge and clear.
+        /// </summary>
+        [Test]
+        public void MessagesWithoutEventsAreSafeAndKeepOtherIdentities()
+        {
+            using var fixture = new IdentityFixture(1);
+            using MonitoredItem item = fixture.CreateItem();
+            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            SentMessageQueue sent = NewQueue(fixture, 1);
+
+            Assert.DoesNotThrow(() =>
+            {
+                _ = sent.Enqueue([NewMessage(sent, null)], [], out _, out _, out NotificationMessageLease a);
+                _ = sent.Enqueue([NewMessage(sent, null)], [], out _, out _, out NotificationMessageLease b);
+                a.Release();
+                b.Release();
+                _ = sent.TryAcknowledge(2);
+                sent.Clear();
+            });
+
+            AssertIdentityHeld(fixture);
+            GC.KeepAlive(published);
+        }
+
+        /// <summary>
         /// Verifies that independent servers do not share identity ownership.
         /// </summary>
         [Test]
@@ -542,6 +655,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Queue<EventFieldList> PublishOccurrence(IdentityFixture fixture, MonitoredItem item)
+        {
+            EnqueueProjectedOccurrence(fixture, item);
+            var published = new Queue<EventFieldList>();
+            using var context = NewContext();
+            item.Publish(context, published, 8);
+            Assert.That(published, Has.Count.EqualTo(1));
+            return published;
+        }
+
+        private static SentMessageQueue NewQueue(IdentityFixture fixture, uint capacity)
+        {
+            return new SentMessageQueue(
+                () => 1, capacity, null,
+                fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(), fixture.Manager);
+        }
+
+        private static NotificationMessage NewMessage(SentMessageQueue queue, Queue<EventFieldList>? published)
+        {
+            var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+            message.SequenceNumber = queue.AssignSequenceNumber();
+            if (published == null)
+            {
+                message.NotificationData = [];
+                return message;
+            }
+            var events = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
+            events.Events = published.ToArrayOf();
+            message.NotificationData = [new ExtensionObject(events)];
+            return message;
+        }
+
+        private static void AssertIdentityHeld(IdentityFixture fixture)
+        {
+            CollectUnownedTargets();
+            AssertStatus(() => fixture.Manager.ReserveEventIdentity(s_id, new Origin()).Dispose(),
+                StatusCodes.BadSecurityChecksFailed);
+        }
+
+        private static void AssertIdentityReleased(IdentityFixture fixture)
+        {
+            CollectUnownedTargets();
+            Assert.DoesNotThrow(() => fixture.Manager.ReserveEventIdentity(s_id, new Origin()).Dispose());
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
