@@ -445,13 +445,14 @@ namespace Opc.Ua.MachineTool.Tests
         }
 
         /// <summary>
-        /// Refusal and cancellation after a provider returns cannot commit either proposed trigger setting.
+        /// Refusal and cancellation before provider acceptance cannot commit either proposed trigger setting.
         /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task ConfigurationAcceptanceBoundaryPreservesBothSettingsAsync(bool delta, bool cancelled)
+        public async Task RefusedOrCancelledConfigurationBeforeAcceptancePreservesBothSettingsAsync(
+            bool delta, bool cancelled)
         {
             var equipment = new WmtpTestEquipment();
             equipment.Samples["Temperature"] = equipment.Sample(Variant.From(4d));
@@ -460,13 +461,14 @@ namespace Opc.Ua.MachineTool.Tests
             using var cancellation = new CancellationTokenSource();
             equipment.Measurement.Setup(provider => provider.ConfigureAsync(
                     It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
-                .Returns((string _, uint _, Variant _, CancellationToken _) =>
+                .Returns((string _, uint _, Variant _, CancellationToken token) =>
                 {
                     if (cancelled)
                     {
                         cancellation.Cancel();
+                        token.ThrowIfCancellationRequested();
                     }
-                    return new ValueTask<StatusCode>(cancelled ? StatusCodes.Good : StatusCodes.BadNotSupported);
+                    return new ValueTask<StatusCode>(StatusCodes.BadNotSupported);
                 });
             Task operation = delta ? peripheral.Measurements[0].SetDeltaAsync(
                 Variant.From(2d), new WmtpRequest(), cancellation.Token).AsTask() :

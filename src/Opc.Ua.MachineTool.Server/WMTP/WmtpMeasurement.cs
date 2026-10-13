@@ -210,6 +210,7 @@ namespace Opc.Ua.MachineTool.Server
 
         /// <summary>
         /// Changes the interval only after authorized, atomic provider acceptance of both trigger conditions.
+        /// Once accepted, the setting commits even if the caller cancels.
         /// </summary>
         public async ValueTask SetTriggerAsync(
             double milliseconds, WmtpRequest request, CancellationToken cancellationToken = default)
@@ -220,7 +221,6 @@ namespace Opc.Ua.MachineTool.Server
                 StatusCode accepted = await m_provider.ConfigureAsync(Name, trigger, Delta, token)
                     .ConfigureAwait(false);
                 WmtpPeripheral.CheckAcceptance(accepted);
-                token.ThrowIfCancellationRequested();
                 State.TriggerSettings!.Value = trigger;
                 await State.TriggerSettings.ClearChangeMasksAsync(m_peripheral.Context, false, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -230,6 +230,7 @@ namespace Opc.Ua.MachineTool.Server
 
         /// <summary>
         /// Changes the delta only after exact numeric validation and authorized provider acceptance.
+        /// Once accepted, the setting commits even if the caller cancels.
         /// </summary>
         public async ValueTask SetDeltaAsync(
             Variant delta, WmtpRequest request, CancellationToken cancellationToken = default)
@@ -240,7 +241,6 @@ namespace Opc.Ua.MachineTool.Server
                 StatusCode accepted = await m_provider.ConfigureAsync(Name, TriggerMilliseconds, delta, token)
                     .ConfigureAwait(false);
                 WmtpPeripheral.CheckAcceptance(accepted);
-                token.ThrowIfCancellationRequested();
                 Delta = delta;
                 State.DeltaCondition!.Value = published;
                 await State.DeltaCondition.ClearChangeMasksAsync(m_peripheral.Context, false, CancellationToken.None)

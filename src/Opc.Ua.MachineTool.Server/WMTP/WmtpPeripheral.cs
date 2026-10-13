@@ -373,7 +373,7 @@ namespace Opc.Ua.MachineTool.Server
         }
 
         /// <summary>
-        /// Adopts resources only after publication succeeded and starts freshness-only maintenance.
+        /// Adopts caller resources only after all fallible initialization and publication have succeeded.
         /// </summary>
         internal void TakeOwnership(ArrayOf<IAsyncDisposable> resources)
         {
@@ -385,6 +385,13 @@ namespace Opc.Ua.MachineTool.Server
                 }
                 m_resources = resources;
             }
+        }
+
+        /// <summary>
+        /// Starts fallible freshness-only maintenance while application resources remain caller-owned.
+        /// </summary>
+        internal void StartMaintenance()
+        {
             if (!Measurements.IsEmpty)
             {
                 ITimer timer = TimeProvider.CreateTimer(static state => ((WmtpPeripheral)state!).AgeTick(),

@@ -73,8 +73,12 @@ namespace Opc.Ua.MachineTool.Server
         }
 
         /// <summary>
-        /// Supplies device observations; additional provider interfaces implemented by this adapter can be reused.
+        /// Explicitly selects this peripheral's equipment adapter; its additional provider interfaces can be reused.
+        /// An unkeyed application service is never an implicit device selection.
         /// </summary>
+        /// <remarks>
+        /// Deliberately shared adapters must remain application-owned and coordinate access to their shared equipment.
+        /// </remarks>
         public WmtpPeripheralBuilder WithProvider(IWmtpDeviceProvider provider)
         {
             EnsureMutable();
@@ -259,6 +263,7 @@ namespace Opc.Ua.MachineTool.Server
         /// <summary>
         /// Transfers asynchronous resource ownership only after successful construction.
         /// Failed builds do not dispose application-owned providers.
+        /// Do not transfer a resource shared with another peripheral.
         /// </summary>
         public WmtpPeripheralBuilder WithOwnedResource(IAsyncDisposable resource)
         {
@@ -319,8 +324,9 @@ namespace Opc.Ua.MachineTool.Server
                     new ValueTask<IAsyncDisposable>(peripheral.CreateRegistration()));
                 registering = true;
                 await builder.BuildAsync(cancellationToken).ConfigureAwait(false);
-                peripheral.TakeOwnership(m_resources.ToArrayOf());
+                peripheral.StartMaintenance();
                 await peripheral.CommitConformanceAsync(cancellationToken).ConfigureAwait(false);
+                peripheral.TakeOwnership(m_resources.ToArrayOf());
                 m_built = true;
                 return peripheral;
             }
@@ -351,8 +357,9 @@ namespace Opc.Ua.MachineTool.Server
         /// </summary>
         private WmtpPeripheralConfiguration ResolveConfiguration()
         {
-            IWmtpDeviceProvider device = m_configuration.Device ?? m_context.GetService<IWmtpDeviceProvider>() ??
-                throw new ServiceResultException(StatusCodes.BadConfigurationError, "A device provider is required.");
+            IWmtpDeviceProvider device = m_configuration.Device ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "Select this peripheral's equipment adapter explicitly with WithProvider.");
             WmtpPeripheralConfiguration resolved = m_configuration with
             {
                 Device = device,
