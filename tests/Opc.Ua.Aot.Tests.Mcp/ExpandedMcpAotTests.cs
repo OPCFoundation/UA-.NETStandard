@@ -1285,7 +1285,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 if (artifacts)
                 {
-                    Root = Path.Combine(Path.GetTempPath(), "opc-ua-expanded-aot-" + Guid.NewGuid().ToString("N"));
+                    // OS temporary directories can have linked ancestors, which transfer policy correctly rejects.
+                    Root = Path.Combine(AppContext.BaseDirectory, "opc-ua-expanded-aot-" + Guid.NewGuid().ToString("N"));
                 }
                 var services = new ServiceCollection();
                 services.AddLogging();
