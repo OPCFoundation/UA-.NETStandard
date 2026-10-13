@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,55 +28,36 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Tasks;
 
-namespace Opc.Ua
+namespace Opc.Ua.Client
 {
-    /// <summary>
-    /// Retains one keyed AES instance without sharing it between concurrent transforms.
-    /// Borrowed instances are disposed on return if shutdown has begun.
-    /// </summary>
-    internal sealed class AesCache : IDisposable
+    public partial class Session
     {
-        /// <summary>
-        /// Closes the cache and disposes the instance not currently owned by a transform.
-        /// </summary>
-        public void Dispose()
+        /// <inheritdoc/>
+        /// <param name="ct">The cancellation token supplied by the caller.</param>
+        public override ValueTask<ISessionClient> CreateBindingAsync(CancellationToken ct = default)
         {
-            Volatile.Write(ref m_disposed, true);
-            Interlocked.Exchange(ref m_cached, null)?.Dispose();
+            return CreateBindingAsync(static () => true, ct);
         }
 
         /// <summary>
-        /// Takes exclusive ownership of the cached instance, if any.
+        /// Captures session dispatch with an additional managed-owner validity check.
         /// </summary>
-        internal Aes? Take()
+        /// <param name="ownerCurrent">The additional owner-validity check.</param>
+        /// <param name="ct">The cancellation token supplied by the caller.</param>
+        internal ValueTask<ISessionClient> CreateBindingAsync(Func<bool> ownerCurrent, CancellationToken ct)
         {
-            return Interlocked.Exchange(ref m_cached, null);
+            NamespaceTable namespaces = NamespaceUris;
+            StringTable servers = ServerUris;
+            return CreateBindingCoreAsync(
+                namespaces, servers, m_telemetry,
+                () => !Reconnecting &&
+                    ReferenceEquals(NamespaceUris, namespaces) &&
+                    ReferenceEquals(ServerUris, servers) &&
+                    ownerCurrent(),
+                ct);
         }
-
-        /// <summary>
-        /// Returns an instance, disposing any surplus instance or a return after shutdown.
-        /// </summary>
-        internal void Return(Aes aes)
-        {
-            if (Volatile.Read(ref m_disposed))
-            {
-                aes.Dispose();
-                return;
-            }
-
-            Interlocked.Exchange(ref m_cached, aes)?.Dispose();
-
-            // Disposal may have drained the cache between the first check and the exchange.
-            if (Volatile.Read(ref m_disposed))
-            {
-                Interlocked.Exchange(ref m_cached, null)?.Dispose();
-            }
-        }
-
-        private Aes? m_cached;
-        private bool m_disposed;
     }
 }

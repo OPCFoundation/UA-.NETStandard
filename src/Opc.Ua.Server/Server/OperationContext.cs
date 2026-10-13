@@ -434,9 +434,92 @@ namespace Opc.Ua.Server
             public ServerSystemContext Copy { get; }
         }
 
+        /// <summary>
+        /// Returns the namespace default permissions remembered for this service
+        /// request by <see cref="SetDefaultPermissions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Permission checks read the DefaultAccessRestrictions, DefaultRolePermissions
+        /// and DefaultUserRolePermissions of the node's namespace for every node of a
+        /// request, which took two server-wide locks and deep-copied the role permission
+        /// array per node. One read per namespace and request is enough. Contexts that
+        /// are not a service request (monitored item and session contexts, which can be
+        /// kept for a long time) remember nothing, so a changed default applies to them
+        /// at once.
+        /// </remarks>
+        internal bool TryGetDefaultPermissions(
+            ushort namespaceIndex,
+            out NamespaceDefaultPermissions permissions)
+        {
+            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
+            if (entries != null)
+            {
+                foreach (NamespaceDefaultPermissions entry in entries)
+                {
+                    if (entry.NamespaceIndex == namespaceIndex)
+                    {
+                        permissions = entry;
+                        return true;
+                    }
+                }
+            }
+
+            permissions = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Remembers the namespace default permissions for the rest of this service request.
+        /// </summary>
+        internal void SetDefaultPermissions(NamespaceDefaultPermissions permissions)
+        {
+            if (RequestType == RequestType.Unknown)
+            {
+                return;
+            }
+
+            // copy on write: node managers can validate nodes of one request concurrently,
+            // and a lost update only costs a second read.
+            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
+            if (entries == null)
+            {
+                m_defaultPermissions = [permissions];
+                return;
+            }
+
+            var updated = new NamespaceDefaultPermissions[entries.Length + 1];
+            Array.Copy(entries, updated, entries.Length);
+            updated[entries.Length] = permissions;
+            m_defaultPermissions = updated;
+        }
+
         private IDisposable? m_requestScope;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;
+        private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private static uint s_lastRequestId;
+    }
+
+    /// <summary>
+    /// The default permissions of a namespace, read from its NamespaceMetadata.
+    /// </summary>
+    internal readonly struct NamespaceDefaultPermissions
+    {
+        public NamespaceDefaultPermissions(
+            ushort namespaceIndex,
+            AccessRestrictionType defaultAccessRestrictions,
+            ArrayOf<RolePermissionType> defaultRolePermissions,
+            ArrayOf<RolePermissionType> defaultUserRolePermissions)
+        {
+            NamespaceIndex = namespaceIndex;
+            DefaultAccessRestrictions = defaultAccessRestrictions;
+            DefaultRolePermissions = defaultRolePermissions;
+            DefaultUserRolePermissions = defaultUserRolePermissions;
+        }
+
+        public ushort NamespaceIndex { get; }
+        public AccessRestrictionType DefaultAccessRestrictions { get; }
+        public ArrayOf<RolePermissionType> DefaultRolePermissions { get; }
+        public ArrayOf<RolePermissionType> DefaultUserRolePermissions { get; }
     }
 }

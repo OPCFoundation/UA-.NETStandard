@@ -195,6 +195,13 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 }
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
+            finally
+            {
+                // encoded or abandoned: the response is no longer read, which releases
+                // pooled and leased payloads (a Publish response's notification message),
+                // as the binary transports do.
+                (dispatched as IPooledEncodeable)?.Reuse();
+            }
         }
 
         private static string? GetSingleAcceptHeader(HttpRequest request)

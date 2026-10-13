@@ -27,42 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Optional, read-only access to committed server session bindings.
+    /// Optional capture of an authenticated session's dispatch binding.
     /// </summary>
     /// <remarks>
-    /// Implementations own lifecycle accounting, including transfer, timeout and shutdown.
-    /// This capability supplements existing transport callbacks and session managers without
-    /// changing their contracts. It must not run service validation or refresh session activity.
+    /// The returned client retains its transport generation, session incarnation
+    /// and namespace/server mapping. Requests never reconnect or retry onto a
+    /// replacement binding. Invalidated bindings fail with BadSecurityChecksFailed.
+    /// Closing or disposing the returned client does not close its owning session.
     /// </remarks>
     public interface ISessionBindingProvider
     {
         /// <summary>
-        /// Whether a channel has any distinct activated sessions still owned by the manager.
+        /// Captures a client for the current authenticated binding.
         /// </summary>
-        /// <remarks>
-        /// This is an indexed membership check, not a user identity or a trusted reservation.
-        /// Expired membership is removed by the session timeout/closure lifecycle.
-        /// </remarks>
-        bool HasSession(string secureChannelId);
+        /// <exception cref="ServiceResultException">
+        /// The session is unavailable, changed during capture or has no supported
+        /// generation-bound transport. Unsupported transports report BadNotSupported.
+        /// </exception>
+        /// <param name="ct">The cancellation token supplied by the caller.</param>
+        ValueTask<ISessionClient> CreateBindingAsync(CancellationToken ct = default);
+    }
 
+    /// <summary>
+    /// A captured session client that exposes the validity of its retained
+    /// transport, authenticated session and namespace mapping.
+    /// </summary>
+    public interface ISessionBinding : ISessionClient
+    {
         /// <summary>
-        /// Looks up a server-issued token and checks its live, activated, unexpired binding
-        /// against a context supplied by the transport, not by the request body.
+        /// Gets whether the captured binding is still current. This is an
+        /// observation, not a dispatch lease: each request also validates the
+        /// same binding when it is sent.
         /// </summary>
-        /// <remarks>
-        /// Failure grants no session classification. Success is only a point-in-time snapshot:
-        /// full execution-time service validation remains mandatory. Re-query after queueing;
-        /// a changed snapshot or activation sequence invalidates the earlier classification.
-        /// Shared logical channels do not establish a transport peer's user identity.
-        /// </remarks>
-        bool TryGetSessionContext(
-            NodeId authenticationToken,
-            SecureChannelContext channelContext,
-            [NotNullWhen(true)] out SessionBindingContext? context);
+        bool IsCurrent { get; }
     }
 }
