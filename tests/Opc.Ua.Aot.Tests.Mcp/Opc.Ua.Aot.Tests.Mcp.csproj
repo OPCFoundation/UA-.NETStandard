@@ -16,8 +16,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.ClientWorkflows\Opc.Ua.Mcp.ClientWorkflows.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Gds\Opc.Ua.Mcp.Gds.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.PubSub\Opc.Ua.Mcp.PubSub.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Schema\Opc.Ua.Mcp.Schema.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.WotCon\Opc.Ua.Mcp.WotCon.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.WotRuntime\Opc.Ua.Mcp.WotRuntime.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.XRegistry\Opc.Ua.Mcp.XRegistry.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Vision\Opc.Ua.Mcp.Vision.csproj" />
   </ItemGroup>

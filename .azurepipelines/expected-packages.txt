@@ -53,9 +53,11 @@ OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client
 OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB
+OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Di
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics
+OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds
 OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning
@@ -64,8 +66,10 @@ OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales
+OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision
 OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon
+OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime
 OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry
 OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd

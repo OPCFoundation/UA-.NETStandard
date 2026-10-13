@@ -72,7 +72,7 @@ namespace Opc.Ua.Mcp
                         continue;
                     }
                     JsonObject schema = InputSchema(tool);
-                    using JsonDocument updated = JsonDocument.Parse(schema.ToJsonString());
+                    using var updated = JsonDocument.Parse(schema.ToJsonString());
                     tool.InputSchema = updated.RootElement.Clone();
                 }
                 return result;
@@ -91,6 +91,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Fills in the concrete arrays omitted by custom converter metadata.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static JsonObject InputSchema(Tool tool)
         {
             JsonObject schema = JsonNode.Parse(tool.InputSchema.GetRawText()) as JsonObject ??
@@ -170,6 +171,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Describes the promoted record fields without reflection over DTO attributes.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static string InputDescription(string name)
         {
             return name switch
@@ -228,8 +230,8 @@ namespace Opc.Ua.Mcp
                         ? "Refresh scope and execution settings; empty selection requires allResources=true."
                         : "Resolution and validation settings; remote fetching requires host and call permission.",
                     ["examples"] = JsonNode.Parse(inner.ProtocolTool.Name == "wot_refresh"
-                        ? """[{"dryRun":true,"requestId":"preview"}]"""
-                        : """[{"strictAuthoring":false}]""")
+                        ? /*lang=json,strict*/ """[{"dryRun":true,"requestId":"preview"}]"""
+                        : /*lang=json,strict*/ """[{"strictAuthoring":false}]""")
                 });
                 var required = new JsonArray();
                 if (schema["required"] is JsonArray outerRequired)
@@ -251,7 +253,7 @@ namespace Opc.Ua.Mcp
                 }
                 schema["required"] = required;
                 m_argumentNames = new HashSet<string>(root.Select(field => field.Key), StringComparer.Ordinal);
-                using JsonDocument updated = JsonDocument.Parse(schema.ToJsonString());
+                using var updated = JsonDocument.Parse(schema.ToJsonString());
                 inner.ProtocolTool.InputSchema = updated.RootElement.Clone();
             }
 
@@ -338,9 +340,9 @@ namespace Opc.Ua.Mcp
             /// </summary>
             private static JsonElement PackInput(Dictionary<string, JsonElement> fields, CancellationToken ct)
             {
-                using var buffer = new WotDocumentBuffer(128L * 1024 * 1024, ct);
+                using var buffer = new McpBoundedMemoryStream(128L * 1024 * 1024, ct);
                 JsonSerializer.Serialize(buffer, fields, WotInputJsonContext.Default.DictionaryStringJsonElement);
-                using JsonDocument packed = JsonDocument.Parse(buffer.ToArray());
+                using var packed = JsonDocument.Parse(buffer.ToArray());
                 return packed.RootElement.Clone();
             }
 

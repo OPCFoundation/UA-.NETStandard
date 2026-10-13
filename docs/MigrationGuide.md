@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [MCP privileged and live execution](#mcp-privileged-and-live-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
@@ -42,6 +43,46 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## MCP privileged and live execution
+
+Tool profiles, including `full`, no longer imply permission to perform protected
+administration or live protocol execution. Configure explicit capabilities and
+exact caller/session/network grants on the host. Generic Call/Write and
+node-management tools apply the same protected-model policy, so switching to a
+raw tool is not a migration path around a denied operation.
+
+Stdio hosts use the explicit local identity `stdio`; HTTP embedding requires an
+authenticated subject and issuer and rejects `LocalCallerId`. Existing profile
+names and enum ordinals are retained; profile-set storage now supports the
+expanded catalogue without collisions at bit 32.
+
+Applications enabling issuance must explicitly register their existing secret
+registry, resource-bound aliases and writable store before adding the domain
+modules. Tool inputs and outputs use references instead of plaintext passwords,
+private keys or tokens. Public transfer artifacts remain separate from private
+credential storage. A local persistence failure after remote issuance is not
+evidence of rollback and must not trigger a blind retry.
+
+New named protocol runtimes have host/caller quotas, idle/absolute expiry and
+generation/credential invalidation. The legacy UDP convenience runtime retains
+its until-stop lifecycle but requires the new host execution grant. The default
+managed Kafka backend cannot yet enforce all discovered-broker egress rules;
+live execution reports that limitation rather than bypassing policy.
+
+Use the new generation-bound `SessionRequestContext` and its owned file/history
+workflows when retaining remote handles across asynchronous operations. Merely
+retaining a `ManagedSession` or its inner Session object does not pin an actual
+UA generation; recovery may recreate that Session in place.
+
+Hosts registering a custom, non-managed `ISession` for generic mutations must
+also register `IMcpFixedSessionContract` and restrict its declaration to actual
+fixed-lifetime sessions. An undeclared custom session is refused rather than
+assuming it cannot change between model classification and dispatch. This
+contract is not a substitute for caller capabilities or remote permissions.
+
+See [MCP execution policy](McpServer.md#privileged-and-live-execution-policy)
+and the SDK session/file/history documentation for configuration and ownership.
 
 ## Empty LocalizedText fields in 2.0
 

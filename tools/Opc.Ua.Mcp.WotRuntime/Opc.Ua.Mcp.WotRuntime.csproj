@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Mcp.WotRuntime</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Mcp.WotRuntime</PackageId>
+    <RootNamespace>Opc.Ua.Mcp</RootNamespace>
+    <Description>Explicit, caller-owned, policy-bound live WoT protocol runtimes for MCP hosts.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="ModelContextProtocol" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.WotCon\Opc.Ua.Mcp.WotCon.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Bindings.Mqtt\Opc.Ua.WotCon.Bindings.Mqtt.csproj" />
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

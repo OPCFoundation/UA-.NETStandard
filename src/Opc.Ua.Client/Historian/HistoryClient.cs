@@ -55,6 +55,12 @@ namespace Opc.Ua.Client.Historian
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Options = options ?? new HistoryClientOptions();
+            if (Options.MaxDecodedPageItems < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "MaxDecodedPageItems must not be negative.");
+            }
             if (Options.MaxReadDuration < TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(

@@ -72,6 +72,10 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpPositioning();
             services.AddOpcUaMcpXRegistry();
             services.AddOpcUaMcpWotCon(wotOptions);
+            services.AddOpcUaMcpSchema();
+            services.AddOpcUaMcpGds();
+            services.AddOpcUaMcpClientWorkflows();
+            services.AddOpcUaMcpWotRuntime();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -95,6 +99,7 @@ namespace Opc.Ua.Mcp
         /// expressed as a comma or plus separated list of profile names, so a host can compose
         /// several bounded profiles - <c>vision,robotics</c>, for instance - into one MCP server.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static OpcUaMcpOptions CreateOpcUaMcpOptions(
             IConfiguration configuration,
             string? toolProfileOverride)
@@ -102,6 +107,7 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
+            options.Execution = McpExecutionConfiguration.Read(configuration);
             options.TransferRoot = configuration["McpServer:TransferRoot"] ?? options.TransferRoot;
             string? configuredLimit = configuration["McpServer:MaxTransferBytes"];
             if (configuredLimit != null)
@@ -209,9 +215,12 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPositioningTools(toolProfile)
                 .WithOpcUaXRegistryTools(toolProfile)
                 .WithOpcUaWotConTools(toolProfile)
+                .WithOpcUaSchemaTools(toolProfile)
+                .WithOpcUaGdsTools(toolProfile)
+                .WithOpcUaClientWorkflowTools(toolProfile)
+                .WithOpcUaWotRuntimeTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
-
         }
 
         /// <summary>
@@ -260,9 +269,12 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPositioningTools(toolProfiles)
                 .WithOpcUaXRegistryTools(toolProfiles)
                 .WithOpcUaWotConTools(toolProfiles)
+                .WithOpcUaSchemaTools(toolProfiles)
+                .WithOpcUaGdsTools(toolProfiles)
+                .WithOpcUaClientWorkflowTools(toolProfiles)
+                .WithOpcUaWotRuntimeTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
-
         }
 
         /// <summary>

@@ -127,8 +127,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(
                 profiles,
-                Is.EquivalentTo(new[]
-                {
+                Is.EquivalentTo(
+                [
                     McpToolProfile.Core,
                     McpToolProfile.Services,
                     McpToolProfile.Administration,
@@ -146,8 +146,23 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Positioning,
                     McpToolProfile.Wot,
                     McpToolProfile.XRegistry,
-                    McpToolProfile.WotDocuments
-                }));
+                    McpToolProfile.WotDocuments,
+                    McpToolProfile.Gds,
+                    McpToolProfile.Certificates,
+                    McpToolProfile.Credentials,
+                    McpToolProfile.Onboarding,
+                    McpToolProfile.Roles,
+                    McpToolProfile.Users,
+                    McpToolProfile.Files,
+                    McpToolProfile.Alarms,
+                    McpToolProfile.History,
+                    McpToolProfile.Schemas,
+                    McpToolProfile.PubSubRuntime,
+                    McpToolProfile.PubSubConfiguration,
+                    McpToolProfile.PubSubBridge,
+                    McpToolProfile.PubSubSecurity,
+                    McpToolProfile.WotRuntime
+                ]));
 
             foreach (McpToolProfile profile in profiles)
             {

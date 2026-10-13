@@ -411,6 +411,10 @@
     <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.WotCon/Opc.Ua.Mcp.WotCon.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.XRegistry/Opc.Ua.Mcp.XRegistry.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Schema/Opc.Ua.Mcp.Schema.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Gds/Opc.Ua.Mcp.Gds.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.ClientWorkflows/Opc.Ua.Mcp.ClientWorkflows.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.WotRuntime/Opc.Ua.Mcp.WotRuntime.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

@@ -267,6 +267,15 @@ External implementations may be provided by integrators (e.g. backed by SQL, LDA
 
 `Opc.Ua.Client.Roles.RoleManagementClient` is a strongly-typed async client over the standard `Server.ServerCapabilities.RoleSet` object:
 
+To bound a role snapshot, construct
+`new RoleManagementClient(session, maxMappingEntries: 1000)`. The limit applies
+separately to identity, application and endpoint mappings and is checked before
+client-side decoded-array/list copies. Zero and the existing one-argument
+constructor preserve legacy behavior. This does not bound `ListRolesAsync`.
+For policy-sensitive workflows, use a
+[`SessionRequestContext`](SessionRequestContext.md) session for classification
+and the subsequent role calls.
+
 ```csharp
 using Opc.Ua.Client.Roles;
 

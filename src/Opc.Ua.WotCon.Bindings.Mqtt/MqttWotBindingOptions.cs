@@ -29,6 +29,7 @@
 
 using System;
 using MQTTnet;
+using MQTTnet.Channel;
 
 namespace Opc.Ua.WotCon.Bindings.Mqtt
 {
@@ -42,6 +43,20 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
         /// <c>null</c> the executor creates one from the MQTTnet client factory.
         /// </summary>
         public Func<IMqttClient>? ClientFactory { get; set; }
+
+        /// <summary>
+        /// Gets or sets the transport stream provider used for each connection.
+        /// The provider returns plaintext TCP; MQTTnet applies TLS using the original broker hostname.
+        /// When absent, MQTTnet's existing socket connector remains unchanged.
+        /// </summary>
+        public IMqttClientStreamProvider? StreamProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the MQTT 5 maximum packet size advertised to the broker.
+        /// Zero preserves MQTTnet's existing default. Application payloads remain independently bounded
+        /// by <see cref="WotBindingBounds.MaxPayloadBytes"/>.
+        /// </summary>
+        public uint MaximumPacketSize { get; set; }
 
         /// <summary>
         /// Gets or sets the client id prefix used for connections.

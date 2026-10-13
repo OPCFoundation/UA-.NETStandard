@@ -37,17 +37,29 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Bounds allocations and cancellation while existing synchronous serializers write into memory.
     /// </summary>
-    internal sealed class WotDocumentBuffer : MemoryStream
+    public sealed class McpBoundedMemoryStream : MemoryStream
     {
         /// <summary>
         /// Creates a buffer whose capacity can never grow beyond the content limit.
         /// </summary>
-        internal WotDocumentBuffer(long limit, CancellationToken ct)
+        public McpBoundedMemoryStream(long limit, CancellationToken ct = default)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(limit);
             ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, int.MaxValue);
             m_limit = (int)limit;
             m_token = ct;
+        }
+
+        /// <inheritdoc/>
+        public override int Capacity
+        {
+            get => base.Capacity;
+            set
+            {
+                m_token.ThrowIfCancellationRequested();
+                ArgumentOutOfRangeException.ThrowIfGreaterThan(value, m_limit);
+                base.Capacity = value;
+            }
         }
 
         /// <inheritdoc/>
@@ -64,12 +76,19 @@ namespace Opc.Ua.Mcp
         {
             Reserve(buffer.Length);
             long end = Position + buffer.Length;
+            byte[]? preserved = null;
+            if (end > Length && buffer.Overlaps(GetBuffer().AsSpan((int)Length, (int)(end - Length))))
+            {
+                preserved = buffer.ToArray();
+                buffer = preserved;
+            }
             if (end > Length)
             {
                 base.SetLength(end);
             }
             buffer.CopyTo(GetBuffer().AsSpan((int)Position, buffer.Length));
             Position = end;
+            GC.KeepAlive(preserved);
         }
 
         /// <inheritdoc/>
@@ -117,6 +136,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Keeps MemoryStream's geometric capacity growth inside the same limit as its length.
         /// </summary>
+        /// <exception cref="IOException"></exception>
         private void EnsureCapacity(long length)
         {
             if (length > m_limit)

@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
+    <PackageReference Include="MQTTnet.Server" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="NUnit.Console" />
     <PackageReference Include="NUnit.Analyzers">
       <PrivateAssets>all</PrivateAssets>
@@ -23,6 +24,10 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestHttpServer.cs"
+             Link="Mcp\Support\TestHttpServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestModbusServer.cs"
+             Link="Mcp\Support\TestModbusServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj"
@@ -40,6 +45,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Server\Opc.Ua.PubSub.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

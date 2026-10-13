@@ -109,6 +109,12 @@ namespace Opc.Ua.Mcp
         public long MaxTransferBytes { get; set; } = 64L * 1024 * 1024;
 
         /// <summary>
+        /// Gets or sets host-only grants and lifecycle limits for privileged and live operations.
+        /// Tool profiles do not enable any of these capabilities.
+        /// </summary>
+        public McpExecutionOptions Execution { get; set; } = new();
+
+        /// <summary>
         /// Creates options from the well-known environment variables the MCP
         /// tools consume.
         /// </summary>
@@ -116,6 +122,7 @@ namespace Opc.Ua.Mcp
         /// This is the shape a host gets when it does not configure anything,
         /// so an embedded server behaves like the shipped tool by default.
         /// </remarks>
+        /// <exception cref="InvalidOperationException"></exception>
         public static OpcUaMcpOptions FromEnvironment()
         {
             var options = new OpcUaMcpOptions

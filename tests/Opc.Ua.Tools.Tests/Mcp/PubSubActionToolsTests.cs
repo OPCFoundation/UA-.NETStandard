@@ -48,7 +48,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             ArrayOf<DataSetField> empty = PubSubActionTools.ParseFields(null);
             ArrayOf<DataSetField> json = PubSubActionTools.ParseFields(
-                "{\"Count\":{\"value\":5,\"dataType\":\"Int32\"},\"Flag\":true}");
+                /*lang=json,strict*/
+                                     "{\"Count\":{\"value\":5,\"dataType\":\"Int32\"},\"Flag\":true}");
             ArrayOf<DataSetField> text = PubSubActionTools.ParseFields(
                 "b:Boolean=true;i8:SByte=-8;u8:Byte=8;" +
                 "i16:Int16=-16;u16:UInt16=16;i32:Int32=-32;u32:UInt32=32;" +
@@ -153,8 +154,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ActionToolsRequireRuntimeAndValidateArgumentsAsync()
         {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
+                scope.NewManager();
 
             Assert.That(
                 () => PubSubActionTools.InvokeActionAsync(
@@ -189,9 +192,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ActiveRuntimeRegistersEchoAndMethodRespondersAsync()
         {
+            await using var scope = new PubSubMcpTestScope(allowMethodBinding: true);
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
-            int port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
+                scope.NewManager();
+            int port = scope.Port;
+            OpcUaSessionManager.SessionInfo existing = McpTestEnvironment.SessionManager
+                .GetSessionInfoOrThrow(McpTestEnvironment.SessionName);
+            _ = await scope.Sessions.RegisterExistingSessionAsync(
+                existing.Name, existing.Session, existing.AuthType).ConfigureAwait(false);
             await manager.StartPublisherAsync(
                 $"opc.udp://127.0.0.1:{port}",
                 1,
@@ -208,7 +217,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             PubSubActionResponderRegistration method =
                 await PubSubActionTools.BindActionMethodAsync(
                     manager,
-                    McpTestEnvironment.SessionManager,
+                    scope.Sessions,
                     1,
                     11,
                     ObjectIds.Server.ToString(null, CultureInfo.InvariantCulture),

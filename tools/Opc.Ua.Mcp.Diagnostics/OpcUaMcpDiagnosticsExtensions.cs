@@ -30,7 +30,6 @@
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
 
@@ -151,6 +150,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Wot:
                 case McpToolProfile.XRegistry:
                 case McpToolProfile.WotDocuments:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -170,7 +170,7 @@ namespace Opc.Ua.Mcp
         /// <remarks>
         /// This overload is the composition entry point a host uses when it
         /// wants the packet capture tools alongside other bounded profiles.
-        /// It never registers <see cref="Tools.ConnectionTools"/> directly;
+        /// It never registers <see cref="ConnectionTools"/> directly;
         /// the <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c>
         /// owns that registration and deduplicates it across every package
         /// that contributes to the same MCP server. The key-disclosing decode

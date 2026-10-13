@@ -21,6 +21,8 @@ The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
 Device Integration, ISA-95, Positioning, WoT and xRegistry profiles. Profiles
 compose, for example `--profile machinery,isa95`, `--profile scales,di`, or
 `--profile core,wot,xregistry,wot-documents`. `wot-documents` needs no UA connection.
+Additional profiles expose GDS/credential issuance, roles/users, files, alarms,
+history, schemas, PubSub configuration/bridges/SKS and live WoT execution.
 
 ## Usage
 
@@ -47,6 +49,10 @@ default; the other profiles expose smaller focused subsets. See the
 [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles)
 for the profile-to-tool mapping.
 
+Host-disabled privileged/live tools stay hidden even under `full`. Explicit
+host capabilities and exact caller/session/network grants are required to
+enable them; a profile is never an execution grant.
+
 Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
 - **Connection**: Connect, Disconnect, GetConnectionStatus
@@ -69,7 +75,17 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
   bounded events and content transfers, document validation, binding planning
   and bidirectional WoT/NodeSet conversion. Remote dependencies require both
   request opt-in and the host's exact HTTPS origin allowlist; bindings are not
-  executed in the MCP host.
+  executed by these document/management profiles.
+- **GDS and credentials**: directory, pull/push certificate lifecycle,
+  KeyCredential/token issuance and refresh, and Part 21 onboarding. Inputs and
+  outputs use authorized secret-store references, never private material.
+- **General workflows**: role/user administration, bounded regular/temporary
+  files, alarms/conditions, historical reads/mutations and schema artifacts.
+- **PubSub and live WoT**: named runtimes with caller ownership, quotas,
+  idle/absolute expiry and network/operation allowlists. WoT execution supports
+  HTTP(S), MQTT, Modbus TCP and OPC UA. Live Kafka remains disabled until its
+  backend can enforce policy on every broker-discovered connection; Kafka
+  configuration and schema tools remain available.
 
 Companion calls preserve server failures, use bounded lists and observations,
 and never acquire locks or retry commands implicitly. Package upload and result
@@ -94,7 +110,7 @@ builder.Services.AddMcpServer()
 | Package | Tools |
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub transports, configuration, bridges, SKS, actions, discovery |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
@@ -108,9 +124,12 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management and document processing |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content operations |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | GDS, certificates, credential/token references, onboarding |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows` | Roles/users, files, alarms and historical access |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded types and XSD/BSD/JSON, PubSub and OpenAPI artifacts |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime` | Policy-controlled execution of installed WoT bindings |
 
-The Robotics library remains preview-only. Vision, the industrial companion,
-WoT and xRegistry MCP libraries follow the root release channel and are stable
+The Robotics library remains preview-only. The other MCP libraries follow the root release channel and are stable
 when the root release is stable.
 
 ## Documentation

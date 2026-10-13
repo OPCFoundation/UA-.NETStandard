@@ -140,6 +140,24 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <inheritdoc/>
         public string TransportProfileUri { get; }
 
+        /// <summary>
+        /// Creates the shipped MQTTnet-backed factory without a DI container.
+        /// Host-supplied stream and topic policies in the options are preserved.
+        /// </summary>
+        public static MqttPubSubTransportFactory CreateDefault(
+            string transportProfileUri,
+            IOptions<MqttConnectionOptions> options,
+            ISecretRegistry? secretRegistry = null,
+            ApplicationConfiguration? applicationConfiguration = null,
+            IPubSubDiagnostics? diagnostics = null)
+        {
+            return new MqttPubSubTransportFactory(
+                transportProfileUri,
+                new Internal.MqttClientAdapterFactory(
+                    new Internal.TrustedIssuerStoreResolver(applicationConfiguration)),
+                options, secretRegistry, diagnostics);
+        }
+
         /// <inheritdoc/>
         public IPubSubTransport Create(
             PubSubConnectionDataType connection,
@@ -197,8 +215,9 @@ namespace Opc.Ua.PubSub.Mqtt
             MqttConnectionOptions source,
             string endpointUrl)
         {
-            return new MqttConnectionOptions
+            var clone = new MqttConnectionOptions
             {
+                IncludeDiscoverySubscriptions = source.IncludeDiscoverySubscriptions,
                 Endpoint = endpointUrl,
                 ClientId = source.ClientId,
                 ProtocolVersion = source.ProtocolVersion,
@@ -218,6 +237,17 @@ namespace Opc.Ua.PubSub.Mqtt
                 MaxConcurrentSubscriptions = source.MaxConcurrentSubscriptions,
                 MaxNetworkMessageSize = source.MaxNetworkMessageSize
             };
+#if NET8_0_OR_GREATER
+            if (source.GetStreamProvider() is { } streamProvider)
+            {
+                clone.WithStreamProvider(streamProvider);
+            }
+#endif
+            if (source.GetTopicPolicy() is { } topicPolicy)
+            {
+                clone.WithTopicPolicy(topicPolicy);
+            }
+            return clone;
         }
 
         private static void ApplyAuthenticationSettings(

@@ -44,8 +44,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task DiscoveryToolsRequireActiveRuntimeAsync()
         {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
+                scope.NewManager();
             ushort[] writerIds = [1, 2];
 
             Assert.That(

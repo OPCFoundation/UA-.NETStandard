@@ -13,6 +13,7 @@ automation systems through natural language.
   - [Vision-guided Robotics](#vision-guided-robotics)
   - [Industrial companion tools](#industrial-companion-tools)
   - [WoT and registry tools](#wot-and-registry-tools)
+  - [Stack workflow tools](#stack-workflow-tools)
 - [Resources](#resources)
   - [Multi-Session Support](#multi-session-support)
 - [Installation](#installation)
@@ -28,6 +29,7 @@ automation systems through natural language.
   - [HTTP Transport (for remote clients)](#http-transport-for-remote-clients)
   - [Companion file transfers](#companion-file-transfers)
   - [WoT document dependency policy](#wot-document-dependency-policy)
+  - [Privileged and live execution policy](#privileged-and-live-execution-policy)
 - [Usage](#usage)
   - [Companion workflows](#companion-workflows)
   - [Companion results, errors and bounds](#companion-results-errors-and-bounds)
@@ -48,7 +50,7 @@ automation systems through natural language.
 
 ## What It Does
 
-The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile currently registers every tool below; running a narrower profile (`core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`, or `vision`) exposes only the subset relevant to that workflow. The tables below list the complete tool surface, organized by OPC UA Part 4 service set:
+The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile registers all modules, but host-disabled privileged and live tools remain hidden. A narrower profile exposes only the subset relevant to its workflow. The table below describes the general service surface; domain and higher-level workflows have their own profiles.
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -113,7 +115,12 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `wot` | Connection plus legacy asset management and WoT-specific registry state, validation, refresh and events | Manage a WoT server without starting protocol executors in the MCP host |
 | `xregistry` | Connection plus generic registry groups, resources, versions, labels, content and events | Reusable registry workflows, including compatible WoT specializations |
 | `wot-documents` | Document inspection, validation, binding planning and NodeSet conversion | No UA connection required; external dependencies are disabled unless explicitly allowed by the host and request |
-| `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
+| `gds`, `certificates`, `credentials`, `onboarding` | Directory, pull/push certificates, reference-only credentials/tokens and device tickets | Explicit host grants and encrypted authorized sessions for administrative operations |
+| `roles`, `users`, `files`, `alarms`, `history` | General client workflows independent of a companion model | Server permissions, protected-target guards, bounded transfers/observations and generation-bound history cursors |
+| `schemas` | Type discovery/loading, XSD/BSD/UA JSON, PubSub and REST OpenAPI artifacts | Registered types can be inspected/generated without a UA connection; artifacts remain bounded and root-confined |
+| `pubsub-runtime`, `pubsub-configuration`, `pubsub-bridge`, `pubsub-security` | Named transports, remote configuration, declarative adapters/bridges and protected SKS | Host capabilities and exact endpoint/topic/interface rules; native backend prerequisites remain explicit |
+| `wot-runtime` | Explicit live HTTP(S), MQTT, Modbus TCP and OPC UA forms | Named leases, pinned documents/forms, credential references and operation/network allowlists |
+| `full` (default) | All registered catalogues, subject to capability filters | Catalogue selection is not an execution grant; privileged and live capabilities default off |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
 
@@ -272,6 +279,56 @@ exact hrefs and SHA-256 digests; this is an MCP transfer artifact, not a new WoT
 vocabulary. The archive is read without extracting member paths. It can be
 supplied back with `documentSetArchive: true`, so nested documents are not
 silently flattened or dropped.
+
+### Stack workflow tools
+
+The higher-level profiles reuse the stack's typed clients, file and history
+helpers, schema providers and installed protocol executors. They are independent
+of industrial companion models and remain separately embeddable:
+
+| Package catalogue | Profiles | Scope |
+| --- | --- | --- |
+| [GDS](../tools/Opc.Ua.Mcp.Gds/NugetREADME.md) | `gds`, `certificates`, `credentials`, `onboarding` | Directory registration/query, certificate requests and push configuration, KeyCredential and token issuance/refresh, Part 21 tickets |
+| [Client workflows](../tools/Opc.Ua.Mcp.ClientWorkflows/NugetREADME.md) | `roles`, `users`, `files`, `alarms`, `history` | Explicit identity administration, bounded regular/temporary files, conditions and finite event observations, historical reads and mutations |
+| [Schemas](../tools/Opc.Ua.Mcp.Schema/NugetREADME.md) | `schemas` | Bounded data-type discovery/loading, XSD/BSD/UA JSON, PubSub and REST OpenAPI generation |
+| [PubSub](../tools/Opc.Ua.Mcp.PubSub/NugetREADME.md) | `pubsub-runtime`, `pubsub-configuration`, `pubsub-bridge`, `pubsub-security` | Named runtimes, standard remote configuration, declarative adapters/bridges and SKS |
+| [Live WoT](../tools/Opc.Ua.Mcp.WotRuntime/NugetREADME.md) | `wot-runtime` | Explicitly selected HTTP(S), MQTT, Modbus TCP and OPC UA forms; property/action/event operations |
+
+For example, select historian and file workflows without registering certificate
+or live protocol tools:
+
+```powershell
+opcua-mcp --profile files,history
+opcua-mcp --profile gds,certificates
+opcua-mcp --profile wot-documents,wot-runtime
+```
+
+These commands select catalogues, not permissions. Read the
+[host execution policy](#privileged-and-live-execution-policy) before enabling
+administration or live execution. Issue and refresh results contain opaque
+secret references rather than credentials. Files and generated artifacts use
+`TransferRoot`; histories retain private caller/session-bound cursors, not raw
+continuation points that can be replayed against a different session.
+
+Tool inputs retain their advertised typed JSON shapes. For example,
+`history_insert_values` accepts `nodeId`, a root `values` array, and the selected
+`sessionName`:
+
+```json
+{
+  "nodeId": "nsu=urn:plant;s=Temperature",
+  "values": [
+    { "type": "Double", "value": 21.5, "sourceTimestamp": "2026-01-01T12:00:00Z" }
+  ],
+  "sessionName": "historian"
+}
+```
+
+An array-valued sample declares `arrayLength` and supplies indexed scalar cells
+in `arrayElements`; an explicit zero length represents an empty typed array.
+Mutation results retain ordered server statuses and do not imply an atomic
+batch, automatic retry, successful credential persistence, or completed remote
+configuration activation.
 
 ## Resources
 
@@ -523,6 +580,106 @@ envelope. This keeps schemas shallow and argument counts small without
 stringifying arrays or hiding them behind references. Embedding C# callers
 continue to use `WotDocumentInput` and `WotRefreshInput`; the registered MCP
 adapter binds the advertised fields to those same typed methods.
+
+### Privileged and live execution policy
+
+**Selecting `full` or an administrative profile does not grant authority.**
+`McpServer:Execution` contains independent host capabilities, exact caller
+grants and network rules. Generic `Call`, `CallMethod`, `Write`, `WriteValue`,
+node/reference changes and relevant history/file paths also enforce protected
+model authority. A disabled administrative workflow cannot be reached through
+a less-specific tool. Untyped secret-returning methods require a typed,
+secret-safe workflow even when issuance is enabled.
+
+An isolated stdio host uses subject `stdio`, issuer
+`urn:opcfoundation:mcp:local-host`, and `IsLocal: true`. Enabling a capability
+still requires an explicit matching caller grant. HTTP hosting cannot use
+`LocalCallerId`: an embedding host must authenticate requests and supply a
+stable subject and issuer. Anonymous HTTP calls cannot acquire privileged
+authority or another caller's retained handles.
+
+For example, an operator can grant a local caller role administration on one
+named session without granting certificates, credentials or protocol execution:
+
+```json
+{
+  "McpServer": {
+    "ToolProfile": "roles,users",
+    "Execution": {
+      "EnabledCapabilities": [ "IdentityAdministration" ],
+      "CallerGrants": [
+        {
+          "Caller": {
+            "Subject": "stdio",
+            "Issuer": "urn:opcfoundation:mcp:local-host",
+            "IsLocal": true
+          },
+          "Capabilities": [ "IdentityAdministration" ],
+          "SessionNames": [ "maintenance" ],
+          "SecretAliases": []
+        }
+      ]
+    }
+  }
+}
+```
+
+The remote server's permissions, identities and security mode remain additional
+requirements; host grants do not create a `SecurityAdmin` role or trust a
+certificate. Session request contexts bind multi-call file handles, transactions
+and history continuation points to their actual UA generation. Reconnection
+must fail or invalidate the old operation, not send an old handle to a new
+session.
+
+For host-supplied custom `ISession` implementations, generic mutations require
+an explicit `IMcpFixedSessionContract` for the registered instance. The contract
+warrants that transport, authentication, namespaces and type metadata remain
+fixed across classification and dispatch; it does not grant a capability.
+Undeclared custom sessions fail closed. Stack `ManagedSession` connections
+always use the generation-bound request context, regardless of that contract.
+
+Live TCP network grants identify an exact scheme, host, port, operation and
+resource plus permitted CIDR addresses. Empty grants deny all. DNS is checked
+at each actual connection/reconnection and the socket uses the approved IP,
+while TLS retains the original hostname. HTTP paths, MQTT topics, UA node/method
+selectors and Modbus unit/function/range selectors are separate operation
+checks. UDP and Ethernet additionally require their explicit local interface,
+peer and frame selectors. No MCP tool installs a capture driver or grants OS
+privileges.
+
+Named runtimes default to eight per host, two per caller, five minutes of idle
+time and a thirty-minute absolute lease. Pending activation and closing
+resources count against quotas. Closing waits for owned work; failed cleanup
+is reported and retains capacity rather than claiming the resource was freed.
+Credential expiry/revocation and UA-generation invalidation close dependent
+runtimes independently of another client request. Runtime handles are opaque,
+caller-bound and local to one host instance; a runtime name is not authority.
+The pre-existing UDP convenience runtime retains its explicit until-stop
+lifetime, with the new host execution gate.
+
+Credential, password, token, private-key and SKS inputs are references, not
+plaintext tool arguments. An embedding host supplies its existing
+`ISecretRegistry`, exact `McpSecretAlias` bindings and an explicitly selected
+`ISecretStore` through `AddOpcUaMcpSecrets` before module registration. No
+writable store is implicitly selected, including an in-memory store.
+Reference capacity is reserved before a remote finish operation. Results
+distinguish remote issuance from local persistence, so a failed store operation
+does not imply the remote request rolled back or may safely be repeated.
+Private material never belongs in `TransferRoot`.
+
+The default managed Kafka backend currently lacks a supported public
+per-connection hook for enforcing policy on broker-discovered destinations.
+**Live MCP Kafka execution fails closed** rather than treating a bootstrap
+allowlist as complete egress protection. Kafka configuration/schema capabilities
+remain available. A policy-capable backend/dependency integration is required
+before this limitation can be removed; reflection into private client internals
+is not used.
+
+`wot-documents` remains inspection/planning/conversion only. Live preparation
+uses the same bounded document resolver with explicitly supplied local
+dependencies, pins the selected Thing Description's content digest and exact
+form, and does not activate a channel. CoAP, BACnet, PROFINET and LoRaWAN
+planners do not imply an installed live executor.
 
 ## Usage
 
@@ -821,7 +978,7 @@ runtime and collect publisher responses):
 
 ## Architecture
 
-The MCP tools ship as fifteen libraries plus the executable that composes them.
+The MCP tools ship as nineteen libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
@@ -848,7 +1005,7 @@ tools/
 │   │   └── ConvenienceTools.cs          # ReadValue, BrowseAll, CallMethod, etc.
 │   └── Serialization/
 │       └── OpcUaJsonHelper.cs           # OPC UA ↔ JSON type conversion
-├── Opc.Ua.Mcp.PubSub/                   # PubSub runtime, actions and discovery
+├── Opc.Ua.Mcp.PubSub/                   # PubSub transports, configuration, bridges, SKS, actions and discovery
 │   ├── PubSubRuntimeManager.cs
 │   └── Tools/{PubSubRuntime,PubSubAction,PubSubDiscovery}Tools.cs
 ├── Opc.Ua.Mcp.Diagnostics/              # UA-TCP capture, decode and replay
@@ -871,6 +1028,10 @@ tools/
 ├── Opc.Ua.Mcp.Positioning/              # Spatial frames, global locations and transforms
 ├── Opc.Ua.Mcp.WotCon/                   # WoT management, document processing and controlled dependencies
 ├── Opc.Ua.Mcp.XRegistry/                # Generic registry/version/label/file operations
+├── Opc.Ua.Mcp.Gds/                      # Directory, certificates, credentials/tokens and onboarding
+├── Opc.Ua.Mcp.ClientWorkflows/          # Roles/users, files, alarms and historical access
+├── Opc.Ua.Mcp.Schema/                   # Bounded types, XSD/BSD/JSON, PubSub and OpenAPI artifacts
+├── Opc.Ua.Mcp.WotRuntime/               # Named policy-controlled HTTP/MQTT/Modbus/OPC UA execution
 └── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
     ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
     ├── McpHostBuilder.cs                # Composes the tool libraries
@@ -883,7 +1044,7 @@ tools/
 | Package | Tools | Depends on |
 |---|---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export | `Opc.Ua.Core`, `.Configuration`, `.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery | Core + `Opc.Ua.PubSub` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub transports, remote configuration, declarative bridges, SKS, actions and discovery | Core + `Opc.Ua.PubSub`, existing transport and Adapter packages |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay | Core + `Opc.Ua.Core.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, typed control/missions, paged monitoring, Vision-guided Pick | Core + `Opc.Ua.Robotics.Client` + `Opc.Ua.Vision.Client` |
@@ -897,6 +1058,10 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames, global locations and transforms | Core + `Opc.Ua.Positioning.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT assets, registry state and document processing | Core + `Opc.Ua.WotCon.Client` + `.Bindings` (planning only) |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content tools | Core + `Opc.Ua.XRegistry.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | GDS, certificates, credential/token references and onboarding | Core + `Opc.Ua.Gds.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows` | Roles/users, files, alarms/conditions and history | Core + existing typed Client workflows |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded type and schema workflows | Core + `Opc.Ua.Core.Schema` + `Opc.Ua.PubSub.Schema` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime` | Policy-controlled execution of the four installed WoT protocols | Core + MCP WoT preparation + existing binding executors |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
@@ -1043,11 +1208,9 @@ The following capabilities remain outside these new profiles:
 | --- | --- |
 | `Opc.Ua.AI*` | General model/source/deployment/dataset and inference/evaluation/learning-job management; Vision already provides domain-specific inference tools |
 | `Opc.Ua.OpenUsd*` | General representation/binding/scene inspection and asset export; the standalone connector and Vision backend are not a general MCP catalogue |
-| `Opc.Ua.Gds*` | GDS directory, remote certificate push/pull, onboarding and credential services; existing PKI tools manage the MCP client's own stores |
-| `Opc.Ua.Core.Schema`, `Opc.Ua.PubSub.Schema`, `Opc.Ua.Client.ComplexTypes` | Schema generation and explicit complex-type discovery/introspection; NodeSet export and WoT conversion are separate workflows |
-| PubSub MQTT/Kafka/Ethernet, Adapter and Server modules | Broader transport/runtime/adapter/server configuration beyond the current UDP/UADP-oriented tools |
+| Managed Kafka live egress | The pinned backend cannot yet apply host network policy to every broker-discovered connection; live execution is explicitly refused |
 | `Opc.Ua.Redundancy*` | Dedicated replica diagnostics and authorized maintenance workflows; this does not imply arbitrary host or Kubernetes administration |
-| Higher-level client helpers | Generic file directories and temporary transfers, alarms/conditions, general state machines and aliases, processed/event/modified history, and role/user management |
+| Higher-level client helpers | General state-machine and alias administration beyond the domain-specific workflows |
 
 IA, PA-DIM, ECM and PackML are already represented through the companion clients
 that use them. Core types, transport, cryptography and server-hosting modules
@@ -1062,6 +1225,8 @@ introduced.
   [file transfer policy](#companion-file-transfers).
 - Companion commands preserve server permissions and refusals. Discovery never
   requests authority or takes locks; software upload never implicitly installs.
+- Privileged/live capabilities default off, independently of the selected tool
+  catalogue. See [execution policy](#privileged-and-live-execution-policy).
 - The `autoAcceptCerts` parameter is for **testing only**. In production, configure proper certificate trust using the OPC UA certificate stores under `%LocalApplicationData%/OPC Foundation/pki/`.
 - The server supports simultaneous named OPC UA sessions. Use the intended session identifier for each operation and disconnect that session when finished; connecting to another server does not require closing unrelated sessions.
 - Application certificates are automatically created on first use and stored in the local certificate store.
@@ -1072,12 +1237,27 @@ introduced.
 Contributors can run the same deterministic static and live-probe grading used in CI:
 
 ```powershell
-./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
+.\tools\Opc.Ua.Mcp\Test-McpGrade.ps1 -IncludePrivilegedCatalogues `
+    -AdditionalProfiles @('gds', 'certificates', 'credentials', 'onboarding',
+        'roles', 'users', 'files', 'alarms', 'history', 'schemas',
+        'pubsub-runtime', 'pubsub-configuration', 'pubsub-bridge',
+        'pubsub-security', 'wot-runtime')
 ```
 
 The script builds the server, checks out `mcpgrade` at the reviewed commit pinned in the script,
-grades the `core` and `full` Streamable HTTP catalogs, and probes the full stdio catalog. Reports
-are written under `artifacts/mcpgrade` by default.
+grades `core`, `full` and each additional Streamable HTTP catalog, and probes the full stdio catalog.
+Reports are written under `artifacts/mcpgrade` by default.
+
+`-IncludePrivilegedCatalogues` enables all host catalogue capabilities for the
+grading process without granting a caller, session, secret or network operation.
+It restores the previous process environment afterward. CI uses this switch so
+an administrative profile cannot receive a misleading passing grade for an
+empty or connection-only catalogue. Omit it only when deliberately checking the
+default host-disabled view.
+
+The existing gates remain unchanged: `core` and additional bounded profiles
+require at least 98 with no errors or warnings; `full` requires at least 95,
+retaining only its historical catalogue-size and service-schema exceptions.
 
 The repository `.mcpgraderc.json` disables N002 after descriptions have been disambiguated.
 `RegisterServer`/`RegisterServer2` are OPC UA standard service names, while

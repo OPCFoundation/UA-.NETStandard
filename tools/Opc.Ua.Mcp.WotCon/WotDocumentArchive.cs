@@ -52,6 +52,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Writes every document with its exact href and digest in a tool-artifact manifest.
         /// </summary>
+        /// <exception cref="IOException"></exception>
+        /// <exception cref="FormatException"></exception>
         internal static async ValueTask WriteAsync(
             WotDocumentSet documents, Stream target, WotNodeSetConverterOptions options,
             long maxTotalBytes, CancellationToken ct)
@@ -67,7 +69,8 @@ namespace Opc.Ua.Mcp
             {
                 ct.ThrowIfCancellationRequested();
                 WotDocumentSetEntry document = documents.Entries[index];
-                if (string.IsNullOrWhiteSpace(document.Href) || document.Href.Length > 4096 ||
+                if (string.IsNullOrWhiteSpace(document.Href) ||
+                    document.Href.Length > 4096 ||
                     !hrefs.Add(document.Href))
                 {
                     throw new FormatException("The generated document set has invalid or duplicate references.");
@@ -89,7 +92,7 @@ namespace Opc.Ua.Mcp
             {
                 throw new FormatException("The generated document-set root is missing.");
             }
-            using var manifestBytes = new WotDocumentBuffer(Math.Min(262_144, maxTotalBytes - total), ct);
+            using var manifestBytes = new McpBoundedMemoryStream(Math.Min(262_144, maxTotalBytes - total), ct);
             await JsonSerializer.SerializeAsync(manifestBytes, new WotArchiveManifest
             {
                 Format = kFormat,
@@ -102,12 +105,20 @@ namespace Opc.Ua.Mcp
             {
                 ct.ThrowIfCancellationRequested();
                 ZipArchiveEntry entry = archive.CreateEntry(entries[index].Entry, CompressionLevel.Fastest);
+#if NET10_0_OR_GREATER
+                Stream stream = await entry.OpenAsync(ct).ConfigureAwait(false);
+#else
                 Stream stream = entry.Open();
+#endif
                 await using ConfiguredAsyncDisposable streamScope = stream.ConfigureAwait(false);
                 await stream.WriteAsync(documents.Entries[index].Document.Utf8Json, ct).ConfigureAwait(false);
             }
             ZipArchiveEntry manifest = archive.CreateEntry("manifest.json", CompressionLevel.Fastest);
+#if NET10_0_OR_GREATER
+            Stream manifestStream = await manifest.OpenAsync(ct).ConfigureAwait(false);
+#else
             Stream manifestStream = manifest.Open();
+#endif
             await using ConfiguredAsyncDisposable manifestScope = manifestStream.ConfigureAwait(false);
             await manifestStream.WriteAsync(manifestBytes.ToArray(), ct).ConfigureAwait(false);
         }
@@ -115,6 +126,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Verifies the manifest and every member before converting a document set.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
+        /// <exception cref="IOException"></exception>
         internal static async ValueTask<WotDocumentSet> ReadAsync(ByteString bytes, WotDocumentScope scope)
         {
             ValidateDirectory(bytes.Span, scope.Options.MaxResolverDocuments + 1);
@@ -141,7 +154,11 @@ namespace Opc.Ua.Mcp
                 throw new IOException("The document-set manifest exceeds the host byte budget.");
             }
             WotArchiveManifest manifest;
+#if NET10_0_OR_GREATER
+            Stream manifestContent = await manifestEntry.OpenAsync(scope.Token).ConfigureAwait(false);
+#else
             Stream manifestContent = manifestEntry.Open();
+#endif
             await using (manifestContent.ConfigureAwait(false))
             {
                 ByteString content = await scope.ReadArchiveContentAsync(
@@ -150,15 +167,18 @@ namespace Opc.Ua.Mcp
                 {
                     throw new FormatException("The archive manifest does not match its declared decompressed length.");
                 }
-                using (JsonDocument parsed = JsonDocument.Parse(content.Memory))
+                using (var parsed = JsonDocument.Parse(content.Memory))
                 {
                     RejectDuplicateMembers(parsed.RootElement);
                 }
                 manifest = JsonSerializer.Deserialize(content.Span, WotInputJsonContext.Default.WotArchiveManifest) ??
                     throw new FormatException("The WoT document-set manifest is empty.");
             }
-            if (manifest.Format != kFormat || manifest.Version != 1 || manifest.Documents.IsEmpty ||
-                string.IsNullOrWhiteSpace(manifest.RootHref) || manifest.RootHref.Length > 4096 ||
+            if (manifest.Format != kFormat ||
+                manifest.Version != 1 ||
+                manifest.Documents.IsEmpty ||
+                string.IsNullOrWhiteSpace(manifest.RootHref) ||
+                manifest.RootHref.Length > 4096 ||
                 manifest.Documents.Count != archive.Entries.Count - 1)
             {
                 throw new FormatException("The document-set manifest version or entry count is invalid.");
@@ -169,16 +189,25 @@ namespace Opc.Ua.Mcp
             for (int index = 0; index < manifest.Documents.Count; index++)
             {
                 WotArchiveEntry? item = manifest.Documents[index];
-                if (item is null || string.IsNullOrWhiteSpace(item.Href) || item.Href.Length > 4096 ||
-                    !hrefs.Add(item.Href) || string.IsNullOrEmpty(item.Entry) ||
-                    !listedEntries.Add(item.Entry) || item.Entry == "manifest.json" || !IsEntryName(item.Entry) ||
+                if (item is null ||
+                    string.IsNullOrWhiteSpace(item.Href) ||
+                    item.Href.Length > 4096 ||
+                    !hrefs.Add(item.Href) ||
+                    string.IsNullOrEmpty(item.Entry) ||
+                    !listedEntries.Add(item.Entry) ||
+                    item.Entry == "manifest.json" ||
+                    !IsEntryName(item.Entry) ||
                     item.Sha256 is not { Length: 64 })
                 {
                     throw new FormatException("Document references and entry names must be explicit and unique.");
                 }
                 ZipArchiveEntry entry = archive.GetEntry(item.Entry) ??
                     throw new FormatException("A manifest document is missing from the archive.");
+#if NET10_0_OR_GREATER
+                Stream stream = await entry.OpenAsync(scope.Token).ConfigureAwait(false);
+#else
                 Stream stream = entry.Open();
+#endif
                 await using ConfiguredAsyncDisposable streamScope = stream.ConfigureAwait(false);
                 WotDocument document = await scope.ImportArchiveDocumentAsync(item.Href, stream, entry.Length)
                     .ConfigureAwait(false);
@@ -201,6 +230,7 @@ namespace Opc.Ua.Mcp
         /// Bounds central-directory records before ZipArchive allocates one object per untrusted entry.
         /// ZIP64 and multi-disk archives are unnecessary for this bounded artifact format.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private static void ValidateDirectory(ReadOnlySpan<byte> bytes, int maxEntries)
         {
             int end = -1;
@@ -223,7 +253,10 @@ namespace Opc.Ua.Mcp
             uint offset = BinaryPrimitives.ReadUInt32LittleEndian(directory[16..]);
             if (BinaryPrimitives.ReadUInt32LittleEndian(directory[4..]) != 0 ||
                 BinaryPrimitives.ReadUInt16LittleEndian(directory[8..]) != count ||
-                count < 2 || count > maxEntries || offset > end || size != end - offset)
+                count < 2 ||
+                count > maxEntries ||
+                offset > end ||
+                size != end - offset)
             {
                 throw new FormatException("ZIP64, multi-disk or excessive archive directories are not permitted.");
             }
@@ -234,7 +267,8 @@ namespace Opc.Ua.Mcp
                 {
                     throw new FormatException("The archive directory does not match its declared entry count.");
                 }
-                int recordLength = 46 + BinaryPrimitives.ReadUInt16LittleEndian(bytes[(cursor + 28)..]) +
+                int recordLength = 46 +
+                    BinaryPrimitives.ReadUInt16LittleEndian(bytes[(cursor + 28)..]) +
                     BinaryPrimitives.ReadUInt16LittleEndian(bytes[(cursor + 30)..]) +
                     BinaryPrimitives.ReadUInt16LittleEndian(bytes[(cursor + 32)..]);
                 if (recordLength > end - cursor)
@@ -252,6 +286,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// A producer-owned manifest has no last-property-wins interpretation.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private static void RejectDuplicateMembers(JsonElement element)
         {
             if (element.ValueKind == JsonValueKind.Object)
@@ -284,7 +319,8 @@ namespace Opc.Ua.Mcp
             {
                 return true;
             }
-            if (name.Length != 18 || !name.StartsWith("document-", StringComparison.Ordinal) ||
+            if (name.Length != 18 ||
+                !name.StartsWith("document-", StringComparison.Ordinal) ||
                 !name.EndsWith(".json", StringComparison.Ordinal))
             {
                 return false;

@@ -50,7 +50,11 @@ jobs:
       run: >
         ./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
         -ResultsDirectory '${{ runner.temp }}/mcpgrade-results'
-        -AdditionalProfiles @('wot', 'xregistry', 'wot-documents', 'wot,xregistry,wot-documents')
+        -IncludePrivilegedCatalogues
+        -AdditionalProfiles @('wot', 'xregistry', 'wot-documents', 'wot,xregistry,wot-documents',
+          'gds', 'certificates', 'credentials', 'onboarding', 'roles', 'users', 'files', 'alarms',
+          'history', 'schemas', 'pubsub-runtime', 'pubsub-configuration', 'pubsub-bridge',
+          'pubsub-security', 'wot-runtime')
 
     - name: Upload grading reports
       if: ${{ always() }}

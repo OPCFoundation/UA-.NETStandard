@@ -108,6 +108,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Wot:
                 case McpToolProfile.XRegistry:
                 case McpToolProfile.WotDocuments:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

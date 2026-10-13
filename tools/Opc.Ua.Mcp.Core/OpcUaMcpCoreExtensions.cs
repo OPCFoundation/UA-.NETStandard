@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -92,6 +93,7 @@ namespace Opc.Ua.Mcp
             var options = OpcUaMcpOptions.FromEnvironment();
             configure?.Invoke(options);
             services.AddSingleton(options);
+            AddExecutionPolicy(services, options);
             return services;
         }
 
@@ -121,6 +123,7 @@ namespace Opc.Ua.Mcp
             services.AddSingleton<OpcUaSessionManager>();
             services.AddSingleton<McpFileTransfers>();
             services.AddSingleton(options);
+            AddExecutionPolicy(services, options);
             return services;
         }
 
@@ -144,12 +147,32 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
             mcpServerBuilder.WithRequestFilters(filters =>
             {
                 filters.AddCallToolFilter(McpRequestFilters.ValidateRequiredArguments);
                 filters.AddListToolsFilter(McpSchemaFilters.AddExplicitRequiredArrays);
             });
             return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers trusted request-identity propagation exactly once on this MCP server.
+        /// Authorization still occurs at the operation and underlying UA request seams.
+        /// </summary>
+        public static IMcpServerBuilder WithOpcUaMcpCallerIdentity(this IMcpServerBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            foreach (ServiceDescriptor descriptor in builder.Services)
+            {
+                if (descriptor.ServiceType == typeof(McpCallerFilterMarker))
+                {
+                    return builder;
+                }
+            }
+            builder.Services.AddSingleton<McpCallerFilterMarker>();
+            builder.WithRequestFilters(filters => filters.AddCallToolFilter(McpExecutionFilters.CaptureCaller));
+            return builder;
         }
 
         /// <summary>
@@ -177,6 +200,7 @@ namespace Opc.Ua.Mcp
             McpToolProfile toolProfile = McpToolProfile.Full)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             switch (toolProfile)
             {
@@ -206,6 +230,8 @@ namespace Opc.Ua.Mcp
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
+                    break;
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -248,6 +274,7 @@ namespace Opc.Ua.Mcp
             McpToolProfileSet toolProfiles)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             if (toolProfiles.Contains(McpToolProfile.Full))
             {
@@ -309,6 +336,7 @@ namespace Opc.Ua.Mcp
             this IMcpServerBuilder mcpServerBuilder)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             IServiceCollection services = mcpServerBuilder.Services;
             for (int i = 0; i < services.Count; i++)
@@ -379,7 +407,33 @@ namespace Opc.Ua.Mcp
             registered.Add(typeof(PkiTools));
         }
 
+        /// <summary>
+        /// Registers immutable host defaults while retaining explicitly injected policy implementations.
+        /// </summary>
+        private static void AddExecutionPolicy(IServiceCollection services, OpcUaMcpOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(options.Execution);
+            services.TryAddSingleton(options.Execution.Snapshot());
+            services.TryAddSingleton<McpCallerContext>();
+            services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton<IMcpOperationPolicy>(provider => new McpExecutionPolicy(
+                provider.GetRequiredService<McpExecutionOptions>(),
+                provider.GetRequiredService<McpCallerContext>(),
+                provider.GetRequiredService<ITelemetryContext>()));
+            services.TryAddSingleton<McpRuntimeRegistry>();
+            services.TryAddSingleton(provider => new McpNetworkPolicy(
+                provider.GetRequiredService<IMcpOperationPolicy>(),
+                provider.GetRequiredService<McpExecutionOptions>().NetworkRules,
+                provider.GetService<IMcpDnsResolver>(),
+                provider.GetService<IMcpTcpConnector>()));
+        }
+
         private sealed class ConnectionToolsMarker;
+
+        /// <summary>
+        /// Prevents duplicate request identity filters when several modules share a host.
+        /// </summary>
+        private sealed class McpCallerFilterMarker;
 
         /// <summary>
         /// Registers each tool class the composed profiles asked for, exactly

@@ -134,7 +134,8 @@ namespace Opc.Ua.Mcp.Tools
                 foreach (WotDocumentSetEntry entry in scope.Documents.Entries)
                 {
                     recognized &= entry.Document.Kind != WotDocumentKind.Unknown ||
-                        entry.Document.TryGetEnvelope(out _) || entry.Document.TryGetNativeProjection(out _);
+                        entry.Document.TryGetEnvelope(out _) ||
+                        entry.Document.TryGetNativeProjection(out _);
                 }
                 if (!recognized)
                 {
@@ -279,7 +280,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     return report;
                 }
-                using var buffer = new WotDocumentBuffer(scope.Options.MaxNodeSetSize, scope.Token);
+                using var buffer = new McpBoundedMemoryStream(scope.Options.MaxNodeSetSize, scope.Token);
                 converted.Value!.Write(buffer);
                 scope.Token.ThrowIfCancellationRequested();
                 report["artifact"] = await PublishAsync(destination, buffer.ToArray(), "application/xml", scope.Token)
@@ -308,7 +309,8 @@ namespace Opc.Ua.Mcp.Tools
             string destination = outputPath ?? string.Empty;
             return ExecuteAsync(input, nodeSetInput: true, destination, async scope =>
             {
-                if (string.IsNullOrWhiteSpace(rootHref) || rootHref.Length > 256 ||
+                if (string.IsNullOrWhiteSpace(rootHref) ||
+                    rootHref.Length > 256 ||
                     rootHref.IndexOfAny(['/', '\\', '?', '#', ':']) >= 0)
                 {
                     throw new ArgumentException(
@@ -324,7 +326,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     return report;
                 }
-                using var buffer = new WotDocumentBuffer(scope.MaxTotalBytes, scope.Token);
+                using var buffer = new McpBoundedMemoryStream(scope.MaxTotalBytes, scope.Token);
                 await WotDocumentArchive.WriteAsync(documents, buffer, scope.Options, scope.MaxTotalBytes, scope.Token)
                     .ConfigureAwait(false);
                 report["documentCount"] = documents.Entries.Count;
@@ -473,6 +475,7 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Preflights XML depth, top-level node count and entity policy before the existing serializer runs.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private static async ValueTask<UANodeSet> ReadNodeSetAsync(WotDocumentScope scope)
         {
             using var source = new MemoryStream(scope.SourceBytes.ToArray(), writable: false);
@@ -485,7 +488,7 @@ namespace Opc.Ua.Mcp.Tools
                 CloseInput = false
             };
             int nodes = 0;
-            using (XmlReader reader = XmlReader.Create(source, settings))
+            using (var reader = XmlReader.Create(source, settings))
             {
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
@@ -494,7 +497,8 @@ namespace Opc.Ua.Mcp.Tools
                     {
                         throw new FormatException("The NodeSet exceeds the XML depth limit.");
                     }
-                    if (reader.NodeType == XmlNodeType.Element && reader.Depth == 1 &&
+                    if (reader.NodeType == XmlNodeType.Element &&
+                        reader.Depth == 1 &&
                         reader.LocalName.StartsWith("UA", StringComparison.Ordinal) &&
                         ++nodes > scope.Options.MaxNodeCount)
                     {

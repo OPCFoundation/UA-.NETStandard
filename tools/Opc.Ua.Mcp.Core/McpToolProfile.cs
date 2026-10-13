@@ -123,6 +123,81 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// WoT document inspection, bounded dependency resolution, planning and conversion.
         /// </summary>
-        WotDocuments
+        WotDocuments,
+
+        /// <summary>
+        /// GDS application directory discovery and administration.
+        /// </summary>
+        Gds,
+
+        /// <summary>
+        /// GDS pull and remote push certificate lifecycle.
+        /// </summary>
+        Certificates,
+
+        /// <summary>
+        /// Secret-safe credential and authorization-token issuance.
+        /// </summary>
+        Credentials,
+
+        /// <summary>
+        /// Part 21 device registrar and onboarding ticket administration.
+        /// </summary>
+        Onboarding,
+
+        /// <summary>
+        /// Generic role mappings and node permission administration.
+        /// </summary>
+        Roles,
+
+        /// <summary>
+        /// Generic user and password-policy administration.
+        /// </summary>
+        Users,
+
+        /// <summary>
+        /// Generic file-system and temporary file-transfer workflows.
+        /// </summary>
+        Files,
+
+        /// <summary>
+        /// Bounded alarm and condition observations and explicit controls.
+        /// </summary>
+        Alarms,
+
+        /// <summary>
+        /// Historical values, aggregates, events and annotations.
+        /// </summary>
+        History,
+
+        /// <summary>
+        /// Runtime type discovery and bounded schema generation.
+        /// </summary>
+        Schemas,
+
+        /// <summary>
+        /// Named, policy-controlled PubSub transport runtimes.
+        /// </summary>
+        PubSubRuntime,
+
+        /// <summary>
+        /// Standard remote PubSub address-space configuration.
+        /// </summary>
+        PubSubConfiguration,
+
+        /// <summary>
+        /// Explicit PubSub client adapters and declarative bridges.
+        /// </summary>
+        PubSubBridge,
+
+        /// <summary>
+        /// Secret-safe PubSub security-group and key-service workflows.
+        /// </summary>
+        PubSubSecurity,
+
+        /// <summary>
+        /// Leased, policy-controlled execution of supported WoT protocol forms.
+        /// </summary>
+        WotRuntime
     }
 }

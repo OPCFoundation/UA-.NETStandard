@@ -29,6 +29,7 @@
 
 using System;
 using System.CommandLine;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -37,13 +38,11 @@ using Microsoft.Extensions.Hosting;
 using Opc.Ua.Mcp;
 using Opc.Ua.Pcap.DependencyInjection;
 
-Console.Error.WriteLine("OPC UA MCP Server");
-Console.Error.WriteLine(
-    "OPC UA library: {0} @ {1} -- {2}",
-    Opc.Ua.Utils.GetAssemblyBuildNumber(),
-    Opc.Ua.Utils.GetAssemblyTimestamp().ToString("G", System.Globalization.CultureInfo.InvariantCulture),
-    Opc.Ua.Utils.GetAssemblySoftwareVersion()
-);
+await Console.Error.WriteLineAsync("OPC UA MCP Server").ConfigureAwait(false);
+await Console.Error.WriteLineAsync(
+    $"OPC UA library: {Opc.Ua.Utils.GetAssemblyBuildNumber()} @ " +
+    $"{Opc.Ua.Utils.GetAssemblyTimestamp().ToString("G", System.Globalization.CultureInfo.InvariantCulture)} -- " +
+    Opc.Ua.Utils.GetAssemblySoftwareVersion()).ConfigureAwait(false);
 
 var transportOption = new Option<string>("--transport", "-t")
 {
@@ -60,8 +59,8 @@ var portOption = new Option<int>("--port", "-p")
 var profileOption = new Option<string?>("--profile")
 {
     Description = "Tool profiles: one profile or a comma-separated list of profiles - " +
-        string.Join(", ", Enum.GetNames<McpToolProfile>()).Replace(
-            nameof(McpToolProfile.WotDocuments), "wot-documents", StringComparison.Ordinal).ToLowerInvariant() +
+        string.Join(", ", Enum.GetValues<McpToolProfile>()
+            .Select(profile => new McpToolProfileSet(profile).ToString().ToLowerInvariant())) +
         " (default: full). " +
         "Compose profiles with ',' or '+', e.g. --profile vision,robotics for a vision-guided agent."
 };
@@ -119,8 +118,9 @@ static async Task RunStdioServerAsync(string? toolProfileOverride, CancellationT
     OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
+    OpcUaMcpOptions.Execution.LocalCallerId ??= "stdio";
     McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
-        OpcUaMcpWotConExtensions.CreateWotMcpOptions(builder.Configuration));
+        builder.Configuration.CreateWotMcpOptions());
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
@@ -151,8 +151,13 @@ static async Task RunHttpServerAsync(
     OpcUaMcpOptions OpcUaMcpOptions = McpHostBuilder.CreateOpcUaMcpOptions(
         builder.Configuration,
         toolProfileOverride);
+    if (OpcUaMcpOptions.Execution.LocalCallerId is not null)
+    {
+        throw new InvalidOperationException(
+            "HTTP MCP hosting cannot use LocalCallerId; configure authenticated caller grants instead.");
+    }
     McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
-        OpcUaMcpWotConExtensions.CreateWotMcpOptions(builder.Configuration));
+        builder.Configuration.CreateWotMcpOptions());
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()

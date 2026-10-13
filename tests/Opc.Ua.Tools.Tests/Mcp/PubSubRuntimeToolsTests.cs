@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 #if NET10_0
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
@@ -42,8 +43,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StoppedRuntimeToolsReturnStoppedStateAsync()
         {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
+                scope.NewManager();
 
             PubSubRuntimeStatus status = await PubSubRuntimeTools.StatusAsync(manager)
                 .ConfigureAwait(false);
@@ -61,9 +64,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task PublisherRuntimeToolsStartPublishAndStopAsync()
         {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
-            int port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
+                scope.NewManager();
+            int port = scope.Port;
             string endpoint = $"opc.udp://127.0.0.1:{port}";
 
             PubSubRuntimeStatus started =
@@ -90,9 +95,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task SubscriberRuntimeToolStartsAndStopsAsync()
         {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
-                PubSubMcpTestHelpers.NewManager();
-            int port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
+                scope.NewManager();
+            int port = scope.Port;
 
             PubSubRuntimeStatus started =
                 await PubSubRuntimeTools.StartSubscriberAsync(
@@ -106,6 +113,22 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(started.Mode, Is.EqualTo("Subscriber"));
             Assert.That(stopped.Mode, Is.EqualTo("Stopped"));
+        }
+
+        [Test]
+        public async Task ExplicitTestGrantStillRejectsAnUnlistedLoopbackDestinationAsync()
+        {
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
+            int otherPort = scope.Port == ushort.MaxValue ? scope.Port - 1 : scope.Port + 1;
+
+            ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await PubSubRuntimeTools.StartPublisherAsync(
+                    manager, $"opc.udp://127.0.0.1:{otherPort}", 1, 2, "Value:Int32").ConfigureAwait(false));
+
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That((await manager.StatusAsync().ConfigureAwait(false)).IsRunning, Is.False);
         }
     }
 }

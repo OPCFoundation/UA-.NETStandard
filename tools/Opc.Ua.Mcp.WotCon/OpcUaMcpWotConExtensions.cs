@@ -62,6 +62,7 @@ namespace Opc.Ua.Mcp
             services.AddSingleton<WotRegistrationMarker>();
             services.TryAddSingleton<WotTools>();
             services.TryAddSingleton<WotDocumentTools>();
+            services.TryAddSingleton<WotBindingPreparation>();
             services.AddHttpClient(WotDependencyHttp.ClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
                 .ConfigurePrimaryHttpMessageHandler(provider =>
                     WotDependencyHttp.CreateHandler(provider.GetRequiredService<WotMcpOptions>()));
@@ -118,14 +119,14 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Binds host-only settings without reflection-based configuration binding.
         /// </summary>
-        public static WotMcpOptions CreateWotMcpOptions(IConfiguration configuration)
+        /// <exception cref="InvalidOperationException"></exception>
+        public static WotMcpOptions CreateWotMcpOptions(this IConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(configuration);
             var options = new WotMcpOptions();
-            string[] origins = configuration.GetSection("McpServer:Wot:AllowedDependencyOrigins").GetChildren()
+            string[] origins = [.. configuration.GetSection("McpServer:Wot:AllowedDependencyOrigins").GetChildren()
                 .Select(child => child.Value ??
-                    throw new InvalidOperationException("Every dependency origin must be a string."))
-                .ToArray();
+                    throw new InvalidOperationException("Every dependency origin must be a string."))];
             if (origins.Length == 0)
             {
                 string? configured = configuration["McpServer:Wot:AllowedDependencyOrigins"] ??
@@ -172,6 +173,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Reads one optional numeric host setting without silently accepting malformed values.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static int Number(IConfiguration configuration, string name, int fallback)
         {
             string? value = configuration["McpServer:Wot:" + name];
@@ -187,8 +189,6 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Prevents duplicate named HTTP-handler configuration when modules are composed more than once.
         /// </summary>
-        private sealed class WotRegistrationMarker
-        {
-        }
+        private sealed class WotRegistrationMarker;
     }
 }

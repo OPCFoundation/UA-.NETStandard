@@ -299,6 +299,15 @@ implicit server rollback) — is sent to the server. The wrapped
 `Stream` cannot accidentally close the server handle; its `Dispose`
 is a no-op.
 
+For retained handles or policy-sensitive transfers, use
+[`SessionRequestContext`](SessionRequestContext.md) and construct the client
+with `context.Session`. Its context-taking generation overloads return an opaque
+`SessionFileHandle`; bounded `UploadFromAsync`/`DownloadToAsync` preserve final
+method statuses and never rebind an old handle after recovery. The upload result
+includes the `CloseAndCommit` completion-state-machine ID. Ordinary Close does
+not promise atomicity or rollback, and a known committed result is not replaced
+by late cancellation.
+
 ## What lives where
 
 ```

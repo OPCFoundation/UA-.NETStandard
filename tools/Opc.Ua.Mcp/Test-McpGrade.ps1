@@ -32,6 +32,7 @@ param(
     [string] $Configuration = 'Release',
     [string] $ResultsDirectory,
     [string[]] $AdditionalProfiles = @(),
+    [switch] $IncludePrivilegedCatalogues,
     [switch] $SkipBuild
 )
 
@@ -49,6 +50,8 @@ if ([string]::IsNullOrWhiteSpace($ResultsDirectory))
 $ResultsDirectory = [IO.Path]::GetFullPath($ResultsDirectory)
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("opcua-mcpgrade-" + [Guid]::NewGuid().ToString('N'))
 $graderRoot = Join-Path $temporaryRoot 'mcpgrade'
+$executionEnvironment = @{}
+$executionEnvironmentChanged = $false
 
 function Invoke-CheckedNative
 {
@@ -177,11 +180,35 @@ function Get-McpGradeFindings
     return @($Report.categories | ForEach-Object { @($_.findings) })
 }
 
-New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-
 try
 {
+    if ($IncludePrivilegedCatalogues)
+    {
+        # Advertise schemas without granting a caller, session, secret or network operation.
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            $executionEnvironment[$entry.Name] = $entry.Value
+        }
+        $executionEnvironmentChanged = $true
+        foreach ($name in $executionEnvironment.Keys)
+        {
+            Remove-Item -LiteralPath "Env:$name"
+        }
+        $capabilities = @(
+            'DirectoryAdministration', 'CertificateAdministration', 'CredentialIssuance', 'Onboarding',
+            'IdentityAdministration', 'PubSubRuntime', 'PubSubConfiguration', 'PubSubBridge',
+            'PubSubSecurity', 'WotRuntime', 'WotWrite', 'WotInvoke'
+        )
+        for ($index = 0; $index -lt $capabilities.Count; $index++)
+        {
+            [Environment]::SetEnvironmentVariable(
+                "McpServer__Execution__EnabledCapabilities__$index", $capabilities[$index], 'Process')
+        }
+    }
+
+    New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
+    New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
+
     if (-not $SkipBuild)
     {
         Invoke-CheckedNative -FilePath 'dotnet' -Arguments @(
@@ -322,6 +349,17 @@ try
 }
 finally
 {
+    if ($executionEnvironmentChanged)
+    {
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            Remove-Item -LiteralPath "Env:$($entry.Name)"
+        }
+        foreach ($entry in $executionEnvironment.GetEnumerator())
+        {
+            [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+        }
+    }
     if (Test-Path $temporaryRoot)
     {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force

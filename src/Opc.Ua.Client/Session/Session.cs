@@ -4839,11 +4839,16 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            base.SessionCreated(sessionId, sessionCookie);
-            if (!sessionCookie.IsNull)
+            lock (m_requestContextIdentity)
             {
-                m_hadSession = true;
+                base.SessionCreated(sessionId, sessionCookie);
+                if (!sessionCookie.IsNull)
+                {
+                    m_hadSession = true;
+                }
+                m_requestContextGeneration++;
             }
+            RequestContextChanged?.Invoke();
         }
 
         /// <inheritdoc/>

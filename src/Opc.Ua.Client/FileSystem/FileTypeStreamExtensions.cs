@@ -32,6 +32,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Client.FileSystem;
 
 namespace Opc.Ua.Client
 {
@@ -40,6 +41,65 @@ namespace Opc.Ua.Client
     /// </summary>
     public static class FileTypeStreamExtensions
     {
+        /// <summary>
+        /// Opens a private handle through a captured session; later operations cannot adopt another connection.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static async ValueTask<SessionFileHandle> OpenFileAsync(
+            this SessionRequestContext context, NodeId fileId, byte mode, CancellationToken ct = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (fileId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(fileId));
+            }
+            var file = new FileTypeClient(context.Session, fileId, context.Session.MessageContext.Telemetry);
+            uint handle = await file.OpenAsync(mode, ct).ConfigureAwait(false);
+            return new SessionFileHandle(context, file, handle);
+        }
+
+        /// <summary>
+        /// Uploads and closes within one captured generation, preserving the final method result.
+        /// </summary>
+        /// <exception cref="IOException"></exception>
+        public static async ValueTask<(long BytesTransferred, CallMethodResult Result)> UploadFromWithResultAsync(
+            this SessionRequestContext context, NodeId fileId, Stream source,
+            long maxBytes, int chunkSize = 4096, CancellationToken ct = default)
+        {
+            ValidateStream(source, maxBytes, chunkSize, readingSource: true);
+            if (source.CanSeek && source.Length - source.Position > maxBytes)
+            {
+                throw new IOException("The source exceeds the configured transfer limit.");
+            }
+            SessionFileHandle handle = await context.OpenFileAsync(fileId, 6, ct).ConfigureAwait(false);
+            await using (handle.ConfigureAwait(false))
+            {
+                long total = await handle.WriteFromAsync(source, maxBytes, chunkSize, ct).ConfigureAwait(false);
+                CallMethodResult result = await handle.CloseAsync(ct).ConfigureAwait(false);
+                return (total, result);
+            }
+        }
+
+        /// <summary>
+        /// Downloads and closes within one captured generation, preserving the final method result.
+        /// </summary>
+        public static async ValueTask<(long BytesTransferred, CallMethodResult Result)> DownloadToStreamWithResultAsync(
+            this SessionRequestContext context, NodeId fileId, Stream destination,
+            long maxBytes, int chunkSize = 4096, CancellationToken ct = default)
+        {
+            ValidateStream(destination, maxBytes, chunkSize, readingSource: false);
+            SessionFileHandle handle = await context.OpenFileAsync(fileId, 1, ct).ConfigureAwait(false);
+            await using (handle.ConfigureAwait(false))
+            {
+                long total = await handle.ReadToAsync(destination, maxBytes, chunkSize, ct).ConfigureAwait(false);
+                CallMethodResult result = await handle.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                return (total, result);
+            }
+        }
+
         /// <summary>
         /// Opens a file for replacement, streams its content and closes it. The caller owns the source.
         /// </summary>
@@ -176,27 +236,10 @@ namespace Opc.Ua.Client
             uint handle = await file.OpenAsync(1, ct).ConfigureAwait(false);
             try
             {
-                long total = 0;
-                while (true)
-                {
-                    ByteString chunk = await file.ReadAsync(handle, chunkSize, ct).ConfigureAwait(false);
-                    if (chunk.IsEmpty)
-                    {
-                        await file.CloseAsync(handle, CancellationToken.None).ConfigureAwait(false);
-                        return total;
-                    }
-                    if (chunk.Length > chunkSize || chunk.Length > maxBytes - total)
-                    {
-                        throw new IOException("The download exceeds the requested chunk or transfer limit.");
-                    }
-#if NET6_0_OR_GREATER
-                    await destination.WriteAsync(chunk.Memory, ct).ConfigureAwait(false);
-#else
-                    byte[] buffer = chunk.Span.ToArray();
-                    await destination.WriteAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
-#endif
-                    total += chunk.Length;
-                }
+                long total = await file.ReadStreamAsync(handle, destination, maxBytes, chunkSize, ct)
+                    .ConfigureAwait(false);
+                await file.CloseAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                return total;
             }
             catch (Exception)
             {
@@ -227,18 +270,44 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Validates transfer arguments before any remote call or buffer allocation.
+        /// Reads a caller-owned handle without closing, rejecting oversized chunks before destination writes.
+        /// </summary>
+        /// <exception cref="IOException"></exception>
+        internal static async ValueTask<long> ReadStreamAsync(
+            this FileTypeClient file, uint handle, Stream destination,
+            long maxBytes, int chunkSize, CancellationToken ct)
+        {
+            Validate(file, destination, maxBytes, chunkSize, readingSource: false);
+            long total = 0;
+            while (true)
+            {
+                ByteString chunk = await file.ReadAsync(handle, chunkSize, ct).ConfigureAwait(false);
+                if (chunk.IsEmpty)
+                {
+                    return total;
+                }
+                if (chunk.Length > chunkSize || chunk.Length > maxBytes - total)
+                {
+                    throw new IOException("The download exceeds the requested chunk or transfer limit.");
+                }
+#if NET6_0_OR_GREATER
+                await destination.WriteAsync(chunk.Memory, ct).ConfigureAwait(false);
+#else
+                byte[] buffer = chunk.Span.ToArray();
+                await destination.WriteAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+#endif
+                total += chunk.Length;
+            }
+        }
+
+        /// <summary>
+        /// Validates stream direction and transfer bounds before allocating a remote handle.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ArgumentException"></exception>
-        private static void Validate(
-            FileTypeClient file, Stream stream, long maxBytes, int chunkSize, bool readingSource)
+        internal static void ValidateStream(this Stream stream, long maxBytes, int chunkSize, bool readingSource)
         {
-            if (file is null)
-            {
-                throw new ArgumentNullException(nameof(file));
-            }
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
@@ -256,6 +325,22 @@ namespace Opc.Ua.Client
                 throw new ArgumentException(
                     "The stream does not support the requested transfer direction.", nameof(stream));
             }
+        }
+
+        /// <summary>
+        /// Validates transfer arguments before any remote call or buffer allocation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        private static void Validate(
+            FileTypeClient file, Stream stream, long maxBytes, int chunkSize, bool readingSource)
+        {
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+            ValidateStream(stream, maxBytes, chunkSize, readingSource);
         }
     }
 

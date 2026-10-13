@@ -62,7 +62,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using var firstEntry = new WotDocumentSetEntry("root", first);
             using var secondEntry = new WotDocumentSetEntry("nested-exact", second);
             using var documents = new WotDocumentSet("root", [firstEntry, secondEntry]);
-            using var buffer = new WotDocumentBuffer(16_384, default);
+            using var buffer = new McpBoundedMemoryStream(16_384, default);
             await WotDocumentArchive.WriteAsync(
                 documents, buffer, new WotNodeSetConverterOptions(), 16_384, default).ConfigureAwait(false);
             buffer.Position = 0;
@@ -177,7 +177,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using var secondEntry = new WotDocumentSetEntry("second", document);
             using var documents = new WotDocumentSet("root", [firstEntry, secondEntry]);
             var options = new WotNodeSetConverterOptions { MaxResolverDocuments = count ? 1 : 2 };
-            using var buffer = new WotDocumentBuffer(1024, default);
+            using var buffer = new McpBoundedMemoryStream(1024, default);
             Assert.That(async () => await WotDocumentArchive.WriteAsync(
                 documents, buffer, options, count ? 1024 : 4, default).ConfigureAwait(false),
                 Throws.TypeOf<IOException>());
@@ -191,7 +191,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public void BufferBoundsSynchronousWritesLengthAndCancellationWithoutPartialGrowth()
         {
             using var cancellation = new CancellationTokenSource();
-            using var buffer = new WotDocumentBuffer(4, cancellation.Token);
+            using var buffer = new McpBoundedMemoryStream(4, cancellation.Token);
             buffer.Write([1, 2], 0, 2);
             buffer.Write(new ReadOnlySpan<byte>([3]));
             buffer.WriteByte(4);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public async Task BufferBoundsAsynchronousWritesWithoutPartialGrowthAsync()
         {
             using var cancellation = new CancellationTokenSource();
-            using var buffer = new WotDocumentBuffer(4, cancellation.Token);
+            using var buffer = new McpBoundedMemoryStream(4, cancellation.Token);
             Func<byte[], int, int, CancellationToken, Task> writeArray = buffer.WriteAsync;
             byte[] first = [1, 2];
             await writeArray(first, 0, first.Length, default).ConfigureAwait(false);

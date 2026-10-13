@@ -31,7 +31,6 @@
 // build and run on net10.0.
 #if NET10_0
 using System;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -69,7 +68,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StatusAsyncWithoutStartReportsStoppedAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             PubSubRuntimeStatus status = await manager.StatusAsync().ConfigureAwait(false);
 
@@ -84,7 +85,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncWithEmptyEndpointThrowsArgumentExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             Assert.That(
                 async () => await manager.StartPublisherAsync(string.Empty, 1, 1, null, CancellationToken.None)
@@ -95,7 +98,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartSubscriberAsyncWithEmptyEndpointThrowsArgumentExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             Assert.That(
                 async () => await manager.StartSubscriberAsync(string.Empty, 1, 1, null, CancellationToken.None)
@@ -106,17 +111,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncWithUnsupportedFieldTypeThrowsArgumentExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             Assert.That(
                 async () => await manager.StartPublisherAsync(
@@ -128,7 +126,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task PublishAsyncWithoutActivePublisherThrowsInvalidOperationExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             Assert.That(
                 async () => await manager.PublishAsync("Field=1").ConfigureAwait(false),
@@ -138,7 +138,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReadReceivedAsyncWithoutActiveSubscriberReturnsEmptyAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             ArrayOf<PubSubReceivedDataSet> received = await manager.ReadReceivedAsync(clear: false)
                 .ConfigureAwait(false);
@@ -149,7 +151,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task RequestDiscoveryAsyncWithoutActiveRuntimeThrowsInvalidOperationExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
             var request = new PubSubDiscoveryRequest();
 
             Assert.That(
@@ -161,7 +165,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task InvokeActionAsyncWithoutActiveRuntimeThrowsInvalidOperationExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
             var request = new PubSubActionRequest { Target = new PubSubActionTarget { DataSetWriterId = 1 } };
 
             Assert.That(
@@ -173,7 +179,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task RegisterActionResponderAsyncWithoutActiveRuntimeThrowsInvalidOperationExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
             var target = new PubSubActionTarget { DataSetWriterId = 1, ActionTargetId = 1 };
             var handler = new DelegatePubSubActionHandler(
                 static (invocation, ct) => ValueTask.FromResult(new PubSubActionHandlerResult()));
@@ -187,7 +195,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ListActionTargetsAndRespondersWithoutRuntimeReturnEmptyAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             ArrayOf<PubSubActionTargetInfo> targets = await manager.ListActionTargetsAsync().ConfigureAwait(false);
             ArrayOf<PubSubActionResponderRegistration> responders =
@@ -203,7 +213,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StopAsyncWithoutActiveRuntimeIsNoOpAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
 
             PubSubRuntimeStatus status = await manager.StopAsync().ConfigureAwait(false);
 
@@ -213,17 +225,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncThenStopAsyncTransitionsModeAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             string url = $"opc.udp://127.0.0.1:{port}";
             PubSubRuntimeStatus started = await manager.StartPublisherAsync(url, 42, 7, "Speed:Int32")
@@ -265,17 +270,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task PublishAsyncWithJsonFieldValuesUpdatesFieldsAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             await using (manager)
             {
@@ -286,7 +284,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     "Flag:Boolean;Count:Int32;When:DateTime").ConfigureAwait(false);
 
                 PubSubRuntimePublishResult result = await manager.PublishAsync(
-                    "{\"Flag\": true, \"Count\": 5, \"When\": \"2026-01-01T00:00:00Z\"}").ConfigureAwait(false);
+                    /*lang=json,strict*/
+                    "{\"Flag\": true, \"Count\": 5, \"When\": \"2026-01-01T00:00:00Z\"}")
+                    .ConfigureAwait(false);
 
                 Assert.That(result.Fields.Count, Is.EqualTo(3));
 
@@ -299,17 +299,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartSubscriberAsyncReadReceivedReturnsEmptyRingUntilDataArrivesAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             await using (manager)
             {
@@ -327,17 +320,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncWithAllSupportedFieldTypesParsesAndPublishesEveryTypeAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             await using (manager)
             {
@@ -349,7 +335,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     $"opc.udp://127.0.0.1:{port}", 1, 1, fieldSpec).ConfigureAwait(false);
                 Assert.That(status.IsRunning, Is.True);
 
-                const string json = """
+                const string json = /*lang=json,strict*/ """
                     {
                         "Flag": true,
                         "Sb": -5,
@@ -384,17 +370,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task PublishAsyncWithJsonNullAndFalseValuesUpdatesFieldsAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             await using (manager)
             {
@@ -402,7 +381,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     $"opc.udp://127.0.0.1:{port}", 1, 1, "Flag:Boolean;Name:String").ConfigureAwait(false);
 
                 PubSubRuntimePublishResult result = await manager.PublishAsync(
-                    "{\"Flag\": false, \"Name\": null}").ConfigureAwait(false);
+                    /*lang=json,strict*/
+                                         "{\"Flag\": false, \"Name\": null}").ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
@@ -419,17 +399,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncWithSeparatorsOnlyFieldSpecThrowsArgumentExceptionAsync()
         {
-            await using PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            await using PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             Assert.That(
                 async () => await manager.StartPublisherAsync(
@@ -441,17 +414,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task StartPublisherAsyncPublishesSampledDataOnPublishingIntervalAsync()
         {
-            PubSubRuntimeManager manager = PubSubMcpTestHelpers.NewManager();
-            int port;
-            try
-            {
-                port = PubSubMcpTestHelpers.ReserveEphemeralLoopbackPort();
-            }
-            catch (SocketException ex)
-            {
-                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
-                return;
-            }
+            await using var scope = new PubSubMcpTestScope();
+            using IDisposable caller = scope.Enter();
+            PubSubRuntimeManager manager = scope.NewManager();
+            int port = scope.Port;
 
             await using (manager)
             {

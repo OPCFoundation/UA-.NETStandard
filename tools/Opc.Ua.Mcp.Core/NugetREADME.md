@@ -29,6 +29,32 @@ builder.Services.AddMcpServer()
 errors actionable and tool schemas explicit; call it once per server even when
 several OPC UA tool packages are composed.
 
+## Generic mutations and session lifetime
+
+Generic Call/CallMethod, Write/WriteValue, HistoryUpdate and node/reference
+mutations capture a `SessionRequestContext` for stack `ManagedSession` instances
+before classification. The same borrowed session performs classification and
+dispatch. Recovery cannot turn an ordinary preflight into a write to a different
+session or remapped protected namespace. The host's registered session name,
+not the server-provided name, remains the policy authority. An acknowledged
+mutation result is not discarded by a later cancellation or session change.
+
+**Embedding compatibility:** a custom `ISession` registered with
+`RegisterExistingSessionAsync` must have an explicit host-owned
+`IMcpFixedSessionContract` in DI before generic mutations are accepted.
+Undeclared custom sessions fail closed with `BadNotSupported`; read-only tools
+remain unchanged. `IsFixed(registration)` may return true only when the host
+guarantees no reconnect, retarget, authentication change, or namespace/type-cache
+change between classification and dispatch. This grants no operation
+capability and is not a synthetic SDK generation gate. Stack managed sessions
+always use the SDK context, regardless of this contract.
+
+The fixed contract and observable metadata are rechecked before dispatch, not
+after a response. These checks cannot make an independently mutable custom
+implementation safe; use a stack managed session for that case. Server-side
+authorization remains authoritative, and remote model changes within the same
+session are not made into an atomic server transaction.
+
 ## Trimming and Native AOT
 
 The assembly is marked `IsAotCompatible` on `net10.0`: its own IL is free of trim

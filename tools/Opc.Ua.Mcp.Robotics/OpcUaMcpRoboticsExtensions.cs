@@ -29,7 +29,6 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -107,6 +106,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Wot:
                 case McpToolProfile.XRegistry:
                 case McpToolProfile.WotDocuments:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -127,7 +127,7 @@ namespace Opc.Ua.Mcp
         /// wants the Robot Intent tools alongside the tools of another bounded
         /// profile - <see cref="McpToolProfile.Vision"/>, for a vision-guided
         /// pick-and-place agent, for example. It never registers
-        /// <see cref="Tools.ConnectionTools"/> directly; the
+        /// <see cref="ConnectionTools"/> directly; the
         /// <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c> owns
         /// that registration and deduplicates it across every package that
         /// contributes to the same MCP server.

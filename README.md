@@ -119,7 +119,9 @@ the companion
   Scales, Pumps, Device Integration, ISA-95 and Positioning. The
   [WoT and xRegistry profiles](docs/McpServer.md#wot-and-registry-tools) add
   asset/registry management and bounded document validation, planning and
-  NodeSet conversion.
+  NodeSet conversion. [Stack workflow profiles](docs/McpServer.md#stack-workflow-tools)
+  provide GDS/credential issuance, roles/users, files, alarms, history, schemas,
+  and host-authorized PubSub and live WoT execution.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 

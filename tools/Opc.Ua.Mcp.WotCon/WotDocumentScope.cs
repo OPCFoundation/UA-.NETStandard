@@ -68,9 +68,11 @@ namespace Opc.Ua.Mcp
             {
                 throw new ArgumentException("The supplied dependency set exceeds the host document limit.");
             }
-            if (string.IsNullOrWhiteSpace(input.BaseUri) || input.BaseUri.Length > 4096 ||
+            if (string.IsNullOrWhiteSpace(input.BaseUri) ||
+                input.BaseUri.Length > 4096 ||
                 !Uri.TryCreate(input.BaseUri, UriKind.Absolute, out Uri? baseUri) ||
-                !string.IsNullOrEmpty(baseUri.UserInfo) || !string.IsNullOrEmpty(baseUri.Fragment))
+                !string.IsNullOrEmpty(baseUri.UserInfo) ||
+                !string.IsNullOrEmpty(baseUri.Fragment))
             {
                 throw new ArgumentException("BaseUri must be a credential-free absolute document address.");
             }
@@ -83,7 +85,7 @@ namespace Opc.Ua.Mcp
             m_files = files;
             m_clients = clients;
             m_baseUri = baseUri;
-            m_maxTotalBytes = Math.Min(policy.MaxTotalBytes, filesPolicy.MaxTransferBytes);
+            MaxTotalBytes = Math.Min(policy.MaxTotalBytes, filesPolicy.MaxTransferBytes);
             if (input.RequiredConformance.Count > 64 ||
                 (!input.StrictAuthoring && !input.RequiredConformance.IsEmpty))
             {
@@ -92,15 +94,15 @@ namespace Opc.Ua.Mcp
             }
             Options = new WotNodeSetConverterOptions
             {
-                MaxJsonDocumentSize = (int)Math.Min(policy.MaxDocumentBytes, m_maxTotalBytes),
-                MaxNodeSetSize = (int)Math.Min(64L * 1024 * 1024, m_maxTotalBytes),
+                MaxJsonDocumentSize = (int)Math.Min(policy.MaxDocumentBytes, MaxTotalBytes),
+                MaxNodeSetSize = (int)Math.Min(64L * 1024 * 1024, MaxTotalBytes),
                 MaxResolverDepth = policy.MaxResolverDepth,
                 MaxResolverDocuments = policy.MaxDocuments,
-                MaxResolverDocumentBytes = (int)Math.Min(policy.MaxDocumentBytes, m_maxTotalBytes),
-                MaxResolverTotalBytes = m_maxTotalBytes,
+                MaxResolverDocumentBytes = (int)Math.Min(policy.MaxDocumentBytes, MaxTotalBytes),
+                MaxResolverTotalBytes = MaxTotalBytes,
                 MaxDocumentSetDocuments = policy.MaxDocuments,
                 MaxDocumentSetDepth = policy.MaxResolverDepth,
-                MaxDocumentSetBytes = m_maxTotalBytes,
+                MaxDocumentSetBytes = MaxTotalBytes,
                 ConformanceMode = input.StrictAuthoring ? WotConformanceMode.Strict : WotConformanceMode.Permissive,
                 AuthoringValidation = input.StrictAuthoring,
                 RequiredConformance = input.RequiredConformance,
@@ -124,7 +126,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the stricter host/transfer ceiling applied to complete generated document sets.
         /// </summary>
-        internal long MaxTotalBytes => m_maxTotalBytes;
+        internal long MaxTotalBytes { get; }
 
         /// <summary>
         /// Gets the original primary input bytes.
@@ -139,6 +141,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Loads only explicit input files. Linked URLs are consulted later only through the approved resolver.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal async ValueTask InitializeAsync(bool nodeSetInput)
         {
             Token.ThrowIfCancellationRequested();
@@ -179,6 +182,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Imports one archive member within the same decompressed-content budget.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
+        /// <exception cref="IOException"></exception>
         internal async ValueTask<WotDocument> ImportArchiveDocumentAsync(
             string reference, Stream content, long declaredLength)
         {
@@ -319,14 +324,16 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Copies bounded decompressed bytes before allowing an allocation to grow beyond the requested limit.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="IOException"></exception>
         internal static async ValueTask<ByteString> ReadBoundedAsync(Stream source, long limit, CancellationToken ct)
         {
-            if (limit < 0 || limit > int.MaxValue)
+            if (limit is < 0 or > int.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(limit));
             }
             ct.ThrowIfCancellationRequested();
-            using var buffer = new WotDocumentBuffer(limit, ct);
+            using var buffer = new McpBoundedMemoryStream(limit, ct);
             byte[] chunk = new byte[8192];
             while (true)
             {
@@ -371,11 +378,13 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the unconsumed content budget.
         /// </summary>
-        private long RemainingBytes => m_maxTotalBytes - m_totalBytes;
+        private long RemainingBytes => MaxTotalBytes - m_totalBytes;
 
         /// <summary>
         /// Reads exactly one supplied source without allowing arbitrary paths.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="FormatException"></exception>
         private async ValueTask<ByteString> ReadSourceAsync(WotDocumentSource source, long limit)
         {
             Token.ThrowIfCancellationRequested();
@@ -424,6 +433,10 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Resolves only explicit local documents or approved HTTPS dependencies, sharing one operation budget.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="HttpRequestException"></exception>
+        /// <exception cref="IOException"></exception>
+        /// <exception cref="FormatException"></exception>
         private async ValueTask<WotResolverResult> ResolveAsync(
             string reference, WotResolutionContext context, CancellationToken ct)
         {
@@ -498,7 +511,7 @@ namespace Opc.Ua.Mcp
                 {
                     throw new FormatException("Only one supported dependency content encoding is permitted.");
                 }
-                string encoding = string.Join(string.Empty, response.Content.Headers.ContentEncoding);
+                string encoding = string.Concat(response.Content.Headers.ContentEncoding);
                 using var compressed = new MemoryStream(bytes.ToArray(), writable: false);
                 using Stream decompressed = encoding.ToLowerInvariant() switch
                 {
@@ -518,6 +531,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Stores immutable document bytes and rejects conflicting content for the same declared reference.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         private WotDocument AddDocument(string reference, ByteString bytes, string contentType, string source)
         {
             RequireJsonContentType(contentType);
@@ -533,7 +548,7 @@ namespace Opc.Ua.Mcp
             {
                 throw new InvalidOperationException("The document count exceeds host policy.");
             }
-            WotDocument document = WotDocument.Parse(bytes.Memory, Options);
+            var document = WotDocument.Parse(bytes.Memory, Options);
             m_documents.Add(document);
             if (document.RootElement.ValueKind == JsonValueKind.Object &&
                 (long)document.Properties.Count + document.Actions.Count + document.Events.Count >
@@ -549,6 +564,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Accepts only media types the shared external-schema resolver understands.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private static void RequireJsonContentType(string contentType)
         {
             foreach (string supported in WotExternalSchemaResolver.ReadableContentTypes)
@@ -564,6 +580,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// A TD/TM root is an object; dependency schemas and contexts may also use other JSON value kinds.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private static void RequireObjectRoot(WotDocument document)
         {
             if (document.RootElement.ValueKind != JsonValueKind.Object)
@@ -595,8 +612,10 @@ namespace Opc.Ua.Mcp
                             (links && property.Name == "href")))
                     {
                         string reference = property.Value.GetString()!;
-                        if (!string.IsNullOrWhiteSpace(reference) && reference[0] != '#' &&
-                            reference.Length <= 4096 && !Uri.TryCreate(reference, UriKind.Absolute, out _) &&
+                        if (!string.IsNullOrWhiteSpace(reference) &&
+                            reference[0] != '#' &&
+                            reference.Length <= 4096 &&
+                            !Uri.TryCreate(reference, UriKind.Absolute, out _) &&
                             Uri.TryCreate(owner, reference, out Uri? targetUri) &&
                             string.IsNullOrEmpty(targetUri.UserInfo))
                         {
@@ -623,14 +642,16 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Uses the owner of an authored relative dependency rather than rebasing every link onto the primary input.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private string ResolveKey(string reference)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(reference);
             if (!Uri.TryCreate(reference, UriKind.Absolute, out _) &&
                 m_relativeReferences.TryGetValue(WithoutFragment(reference), out string? target))
             {
-                return target ?? throw new FormatException(
-                    "A relative dependency reference is ambiguous across documents; supply absolute references.");
+                return target ??
+                    throw new FormatException(
+                        "A relative dependency reference is ambiguous across documents; supply absolute references.");
             }
             return Key(reference);
         }
@@ -638,6 +659,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Resolves a document reference against its explicit base and strips fragments for body lookup.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="UnauthorizedAccessException"></exception>
         private string Key(string reference, Uri? owner = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(reference);
@@ -672,7 +695,6 @@ namespace Opc.Ua.Mcp
         private readonly McpFileTransfers m_files;
         private readonly IHttpClientFactory m_clients;
         private readonly Uri m_baseUri;
-        private readonly long m_maxTotalBytes;
         private readonly CancellationTokenSource m_timeout;
         private readonly Dictionary<string, ResolvedDocument> m_cache = new(StringComparer.Ordinal);
         private readonly List<WotDocument> m_documents = [];
