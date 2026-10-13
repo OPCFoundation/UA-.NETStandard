@@ -740,6 +740,115 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A timed-out restoration does not consume the cleanup budget of the next surviving item.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public async Task TimedOutRestorationDoesNotCancelFollowingItemsAsync(ManagerPath path)
+        {
+            var clock = new FakeTimeProvider();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory, clock);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("TimedOutRestoration", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("TimedOutRestoration", owner.NamespaceIndex)
+                };
+                root.CreateAsPredefinedNode(owner.SystemContext);
+                var first = new BaseObjectState(root)
+                {
+                    NodeId = new NodeId("FirstSurvivor", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("FirstSurvivor", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var second = new BaseObjectState(root)
+                {
+                    NodeId = new NodeId("SecondSurvivor", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("SecondSurvivor", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                first.CreateAsPredefinedNode(owner.SystemContext);
+                second.CreateAsPredefinedNode(owner.SystemContext);
+                root.AddChild(first);
+                root.AddChild(second);
+                await owner.AddNodeAsync(root).ConfigureAwait(false);
+                using MonitoredItem firstItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), first.NodeId, 2);
+                using MonitoredItem secondItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), second.NodeId, 3);
+                var firstLifecycle = (IDetachableMonitoredItem)firstItem;
+                var secondLifecycle = (IDetachableMonitoredItem)secondItem;
+                firstLifecycle.Detach(server.Object);
+                secondLifecycle.Detach(server.Object);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(firstItem).ConfigureAwait(false)), Is.True);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(secondItem).ConfigureAwait(false)), Is.True);
+
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int restorationCalls = 0;
+                owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
+                {
+                    if (!unsubscribe && Interlocked.Increment(ref restorationCalls) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                };
+                var deletionFailure = new InvalidOperationException("Injected deletion failure.");
+                owner.SetNodeRemovedCallback(removed =>
+                {
+                    if (ReferenceEquals(removed, root))
+                    {
+                        throw deletionFailure;
+                    }
+                });
+                Task<bool> deletion = owner.DeleteNodeAsync(root.NodeId).AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    clock.Advance(TimeSpan.FromSeconds(5) - TimeSpan.FromTicks(1));
+                    Assert.That(deletion.IsCompleted, Is.False);
+                    clock.Advance(TimeSpan.FromTicks(1));
+                    await Assert.ThatAsync(
+                        () => deletion.WaitAsync(TimeSpan.FromSeconds(10)),
+                        Throws.TypeOf<AggregateException>().With.InnerException.SameAs(deletionFailure))
+                        .ConfigureAwait(false);
+
+                    IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
+                        .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(restorationCalls, Is.EqualTo(2));
+                        Assert.That(remaining, Has.Count.EqualTo(1));
+                        Assert.That(firstLifecycle.IsDetached, Is.Not.EqualTo(secondLifecycle.IsDetached));
+                        Assert.That(firstLifecycle.IsDeleted, Is.False);
+                        Assert.That(secondLifecycle.IsDeleted, Is.False);
+                    }
+                }
+                finally
+                {
+                    owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                    release.TrySetResult(true);
+                    try
+                    {
+                        await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (AggregateException failure) when (
+                        failure.Flatten().InnerExceptions.Contains(deletionFailure))
+                    {
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task DurableStartupFallbackCanBeDeletedAndLaterRecoveredAsync()
         {
