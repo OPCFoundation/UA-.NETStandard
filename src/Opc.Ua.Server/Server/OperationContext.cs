@@ -400,23 +400,70 @@ namespace Opc.Ua.Server
         /// reusing the copy made for the previous call with the same template.
         /// </summary>
         /// <remarks>
-        /// Per-node node manager callbacks (permission and node metadata, reference
-        /// descriptions) otherwise clone the system context once for every node of a
-        /// request. The copies are equal for one request, so the last one is kept.
+        /// Node manager service calls and their per-node callbacks (permission and node
+        /// metadata, reference descriptions) otherwise clone the system context once for
+        /// every call or node of a request. The copies are equal for one request and
+        /// node manager, so one copy is kept per template. A request that touches several
+        /// node managers keeps one copy for each of them, so they do not evict each
+        /// other.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
         {
-            SystemContextCacheEntry? entry = m_systemContextCache;
-            if (entry != null && ReferenceEquals(entry.Template, template))
+            // The copy of the first node manager is kept on its own; it knows its template,
+            // so a request served by one node manager allocates no cache entry.
+            ServerSystemContext? first = m_firstSystemContext;
+            if (first != null && ReferenceEquals(first.CopiedFrom, template))
             {
-                return entry.Copy;
+                return first;
+            }
+
+            if (first == null)
+            {
+                ServerSystemContext firstCopy = template.Copy(this);
+                firstCopy.CopiedFrom = template;
+
+                // a concurrent caller may have published a copy for another template.
+                first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                {
+                    return first ?? firstCopy;
+                }
+            }
+
+            SystemContextCacheEntry? head = m_systemContextCache;
+            int count = 0;
+            for (SystemContextCacheEntry? entry = head; entry != null; entry = entry.Next)
+            {
+                if (ReferenceEquals(entry.Template, template))
+                {
+                    return entry.Copy;
+                }
+
+                count++;
             }
 
             ServerSystemContext copy = template.Copy(this);
-            m_systemContextCache = new SystemContextCacheEntry(template, copy);
+
+            // Entries are immutable and published as one reference. A concurrent caller
+            // that loses the race only costs one more copy later. A request touches few
+            // node managers; past the bound the list restarts instead of growing.
+            m_systemContextCache = new SystemContextCacheEntry(
+                template,
+                copy,
+                count < kMaxSystemContextCacheEntries ? head : null);
             return copy;
         }
+
+        /// <summary>
+        /// The most node managers after the first whose system context copies a request keeps.
+        /// </summary>
+        private const int kMaxSystemContextCacheEntries = 8;
+
+        /// <summary>
+        /// The system context copy of the first node manager the request called.
+        /// </summary>
+        private ServerSystemContext? m_firstSystemContext;
 
         /// <summary>
         /// A system context copy and the template it was made from, published as one
@@ -424,14 +471,19 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class SystemContextCacheEntry
         {
-            public SystemContextCacheEntry(ServerSystemContext template, ServerSystemContext copy)
+            public SystemContextCacheEntry(
+                ServerSystemContext template,
+                ServerSystemContext copy,
+                SystemContextCacheEntry? next)
             {
                 Template = template;
                 Copy = copy;
+                Next = next;
             }
 
             public ServerSystemContext Template { get; }
             public ServerSystemContext Copy { get; }
+            public SystemContextCacheEntry? Next { get; }
         }
 
         /// <summary>
