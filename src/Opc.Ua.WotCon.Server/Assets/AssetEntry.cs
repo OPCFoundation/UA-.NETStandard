@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Assets
 {
@@ -36,19 +37,50 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </summary>
     internal sealed class AssetEntry
     {
+        /// <summary>
+        /// Initializes a new <c>AssetEntry</c> instance.
+        /// </summary>
+        /// <param name="name">The name used to initialize <c>AssetEntry</c>.</param>
+        /// <param name="asset">The asset used to initialize the instance.</param>
         public AssetEntry(string name, IWoTAssetState asset)
         {
             Name = name;
             Asset = asset;
+            UnboundTypeDefinitionId = asset.TypeDefinitionId;
         }
 
         public string Name { get; }
 
         public IWoTAssetState Asset { get; }
 
+        /// <summary>
+        /// Gets the unbound type definition ID for <c>AssetEntry</c>.
+        /// </summary>
+        public NodeId UnboundTypeDefinitionId { get; }
+
+        /// <summary>
+        /// Gets or sets the native graph for <c>AssetEntry</c>.
+        /// </summary>
+        public WotLegacyPreparedGraph? NativeGraph { get; set; }
+
         public WotAssetFileManager? FileManager { get; set; }
 
         public IWotAssetProvider? Provider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the registry mirror for <c>AssetEntry</c>.
+        /// </summary>
+        public AssetRegistryMirror? RegistryMirror { get; set; }
+
+        /// <summary>
+        /// Gets or sets the deletion status for <c>AssetEntry</c>.
+        /// </summary>
+        public ServiceResult? DeletionStatus { get; set; }
+
+        /// <summary>
+        /// Gets or sets the registry delete requires recovery for <c>AssetEntry</c>.
+        /// </summary>
+        public bool RegistryDeleteRequiresRecovery { get; set; }
 
         /// <summary>
         /// Variables created from TD properties keyed by NodeId.
@@ -84,4 +116,13 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// </summary>
         public Dictionary<uint, OnWotValueChange> SubscriberCallbacks { get; } = [];
     }
+
+    /// <summary>
+    /// The registry and assigned resource identity backing a mirrored asset.
+    /// </summary>
+    /// <param name="Registry">The WoT registry service.</param>
+    /// <param name="GroupId">The group ID.</param>
+    /// <param name="ResourceId">The resource ID.</param>
+    internal sealed record AssetRegistryMirror(
+        IWotRegistryService Registry, string GroupId, string ResourceId, long Generation);
 }

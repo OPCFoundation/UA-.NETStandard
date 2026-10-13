@@ -119,8 +119,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(duplicate, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that validate syntax reports unperformed policies.
+        /// </summary>
         [Test]
-        public async Task ValidateValidDocumentReportsSuccess()
+        public async Task ValidateSyntaxReportsUnperformedPolicies()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -133,11 +136,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             WoTValidationOutcomeDataType outcome = await service.ValidateResourceAsync("sensors", "a");
 
-            Assert.That(outcome.FormatValidated, Is.True);
-            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(outcome.FormatValidated, Is.False);
+            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(outcome.FormatReason, Is.Not.Empty);
             WotResource? resource = service.Current.FindResource("sensors", "a");
             Assert.That(resource!.Validation, Is.Not.Null);
-            Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
         }
 
         [Test]

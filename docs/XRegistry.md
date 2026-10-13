@@ -44,6 +44,12 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
+The model assembly consumes the reviewed **0.7.0 draft** dated 2026-09-12,
+paired with the WoT Connectivity 1.1 draft. It preserves the existing namespace,
+numeric identities and native event hierarchy, and adds origin and canonical
+capability snapshot declarations. This is a draft model input, not a published
+release or a claim of runtime support for every new declaration.
+
 ## Core concepts
 
 ### Structural identity and content lookup
@@ -266,7 +272,7 @@ Version labels does not.
 
 ### Native xRegistry events
 
-The xRegistry 0.5.0 model includes `XRegistryEventType` and the 19 concrete registry, model,
+The xRegistry 0.7.0 companion model includes `XRegistryEventType` and the 19 concrete registry, model,
 capabilities, group, resource and version event types. The model source generator emits the typed
 `*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
 Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
@@ -327,6 +333,26 @@ disabled. Event-enabled strategies additionally implement
 immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and lets a domain honor
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
+
+`XRegistryProjectionContext.ProjectionDispatcher` optionally orders current-state
+reconciliation with a domain's notification delivery. The engine uses it for
+native mutation-triggered reconciliation as well as direct
+`ReconcileProjectionAsync` calls. Each dispatched operation uses its captured
+admission-time generation rather than rereading a later snapshot when it runs,
+so an earlier operation cannot apply later removals ahead of queued notifications.
+Supplied immutable transitions retain their
+caller's existing ordering and do not recursively dispatch. Without this
+callback, the engine retains its direct reconciliation behavior. The WoT registry
+uses its existing FIFO so native deletion cannot remove a Version/notifier ahead
+of an already queued failure. This callback does not create a new durable
+transaction or generation owner.
+
+Providers that need an asynchronous owner acquisition can opt into
+`IXRegistryAsyncProjectedResourceFileHandleForwarder`,
+`IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
+The existing file and logical pin tables still own the handles; synchronous providers
+retain their existing paths. The stock [WoT Version lease provider](WotRegistryVersionLeases.md)
+uses these capabilities without adding retention or activation options to the generic registrar.
 
 ## Server-side usage
 

@@ -39,6 +39,90 @@ namespace Opc.Ua.Server.Fluent
     public static class MonitoredSourceBuilderExtensions
     {
         /// <summary>
+        /// Registers a handoff callback for retained monitored items before
+        /// the source's subscriber count is reconciled.
+        /// </summary>
+        /// <param name="builder">The node builder.</param>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static INodeBuilder OnMonitoredItemAttached(
+            this INodeBuilder builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddAttachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a handoff callback before a retained monitored item is
+        /// removed from the source's subscriber count.
+        /// </summary>
+        /// <param name="builder">The node builder.</param>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static INodeBuilder OnMonitoredItemDetached(
+            this INodeBuilder builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddDetachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an attachment callback while preserving typed-variable chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static IVariableBuilder<TValue> OnMonitoredItemAttached<TValue>(
+            this IVariableBuilder<TValue> builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddAttachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a detachment callback while preserving typed-variable chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static IVariableBuilder<TValue> OnMonitoredItemDetached<TValue>(
+            this IVariableBuilder<TValue> builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddDetachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an attachment callback for retained virtual monitored items.
+        /// </summary>
+        /// <param name="builder">The virtual node builder.</param>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static IVirtualNodeBuilder OnMonitoredItemAttached(
+            this IVirtualNodeBuilder builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddAttachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a detachment callback for retained virtual monitored items.
+        /// </summary>
+        /// <param name="builder">The virtual node builder.</param>
+        /// <param name="handler">The monitored item attachment handler.</param>
+        public static IVirtualNodeBuilder OnMonitoredItemDetached(
+            this IVirtualNodeBuilder builder,
+            MonitoredItemAttachmentHandler handler)
+        {
+            GetRegistration(builder).AddDetachedHandler(handler);
+            return builder;
+        }
+
+        /// <summary>
         /// Invokes <paramref name="handler"/> when the first active
         /// data-change subscriber appears.
         /// </summary>
@@ -47,6 +131,22 @@ namespace Opc.Ua.Server.Fluent
             MonitoredSourceLifecycleHandler handler)
         {
             GetRegistration(builder).SetFirstSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes the handler when the first active subscriber to the selected
+        /// attribute appears. The first and last handlers must select the same attribute.
+        /// </summary>
+        /// <param name="builder">The node builder.</param>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static INodeBuilder OnFirstSubscriber(
+            this INodeBuilder builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler, attributeId);
             return builder;
         }
 
@@ -65,6 +165,23 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Selects the monitored attribute while preserving typed-variable chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static IVariableBuilder<TValue> OnFirstSubscriber<TValue>(
+            this IVariableBuilder<TValue> builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler, attributeId);
+            return builder;
+        }
+
+        /// <summary>
         /// Invokes <paramref name="handler"/> when the last active
         /// data-change subscriber disappears.
         /// </summary>
@@ -73,6 +190,22 @@ namespace Opc.Ua.Server.Fluent
             MonitoredSourceLifecycleHandler handler)
         {
             GetRegistration(builder).SetLastSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes the handler when the last active subscriber to the selected
+        /// attribute disappears. The first and last handlers must select the same attribute.
+        /// </summary>
+        /// <param name="builder">The node builder.</param>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static INodeBuilder OnLastSubscriber(
+            this INodeBuilder builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler, attributeId);
             return builder;
         }
 
@@ -91,6 +224,23 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Selects the monitored attribute while preserving typed-variable chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static IVariableBuilder<TValue> OnLastSubscriber<TValue>(
+            this IVariableBuilder<TValue> builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler, attributeId);
+            return builder;
+        }
+
+        /// <summary>
         /// Invokes <paramref name="handler"/> when the first active
         /// data-change subscriber appears on a virtual node.
         /// </summary>
@@ -103,6 +253,22 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Invokes the handler for the first active subscriber to the selected
+        /// attribute on each materialized virtual node.
+        /// </summary>
+        /// <param name="builder">The virtual node builder.</param>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static IVirtualNodeBuilder OnFirstSubscriber(
+            this IVirtualNodeBuilder builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler, attributeId);
+            return builder;
+        }
+
+        /// <summary>
         /// Invokes <paramref name="handler"/> when the last active
         /// data-change subscriber disappears from a virtual node.
         /// </summary>
@@ -111,6 +277,22 @@ namespace Opc.Ua.Server.Fluent
             MonitoredSourceLifecycleHandler handler)
         {
             GetRegistration(builder).SetLastSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes the handler for the last active subscriber to the selected
+        /// attribute on each materialized virtual node.
+        /// </summary>
+        /// <param name="builder">The virtual node builder.</param>
+        /// <param name="attributeId">The attribute ID.</param>
+        /// <param name="handler">The monitored source lifecycle handler.</param>
+        public static IVirtualNodeBuilder OnLastSubscriber(
+            this IVirtualNodeBuilder builder,
+            uint attributeId,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler, attributeId);
             return builder;
         }
 

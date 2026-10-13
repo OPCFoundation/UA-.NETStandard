@@ -713,6 +713,37 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].SecurityFloor, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that separate event teardown forms are supported without duplicating subscription.
+        /// </summary>
+        [Test]
+        public void SeparateEventTeardownFormsAreSupportedWithoutDuplicatingSubscription()
+        {
+            WotBindingPlanRequest request = RequestFrom("""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Separate teardown",
+                  "events": {
+                    "alarm": {
+                      "forms": [
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "subscribeevent" },
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "unsubscribeevent" }
+                      ]
+                    }
+                  }
+                }
+                """);
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+
+            WotBindingPlan plan = registry.Prepare(request);
+
+            Assert.That(plan.UnsupportedForms, Is.Empty);
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.SubscribeEvent),
+                Is.EqualTo(1));
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.UnsubscribeEvent),
+                Is.EqualTo(1));
+        }
+
         [Test]
         public void EndpointSelectionDiscardsEverythingBelowTheFloor()
         {
@@ -794,6 +825,28 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             EndpointDescription? selected = OpcUaWotEndpointSelector.Select(endpoints, null);
 
             Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://named"));
+        }
+
+        /// <summary>
+        /// Verifies that a policy name suffix does not establish standard policy identity.
+        /// </summary>
+        /// <param name="policyUri">The policy URI used by this test case.</param>
+        [TestCase("https://vendor.example/policy#Aes256_Sha256_RsaPss")]
+        [TestCase("https://vendor.example/Aes256_Sha256_RsaPss")]
+        [TestCase("Aes256_Sha256_RsaPss")]
+        public void APolicyNameSuffixDoesNotEstablishStandardPolicyIdentity(string policyUri)
+        {
+            EndpointDescription unknown = Endpoint(
+                "opc.tcp://unknown", MessageSecurityMode.SignAndEncrypt, policyUri, 255);
+            EndpointDescription known = Endpoint(
+                "opc.tcp://known", MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, 1);
+            var floor = new WotSecurityFloor("SignAndEncrypt", "Basic256Sha256");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(OpcUaWotEndpointSelector.Satisfies(unknown, floor), Is.False);
+                Assert.That(OpcUaWotEndpointSelector.Select([unknown, known], null), Is.SameAs(known));
+            });
         }
 
         [Test]

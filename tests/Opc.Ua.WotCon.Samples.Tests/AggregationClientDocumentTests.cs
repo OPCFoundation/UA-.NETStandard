@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
@@ -38,6 +39,95 @@ namespace Opc.Ua.WotCon.Samples.Tests
     [TestFixture]
     public sealed class AggregationClientDocumentTests
     {
+        /// <summary>
+        /// Verifies that authored identity keeps exact document bytes.
+        /// </summary>
+        [Test]
+        public void AuthoredIdentityKeepsExactDocumentBytes()
+        {
+            byte[] content = Encoding.UTF8.GetBytes("{ \"id\" : \"urn:authored\", \"value\" : 1.00 }\r\n");
+
+            byte[] output = AggregationClientRunner.EnsureDocumentIdentity(content, "other-name");
+
+            Assert.That(output, Is.SameAs(content));
+            Assert.That(Encoding.UTF8.GetString(output), Does.Contain("\"urn:authored\""));
+        }
+
+        /// <summary>
+        /// Verifies that native fragment gets an explicit publisher identity without changing native facts.
+        /// </summary>
+        [Test]
+        public void NativeFragmentGetsAnExplicitPublisherIdentityWithoutChangingNativeFacts()
+        {
+            byte[] content = Encoding.UTF8.GetBytes(
+                """{"uav:id":"nsu=urn:model;i=42","uav:nodes":{"ns=1;i=42":{"value":1.00}},"x-vendor":"kept"}""");
+
+            byte[] output = AggregationClientRunner.EnsureDocumentIdentity(content, "model/type");
+
+            using JsonDocument document = JsonDocument.Parse(output);
+            Assert.That(document.RootElement.GetProperty("id").GetString(),
+                Is.EqualTo("urn:opcfoundation.org:UA:WotAggregation:document:model%2Ftype"));
+            Assert.That(document.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:model;i=42"));
+            Assert.That(document.RootElement.GetProperty("uav:nodes").GetRawText(),
+                Is.EqualTo("""{"ns=1;i=42":{"value":1.00}}"""));
+            Assert.That(document.RootElement.GetProperty("x-vendor").GetString(), Is.EqualTo("kept"));
+            Assert.That(Encoding.UTF8.GetString(content), Does.Not.Contain("WotAggregation:document"));
+        }
+
+        /// <summary>
+        /// Verifies that invalid publisher document reports decoding failure.
+        /// </summary>
+        [TestCase("{not json}")]
+        [TestCase("[]")]
+        [TestCase("null")]
+        public void InvalidPublisherDocumentReportsDecodingFailure(string content)
+        {
+            Assert.That(() => AggregationClientRunner.EnsureDocumentIdentity(
+                Encoding.UTF8.GetBytes(content), "invalid"),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        /// <summary>
+        /// Verifies that published links use source identities without rewriting opaque values or forms.
+        /// </summary>
+        [Test]
+        public void PublishedLinksUseSourceIdentitiesWithoutRewritingOpaqueValuesOrForms()
+        {
+            byte[] content = Encoding.UTF8.GetBytes("""
+                {
+                  "links":[{"href":"source#/schemaDefinitions/Reading"}],
+                  "uav:projects":[{"href":"source","uav:sourceName":"source"}],
+                  "properties":{"value":{"tm:ref":"source#/properties/Reading",
+                    "forms":[{"href":"source"}],"default":{"tm:ref":"source"}}},
+                  "events":{"alarm":{"uav:eventSelectClauses":[{"tm:ref":"source#/schemaDefinitions/Alarm"}]}},
+                  "uav:nodes":{"tm:ref":"source"},"x-vendor":{"links":[{"href":"source"}]}
+                }
+                """);
+            var identities = new Dictionary<string, string> { ["source"] = "urn:published:source" };
+
+            byte[] output = AggregationClientRunner.RewriteDocumentReferences(content, identities);
+
+            using JsonDocument document = JsonDocument.Parse(output);
+            JsonElement root = document.RootElement;
+            Assert.That(root.GetProperty("links")[0].GetProperty("href").GetString(),
+                Is.EqualTo("urn:published:source#/schemaDefinitions/Reading"));
+            Assert.That(root.GetProperty("uav:projects")[0].GetProperty("href").GetString(),
+                Is.EqualTo("urn:published:source"));
+            Assert.That(root.GetProperty("uav:projects")[0].GetProperty("uav:sourceName").GetString(),
+                Is.EqualTo("source"));
+            JsonElement value = root.GetProperty("properties").GetProperty("value");
+            Assert.That(value.GetProperty("tm:ref").GetString(),
+                Is.EqualTo("urn:published:source#/properties/Reading"));
+            Assert.That(value.GetProperty("forms")[0].GetProperty("href").GetString(), Is.EqualTo("source"));
+            Assert.That(value.GetProperty("default").GetProperty("tm:ref").GetString(), Is.EqualTo("source"));
+            Assert.That(root.GetProperty("events").GetProperty("alarm").GetProperty("uav:eventSelectClauses")[0]
+                .GetProperty("tm:ref").GetString(), Is.EqualTo("urn:published:source#/schemaDefinitions/Alarm"));
+            Assert.That(root.GetProperty("uav:nodes").GetProperty("tm:ref").GetString(), Is.EqualTo("source"));
+            Assert.That(root.GetProperty("x-vendor").GetProperty("links")[0].GetProperty("href").GetString(),
+                Is.EqualTo("source"));
+        }
+
         [Test]
         public void SubstitutionTargetsOnlyRootAndAffordanceForms()
         {

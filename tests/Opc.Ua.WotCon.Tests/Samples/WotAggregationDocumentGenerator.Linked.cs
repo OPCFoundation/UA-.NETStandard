@@ -50,6 +50,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Produces the entire demo closure in memory. Nothing is written until
         /// conversion, source binding and dependency validation have succeeded.
         /// </summary>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="repositoryRoot">The repository root.</param>
         public static async Task<ArrayOf<SampleDocument>> GenerateAggregationDocumentsAsync(
             string repositoryRoot,
             CancellationToken cancellationToken = default)
@@ -77,7 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             documents.AddRange(pumpDocuments);
             documents.AddRange(GenerateAssetProjectionDocuments(pumpDocuments));
 
-            ArrayOf<SampleDocument> result = documents.ToArrayOf();
+            var result = documents.ToArrayOf();
             GetManifestEntries(result);
             return result;
         }
@@ -114,6 +116,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Generates linked documents and proves reconstruction before returning
         /// them. A failed proof never writes a partial set of demo artifacts.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="source">The UA node set.</param>
+        /// <param name="resourcePrefix">The resource prefix.</param>
+        /// <param name="nodeResolver">The node resolver.</param>
         public static async Task<ArrayOf<SampleDocument>> GenerateVerifiedDocumentSetAsync(
             UANodeSet source,
             string resourcePrefix,
@@ -190,8 +197,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         continue;
                     }
-                    if (name is "href" or "tm:ref" && member is JsonValue text &&
-                        text.TryGetValue(out string? reference) && reference is not null)
+                    if (name is "href" or "tm:ref" &&
+                        member is JsonValue text &&
+                        text.TryGetValue(out string? reference) &&
+                        reference is not null)
                     {
                         int fragment = reference.IndexOf('#', StringComparison.Ordinal);
                         string href = fragment < 0 ? reference : reference[..fragment];
@@ -256,6 +265,22 @@ namespace Opc.Ua.WotCon.Tests.Samples
             IWotNodeResolver nodeResolver,
             CancellationToken cancellationToken)
         {
+            UANodeSet restored = await ReadPumpDocumentSetAsync(
+                documents, nodeResolver, cancellationToken).ConfigureAwait(false);
+            AssertEquivalentNodeSets(
+                WithBindingResidue(source, restored, declarations, documents), restored, "Bound pump documents");
+        }
+
+        /// <summary>
+        /// Restores linked pump documents with their complete native/readable context.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="nodeResolver">The node resolver.</param>
+        public static async Task<UANodeSet> ReadPumpDocumentSetAsync(
+            ArrayOf<SampleDocument> documents,
+            IWotNodeResolver? nodeResolver = null,
+            CancellationToken cancellationToken = default)
+        {
             var entries = new List<WotDocumentSetEntry>();
             try
             {
@@ -267,11 +292,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 using var set = new WotDocumentSet(PumpModelDirectory, entries.ToArrayOf());
                 entries.Clear();
-                UANodeSet restored = RequireValue(await WotNodeSetConverter.ToNodeSetAsync(
+                return RequireValue(await WotNodeSetConverter.ToNodeSetAsync(
                     set, CreateLargeDocumentOptions(), nodeResolver, cancellationToken).ConfigureAwait(false),
                     PumpModelDirectory);
-                AssertEquivalentNodeSets(
-                    WithBindingResidue(source, restored, declarations, documents), restored, "Bound pump documents");
             }
             finally
             {
@@ -286,6 +309,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Reads exactly the artifacts selected by the manifest, including
         /// linked directories rather than the retained standalone regressions.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <param name="documentsDirectory">The documents directory.</param>
         public static ArrayOf<SampleDocument> ReadManifestDocuments(string documentsDirectory)
         {
             using var manifest = JsonDocument.Parse(
@@ -313,6 +338,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// Computes logical and portable-node dependencies and a stable
         /// topological order. File enumeration order is not a dependency.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static ArrayOf<ManifestEntry> GetManifestEntries(ArrayOf<SampleDocument> documents)
         {
             var index = new Dictionary<string, SampleDocument>(StringComparer.Ordinal);
@@ -352,7 +378,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     throw new InvalidOperationException(
                         $"Cyclic sample document dependency at '{resourceId}': " +
-                        string.Join(" -> ", dependencyPath.Append(resourceId)) + ".");
+                        string.Join(" -> ", dependencyPath.Append(resourceId)) +
+                        ".");
                 }
                 dependencyPath.Add(resourceId);
                 foreach (string dependency in dependencies[resourceId])
@@ -442,9 +469,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static WoTDocumentKindEnum DocumentKind(JsonElement root)
         {
             if (root.TryGetProperty("@type", out JsonElement type) &&
-                (type.ValueKind == JsonValueKind.String && type.GetString() == "tm:ThingModel" ||
-                type.ValueKind == JsonValueKind.Array &&
-                type.EnumerateArray().Any(item => item.GetString() == "tm:ThingModel")))
+                ((type.ValueKind == JsonValueKind.String && type.GetString() == "tm:ThingModel") ||
+                    (type.ValueKind == JsonValueKind.Array &&
+                        type.EnumerateArray().Any(item => item.GetString() == "tm:ThingModel"))))
             {
                 return WoTDocumentKindEnum.ThingModel;
             }

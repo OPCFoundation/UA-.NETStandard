@@ -134,12 +134,22 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
-            return ReconcileCoreAsync(
-                suppliedGeneration: null,
-                previousEventSnapshot: null,
-                useSuppliedTransition: false,
-                emitEvents: false,
-                ct);
+            if (m_context.ProjectionDispatcher is { } dispatch)
+            {
+                if (m_registryNode is null)
+                {
+                    return default;
+                }
+                ct.ThrowIfCancellationRequested();
+                XRegistryProjectionGeneration generation = CaptureProjectionGeneration();
+                return dispatch(token => ReconcileCoreAsync(
+                    generation,
+                    previousEventSnapshot: null,
+                    useSuppliedTransition: false,
+                    emitEvents: false,
+                    token), ct);
+            }
+            return ReconcileCurrentProjectionAsync(ct);
         }
 
         /// <summary>
@@ -157,6 +167,16 @@ namespace Opc.Ua.XRegistry.Server
                 previousEventSnapshot,
                 useSuppliedTransition: true,
                 emitEvents: true,
+                ct);
+        }
+
+        private ValueTask ReconcileCurrentProjectionAsync(CancellationToken ct)
+        {
+            return ReconcileCoreAsync(
+                suppliedGeneration: null,
+                previousEventSnapshot: null,
+                useSuppliedTransition: false,
+                emitEvents: false,
                 ct);
         }
 

@@ -714,6 +714,12 @@ namespace Opc.Ua.Server
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
 
+        internal bool SupportsSourceEmissionCutoff =>
+            (m_monitoredItemManager.GetType() == typeof(MonitoredNodeMonitoredItemManager) ||
+                m_monitoredItemManager.GetType() == typeof(SamplingGroupMonitoredItemManager)) &&
+            m_monitoredItemManager.MonitoredItems.Values.All(item =>
+                item is null || item.GetType() == typeof(MonitoredItem));
+
         /// <inheritdoc/>
         async ValueTask<IReadOnlyList<IMonitoredItem>>
             INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
@@ -899,6 +905,10 @@ namespace Opc.Ua.Server
                 return validationResult;
             }
 
+            if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0)
+            {
+                return ServiceResult.Good;
+            }
             (ServiceResult readResult, _) = await ReadMonitoredValueAsync(
                 context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
             return IsFatalInitialReadError(readResult)
@@ -1061,6 +1071,8 @@ namespace Opc.Ua.Server
             }
 
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            bool externalValues =
+                (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
             DataValue initialValue = default;
             ServiceResult readResult = ServiceResult.Good;
             if (isEvent)
@@ -1082,11 +1094,14 @@ namespace Opc.Ua.Server
                     return validationResult;
                 }
 
-                (readResult, initialValue) = await ReadMonitoredValueAsync(
-                    context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
-                if (IsFatalInitialReadError(readResult))
+                if (!externalValues)
                 {
-                    return readResult;
+                    (readResult, initialValue) = await ReadMonitoredValueAsync(
+                        context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
+                    if (IsFatalInitialReadError(readResult))
+                    {
+                        return readResult;
+                    }
                 }
             }
 
@@ -1109,7 +1124,10 @@ namespace Opc.Ua.Server
                     }
                     if (!isEvent)
                     {
-                        sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                        if (!externalValues)
+                        {
+                            sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                        }
                         return result;
                     }
                     monitoredNode = handle.MonitoredNode;
@@ -7955,13 +7973,20 @@ namespace Opc.Ua.Server
         /// <param name="node">The notifier node.</param>
         /// <param name="e">The event.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnReportEventAsync(
+        protected virtual async ValueTask OnReportEventAsync(
             ISystemContext context,
             NodeState node,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            return Server.ReportEventAsync(context, e, cancellationToken);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            await Server.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -8586,6 +8611,12 @@ namespace Opc.Ua.Server
             {
                 if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
                 {
+                    bool admitted = MasterNodeManager.TryBeginCustomSourceCreation(Server, this, out var admission);
+                    using var creationAdmission = admission;
+                    if (!admitted)
+                    {
+                        return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
+                    }
                     if (m_monitoredItemManager is not ICustomMonitoredItemManager customManager)
                     {
                         return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
@@ -8637,6 +8668,19 @@ namespace Opc.Ua.Server
             bool created = false;
             try
             {
+                if (decision.QueueInitialValue &&
+                    dataChangeMonitoredItem is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                    {
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            dataChangeMonitoredItem,
+                            componentCacheReferenceAdded);
+                    }
+                    return (StatusCodes.BadConfigurationError, filterResult, null);
+                }
                 ServiceResult error = ServiceResult.Good;
                 if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
                     decision.QueueInitialValue)

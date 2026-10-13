@@ -70,10 +70,19 @@ namespace Opc.Ua.Server
         /// change notifications are a slice of <paramref name="rentedItems"/>, an array rented
         /// from <see cref="ArrayPool{T}.Shared"/> that is returned with the payload.
         /// </summary>
-        public NotificationMessageLease(NotificationMessage message, MonitoredItemNotification[]? rentedItems)
+        /// <param name="message">The leased message.</param>
+        /// <param name="rentedItems">The rented array that holds the data change notifications, if any.</param>
+        /// <param name="eventManager">
+        /// Releases the occurrence references of the event fields when the payload is recycled.
+        /// </param>
+        public NotificationMessageLease(
+            NotificationMessage message,
+            MonitoredItemNotification[]? rentedItems,
+            EventManager? eventManager = null)
         {
             Message = message ?? throw new ArgumentNullException(nameof(message));
             m_rentedItems = rentedItems;
+            m_eventManager = eventManager;
             m_references = 1;
         }
 
@@ -104,7 +113,7 @@ namespace Opc.Ua.Server
             int references = Interlocked.Decrement(ref m_references);
             if (references == 0)
             {
-                RecyclePayload(Message, m_rentedItems);
+                RecyclePayload(Message, m_rentedItems, m_eventManager);
             }
             else if (references < 0)
             {
@@ -119,7 +128,13 @@ namespace Opc.Ua.Server
         /// the rented array that holds its data change notifications to its array pool. The
         /// message must not be referenced by anyone afterwards.
         /// </summary>
-        internal static void RecyclePayload(NotificationMessage message, MonitoredItemNotification[]? rentedItems)
+        /// <param name="message">The message to recycle.</param>
+        /// <param name="rentedItems">The rented data change array to return, if any.</param>
+        /// <param name="eventManager">Releases the occurrence references of the event fields.</param>
+        internal static void RecyclePayload(
+            NotificationMessage message,
+            MonitoredItemNotification[]? rentedItems,
+            EventManager? eventManager = null)
         {
             ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
             for (int i = 0; i < data.Length; i++)
@@ -139,6 +154,7 @@ namespace Opc.Ua.Server
                     ReadOnlySpan<EventFieldList> events = enl.Events.Span;
                     for (int j = 0; j < events.Length; j++)
                     {
+                        eventManager?.ReleaseEventFields(events[j]);
                         (events[j] as IPooledEncodeable)?.Reuse();
                     }
                     (enl as IPooledEncodeable)?.Reuse();
@@ -154,6 +170,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly MonitoredItemNotification[]? m_rentedItems;
+        private readonly EventManager? m_eventManager;
         private int m_references;
     }
 

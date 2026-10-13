@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Moq;
+using Opc.Ua.Export;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
@@ -50,29 +51,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public List<WotCompiledForm> OpenedForms { get; } = [];
 
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="channel">The WoT binding channel.</param>
         public void SetChannel(WotCompiledForm form, IWotBindingChannel channel)
         {
-            m_openers[form] = () => new ValueTask<IWotBindingChannel>(channel);
+            m_openers[form] = _ => new ValueTask<IWotBindingChannel>(channel);
         }
 
+        /// <param name="form">The WoT compiled form.</param>
         public void SetOpener(WotCompiledForm form, Func<ValueTask<IWotBindingChannel>> opener)
+        {
+            m_openers[form] = _ => opener();
+        }
+
+        /// <param name="form">The WoT compiled form.</param>
+        public void SetOpener(
+            WotCompiledForm form, Func<CancellationToken, ValueTask<IWotBindingChannel>> opener)
         {
             m_openers[form] = opener;
         }
 
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotBindingChannel> OpenChannelAsync(
             WotCompiledForm form, CancellationToken cancellationToken = default)
         {
             OpenCount++;
             OpenedForms.Add(form);
-            if (m_openers.TryGetValue(form, out Func<ValueTask<IWotBindingChannel>>? opener))
+            if (m_openers.TryGetValue(form, out Func<CancellationToken, ValueTask<IWotBindingChannel>>? opener))
             {
-                return opener();
+                return opener(cancellationToken);
             }
             throw new InvalidOperationException($"No fake channel configured for form '{form.AffordanceName}'.");
         }
 
-        private readonly Dictionary<WotCompiledForm, Func<ValueTask<IWotBindingChannel>>> m_openers = [];
+        private readonly Dictionary<WotCompiledForm, Func<CancellationToken, ValueTask<IWotBindingChannel>>> m_openers =
+            [];
     }
 
     /// <summary>
@@ -95,6 +109,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnSubscribeEvent { get; set; }
 
+        /// <summary>
+        /// Gets or sets the on observe for <c>FakeWotBindingChannel</c>.
+        /// </summary>
+        public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnObserve { get; set; }
+
         public Func<ValueTask>? OnDispose { get; set; }
 
         public int ReadCount { get; private set; }
@@ -104,6 +123,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public int InvokeCount { get; private set; }
 
         public int SubscribeEventCount { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the observe count for <c>FakeWotBindingChannel</c>.
+        /// </summary>
+        public int ObserveCount { get; private set; }
 
         public int DisposeCount { get; private set; }
 
@@ -129,10 +153,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? throw new NotSupportedException();
         }
 
+        /// <param name="onNotification">The on notification.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotSubscription> ObserveAsync(
             Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            ObserveCount++;
+            return OnObserve?.Invoke(onNotification, cancellationToken) ?? throw new NotSupportedException();
         }
 
         public ValueTask<IWotSubscription> SubscribeEventAsync(
@@ -262,6 +289,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public Variant ArrayValue { get; set; } = Variant.Null;
 
+        /// <summary>
+        /// Gets or sets the node ID for <c>TestRootStructure</c>.
+        /// </summary>
+        public NodeId Target { get; set; }
+
         public ExpandedNodeId TypeId => TestRootType.EncodingId;
 
         public ExpandedNodeId BinaryEncodingId => TestRootType.EncodingId;
@@ -283,7 +315,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public object Clone()
         {
-            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue };
+            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue, Target = Target };
         }
 
         public IReadOnlyList<IStructureField> GetFields()
@@ -298,6 +330,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 0 => new Variant(A),
                 1 => ChildValue,
                 2 => ArrayValue,
+                3 => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(index))
             };
             set
@@ -316,6 +349,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     case 2:
                         ArrayValue = value;
                         break;
+                    case 3:
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
+                        break;
                 }
             }
         }
@@ -327,6 +366,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A" => new Variant(A),
                 "Child" => ChildValue,
                 "ArrayField" => ArrayValue,
+                "Target" => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(name))
             };
             set
@@ -344,6 +384,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         break;
                     case "ArrayField":
                         ArrayValue = value;
+                        break;
+                    case "Target":
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
                         break;
                 }
             }
@@ -366,6 +412,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new TestRootStructure();
         }
 
+        /// <param name="namespaceUris">The namespace URIs.</param>
         public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
         {
             return new StructureDefinition
@@ -391,6 +438,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         Name = "ArrayField",
                         DataType = Ua.DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension
+                    },
+                    new StructureField
+                    {
+                        Name = "Target",
+                        DataType = Ua.DataTypeIds.NodeId,
+                        ValueRank = ValueRanks.Scalar
                     }
                 ]
             };
@@ -536,6 +589,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public string StructTypeNodeIdText => $"ns={Ns};i={TestRootType.NumericId}";
 
+        /// <param name="nodeSet">The node set.</param>
+        public void Import(UANodeSet nodeSet)
+        {
+            Builder.Context.EncodeableFactory.Builder.AddOpcUa().Commit();
+            var imported = new NodeStateCollection();
+            nodeSet.Import(Builder.Context, imported);
+            foreach (NodeState node in imported)
+            {
+                m_nodes.Add(node.NodeId, node);
+            }
+        }
+
         public MethodState AddMethod(
             string name, ArrayOf<Argument> inputs, ArrayOf<Argument> outputs, BaseObjectState? parent = null)
         {
@@ -625,11 +690,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private int m_nextId = 10000;
         }
 
+        /// <param name="operation">The wo t binding capability enum.</param>
+        /// <param name="mapping">The WoT target mapping descriptor.</param>
+        /// <param name="affordanceName">The affordance name.</param>
+        /// <param name="formIndex">The form index.</param>
+        /// <param name="executable">The executable flag supplied by the caller.</param>
         public static WotCompiledForm Form(
             WoTBindingCapabilityEnum operation,
             WotTargetMappingDescriptor mapping,
             bool executable = true,
-            string affordanceName = "value")
+            string affordanceName = "value",
+            int formIndex = 0)
         {
             string opToken = operation switch
             {
@@ -643,7 +714,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotBindingIdentity("test", "1.0", "urn:test"),
                 WotAffordanceKind.Property,
                 affordanceName,
-                "/properties/" + affordanceName + "/forms/0",
+                "/properties/" + affordanceName + "/forms/" +
+                    formIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 operation,
                 opToken,
                 new WotEndpointDescriptor("test", null, -1, "test://x"),

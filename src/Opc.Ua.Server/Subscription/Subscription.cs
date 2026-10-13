@@ -119,7 +119,8 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger);
+                m_logger,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -296,7 +297,8 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage);
+                storedSubscription.LastSentMessage,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -2236,7 +2238,9 @@ namespace Opc.Ua.Server
                 var eventList = new EventFieldList[eventCount];
                 for (int ii = 0; ii < eventList.Length; ii++)
                 {
-                    eventList[ii] = events.Dequeue();
+                    EventFieldList fields = events.Dequeue();
+                    m_server.EventManager?.AdmitEventFields(fields);
+                    eventList[ii] = fields;
                 }
                 notificationCount += eventCount;
                 var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();

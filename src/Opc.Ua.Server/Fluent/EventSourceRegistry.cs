@@ -358,7 +358,26 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <param name="source">The node state.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask WaitUntilReadyAsync(NodeState source, CancellationToken cancellationToken)
+        {
+            return ReconcileAsync(source, true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes the zero-subscriber transition before another subscription can reactivate the source.
+        /// </summary>
+        /// <param name="source">The node state.</param>
+        public ValueTask WaitUntilReconciledAsync(NodeState source)
+        {
+            return ReconcileAsync(source, false, CancellationToken.None);
+        }
+
+        private ValueTask ReconcileAsync(
+            NodeState source,
+            bool waitForReadiness,
+            CancellationToken cancellationToken)
         {
             if (source is null)
             {
@@ -369,7 +388,7 @@ namespace Opc.Ua.Server.Fluent
             lock (m_sourcesLock)
             {
                 ThrowIfDisposed();
-                m_waiters.Add(new ReadinessWaiter(source, completion));
+                m_waiters.Add(new ReadinessWaiter(source, completion, waitForReadiness));
             }
             SignalReconcile();
             return new ValueTask(completion.Task.WaitAsync(cancellationToken));
@@ -496,6 +515,7 @@ namespace Opc.Ua.Server.Fluent
         {
             List<SourceEntry> snapshot;
             List<ReadinessWaiter> waiters;
+            Dictionary<SourceEntry, Exception>? failures = null;
             lock (m_sourcesLock)
             {
                 snapshot = [.. m_sources.Values];
@@ -533,6 +553,8 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
+                    failures ??= [];
+                    failures.Add(entry, ex);
                     entry.Ready.TrySetException(ex);
                     _ = entry.Ready.Task.Exception;
                     m_logger?.PublishReconcilePassFailedForBrowseId(
@@ -551,7 +573,11 @@ namespace Opc.Ua.Server.Fluent
                     {
                         continue;
                     }
-                    if (entry.WorkerCts is not null)
+                    if (failures is not null && failures.TryGetValue(entry, out Exception? failure))
+                    {
+                        ready.Add(Task.FromException(failure));
+                    }
+                    else if (waiter.WaitForReadiness && entry.WorkerCts is not null)
                     {
                         ready.Add(entry.Ready.Task);
                     }
@@ -1143,7 +1169,10 @@ namespace Opc.Ua.Server.Fluent
             public int LeakedFaulted;
         }
 
-        private sealed record ReadinessWaiter(NodeState Source, TaskCompletionSource<bool> Completion);
+        private sealed record ReadinessWaiter(
+            NodeState Source,
+            TaskCompletionSource<bool> Completion,
+            bool WaitForReadiness);
 
         private readonly FluentNodeManagerBase m_owner;
         private readonly ILogger m_logger;
@@ -1164,9 +1193,6 @@ namespace Opc.Ua.Server.Fluent
         private int m_disposed;
     }
 
-    /// <summary>
-    /// Source-generated log messages for EventSourceRegistry.
-    /// </summary>
     /// <summary>
     /// Releases the event sources when the owning node manager tears down.
     /// </summary>

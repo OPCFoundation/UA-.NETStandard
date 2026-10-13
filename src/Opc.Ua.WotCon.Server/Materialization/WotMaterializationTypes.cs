@@ -205,9 +205,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
     /// <summary>
     /// The payload the coordinator raises for each material event. The NodeManager
-    /// maps it to the generated <c>WoTResourceEventType</c> /
-    /// <c>WoTValidationFailureEventType</c> / <c>WoTLoadFailureEventType</c> /
-    /// <c>WoTBindingFailureEventType</c> / <c>WoTRefreshCompletedEventType</c>.
+    /// maps failures and refresh completion to their concrete generated EventTypes.
+    /// Resource notifications remain available to application subscribers without
+    /// instantiating the abstract <c>WoTResourceEventType</c> on the server.
     /// </summary>
     public sealed class WotMaterializationEventArgs : EventArgs
     {
@@ -297,15 +297,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// documents from a registry snapshot, so a Thing Description synthesized by
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
-    internal sealed class SnapshotThingResolver : IWotThingResolver
+    internal sealed class SnapshotThingResolver : IWotThingResolver, IWotCapturedDataTypeDefinitions
     {
+        /// <summary>
+        /// Initializes a new <c>SnapshotThingResolver</c> instance.
+        /// </summary>
+        /// <param name="snapshot">The WoT registry snapshot used to initialize the instance.</param>
+        /// <param name="contents">The contents used to initialize the instance.</param>
+        /// <param name="dataTypeDefinitions">The data type definitions used to initialize the instance.</param>
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
-            IReadOnlyDictionary<string, ByteString> contents)
+            IReadOnlyDictionary<string, ByteString> contents,
+            ArrayOf<WotDataTypeDefinitionSource> dataTypeDefinitions = default)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
+            DataTypeDefinitions = dataTypeDefinitions.IsNull ? [] : dataTypeDefinitions;
         }
+
+        /// <summary>
+        /// Gets the data type definitions for <c>SnapshotThingResolver</c>.
+        /// </summary>
+        public ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; }
 
         /// <summary>
         /// Resolves a Thing Description or Thing Model reference from the registry snapshot.

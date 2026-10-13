@@ -57,6 +57,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_native = new WotNativeOwnershipIndex(maxNodes);
         }
 
+        /// <param name="resourceXid">The resource xid.</param>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="root">The root.</param>
+        /// <param name="document">The byte string.</param>
         public void AddNodeSet(
             string resourceXid, UANodeSet nodeSet, ExpandedNodeId root, ByteString document)
         {
@@ -64,7 +68,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 document.Memory, new JsonDocumentOptions { MaxDepth = m_maxJsonDepth });
             string? rootIdentifier = json.RootElement.TryGetProperty("uav:id", out JsonElement identity) &&
                 identity.ValueKind == JsonValueKind.String ? identity.GetString() : null;
-            m_roots[resourceXid] = m_native.Add(nodeSet, rootIdentifier, root);
+            var nodes = new HashSet<ExpandedNodeId>();
+            m_roots[resourceXid] = m_native.Add(nodeSet, rootIdentifier, root, nodes);
+            m_partitionNodes[resourceXid] = nodes;
             if (json.RootElement.TryGetProperty("uav:nodes", out _) ||
                 json.RootElement.TryGetProperty("uav:nodeSet", out _))
             {
@@ -119,6 +125,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             m_native.Add(nodeSet, null, ExpandedNodeId.Null);
             m_declarations.Clear();
+        }
+
+        /// <param name="resourceXid">The resource xid.</param>
+        /// <param name="nodeId">The node identifier.</param>
+        public bool ContainsNode(string resourceXid, ExpandedNodeId nodeId)
+        {
+            return m_partitionNodes.TryGetValue(resourceXid, out HashSet<ExpandedNodeId>? nodes) &&
+                nodes.Contains(nodeId);
+        }
+
+        /// <param name="resourceXid">The resource xid.</param>
+        /// <param name="nodeId">The node identifier.</param>
+        public bool ContainsEventType(string resourceXid, ExpandedNodeId nodeId)
+        {
+            return m_roots.TryGetValue(resourceXid, out ExpandedNodeId root) &&
+                m_native.CanGenerateEvent(root, nodeId);
+        }
+
+        /// <param name="resourceXid">The resource xid.</param>
+        public ArrayOf<ExpandedNodeId> GetNodes(string resourceXid)
+        {
+            return m_partitionNodes.TryGetValue(resourceXid, out HashSet<ExpandedNodeId>? nodes)
+                ? nodes.ToArrayOf()
+                : [];
         }
 
         public async ValueTask<bool> IsDeclarationAsync(
@@ -186,6 +216,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly Dictionary<string, ArrayOf<WotResource>> m_parents = new(StringComparer.Ordinal);
         private readonly WotNativeOwnershipIndex m_native;
         private readonly Dictionary<string, ExpandedNodeId> m_roots = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, HashSet<ExpandedNodeId>> m_partitionNodes = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_nativeRoots = new(StringComparer.Ordinal);
     }
 }

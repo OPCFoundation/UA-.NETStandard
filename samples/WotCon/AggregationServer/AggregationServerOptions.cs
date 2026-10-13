@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
+using Opc.Ua.XRegistry.Server;
+
 namespace AggregationServer
 {
     /// <summary>
@@ -58,6 +62,18 @@ namespace AggregationServer
         /// Gets or sets the isolated PKI root shared by the server and upstream client.
         /// </summary>
         public string? PkiRoot { get; set; }
+
+        /// <summary>
+        /// Gets or sets the durable registry directory used by prepared publication.
+        /// </summary>
+        public string StorageFolder { get; set; } = Path.Combine(AppContext.BaseDirectory, "registry");
+
+        /// <summary>
+        /// Gets or sets the caller-owned document store.
+        /// Prepared publication requires genuine immutable content leases.
+        /// The provider owns content durability; the registry manifest remains file-backed.
+        /// </summary>
+        public IXRegistryResourceStore? ResourceStore { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum accepted document size.

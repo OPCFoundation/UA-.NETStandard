@@ -4,7 +4,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.XRegistry</PackageId>
     <RootNamespace>Opc.Ua.XRegistry</RootNamespace>
-    <Description>OPC UA xRegistry abstract registry base model (Annex B): content-addressed resource identity, companion NodeSet and shared registry abstractions.</Description>
+    <Description>OPC UA xRegistry 0.7.0 draft abstract registry model: structural entity identity, an independent content-addressed fast path and shared registry abstractions.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
