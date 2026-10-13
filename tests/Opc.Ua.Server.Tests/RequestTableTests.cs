@@ -83,6 +83,35 @@ namespace Opc.Ua.Server.Tests
             Assert.That(table.Contains(entry), Is.True);
         }
 
+        /// <summary>
+        /// Concurrent adds of the same entry place it once, so one remove takes it out and no
+        /// ghost entry is left behind.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentAddsOfTheSameEntryPlaceItOnceAsync()
+        {
+            var table = new RequestTable<TestEntry>(64);
+            for (int attempt = 0; attempt < 2000; attempt++)
+            {
+                var entry = new TestEntry((uint)attempt);
+                using var start = new Barrier(4);
+                var adders = new Task[4];
+                for (int ii = 0; ii < adders.Length; ii++)
+                {
+                    adders[ii] = Task.Run(() =>
+                    {
+                        start.SignalAndWait();
+                        table.Add(entry);
+                    });
+                }
+                await Task.WhenAll(adders).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                Assert.That(table.GetEntries(), Has.Count.EqualTo(1), $"attempt {attempt}");
+                Assert.That(table.Remove(entry), Is.True);
+                Assert.That(table.GetEntries(), Is.Empty, $"attempt {attempt}: ghost entry left");
+            }
+        }
+
         [Test]
         public void EntriesBeyondTheProbedSlotsOverflowAndAreStillTracked()
         {
@@ -173,7 +202,9 @@ namespace Opc.Ua.Server.Tests
 
             public uint TableKey { get; }
 
-            public int TableSlot { get; set; } = RequestTable<TestEntry>.kNoSlot;
+            public ref int TableSlot => ref m_tableSlot;
+
+            private int m_tableSlot = RequestTable<TestEntry>.kNoSlot;
         }
         /// <summary>
         /// A drain started while many requests are executing waits for each of

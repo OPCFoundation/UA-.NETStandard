@@ -45,9 +45,10 @@ namespace Opc.Ua.Server
         uint TableKey { get; }
 
         /// <summary>
-        /// The slot the entry occupies; written by the table only.
+        /// The slot the entry occupies, <see cref="RequestTable{T}.kNoSlot"/> when it is not in
+        /// a table; a field that only the table writes, with compare-and-swap.
         /// </summary>
-        int TableSlot { get; set; }
+        ref int TableSlot { get; }
     }
 
     /// <summary>
@@ -119,7 +120,10 @@ namespace Opc.Ua.Server
         /// <param name="entry">The entry.</param>
         public void Add(T entry)
         {
-            if (Contains(entry))
+            // Claim the entry first: of concurrent or repeated adds only one places it, so an
+            // entry is never in two slots.
+            ref int slot = ref entry.TableSlot;
+            if (Interlocked.CompareExchange(ref slot, kAddingSlot, kNoSlot) != kNoSlot)
             {
                 return;
             }
@@ -131,7 +135,7 @@ namespace Opc.Ua.Server
                 // the slot is recorded first, so whoever finds the entry in it can remove it.
                 if (Volatile.Read(ref m_slots[index]) == null)
                 {
-                    entry.TableSlot = index;
+                    Volatile.Write(ref slot, index);
                     if (Interlocked.CompareExchange(ref m_slots[index], entry, null) == null)
                     {
                         return;
@@ -141,8 +145,8 @@ namespace Opc.Ua.Server
 
             lock (m_overflowLock)
             {
+                Volatile.Write(ref slot, kOverflowSlot);
                 m_overflow.Add(entry);
-                entry.TableSlot = kOverflowSlot;
             }
 
             // the lock release is no full fence; registration must be one.
@@ -156,11 +160,13 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when this call removed the entry.</returns>
         public bool Remove(T entry)
         {
-            int slot = entry.TableSlot;
+            ref int slotField = ref entry.TableSlot;
+            int slot = Volatile.Read(ref slotField);
             if (slot >= 0 && slot < m_slots.Length)
             {
                 if (Interlocked.CompareExchange(ref m_slots[slot], null, entry) == entry)
                 {
+                    Volatile.Write(ref slotField, kNoSlot);
                     return true;
                 }
                 return false;
@@ -170,7 +176,12 @@ namespace Opc.Ua.Server
             {
                 lock (m_overflowLock)
                 {
-                    return m_overflow.Remove(entry);
+                    if (m_overflow.Remove(entry))
+                    {
+                        Volatile.Write(ref slotField, kNoSlot);
+                        return true;
+                    }
+                    return false;
                 }
             }
 
@@ -183,7 +194,7 @@ namespace Opc.Ua.Server
         /// <param name="entry">The entry.</param>
         public bool Contains(T entry)
         {
-            int slot = entry.TableSlot;
+            int slot = Volatile.Read(ref entry.TableSlot);
             if (slot >= 0 && slot < m_slots.Length)
             {
                 return ReferenceEquals(Volatile.Read(ref m_slots[slot]), entry);
@@ -234,13 +245,18 @@ namespace Opc.Ua.Server
                 T? entry = Interlocked.Exchange(ref m_slots[index], null);
                 if (entry != null)
                 {
+                    Volatile.Write(ref entry.TableSlot, kNoSlot);
                     entries.Add(entry);
                 }
             }
 
             lock (m_overflowLock)
             {
-                entries.AddRange(m_overflow);
+                foreach (T entry in m_overflow)
+                {
+                    Volatile.Write(ref entry.TableSlot, kNoSlot);
+                    entries.Add(entry);
+                }
                 m_overflow.Clear();
             }
             return entries;
@@ -261,6 +277,11 @@ namespace Opc.Ua.Server
         /// The slot of an entry in the overflow dictionary.
         /// </summary>
         private const int kOverflowSlot = -2;
+
+        /// <summary>
+        /// The slot of an entry that an <see cref="Add"/> has claimed and is placing.
+        /// </summary>
+        private const int kAddingSlot = -3;
         private const int kDefaultCapacity = 4096;
         private const int kProbeLimit = 16;
         private readonly T?[] m_slots;

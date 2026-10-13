@@ -1208,7 +1208,9 @@ namespace Opc.Ua.Server
             uint IRequestTableEntry.TableKey => unchecked((uint)m_validationId);
 
             /// <inheritdoc/>
-            int IRequestTableEntry.TableSlot { get; set; } = RequestTable<RequestValidationScope>.kNoSlot;
+            ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
+
+            private int m_tableSlot = RequestTable<RequestValidationScope>.kNoSlot;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="RequestValidationScope"/> class.

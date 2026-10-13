@@ -459,7 +459,9 @@ namespace Opc.Ua.Server
         uint IRequestTableEntry.TableKey => RequestId;
 
         /// <inheritdoc/>
-        int IRequestTableEntry.TableSlot { get; set; } = RequestTable<OperationContext>.kNoSlot;
+        ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
+
+        private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
 
         /// <summary>
         /// The most node managers after the first whose system context copies a request keeps.
