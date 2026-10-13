@@ -55,7 +55,7 @@ namespace Opc.Ua.XRegistry.Client
     /// client reuses every convenience method defined here.
     /// </para>
     /// </remarks>
-    public abstract class XRegistryClient
+    public abstract partial class XRegistryClient : IXRegistryFederationProvider
     {
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
@@ -124,7 +124,8 @@ namespace Opc.Ua.XRegistry.Client
             NamespaceIndex = (ushort)index;
             RegistryNodeId = registryNodeId.IsNull
                 ? new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex)
-                : registryNodeId;
+                : XRegistryNodeIdCopy.Own(registryNodeId);
+            m_registryIdentity = NodeId.ToExpandedNodeId(RegistryNodeId, session.NamespaceUris);
         }
 
         /// <summary>
@@ -554,6 +555,7 @@ namespace Opc.Ua.XRegistry.Client
                 (maj == major && min == minor && pat >= patch);
         }
 
+        private readonly ExpandedNodeId m_registryIdentity;
         private bool m_hierarchyChecked;
         private bool m_usesDistinctHierarchy;
     }

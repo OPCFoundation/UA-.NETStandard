@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SessionManager : ISessionManager, ISessionBindingProvider
+    public class SessionManager : ISessionManager, IServerSessionBindingProvider
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -1290,15 +1290,15 @@ namespace Opc.Ua.Server
             SessionBindingContext binding;
             ByteString originalClientChannelCertificate;
 
-            // Runs at admission and again at dispatch of every request. The session index
-            // and the activation-state table are concurrent collections, so the candidate
-            // snapshot is taken without the bindings lock; the check under the lock below
-            // confirms that the binding is still the committed one before it is returned.
+            // Runs at admission and again at dispatch of every request, so it takes no
+            // server-wide lock. The session index and the activation-state table are
+            // concurrent collections and DispatchBinding is published by every writer of
+            // the binding, so the candidate snapshot is lock free; the re-check at the end
+            // confirms that it is still the committed binding before it is returned.
             if (authenticationToken.IsNull ||
                 !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
                 !m_sessionActivationStates.TryGetValue(currentSession, out SessionActivationState? currentState) ||
-                currentState.IsCommitting ||
-                currentState.BindingContext is not SessionBindingContext currentBinding)
+                currentState.DispatchBinding is not SessionBindingContext currentBinding)
             {
                 return false;
             }
@@ -1323,18 +1323,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            lock (m_bindingsLock)
+            // The same binding instance with no activation committing means no commit,
+            // removal or commit in progress replaced it (a commit always creates a new
+            // instance). The token is mapped to a session object at most once and never
+            // again after it was removed, so finding it still mapped afterwards means it
+            // was mapped when the binding was read: both held at that instant, as under
+            // the lock the writers take.
+            if (!ReferenceEquals(state.DispatchBinding, binding) ||
+                !m_sessions.TryGetValue(authenticationToken, out ISession? committedSession) ||
+                !ReferenceEquals(committedSession, session))
             {
-                if (state.IsCommitting ||
-                    !ReferenceEquals(state.BindingContext, binding) ||
-                    !m_sessions.TryGetValue(authenticationToken, out ISession? committedSession) ||
-                    !ReferenceEquals(committedSession, session))
-                {
-                    return false;
-                }
-                context = binding;
-                return true;
+                return false;
             }
+            context = binding;
+            return true;
         }
 
         private void CommitSessionBinding(
@@ -1344,13 +1346,13 @@ namespace Opc.Ua.Server
         {
             lock (m_bindingsLock)
             {
-                state.IsCommitting = false;
                 // Shutdown can remove the session while authentication is awaiting a provider,
                 // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
                     !ReferenceEquals(current, session) ||
                     SessionTermination.IsClosingOrClaimed(session))
                 {
+                    state.IsCommitting = false;
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -1369,6 +1371,10 @@ namespace Opc.Ua.Server
                     m_channelSessionCounts[binding.SecureChannelId] = count + 1;
                 }
                 state.BindingContext = binding;
+                // Cleared only after the new binding is installed: clearing it first would
+                // republish the previous binding to lock-free lookups (DispatchBinding)
+                // while Session.Activate has already changed the session.
+                state.IsCommitting = false;
             }
         }
 
@@ -1573,6 +1579,10 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
+        /// <param name="requestHeader">The untrusted request header to validate.</param>
+        /// <param name="secureChannelContext">The channel carrying the request.</param>
+        /// <param name="requestType">The requested service.</param>
+        /// <param name="requestLifetime">The cancellation and lifetime of the request.</param>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<OperationContext> ValidateRequestAsync(
@@ -1586,6 +1596,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             ISession? session = null;
 
             try
@@ -2510,6 +2521,15 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
+            // Diagnostics changes are raised for every request; without a subscriber they
+            // must not take the server-wide event lock. Subscriptions are added under the
+            // lock, so a subscriber racing with this check misses at most this one event.
+            if (reason == SessionEventReason.DiagnosticsChanged &&
+                Volatile.Read(ref m_SessionDiagnosticsChanged) == null)
+            {
+                return;
+            }
+
             lock (m_eventLock)
             {
                 SessionEventHandler? handler = null;
@@ -2868,9 +2888,50 @@ namespace Opc.Ua.Server
 
             public long ActivationSequence { get; set; }
 
-            public SessionBindingContext? BindingContext { get; set; }
+            /// <summary>
+            /// The committed binding; written under the bindings lock.
+            /// </summary>
+            public SessionBindingContext? BindingContext
+            {
+                get => m_bindingContext;
+                set
+                {
+                    m_bindingContext = value;
+                    PublishDispatchBinding();
+                }
+            }
 
-            public bool IsCommitting { get; set; }
+            /// <summary>
+            /// An activation is between Session.Activate and the binding commit; written
+            /// under the bindings lock.
+            /// </summary>
+            public bool IsCommitting
+            {
+                get => m_isCommitting;
+                set
+                {
+                    m_isCommitting = value;
+                    PublishDispatchBinding();
+                }
+            }
+
+            /// <summary>
+            /// The binding requests may be dispatched under: <see cref="BindingContext"/>
+            /// while no activation is committing, otherwise <c>null</c>. Republished by
+            /// every writer of the two, so a single read gives a consistent pair without
+            /// the bindings lock. A commit always creates a new binding instance, so an
+            /// unchanged reference means the binding was not replaced.
+            /// </summary>
+            public SessionBindingContext? DispatchBinding => Volatile.Read(ref m_dispatchBinding);
+
+            private void PublishDispatchBinding()
+            {
+                Volatile.Write(ref m_dispatchBinding, m_isCommitting ? null : m_bindingContext);
+            }
+
+            private SessionBindingContext? m_bindingContext;
+            private bool m_isCommitting;
+            private SessionBindingContext? m_dispatchBinding;
 
             /// <summary>
             /// An ActivateSession holds the activation gate and was admitted; set and read
