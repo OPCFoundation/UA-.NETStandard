@@ -50,7 +50,11 @@ namespace Opc.Ua
     /// Admission and dispatch take no lock. Each owner has a lock-free FIFO, and the weighted
     /// round robin runs over a lock-free ready queue of turn tokens: an owner holds one token per
     /// queued request, up to its weight per turn, and queues for its next turn behind the other
-    /// owners when the last token of a turn is taken. A request is claimed exactly once, by
+    /// owners when the last token of a turn is taken. The weighting holds over time, not for every
+    /// window: a worker preempted between taking an owner's last token and publishing its next
+    /// turn leaves that owner without a queued token for the length of the stall, the
+    /// work-conserving dispatch serves the other owners meanwhile, and the lost share is not made
+    /// up afterwards. A request is claimed exactly once, by
     /// selection, cancellation or stop. The count bound is reserved atomically. Only a head that
     /// failed execution admission and the retirement of an empty owner FIFO use the owner's gate.
     /// </remarks>
