@@ -127,6 +127,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63587</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=63588</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=63590</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63593</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63003" BrowseName="1:AttributesType">
@@ -602,7 +603,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63549" BrowseName="1:ExternalReference" ParentNodeId="ns=1;i=63002" DataType="ExpandedNodeId" ValueRank="-1">
     <DisplayName>ExternalReference</DisplayName>
-    <Description>Federation link: an ExpandedNodeId identifying this resource in another (possibly remote) registry - the ServerUri identifies the hosting registry endpoint, the NamespaceUri and Identifier identify the group and resource. Present when the document is served by reference (xRegistry &lt;RESOURCE&gt;url).</Description>
+    <Description>Federation target identity, not a transport locator. On a logical proxy this identifies the remote logical Resource Object of FileType or a subtype, never a content-digest Variable. ServerIndex resolves through ServerArray to the logical ApplicationUri; NamespaceUri and Identifier identify the remote Node. An exact Version reference retains its explicit Version role and the logical owner's OriginRegistry.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -611,7 +612,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63550" BrowseName="1:ResourceUrl" ParentNodeId="ns=1;i=63002" DataType="String" ValueRank="-1">
     <DisplayName>ResourceUrl</DisplayName>
-    <Description>Federation link (string form): the URL from which the document can be obtained (xRegistry &lt;RESOURCE&gt;url), for example an opc.tcp endpoint plus browse path, or an HTTP URL.</Description>
+    <Description>An authorized discoverable transport locator (xRegistry &lt;RESOURCE&gt;url), for example an OPC UA endpoint or HTTP resource URL. It is not the logical ApplicationUri, registry identity or authority to fetch; endpoint relocation does not change OriginRegistry or the remote Resource identity.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1166,4 +1167,38 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63002</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="ns=1;i=63026" BrowseName="1:RegistryOriginDataType">
+    <DisplayName>RegistryOriginDataType</DisplayName>
+    <Description>Immutable origin-registry authority. Exactly one form is selected: a configured/verified stable OriginUri, or a trusted logical ApplicationUri plus portable registry-root NodeId. URI identity is compared exactly; a change creates a different source, not a transparent reconnect.</Description>
+    <Category>XREG-Federation</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63591</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63592</Reference>
+    </References>
+    <Definition Name="RegistryOriginDataType"><Field Name="OriginUri" DataType="i=23751"><Description>A non-empty configured/verified stable origin URI, with the other fields empty/null; otherwise empty and the complete ServerUri/RegistryNodeId pair is authoritative.</Description></Field><Field Name="ServerUri" DataType="i=23751"><Description>The trusted logical ApplicationUri for the paired form, not an endpoint URL. Empty in the stable OriginUri form.</Description></Field><Field Name="RegistryNodeId" DataType="i=18"><Description>The portable registry-root NodeId for the paired form, in ServerUri's application; null in the stable OriginUri form. A session-local namespace/server index is not durable identity.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63591" BrowseName="Default Binary" ParentNodeId="ns=1;i=63026">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63026</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63592" BrowseName="Default JSON" ParentNodeId="ns=1;i=63026">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63026</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63593" BrowseName="1:OriginRegistry" ParentNodeId="ns=1;i=63002" DataType="ns=1;i=63026" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>OriginRegistry</DisplayName>
+    <Description>The immutable trusted origin registry of this local logical proxy or mirror. Conditionally Mandatory when the corrected XREG-Federation contract is supported. Resource-scoped with ExternalReference, not delegated through the selected default Version. Exact mirrored Versions use their logical owner's origin; ordinary local Resources and Versions do not instantiate a redundant copy.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63002</Reference>
+    </References>
+  </UAVariable>
 </UANodeSet>
