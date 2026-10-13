@@ -872,7 +872,7 @@ namespace Opc.Ua.Wot
 
         /// <param name="document">The WoT document.</param>
         /// <param name="reference">The JSON element.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics for an invalid standard DataType reference.</param>
         internal static bool ValidateStandardDataTypeReference(
             WotDocument document,
             JsonElement reference,
@@ -2979,8 +2979,8 @@ namespace Opc.Ua.Wot
 
             /// <param name="document">The WoT document.</param>
             /// <param name="schema">The JSON element.</param>
-            /// <param name="name">The name.</param>
-            /// <param name="identity">The identity.</param>
+            /// <param name="name">The DataType name to register.</param>
+            /// <param name="identity">The identity of the schema that owns the name.</param>
             public void AddName(WotDocument document, JsonElement schema, string name, string identity)
             {
                 if (TrySplitCompactName(document, name, out string namespaceUri, out string local, schema))

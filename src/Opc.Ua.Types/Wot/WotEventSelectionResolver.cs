@@ -605,7 +605,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="explicitClauses">The explicit clauses.</param>
         /// <param name="resolvePrefix">The resolve prefix.</param>
-        /// <param name="baseline">The baseline.</param>
+        /// <param name="baseline">The baseline clauses; those named by an explicit clause are removed.</param>
         internal static ArrayOf<WotResolvedEventSelectClause> Overlay(
             List<WotResolvedEventSelectClause> baseline,
             List<WotResolvedEventSelectClause> explicitClauses,

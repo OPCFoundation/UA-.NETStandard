@@ -52,8 +52,8 @@ namespace Opc.Ua.Wot
         /// caused it is still in hand.
         /// </remarks>
         /// <param name="nestedOnly">The nested only.</param>
-        /// <param name="items">The items.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="items">The selected items checked against the nested-only DataTypes.</param>
+        /// <param name="diagnostics">Collects a diagnostic for each refused selection.</param>
         internal static void ValidateNestedOnlySelection(
             HashSet<string> nestedOnly,
             List<UANode> items,

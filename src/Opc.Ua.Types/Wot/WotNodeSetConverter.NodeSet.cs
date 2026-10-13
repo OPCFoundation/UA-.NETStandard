@@ -658,7 +658,7 @@ namespace Opc.Ua.Wot
         /// <c>{ "@id": iri, "@language": null }</c>.
         /// </summary>
         /// <param name="definition">The JSON element.</param>
-        /// <param name="iri">The iri.</param>
+        /// <param name="iri">The IRI the term definition must name.</param>
         internal static bool IsLanguageFreeAlias(JsonElement definition, string iri)
         {
             return IsLocalizedTextAlias(definition, iri) &&
@@ -666,7 +666,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="definition">The JSON element.</param>
-        /// <param name="iri">The iri.</param>
+        /// <param name="iri">The IRI the term definition must name.</param>
         internal static bool IsLocalizedTextAlias(JsonElement definition, string iri)
         {
             if (definition.ValueKind != JsonValueKind.Object)

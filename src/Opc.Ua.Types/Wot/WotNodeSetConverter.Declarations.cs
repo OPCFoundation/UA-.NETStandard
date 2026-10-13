@@ -377,8 +377,8 @@ namespace Opc.Ua.Wot
         /// <param name="type">The UA node.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="references">The WoT reference type names.</param>
-        /// <param name="nodes">The nodes.</param>
-        /// <param name="detail">The detail.</param>
+        /// <param name="nodes">The nodes of the NodeSet indexed by NodeId.</param>
+        /// <param name="detail">Receives the reason the declarations cannot be described, or <c>null</c>.</param>
         internal static ArrayOf<WotTypeDeclaration> DescribeNativeTypeDeclarations(
             UANode type,
             UANodeSet nodeSet,

@@ -509,7 +509,7 @@ namespace Opc.Ua.Wot
             int serverCount)
         {
             /// <param name="allowRemote">The allow-remote flag supplied by the caller.</param>
-            /// <param name="text">The text.</param>
+            /// <param name="text">The NodeId text to normalize, or <c>null</c>.</param>
             public string? NodeId(string? text, bool allowRemote = false)
             {
                 if (string.IsNullOrEmpty(text))

@@ -87,7 +87,7 @@ namespace Opc.Ua.Wot
         /// <exception cref="InvalidOperationException"></exception>
         /// <param name="documents">The WoT document set.</param>
         /// <param name="options">The WoT node set converter options.</param>
-        /// <param name="partitions">The partitions.</param>
+        /// <param name="partitions">The converted NodeSet partitions to merge.</param>
         public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,
@@ -106,7 +106,7 @@ namespace Opc.Ua.Wot
         /// <param name="documents">The WoT document set.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        /// <param name="partitions">The partitions.</param>
+        /// <param name="partitions">The converted NodeSet partitions to merge.</param>
         public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,

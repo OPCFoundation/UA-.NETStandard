@@ -406,9 +406,9 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="owner">The JSON element.</param>
         /// <param name="vocabulary">The vocabulary flag supplied by the caller.</param>
-        /// <param name="value">The value.</param>
-        /// <param name="origin">The origin.</param>
-        /// <param name="identity">The identity.</param>
+        /// <param name="value">The authored semantic identifier text to expand.</param>
+        /// <param name="origin">The description of where the value was authored, for diagnostics.</param>
+        /// <param name="identity">Receives the expanded semantic identity.</param>
         internal static bool TryExpandSemanticIdentity(
             string value, WotDocument document, JsonElement owner, string origin,
             bool vocabulary, out string identity)

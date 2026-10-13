@@ -75,8 +75,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
-        /// <param name="locale">The locale.</param>
+        /// <param name="diagnostics">Collects diagnostics reported while reading the retained metadata.</param>
+        /// <param name="locale">Receives the retained document locale, or <c>null</c> when none is retained.</param>
         internal static bool TryGetDocumentLocale(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -125,7 +125,7 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="resolvedDefinitionBinding">The resolved definition binding.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics reported while replacing the retained residue.</param>
         public static void Replace(
             UANodeSet nodeSet,
             WotDocument document,
@@ -285,7 +285,7 @@ namespace Opc.Ua.Wot
         /// <param name="generatedJson">The generated JSON.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics reported while applying the retained residue.</param>
         public static byte[] Apply(
             byte[] generatedJson,
             UANodeSet nodeSet,

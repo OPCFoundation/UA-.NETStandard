@@ -56,7 +56,7 @@ namespace Opc.Ua.Wot
 
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics reported while writing the projection.</param>
         public static byte[] Write(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -107,7 +107,7 @@ namespace Opc.Ua.Wot
 
         /// <param name="projection">The JSON element.</param>
         /// <param name="options">The WoT node set converter options.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics reported while reading the projection.</param>
         public static UANodeSet? Read(
             JsonElement projection,
             WotNodeSetConverterOptions options,

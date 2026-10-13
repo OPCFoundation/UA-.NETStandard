@@ -155,7 +155,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="nodeSet">The node set.</param>
-        /// <param name="locale">The locale.</param>
+        /// <param name="locale">Receives the selection locale the native text does not encode.</param>
         internal static bool TryGetUnrepresentedDocumentLocale(
             WotDocument document, UANodeSet nodeSet, out string? locale)
         {
@@ -217,7 +217,7 @@ namespace Opc.Ua.Wot
         /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="carryingNode">The carrying node.</param>
-        /// <param name="term">The term.</param>
+        /// <param name="term">The context term whose language is read, or <c>null</c> for the default.</param>
         internal static string? GetDeclaredLocale(
             WotDocument document, JsonElement carryingNode = default, string? term = null)
         {
@@ -573,8 +573,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="element">The JSON element.</param>
-        /// <param name="singular">The singular.</param>
-        /// <param name="plural">The plural.</param>
+        /// <param name="singular">The member name of the single localized value.</param>
+        /// <param name="plural">The member name of the localized value map.</param>
         internal static string? ReadSelectedLocalizedTextLocale(
             WotDocument document, JsonElement element, string singular, string plural)
         {
@@ -589,8 +589,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="element">The JSON element.</param>
-        /// <param name="singular">The singular.</param>
-        /// <param name="plural">The plural.</param>
+        /// <param name="singular">The member name of the single localized value.</param>
+        /// <param name="plural">The member name of the localized value map.</param>
         internal static string? PreservedTextLanguage(
             WotDocument document, JsonElement element, string singular, string plural)
         {

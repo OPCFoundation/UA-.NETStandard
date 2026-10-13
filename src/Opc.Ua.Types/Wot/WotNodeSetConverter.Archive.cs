@@ -42,7 +42,7 @@ namespace Opc.Ua.Wot
         /// <param name="baseline">The UA node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="archiveContext">The archive context.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="diagnostics">Collects diagnostics for preserved facts that do not match.</param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
@@ -736,8 +736,8 @@ namespace Opc.Ua.Wot
         /// <param name="identities">The UA node set.</param>
         /// <param name="aliases">The node set alias resolver.</param>
         /// <param name="actionPointer">The action pointer.</param>
-        /// <param name="member">The member.</param>
-        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="member">The Method argument member, input or output, whose layouts are compared.</param>
+        /// <param name="diagnostics">Collects diagnostics for argument schemas that do not match.</param>
         internal static bool PreservedArgumentSchemasMatch(
             WotDocument authoredDocument,
             JsonElement authoredAction,
