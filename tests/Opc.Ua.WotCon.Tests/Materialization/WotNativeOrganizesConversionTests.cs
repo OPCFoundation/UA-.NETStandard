@@ -32,8 +32,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -72,7 +74,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 contents[version.DigestHex] = ByteString.From(
                     resource == featuresResource ? features : deviceSet);
             }
-            var converter = new WotNodeSetDocumentConverter();
+            var converter = new WotNodeSetDocumentConverter(addressSpace: CreateCoreAddressSpace());
 
             WotConversionOutput output = await converter.ConvertAsync(
                 setResource, ByteString.From(deviceSet), registry.Current, contents, CancellationToken.None)
@@ -94,6 +96,58 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(namespaces.GetString(target.NamespaceIndex), Is.EqualTo(DiNamespace));
             Assert.That(target.TryGetValue(out uint identifier), Is.True);
             Assert.That(identifier, Is.EqualTo(15034u));
+        }
+
+        /// <summary>
+        /// Builds the loaded-AddressSpace half of the WoT Binding Section 5.1.5
+        /// local context for a Server holding the standard core model, so the
+        /// documents' <c>ua:HasTypeDefinition</c> link to BaseObjectType (i=58)
+        /// resolves instead of being reported as missing.
+        /// </summary>
+        private static AddressSpaceWotNodeResolver CreateCoreAddressSpace()
+        {
+            var namespaceUris = new NamespaceTable();
+            var typeTable = new TypeTable(namespaceUris);
+            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
+
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager
+                .Setup(m => m.GetNodeMetadataAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, object handle, BrowseResultMask _, CancellationToken _) =>
+                    new ValueTask<NodeMetadata>(new NodeMetadata(handle, (NodeId)handle)
+                    {
+                        NodeClass = NodeClass.ObjectType,
+                        BrowseName = new QualifiedName("BaseObjectType")
+                    }));
+
+            var master = new Mock<IMasterNodeManager>();
+            master
+                .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId nodeId, CancellationToken _) =>
+                    new ValueTask<(object?, IAsyncNodeManager?)>(
+                        nodeId == Opc.Ua.ObjectTypeIds.BaseObjectType
+                            ? (nodeId, nodeManager.Object)
+                            : ((object?)null, (IAsyncNodeManager?)null)));
+            master
+                .Setup(m => m.BrowseAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<(ArrayOf<BrowseResult>, ArrayOf<DiagnosticInfo>)>((
+                    new ArrayOf<BrowseResult>(new[] { new BrowseResult { StatusCode = StatusCodes.Good } }),
+                    ArrayOf<DiagnosticInfo>.Empty)));
+
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.TypeTree).Returns(typeTable);
+            server.Setup(s => s.NodeManager).Returns(master.Object);
+            return new AddressSpaceWotNodeResolver(server.Object);
         }
 
         private static async Task<WotResource> UpsertAsync(
