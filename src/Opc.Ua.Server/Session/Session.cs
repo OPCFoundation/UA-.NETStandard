@@ -1190,9 +1190,13 @@ namespace Opc.Ua.Server
                 unusedUserTokenNonce = TakePreparedUserTokenNonce();
                 m_consumedUserTokenNonce = null;
 
-                // update the contact time; an expiry already observed stays expired.
-                TryRefreshLastContact();
-                WriteContactUtcTicks(m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                // update the contact time; an expiry already observed stays expired, and
+                // then the diagnostic contact time is not advanced either. Stamped even when
+                // the tick count did not advance, so the activation itself is recorded.
+                if (TryRefreshLastContact())
+                {
+                    WriteContactUtcTicks(m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                }
             }
             retiredUserTokenNonce?.Dispose();
             unusedUserTokenNonce?.Dispose();
@@ -1858,16 +1862,21 @@ namespace Opc.Ua.Server
 
             uint total = 0;
             uint errors = 0;
+            uint unauthorized = 0;
             for (int ii = 0; ii < kRequestTypeCount; ii++)
             {
-                uint requests = TakePending(ii * 2);
-                uint failed = TakePending((ii * 2) + 1);
-                if (requests == 0 && failed == 0)
+                // Each request is one packed delta, so a fold takes whole requests: an error
+                // is never counted without its request, nor an unauthorized one without its error.
+                if (Volatile.Read(ref m_pendingRequestCounts[ii]) == 0)
                 {
                     continue;
                 }
+                ulong pending = unchecked((ulong)Interlocked.Exchange(ref m_pendingRequestCounts[ii], 0));
+                uint requests = (uint)(pending & kTotalMask);
+                uint failed = (uint)((pending >> kErrorShift) & kErrorMask);
                 total += requests;
                 errors += failed;
+                unauthorized += (uint)(pending >> kUnauthorizedShift);
                 ServiceCounterDataType? counter = GetServiceCounter((RequestType)ii);
                 if (counter != null)
                 {
@@ -1877,14 +1886,7 @@ namespace Opc.Ua.Server
             }
             SessionDiagnostics.TotalRequestCount.TotalCount += total;
             SessionDiagnostics.TotalRequestCount.ErrorCount += errors;
-            SessionDiagnostics.UnauthorizedRequestCount += TakePending(kRequestTypeCount * 2);
-        }
-
-        private uint TakePending(int slot)
-        {
-            return Volatile.Read(ref m_pendingRequestCounts[slot]) == 0
-                ? 0
-                : unchecked((uint)Interlocked.Exchange(ref m_pendingRequestCounts[slot], 0));
+            SessionDiagnostics.UnauthorizedRequestCount += unauthorized;
         }
 
         /// <summary>
@@ -1908,13 +1910,22 @@ namespace Opc.Ua.Server
                     $"Unexpected RequestType {requestType}");
             }
 
-            Interlocked.Increment(ref m_pendingRequestCounts[slot * 2]);
-            if (error)
+            long delta = !error
+                ? 1L
+                : authorizationError
+                    ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                    : 1L + (1L << kErrorShift);
+            ulong pending = unchecked((ulong)Interlocked.Add(ref m_pendingRequestCounts[slot], delta));
+
+            // Without a diagnostics reader nothing folds the slots; fold before a field can
+            // carry into the next one. Every field has half its range left as headroom for
+            // the requests that add concurrently until the fold has taken the slot.
+            if ((pending & kTotalMask) >= kTotalFoldThreshold ||
+                ((pending >> kErrorShift) & kErrorMask) >= kErrorFoldThreshold)
             {
-                Interlocked.Increment(ref m_pendingRequestCounts[(slot * 2) + 1]);
-                if (authorizationError)
+                lock (m_diagnosticsLock)
                 {
-                    Interlocked.Increment(ref m_pendingRequestCounts[kRequestTypeCount * 2]);
+                    FoldPendingDiagnosticsLocked();
                 }
             }
 
@@ -2035,11 +2046,19 @@ namespace Opc.Ua.Server
         private long m_foldedContactUtcTicks;
 
         /// <summary>
-        /// Request counts not yet applied to <see cref="SessionDiagnostics"/>: total and
-        /// error count per <see cref="RequestType"/>, then the unauthorized count.
+        /// Request counts not yet applied to <see cref="SessionDiagnostics"/>, one packed
+        /// slot per <see cref="RequestType"/> so that a request is recorded with a single
+        /// interlocked add: bits 0-31 total, 32-47 errors, 48-63 unauthorized. Unauthorized
+        /// requests are a subset of the errors, so the error threshold also bounds them.
         /// </summary>
-        private readonly long[] m_pendingRequestCounts = new long[(kRequestTypeCount * 2) + 1];
+        private readonly long[] m_pendingRequestCounts = new long[kRequestTypeCount];
         private const int kRequestTypeCount = (int)RequestType.UnregisterNodes + 1;
+        private const int kErrorShift = 32;
+        private const int kUnauthorizedShift = 48;
+        private const ulong kTotalMask = 0xFFFF_FFFF;
+        private const ulong kErrorMask = 0xFFFF;
+        private const ulong kTotalFoldThreshold = 0x8000_0000;
+        private const ulong kErrorFoldThreshold = 0x8000;
 
         /// <summary>
         /// Marks <see cref="m_lastContactTickCount"/> as expired; tick counts stay far below it.

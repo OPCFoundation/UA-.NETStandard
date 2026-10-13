@@ -164,8 +164,11 @@ namespace Opc.Ua.Server.Tests
                 uint last = 0;
                 while (!stop.IsCancellationRequested)
                 {
-                    uint total = session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount);
-                    if (total < last)
+                    (uint total, bool consistent) = session.ReadDiagnostics(d => (
+                        d.TotalRequestCount.TotalCount,
+                        d.WriteCount.ErrorCount <= d.WriteCount.TotalCount &&
+                            d.UnauthorizedRequestCount <= d.TotalRequestCount.ErrorCount));
+                    if (total < last || !consistent)
                     {
                         return false;
                     }
@@ -191,7 +194,8 @@ namespace Opc.Ua.Server.Tests
             }
             await Task.WhenAll(workers).ConfigureAwait(false);
             stop.Cancel();
-            Assert.That(await reader.ConfigureAwait(false), Is.True, "The total request count went backwards.");
+            Assert.That(await reader.ConfigureAwait(false), Is.True,
+                "The total request count went backwards, or an error was counted without its request.");
 
             session.ReadDiagnostics(d =>
             {
@@ -204,6 +208,44 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(d.BrowseCount.TotalCount, Is.EqualTo((uint)(kThreads * kRequests / 2)));
                 Assert.That(d.WriteCount.TotalCount, Is.EqualTo((uint)(kThreads * kRejected)));
                 Assert.That(d.WriteCount.ErrorCount, Is.EqualTo((uint)(kThreads * kRejected)));
+                return true;
+            });
+        }
+
+        /// <summary>
+        /// Without a diagnostics reader nothing applies the pending request counts, so the
+        /// recording request folds them before a packed field could carry into the next:
+        /// more rejected requests than the error field holds must still be counted exactly.
+        /// </summary>
+        [Test]
+        public async Task PendingCountsFoldBeforeTheyOverflowWithoutAReaderAsync()
+        {
+            const int kRejected = 70_000;
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var otherChannel = new SecureChannelContext("other-channel", harness.Endpoint, RequestEncoding.Binary);
+            var header = new RequestHeader { AuthenticationToken = created.AuthenticationToken };
+            uint baseline = session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount);
+
+            for (int ii = 0; ii < kRejected; ii++)
+            {
+                try
+                {
+                    session.ValidateRequest(header, otherChannel, RequestType.Write);
+                }
+                catch (ServiceResultException)
+                {
+                }
+            }
+
+            session.ReadDiagnostics(d =>
+            {
+                Assert.That(d.TotalRequestCount.TotalCount - baseline, Is.EqualTo((uint)kRejected));
+                Assert.That(d.TotalRequestCount.ErrorCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.UnauthorizedRequestCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.WriteCount.TotalCount, Is.EqualTo((uint)kRejected));
+                Assert.That(d.WriteCount.ErrorCount, Is.EqualTo((uint)kRejected));
                 return true;
             });
         }
@@ -709,10 +751,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A session manager over a mocked server whose clock, diagnostics and close path
-        /// are observable.
-        /// </summary>
-        /// <summary>
         /// A fake clock that can run a callback right after the next timestamp was read,
         /// i.e. between a caller reading the clock and acting on the value.
         /// </summary>
@@ -733,6 +771,10 @@ namespace Opc.Ua.Server.Tests
             private Action? m_afterNextTimestamp;
         }
 
+        /// <summary>
+        /// A session manager over a mocked server whose clock, diagnostics and close path
+        /// are observable.
+        /// </summary>
         private sealed class Harness : IDisposable
         {
             public Harness(

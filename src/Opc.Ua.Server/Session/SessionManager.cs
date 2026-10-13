@@ -1346,13 +1346,13 @@ namespace Opc.Ua.Server
         {
             lock (m_bindingsLock)
             {
-                state.IsCommitting = false;
                 // Shutdown can remove the session while authentication is awaiting a provider,
                 // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
                     !ReferenceEquals(current, session) ||
                     SessionTermination.IsClosingOrClaimed(session))
                 {
+                    state.IsCommitting = false;
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -1371,6 +1371,10 @@ namespace Opc.Ua.Server
                     m_channelSessionCounts[binding.SecureChannelId] = count + 1;
                 }
                 state.BindingContext = binding;
+                // Cleared only after the new binding is installed: clearing it first would
+                // republish the previous binding to lock-free lookups (DispatchBinding)
+                // while Session.Activate has already changed the session.
+                state.IsCommitting = false;
             }
         }
 
