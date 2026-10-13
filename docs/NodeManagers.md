@@ -568,6 +568,23 @@ Three rules follow for node types that customise browsing:
 
 ### Delivery and callback lifecycle
 
+Composed asynchronous session resources use
+`AsyncCustomNodeManager.RegisterSessionClosingHandler` and retain its
+registration lease. The existing session-close pipeline awaits each handler
+outside manager gates and attempts the remaining handlers after a failure.
+Disposing the lease unregisters future calls; manager disposal drains admitted
+calls. Overrides of `SessionClosingAsync` must await their base implementation.
+A handler must not await disposal of its own manager. The synchronous
+`SessionManager.SessionClosing` event remains suitable only for nonblocking
+cleanup.
+
+`FluentNodeManagerBase.RegisterNodeResource` attaches one composite resource
+to an exact indexed node. Actual node removal and manager disposal await its
+cleanup, including disposal-only startup aborts. The resource must join
+concurrent disposal calls; Machinery's per-machine resource group supplies
+that behavior. This registration does not use value change-mask callbacks,
+which can run on an unrelated publisher's execution path.
+
 Event delivery for a node follows enqueue order. The Server node and
 nodes opting into parallel event consumers deliver each event concurrently
 to independent monitored items, then complete that event before advancing

@@ -297,6 +297,13 @@ throws before an ordinary `BuildAsync` is called, await `builder.AbortAsync()`
 to release the unused name and allocations. Aborting cannot remove a
 registered machine and permanently closes that builder.
 
+For ordinary machine builders, successful registration groups the owned
+resources behind the exact root node. Deleting that root awaits reverse-order
+cleanup without touching another machine's resources. Manager shutdown joins
+any pending cleanup and releases remaining roots; a removed root does not
+retain an ever-growing entry in the coordinator. This uses the manager's
+actual asynchronous node-removal hook, not a value change-mask callback.
+
 ## Builder reference
 
 ### OPC 40001-1 building blocks
@@ -579,6 +586,22 @@ application namespace. These overloads are extensions in
 `Opc.Ua.Machinery.Server.Builders`, so existing builder-interface implementers
 do not gain new mandatory members.
 
+The `WithResultReadyEvents(eventTypeIds, createEvent)` overload accepts one to
+sixteen distinct declared result-event bases. A factory can select a different
+configured base for each result, such as a companion's intermediate-result
+event instead of its final-result event. Every selected base gets a concrete
+application subtype; unconfigured or unrelated types are rejected.
+
+`WithResultProjection(prepareProjection)` captures validated immutable
+companion fields and sample metadata once per publication, before storage.
+It returns a synchronous assignment-only projection over the supplied result
+variable. The shared writer applies that projection after setting the standard
+result fields and before issuing change notifications, including the result
+inside events. A fixed ring retains the projection with its result when slots
+shift, so acquisition time, quality and derived fields do not depend on the
+backing store still retaining an old entry. Projection assignments must not
+perform I/O or recursively publish results.
+
 #### Bringing your own store
 
 Substitute a real store by implementing
@@ -648,10 +671,14 @@ it and closes it.
 serves it in the shape `SoftwareUpdateFileTransferManager` uses for DI
 software uploads: one transient `FileState` per handle, the handle bound to
 the session that opened it, a cap on concurrent handles, and a timeout after
-which an abandoned handle is reclaimed. Reclaiming is swept at the start of
-each `GenerateFileForRead` rather than driven by a per-object timer, so an
-abandoned handle survives until the next download — where it costs nothing
-but a transient node.
+which an inactive handle is reclaimed. Pending generations also consume the
+cap. Inactivity for a still-live session is swept at the next
+`GenerateFileForRead`; session termination and shutdown are independently
+awaited. A successful `CloseSession`, including `deleteSubscriptions=false`,
+waits for that owner's pending generation or rollback, transient-node deletion
+and capacity release. Other sessions retain their own handles. Providers and
+registration callbacks must honor cancellation or complete; cleanup does not
+abandon an unbounded late operation.
 
 `GenerateFileForWrite` and `CloseAndCommit` are mandatory on every
 `TemporaryFileTransferType` (OPC 10000-20 §4.4.1), so a `ResultTransfer`
@@ -673,9 +700,11 @@ the server never adds or deletes nodes while it runs.
 `GetLatestResult`, `GetResultById` and `GetResultIdListFiltered` each return a
 `ResultHandle` that pins what they handed out until the client calls
 `ReleaseResultHandle`. The handle is bound to the calling session, and
-releasing one twice is refused.
+releasing one twice is refused. Closing or expiring the session reclaims only
+its metadata handles. A late store response cannot pin new metadata for an
+ended session, and removal of the bound machine releases the lifecycle hook.
 
-Because the payload is materialised from the store synchronously,
+Because the payload is materialised from the store before the method returns,
 `GenerateFileForRead` returns `NodeId.Null` for `completionStateMachine` — the
 value OPC 10000-5 defines for "no completion state machine".
 

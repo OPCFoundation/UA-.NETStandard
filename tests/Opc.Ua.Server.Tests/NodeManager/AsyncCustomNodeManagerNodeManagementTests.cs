@@ -1233,6 +1233,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.True);
         }
 
+        /// <summary>
+        /// A transaction can own model-change aggregation without bypassing actual node deletion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScopedRuntimeDeletionPreservesTheSelectedModelChangePolicyAsync(bool emitModelChange)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("ScopedParent").ConfigureAwait(false);
+            (ServiceResult added, NodeId childId) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("ScopedChild", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(added), Is.True);
+            PropertyState<string> version = h.Manager.EnableModelChangeTrackingFor(
+                h.Manager.PredefinedNodes[parentId]);
+            string before = version.Value;
+            h.MockServer.Invocations.Clear();
+
+            bool deleted = await h.Manager.DeleteNodeAsync(
+                h.Context, childId, emitModelChange, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(deleted, Is.True);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(childId), Is.False);
+            Assert.That(version.Value != before, Is.EqualTo(emitModelChange));
+            Assert.That(GetReportedModelChanges(h).Count > 0, Is.EqualTo(emitModelChange));
+            Assert.That(h.Manager.ModelChangeEmissionEnabled, Is.True,
+                "A per-call choice must not mutate the policy of concurrent operations.");
+        }
+
         [Test]
         public async Task AddNodeCreatesMandatoryInstanceDeclarationsAsync()
         {

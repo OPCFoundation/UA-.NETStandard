@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -47,6 +49,66 @@ namespace Opc.Ua.Machinery.Tests
     [Category("Machinery")]
     public sealed class MachineryCompanionBindingTests
     {
+        /// <summary>
+        /// Deleting a registered root releases only that machine's bindings, not every resource on the shared owner.
+        /// </summary>
+        [Test]
+        public async Task RemovedMachineReleasesOnlyItsOwnedBindingResourcesAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            var first = new Mock<IAsyncDisposable>();
+            var second = new Mock<IAsyncDisposable>();
+            first.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            second.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            IMachineHandle<BaseObjectState> firstMachine = await context
+                .AddMachine(new QualifiedName("FirstLifetime"))
+                .WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(first.Object))
+                .BuildAsync();
+            IMachineHandle<BaseObjectState> secondMachine = await context
+                .AddMachine(new QualifiedName("SecondLifetime"))
+                .WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(second.Object))
+                .BuildAsync();
+
+            Assert.That(await fixture.Manager.DeleteNodeAsync(fixture.Manager.SystemContext, firstMachine.NodeId),
+                Is.True);
+
+            first.Verify(value => value.DisposeAsync(), Times.Once);
+            second.Verify(value => value.DisposeAsync(), Times.Never);
+            Assert.That(fixture.Manager.FindPredefinedNode(secondMachine.NodeId), Is.SameAs(secondMachine.State));
+            Assert.That(await fixture.Manager.DeleteNodeAsync(fixture.Manager.SystemContext, secondMachine.NodeId),
+                Is.True);
+            second.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// A callback failure cannot prevent independent resources in the same removed machine from being released.
+        /// </summary>
+        [Test]
+        public async Task RemovedMachineAttemptsEveryOwnedResourceWhenCleanupFailsAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            var first = new Mock<IAsyncDisposable>();
+            var failing = new Mock<IAsyncDisposable>();
+            first.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            failing.Setup(value => value.DisposeAsync()).Throws(new InvalidOperationException("owned cleanup failed"));
+            IMachineHandle<BaseObjectState> machine = await context
+                .AddMachine(new QualifiedName("FailingLifetime"))
+                .WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(first.Object))
+                .WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(failing.Object))
+                .BuildAsync();
+
+            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await fixture.Manager.DeleteNodeAsync(fixture.Manager.SystemContext, machine.NodeId))!;
+
+            Assert.That(error.Message, Is.EqualTo("owned cleanup failed"));
+            first.Verify(value => value.DisposeAsync(), Times.Once);
+            failing.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
         /// <summary>
         /// Existing machine and nested component nameplates retain their declared identities.
         /// </summary>
@@ -285,6 +347,253 @@ namespace Opc.Ua.Machinery.Tests
             await second.BuildAsync();
             Assert.That(management.Parent, Is.SameAs(first.State));
             Assert.That(fixture.Manager.FindPredefinedNode(management.NodeId), Is.SameAs(management));
+        }
+
+        /// <summary>
+        /// Companion result samples keep their acquisition metadata when the fixed result ring advances.
+        /// </summary>
+        [Test]
+        public async Task ResultProjectionPreservesAcquisitionMetadataAcrossRingSlotsAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            var slots = new List<ResultState>();
+            int preparations = 0;
+            DateTimeUtc firstTime = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc);
+            DateTimeUtc secondTime = new DateTime(2026, 3, 1, 12, 0, 1, DateTimeKind.Utc);
+            ResultReadyEventState? reported = null;
+            ResultManagementState? management = null;
+            IMachineHandle<BaseObjectState> machine = await context
+                .AddMachine(new QualifiedName("ProjectedResults"))
+                .WithResultManagement(results =>
+                {
+                    management = results.State;
+                    results.WithInMemoryStore(1)
+                        .WithResultsFolder(2, (systemContext, parent, name) =>
+                        {
+                            ResultState slot = systemContext.CreateInstanceOfResultType(parent, name);
+                            slots.Add(slot);
+                            return slot;
+                        })
+                        .WithResultProjection(result =>
+                        {
+                            preparations++;
+                            DateTimeUtc timestamp = result.ResultId == "First" ? firstTime : secondTime;
+                            StatusCode quality = result.ResultId == "First"
+                                ? StatusCodes.UncertainLastUsableValue : StatusCodes.BadNoData;
+                            return (_, slot) =>
+                            {
+                                slot.Timestamp = timestamp;
+                                slot.StatusCode = quality;
+                                slot.ResultMetaData!.Timestamp = timestamp;
+                                slot.ResultMetaData.StatusCode = quality;
+                            };
+                        });
+                }).BuildAsync();
+            management!.OnReportEventAsync = (_, _, value, _) =>
+            {
+                reported = (ResultReadyEventState)value;
+                return default;
+            };
+
+            await machine.Results!.PublishAsync(new MachineryResult(new ResultDataType
+            {
+                ResultMetaData = new ResultMetaDataType { ResultId = "First" }
+            }));
+            await machine.Results.PublishAsync(new MachineryResult(new ResultDataType
+            {
+                ResultMetaData = new ResultMetaDataType { ResultId = "Second" }
+            }));
+
+            Assert.That(preparations, Is.EqualTo(2),
+                "A ring shift must retain its prepared sample even after that result leaves the backing store.");
+            Assert.That(slots[0].Timestamp, Is.EqualTo(secondTime));
+            Assert.That(slots[0].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(slots[1].Timestamp, Is.EqualTo(firstTime));
+            Assert.That(slots[1].StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+            Assert.That(slots[1].ResultMetaData!.Timestamp, Is.EqualTo(firstTime));
+            Assert.That(reported!.Result!.Timestamp, Is.EqualTo(secondTime));
+            Assert.That(reported.Result.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+        }
+
+        /// <summary>
+        /// Final and intermediate results select their configured event bases without changing the shared protocol.
+        /// </summary>
+        [Test]
+        public async Task ResultFactorySelectsAmongRegisteredEventBasesAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            NodeId readyBase = NodeId.Create(
+                Opc.Ua.Machinery.Result.ObjectTypes.ResultReadyEventType,
+                Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
+                context.Context.NamespaceUris);
+            var intermediate = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("CompanionIntermediateResult", context.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("CompanionIntermediateResult", context.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("Companion intermediate result"),
+                SuperTypeId = readyBase,
+                IsAbstract = true
+            };
+            await fixture.Manager.AddPredefinedNodeAsync(intermediate);
+            fixture.Manager.Server.TypeTree.AddSubtype(intermediate.NodeId, readyBase);
+            ResultManagementState? management = null;
+            IMachineHandle<BaseObjectState> machine = await context
+                .AddMachine(new QualifiedName("SelectedResultEvents"))
+                .WithResultManagement(results =>
+                {
+                    management = results.State;
+                    results.WithInMemoryStore(3).WithResultReadyEvents(
+                        [readyBase, intermediate.NodeId],
+                        (systemContext, parent, result) =>
+                        {
+                            ResultReadyEventState value =
+                                systemContext.CreateInstanceOfResultReadyEventType(parent, default);
+                            value.TypeDefinitionId = result.ResultId == "Intermediate" ? intermediate.NodeId : readyBase;
+                            return value;
+                        });
+                }).BuildAsync();
+            var observedTypes = new List<NodeId>();
+            management!.OnReportEventAsync = (_, _, value, _) =>
+            {
+                observedTypes.Add(((ResultReadyEventState)value).EventType!.Value);
+                return default;
+            };
+
+            await machine.Results!.PublishAsync(new MachineryResult(new ResultDataType
+            {
+                ResultMetaData = new ResultMetaDataType { ResultId = "Intermediate" }
+            }));
+            await machine.Results.PublishAsync(new MachineryResult(new ResultDataType
+            {
+                ResultMetaData = new ResultMetaDataType { ResultId = "Final" }
+            }));
+
+            Assert.That(observedTypes, Has.Count.EqualTo(2));
+            Assert.That(observedTypes[0], Is.Not.EqualTo(observedTypes[1]));
+            Assert.That(context.Context.TypeTable.FindSuperType(observedTypes[0]), Is.EqualTo(intermediate.NodeId));
+            Assert.That(context.Context.TypeTable.FindSuperType(observedTypes[1]), Is.EqualTo(readyBase));
+            foreach (NodeId type in observedTypes)
+            {
+                Assert.That(fixture.Manager.FindPredefinedNode<BaseObjectTypeState>(type)!.IsAbstract, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Invalid per-result projection cannot enter the backing store or alter a published result slot.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RejectedResultProjectionDoesNotReachStorageAsync(bool returnNull)
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            var store = new Mock<IWritableMachineryResultStore>();
+            IMachineHandle<BaseObjectState> machine = await context
+                .AddMachine(new QualifiedName("RejectedProjection"))
+                .WithResultManagement(results => results.WithStore(store.Object)
+                    .WithResultProjection(_ => returnNull ? null! :
+                        throw new FormatException("Invalid acquired companion sample.")))
+                .BuildAsync();
+            var result = new MachineryResult(new ResultDataType
+            {
+                ResultMetaData = new ResultMetaDataType { ResultId = "Rejected" }
+            });
+
+            if (returnNull)
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await machine.Results!.PublishAsync(result))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            }
+            else
+            {
+                Assert.ThrowsAsync<FormatException>(async () => await machine.Results!.PublishAsync(result));
+            }
+            store.Verify(value => value.AddResultAsync(
+                It.IsAny<MachineryResult>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Duplicate or empty event type selections cannot weaken the declared event-factory contract.
+        /// </summary>
+        [Test]
+        public async Task ResultEventSelectionRejectsDuplicateAndEmptyBasesAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            NodeId readyBase = NodeId.Create(
+                Opc.Ua.Machinery.Result.ObjectTypes.ResultReadyEventType,
+                Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
+                context.Context.NamespaceUris);
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("InvalidEventSelection"));
+            machine.WithResultManagement(results =>
+            {
+                results.WithInMemoryStore();
+                Assert.Throws<ArgumentOutOfRangeException>(() => results.WithResultReadyEvents(
+                    ArrayOf<NodeId>.Empty,
+                    static (systemContext, parent, _) =>
+                        systemContext.CreateInstanceOfResultReadyEventType(parent, default)));
+                Assert.Throws<ArgumentException>(() => results.WithResultReadyEvents(
+                    [readyBase, readyBase],
+                    static (systemContext, parent, _) =>
+                        systemContext.CreateInstanceOfResultReadyEventType(parent, default)));
+            });
+
+            await machine.BuildAsync();
+        }
+
+        /// <summary>
+        /// A genuinely asynchronous result notification must not block the thread invoking PublishAsync.
+        /// </summary>
+        [Test]
+        public async Task ResultPublicationYieldsWhileAnAsyncNotificationIsPendingAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            ResultState? slot = null;
+            IMachineHandle<BaseObjectState> machine = await context
+                .AddMachine(new QualifiedName("AsyncResultNotification"))
+                .WithResultManagement(results => results.WithInMemoryStore().WithResultsFolder(1,
+                    (systemContext, parent, name) =>
+                    {
+                        slot = systemContext.CreateInstanceOfResultType(parent, name);
+                        return slot;
+                    })).BuildAsync();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            slot!.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                return new ValueTask(release.Task);
+            };
+            Task publish = Task.Run(async () =>
+            {
+                ValueTask pending = machine.Results!.PublishAsync(new MachineryResult(new ResultDataType
+                {
+                    ResultMetaData = new ResultMetaDataType { ResultId = "Async" }
+                }));
+                returned.TrySetResult(true);
+                await pending.ConfigureAwait(false);
+            });
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await returned.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                Assert.That(publish.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publish.ConfigureAwait(false);
+            }
         }
 
         [Test]

@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Fluent
     /// generated code only.
     /// </para>
     /// </remarks>
-    public abstract class FluentNodeManagerBase : AsyncCustomNodeManager
+    public abstract partial class FluentNodeManagerBase : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -638,7 +638,9 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         protected override async ValueTask DisposeAsyncCore()
         {
+            StopNodeResourceAdmission();
             List<Exception> failures = await ReleaseNodeBehaviorsAsync().ConfigureAwait(false);
+            failures.AddRange(await ReleaseOwnedNodeResourcesAsync().ConfigureAwait(false));
             try
             {
                 await base.DisposeAsyncCore().ConfigureAwait(false);

@@ -85,9 +85,8 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         /// <summary>
         /// Resources created during registration. They are released when the
-        /// build is rolled back, and handed to the node manager's coordinator
-        /// once the machine is registered, which releases them when the manager
-        /// is disposed.
+        /// build is rolled back, and handed to the registered root's lifetime.
+        /// Actual root removal or manager shutdown awaits their cleanup.
         /// </summary>
         internal List<IAsyncDisposable> RegisteredResources { get; } = [];
 
@@ -210,16 +209,14 @@ namespace Opc.Ua.Machinery.Server.Builders
                     await PostRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
                 }
 
+                ArrayOf<IAsyncDisposable> resources = RegisteredResources.ToArrayOf();
+                RegisteredResources.Clear();
+                await m_buildCoordinator.AdoptResourcesAsync(Root, resources).ConfigureAwait(false);
                 IsRegistered = true;
                 for (int ii = 0; ii < m_facets.Count; ii++)
                 {
                     m_buildCoordinator.RecordFacet(m_facets[ii]);
                 }
-
-                // The machine is now part of the address space and lives as
-                // long as the node manager, and so do its resources.
-                m_buildCoordinator.AdoptResources(RegisteredResources);
-                RegisteredResources.Clear();
             }
             catch
             {

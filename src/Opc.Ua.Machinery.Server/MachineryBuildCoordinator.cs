@@ -42,7 +42,7 @@ namespace Opc.Ua.Machinery.Server
     /// for the same <see cref="DiNodeManager"/> shares one instance, so
     /// concurrent builds never hand out the same identifier or sibling name.
     /// </summary>
-    internal sealed class MachineryBuildCoordinator
+    internal sealed partial class MachineryBuildCoordinator
     {
         /// <summary>
         /// Returns the coordinator attached to <paramref name="manager"/>,

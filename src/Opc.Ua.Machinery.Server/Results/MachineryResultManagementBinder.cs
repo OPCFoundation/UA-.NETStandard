@@ -49,7 +49,7 @@ namespace Opc.Ua.Machinery.Server.Results
     /// client identically — the result part of OPC 40001 needs only UA core and
     /// carries no machine model of its own.
     /// </remarks>
-    internal sealed class MachineryResultManagementBinder
+    internal sealed partial class MachineryResultManagementBinder : IAsyncDisposable
     {
         public MachineryResultManagementBinder(
             ResultManagementState state,
@@ -81,20 +81,33 @@ namespace Opc.Ua.Machinery.Server.Results
         /// Selects a companion event factory while preserving the shared result-transfer behavior.
         /// </summary>
         internal void SetEventFactory(
-            NodeId eventTypeId,
+            ArrayOf<NodeId> eventTypeIds,
             Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
         {
+            if (eventTypeIds.Count is < 1 or > 16)
+            {
+                throw new ArgumentOutOfRangeException(nameof(eventTypeIds),
+                    "One through sixteen declared result-event bases are required.");
+            }
             NodeId resultReadyTypeId = NodeId.Create(
                 Opc.Ua.Machinery.Result.ObjectTypes.ResultReadyEventType,
                 Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
                 m_context.NamespaceUris);
-            if (eventTypeId.IsNull || !m_context.TypeTable.IsTypeOf(eventTypeId, resultReadyTypeId))
+            var selected = new HashSet<NodeId>();
+            foreach (NodeId eventTypeId in eventTypeIds)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTypeDefinitionInvalid,
-                    "The companion event type must be ResultReadyEventType or a subtype.");
+                if (eventTypeId.IsNull || !m_context.TypeTable.IsTypeOf(eventTypeId, resultReadyTypeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeDefinitionInvalid,
+                        "The companion event type must be ResultReadyEventType or a subtype.");
+                }
+                if (!selected.Add(eventTypeId))
+                {
+                    throw new ArgumentException("Result-event bases must be distinct.", nameof(eventTypeIds));
+                }
             }
-            m_eventBaseTypeId = eventTypeId;
+            m_eventBaseTypeIds = new ArrayOf<NodeId>(eventTypeIds.ToArray()!);
             m_eventFactory = createEvent;
         }
 
@@ -288,9 +301,21 @@ namespace Opc.Ua.Machinery.Server.Results
         private uint? TryPin(ISystemContext context, ArrayOf<string> resultIds)
         {
             NodeId sessionId = SessionIdOf(context);
+            EnsureSessionLifecycle();
+            ISession? owner = FindLiveSession(sessionId);
             DateTimeOffset now = m_timeProvider.GetUtcNow();
             lock (m_handleLock)
             {
+                if (m_disposed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState,
+                        "The result-management binding has been disposed.");
+                }
+                if (owner?.IsClosing == true)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed,
+                        "A closing session cannot acquire a result handle.");
+                }
                 ReclaimExpiredHandlesNoLock(now);
                 if (m_handles.Count >= m_options.MaxPinnedResultHandles)
                 {
@@ -395,21 +420,30 @@ namespace Opc.Ua.Machinery.Server.Results
                 Opc.Ua.Machinery.Result.ObjectTypes.ResultReadyEventType,
                 Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
                 m_context.NamespaceUris);
-            if (m_eventBaseTypeId.IsNull)
+            if (m_eventBaseTypeIds.Count == 0)
             {
-                m_eventBaseTypeId = resultReadyTypeId;
+                m_eventBaseTypeIds = [resultReadyTypeId];
             }
-            string concreteName = MachineryConcreteEventTypes.ResultReadyEventInstanceType;
-            if (m_eventBaseTypeId != resultReadyTypeId)
+            for (int index = 0; index < m_eventBaseTypeIds.Count; index++)
             {
-                concreteName = string.Concat(concreteName, "_", m_eventBaseTypeId.ToString());
+                NodeId baseTypeId = m_eventBaseTypeIds[index];
+                string concreteName = MachineryConcreteEventTypes.ResultReadyEventInstanceType;
+                if (baseTypeId != resultReadyTypeId)
+                {
+                    concreteName = string.Concat(concreteName, "_", baseTypeId.ToString());
+                }
+                NodeId concreteTypeId = await MachineryConcreteEventTypes.EnsureAsync(
+                    manager,
+                    instanceNamespaceIndex,
+                    baseTypeId,
+                    concreteName,
+                    cancellationToken).ConfigureAwait(false);
+                m_eventTypes[baseTypeId] = concreteTypeId;
+                if (index == 0)
+                {
+                    m_eventTypeId = concreteTypeId;
+                }
             }
-            m_eventTypeId = await MachineryConcreteEventTypes.EnsureAsync(
-                manager,
-                instanceNamespaceIndex,
-                m_eventBaseTypeId,
-                concreteName,
-                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -419,7 +453,13 @@ namespace Opc.Ua.Machinery.Server.Results
         /// </summary>
         public NodeId EventTypeId => m_eventTypeId;
 
-        public void RaiseResultReady(MachineryResult result)
+        /// <summary>
+        /// Publishes the selected concrete result event without blocking asynchronous notification consumers.
+        /// </summary>
+        public async ValueTask RaiseResultReadyAsync(
+            MachineryResult result,
+            Action<ISystemContext, ResultState>? projection = null,
+            CancellationToken cancellationToken = default)
         {
             if (m_eventTypeId.IsNull)
             {
@@ -435,7 +475,7 @@ namespace Opc.Ua.Machinery.Server.Results
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "The companion result-ready event factory returned null.");
-            if (eventState.TypeDefinitionId != m_eventBaseTypeId)
+            if (!m_eventTypes.TryGetValue(eventState.TypeDefinitionId, out NodeId concreteType))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeDefinitionInvalid,
@@ -452,21 +492,24 @@ namespace Opc.Ua.Machinery.Server.Results
                     m_context,
                     m_context.CreateInstanceOfResultType(eventState, default));
             }
-            MachineryResultVariables.Write(m_context, eventState.Result!, result.Data);
+            MachineryResultVariables.Write(m_context, eventState.Result!, result.Data, projection);
 
             // Both halves matter: TypeDefinitionId is what the event carries in
             // the address space, EventType is the field a client's event filter
             // actually selects on.
-            eventState.TypeDefinitionId = m_eventTypeId;
-            eventState.EventType!.Value = m_eventTypeId;
-            State.ReportEvent(m_context, eventState);
+            eventState.TypeDefinitionId = concreteType;
+            eventState.EventType!.Value = concreteType;
+            await State.ReportEventAsync(m_context, eventState, cancellationToken).ConfigureAwait(false);
         }
 
         private readonly ISystemContext m_context;
         private readonly MachineryServerOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private NodeId m_eventTypeId = NodeId.Null;
-        private NodeId m_eventBaseTypeId = NodeId.Null;
+        private ArrayOf<NodeId> m_eventBaseTypeIds;
+
+        /// <summary>The pre-registered concrete application type for each permitted declared result event.</summary>
+        private readonly Dictionary<NodeId, NodeId> m_eventTypes = [];
         private Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState>? m_eventFactory;
         private readonly Dictionary<uint, HandleEntry> m_handles = [];
         private readonly Lock m_handleLock = new();

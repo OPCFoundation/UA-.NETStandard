@@ -360,6 +360,7 @@ namespace Opc.Ua.Server
             try
             {
                 await m_operationsDrained.Task.ConfigureAwait(false);
+                DisposeSessionClosingHandlers();
                 var errors = new List<Exception>();
                 lock (m_operationLifetimeLock)
                 {
@@ -1870,12 +1871,34 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
+            return DeleteNodeCoreAsync(context, nodeId, emitModelChange: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a subtree with the normal reference, monitored-item and resource lifetime handling,
+        /// allowing its transaction to control automatic model-change emission for this call only.
+        /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="nodeId">The root to remove.</param>
+        /// <param name="emitModelChange">
+        /// False when a transaction rolls back unpublished staging or emits its own aggregate change.
+        /// This does not modify the manager's policy or suppress deletion lifecycle callbacks.
+        /// </param>
+        /// <param name="cancellationToken">Cancels deletion.</param>
+        /// <returns>Whether the node existed and was removed.</returns>
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            bool emitModelChange,
+            CancellationToken cancellationToken)
+        {
+            return DeleteNodeCoreAsync(context, nodeId, emitModelChange, cancellationToken);
         }
 
         private async ValueTask<bool> DeleteNodeCoreAsync(
             ServerSystemContext context,
             NodeId nodeId,
+            bool emitModelChange,
             CancellationToken cancellationToken)
         {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
@@ -1887,7 +1910,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            NodeId deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId ?? NodeId.Null;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
             NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
@@ -1951,7 +1974,7 @@ namespace Opc.Ua.Server
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
-            if (ModelChangeEmissionEnabled)
+            if (emitModelChange && ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
                 if (!modelChangeParentId.IsNull)
@@ -10347,16 +10370,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Called when a session is closed.
+        /// Called when a session is closed, awaiting registered session-resource cleanup.
         /// </summary>
+        /// <remarks>
+        /// Overrides must await this base implementation, including when subscriptions are retained.
+        /// </remarks>
         public virtual ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            // overridden by the sub-class.
-            return new ValueTask();
+            return InvokeSessionClosingHandlersAsync(sessionId, cancellationToken);
         }
 
         /// <summary>

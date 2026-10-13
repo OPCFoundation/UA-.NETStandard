@@ -105,12 +105,11 @@ namespace Opc.Ua.Machinery.Server
         void RecordFacet(MachineryFacet facet);
 
         /// <summary>
-        /// Hands the resources a registered build created to the node
-        /// manager's coordinator, which releases them when the manager is
-        /// disposed.
+        /// Hands the registered machine's resources to its node and manager lifetime.
         /// </summary>
+        /// <param name="root">The exact registered owner.</param>
         /// <param name="resources">The resources to hand over.</param>
-        void AdoptResources(IReadOnlyList<IAsyncDisposable> resources);
+        ValueTask AdoptResourcesAsync(NodeState root, ArrayOf<IAsyncDisposable> resources);
     }
 
     /// <summary>
@@ -349,9 +348,9 @@ namespace Opc.Ua.Machinery.Server
             (Manager as IMachineryFacetSink)?.RecordFacet(facet);
         }
 
-        void IMachineryBuildCoordinator.AdoptResources(IReadOnlyList<IAsyncDisposable> resources)
+        ValueTask IMachineryBuildCoordinator.AdoptResourcesAsync(NodeState root, ArrayOf<IAsyncDisposable> resources)
         {
-            m_managerCoordinator.AdoptResources(resources);
+            return m_managerCoordinator.AdoptMachineResourcesAsync(Manager, root, resources);
         }
 
         bool IMachineryBuildCoordinator.IsSealed => IsSealed;

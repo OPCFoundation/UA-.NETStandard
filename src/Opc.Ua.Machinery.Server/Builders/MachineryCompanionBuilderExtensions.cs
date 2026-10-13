@@ -358,6 +358,61 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
+        /// Selects per-result event types from a bounded set of declared ResultReadyEventType subtypes.
+        /// </summary>
+        /// <remarks>
+        /// Each declared base gets a concrete application subtype before publication. The factory must return
+        /// one of the configured exact base types; the binder preserves that selection in the emitted EventType.
+        /// This allows final and intermediate companion results without duplicating the publication protocol.
+        /// </remarks>
+        /// <param name="builder">The result-management builder.</param>
+        /// <param name="eventTypeIds">One through sixteen distinct, declared result-event bases.</param>
+        /// <param name="createEvent">Creates the generated event for a particular result.</param>
+        /// <returns>The result-management builder.</returns>
+        public static IResultManagementBuilder WithResultReadyEvents(
+            this IResultManagementBuilder builder,
+            ArrayOf<NodeId> eventTypeIds,
+            Func<ISystemContext, NodeState, MachineryResult, ResultReadyEventState> createEvent)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (createEvent == null)
+            {
+                throw new ArgumentNullException(nameof(createEvent));
+            }
+            return builder.GetResultBuilder().WithResultReadyEvents(eventTypeIds, createEvent);
+        }
+
+        /// <summary>
+        /// Prepares companion-specific result fields and sample metadata before any result notification is emitted.
+        /// </summary>
+        /// <remarks>
+        /// Preparation runs once per publication, before storage. The returned synchronous projection must
+        /// capture validated immutable data and only assign fields on its supplied result variable.
+        /// It is retained with the fixed result ring and reused for event results and shifted slots,
+        /// even after a result leaves the backing store. It must not perform I/O or publish another result.
+        /// </remarks>
+        /// <param name="builder">The result-management builder.</param>
+        /// <param name="prepareProjection">Validates and captures the per-result projection.</param>
+        /// <returns>The result-management builder.</returns>
+        public static IResultManagementBuilder WithResultProjection(
+            this IResultManagementBuilder builder,
+            Func<MachineryResult, Action<ISystemContext, ResultState>> prepareProjection)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (prepareProjection == null)
+            {
+                throw new ArgumentNullException(nameof(prepareProjection));
+            }
+            return builder.GetResultBuilder().WithResultProjection(prepareProjection);
+        }
+
+        /// <summary>
         /// Resolves the built-in result builder without extending existing implementers' contracts.
         /// </summary>
         private static ResultManagementBuilder GetResultBuilder(this IResultManagementBuilder builder)
