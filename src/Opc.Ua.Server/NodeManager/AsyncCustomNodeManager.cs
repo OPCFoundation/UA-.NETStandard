@@ -4515,49 +4515,23 @@ namespace Opc.Ua.Server
             target.ReadAttributes(
                 systemContext,
                 ref values,
-                s_validationAttributes);
+                CreateValidationAttributeIds());
         }
 
         /// <summary>
-        /// The attributes read by <see cref="ReadValidationAttributes"/>, built once instead of
-        /// as a params array for every permission check.
+        /// Returns the attributes read by <see cref="ReadValidationAttributes"/>. The array is
+        /// passed to the virtual <see cref="NodeState.ReadAttributes(ISystemContext, ref Variant[], uint[])"/>,
+        /// so every call gets its own; filling it element by element avoids the
+        /// <c>RuntimeHelpers.InitializeArray</c> call of an array initializer.
         /// </summary>
-        private static readonly uint[] s_validationAttributes =
-        [
-            Attributes.AccessRestrictions,
-            Attributes.RolePermissions,
-            Attributes.UserRolePermissions
-        ];
-
-        /// <summary>
-        /// Takes the calling thread's scratch array for <see cref="ReadValidationAttributes"/>
-        /// when the values are only read before the caller returns or awaits. Taking it empties
-        /// the slot, so a nested check on the same thread gets an array of its own.
-        /// </summary>
-        private static Variant[] RentValidationValues()
+        private static uint[] CreateValidationAttributeIds()
         {
-            Variant[]? values = t_validationValues;
-            if (values == null)
-            {
-                return new Variant[3];
-            }
-
-            t_validationValues = null;
-            return values;
+            uint[] attributeIds = new uint[3];
+            attributeIds[0] = Attributes.AccessRestrictions;
+            attributeIds[1] = Attributes.RolePermissions;
+            attributeIds[2] = Attributes.UserRolePermissions;
+            return attributeIds;
         }
-
-        /// <summary>
-        /// Clears a scratch array taken with <see cref="RentValidationValues"/> and keeps it
-        /// for the next check on this thread.
-        /// </summary>
-        private static void ReturnValidationValues(Variant[] values)
-        {
-            Array.Clear(values, 0, values.Length);
-            t_validationValues = values;
-        }
-
-        [ThreadStatic]
-        private static Variant[]? t_validationValues;
 
         /// <summary>
         /// Browses the references from a node managed by the node manager.
@@ -4992,7 +4966,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
-            Dictionary<NodeId, NodeState> operationCache = RentOperationCache();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -5087,54 +5061,12 @@ namespace Opc.Ua.Server
             // check for nothing to do.
             if (nodesToValidate == null)
             {
-                ReturnOperationCache(operationCache);
                 return;
             }
 
             // validates the nodes (reads values from the underlying data source if required).
             await ReadAsync(systemContext, nodesToRead, values, errors, nodesToValidate, operationCache, cancellationToken).ConfigureAwait(false);
-            ReturnOperationCache(operationCache);
         }
-
-        /// <summary>
-        /// Takes the node cache a Read request shares between its nodes. Reads reuse a cache
-        /// per thread instead of allocating one per request; taking it empties the slot, so
-        /// concurrent or nested reads on the thread get a cache of their own.
-        /// </summary>
-        private static Dictionary<NodeId, NodeState> RentOperationCache()
-        {
-            Dictionary<NodeId, NodeState>? cache = t_operationCache;
-            if (cache == null)
-            {
-                return [];
-            }
-
-            t_operationCache = null;
-            return cache;
-        }
-
-        /// <summary>
-        /// Clears a cache taken with <see cref="RentOperationCache"/> and keeps it for the next
-        /// Read on this thread, unless a large request grew it.
-        /// </summary>
-        private static void ReturnOperationCache(Dictionary<NodeId, NodeState> cache)
-        {
-            if (cache.Count > kMaxPooledOperationCacheCount)
-            {
-                return;
-            }
-
-            cache.Clear();
-            t_operationCache = cache;
-        }
-
-        /// <summary>
-        /// The most entries a pooled Read node cache may hold when it is returned.
-        /// </summary>
-        private const int kMaxPooledOperationCacheCount = 256;
-
-        [ThreadStatic]
-        private static Dictionary<NodeId, NodeState>? t_operationCache;
 
         /// <summary>
         /// Finds a node in the dynamic cache.
@@ -10486,11 +10418,9 @@ namespace Opc.Ua.Server
             } // All other calls that do not use the cache
             else if (permissionsOnly)
             {
-                // SetAccessAndRolePermissions copies what it keeps.
-                Variant[] values = RentValidationValues();
+                var values = new Variant[3];
                 ReadValidationAttributes(systemContext, target, ref values);
                 SetAccessAndRolePermissions(values, metadata);
-                ReturnValidationValues(values);
             }
 
             await SetDefaultPermissionsAsync(systemContext, target, metadata, cancellationToken).ConfigureAwait(false);
@@ -10551,7 +10481,6 @@ namespace Opc.Ua.Server
             }
 
             Variant[]? values = null;
-            bool rented = false;
             if (uniqueNodesServiceAttributesCache != null)
             {
                 NodeId key = handle.NodeId;
@@ -10569,9 +10498,7 @@ namespace Opc.Ua.Server
             }
             else if (permissionsOnly)
             {
-                // only read until the values are taken out below, before any await.
-                values = RentValidationValues();
-                rented = true;
+                values = new Variant[3];
                 ReadValidationAttributes(systemContext, target, ref values);
             }
 
@@ -10593,11 +10520,6 @@ namespace Opc.Ua.Server
                 if (values[2].TryGetStructure(out ArrayOf<RolePermissionType> userRoles))
                 {
                     userRolePermissions = userRoles;
-                }
-
-                if (rented)
-                {
-                    ReturnValidationValues(values);
                 }
             }
 
