@@ -561,10 +561,26 @@ demo roots after processes stop. No helper is intended to outlive a bounded run.
 
 Generated model factories/proxies and closed JSON contexts avoid adding
 reflection-based model activation to these examples. The net10 sample projects
-select `PublishAot`, but **native publish and execution acceptance is pending the
-final repository matrix**. A managed build or `dotnet` run is not NativeAOT
-evidence; net48 is not a NativeAOT target. No native-publish success, full-suite
-completion, release or certification is claimed by this guide.
+select `PublishAot` locally. Both samples have been published for `win-x64` and
+executed as native binaries with no CLR header. The native client discovered
+two systems, read native values, received two data and two event notifications,
+verified an accepted limit request and a subsequent provider refusal, and
+closed its session and subscriptions. Both processes exited normally and the
+listener was removed.
+
+```powershell
+dotnet publish samples\CranesHoists\CranesHoistsServer\CranesHoistsServer.csproj `
+    -c Release -f net10.0 -r win-x64
+dotnet publish samples\CranesHoists\CranesHoistsClient\CranesHoistsClient.csproj `
+    -c Release -f net10.0 -r win-x64
+```
+
+Do not force `PublishAot` globally onto source-generator project references:
+the sample's conditional property already selects it for the executable.
+On Windows, the installed Visual Studio C++ tools and `vswhere.exe` must be
+discoverable. This sample evidence does not replace the full repository,
+MCP-native or package matrix. A managed run is not native evidence, and net48
+is not a NativeAOT target. No release or external certification is claimed.
 
 [samples]: ../samples/CranesHoists/README.md
 [demo]: ../samples/CranesHoists/CranesHoistsServer/CraneDemo.cs

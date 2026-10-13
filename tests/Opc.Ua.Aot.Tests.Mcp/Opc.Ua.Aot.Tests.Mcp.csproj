@@ -18,6 +18,7 @@
     <PackageReference Include="TUnit" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Vision\Opc.Ua.Mcp.Vision.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.CranesHoists\Opc.Ua.Mcp.CranesHoists.csproj" />
   </ItemGroup>
   <!-- Keep the existing test source and assembly hooks unchanged while
        compiling the independent MCP tool graph in its own native executable. -->

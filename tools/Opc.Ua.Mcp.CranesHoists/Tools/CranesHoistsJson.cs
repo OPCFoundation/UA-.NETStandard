@@ -119,7 +119,7 @@ namespace Opc.Ua.Mcp.Tools
             var signals = new JsonArray();
             foreach (CraneSignalValue signal in snapshot.Signals)
             {
-                signals.Add(new JsonObject
+                signals.Add((JsonNode)new JsonObject
                 {
                     ["signal"] = signal.Signal.ToString(),
                     ["nodeId"] = signal.NodeId.IsNull ? null : signal.NodeId.ToString(),
@@ -134,7 +134,7 @@ namespace Opc.Ua.Mcp.Tools
             var relationships = new JsonArray();
             foreach (CraneRelationship relationship in snapshot.Relationships)
             {
-                relationships.Add(new JsonObject
+                relationships.Add((JsonNode)new JsonObject
                 {
                     ["source"] = relationship.Source.ToString(),
                     ["referenceType"] = relationship.ReferenceType.ToString(),
@@ -145,7 +145,7 @@ namespace Opc.Ua.Mcp.Tools
             var functions = new JsonArray();
             foreach (EnumValueType function in snapshot.AxisFunctionValues)
             {
-                functions.Add(new JsonObject
+                functions.Add((JsonNode)new JsonObject
                 {
                     ["value"] = function.Value,
                     ["displayName"] = function.DisplayName.Text,
@@ -173,7 +173,7 @@ namespace Opc.Ua.Mcp.Tools
             var values = new JsonArray();
             foreach (CraneObservedValue value in observation.Values)
             {
-                values.Add(new JsonObject
+                values.Add((JsonNode)new JsonObject
                 {
                     ["nodeId"] = value.NodeId.ToString(),
                     ["reading"] = Reading(client, value.Value)
@@ -184,7 +184,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 using var encoder = new JsonEncoder(client.Session.MessageContext);
                 encoder.WriteVariantArray("Fields", value.Fields);
-                events.Add(new JsonObject
+                events.Add((JsonNode)new JsonObject
                 {
                     ["eventType"] = value.EventType.ToString(),
                     ["eventIdBase64"] = Convert.ToBase64String(value.EventId.Span),
@@ -197,9 +197,9 @@ namespace Opc.Ua.Mcp.Tools
                 var names = new JsonArray();
                 foreach (QualifiedName name in path)
                 {
-                    names.Add(name.ToString());
+                    names.Add((JsonNode?)name.ToString());
                 }
-                paths.Add(names);
+                paths.Add((JsonNode)names);
             }
             return new JsonObject
             {

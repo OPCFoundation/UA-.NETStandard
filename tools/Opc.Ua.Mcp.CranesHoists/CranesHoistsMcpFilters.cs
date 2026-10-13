@@ -84,20 +84,16 @@ namespace Opc.Ua.Mcp
                 }
                 else
                 {
-                    var names = new JsonArray
-                    {
+                    var names = new JsonArray(
                         "SpeedLimitDirMinusSetpoint", "SpeedLimitDirPlusSetpoint",
-                        "SpeedLimitEnabledDirMinus", "SpeedLimitEnabledDirPlus", "SpeedLimitGlobalEnabled"
-                    };
+                        "SpeedLimitEnabledDirMinus", "SpeedLimitEnabledDirPlus", "SpeedLimitGlobalEnabled");
                     properties["signal"]!["enum"] = names;
                     properties["value"] = new JsonObject
                     {
                         ["description"] = "Finite JSON number 0-100 for setpoints; JSON Boolean for enable requests.",
-                        ["anyOf"] = new JsonArray
-                        {
+                        ["anyOf"] = new JsonArray(
                             new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 100 },
-                            new JsonObject { ["type"] = "boolean" }
-                        }
+                            new JsonObject { ["type"] = "boolean" })
                     };
                     schema["allOf"] = JsonNode.Parse("""
                         [

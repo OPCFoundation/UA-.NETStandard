@@ -58,7 +58,7 @@ namespace Opc.Ua.Mcp.Tools
         public static Task<CallToolResult> ListSystemsAsync(
             CranesHoistsClientAccessor accessor,
             [Description("Optional organizer NodeId, such as i=85 or the Machines folder; omit for DeviceSet.")]
-            [MinLength(1), MaxLength(1024)] string? rootNodeId = null,
+            [StringLength(1024, MinimumLength = 1)] string? rootNodeId = null,
             [Description("Maximum returned systems, 1-100; excess results fail, never silently truncate.")]
             [Range(1, 100)] int maximumResults = 50,
             [Description("Maximum UTF-8 JSON response bytes, 1024-1048576; excess data fails without truncation.")]
@@ -86,7 +86,7 @@ namespace Opc.Ua.Mcp.Tools
                 var systems = new JsonArray();
                 foreach (CraneEntry entry in entries)
                 {
-                    systems.Add(CranesHoistsJson.Entry(entry));
+                    systems.Add((JsonNode)CranesHoistsJson.Entry(entry));
                 }
                 return CranesHoistsJson.Result(new JsonObject
                 {
@@ -108,7 +108,7 @@ namespace Opc.Ua.Mcp.Tools
         public static Task<CallToolResult> ReadSystemAsync(
             CranesHoistsClientAccessor accessor,
             [Description("Crane system NodeId returned by craneshoists_list_systems; vendor subtypes are supported.")]
-            [MinLength(1), MaxLength(1024)] string systemNodeId,
+            [StringLength(1024, MinimumLength = 1)] string systemNodeId,
             [Description("Maximum UTF-8 JSON response bytes, 1024-1048576; " +
                 "use read_element if this limit is exceeded.")]
             [Range(1024, 1048576)] int maximumResponseBytes = 1048576,
@@ -126,7 +126,7 @@ namespace Opc.Ua.Mcp.Tools
                 var elements = new JsonArray();
                 foreach (CraneElementSnapshot element in snapshot.Elements)
                 {
-                    elements.Add(CranesHoistsJson.Element(client, element));
+                    elements.Add((JsonNode)CranesHoistsJson.Element(client, element));
                 }
                 return CranesHoistsJson.Result(new JsonObject
                 {
@@ -148,7 +148,7 @@ namespace Opc.Ua.Mcp.Tools
         public static Task<CallToolResult> ReadElementAsync(
             CranesHoistsClientAccessor accessor,
             [Description("Crane element NodeId returned by craneshoists_read_system; not a variable or limit NodeId.")]
-            [MinLength(1), MaxLength(1024)] string elementNodeId,
+            [StringLength(1024, MinimumLength = 1)] string elementNodeId,
             [Description("Maximum UTF-8 JSON response bytes, 1024-1048576; excess data fails without truncation.")]
             [Range(1024, 1048576)] int maximumResponseBytes = 131072,
             [Description("Connected OPC UA session name; omit only when exactly one session is connected.")]
@@ -214,7 +214,7 @@ namespace Opc.Ua.Mcp.Tools
             CranesHoistsClientAccessor accessor,
             [Description("Event-enabled crane system NodeId or server notifier i=2253; " +
                 "server access is authoritative.")]
-            [MinLength(1), MaxLength(1024)] string notifierNodeId,
+            [StringLength(1024, MinimumLength = 1)] string notifierNodeId,
             [Description("Total observation window including setup, 1-60 seconds; default 5 seconds.")]
             [Range(1, 60)] int durationSeconds = 5,
             [Description("Maximum retained notifications, 1-100; reaching it ends this call's observation.")]
@@ -250,7 +250,7 @@ namespace Opc.Ua.Mcp.Tools
             CranesHoistsClientAccessor accessor,
             [Description("Crane axis NodeId, or system NodeId only for SpeedLimitGlobalEnabled; " +
                 "not a variable NodeId.")]
-            [MinLength(1), MaxLength(1024)] string elementNodeId,
+            [StringLength(1024, MinimumLength = 1)] string elementNodeId,
             [Description("Exact standard request: SpeedLimitDirMinusSetpoint, SpeedLimitDirPlusSetpoint, " +
                 "SpeedLimitEnabledDirMinus, SpeedLimitEnabledDirPlus, or SpeedLimitGlobalEnabled.")]
             string signal,
