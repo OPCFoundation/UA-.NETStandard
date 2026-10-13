@@ -602,7 +602,14 @@ namespace Opc.Ua.Client
                 m_serverCertificate = null;
                 m_keepAliveCancellation?.Dispose();
                 m_keepAliveCancellation = null;
-                m_engine?.Dispose();
+                if (m_engine is IAsyncDisposable asyncEngine)
+                {
+                    await asyncEngine.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    m_engine?.Dispose();
+                }
             }
 
             base.Dispose(disposing);
@@ -4118,10 +4125,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // clean up.
+                // clean up. Asynchronously: the synchronous Dispose blocks a thread
+                // until the subscription engine has stopped, and many sessions closed
+                // at once that way starve the thread pool their own close needs.
                 if (closeChannel)
                 {
-                    Dispose();
+                    await DisposeAsync().ConfigureAwait(false);
                 }
 
                 return result;
