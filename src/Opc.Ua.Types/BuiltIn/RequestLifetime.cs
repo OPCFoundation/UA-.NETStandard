@@ -71,10 +71,22 @@ namespace Opc.Ua
         /// <paramref name="timeout"/> elapses.
         /// </summary>
         /// <remarks>
-        /// The timeout is an owned timer that claims the terminal state through
-        /// <see cref="TryCancel"/> and is released with the other resources, so it races
-        /// with explicit cancellation like an external token. Tokens that cannot be cancelled
-        /// are not registered. A timeout cancellation reports <see cref="StatusCodes.Good"/>.
+        /// <para>
+        /// This is the lifetime of a server request. The timeout and the tokens are watched by
+        /// one periodic sweep for all requests (<see cref="RequestDeadlineMonitor"/>, 20 ms)
+        /// instead of a timer and two token registrations per request: the tokens are the
+        /// server's and the transport's, shared by every request, so registering with them
+        /// made all worker threads contend for the same registration locks.
+        /// </para>
+        /// <para>
+        /// A timeout therefore fires up to one sweep period late, and a cancelled token
+        /// cancels <see cref="CancellationToken"/> up to one sweep period later. A token that
+        /// is already cancelled cancels the lifetime at once, and <see cref="TryCancel"/>
+        /// checks the tokens first, so a token cancelled before an explicit cancellation still
+        /// owns the terminal state. The timeout and the tokens claim the terminal state
+        /// through <see cref="TryCancel"/> with <see cref="StatusCodes.Good"/>, so they race
+        /// with explicit cancellation like before.
+        /// </para>
         /// </remarks>
         /// <param name="timeout">The time after which the request is cancelled, or
         /// <see cref="TimeSpan.Zero"/> or <see cref="Timeout.InfiniteTimeSpan"/> for none.</param>
@@ -83,6 +95,21 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
         /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
         public RequestLifetime(TimeSpan timeout, CancellationToken first, CancellationToken second)
+            : this(RequestDeadlineMonitor.Shared, timeout, first, second)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a lifetime that is cancelled by either token or once
+        /// <paramref name="timeout"/> elapses, watched by <paramref name="monitor"/>.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
+        /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
+        internal RequestLifetime(
+            RequestDeadlineMonitor monitor,
+            TimeSpan timeout,
+            CancellationToken first,
+            CancellationToken second)
         {
             if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
             {
@@ -91,34 +118,21 @@ namespace Opc.Ua
 
             m_cts = new CancellationTokenSource();
             CancellationToken = m_cts.Token;
-            bool useFirst = first.CanBeCanceled;
-            bool useSecond = second.CanBeCanceled && second != first;
-            int count = (useFirst ? 1 : 0) + (useSecond ? 1 : 0);
-            m_externalRegistrations = count == 0 ? [] : new CancellationTokenRegistration[count];
-            try
+            m_externalRegistrations = [];
+            m_first = first.CanBeCanceled ? first : default;
+            m_second = second.CanBeCanceled && second != first ? second : default;
+            m_deadline = timeout > TimeSpan.Zero ? monitor.GetDeadline(timeout) : long.MaxValue;
+
+            if (IsLinkedTokenCancelled())
             {
-                int index = 0;
-                if (useFirst)
-                {
-                    m_externalRegistrations[index++] = RegisterExternal(first);
-                }
-                if (useSecond)
-                {
-                    m_externalRegistrations[index] = RegisterExternal(second);
-                }
-                if (timeout > TimeSpan.Zero)
-                {
-                    m_timeoutTimer = new Timer(
-                        static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
-                        this,
-                        timeout,
-                        Timeout.InfiniteTimeSpan);
-                }
+                TryCancelCore(StatusCodes.Good);
+                return;
             }
-            catch
+
+            if (m_deadline != long.MaxValue || m_first.CanBeCanceled || m_second.CanBeCanceled)
             {
-                Dispose();
-                throw;
+                m_monitor = monitor;
+                monitor.Add(this);
             }
         }
 
@@ -163,6 +177,58 @@ namespace Opc.Ua
         /// <param name="statusCode">The status code reported when this call wins the cancellation.</param>
         public bool TryCancel(StatusCode statusCode)
         {
+            // A linked token that the monitor has not swept yet was cancelled first; like its
+            // registration would have, it owns the terminal state.
+            if (IsLinkedTokenCancelled())
+            {
+                TryCancelCore(StatusCodes.Good);
+                return false;
+            }
+
+            return TryCancelCore(statusCode);
+        }
+
+        /// <summary>
+        /// Whether the monitor has to cancel the lifetime: its deadline passed or a linked token
+        /// was cancelled. Called by the monitor under its shard lock.
+        /// </summary>
+        /// <param name="now">The monitor's current time.</param>
+        internal bool IsDue(long now)
+        {
+            return now >= m_deadline || IsLinkedTokenCancelled();
+        }
+
+        /// <summary>
+        /// Cancels the lifetime because <see cref="IsDue"/> reported it; called by the monitor
+        /// outside its locks.
+        /// </summary>
+        internal void OnDue()
+        {
+            TryCancelCore(StatusCodes.Good);
+        }
+
+        /// <summary>
+        /// The monitor shard that holds the lifetime, or <c>null</c> when it is not monitored.
+        /// </summary>
+        internal RequestDeadlineMonitor.Shard? m_monitorShard;
+
+        /// <summary>
+        /// The previous lifetime in the monitor shard, written under the shard lock.
+        /// </summary>
+        internal RequestLifetime? m_monitorPrevious;
+
+        /// <summary>
+        /// The next lifetime in the monitor shard, written under the shard lock.
+        /// </summary>
+        internal RequestLifetime? m_monitorNext;
+
+        private bool IsLinkedTokenCancelled()
+        {
+            return m_first.IsCancellationRequested || m_second.IsCancellationRequested;
+        }
+
+        private bool TryCancelCore(StatusCode statusCode)
+        {
             long requested = c_cancelled | c_cancelling | statusCode.Code;
             if (Interlocked.CompareExchange(ref m_state, requested, 0) != 0)
             {
@@ -171,6 +237,8 @@ namespace Opc.Ua
 
             try
             {
+                // the terminal state is owned now; nothing is left for the sweep to do.
+                m_monitor?.Remove(this);
                 m_cts.Cancel();
                 return true;
             }
@@ -245,7 +313,7 @@ namespace Opc.Ua
             {
                 registration.Dispose();
             }
-            m_timeoutTimer?.Dispose();
+            m_monitor?.Remove(this);
             m_cts.Dispose();
         }
 
@@ -262,7 +330,10 @@ namespace Opc.Ua
             });
         private readonly CancellationTokenSource m_cts;
         private readonly CancellationTokenRegistration[] m_externalRegistrations;
-        private Timer? m_timeoutTimer;
+        private readonly RequestDeadlineMonitor? m_monitor;
+        private readonly CancellationToken m_first;
+        private readonly CancellationToken m_second;
+        private readonly long m_deadline = long.MaxValue;
         private long m_state;
     }
 }
