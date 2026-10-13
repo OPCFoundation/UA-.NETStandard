@@ -125,6 +125,16 @@ namespace Opc.Ua.XRegistry.Tests
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_engine?.Dispose();
+                m_engine = null;
+            }
+            base.Dispose(disposing);
+        }
+
         private XRegistryProjectionEngine? m_engine;
         private readonly string m_groupId;
         private readonly string m_resourceId;
