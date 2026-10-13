@@ -138,8 +138,11 @@ jobs:
           CONCLUSION: ${{ steps.run.outputs.conclusion }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # Green only with a downloaded report that shows no regression and no failed part; a successful run
+          # without its report is an error, not a pass.
           regressions=$(jq -r '.regressions // empty' ctt-summary/report.json 2>/dev/null || true)
-          if [ "$CONCLUSION" = success ]; then
+          part_failures=$(jq -r '.partFailures | length' ctt-summary/report.json 2>/dev/null || true)
+          if [ "$CONCLUSION" = success ] && [ "$regressions" = 0 ] && [ "$part_failures" = 0 ]; then
             state=success; description='No regressions against the CTT baseline'
           elif [ -n "$regressions" ] && [ "$regressions" != 0 ]; then
             state=failure; description="$regressions regression(s) against the CTT baseline"
