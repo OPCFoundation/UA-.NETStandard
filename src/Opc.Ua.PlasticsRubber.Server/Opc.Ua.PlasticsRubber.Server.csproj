@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PlasticsRubber.Server</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PlasticsRubber.Server</PackageId>
+    <RootNamespace>Opc.Ua.PlasticsRubber.Server</RootNamespace>
+    <Description>Composable OPC 40083 common plastics and rubber machinery services and typed server accessors.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.PlasticsRubber\Opc.Ua.PlasticsRubber.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.PlasticsRubber\Model\Opc.Ua.PlasticsRubber.NodeSet2.xml">
+      <Link>Model\Opc.Ua.PlasticsRubber.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.PlasticsRubber</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <None Include="..\Opc.Ua.PlasticsRubber\Model\NOTICE.txt" Pack="true"
+          PackagePath="licenses\CompanionModels.NOTICE.txt" />
+  </ItemGroup>
+</Project>

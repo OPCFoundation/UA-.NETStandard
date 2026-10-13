@@ -299,6 +299,13 @@ implicit server rollback) — is sent to the server. The wrapped
 `Stream` cannot accidentally close the server handle; its `Dispose`
 is a no-op.
 
+`FileNodeId` and `Handle` expose the server-allocated identities for companion
+methods that exchange metadata for an open transfer, such as OPC 40083
+production datasets. They do not transfer lifecycle ownership: still commit
+or dispose the wrapper rather than closing the handle separately. Cleanup
+after a closed session uses the normal `BadSecureChannelClosed` protocol
+failure instead of dereferencing a missing channel.
+
 ## What lives where
 
 ```

@@ -91,14 +91,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EndpointDescription Endpoint => NullableTransportChannel!.EndpointDescription;
+        public EndpointDescription Endpoint => TransportChannel.EndpointDescription;
 
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
-            => NullableTransportChannel!.EndpointConfiguration;
+            => TransportChannel.EndpointConfiguration;
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext => NullableTransportChannel!.MessageContext;
+        public IServiceMessageContext MessageContext => TransportChannel.MessageContext;
 
         /// <inheritdoc/>
         public ITransportChannel NullableTransportChannel

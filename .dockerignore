@@ -1,6 +1,7 @@
 **/.classpath
 **/.dockerignore
 **/.env
+**/.recycling
 **/.git
 **/.gitignore
 **/.project
@@ -12,6 +13,8 @@
 **/*.dbmdl
 **/*.jfm
 **/bin
+**/artifacts
+**/TestResults
 **/charts
 **/docker-compose*
 **/compose*

@@ -14,6 +14,9 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Di.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Extrusion.Server" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

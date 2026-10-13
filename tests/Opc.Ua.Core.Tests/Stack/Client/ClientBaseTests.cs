@@ -130,6 +130,28 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.DoesNotThrow(() => sut.TestRequestCompleted(request, response, "Read"));
         }
 
+        /// <summary>
+        /// Channel-backed properties report the protocol error used by generated-client cleanup.
+        /// </summary>
+        [TestCase(nameof(ClientBase.MessageContext))]
+        [TestCase(nameof(ClientBase.Endpoint))]
+        [TestCase(nameof(ClientBase.EndpointConfiguration))]
+        public async Task ClosedChannelPropertiesReportProtocolFailureAsync(string member)
+        {
+            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
+            await sut.TestCloseChannelAsync().ConfigureAwait(false);
+
+            Action read = member switch
+            {
+                nameof(ClientBase.MessageContext) => () => _ = sut.MessageContext,
+                nameof(ClientBase.Endpoint) => () => _ = sut.Endpoint,
+                nameof(ClientBase.EndpointConfiguration) => () => _ = sut.EndpointConfiguration,
+                _ => throw new ArgumentOutOfRangeException(nameof(member))
+            };
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(read);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+        }
+
         [Test]
         public void ActivityTraceFlags_None_ShouldNotRecordAnything()
         {

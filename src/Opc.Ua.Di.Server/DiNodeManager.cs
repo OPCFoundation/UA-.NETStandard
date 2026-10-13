@@ -322,7 +322,7 @@ namespace Opc.Ua.Di.Server
         /// if it is present in the address space. Returns <see langword="true"/>
         /// when the folder was found and the reference was added.
         /// </summary>
-        protected bool TryAddToMachinesFolder(BaseInstanceState instance)
+        protected internal bool TryAddToMachinesFolder(BaseInstanceState instance)
         {
             // The well-known Machines folder BrowseName defined by the
             // Machinery companion specification (OPC 40001).
@@ -903,6 +903,18 @@ namespace Opc.Ua.Di.Server
                 return null;
             }
             return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
+        }
+
+        /// <summary>
+        /// Registers a composed runtime's root notifier and attaches existing event subscriptions.
+        /// </summary>
+        /// <param name="notifier">The event source owned by this node manager.</param>
+        /// <param name="cancellationToken">Cancels notifier registration.</param>
+        internal ValueTask RegisterRootNotifierAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken = default)
+        {
+            return AddRootNotifierAsync(notifier, cancellationToken);
         }
 
         /// <summary>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <RootNamespace>Opc.Ua.Recycling.Samples.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Recycling\RecyclingServer\RecyclingServer.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
+  </ItemGroup>
+</Project>

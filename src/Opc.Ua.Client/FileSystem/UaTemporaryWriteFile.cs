@@ -71,6 +71,15 @@ namespace Opc.Ua.Client.FileSystem
         public NodeId FileNodeId { get; }
 
         /// <summary>
+        /// Gets the server's session-owned handle for companion-specific metadata operations.
+        /// </summary>
+        /// <remarks>
+        /// Keep terminal operations with this wrapper: use <see cref="CommitAsync"/> or
+        /// <see cref="DisposeAsync"/> rather than closing or committing this handle separately.
+        /// </remarks>
+        public uint Handle => m_handle;
+
+        /// <summary>
         /// A write-only <see cref="System.IO.Stream"/> wrapper around
         /// the underlying server handle. The wrapper's
         /// <see cref="Stream.Dispose()"/> is suppressed —

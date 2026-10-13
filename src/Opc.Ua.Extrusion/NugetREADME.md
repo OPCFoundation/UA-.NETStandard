@@ -1,0 +1,60 @@
+# Opc.Ua.Extrusion
+
+Information-model foundations based on OPC 40084-1: source-generated typed
+node states, data types, standard identifiers, client proxies, encodeable factory
+registration, and the `AddOpcUaExtrusion` compiled loader.
+
+## Model identity
+
+- Wire model URI: `http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/`
+- Model version: `2.00`
+- Model publication: `2022-05-01T00:00:00Z`
+- CLR namespace: `Opc.Ua.Extrusion`
+- Generator name/prefix: `Extrusion` / `Opc.Ua.Extrusion`
+
+Each wire model URI has exactly one producing assembly. Existing Core, DI,
+Machinery and IA model producers are reused, never regenerated in this package.
+The model version is independent of the NuGet package version.
+
+## Loading
+
+```csharp
+using Opc.Ua.Extrusion;
+
+context.NamespaceUris.GetIndexOrAppend(Namespaces.Extrusion);
+nodes.AddOpcUaExtrusion(context);
+messageContext.Factory.Builder.AddOpcUaExtrusion().Commit();
+```
+
+`nodes` is a `NodeStateCollection`, `context` is the hosting `ISystemContext`, and
+`messageContext` is a `ServiceMessageContext`. Load dependency models first using
+their existing compiled loaders and register their data types explicitly as well.
+This package's factory extension registers only its own data types.
+Loading model declarations alone does not implement device behavior.
+Server/client runtimes are separate work; no runtime behavior or certification
+is claimed here.
+
+## Provenance
+
+- [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.GeneralTypes.NodeSet2.xml)
+- Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
+- SHA-256: `20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6`
+
+The NodeSet is the byte-for-byte upstream publication with its individual MIT
+notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;
+`tools\nodesets\derive-identifier-table.py` derives the generator-compatible
+identifier guard without changing node identifiers.
+Where the published table and XML differ, the guard covers the XML nodes only.
+Every missing or surplus table row is recorded in the provenance manifest; no
+node or identifier is fabricated to reconcile the publications.
+
+The shared common model is the independently maintained implementation in
+`Opc.Ua.PlasticsRubber`, based on the MIT v1.02 model and authored v1.03 interface
+changes. It is not a redistributed official v1.03 NodeSet. Full source hashes and
+dependency headers are recorded in that package's `Model\companion-models.json`.
+
+## Platforms
+
+This package follows the stack's library target-framework matrix. Generated
+registration and compiled loaders do not require reflection-based XML loading
+and are intended for NativeAOT applications.

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.PlasticsRubber.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.PlasticsRubber.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.PlasticsRubber\Opc.Ua.PlasticsRubber.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Line\Opc.Ua.Extrusion.Line.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Extruder\Opc.Ua.Extrusion.Extruder.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.HaulOff\Opc.Ua.Extrusion.HaulOff.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.MeltPump\Opc.Ua.Extrusion.MeltPump.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Filter\Opc.Ua.Extrusion.Filter.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Die\Opc.Ua.Extrusion.Die.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Pelletizer\Opc.Ua.Extrusion.Pelletizer.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Cutter\Opc.Ua.Extrusion.Cutter.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Calibrator\Opc.Ua.Extrusion.Calibrator.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Corrugator\Opc.Ua.Extrusion.Corrugator.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Extrusion.Calender\Opc.Ua.Extrusion.Calender.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GranulateDrying\Opc.Ua.GranulateDrying.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\Opc.Ua.PlasticsRubber.NodeSet2.xml"
+             Link="Model\Opc.Ua.PlasticsRubber.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.Extrusion*\Model\*.NodeSet2.xml"
+             Link="Model\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml"
+             Link="Model\Opc.Ua.GranulateDrying.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\companion-models.json"
+             Link="Model\companion-models.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

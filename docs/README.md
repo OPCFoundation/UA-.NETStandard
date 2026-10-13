@@ -190,6 +190,13 @@ models that each model depends on.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [Plastics and rubber common capabilities](PlasticsRubber.md) (OPC 40083) —
+  shared machine configuration, control and monitoring, with
+  [production dataset transfer](PlasticsRubberDatasets.md).
+- [Extrusion](Extrusion.md) (OPC 40084-1 through -12) — the extrusion line
+  and its device families, optional capabilities, typed clients and composition.
+- [Granulate drying](GranulateDrying.md) (OPC 40082-6) — drying bins,
+  optional desiccant beds, operation, control and maintenance.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
@@ -198,6 +205,9 @@ models that each model depends on.
 
 For more examples, including the Pumps and Machinery models, see the
 [companion-model samples](Samples.md#companion-model-samples).
+The [generic recycling simulation](RecyclingSimulation.md) combines a causal production
+model with separately hosted process views; its guide identifies the remaining companion
+integration limits.
 
 ## 5. Prepare for production
 

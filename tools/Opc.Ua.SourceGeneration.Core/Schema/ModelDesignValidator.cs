@@ -6324,7 +6324,8 @@ namespace Opc.Ua.Schema.Model
             bool suppressInverseHierarchicalAtTypeLevel,
             bool inherited,
             int depth,
-            HashSet<XmlQualifiedName> typePath)
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6355,7 +6356,8 @@ namespace Opc.Ua.Schema.Model
                     true,
                     true,
                     depth + 1,
-                    typePath);
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             TranslateReferences(
@@ -6420,7 +6422,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
             typePath.Remove(type.SymbolicId);
@@ -6437,7 +6440,8 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyReference> references,
             bool inherited,
             int depth,
-            HashSet<XmlQualifiedName> typePath)
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6463,7 +6467,8 @@ namespace Opc.Ua.Schema.Model
                     true,
                     inherited,
                     depth + 1,
-                    typePath);
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             if (parent.TypeDefinition != null && parent is MethodDesign method)
@@ -6483,7 +6488,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
 
@@ -6549,7 +6555,10 @@ namespace Opc.Ua.Schema.Model
                         }
                     }
 
-                    if (instance.ModellingRule
+                    // Explicit type declarations remain part of the published hierarchy at any depth.
+                    // Keep the existing placeholder filtering when constructing a concrete instance.
+                    if (!rootIsTypeDefinition &&
+                        instance.ModellingRule
                         is ModellingRule.OptionalPlaceholder
                         or ModellingRule.MandatoryPlaceholder &&
                         depth > 3)
@@ -6566,7 +6575,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
         }
@@ -6598,7 +6608,8 @@ namespace Opc.Ua.Schema.Model
                         false,
                         false,
                         depth + 1,
-                        []);
+                        [],
+                        rootIsTypeDefinition: true);
                     break;
                 case InstanceDesign instance:
                     BuildInstanceHierarchy(
@@ -6608,7 +6619,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         false,
                         depth + 1,
-                        []);
+                        [],
+                        rootIsTypeDefinition: false);
                     break;
             }
         }
