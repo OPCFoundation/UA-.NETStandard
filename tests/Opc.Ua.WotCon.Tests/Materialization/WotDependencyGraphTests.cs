@@ -276,6 +276,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Verifies that an Organizes link to a native node id is not a document dependency while a
+        /// document href is, leaving native targets to the converter's required-model lookup.
+        /// </summary>
+        /// <param name="nodeIdTarget">Whether the Organizes href is a native node id.</param>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void OrganizesNativeNodeIdTargetIsNotADocumentDependency(bool nodeIdTarget)
+        {
+            string href = nodeIdTarget
+                ? "nsu=http://opcfoundation.org/UA/DI/;i=15034"
+                : "urn:r30:device-features";
+            ByteString content = ByteString.From(System.Text.Encoding.UTF8.GetBytes($$$"""
+                {
+                  "@context": {
+                    "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+                  },
+                  "id": "urn:r30:device-set",
+                  "links": [{"rel": "ua:Organizes", "href": "{{{href}}}"}]
+                }
+                """));
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
+
+            Assert.That(metadata.Error, Is.Empty);
+            if (nodeIdTarget)
+            {
+                Assert.That(metadata.References.Count, Is.EqualTo(0));
+                return;
+            }
+            Assert.That(metadata.References.Count, Is.EqualTo(1));
+            Assert.That(metadata.References[0].TargetUri, Is.EqualTo(href));
+            Assert.That(metadata.References[0].RefType, Is.EqualTo("ua:Organizes"));
+            Assert.That(metadata.References[0].RequiresOrdering, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that cross document data type cycles distinguish fields from inheritance.
         /// </summary>
         /// <param name="namedFields">The named-fields flag for this test case.</param>
