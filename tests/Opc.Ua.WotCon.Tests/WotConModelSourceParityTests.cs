@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(browseName),
                         $"'{nodeId}' now names a different Node.");
                 }
-                Assert.That(nodes, Has.Count.EqualTo(121));
+                Assert.That(nodes, Has.Count.EqualTo(131));
             });
         }
 
@@ -316,6 +316,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             string? directory = Path.GetDirectoryName(
                 typeof(WotConModelSourceParityTests).Assembly.Location);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                string linked = Path.Combine(directory, "Models", fileName);
+                if (File.Exists(linked))
+                {
+                    return linked;
+                }
+            }
             while (!string.IsNullOrEmpty(directory))
             {
                 if (File.Exists(Path.Combine(directory, "UA.slnx")))

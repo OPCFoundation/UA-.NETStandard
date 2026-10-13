@@ -32,7 +32,7 @@
   </Aliases>
   <UAObjectType NodeId="ns=1;i=63000" BrowseName="1:RegistryType">
     <DisplayName>RegistryType</DisplayName>
-    <Description>The abstract xRegistry root, expressed as a FolderType that organizes its Group objects. It creates groups through the CreateGroup Method; a group is removed with its own Delete Method. The physical backing may be a file-system directory, but the type is a plain organizing folder. Domain registries subtype this.</Description>
+    <Description>The abstract xRegistry root, expressed as a FolderType that organizes its Group objects. It creates groups through optional registration Methods; a group is removed with its own Delete Method when supported. The XREG-Registry server baseline requires readable SpecVersion and the authoritative raw Capabilities FileType, not merely a downloadable resource file. The physical backing may be a file-system directory, but the type is a plain organizing folder. Domain registries subtype this.</Description>
     <Category>XREG-Registry</Category>
     <Category>XREG-Events</Category>
     <References>
@@ -60,11 +60,12 @@
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63009</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63010</Reference>
       <Reference ReferenceType="GeneratesEvent">ns=1;i=63011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63600</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63001" BrowseName="1:GroupType">
     <DisplayName>GroupType</DisplayName>
-    <Description>An abstract xRegistry group, expressed as a FolderType that organizes stable logical Resource objects. It creates a Resource together with its first Version, and creates later Versions, through the CreateResource Method. It is removed with its own Delete Method. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
+    <Description>An abstract xRegistry group, expressed as a FolderType that organizes stable logical Resource objects. When registration is supported it creates a Resource together with its first Version, and creates later Versions, through CreateResource. Delete is also conditional on that facet. Domain group types subtype this and add the group key (e.g. a namespace URI).</Description>
     <Category>XREG-Group</Category>
     <Category>XREG-Identity</Category>
     <Category>XREG-Events</Category>
@@ -191,7 +192,7 @@
   </UAVariable>
   <UADataType NodeId="ns=1;i=63004" BrowseName="1:RegistryCapabilitiesDataType">
     <DisplayName>RegistryCapabilitiesDataType</DisplayName>
-    <Description>The typed form of the xRegistry capabilities document (xRegistry /capabilities), whose fields have a fixed schema in the xRegistry core specification. Read as a single Variant value from RegistryType.CapabilitiesInfo, in addition to the raw JSON exposed by the Capabilities FileType. Additional/vendor capability keys that are not among these fixed fields remain available through the Capabilities FileType JSON.</Description>
+    <Description>An explicitly partial, application-supplied convenience view with a frozen nine-field layout. It is not the canonical xRegistry capabilities schema. A successful CapabilitiesInfo read requires truthful values for every field in the same revision and authorization view; otherwise omit it or report unavailable. Never infer StickyVersions or EnforceCompatibility from supported formats or version modes. The Capabilities FileType remains authoritative; CapabilitiesSnapshot maps all ten standard source fields.</Description>
     <Category>XREG-Capabilities</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -225,7 +226,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63508" BrowseName="1:SpecVersion" ParentNodeId="ns=1;i=63000" DataType="String" ValueRank="-1">
     <DisplayName>SpecVersion</DisplayName>
-    <Description>The xRegistry specification version this registry conforms to.</Description>
+    <Description>The xRegistry specification version. Readable and conditionally Mandatory for the XREG-Registry server baseline.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -234,7 +235,7 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=63509" BrowseName="1:Capabilities" ParentNodeId="ns=1;i=63000">
     <DisplayName>Capabilities</DisplayName>
-    <Description>The registry capabilities document (xRegistry /capabilities): a FileType whose content is the capabilities JSON, read with the inherited Open/Read/Close Methods (so an arbitrarily large document is not bounded by MaxStringLength).</Description>
+    <Description>The registry capabilities document (xRegistry /capabilities): a FileType whose content is the capabilities JSON, read with the inherited Open/Read/Close Methods (so an arbitrarily large document is not bounded by MaxStringLength). Readable and conditionally Mandatory for XREG-Registry. The raw document is authoritative for its committed revision and authorization view; canonical typed reporting is a separate optional facet.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=11575</Reference>
@@ -252,7 +253,7 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=63511" BrowseName="1:CapabilitiesInfo" ParentNodeId="ns=1;i=63000" DataType="ns=1;i=63004" ValueRank="-1">
     <DisplayName>CapabilitiesInfo</DisplayName>
-    <Description>The typed form of the registry capabilities (RegistryCapabilitiesDataType), read as a single Variant value, in addition to the raw JSON of the Capabilities FileType.</Description>
+    <Description>Optional partial application-supplied RegistryCapabilitiesDataType convenience value, not a canonical schema mapping. Return success only with truthful complete field values for this capability revision and authorization view; otherwise omit or report unavailable. No fabricated default values.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -400,7 +401,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=63527" BrowseName="1:GroupId" ParentNodeId="ns=1;i=63001" DataType="String" ValueRank="-1">
     <DisplayName>GroupId</DisplayName>
-    <Description>xRegistry groupid: the symbolic identifier of this group, constructed from the group's source identity (the group key) by the reverse-authority construction of the specification. Group identifiers are globally unique for federation.</Description>
+    <Description>xRegistry groupid: the durable symbolic identifier of this group within its registry, allocated from the group's exact source authority. It is not globally unique; federation identity also includes the trusted origin registry.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1167,6 +1168,91 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63002</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="ns=1;i=63027" BrowseName="1:RegistryAvailableCapabilityDataType">
+    <DisplayName>RegistryAvailableCapabilityDataType</DisplayName>
+    <Description>One canonical available map entry. Additional nested extension attributes remain in the authoritative raw Capabilities document, not in invented typed fields.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63594</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63595</Reference>
+    </References>
+    <Definition Name="RegistryAvailableCapabilityDataType"><Field Name="Name" DataType="i=12"><Description>The exact available map key; deterministic entries use ordinal String ordering.</Description></Field><Field Name="Mutable" DataType="i=1"><Description>The entry's explicit mutable Boolean, without inference or default substitution.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63594" BrowseName="Default Binary" ParentNodeId="ns=1;i=63027">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63027</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63595" BrowseName="Default JSON" ParentNodeId="ns=1;i=63027">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63027</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=63028" BrowseName="1:RegistryCompatibilityCapabilityDataType">
+    <DisplayName>RegistryCompatibilityCapabilityDataType</DisplayName>
+    <Description>One canonical compatibilities map entry; format support is not an enforcement-enabled Boolean.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63596</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63597</Reference>
+    </References>
+    <Definition Name="RegistryCompatibilityCapabilityDataType"><Field Name="Format" DataType="i=12"><Description>The exact compatibilities map key; deterministic entries use ordinal String ordering.</Description></Field><Field Name="Rules" DataType="i=12" ValueRank="1"><Description>The exact rules array for this format, preserving spelling, values and order.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63596" BrowseName="Default Binary" ParentNodeId="ns=1;i=63028">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63028</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63597" BrowseName="Default JSON" ParentNodeId="ns=1;i=63028">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63028</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=63029" BrowseName="1:RegistryCapabilitiesSnapshotDataType">
+    <DisplayName>RegistryCapabilitiesSnapshotDataType</DisplayName>
+    <Description>Canonical standard-field StructureWithOptionalFields in source-schema field order. The raw Capabilities FileType and this snapshot represent the same committed revision and authorization view. Only map entries are sorted; values and array order are preserved. Unknown and nested extension content stays in the raw bytes.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63598</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=63599</Reference>
+    </References>
+    <Definition Name="RegistryCapabilitiesSnapshotDataType"><Field Name="Available" DataType="ns=1;i=63027" ValueRank="1"><Description>The required available map, including entities; retain every explicit Mutable value.</Description></Field><Field Name="Compatibilities" DataType="ns=1;i=63028" ValueRank="1" IsOptional="true"><Description>Present only when compatibilities exists in the raw document.</Description></Field><Field Name="Flags" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The flags array, present only when the source key exists.</Description></Field><Field Name="Formats" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The formats array; it does not imply compatibility enforcement.</Description></Field><Field Name="Ignores" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The ignores array, distinct from flags and mutable.</Description></Field><Field Name="Mutable" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The mutable array, distinct from each available entry's Mutable Boolean.</Description></Field><Field Name="Pagination" DataType="i=1" IsOptional="true"><Description>Explicit pagination; absence is not replaced by false.</Description></Field><Field Name="ShortSelf" DataType="i=1" IsOptional="true"><Description>Explicit shortself; absence is not replaced by false.</Description></Field><Field Name="SpecVersions" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The specversions array, without inventing absent values.</Description></Field><Field Name="VersionModes" DataType="i=12" ValueRank="1" IsOptional="true"><Description>The versionmodes array; it does not imply sticky default selection.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=63598" BrowseName="Default Binary" ParentNodeId="ns=1;i=63029">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63029</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=63599" BrowseName="Default JSON" ParentNodeId="ns=1;i=63029">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=63029</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=63600" BrowseName="1:CapabilitiesSnapshot" ParentNodeId="ns=1;i=63000" DataType="ns=1;i=63029" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>CapabilitiesSnapshot</DisplayName>
+    <Description>Read-only canonical standard-field snapshot, conditionally Mandatory for XREG-Capabilities. Optional-field presence mirrors the raw Capabilities document, with the same committed revision and authorization view. Unavailable or oversized typed values fail explicitly; the authoritative raw FileType remains readable.</Description>
+    <Category>XREG-Capabilities</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63000</Reference>
+    </References>
+  </UAVariable>
   <UADataType NodeId="ns=1;i=63026" BrowseName="1:RegistryOriginDataType">
     <DisplayName>RegistryOriginDataType</DisplayName>
     <Description>Immutable origin-registry authority. Exactly one form is selected: a configured/verified stable OriginUri, or a trusted logical ApplicationUri plus portable registry-root NodeId. URI identity is compared exactly; a change creates a different source, not a transparent reconnect.</Description>
