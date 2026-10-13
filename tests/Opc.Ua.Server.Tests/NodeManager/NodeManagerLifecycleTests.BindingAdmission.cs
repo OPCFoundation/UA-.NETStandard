@@ -581,12 +581,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(finished, Is.Not.SameAs(activation), "Activation inherited the delete admission.");
                 Assert.That(Volatile.Read(ref activations), Is.Zero);
+                HashSet<NodeId> known = new HashSet<NodeId>(manager.ActivatedSessionIds.ToList());
 
                 deleteRelease.TrySetResult(true);
                 DeleteMonitoredItemsResponse response = await delete.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
                 activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(Volatile.Read(ref activations), Is.GreaterThanOrEqualTo(1));
+                Assert.That(known, Does.Not.Contain(activatedSession.SessionId));
+                Assert.That(manager.ActivatedSessionIds.ToList(), Does.Contain(activatedSession.SessionId),
+                    "The new session itself, not an earlier one, was activated after the delete finished.");
             }
             finally
             {
