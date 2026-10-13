@@ -365,14 +365,16 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string existing = Path.Combine(fixture.Root, "existing.json");
             await File.WriteAllTextAsync(existing, "original").ConfigureAwait(false);
             var input = new SchemaGenerateInput { TypeId = "i=999999" };
+            string escapePath = Path.Combine("..", $"escaped-schema-{Guid.NewGuid():N}.json");
 
             JsonObject overwrite = SchemaTestContext.Payload(
                 await fixture.Tools.GenerateAsync(input, "existing.json").ConfigureAwait(false), error: true);
             JsonObject escape = SchemaTestContext.Payload(
-                await fixture.Tools.GenerateAsync(input, "..\\escaped-schema.json").ConfigureAwait(false), error: true);
+                await fixture.Tools.GenerateAsync(input, escapePath).ConfigureAwait(false), error: true);
 
-            Assert.That(overwrite["errorType"]!.GetValue<string>(), Is.EqualTo(nameof(IOException)));
-            Assert.That(escape["errorType"]!.GetValue<string>(), Is.EqualTo(nameof(ArgumentException)));
+            Assert.That(overwrite["errorType"]?.GetValue<string>(), Is.EqualTo(nameof(IOException)));
+            Assert.That(escape["errorType"]?.GetValue<string>(), Is.EqualTo(nameof(ArgumentException)));
+            Assert.That(File.Exists(Path.GetFullPath(Path.Combine(fixture.Root, escapePath))), Is.False);
             Assert.That(await File.ReadAllTextAsync(existing).ConfigureAwait(false), Is.EqualTo("original"));
             Assert.That(Directory.GetFiles(fixture.Root).Select(Path.GetFileName),
                 Is.EqualTo(s_existingArtifact));
