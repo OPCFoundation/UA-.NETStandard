@@ -100,6 +100,13 @@ namespace Opc.Ua
 
                 m_workers = [];
                 m_cts = new CancellationTokenSource();
+                m_requestStopSources = new CancellationTokenSource[Math.Min(Math.Max(Environment.ProcessorCount, 1), 64)];
+                m_requestStopTokens = new CancellationToken[m_requestStopSources.Length];
+                for (int ii = 0; ii < m_requestStopSources.Length; ii++)
+                {
+                    m_requestStopSources[ii] = new CancellationTokenSource();
+                    m_requestStopTokens[ii] = m_requestStopSources[ii].Token;
+                }
                 m_activeThreadCount = 0;
                 m_totalThreadCount = 0;
                 m_stopped = false;
@@ -198,6 +205,10 @@ namespace Opc.Ua
 
                 if (m_fairQueue != null)
                 {
+                    if (TryRunInline(request, cancellationToken))
+                    {
+                        return;
+                    }
                     try
                     {
                         if (!m_fairQueue.TryEnqueue(request, cancellationToken, out StatusCode error))
@@ -222,6 +233,72 @@ namespace Opc.Ua
                     // TODO: make a metric
                     m_server.m_logger.RequestQueueFull(m_activeThreadCount);
                 }
+            }
+
+            /// <summary>
+            /// Runs a request on the caller's thread when nothing is queued and execution
+            /// capacity is available, up to its first asynchronous wait.
+            /// </summary>
+            /// <returns>False when the request has to be queued instead.</returns>
+            private bool TryRunInline(IEndpointIncomingRequest request, CancellationToken cancellationToken)
+            {
+                FairRequestQueue.Entry? entry;
+                try
+                {
+                    if (!m_server.CanRunRequestInline(request))
+                    {
+                        return false;
+                    }
+                    // ProcessRequestSafeAsync disposes the entry
+#pragma warning disable CA2000
+                    if (!m_fairQueue!.TryAdmitInline(request, cancellationToken, out entry))
+#pragma warning restore CA2000
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // a provider failure faults the request, as it does on the queued path.
+                    m_server.m_logger.RequestQueueProcessingFailed(ex);
+                    CompleteRequest(request, StatusCodes.BadInternalError);
+                    return true;
+                }
+
+                // ProcessRequestSafeAsync never throws and always completes the request.
+                _ = ProcessRequestSafeAsync(new QueuedRequest(request, cancellationToken), entry, RequestStopToken());
+                return true;
+            }
+
+            /// <summary>
+            /// Cancels every request stop source, also when the callbacks of one throw.
+            /// </summary>
+            private void CancelRequests()
+            {
+                List<Exception>? errors = null;
+                foreach (CancellationTokenSource source in m_requestStopSources)
+                {
+                    try
+                    {
+                        source.Cancel();
+                    }
+                    catch (AggregateException ex)
+                    {
+                        (errors ??= []).Add(ex);
+                    }
+                }
+                if (errors != null)
+                {
+                    throw new AggregateException(errors);
+                }
+            }
+
+            /// <summary>
+            /// The server-stop token handed to a request started on the calling thread.
+            /// </summary>
+            private CancellationToken RequestStopToken()
+            {
+                return m_requestStopTokens[(uint)Environment.CurrentManagedThreadId % (uint)m_requestStopTokens.Length];
             }
 
             /// <summary>
@@ -275,6 +352,8 @@ namespace Opc.Ua
             private async Task StopCoreAsync(Task[] workers)
             {
                 Task cancellation = m_cts.CancelAsync();
+                // the handlers' callbacks run on the pool, as the workers' do, not here.
+                Task requestCancellation = Task.Run(CancelRequests);
                 m_queue.Writer.TryComplete();
                 m_fairQueue?.Dispose();
                 while (m_queue.Reader.TryRead(out QueuedRequest request))
@@ -284,6 +363,7 @@ namespace Opc.Ua
                 try
                 {
                     await cancellation.ConfigureAwait(false);
+                    await requestCancellation.ConfigureAwait(false);
                 }
                 catch (AggregateException ex)
                 {
@@ -305,6 +385,18 @@ namespace Opc.Ua
                 }
                 await processing.ConfigureAwait(false);
                 m_cts.Dispose();
+                DisposeRequestStopSources();
+            }
+
+            /// <summary>
+            /// Disposes the request stop sources once no handler uses them.
+            /// </summary>
+            private void DisposeRequestStopSources()
+            {
+                foreach (CancellationTokenSource source in m_requestStopSources)
+                {
+                    source.Dispose();
+                }
             }
 
             /// <summary>
@@ -349,7 +441,7 @@ namespace Opc.Ua
                         if (m_decoupleHeldPublishRequests &&
                             queued.Request is IParkableIncomingRequest { ParkSink: RequestParkSink parkSink })
                         {
-                            await ProcessWithParkAsync(queued, parkSink, entry, ct).ConfigureAwait(false);
+                            await ProcessWithParkAsync(queued, parkSink, entry, RequestStopToken()).ConfigureAwait(false);
                         }
                         else
                         {
@@ -357,7 +449,7 @@ namespace Opc.Ua
                             GrowFairWorkers();
                             try
                             {
-                                await ProcessRequestSafeAsync(queued, entry, ct).ConfigureAwait(false);
+                                await ProcessRequestSafeAsync(queued, entry, RequestStopToken()).ConfigureAwait(false);
                             }
                             finally
                             {
@@ -534,7 +626,23 @@ namespace Opc.Ua
             /// Worker cancellation source retained until shutdown has drained all handlers.
             /// </summary>
             private readonly CancellationTokenSource m_cts;
+
+            /// <summary>
+            /// Request cancellation sources, cancelled and disposed with <see cref="m_cts"/>.
+            /// </summary>
+            /// <remarks>
+            /// Every request registers with the token it is handed for its lifetime. Handed one
+            /// shared token, all request threads registered and unregistered under the lock of
+            /// that one source; striped by thread they rarely meet.
+            /// </remarks>
+            private readonly CancellationTokenSource[] m_requestStopSources;
 #pragma warning restore CA2213
+            /// <summary>
+            /// The tokens of <see cref="m_requestStopSources"/>, read once so that a request
+            /// admitted while shutdown runs does not touch a disposed source.
+            /// </summary>
+            private readonly CancellationToken[] m_requestStopTokens;
+
             /// <summary>
             /// Worker tasks joined by asynchronous shutdown.
             /// </summary>

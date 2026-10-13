@@ -250,6 +250,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Whether a request may run on the thread that received it instead of
+        /// being queued for a request worker.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <returns><see langword="true"/> (the default) to let the request run
+        /// on the receiving thread when the request queue allows it.</returns>
+        /// <remarks>
+        /// With a resource isolation provider (every mode but
+        /// <c>SharedOnly</c>), a request that arrives while no request is queued
+        /// and that the provider grants execution capacity at once runs on the
+        /// thread that received it, for UA TCP the receive loop of its secure
+        /// channel, up to its first asynchronous wait. Its response is queued
+        /// for sending on that thread too. That saves handing the request to a
+        /// worker and the response back, which costs a busy server more than a
+        /// small request itself.
+        /// <para>
+        /// While the handler runs synchronously, the channel does not read the
+        /// next request. A handler that blocks or computes for long therefore
+        /// delays the requests the client sent after it on the same channel
+        /// (other channels are not affected), and a Cancel request for it is
+        /// read only once it returns; its timeout still applies. Return
+        /// <see langword="false"/> for such requests and they are queued for the
+        /// workers. Session establishment, Cancel, CloseSession and requests that
+        /// can park (Publish) are always queued.
+        /// </para>
+        /// </remarks>
+        protected virtual bool CanRunRequestInline(IEndpointIncomingRequest request)
+        {
+            return true;
+        }
+
+        /// <summary>
         /// Trys to get the secure channel id for an AuthenticationToken.
         /// The ChannelId is known to the sessions of the Server.
         /// Each session has an AuthenticationToken which can be used to identify the session.
