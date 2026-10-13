@@ -358,6 +358,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Completes once the registry has reconciled the supplied source.
+        /// </summary>
         /// <param name="source">The node state.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask WaitUntilReadyAsync(NodeState source, CancellationToken cancellationToken)

@@ -108,6 +108,9 @@ namespace Opc.Ua.Server.Fluent
             return UpdateRegistrationAsync(context, source, monitoredItem, monitoredItem.MonitoringMode);
         }
 
+        /// <summary>
+        /// Notifies the registration that a monitored item was attached.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="source">The node state.</param>
         /// <param name="monitoredItem">The monitored item.</param>
@@ -127,6 +130,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Notifies the registration that a monitored item was detached.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="source">The node state.</param>
         /// <param name="monitoredItem">The monitored item.</param>
@@ -425,6 +431,9 @@ namespace Opc.Ua.Server.Fluent
             m_updateLock = new SemaphoreSlim(1, 1);
         }
 
+        /// <summary>
+        /// Sets the handler invoked when the first subscriber attaches.
+        /// </summary>
         /// <param name="handler">The monitored source lifecycle handler.</param>
         /// <param name="attributeId">The attribute ID.</param>
         public void SetFirstSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
@@ -441,18 +450,27 @@ namespace Opc.Ua.Server.Fluent
             m_firstSubscriber = handler;
         }
 
+        /// <summary>
+        /// Adds a handler invoked when a monitored item is attached.
+        /// </summary>
         /// <param name="handler">The monitored item attachment handler.</param>
         public void AddAttachedHandler(MonitoredItemAttachmentHandler handler)
         {
             m_attachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
         }
 
+        /// <summary>
+        /// Adds a handler invoked when a monitored item is detached.
+        /// </summary>
         /// <param name="handler">The monitored item attachment handler.</param>
         public void AddDetachedHandler(MonitoredItemAttachmentHandler handler)
         {
             m_detachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
         }
 
+        /// <summary>
+        /// Invokes the registered attachment handlers for an attached monitored item.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="source">The node state.</param>
         /// <param name="monitoredItem">The monitored item.</param>
@@ -469,6 +487,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Invokes the registered detachment handlers for a detached monitored item.
+        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="source">The node state.</param>
         /// <param name="monitoredItem">The monitored item.</param>
@@ -485,6 +506,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Sets the handler invoked when the last subscriber detaches.
+        /// </summary>
         /// <param name="handler">The monitored source lifecycle handler.</param>
         /// <param name="attributeId">The attribute ID.</param>
         public void SetLastSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
@@ -522,6 +546,9 @@ namespace Opc.Ua.Server.Fluent
             m_minimumPeriod = minimumPeriod;
         }
 
+        /// <summary>
+        /// Creates a registration for the specified node from this template.
+        /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         public MonitoredSourceRegistration CreateForNode(NodeId nodeId)
         {

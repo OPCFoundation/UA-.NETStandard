@@ -72,6 +72,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TValue">
         /// CLR value type carried by the variable.
         /// </typeparam>
+        /// <param name="builder">The typed variable builder.</param>
         /// <param name="handler">The monitored item attachment handler.</param>
         public static IVariableBuilder<TValue> OnMonitoredItemAttached<TValue>(
             this IVariableBuilder<TValue> builder,
@@ -87,6 +88,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TValue">
         /// CLR value type carried by the variable.
         /// </typeparam>
+        /// <param name="builder">The typed variable builder.</param>
         /// <param name="handler">The monitored item attachment handler.</param>
         public static IVariableBuilder<TValue> OnMonitoredItemDetached<TValue>(
             this IVariableBuilder<TValue> builder,
@@ -170,6 +172,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TValue">
         /// CLR value type carried by the variable.
         /// </typeparam>
+        /// <param name="builder">The typed variable builder.</param>
         /// <param name="attributeId">The attribute ID.</param>
         /// <param name="handler">The monitored source lifecycle handler.</param>
         public static IVariableBuilder<TValue> OnFirstSubscriber<TValue>(
@@ -229,6 +232,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TValue">
         /// CLR value type carried by the variable.
         /// </typeparam>
+        /// <param name="builder">The typed variable builder.</param>
         /// <param name="attributeId">The attribute ID.</param>
         /// <param name="handler">The monitored source lifecycle handler.</param>
         public static IVariableBuilder<TValue> OnLastSubscriber<TValue>(

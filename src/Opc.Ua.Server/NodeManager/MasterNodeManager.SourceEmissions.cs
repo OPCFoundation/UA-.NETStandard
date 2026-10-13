@@ -43,6 +43,9 @@ namespace Opc.Ua.Server
     /// </summary>
     public partial class MasterNodeManager
     {
+        /// <summary>
+        /// Determines whether the node manager may currently emit source notifications.
+        /// </summary>
         /// <param name="nodeManager">The node manager.</param>
         /// <param name="includeCaptured">The include-captured flag supplied by the caller.</param>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager, bool includeCaptured = true)
@@ -58,6 +61,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Determines whether the current execution context holds a captured emission for the node manager.
+        /// </summary>
         /// <param name="nodeManager">The node manager.</param>
         internal bool HasCapturedSourceEmission(IAsyncNodeManager nodeManager)
         {
@@ -65,6 +71,9 @@ namespace Opc.Ua.Server
                 ReferenceEquals(captured.NodeManager, nodeManager);
         }
 
+        /// <summary>
+        /// Captures a source emission lease for the node manager when emissions are enabled.
+        /// </summary>
         /// <param name="server">The server internal.</param>
         /// <param name="nodeManager">The node manager.</param>
         /// <param name="emission">The notification dispatch lease.</param>
@@ -96,8 +105,12 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Admits creation of a custom source for the node manager.
+        /// </summary>
         /// <param name="server">The server internal.</param>
         /// <param name="nodeManager">The node manager.</param>
+        /// <param name="admission">The disposable admission scope, or <c>null</c> when none is required.</param>
         internal static bool TryBeginCustomSourceCreation(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -177,6 +190,9 @@ namespace Opc.Ua.Server
 
         private readonly AsyncLocal<NotificationDispatchLease?> m_currentSourceEmission = new();
 
+        /// <summary>
+        /// Restores the previously captured source emission when disposed.
+        /// </summary>
         /// <param name="owner">The master node manager.</param>
         /// <param name="previous">The notification dispatch lease.</param>
         internal readonly struct SourceEmissionScope(
@@ -223,6 +239,9 @@ namespace Opc.Ua.Server
             MasterNodeManager owner,
             NotificationDispatchState[] states) : IDisposable
         {
+            /// <summary>
+            /// Publishes the prepared routes under the source admission cutoff.
+            /// </summary>
             /// <param name="routes">The prepared routes.</param>
             public void Publish(NodeManagerRoutingTable.PreparedRoutes routes)
             {

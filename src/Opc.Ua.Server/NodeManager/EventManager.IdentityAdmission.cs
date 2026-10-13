@@ -158,6 +158,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Copies the identity stamp of an event occurrence to its snapshot.
+        /// </summary>
         /// <param name="original">The filter target.</param>
         /// <param name="snapshot">The filter target.</param>
         internal void TransferEventIdentity(IFilterTarget original, IFilterTarget snapshot)
@@ -171,6 +174,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Verifies that queued event fields originate from an admitted occurrence.
+        /// </summary>
         /// <param name="fields">The event field list.</param>
         internal void AdmitEventFields(EventFieldList fields)
         {
@@ -199,6 +205,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Associates event fields with the identity of their admitted occurrence.
+        /// </summary>
         /// <param name="fields">The event field list.</param>
         /// <param name="occurrence">The filter target.</param>
         internal void RegisterEventFields(EventFieldList fields, IFilterTarget occurrence)
@@ -213,6 +222,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases the identity association of event fields.
+        /// </summary>
         /// <param name="fields">The event field list.</param>
         internal void ReleaseEventFields(EventFieldList fields)
         {
@@ -471,6 +483,7 @@ namespace Opc.Ua.Server
             /// Gets or sets the reservations for <c>IdentityClaim</c>.
             /// </summary>
             public int Reservations { get; set; }
+
             /// <summary>
             /// Gets or sets the attached for <c>IdentityClaim</c>.
             /// </summary>
@@ -501,6 +514,9 @@ namespace Opc.Ua.Server
         {
             private IdentitySnapshot Snapshot { get; } = snapshot;
 
+            /// <summary>
+            /// Determines whether the other source describes the same event occurrence.
+            /// </summary>
             /// <param name="other">The event identity source.</param>
             public bool IsSameOccurrence(IEventIdentitySource other)
             {
