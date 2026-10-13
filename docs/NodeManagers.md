@@ -678,24 +678,6 @@ directly or through a DI factory uses the same readiness contract.
 | Runtime `AddAsync` | After the new generation is registered and visible to clients | `AddAsync` awaits readiness before returning its handle |
 | Normal, shadow or immediate reload | After the replacement is visible and the applicable retired-generation completion work has run | Reload awaits replacement readiness before returning its handle |
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant Lifecycle as Server / lifecycle
-    participant Manager as New NodeManager
-    participant Dependency as Dependent NodeManager
-    Caller->>Lifecycle: StartAsync / AddAsync / reload
-    Lifecycle->>Manager: CreateAddressSpaceAsync
-    Lifecycle->>Lifecycle: Publish address space
-    Note over Lifecycle,Manager: Clients can read the published generation
-    Lifecycle->>Manager: OnServerReadyAsync(cancellationToken)
-    Manager->>Lifecycle: AddAsync(dependentFactory)
-    Lifecycle->>Dependency: CreateAddressSpaceAsync and readiness
-    Lifecycle-->>Manager: Dependent registration handle
-    Manager-->>Lifecycle: Readiness complete
-    Lifecycle-->>Caller: Startup complete / registration handle
-```
-
 The server captures the initial manager set before allowing runtime additions.
 A manager added during startup or inside a readiness callback receives its own
 callback through `AddAsync`. The server does not call it again as an initial
@@ -937,27 +919,6 @@ old NodeManager that owns a reference target it still needs, alive until it is r
 matched by exact NodeId, so unrelated managers, even in the same namespace, can still retire.
 Each page uses the original model and is checked against the Session's current permissions. New
 Browse requests use the active generation.
-
-##### Browse flow across a reload
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server
-    participant Old as Original NodeManager
-    participant New as Replacement NodeManager
-    Client->>Server: Browse
-    Server->>Old: Read first page and record dependencies
-    Server-->>Client: References + continuation point
-    Server->>New: Publish replacement
-    Note over Server,Old: Saved continuation keeps original dependencies alive
-    Client->>Server: BrowseNext(continuationPoint)
-    Server->>Server: Check current Session permissions
-    Server->>Old: Read next page using original model
-    Server-->>Client: References + next continuation point
-    Note over Server,Old: Final page or release ends retention
-    Server->>Old: Delete address space after all retained work drains
-```
 
 ##### Custom browsers
 
