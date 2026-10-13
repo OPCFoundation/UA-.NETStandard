@@ -215,7 +215,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await using var connection = new ClientFixture(telemetry);
                 await connection.LoadClientConfigurationAsync(root, "XRegistryFederationClient")
                     .ConfigureAwait(false);
-                using ISession session = await connection.ConnectAsync(
+                using Opc.Ua.Client.ISession session = await connection.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 try
@@ -244,7 +244,7 @@ namespace Opc.Ua.XRegistry.Tests
         {
             public RegistryContext(
                 GenericXRegistryClient client,
-                ISession session,
+                Opc.Ua.Client.ISession session,
                 NodeId resourceNodeId,
                 string resourceXid,
                 CancellationToken token)
@@ -258,7 +258,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public GenericXRegistryClient Client { get; }
 
-            public ISession Session { get; }
+            public Opc.Ua.Client.ISession Session { get; }
 
             public CancellationToken Token { get; }
 
