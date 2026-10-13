@@ -88,6 +88,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 item => NodeId.Parse(item.NodeId!) == ExpandedNodeId.ToNodeId(output.RootNodeId, namespaces));
             Reference organizes = root.References!.Single(
                 reference => reference.IsForward && reference.ReferenceType is "Organizes" or "i=35");
+            Assert.That(organizes.Value, Is.Not.Null.And.Not.Empty);
             NodeId target = NodeId.Parse(organizes.Value!);
 
             Assert.That(namespaces.GetString(target.NamespaceIndex), Is.EqualTo(DiNamespace));
