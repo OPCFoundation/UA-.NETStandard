@@ -707,8 +707,23 @@ namespace Opc.Ua
                 }
                 while (reader.Peek() is int next &&
                     next != -1 &&
-                    next is not ('!' or ':' or '<' or '>' or '/' or '.' or '#' or '&'))
+                    (next == '&' || next is not ('!' or ':' or '<' or '>' or '/' or '.' or '#')))
                 {
+                    if (reader.Peek() == '&')
+                    {
+                        reader.Read();
+                        int escaped = reader.Read();
+                        if (escaped is not ('!' or ':' or '<' or '>' or '/' or '.' or '#' or '&'))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSyntaxError,
+                                escaped == -1
+                                    ? "Unexpected end after escape character '&'."
+                                    : CoreUtils.Format("Invalid escape sequence '&{0}' in browse path.", (char)escaped));
+                        }
+                        buffer.Append((char)escaped);
+                        continue;
+                    }
                     buffer.Append((char)reader.Read());
                     if (buffer.Length == 4 && buffer.ToString() == "nsu=")
                     {
