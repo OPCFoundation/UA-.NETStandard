@@ -696,14 +696,14 @@ participant. Static initial managers also receive readiness.
 
 While awaiting readiness, the lifecycle allows operations on unrelated
 registrations, including dependent `AddAsync` calls. It prevents removal or
-reload of the initializing generation until its owning operation completes.
+reload of the initializing generation until the add or reload that started it completes.
 A competing operation on that registration throws `InvalidOperationException`
 with a readiness-in-progress diagnostic. Retry after initialization finishes.
 Do not remove or reload your own registration inside its readiness callback.
 
 Forward the callback's cancellation token to your awaited work. The lifecycle
 checks it before and after the callback. Cancellation after publication does
-not undo publication, so it does not mean that clients never saw the manager.
+not undo publication. Clients may already have seen the manager.
 Readiness also does not make several registrations visible atomically.
 
 Shutdown rejects new lifecycle operations and waits for active readiness work
@@ -722,12 +722,11 @@ Disposing the server or lifecycle provider is final.
 
 Keep every successfully added dependency handle, including dependencies added
 before a later readiness failure. Remove those registrations in your manager's
-`DeleteAddressSpaceAsync`. This does not give your manager ownership of injected
-registries, coordinators or stores. Dispose those only if your application owns
-them. After detaching a manager, the host runs its address-space deletion outside
+`DeleteAddressSpaceAsync`. The manager does not own injected registries, coordinators or stores.
+Dispose them only if your application owns them. After detaching a manager, the host runs its address-space deletion outside
 the lifecycle operation that published or removed it, so deletion can await
-removal of its dependencies. Shadow-retired managers wait for retained
-MonitoredItems and requests to finish before cleanup.
+removal of its dependencies. A shadow-retired manager no longer receives new requests but stays alive until its
+retained MonitoredItems and requests finish. Then it is cleaned up.
 
 #### Initializing managers in a custom host
 
@@ -838,16 +837,15 @@ at most as long as the longest deadline still outstanding plus `RequestManager.R
 after which the lifecycle operation fails with a `TimeoutException` instead of blocking
 indefinitely.
 
-Cancellation and expiry capture their request selection before invoking lifetime
-callbacks. A callback may complete a selected request or admit another request
-without changing the captured selection. Requests admitted by a callback are
+Before invoking lifetime callbacks, cancellation and expiry first select the requests they affect. A callback may complete a selected request or admit another request
+without changing that selection. Requests admitted by a callback are
 handled by a later cancellation or expiry pass; a new timed request retains its
 own expiry timer.
 Only lifetimes that accept cancellation contribute to the cancellation count
 and cancellation notifications.
 Each lifetime has one terminal owner. The winning cancellation status is visible
-before callbacks run; completion racing those callbacks defers token-resource
-disposal until they finish. Linked external cancellation uses the same ownership
+before callbacks run. If a request completes while the callbacks run, token-resource
+disposal waits until the callbacks finish. Linked external cancellation uses the same ownership
 decision and retains its `Good` status.
 
 A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
@@ -857,7 +855,7 @@ server, so it never holds a lifecycle operation up.
 A lifecycle operation stages and validates the replacement address space before
 its client-visible commit. Preparation failures follow the existing rollback
 path. Failures after publication, including readiness, can retain a live
-registration and must not be treated as pre-commit rollback. Add reports that
+registration, so callers must not treat them as pre-commit rollback. Add reports that
 the registration remains available from `Registrations`; reload reports the
 committed handle through `NodeManagerReloadCommittedException.Registration`.
 Readiness does not make several dependent registrations a single transaction.

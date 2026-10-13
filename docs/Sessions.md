@@ -1367,8 +1367,8 @@ Pick the entry point that best matches your call site:
 ## Server session lifecycle
 
 Channel and security-policy association failures are rejected before
-authentication-failure accounting. Requests from another channel cannot
-lock out the application owning an unactivated session; genuine invalid
+authentication-failure accounting. A request from a different channel cannot
+lock out the application that owns an unactivated session. genuine invalid
 signatures and identity credentials still count toward that application's
 lockout threshold.
 
