@@ -1879,6 +1879,20 @@ namespace Opc.Ua.XRegistry.Server
                     .ConfigureAwait(false);
                 open = opened.ServiceResult;
                 fileHandle = opened.FileHandle;
+                if (ServiceResult.IsGood(open) && IsSessionClosing(context))
+                {
+                    // Session cleanup won the race against the provider open: release the handle.
+                    if (entry!.File is IXRegistryProjectedResourceFileHandleForwarder forwarder)
+                    {
+                        await forwarder.ForwardCloseAsync(
+                            context,
+                            entry.Node.Close!,
+                            entry.Node.NodeId,
+                            fileHandle,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    return (true, StatusCodes.BadSessionClosed);
+                }
             }
             if (ServiceResult.IsBad(open))
             {
