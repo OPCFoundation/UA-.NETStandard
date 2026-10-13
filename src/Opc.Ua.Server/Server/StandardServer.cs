@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -3625,7 +3625,7 @@ namespace Opc.Ua.Server
             // request was registered, did not see it when it aborted the Session's outstanding
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
-            // takes the same lock, so a request the sweep missed sees the mark here.
+            // ends with a full fence, so a request the sweep missed sees the mark here.
             if (context.Session is ISession admittedSession &&
                 SessionTermination.IsClosingOrClaimed(admittedSession))
             {
@@ -4065,19 +4065,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
-                .HasSession(secureChannelId) ?? false;
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?.HasSession(secureChannelId)
+                ?? false;
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.TryGetSessionContext(
+        bool IServerSessionBindingProvider.TryGetSessionContext(
             NodeId authenticationToken,
             SecureChannelContext channelContext,
             [NotNullWhen(true)] out SessionBindingContext? context)
         {
-            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            if (m_serverInternal?.SessionManager is IServerSessionBindingProvider provider)
             {
                 return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
             }

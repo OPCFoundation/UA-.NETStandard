@@ -160,19 +160,31 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Registers a synchronous method handler without replacing a complete-result handler.
+        /// </summary>
+        /// <param name="handler">The method invocation handler.</param>
+        /// <exception cref="ArgumentNullException">The handler is null.</exception>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
+            m_parent.ThrowIfSealed();
+            m.ThrowIfCompleteHandlerRegistered();
             ThrowIfSlotOccupied(m.OnCallMethod2, "OnCall");
             m.OnCallMethod2 = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Registers an asynchronous method handler without replacing a complete-result handler.
+        /// </summary>
+        /// <param name="handler">The asynchronous method invocation handler.</param>
+        /// <exception cref="ArgumentNullException">The handler is null.</exception>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
         {
             MethodState m = RequireMethod("OnCallAsync");
+            m_parent.ThrowIfSealed();
+            m.ThrowIfCompleteHandlerRegistered();
             ThrowIfSlotOccupied(m.OnCallMethod2Async, "OnCallAsync");
             m.OnCallMethod2Async = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
@@ -437,6 +449,9 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Rejects handler registration after sealing or when the callback slot is already occupied.
         /// </summary>
+        /// <param name="existing">The callback already assigned to the slot.</param>
+        /// <param name="what">The name of the callback registration.</param>
+        /// <exception cref="ServiceResultException">The callback slot is occupied or the builder is sealed.</exception>
         private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
             m_parent.ThrowIfSealed();
