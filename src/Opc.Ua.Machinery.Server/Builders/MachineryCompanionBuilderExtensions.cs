@@ -44,6 +44,35 @@ namespace Opc.Ua.Machinery.Server.Builders
     public static class MachineryCompanionBuilderExtensions
     {
         /// <summary>
+        /// Configures an existing companion Components AddIn without replacing its declared identity or vendor subtype.
+        /// </summary>
+        /// <typeparam name="TState">The machine's generated state type.</typeparam>
+        /// <param name="builder">The unregistered machine builder.</param>
+        /// <param name="components">The exact existing descendant with a HasAddIn reference or subtype.</param>
+        /// <param name="configure">Configures components through the shared Machinery builders.</param>
+        /// <returns>The same machine builder.</returns>
+        public static IMachineBuilder<TState> WithComponents<TState>(
+            this IMachineBuilder<TState> builder,
+            MachineComponentsState components,
+            Action<IMachineComponentsBuilder> configure)
+            where TState : BaseObjectState
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (components == null)
+            {
+                throw new ArgumentNullException(nameof(components));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            return builder.GetMachineBuilder().BindComponents(components, configure);
+        }
+
+        /// <summary>
         /// Prepares Machinery bindings for a root whose registration belongs to another companion builder.
         /// </summary>
         /// <remarks>

@@ -311,6 +311,13 @@ actual asynchronous node-removal hook, not a value change-mask callback.
 Every block is attached to its machinery item with `HasAddIn`, which is what
 OPC 40001-1 uses — not `HasComponent`.
 
+For a companion-created or vendor-derived Components AddIn,
+`machine.WithComponents(existingComponents, configure)` reuses the existing
+`MachineComponentsState`. Its parent, qualified name, NodeId, reference and
+type definition are preserved. The node must be a descendant of this machine,
+derive from `MachineComponentsType`, and retain a `HasAddIn` reference or
+subtype. Existing child names are reserved rather than silently replaced.
+
 | Call | What it adds |
 | --- | --- |
 | `WithIdentification(…)` | `Identification`, typed `MachineIdentificationType`. The browse name comes from the DI namespace because the type derives from DI's `FunctionalGroupType`. `Manufacturer`, `SerialNumber` and (for a machine) `ProductInstanceUri` are mandatory and validated. |

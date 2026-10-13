@@ -110,6 +110,85 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         /// <summary>
+        /// Existing component containers retain their identity and reject an already occupied component name.
+        /// </summary>
+        [Test]
+        public async Task ExistingComponentsBindWithoutReplacementOrDuplicateChildrenAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("AdoptComponents"));
+            var name = new QualifiedName("Components",
+                (ushort)context.Context.NamespaceUris.GetIndex(Opc.Ua.Machinery.Namespaces.Machinery));
+            MachineComponentsState components = context.Context.CreateInstanceOfMachineComponentsType(machine.State, name);
+            components.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
+            machine.State.AddChild(components);
+            BaseObjectState existing = context.Context.CreateInstanceOfBaseObjectType(
+                components, new QualifiedName("Existing", context.InstanceNamespaceIndex));
+            existing.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            components.AddChild(existing);
+            NodeId identity = components.NodeId;
+
+            machine.WithComponents(components, builder =>
+            {
+                ServiceResultException duplicate = Assert.Throws<ServiceResultException>(() =>
+                    builder.AddComponent(new QualifiedName("Existing"), _ => { }))!;
+                Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+                builder.AddComponent(new QualifiedName("New"), component => component.WithIdentification(data =>
+                {
+                    data.Manufacturer = new LocalizedText("Component test");
+                    data.SerialNumber = "New-1";
+                    data.ProductInstanceUri = "urn:test:component:new";
+                }));
+            });
+            await machine.BuildAsync();
+
+            Assert.That(components.NodeId, Is.EqualTo(identity));
+            Assert.That(components.Parent, Is.SameAs(machine.State));
+            Assert.That(components.BrowseName, Is.EqualTo(name));
+            Assert.That(components.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasAddIn));
+            Assert.That(fixture.Manager.FindPredefinedNode(identity), Is.SameAs(components));
+            var children = new List<BaseInstanceState>();
+            machine.State.GetChildren(context.Context, children);
+            Assert.That(children.FindAll(node => node is MachineComponentsState), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Adoption rejects another machine's container and incompatible type/reference metadata without rewriting it.
+        /// </summary>
+        [Test]
+        public async Task ExistingComponentsRejectForeignOrInvalidDeclarationsAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            IMachineBuilder<BaseObjectState> owner = context.AddMachine(new QualifiedName("ComponentOwner"));
+            IMachineBuilder<BaseObjectState> other = context.AddMachine(new QualifiedName("OtherOwner"));
+            MachineComponentsState components = context.Context.CreateInstanceOfMachineComponentsType(
+                owner.State, new QualifiedName("Components", context.InstanceNamespaceIndex));
+            components.ReferenceTypeId = ReferenceTypeIds.HasAddIn;
+            owner.State.AddChild(components);
+            ServiceResultException foreign = Assert.Throws<ServiceResultException>(
+                () => other.WithComponents(components, _ => { }))!;
+            Assert.That(foreign.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            NodeId originalType = components.TypeDefinitionId;
+            components.TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+            ServiceResultException wrongType = Assert.Throws<ServiceResultException>(
+                () => owner.WithComponents(components, _ => { }))!;
+            Assert.That(wrongType.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            components.TypeDefinitionId = originalType;
+            components.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            ServiceResultException wrongReference = Assert.Throws<ServiceResultException>(
+                () => owner.WithComponents(components, _ => { }))!;
+            Assert.That(wrongReference.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(components.Parent, Is.SameAs(owner.State));
+            Assert.That(components.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+            await owner.AbortAsync();
+            await other.AbortAsync();
+        }
+
+        /// <summary>
         /// Existing machine and nested component nameplates retain their declared identities.
         /// </summary>
         [TestCase(true)]
@@ -155,6 +234,52 @@ namespace Opc.Ua.Machinery.Tests
             var siblings = new List<BaseInstanceState>();
             parent.GetChildren(context.Context, siblings);
             Assert.That(siblings.FindAll(child => child.BrowseName == name), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A companion may declare the base item nameplate without claiming a machine or component specialization.
+        /// </summary>
+        [Test]
+        public async Task ExistingBaseItemIdentificationPreservesTypeWithoutClaimingComponentFacetsAsync()
+        {
+            await using var fixture = new MachineryServerFixture();
+            await fixture.StartAsync();
+            IMachineryBuildContext context = fixture.CreateBuildContext();
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("ItemNameplate"));
+            BaseObjectState accessory = context.Context.CreateInstanceOfBaseObjectType(
+                machine.State, new QualifiedName("Accessory", context.InstanceNamespaceIndex));
+            machine.State.AddChild(accessory);
+            var name = new QualifiedName("Identification",
+                (ushort)context.Context.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi));
+            MachineryItemIdentificationState identification =
+                context.Context.CreateInstanceOfMachineryItemIdentificationType(accessory, name);
+            identification.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            accessory.AddChild(identification);
+            NodeId type = identification.TypeDefinitionId;
+            NodeId nodeId = identification.NodeId;
+
+            await machine.WithIdentification(identification, data =>
+            {
+                data.Manufacturer = new LocalizedText("Accessory supplier");
+                data.SerialNumber = "Item-1";
+                data.ComponentName = new LocalizedText("Native item");
+                data.Writable = true;
+            }).BuildAsync();
+
+            Assert.That(identification.TypeDefinitionId, Is.EqualTo(type));
+            Assert.That(identification.NodeId, Is.EqualTo(nodeId));
+            Assert.That(identification.Parent, Is.SameAs(accessory));
+            Assert.That(identification.BrowseName, Is.EqualTo(name));
+            Assert.That(identification.Manufacturer!.Value.Text, Is.EqualTo("Accessory supplier"));
+            Assert.That(identification.SerialNumber!.Value, Is.EqualTo("Item-1"));
+            Assert.That(identification.ComponentName!.Value.Text, Is.EqualTo("Native item"));
+            foreach (QualifiedName unit in fixture.Manager.ConformanceUnits)
+            {
+                Assert.That(unit.Name, Is.Not.EqualTo(ConformanceUnits.ComponentIdentification));
+                Assert.That(unit.Name, Is.Not.EqualTo(ConformanceUnits.ComponentIdentificationMandatory));
+                Assert.That(unit.Name, Is.Not.EqualTo(ConformanceUnits.ComponentIdentificationWritable));
+                Assert.That(unit.Name, Is.Not.EqualTo(ConformanceUnits.MachineIdentification));
+            }
         }
 
         /// <summary>

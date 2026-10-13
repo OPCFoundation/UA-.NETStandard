@@ -286,15 +286,12 @@ namespace Opc.Ua.Machinery.Server.Builders
             Scope.EnsureMutable();
             Scope.EnsurePart(MachineryParts.BuildingBlocks, "Identification");
             bool asMachine = identification is MachineIdentificationState;
-            if (!asMachine && identification is not MachineryComponentIdentificationState)
+            uint identifier = identification switch
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTypeDefinitionInvalid,
-                    "A companion identification must derive from machine or component identification.");
-            }
-            uint identifier = asMachine
-                ? ObjectTypes.MachineIdentificationType
-                : ObjectTypes.MachineryComponentIdentificationType;
+                MachineIdentificationState => ObjectTypes.MachineIdentificationType,
+                MachineryComponentIdentificationState => ObjectTypes.MachineryComponentIdentificationType,
+                _ => ObjectTypes.MachineryItemIdentificationType
+            };
             NodeId requiredType = NodeId.Create(identifier, Namespaces.Machinery, Context.NamespaceUris);
             if (!Context.TypeTable.IsTypeOf(identification.TypeDefinitionId, requiredType))
             {
@@ -324,17 +321,21 @@ namespace Opc.Ua.Machinery.Server.Builders
             }
             ReferenceBuildingBlock(identification);
             WriteIdentification(identification, data, asMachine);
-            Scope.RecordFacet(
-                asMachine
-                    ? MachineryFacet.MachineIdentification
-                    : MachineryFacet.ComponentIdentification);
+            if (asMachine)
+            {
+                Scope.RecordFacet(MachineryFacet.MachineIdentification);
+            }
+            else if (identification is MachineryComponentIdentificationState)
+            {
+                Scope.RecordFacet(MachineryFacet.ComponentIdentification);
+            }
             if (data.Writable)
             {
                 if (asMachine)
                 {
                     Scope.RecordFacet(MachineryFacet.MachineIdentificationWritable);
                 }
-                else
+                else if (identification is MachineryComponentIdentificationState)
                 {
                     Scope.RecordFacet(MachineryFacet.ComponentIdentificationMandatory);
                     Scope.RecordFacet(MachineryFacet.ComponentIdentificationWritable);
@@ -694,6 +695,12 @@ namespace Opc.Ua.Machinery.Server.Builders
         {
             m_scope = scope;
             State = state;
+            var children = new List<BaseInstanceState>();
+            state.GetChildren(scope.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                m_names.Add(child.BrowseName);
+            }
         }
 
         public MachineComponentsState State { get; }

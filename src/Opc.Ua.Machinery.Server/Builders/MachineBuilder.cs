@@ -425,6 +425,37 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
+        /// Reuses a generated Components descendant and preserves its parent, browse name and reference type.
+        /// </summary>
+        internal IMachineBuilder<TState> BindComponents(
+            MachineComponentsState components,
+            Action<IMachineComponentsBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.BuildingBlocks, "Components");
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, components);
+            NodeId type = NodeId.Create(
+                Opc.Ua.Machinery.ObjectTypes.MachineComponentsType,
+                Opc.Ua.Machinery.Namespaces.Machinery,
+                Scope.Context.NamespaceUris);
+            if (!Scope.Context.TypeTable.IsTypeOf(components.TypeDefinitionId, type) ||
+                !Scope.Context.TypeTable.IsTypeOf(components.ReferenceTypeId, MachineryBuilderUtilities.HasAddIn))
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeDefinitionInvalid,
+                    "Components must retain a MachineComponentsType subtype and a HasAddIn reference.");
+            }
+            m_blocks.ReferenceBuildingBlock(components);
+            configure(new MachineComponentsBuilder(Scope, components));
+            var children = new List<BaseInstanceState>();
+            components.GetChildren(Scope.Context, children);
+            if (children.Exists(static child => child is BaseObjectState))
+            {
+                Scope.RecordFacet(MachineryFacet.Components);
+            }
+            return this;
+        }
+
+        /// <summary>
         /// Registers a deferred binding whose returned resource belongs to this machine transaction.
         /// </summary>
         internal IMachineBuilder<TState> WithRegistrationBinding(
