@@ -1182,6 +1182,66 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Foreign endpoints are reported only when the service requested target-reference removal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ServiceDeleteNodeReportsForeignReferenceOnlyWhenRequestedAsync(bool deleteTargetReferences)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var typeTree = (TypeTable)m_mockServer.Object.TypeTree;
+            typeTree.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+            typeTree.AddSubtype(ReferenceTypeIds.HierarchicalReferences, ReferenceTypeIds.References);
+            typeTree.AddSubtype(ReferenceTypeIds.Organizes, ReferenceTypeIds.HierarchicalReferences);
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ForeignParentChild", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            var foreignParentId = new NodeId(
+                "ForeignParent", m_namespaceTable.GetIndexOrAppend("urn:test:foreign-node-manager"));
+            Assert.That(manager.Find(foreignParentId), Is.Null);
+            node.AddReference(ReferenceTypeIds.Organizes, true, foreignParentId);
+            m_mockServer.Invocations.Clear();
+            m_mockMasterNodeManager.Invocations.Clear();
+            using var context = new OperationContext(
+                new RequestHeader(), null!, RequestType.DeleteNodes, RequestLifetime.None, m_mockSession.Object);
+
+            ServiceResult result = await manager.DeleteNodeAsync(
+                context, new DeleteNodesItem
+                {
+                    NodeId = id,
+                    DeleteTargetReferences = deleteTargetReferences
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(manager.Find(id), Is.Null);
+            m_mockMasterNodeManager.Verify(value => value.RemoveReferencesAsync(
+                It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()),
+                deleteTargetReferences ? Times.Once() : Times.Never());
+            bool foreignReferenceReported = false;
+            bool deletionReported = false;
+            foreach (ModelChangeStructureDataType change in GetReportedDeletionChanges())
+            {
+                if (change.Affected == foreignParentId)
+                {
+                    foreignReferenceReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+                }
+                if (change.Affected == id)
+                {
+                    deletionReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+                }
+            }
+            Assert.That(deletionReported, Is.True);
+            Assert.That(foreignReferenceReported, Is.EqualTo(deleteTargetReferences));
+        }
+
+        /// <summary>
         /// Committed reference removals are reported even when cleanup fails or is cancelled.
         /// </summary>
         [TestCase(false, false)]

@@ -115,11 +115,13 @@ namespace Opc.Ua.Server.NodeManager
         /// </summary>
         internal void Complete(
             Exception? deletionFailure,
+            bool deleteTargetReferences,
             Action<ArrayOf<ModelChangeStructureDataType>> reportChanges)
         {
             try
             {
-                ArrayOf<ModelChangeStructureDataType> changes = GetCommittedChanges(deletionFailure == null);
+                ArrayOf<ModelChangeStructureDataType> changes =
+                    GetCommittedChanges(deletionFailure == null && deleteTargetReferences);
                 if (changes.Count != 0)
                 {
                     reportChanges(changes);
@@ -137,7 +139,7 @@ namespace Opc.Ua.Server.NodeManager
             }
         }
 
-        private ArrayOf<ModelChangeStructureDataType> GetCommittedChanges(bool cleanupCompleted)
+        private ArrayOf<ModelChangeStructureDataType> GetCommittedChanges(bool targetReferenceCleanupCompleted)
         {
             var changes = new Dictionary<NodeId, ModelChangeStructureDataType>();
             foreach ((NodeId id, NodeState node, NodeId type, bool eligible) in m_deletedNodes)
@@ -182,8 +184,8 @@ namespace Opc.Ua.Server.NodeManager
                 }
             }
 
-            // Foreign reference endpoints cannot be inspected after partial cleanup.
-            if (cleanupCompleted)
+            // Foreign reference endpoints cannot be inspected after partial or skipped cleanup.
+            if (targetReferenceCleanupCompleted)
             {
                 foreach ((NodeId parent, NodeId child) in m_externalParents)
                 {

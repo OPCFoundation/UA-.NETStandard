@@ -114,8 +114,9 @@ from surviving local nodes, including when later cleanup fails or the request
 is cancelled. A versioned descendant is reported even if its root is unversioned.
 The deletion error is still returned; notification failures are not suppressed.
 For reference endpoints owned by another node manager, automatic reporting
-requires successful cleanup because their remaining references cannot be inspected
-locally.
+requires requested and successful target-reference cleanup because their remaining
+references cannot be inspected locally. A successful `DeleteNodes` call with
+`DeleteTargetReferences = false` does not imply that foreign references were removed.
 
 ### Manual aggregation across a transaction
 

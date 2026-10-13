@@ -972,7 +972,7 @@ namespace Opc.Ua.Server
             {
                 failure = deletionFailure;
             }
-            changes.Complete(failure, committed =>
+            changes.Complete(failure, deleteTargetReferences: true, committed =>
             {
                 foreach (ModelChangeStructureDataType change in committed)
                 {

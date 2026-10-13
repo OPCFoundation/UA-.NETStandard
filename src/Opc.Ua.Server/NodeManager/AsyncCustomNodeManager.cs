@@ -1870,12 +1870,14 @@ namespace Opc.Ua.Server
             return CompleteNodeDeletionAsync(
                 SystemContext.Copy(context),
                 nodeId,
+                deleteTargetReferences: true,
                 () => DeleteNodeCoreAsync(context, nodeId, cancellationToken));
         }
 
         private async ValueTask<T> CompleteNodeDeletionAsync<T>(
             ServerSystemContext context,
             NodeId nodeId,
+            bool deleteTargetReferences,
             Func<ValueTask<T>> delete)
         {
             var changes = new NodeDeletionModelChanges(
@@ -1890,7 +1892,7 @@ namespace Opc.Ua.Server
             {
                 failure = deletionFailure;
             }
-            changes.Complete(failure, committed =>
+            changes.Complete(failure, deleteTargetReferences, committed =>
             {
                 foreach (ModelChangeStructureDataType change in committed)
                 {
@@ -2336,7 +2338,8 @@ namespace Opc.Ua.Server
         {
             return CompleteNodeDeletionAsync(
                 SystemContext.Copy(context),
-                item?.NodeId ?? NodeId.Null,
+                item == null ? NodeId.Null : item.NodeId,
+                item != null && item.DeleteTargetReferences,
                 () => DeleteNodeCoreAsync(context, item!, cancellationToken));
         }
 
