@@ -357,10 +357,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
         /// </summary>
-        internal IDisposable TrackPendingRequest()
+        internal PendingRequestScope TrackPendingRequest()
         {
             Interlocked.Increment(ref m_pendingServiceRequests);
-            return new PendingRequest(() => Interlocked.Decrement(ref m_pendingServiceRequests));
+            return new PendingRequestScope(this);
         }
 
         /// <summary>
@@ -1256,23 +1256,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Keeps a decoded request in use until its owner releases the pending-request count once.
+        /// Keeps a decoded request in use until its owner releases the pending-request count.
         /// </summary>
-        /// <param name="release">Callback that returns this request's pending count.</param>
-        private sealed class PendingRequest(Action release) : IDisposable
+        /// <remarks>
+        /// A struct, so tracking a request allocates nothing. Every use is a
+        /// <see langword="using"/> declaration over the value returned by
+        /// <see cref="TrackPendingRequest"/>, which disposes it exactly once.
+        /// </remarks>
+        internal readonly struct PendingRequestScope : IDisposable
         {
-            /// <summary>
-            /// Returns the pending-request count at most once.
-            /// </summary>
-            public void Dispose()
+            internal PendingRequestScope(TcpListenerChannel channel)
             {
-                Interlocked.Exchange(ref m_release, null)?.Invoke();
+                m_channel = channel;
             }
 
             /// <summary>
-            /// Pending-count release callback, cleared atomically when consumed.
+            /// Returns the pending-request count.
             /// </summary>
-            private Action? m_release = release;
+            public void Dispose()
+            {
+                if (m_channel != null)
+                {
+                    Interlocked.Decrement(ref m_channel.m_pendingServiceRequests);
+                }
+            }
+
+            private readonly TcpListenerChannel? m_channel;
         }
 
         private readonly ILogger m_logger;

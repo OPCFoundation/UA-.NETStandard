@@ -1326,8 +1326,33 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
+            try
+            {
+                await ReceiveAndDispatchAsync(transport, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                // responses of the last dispatch may still wait for the writer.
+                StartDeferredWriter();
+            }
+        }
+
+        /// <summary>
+        /// The body of <see cref="RunReceiveLoopAsync"/>.
+        /// </summary>
+        private async Task ReceiveAndDispatchAsync(IUaSCByteTransport transport, CancellationToken ct)
+        {
             while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
             {
+                // The responses that the dispatch of the chunks read so far queued
+                // go out together once no complete chunk is left to dispatch, before
+                // the loop can wait for the peer or for write capacity. See
+                // DeferWriterStart.
+                if (transport is not IUaSCReceiveBuffering { HasBufferedChunk: true })
+                {
+                    StartDeferredWriter();
+                }
+
                 ArraySegment<byte> chunk;
                 try
                 {
@@ -1512,11 +1537,78 @@ namespace Opc.Ua.Bindings
                 {
                     return true;
                 }
+                if (ReferenceEquals(t_dispatchingChannel, this) &&
+                    m_unsealedWriteQueue.Count < kMaxCoalescedWrites)
+                {
+                    m_writerStartDeferred = true;
+                    return true;
+                }
                 m_writerRunning = true;
+                m_writerStartDeferred = false;
             }
 
             ScheduleWriter();
             return true;
+        }
+
+        /// <summary>
+        /// Marks the current thread as dispatching a message received on this
+        /// channel: responses it queues while doing so do not start the writer.
+        /// </summary>
+        /// <returns>The value to pass to <see cref="EndDeferWriterStart"/>.</returns>
+        /// <remarks>
+        /// A request that runs to completion on the receive loop queues its
+        /// response on that thread. Started at once, the writer sent each such
+        /// response on its own while the receive loop read the next request; held
+        /// back until the receive loop has no complete chunk left to read
+        /// (<see cref="StartDeferredWriter"/>), it sends them together. At most
+        /// <see cref="kMaxCoalescedWrites"/> responses wait so; the next one
+        /// starts the writer. A response that is produced on another thread, or
+        /// after the dispatch returned, starts the writer as before.
+        /// </remarks>
+        private protected UaSCUaBinaryChannel? DeferWriterStart()
+        {
+            UaSCUaBinaryChannel? previous = t_dispatchingChannel;
+            t_dispatchingChannel = this;
+            return previous;
+        }
+
+        /// <summary>
+        /// Ends what <see cref="DeferWriterStart"/> began on the current thread.
+        /// </summary>
+        /// <param name="previous">The value <see cref="DeferWriterStart"/> returned.</param>
+        private protected static void EndDeferWriterStart(UaSCUaBinaryChannel? previous)
+        {
+            t_dispatchingChannel = previous;
+        }
+
+        /// <summary>
+        /// Starts the writer for the responses queued while writer start was
+        /// deferred, unless it is running already.
+        /// </summary>
+        private protected void StartDeferredWriter()
+        {
+            if (!Volatile.Read(ref m_writerStartDeferred))
+            {
+                return;
+            }
+
+            lock (m_writeQueueLock)
+            {
+                if (!m_writerStartDeferred)
+                {
+                    return;
+                }
+                m_writerStartDeferred = false;
+                if (m_writerRunning ||
+                    (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0))
+                {
+                    return;
+                }
+                m_writerRunning = true;
+            }
+
+            ScheduleWriter();
         }
 
         /// <summary>
@@ -2486,6 +2578,20 @@ namespace Opc.Ua.Bindings
         private readonly Queue<PendingWrite> m_writeQueue = new();
         private readonly Queue<PendingWrite> m_unsealedWriteQueue = new();
         private bool m_writerRunning;
+
+        /// <summary>
+        /// Whether a write was queued without starting the writer, because the
+        /// thread that queued it is dispatching a received message for this
+        /// channel; written under <see cref="m_writeQueueLock"/>.
+        /// </summary>
+        private bool m_writerStartDeferred;
+
+        /// <summary>
+        /// The channel whose received message the current thread is dispatching,
+        /// if any. See <see cref="DeferWriterStart"/>.
+        /// </summary>
+        [ThreadStatic]
+        private static UaSCUaBinaryChannel? t_dispatchingChannel;
 
         /// <summary>
         /// The most writes sent together in one vectored send.

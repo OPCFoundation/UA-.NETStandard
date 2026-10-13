@@ -1710,7 +1710,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request)
         {
-            using IDisposable usage = channel.TrackPendingRequest();
+            using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
             IServiceResponse? response = null;
             bool responseRetained = false;
             try
