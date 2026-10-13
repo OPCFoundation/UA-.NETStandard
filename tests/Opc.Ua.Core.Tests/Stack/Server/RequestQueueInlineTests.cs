@@ -165,6 +165,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// A request that arrives while a queued request has left its FIFO but waits for
+        /// its execution admission does not run inline ahead of it: the queue counts it
+        /// as queued no longer, but as being selected.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task ARequestDoesNotOvertakeASelectionInFlightAsync()
+        {
+            var provider = new TestProvider { ExecutionCapacity = 1 };
+            using var server = new TestServer(provider);
+            var running = new TestRequest(new ReadRequest());
+            var queued = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+            var later = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+
+            // running holds the only execution lease; queued is queued, and the worker
+            // tried it once and put it back.
+            Schedule(server, running);
+            Schedule(server, queued);
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            while (provider.ExecutionAttempts < 3 && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(5).ConfigureAwait(false);
+            }
+            Assert.That(provider.ExecutionAttempts, Is.GreaterThanOrEqualTo(3));
+            Assert.That(queued.Started.Task.IsCompleted, Is.False);
+
+            // later arrives while the worker asks for the lease running returns.
+            provider.BeforeExecutionGrant = () => Schedule(server, later);
+            running.Complete();
+
+            await Task.WhenAll(queued.Completed.Task, later.Completed.Task).ConfigureAwait(false);
+            Assert.That(await later.Started.Task.ConfigureAwait(false), Is.False, "later ran inline");
+            Assert.That(queued.StartOrder, Is.LessThan(later.StartOrder), "later overtook the queued request");
+        }
+
+        /// <summary>
         /// A request that went asynchronous after starting inline is cancelled by a
         /// server stop and reported as halted, like a request on a worker.
         /// </summary>
@@ -409,8 +445,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 m_release.TrySetResult(true);
             }
 
+            /// <summary>
+            /// The position in which the request started among all test requests.
+            /// </summary>
+            public int StartOrder { get; private set; }
+
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
+                StartOrder = Interlocked.Increment(ref s_startOrder);
                 Started.TrySetResult(t_scheduling);
                 if (WaitForCancellation)
                 {
@@ -429,6 +471,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Completed.TrySetResult(true);
             }
 
+            private static int s_startOrder;
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -445,6 +489,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public long ExecutionCapacity { get; set; } = 100;
 
             public long ExecutionUsed => Interlocked.Read(ref m_executionUsed);
+
+            /// <summary>
+            /// Execution admissions attempted, granted or not.
+            /// </summary>
+            public int ExecutionAttempts => Volatile.Read(ref m_executionAttempts);
+
+            /// <summary>
+            /// Runs once, at the next execution admission, before it is decided.
+            /// </summary>
+            public Action? BeforeExecutionGrant { get; set; }
 
             public event Action<ResourceIsolationStage>? CapacityAvailable;
 
@@ -485,6 +539,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     lease = new Lease(null);
                     return true;
                 }
+                Interlocked.Increment(ref m_executionAttempts);
+                Action? before = BeforeExecutionGrant;
+                if (before != null)
+                {
+                    BeforeExecutionGrant = null;
+                    before();
+                }
                 if (Interlocked.Increment(ref m_executionUsed) > ExecutionCapacity)
                 {
                     Interlocked.Decrement(ref m_executionUsed);
@@ -516,6 +577,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 "owner", ResourceIsolationClass.Established, 1, new long[] { 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 });
 
             private long m_executionUsed;
+
+            private int m_executionAttempts;
         }
     }
 }
