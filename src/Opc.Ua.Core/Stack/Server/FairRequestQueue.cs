@@ -1053,17 +1053,15 @@ namespace Opc.Ua
             /// </summary>
             public void Dispose()
             {
-                CancellationTokenRegistration registration;
-                lock (m_registrationGate)
+                int prior = Interlocked.Exchange(ref m_registrationState, kDisposed);
+                if (prior == kDisposed)
                 {
-                    if (m_disposed)
-                    {
-                        return;
-                    }
-                    m_disposed = true;
-                    registration = m_registration;
+                    return;
                 }
-                registration.Dispose();
+                if (prior == kRegistered)
+                {
+                    m_registration.Dispose();
+                }
                 ReleaseQueueLease();
                 ReleaseExecution();
                 Interlocked.Exchange(ref m_parkedLease, null)?.Dispose();
@@ -1092,16 +1090,11 @@ namespace Opc.Ua
             internal void RegisterCancellation()
             {
                 CancellationTokenRegistration registration = CancellationToken.Register(() => m_queue.Cancel(this));
-                bool disposed;
-                lock (m_registrationGate)
-                {
-                    disposed = m_disposed;
-                    if (!disposed)
-                    {
-                        m_registration = registration;
-                    }
-                }
-                if (disposed)
+                m_registration = registration;
+
+                // published unless the entry was disposed meanwhile, possibly by the
+                // callback running inside Register; the registration is ours to end then.
+                if (Interlocked.CompareExchange(ref m_registrationState, kRegistered, kNone) != kNone)
                 {
                     registration.Dispose();
                 }
@@ -1111,11 +1104,6 @@ namespace Opc.Ua
             /// Queue that controls ordering and classification validity.
             /// </summary>
             private readonly FairRequestQueue m_queue;
-
-            /// <summary>
-            /// Serializes registration transfer against entry disposal.
-            /// </summary>
-            private readonly Lock m_registrationGate = new();
 
             /// <summary>
             /// The owning FIFO while linked.
@@ -1143,14 +1131,22 @@ namespace Opc.Ua
             private IDisposable? m_parkedLease;
 
             /// <summary>
-            /// Registration owned until disposal starts.
+            /// Registration owned until disposal starts; published by
+            /// <see cref="m_registrationState"/>.
             /// </summary>
             private CancellationTokenRegistration m_registration;
 
             /// <summary>
-            /// Whether registration ownership has been released.
+            /// <see cref="kNone"/>, <see cref="kRegistered"/> once the registration is
+            /// published, or <see cref="kDisposed"/> once disposal started. Changed with
+            /// <see cref="Interlocked"/>, so that an entry that is never registered (a
+            /// request run inline) needs no lock object.
             /// </summary>
-            private bool m_disposed;
+            private int m_registrationState;
+
+            private const int kNone = 0;
+            private const int kRegistered = 1;
+            private const int kDisposed = 2;
         }
 
         /// <summary>

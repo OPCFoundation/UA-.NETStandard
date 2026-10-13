@@ -290,6 +290,60 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A response that cannot be encoded is answered with a ServiceFault carrying
+        /// its RequestHandle, whether it is sent on the receive loop while that
+        /// dispatches the request (with the gate free) or from another thread.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AResponseThatCannotBeEncodedIsAnsweredWithAFaultAsync(bool sentWhileDispatching)
+        {
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool, maxByteStringLength: 100);
+            var transport = new RecordingTransport(asyncSendEvery: 2);
+            channel.SetTransport(transport);
+            channel.SetRequestReceivedCallback((target, requestId, request) =>
+            {
+                ReadResponse response = CreateResponse(null, requestId == 2 ? 1000 : 10);
+                response.ResponseHeader.RequestHandle = requestId + 100;
+                if (sentWhileDispatching)
+                {
+                    _ = ((TcpServerChannel)target).SendResponseAsync(requestId, response).AsTask();
+                }
+                else
+                {
+                    _ = Task.Run(() => ((TcpServerChannel)target).SendResponseAsync(requestId, response).AsTask());
+                }
+            });
+
+            for (uint ii = 1; ii <= 3; ii++)
+            {
+                transport.Feed(channel.CreateRequestChunkForTest(ii, ii));
+            }
+            channel.StartReceiveLoopForTest();
+
+            List<WireChunk> chunks = await transport.WaitForFinalChunksAsync(3).ConfigureAwait(false);
+            AssertWireOrder(chunks, [1, 2, 3]);
+            foreach (WireChunk chunk in chunks)
+            {
+                IServiceResponse response = DecodeBody(channel, chunk);
+                Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(chunk.RequestId + 100));
+                if (chunk.RequestId == 2)
+                {
+                    Assert.That(response, Is.InstanceOf<ServiceFault>());
+                    // the status of the encoding failure, as the gate path reported it before.
+                    Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                }
+                else
+                {
+                    Assert.That(response, Is.InstanceOf<ReadResponse>());
+                }
+            }
+
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task ResponsesQueuedForAReplacedTransportAreNotNumberedAsync()
         {
@@ -514,6 +568,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Decodes the body of a single-chunk message sent on a None channel.
+        /// </summary>
+        private static IServiceResponse DecodeBody(OrderServerChannel channel, WireChunk chunk)
+        {
+            const int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+            Assert.That(chunk.IsFinal, Is.True);
+            using var stream = new System.IO.MemoryStream(chunk.Bytes, headerSize, chunk.Bytes.Length - headerSize);
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(stream, channel.MessageContextForTest);
+        }
+
         private static ReadResponse CreateResponse(Random? random, int? payloadSize = null)
         {
             int size = payloadSize ??
@@ -568,10 +633,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
-            public static OrderServerChannel Create(CountingPool pool)
+            public static OrderServerChannel Create(CountingPool pool, int maxByteStringLength = 0)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                var quotas = new ChannelQuotas(ServiceMessageContext.Create(telemetry))
+                var context = ServiceMessageContext.Create(telemetry);
+                if (maxByteStringLength > 0)
+                {
+                    context.MaxByteStringLength = maxByteStringLength;
+                }
+                var quotas = new ChannelQuotas(context)
                 {
                     MaxBufferSize = 8192,
                     MaxMessageSize = 4 * 1024 * 1024
@@ -592,6 +662,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             public bool HasQueuedWritesForTest => HasPendingWrites;
+
+            public IServiceMessageContext MessageContextForTest => Quotas.MessageContext;
 
             public void SetTransport(IUaSCByteTransport transport)
             {

@@ -1344,15 +1344,6 @@ namespace Opc.Ua.Bindings
         {
             while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
             {
-                // The responses that the dispatch of the chunks read so far queued
-                // go out together once no complete chunk is left to dispatch, before
-                // the loop can wait for the peer or for write capacity. See
-                // DeferWriterStart.
-                if (transport is not IUaSCReceiveBuffering { HasBufferedChunk: true })
-                {
-                    StartDeferredWriter();
-                }
-
                 ArraySegment<byte> chunk;
                 try
                 {
@@ -1560,8 +1551,9 @@ namespace Opc.Ua.Bindings
         /// A request that runs to completion on the receive loop queues its
         /// response on that thread. Started at once, the writer sent each such
         /// response on its own while the receive loop read the next request; held
-        /// back until the receive loop has no complete chunk left to read
-        /// (<see cref="StartDeferredWriter"/>), it sends them together. At most
+        /// back until the dispatcher has no complete chunk left to read, and calls
+        /// <see cref="StartDeferredWriter"/>, it sends them together. The receive
+        /// loop calls it again when it stops. At most
         /// <see cref="kMaxCoalescedWrites"/> responses wait so; the next one
         /// starts the writer. A response that is produced on another thread, or
         /// after the dispatch returned, starts the writer as before.
@@ -1643,21 +1635,39 @@ namespace Opc.Ua.Bindings
             List<PendingWrite> batch = m_writeBatch;
             while (true)
             {
-                // Sealing takes sequence numbers and the current token, so it runs
-                // under the send order lock, and in queue order. The batch is taken
-                // under the same lock: see SendOrder for why that orders the wire.
-                using (await SendOrder.EnterAsync().ConfigureAwait(false))
+                bool numbered;
+                lock (m_writeQueueLock)
                 {
-                    lock (m_writeQueueLock)
+                    if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
                     {
-                        if (!TakeWriteBatch(batch))
-                        {
-                            m_writerRunning = false;
-                            return;
-                        }
+                        m_writerRunning = false;
+                        return;
                     }
 
-                    SealWriteBatch(batch);
+                    // Writes numbered by their producers go out without the send
+                    // order lock: each was queued under it, after the writes numbered
+                    // before it. A client channel only queues such writes.
+                    numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
+                }
+
+                if (!numbered)
+                {
+                    // Sealing takes sequence numbers and the current token, so it runs
+                    // under the send order lock, and in queue order. The batch is taken
+                    // under the same lock: see SendOrder for why that orders the wire.
+                    using (await SendOrder.EnterAsync().ConfigureAwait(false))
+                    {
+                        lock (m_writeQueueLock)
+                        {
+                            if (!TakeWriteBatch(batch, includeUnsealed: true))
+                            {
+                                m_writerRunning = false;
+                                return;
+                            }
+                        }
+
+                        SealWriteBatch(batch);
+                    }
                 }
 
                 if (batch.Count == 0)
@@ -1706,23 +1716,25 @@ namespace Opc.Ua.Bindings
         /// Takes the next writes to send together, the numbered ones first.
         /// </summary>
         /// <param name="batch">Receives the writes; empty on entry.</param>
-        /// <returns><see langword="false"/> when nothing is queued.</returns>
+        /// <param name="includeUnsealed">Whether unsealed writes may be taken; only
+        /// a caller that holds <see cref="SendOrder"/> may number them.</param>
+        /// <returns><see langword="false"/> when nothing is queued that may be taken.</returns>
         /// <remarks>
-        /// Called under <see cref="SendOrder"/> and the write queue lock. Every
-        /// sealed write in the queue was numbered before the caller took
-        /// <see cref="SendOrder"/>, so it goes out before the unsealed writes the
-        /// caller is about to number. Writes queued behind the first one for the
-        /// same transport go out with it in one vectored send, when the transport
-        /// is a stream.
+        /// Called under the write queue lock, and under <see cref="SendOrder"/> when
+        /// <paramref name="includeUnsealed"/> is set. Every sealed write in the
+        /// queue was numbered before the caller took <see cref="SendOrder"/>, so it
+        /// goes out before the unsealed writes the caller is about to number. Writes
+        /// queued behind the first one for the same transport go out with it in one
+        /// vectored send, when the transport is a stream.
         /// </remarks>
-        private bool TakeWriteBatch(List<PendingWrite> batch)
+        private bool TakeWriteBatch(List<PendingWrite> batch, bool includeUnsealed)
         {
             PendingWrite first;
             if (m_writeQueue.Count > 0)
             {
                 first = m_writeQueue.Dequeue();
             }
-            else if (m_unsealedWriteQueue.Count > 0)
+            else if (includeUnsealed && m_unsealedWriteQueue.Count > 0)
             {
                 first = m_unsealedWriteQueue.Dequeue();
             }
@@ -1744,7 +1756,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 // unsealed writes only once no sealed write is left ahead of them.
-                while (m_writeQueue.Count == 0 &&
+                while (includeUnsealed &&
+                    m_writeQueue.Count == 0 &&
                     m_unsealedWriteQueue.Count > 0 &&
                     batch.Count < kMaxCoalescedWrites &&
                     ReferenceEquals(m_unsealedWriteQueue.Peek().Transport, first.Transport))
@@ -2361,8 +2374,11 @@ namespace Opc.Ua.Bindings
         /// The writer sends every sealed write ahead of the unsealed ones it takes
         /// with them, so a write numbered by a producer — necessarily before the
         /// writer took the lock — precedes the numbers the writer assigns, and one
-        /// writer sends batches one after the other. Messages without sequence
-        /// numbers (Hello, Acknowledge, ReverseHello, Error) need no lock.
+        /// writer sends batches one after the other. Sealed writes alone the writer
+        /// takes without the lock: they are in the queue in the order of their
+        /// numbers, and a write still being numbered under the lock is queued after
+        /// them. Messages without sequence numbers (Hello, Acknowledge,
+        /// ReverseHello, Error) need no lock.
         /// <para>
         /// Token changes that can dispose a token take the lock too, so the writer
         /// never secures a chunk with a disposed token. Lock order: <see cref="Gate"/>,
