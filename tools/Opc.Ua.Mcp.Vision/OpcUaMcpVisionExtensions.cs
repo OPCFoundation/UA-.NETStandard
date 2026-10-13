@@ -98,9 +98,20 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
                 case McpToolProfile.MachineTool:
                 case McpToolProfile.Gms:
                 case McpToolProfile.CranesHoists:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

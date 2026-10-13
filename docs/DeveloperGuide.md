@@ -395,8 +395,10 @@ and the OpenUSD connector tools. All CranesHoists model/server/client/MCP
 packages and their Debug variants use that preview policy. The Vision,
 MachineVision, MachineTool (including bundled WMTP), and GMS model/client/server
 packages and their MCP packages follow the root version without a
-forced-preview override; development versions
-remain prereleases. The package validation manifest
+forced-preview override. The industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, Device Integration, ISA-95 and Positioning), plus the WoT and
+xRegistry MCP extensions, also follow the root release channel. Development
+versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.

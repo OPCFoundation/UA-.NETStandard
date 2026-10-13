@@ -103,24 +103,81 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             TimeProvider clock = timeProvider ?? TimeProvider.System;
             return readiness.SubscribeEventsAsync(notifierId, filter, options, async (item, token) =>
             {
-                while (true)
-                {
-                    token.ThrowIfCancellationRequested();
-                    ServiceResult error = item.Error;
-                    if (ServiceResult.IsBad(error) &&
-                        (error.StatusCode != StatusCodes.BadWaitingForInitialData ||
-                            item is not IMonitoredItemApplyState { HasPendingChanges: true }))
-                    {
-                        throw new ServiceResultException(error);
-                    }
-                    if (item.Created)
-                    {
-                        break;
-                    }
-                    await clock.Delay(TimeSpan.FromMilliseconds(10), token).ConfigureAwait(false);
-                }
+                await WaitForMonitoredItemCreatedCoreAsync(item, clock, token).ConfigureAwait(false);
                 await onReady(token).ConfigureAwait(false);
             }, ct);
+        }
+
+        /// <summary>
+        /// Observes events after the owned monitored item is created and its ConditionRefresh2 request is accepted.
+        /// Refresh markers and subsequent events remain in the returned stream. Disposing its enumerator removes
+        /// only that monitored item, never the caller-owned subscription.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public static IAsyncEnumerable<EventNotification> SubscribeEventsWithRefreshAsync(
+            this IStreamingSubscription streaming,
+            NodeId notifierId,
+            EventFilter filter,
+            MonitoredItems.MonitoredItemOptions? options = null,
+            CancellationToken ct = default)
+        {
+            if (streaming is null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+            if (streaming is not IStreamingSubscriptionReadiness readiness)
+            {
+                throw new NotSupportedException(
+                    "The streaming subscription cannot synchronize refresh with owned monitored-item creation.");
+            }
+            ct.ThrowIfCancellationRequested();
+            return readiness.SubscribeEventsAsync(notifierId, filter, options,
+                async (item, token) =>
+                {
+                    await WaitForMonitoredItemCreatedAsync(item, token).ConfigureAwait(false);
+                    await item.ConditionRefreshAsync(token).ConfigureAwait(false);
+                }, ct);
+        }
+
+        /// <summary>
+        /// Waits for the final server creation result, not merely local registration of a monitored item.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static ValueTask WaitForMonitoredItemCreatedAsync(
+            this IMonitoredItem item, CancellationToken ct)
+        {
+            return WaitForMonitoredItemCreatedCoreAsync(item, TimeProvider.System, ct);
+        }
+
+        /// <summary>
+        /// Waits for verified creation with the caller-selected clock and propagates terminal creation errors.
+        /// </summary>
+        private static async ValueTask WaitForMonitoredItemCreatedCoreAsync(
+            IMonitoredItem item,
+            TimeProvider clock,
+            CancellationToken ct)
+        {
+            if (item is null)
+            {
+                throw new ArgumentNullException(nameof(item));
+            }
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                ServiceResult error = item.Error;
+                if (ServiceResult.IsBad(error) &&
+                    (error.StatusCode != StatusCodes.BadWaitingForInitialData ||
+                        item is not IMonitoredItemApplyState { HasPendingChanges: true }))
+                {
+                    throw new ServiceResultException(error);
+                }
+                if (item.Created)
+                {
+                    return;
+                }
+                await clock.Delay(TimeSpan.FromMilliseconds(10), ct).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

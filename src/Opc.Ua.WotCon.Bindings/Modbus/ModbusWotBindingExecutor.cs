@@ -80,7 +80,8 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             var addressing = ModbusAddressing.FromForm(form, context.Bounds);
             string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
             int port = form.Endpoint.Port > 0 ? form.Endpoint.Port : 502;
-            var client = new ModbusTcpClient(host, port, context.Bounds.DefaultTimeout);
+            var client = new ModbusTcpClient(
+                host, port, context.Bounds.DefaultTimeout, m_options.StreamConnector);
             try
             {
                 await client.ConnectAsync(cancellationToken).ConfigureAwait(false);

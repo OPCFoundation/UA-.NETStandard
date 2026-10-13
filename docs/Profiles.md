@@ -318,10 +318,11 @@ Client-side feature coverage:
   retargeting them after reconnect. This is an additive SDK capability, not a
   separate conformance profile. See [Session bindings](SessionBindings.md).
 - **Typed companion workflows** - the model families above include their
-  documented discovery, read, operation and observation helpers; selected
-  MachineTool/WMTP, GMS, CranesHoists, Vision and Robotics workflows are also
-  exposed through bounded [MCP profiles](McpServer.md). MCP catalog selection
-  is not an OPC UA Client conformance profile.
+  documented discovery, read, operation and observation helpers. Companion
+  and general stack workflows are also exposed through bounded
+  [MCP profiles](McpServer.md), with separate host grants for privileged/live
+  execution. MCP catalogue selection is neither an execution grant nor an
+  OPC UA Client conformance profile.
 
 ## Transport Profiles
 

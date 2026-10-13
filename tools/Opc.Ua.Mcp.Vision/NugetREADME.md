@@ -65,8 +65,8 @@ Development builds still use the root prerelease version. The optional
   `vision_machine_relationships`, `vision_machine_observe`,
   `vision_machine_upload_recipe`, `vision_machine_upload_configuration`,
   `vision_machine_download_result`. See the
-  [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#mcp)
-  for OPC 40100-1/-2 behavior and payload bounds.
+  [Machine Vision tool catalogue](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#machine-vision-tools)
+  for tool behavior.
 
 Capability discovery reports optional interfaces on the actual selected system.
 Status detail is opt-in (`includeDetails: true`). One-shot observation defaults to
@@ -83,7 +83,74 @@ Server refusals are returned honestly with the exact `StatusCode` and message;
 the MCP layer does not retry and never acquires command authority as a side
 effect.
 
+## Machine Vision JSON contract
+
+Metadata pages contain at most 100 entries, asset snapshots at most 1,024 values,
+file chunks at most 1 MiB, and serialized responses at most 2 MiB of UTF-8 JSON.
+Oversized responses fail rather than truncate; narrow the root/page or use chunks.
+
+`vision_machine_command.parametersJson` is an object using the UA JSON encoding
+of a Variant `Parameters` array and optional `ExternalRecipeId` structure.
+Recipe/configuration `identifierJson` preserves complete binary identifiers,
+including version/hash metadata. Result `filtersJson` supports `MeasId`,
+`PartId`, recipe/configuration identifiers, `ProductId` and `JobId`; `Components`
+returns all result components. These inputs use `JsonEncoder`'s representation,
+with a one-MiB input bound. Conflicting scalar and structured selectors fail.
+
+Call `vision_machine_capabilities` without a selector for model support, or
+with `systemNodeId` to resolve optional management/transfer/safety/step objects
+and instance methods. `vision_machine_read_state.includeDetails=true` adds
+DiagnosticLevel, SystemState, active configuration, safety and step states.
+Absent optional values retain their resolution status.
+
+`vision_machine_relationships.relationship` selects `SameEntity`, `OpticalPath`,
+`DataTransmission` or `Interface`; `direction` selects `Forward`, `Inverse` or
+`Both`. Results contain at most 100 unique references and a `nextIndex`, with
+offsets capped at 10,000. Each page is a live view.
+
+For example, `vision_machine_observe` accepts:
+
+```json
+{
+  "notifierNodeId": "ns=4;s=Inspection",
+  "mode": "Conditions",
+  "refreshConditions": true,
+  "durationSeconds": 5,
+  "maximumNotifications": 50
+}
+```
+
+The result includes `completionReason`, `refreshComplete`, `droppedNotifications`,
+namespace-qualified `fieldPaths` and event fields. An empty path selects the
+condition's NodeId attribute. Pass the exact `eventIdBase64` and
+`conditionNodeId` to an explicit condition operation. A refresh start/end pair
+sets `refreshComplete`; it does not imply that no events were dropped.
+Cancellation, setup and refresh failures remain errors. The tool owns its
+subscription and leaves the session and other subscriptions open.
+
+Complete uploads accept a system NodeId, `externalId` or full `identifierJson`,
+and `dataBase64`; recipes also accept `productId`. They transfer only when the
+server requests it and wait for commit, without preparation/activation.
+`vision_machine_download_result` takes `systemNodeId`, `resultId` and
+`maximumBytes` (1..1,048,576), returning the entire file as a UA ByteString or
+an error. File and metadata handles are released on every exit.
+
+For larger transfers use `vision_machine_file`. After `Commit`, pass the returned
+completion-state-machine NodeId to `ReadCompletion` or `WaitForCompletion`.
+A null NodeId means synchronous completion. Waiting is capped at 60 seconds;
+Error, unavailable state and timeout are errors, never a retry of Commit.
+
+Perception `vision_run_inference.request.expectedKind` may require Detection,
+Inspection or Segmentation. `detail=Summary` returns a bounded typed summary
+with ResultId, result NodeId, requested/published pipeline and sensor/model/frame
+provenance; `HandleOnly` omits the payload. Read the complete payload with the
+corresponding result tool.
+
 ## Usage
+
+`VisionMachineToolsTests` and `McpToolProfileCompositionTests` cover registration
+and payload bounds. The MCP host's catalogue NativeAOT limits are separate from
+the reflection-free UA model encoders.
 
 ### Standalone `vision` profile
 
@@ -144,8 +211,8 @@ host references.
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent tools that pair with Vision for pick-and-pack scenarios |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` server composing all OPC UA MCP tool packages |
 
-See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#mcp-tools)
-and the [MCP Server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/McpServer.md)
+See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Vision.md)
+and the [MCP Server guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md)
 for the profile table, composition rules and the bin-picking sample.
 
 ## License

@@ -220,8 +220,13 @@ and [Kubernetes](Kubernetes.md) for configuration and deployment constraints.
 
 The MCP server exposes client operations and packet-capture tools to agents.
 Bounded companion profiles include MachineTool with WMTP, GMS, CranesHoists,
-Vision and Robotics. They compose over named sessions without duplicating the
-connection tools; the companion adapters reuse the typed client workflows.
+Vision, Robotics, AMB, Machinery, Scales, Pumps, Device Integration, ISA-95 and
+Positioning. They compose over named sessions without duplicating connection
+tools. Dedicated profiles also cover WoT/xRegistry documents, GDS,
+reference-only credentials, roles/users, files, alarms, history and schemas.
+Live WoT and PubSub workflows require explicit host capabilities and operation
+or network grants; selecting a catalogue is not permission to execute it.
+The adapters reuse the stack's typed client workflows.
 `ITelemetryContext` supplies application logging, metrics, and tracing, with
 audit and redaction support. A migration analyzer and code fixer assist with
 mechanical API updates.

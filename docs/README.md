@@ -89,6 +89,9 @@ Assumes [Getting started](GettingStarted.md).
    operation, and call methods through a client generated from the model.
 4. [Subscriptions](Subscriptions.md) — callback subscriptions for long-lived
    monitoring and streams for short observations.
+5. [Generation-bound requests](Sessions.md#generation-bound-client-requests) — retain remote file
+   handles, history cursors and target classifications without following a
+   replacement connection.
 
 ### Server path
 
@@ -212,6 +215,13 @@ models that each model depends on.
 For more examples, including the Pumps and Machinery models, see the
 [companion-model samples](Samples.md#companion-model-samples).
 
+To expose these typed client interfaces to an agent, use the
+[industrial companion MCP tools](McpServer.md#industrial-companion-tools). Select one family or
+compose several profiles without enabling the entire tool catalog.
+The [WoT and xRegistry profiles](McpServer.md#wot-and-registry-tools) cover
+asset/registry management and document conversion; the document profile does
+not require a UA connection.
+
 ## 5. Prepare for production
 
 Builds on the certificate trust you used in [Getting started](GettingStarted.md).
@@ -261,7 +271,9 @@ Assumes the client or server path.
 - [PubSub transcoding](PubSub.md#transcoding) — convert encodings, values, and
   metadata between PubSub messages.
 - [MCP server](McpServer.md) — let AI agents browse, read, write, and diagnose
-  OPC UA servers.
+  OPC UA servers. [Stack workflow profiles](McpServer.md#stack-workflow-tools)
+  add GDS/credential issuance, roles/users, files, alarms, history, schemas,
+  policy-controlled PubSub and live WoT execution.
 - [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
   protocol bindings. Read WoT connectivity first.

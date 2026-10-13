@@ -168,6 +168,31 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        /// <summary>
+        /// Industrial, WoT, xRegistry and Vision MCP modules follow a stable root; Robotics remains preview.
+        /// </summary>
+        [TestCase("")]
+        [TestCase(".Debug")]
+        public async Task AcceptsStableIndustrialMcpPackagesAsync(string suffix)
+        {
+            using var fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core" + suffix, "2.0.0");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics" + suffix, PreviewFamilyVersion);
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" + suffix, "2.0.0");
+            string[] families =
+                ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning", "WotCon", "XRegistry"];
+            foreach (string family in families)
+            {
+                fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", "2.0.0");
+            }
+
+            ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("stable"));
+            Assert.That(result.Manifest.Value.GetProperty("basePackageVersion").GetString(), Is.EqualTo("2.0.0"));
+        }
+
         [Test]
         public async Task AcceptsADebugOnlyStableReleaseSetAnchoredOnCoreDebugAsync()
         {

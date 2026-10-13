@@ -34,8 +34,13 @@ param(
     [string] $AssemblyPath,
     [ValidateNotNullOrEmpty()]
     [ValidateSet('core', 'services', 'administration', 'pubsub', 'diagnostics', 'robotics', 'vision',
-        'machinetool', 'gms', 'craneshoists', 'full')]
+        'amb', 'machinery', 'scales', 'pumps', 'di', 'isa95', 'positioning', 'wot', 'xregistry',
+        'wot-documents', 'gds', 'certificates', 'credentials', 'onboarding', 'roles', 'users', 'files',
+        'alarms', 'history', 'schemas', 'pubsub-runtime', 'pubsub-configuration', 'pubsub-bridge',
+        'pubsub-security', 'wot-runtime', 'machinetool', 'gms', 'craneshoists', 'full')]
     [string[]] $Profiles = @('core', 'full', 'machinetool', 'gms', 'craneshoists'),
+    [string[]] $AdditionalProfiles = @(),
+    [switch] $IncludePrivilegedCatalogues,
     [switch] $SkipBuild
 )
 
@@ -53,6 +58,8 @@ if ([string]::IsNullOrWhiteSpace($ResultsDirectory))
 $ResultsDirectory = [IO.Path]::GetFullPath($ResultsDirectory)
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("opcua-mcpgrade-" + [Guid]::NewGuid().ToString('N'))
 $graderRoot = Join-Path $temporaryRoot 'mcpgrade'
+$executionEnvironment = @{}
+$executionEnvironmentChanged = $false
 
 function Invoke-CheckedNative
 {
@@ -208,11 +215,35 @@ function Assert-McpStaticGrade
     Write-Host "$Profile grade: $($Report.grade) / $($Report.totalScore)"
 }
 
-New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-
 try
 {
+    if ($IncludePrivilegedCatalogues)
+    {
+        # Advertise schemas without granting a caller, session, secret or network operation.
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            $executionEnvironment[$entry.Name] = $entry.Value
+        }
+        $executionEnvironmentChanged = $true
+        foreach ($name in $executionEnvironment.Keys)
+        {
+            Remove-Item -LiteralPath "Env:$name"
+        }
+        $capabilities = @(
+            'DirectoryAdministration', 'CertificateAdministration', 'CredentialIssuance', 'Onboarding',
+            'IdentityAdministration', 'PubSubRuntime', 'PubSubConfiguration', 'PubSubBridge',
+            'PubSubSecurity', 'WotRuntime', 'WotWrite', 'WotInvoke'
+        )
+        for ($index = 0; $index -lt $capabilities.Count; $index++)
+        {
+            [Environment]::SetEnvironmentVariable(
+                "McpServer__Execution__EnabledCapabilities__$index", $capabilities[$index], 'Process')
+        }
+    }
+
+    New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
+    New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
+
     if (-not $SkipBuild)
     {
         Invoke-CheckedNative -FilePath 'dotnet' -Arguments @(
@@ -273,8 +304,13 @@ try
         Pop-Location
     }
 
-    foreach ($profile in ($Profiles | Select-Object -Unique))
+    $selectedProfiles = @($Profiles) + @($AdditionalProfiles) | Select-Object -Unique
+    foreach ($profile in $selectedProfiles)
     {
+        if ($profile -notmatch '^[a-z][a-z0-9,+-]*$')
+        {
+            throw "Invalid profile name '$profile'."
+        }
         $server = Start-McpHttpServer -Profile $profile -AssemblyPath $assemblyPath `
             -LogPrefix "$profile-server"
         try
@@ -288,7 +324,7 @@ try
         }
     }
 
-    if ($Profiles -contains 'full')
+    if ($selectedProfiles -contains 'full')
     {
         Push-Location (Split-Path $assemblyPath)
         try
@@ -305,13 +341,13 @@ try
         }
     }
 
-    foreach ($profile in ($Profiles | Select-Object -Unique))
+    foreach ($profile in $selectedProfiles)
     {
         $report = Get-Content (Join-Path $ResultsDirectory "$profile-static.json") -Raw | ConvertFrom-Json
         Assert-McpStaticGrade -Profile $profile -Report $report
     }
 
-    if ($Profiles -contains 'full')
+    if ($selectedProfiles -contains 'full')
     {
         $probeReport = Get-Content (Join-Path $ResultsDirectory 'full-probe.json') -Raw | ConvertFrom-Json
         $probeFailures = @(Get-McpGradeFindings $probeReport |
@@ -325,6 +361,17 @@ try
 }
 finally
 {
+    if ($executionEnvironmentChanged)
+    {
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            Remove-Item -LiteralPath "Env:$($entry.Name)"
+        }
+        foreach ($entry in $executionEnvironment.GetEnumerator())
+        {
+            [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+        }
+    }
     if (Test-Path $temporaryRoot)
     {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force

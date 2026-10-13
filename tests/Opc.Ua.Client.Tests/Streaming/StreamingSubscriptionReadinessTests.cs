@@ -162,6 +162,71 @@ namespace Opc.Ua.Client.Tests.Streaming
         }
 
         [Test]
+        public async Task RefreshFollowsVerifiedCreationAndPreservesTheSharedSubscriptionAsync()
+        {
+            var harness = new Harness();
+            harness.Item.SetupGet(item => item.Created).Returns(true);
+            harness.Item.Setup(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    return harness.Handler!.OnEventDataNotificationAsync(harness.Subscription.Object, 1,
+                        DateTime.UtcNow, new[] { new EventNotification(harness.Item.Object, [Variant.From(73)]) },
+                        PublishState.None, []);
+                });
+            await using var streaming = new StreamingSubscription(harness.Manager.Object);
+            await using (IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWithRefreshAsync(
+                ObjectIds.Server, new EventFilter()).GetAsyncEnumerator())
+            {
+                Assert.That(await events.MoveNextAsync().ConfigureAwait(false), Is.True);
+                Assert.That(events.Current.Fields[0].TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(73));
+                harness.Item.Verify(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            harness.Items.Verify(items => items.TryRemove(42), Times.Once);
+            harness.Subscription.Verify(subscription => subscription.DisposeAsync(), Times.Never);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task RefreshNeverRunsAfterNativeCreationFailureAsync(bool created, bool retryPending)
+        {
+            var harness = new Harness();
+            harness.Item.As<IMonitoredItemApplyState>().SetupGet(item => item.HasPendingChanges).Returns(retryPending);
+            harness.Item.SetupGet(item => item.Created).Returns(created);
+            harness.Item.SetupGet(item => item.Error).Returns(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            await using var streaming = new StreamingSubscription(harness.Manager.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWithRefreshAsync(
+                ObjectIds.Server, new EventFilter(), ct: timeout.Token).GetAsyncEnumerator();
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await events.MoveNextAsync().ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            harness.Item.Verify(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()), Times.Never);
+            harness.Items.Verify(items => items.TryRemove(42), Times.Once);
+        }
+
+        [Test]
+        public async Task RefreshFailurePropagatesAndReleasesOnlyItsMonitoredItemAsync()
+        {
+            var harness = new Harness();
+            harness.Item.SetupGet(item => item.Created).Returns(true);
+            var failure = new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            harness.Item.Setup(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>())).Throws(failure);
+            await using var streaming = new StreamingSubscription(harness.Manager.Object);
+            await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWithRefreshAsync(
+                ObjectIds.Server, new EventFilter()).GetAsyncEnumerator();
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await events.MoveNextAsync().ConfigureAwait(false));
+            Assert.That(error, Is.SameAs(failure));
+            harness.Item.Verify(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()), Times.Once);
+            harness.Items.Verify(items => items.TryRemove(42), Times.Once);
+            harness.Subscription.Verify(subscription => subscription.DisposeAsync(), Times.Never);
+        }
+
+        [Test]
         public void StreamsWithoutReadinessCannotClaimSuccessfulSetup()
         {
             var unsupported = new Mock<IStreamingSubscription>();
@@ -169,6 +234,8 @@ namespace Opc.Ua.Client.Tests.Streaming
                 unsupported.Object.SubscribeEventsWhenReadyAsync(
                     ObjectIds.Server, new EventFilter(), _ => default))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(() => unsupported.Object.SubscribeEventsWithRefreshAsync(ObjectIds.Server, new EventFilter()),
+                Throws.InstanceOf<NotSupportedException>());
             unsupported.VerifyNoOtherCalls();
         }
 
@@ -177,6 +244,8 @@ namespace Opc.Ua.Client.Tests.Streaming
         {
             Assert.That(() => StreamingSubscriptionExtensions.SubscribeEventsWhenReadyAsync(
                 null!, ObjectIds.Server, new EventFilter(), _ => default), Throws.ArgumentNullException);
+            Assert.That(() => StreamingSubscriptionExtensions.SubscribeEventsWithRefreshAsync(
+                null!, ObjectIds.Server, new EventFilter()), Throws.ArgumentNullException);
             var harness = new Harness();
             await using var streaming = new StreamingSubscription(harness.Manager.Object);
             Assert.That(() => streaming.SubscribeEventsWhenReadyAsync(
@@ -185,6 +254,10 @@ namespace Opc.Ua.Client.Tests.Streaming
                 default, new EventFilter(), _ => default), Throws.ArgumentNullException);
             Assert.That(() => streaming.SubscribeEventsWhenReadyAsync(
                 ObjectIds.Server, null!, _ => default), Throws.ArgumentNullException);
+            Assert.That(() => streaming.SubscribeEventsWithRefreshAsync(
+                default, new EventFilter()), Throws.ArgumentNullException);
+            Assert.That(() => streaming.SubscribeEventsWithRefreshAsync(
+                ObjectIds.Server, null!), Throws.ArgumentNullException);
             harness.Manager.VerifyNoOtherCalls();
         }
 

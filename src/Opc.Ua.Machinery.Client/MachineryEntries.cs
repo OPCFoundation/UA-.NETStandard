@@ -32,6 +32,19 @@ using System;
 namespace Opc.Ua.Machinery.Client
 {
     /// <summary>
+    /// The real endpoint objects published by OPC 40001-3 job management.
+    /// Absent roles have <see cref="NodeId.Null"/> identifiers; no response
+    /// receiver is defined by this building block.
+    /// </summary>
+    /// <param name="JobManagementId">The job-management object, or null NodeId.</param>
+    /// <param name="JobOrderReceiverId">The JobOrderControl order receiver, or null NodeId.</param>
+    /// <param name="JobResponseProviderId">The JobOrderResults response provider, or null NodeId.</param>
+    public sealed record MachineryJobManagementEndpoints(
+        NodeId JobManagementId,
+        NodeId JobOrderReceiverId,
+        NodeId JobResponseProviderId);
+
+    /// <summary>
     /// A machine discovered below the OPC 40001-1 <c>Machines</c> folder.
     /// </summary>
     /// <param name="NodeId">The machine's NodeId.</param>
