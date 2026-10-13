@@ -27,15 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
-using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Tests;
 using Opc.Ua.XRegistry.Client;
-using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.XRegistry.Tests
 {

@@ -32,7 +32,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
@@ -341,7 +340,7 @@ namespace Opc.Ua.XRegistry.Tests
         private static async Task WithProxyAsync(
             RegistryContext context,
             XRegistryFederationTarget target,
-            Func<Opc.Ua.Client.ISession, NodeId, Task> action)
+            Func<Client.ISession, NodeId, Task> action)
         {
             string proxyRoot = Path.Combine(context.Root, "proxy");
             var factory = new FederationNodeManagerFactory(new XRegistryServerOptions
@@ -362,7 +361,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await using var connection = new ClientFixture(context.Telemetry);
                 await connection.LoadClientConfigurationAsync(proxyRoot, "XRegistryFederationProxyClient")
                     .ConfigureAwait(false);
-                using Opc.Ua.Client.ISession session = await connection.ConnectAsync(
+                using Client.ISession session = await connection.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 try
@@ -407,12 +406,12 @@ namespace Opc.Ua.XRegistry.Tests
                 server = await fixture.StartAsync(root).ConfigureAwait(false);
                 ResourceState resource = factory.Manager!.LogicalResource!;
                 NodeId resourceNodeId = resource.NodeId;
-                string resourceXid = "/groups/schemas/resources/doc";
+                const string resourceXid = "/groups/schemas/resources/doc";
 
                 await using var connection = new ClientFixture(telemetry);
                 await connection.LoadClientConfigurationAsync(root, "XRegistryFederationClient")
                     .ConfigureAwait(false);
-                using Opc.Ua.Client.ISession session = await connection.ConnectAsync(
+                using Client.ISession session = await connection.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 try
@@ -442,7 +441,7 @@ namespace Opc.Ua.XRegistry.Tests
         {
             public RegistryContext(
                 GenericXRegistryClient client,
-                Opc.Ua.Client.ISession session,
+                Client.ISession session,
                 NodeId resourceNodeId,
                 string resourceXid,
                 ResourceState resource,
@@ -468,7 +467,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public ITelemetryContext Telemetry { get; }
 
-            public Opc.Ua.Client.ISession Session { get; }
+            public Client.ISession Session { get; }
 
             public CancellationToken Token { get; }
 

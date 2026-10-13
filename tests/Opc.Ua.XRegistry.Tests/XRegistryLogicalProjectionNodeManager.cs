@@ -104,10 +104,7 @@ namespace Opc.Ua.XRegistry.Tests
                         LogicalResource = resource;
                     }
                 },
-                async (nodeId, ct) =>
-                {
-                    await DeleteNodeAsync(SystemContext, nodeId, ct).ConfigureAwait(false);
-                },
+                async (nodeId, ct) => await DeleteNodeAsync(SystemContext, nodeId, ct).ConfigureAwait(false),
                 (ctx, operation) => ServiceResult.Good);
             m_engine = new XRegistryProjectionEngine(
                 context,

@@ -522,6 +522,7 @@ namespace Opc.Ua.XRegistry.Tests
         /// <summary>
         /// Verifies that rejected endpoint update leaves published binding unchanged.
         /// </summary>
+        /// <exception cref="ArgumentException">The fault name is unknown.</exception>
         [TestCase("untrusted")]
         [TestCase("unsupported")]
         [TestCase("missing")]
@@ -545,10 +546,11 @@ namespace Opc.Ua.XRegistry.Tests
                     options.FederationTarget!, "opc.tcp://untrusted.example.org:4840", It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(statusCode));
 
-            Assert.That(async () => await nm.UpdateEndpointAsync(
+            await Assert.ThatAsync(async () => await nm.UpdateEndpointAsync(
                     "opc.tcp://untrusted.example.org:4840", rejected.Object).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(statusCode));
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(statusCode))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(proxy.ResourceUrl!.Value, Is.EqualTo(options.RemoteEndpointUrl));
@@ -590,11 +592,11 @@ namespace Opc.Ua.XRegistry.Tests
             Task queuedUpdate = nm.UpdateEndpointAsync(
                 "opc.tcp://queued.example.org:4840", queued.Object, queuedCancellation.Token).AsTask();
             Assert.That(queuedUpdate.IsCompleted, Is.False, "Only one provider may verify an update at a time.");
-            queuedCancellation.Cancel();
+            await queuedCancellation.CancelAsync().ConfigureAwait(false);
             await Assert.ThatAsync(async () => await queuedUpdate.ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
             queued.VerifyNoOtherCalls();
-            blockedCancellation.Cancel();
+            await blockedCancellation.CancelAsync().ConfigureAwait(false);
             await Assert.ThatAsync(async () => await blockedUpdate.ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
 
@@ -636,10 +638,10 @@ namespace Opc.Ua.XRegistry.Tests
             var references = new Dictionary<NodeId, IList<IReference>>();
             Task startup = nm.CreateAddressSpaceAsync(references, cancellation.Token).AsTask();
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false);
-            cancellation.Cancel();
+            await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(async () => await startup.ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(async () => await startup.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(nm.Find(ProxyNodeId(nm)), Is.Null);
@@ -674,7 +676,7 @@ namespace Opc.Ua.XRegistry.Tests
             var references = new Dictionary<NodeId, IList<IReference>>();
             if (!cancelDuringVerification)
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
             }
 
             await Assert.ThatAsync(async () => await nm.CreateAddressSpaceAsync(references, cancellation.Token)
@@ -717,7 +719,7 @@ namespace Opc.Ua.XRegistry.Tests
                 .Returns(default(ValueTask));
             if (!cancelDuringVerification)
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync().ConfigureAwait(false);
             }
 
             await Assert.ThatAsync(async () => await nm.UpdateEndpointAsync(

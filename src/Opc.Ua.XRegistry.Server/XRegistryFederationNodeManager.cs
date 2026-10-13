@@ -162,7 +162,8 @@ namespace Opc.Ua.XRegistry.Server
                     .ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 proxy.ResourceUrl!.Value = endpointUrl;
-                proxy.ResourceUrl.ClearChangeMasks(SystemContext, false);
+                await proxy.ResourceUrl.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {

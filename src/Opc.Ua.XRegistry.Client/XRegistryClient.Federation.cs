@@ -50,9 +50,9 @@ namespace Opc.Ua.XRegistry.Client
         /// <exception cref="ServiceResultException">
         /// The peer, identity, hierarchy or FileType capability differs.
         /// </exception>
-        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="target">The x registry federation target.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask VerifyLogicalResourceAsync(
             XRegistryFederationTarget target,
             string endpointUrl,
