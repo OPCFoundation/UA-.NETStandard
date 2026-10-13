@@ -526,22 +526,27 @@ namespace Opc.Ua.Server
             /// Gets the requested change.
             /// </summary>
             public NodeManagerBatchChange Change { get; }
+
             /// <summary>
             /// Gets the registration state being replaced or retired, or null for an addition.
             /// </summary>
             public RegistrationState? Current { get; }
+
             /// <summary>
             /// Gets or sets the node manager created for the change.
             /// </summary>
             public IAsyncNodeManager? Manager { get; set; }
+
             /// <summary>
             /// Gets or sets the prepared node manager of the change.
             /// </summary>
             public PreparedNodeManager? Prepared { get; set; }
+
             /// <summary>
             /// Gets or sets the registration state that replaces the current one.
             /// </summary>
             public RegistrationState? Next { get; set; }
+
             /// <summary>
             /// Gets or sets the external references dropped by the change.
             /// </summary>
@@ -614,66 +619,82 @@ namespace Opc.Ua.Server
             /// Gets the registrations the batch publishes.
             /// </summary>
             public ArrayOf<NodeManagerRegistration> Registrations { get; }
+
             /// <summary>
             /// Gets or sets whether the batch was committed.
             /// </summary>
             public bool IsCommitted { get; set; }
+
             /// <summary>
             /// Gets whether the batch is a validation candidate that cannot be committed.
             /// </summary>
             public bool IsValidationOnly { get; }
+
             /// <summary>
             /// Gets the server the batch was prepared for.
             /// </summary>
             public IServerInternal Server { get; }
+
             /// <summary>
             /// Gets the host the batch was prepared for.
             /// </summary>
             public IDynamicNodeManagerHost Host { get; }
+
             /// <summary>
             /// Gets the entries of the batch.
             /// </summary>
             public List<BatchEntry> Entries { get; }
+
             /// <summary>
             /// Gets the number of namespaces when the batch was prepared.
             /// </summary>
             public int NamespaceCount { get; }
+
             /// <summary>
             /// Gets whether the batch may be completed from a request callback.
             /// </summary>
             public bool AllowRequestCallback { get; }
+
             /// <summary>
             /// Gets the routing revision the batch was prepared against.
             /// </summary>
             public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+
             /// <summary>
             /// Gets the private type tree image of the batch.
             /// </summary>
             public TypeTable TypeTree { get; }
+
             /// <summary>
             /// Gets the published type tree to restore.
             /// </summary>
             public TypeTable OriginalTypes { get; }
+
             /// <summary>
             /// Gets the revision of the published type tree.
             /// </summary>
             public long TypeRevision { get; }
+
             /// <summary>
             /// Gets the private encodeable factory image of the batch.
             /// </summary>
             public EncodeableFactory Factory { get; }
+
             /// <summary>
             /// Gets the published encodeable factory.
             /// </summary>
             public EncodeableFactory OriginalFactory { get; }
+
             /// <summary>
             /// Gets the revision of the published encodeable factory.
             /// </summary>
             public long FactoryRevision { get; }
+
             /// <summary>
             /// Gets the data type definition resolver, if any.
             /// </summary>
             public IDataTypeDefinitionResolver? Resolver { get; }
+
             /// <summary>
             /// Gets the read images published together with the batch.
             /// </summary>

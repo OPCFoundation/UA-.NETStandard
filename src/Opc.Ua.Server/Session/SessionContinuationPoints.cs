@@ -1845,10 +1845,12 @@ namespace Opc.Ua.Server
             /// Gets the continuation point.
             /// </summary>
             public ContinuationPoint Point { get; } = point;
+
             /// <summary>
             /// Gets or sets whether the point counts against the available browse limit.
             /// </summary>
             public bool Available { get; set; }
+
             /// <summary>
             /// Gets or sets whether the point was invalidated.
             /// </summary>

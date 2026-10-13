@@ -176,10 +176,12 @@ namespace Opc.Ua.Server
             /// Gets whether the captured revisions were current when the publication was admitted.
             /// </summary>
             public bool IsCurrent { get; } = current;
+
             /// <summary>
             /// Gets the capture the publication belongs to.
             /// </summary>
             public PublicationCapture Capture { get; } = capture;
+
             /// <summary>
             /// Gets a task that completes when the publication ends.
             /// </summary>
