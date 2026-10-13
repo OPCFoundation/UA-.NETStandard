@@ -66,8 +66,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 null, 100, 100, 10, 0, true, 0, timeout.Token).ConfigureAwait(false);
             uint subscriptionId = subscription.SubscriptionId;
             MonitoredItemCreateRequest request = events
-                ? CreateEmissionEventRequest(nodeId, 1)
-                : CreateEmissionDataRequest(nodeId, 1);
+                ? CreateSurvivorEventRequest(nodeId, 1)
+                : CreateSurvivorDataRequest(nodeId, 1);
             CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
                 null, subscriptionId, TimestampsToReturn.Both, [request], timeout.Token).ConfigureAwait(false);
             Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -255,6 +255,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(response.Results[0].StatusCode, Is.EqualTo(expected), $"Filter: {deadband}.");
                 }
             }
+        }
+
+        private static MonitoredItemCreateRequest CreateSurvivorEventRequest(NodeId nodeId, uint clientHandle)
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            return new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = clientHandle,
+                    Filter = new ExtensionObject(filter),
+                    SamplingInterval = 0,
+                    QueueSize = 32,
+                    DiscardOldest = true
+                }
+            };
+        }
+
+        private static MonitoredItemCreateRequest CreateSurvivorDataRequest(NodeId nodeId, uint clientHandle)
+        {
+            return new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = clientHandle,
+                    SamplingInterval = 0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
         }
     }
 }
