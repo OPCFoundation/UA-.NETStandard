@@ -63,7 +63,7 @@ namespace Opc.Ua.XRegistry.Tests
             var secondNode = (ResourceState)manager.Find(second.ResourceNodeId)!;
             var children = new List<BaseInstanceState>();
             group.GetChildren(manager.SystemContext, children);
-            ResourceState[] resources = children.OfType<ResourceState>().ToArray();
+            ResourceState[] resources = [.. children.OfType<ResourceState>()];
 
             Assert.That(resources, Has.Length.EqualTo(1),
                 "A Group exposes one logical Resource, not one flattened child per Version.");

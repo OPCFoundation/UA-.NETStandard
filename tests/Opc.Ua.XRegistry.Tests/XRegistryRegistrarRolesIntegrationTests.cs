@@ -142,7 +142,7 @@ namespace Opc.Ua.XRegistry.Tests
                     Assert.That(metaAfterSelection.LabelsId, Is.EqualTo(earlierMeta.LabelsId));
                 });
 
-                ByteString payload = ByteString.From(9, 8, 7, 6, 5);
+                var payload = ByteString.From(9, 8, 7, 6, 5);
                 await CommitDocumentAsync(native.Client.GetResource(secondId), payload, ct).ConfigureAwait(false);
                 ArrayOf<(string VersionId, NodeId NodeId)> bothVersions = [(firstVersionId, firstId), ("v8", secondId)];
                 await AssertStableRolesAsync(native, groupId, originalRoles, bothVersions, ct).ConfigureAwait(false);
@@ -354,10 +354,8 @@ namespace Opc.Ua.XRegistry.Tests
                 });
 
                 await Assert.ThatAsync(
-                    async () =>
-                    {
-                        await group.CreateResourceAsync("pump", assignedId, false, ct).ConfigureAwait(false);
-                    },
+                    async () => await group.CreateResourceAsync("pump", assignedId, false, ct)
+                        .ConfigureAwait(false),
                     Throws.TypeOf<ServiceResultException>()
                         .With.Property(nameof(ServiceResultException.StatusCode))
                         .EqualTo(StatusCodes.BadNodeIdExists))
@@ -419,15 +417,13 @@ namespace Opc.Ua.XRegistry.Tests
                     {
                         var peerClient = new GenericXRegistryClient(peer, native.Telemetry);
                         ResourceTypeClient peerLogical = peerClient.GetResource(roles.LogicalId);
-                        await AssertServiceFailureAsync(async () =>
-                        {
-                            _ = await peerLogical.ReadAsync(oldHandle, 1, ct).ConfigureAwait(false);
-                        }, StatusCodes.BadInvalidState).ConfigureAwait(false);
+                        await AssertServiceFailureAsync(
+                            async () => await peerLogical.ReadAsync(oldHandle, 1, ct).ConfigureAwait(false),
+                            StatusCodes.BadInvalidState).ConfigureAwait(false);
                         Assert.That(await logical.GetPositionAsync(oldHandle, ct).ConfigureAwait(false), Is.Zero);
-                        await AssertServiceFailureAsync(async () =>
-                        {
-                            await peerLogical.CloseAsync(oldHandle, ct).ConfigureAwait(false);
-                        }, StatusCodes.BadInvalidState).ConfigureAwait(false);
+                        await AssertServiceFailureAsync(
+                            async () => await peerLogical.CloseAsync(oldHandle, ct).ConfigureAwait(false),
+                            StatusCodes.BadInvalidState).ConfigureAwait(false);
                         Assert.That(await logical.GetPositionAsync(oldHandle, ct).ConfigureAwait(false), Is.Zero);
 
                         uint newHandle = await peerLogical.OpenAsync(1, ct).ConfigureAwait(false);
@@ -446,7 +442,7 @@ namespace Opc.Ua.XRegistry.Tests
                         Assert.That(await logical.GetPositionAsync(oldHandle, ct).ConfigureAwait(false),
                             Is.EqualTo(5uL));
 
-                        await AssertReadAsync(peerLogical, newHandle, 1, ByteString.From(9), 1, ct)
+                        await AssertReadAsync(peerLogical, newHandle, 1, ByteString.From("\t"u8.ToArray()), 1, ct)
                             .ConfigureAwait(false);
                         await peerLogical.SetPositionAsync(newHandle, 0, ct).ConfigureAwait(false);
                         Assert.That(await peerLogical.GetPositionAsync(newHandle, ct).ConfigureAwait(false), Is.Zero);
@@ -481,20 +477,19 @@ namespace Opc.Ua.XRegistry.Tests
                 GroupTypeClient group = native.Client.GetGroup(groupId);
                 (NodeId firstId, _, _) = await group.CreateResourceAsync("pump", "v1", false, ct)
                     .ConfigureAwait(false);
-                ByteString firstBytes = ByteString.From(1, 2, 3, 4, 5);
+                var firstBytes = ByteString.From(1, 2, 3, 4, 5);
                 await CommitDocumentAsync(native.Client.GetResource(firstId), firstBytes, ct).ConfigureAwait(false);
                 ResourceRoles roles = await BrowseRolesAsync(native, groupId, ct).ConfigureAwait(false);
                 ResourceTypeClient reader = native.Client.GetResource(logicalReader ? roles.LogicalId : firstId);
                 ResourceTypeClient opposite = native.Client.GetResource(logicalReader ? firstId : roles.LogicalId);
                 uint handle = await reader.OpenAsync(1, ct).ConfigureAwait(false);
-                await AssertServiceFailureAsync(async () =>
-                {
-                    _ = await opposite.OpenAsync(2, ct).ConfigureAwait(false);
-                }, StatusCodes.BadNotWritable).ConfigureAwait(false);
+                await AssertServiceFailureAsync(
+                    async () => await opposite.OpenAsync(2, ct).ConfigureAwait(false),
+                    StatusCodes.BadNotWritable).ConfigureAwait(false);
 
                 (NodeId secondId, _, _) = await group.CreateResourceAsync("pump", "v2", false, ct)
                     .ConfigureAwait(false);
-                ByteString secondBytes = ByteString.From(9, 8, 7);
+                var secondBytes = ByteString.From(9, 8, 7);
                 await CommitDocumentAsync(native.Client.GetResource(secondId), secondBytes, ct).ConfigureAwait(false);
                 ResourceSnapshot current = await ReadResourceSnapshotAsync(native, roles.LogicalId, ct)
                     .ConfigureAwait(false);
@@ -502,10 +497,9 @@ namespace Opc.Ua.XRegistry.Tests
                 await AssertDocumentAsync(native, roles.LogicalId, secondBytes, ct).ConfigureAwait(false);
                 await AssertReadAsync(reader, handle, 10, firstBytes, 5, ct).ConfigureAwait(false);
                 ResourceTypeClient exactFirst = native.Client.GetResource(firstId);
-                await AssertServiceFailureAsync(async () =>
-                {
-                    _ = await exactFirst.OpenAsync(2, ct).ConfigureAwait(false);
-                }, StatusCodes.BadNotWritable).ConfigureAwait(false);
+                await AssertServiceFailureAsync(
+                    async () => await exactFirst.OpenAsync(2, ct).ConfigureAwait(false),
+                    StatusCodes.BadNotWritable).ConfigureAwait(false);
 
                 await reader.CloseAsync(handle, ct).ConfigureAwait(false);
                 uint recovered = await exactFirst.OpenAsync(2, ct).ConfigureAwait(false);
@@ -528,7 +522,7 @@ namespace Opc.Ua.XRegistry.Tests
                     .CreateGroupAsync("schemas", ct).ConfigureAwait(false);
                 (NodeId exactId, _, _) = await native.Client.GetGroup(groupId)
                     .CreateResourceAsync("pump", "v1", false, ct).ConfigureAwait(false);
-                ByteString originalBytes = ByteString.From(1, 2, 3, 4, 5);
+                var originalBytes = ByteString.From(1, 2, 3, 4, 5);
                 await CommitDocumentAsync(native.Client.GetResource(exactId), originalBytes, ct)
                     .ConfigureAwait(false);
                 ResourceRoles roles = await BrowseRolesAsync(native, groupId, ct).ConfigureAwait(false);
@@ -548,10 +542,10 @@ namespace Opc.Ua.XRegistry.Tests
                         ResourceTypeClient ownerFile = ownerClient.GetResource(roles.LogicalId);
                         uint abandoned = await ownerFile.OpenAsync(2, ct).ConfigureAwait(false);
                         await ownerFile.WriteAsync(abandoned, ByteString.From(9, 8, 7), ct).ConfigureAwait(false);
-                        await AssertServiceFailureAsync(async () =>
-                        {
-                            _ = await native.Client.GetResource(exactId).OpenAsync(2, ct).ConfigureAwait(false);
-                        }, StatusCodes.BadNotWritable).ConfigureAwait(false);
+                        await AssertServiceFailureAsync(
+                            async () => await native.Client.GetResource(exactId).OpenAsync(2, ct)
+                                .ConfigureAwait(false),
+                            StatusCodes.BadNotWritable).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -604,7 +598,7 @@ namespace Opc.Ua.XRegistry.Tests
                     .CreateResourceAsync("pump", "v2", true, ct).ConfigureAwait(false);
                 Assert.That(assigned, Is.EqualTo("v2"));
                 Assert.That(secondHandle, Is.Not.Zero);
-                ByteString secondBytes = ByteString.From(7, 8, 9);
+                var secondBytes = ByteString.From(7, 8, 9);
                 ResourceTypeClient second = native.Client.GetResource(secondId);
                 await second.WriteAsync(secondHandle, secondBytes, ct).ConfigureAwait(false);
                 await second.CloseAsync(secondHandle, ct).ConfigureAwait(false);
@@ -615,7 +609,7 @@ namespace Opc.Ua.XRegistry.Tests
                 MetaSnapshot metaBefore = await ReadMetaSnapshotAsync(native, roles.LogicalId, ct)
                     .ConfigureAwait(false);
 
-                ByteString firstBytes = ByteString.From(5, 4, 3, 2, 1);
+                var firstBytes = ByteString.From(5, 4, 3, 2, 1);
                 await logical.WriteAsync(pinned, firstBytes, ct).ConfigureAwait(false);
                 await logical.CloseAsync(pinned, ct).ConfigureAwait(false);
                 ResourceSnapshot firstAfter = await ReadResourceSnapshotAsync(native, firstId, ct)
@@ -691,7 +685,7 @@ namespace Opc.Ua.XRegistry.Tests
                         .ConfigureAwait(false);
                     await updates.WaitForPairAsync(first.Epoch, ct).ConfigureAwait(false);
 
-                    ByteString committed = ByteString.From(9, 10, 11, 12);
+                    var committed = ByteString.From(9, 10, 11, 12);
                     await CommitChunksAsync(logical, committed, ct).ConfigureAwait(false);
                     ResourceSnapshot second = await ReadResourceSnapshotAsync(native, exactId, ct)
                         .ConfigureAwait(false);
@@ -723,9 +717,9 @@ namespace Opc.Ua.XRegistry.Tests
                         Assert.That(resourceEvent.Changed, Is.EqualTo(s_documentChanged));
                         Assert.That(versionEvent.Changed, Is.EqualTo(s_documentChanged));
                         Assert.That(updates.ResourceUpdates.ToList().Select(evt => evt.Epoch),
-                            Is.EqualTo(new[] { first.Epoch, second.Epoch }));
+                            Is.EqualTo([first.Epoch, second.Epoch]));
                         Assert.That(updates.VersionUpdates.ToList().Select(evt => evt.Epoch),
-                            Is.EqualTo(new[] { first.Epoch, second.Epoch }));
+                            Is.EqualTo([first.Epoch, second.Epoch]));
                     });
 
                     ResourceSnapshot logicalBefore = await ReadResourceSnapshotAsync(native, roles.LogicalId, ct)
@@ -780,14 +774,14 @@ namespace Opc.Ua.XRegistry.Tests
                     Assert.That(DecodeString(labelValue[0]), Is.EqualTo("plant-1"));
                     uint currentEpoch = metaLabels ? metaLabel.Epoch : exactLabel.Epoch;
                     await labels.AddAttributeAsync("owner", "plant-1", currentEpoch, ct).ConfigureAwait(false);
-                    await AssertServiceFailureAsync(async () =>
-                    {
-                        await labels.RemoveAttributeAsync("absent", currentEpoch, ct).ConfigureAwait(false);
-                    }, StatusCodes.BadNotFound).ConfigureAwait(false);
-                    await AssertServiceFailureAsync(async () =>
-                    {
-                        await labels.AddAttributeAsync("owner", "stale", currentEpoch + 1, ct).ConfigureAwait(false);
-                    }, StatusCodes.BadInvalidState).ConfigureAwait(false);
+                    await AssertServiceFailureAsync(
+                        async () => await labels.RemoveAttributeAsync("absent", currentEpoch, ct)
+                            .ConfigureAwait(false),
+                        StatusCodes.BadNotFound).ConfigureAwait(false);
+                    await AssertServiceFailureAsync(
+                        async () => await labels.AddAttributeAsync("owner", "stale", currentEpoch + 1, ct)
+                            .ConfigureAwait(false),
+                        StatusCodes.BadInvalidState).ConfigureAwait(false);
 
                     ResourceSnapshot exactAfter = await ReadResourceSnapshotAsync(native, exactId, ct)
                         .ConfigureAwait(false);
@@ -824,7 +818,7 @@ namespace Opc.Ua.XRegistry.Tests
                 GroupTypeClient group = native.Client.GetGroup(groupId);
                 (NodeId firstId, _, _) = await group.CreateResourceAsync("pump", "v1", false, ct)
                     .ConfigureAwait(false);
-                ByteString document = ByteString.From(1, 2, 3, 4, 5);
+                var document = ByteString.From(1, 2, 3, 4, 5);
                 await CommitDocumentAsync(native.Client.GetResource(firstId), document, ct).ConfigureAwait(false);
                 ResourceRoles roles = await BrowseRolesAsync(native, groupId, ct).ConfigureAwait(false);
                 NodeId labelsId = await ReadLabelsIdAsync(native, firstId, "Labels", ct).ConfigureAwait(false);
@@ -926,7 +920,7 @@ namespace Opc.Ua.XRegistry.Tests
                             "Default deletion is an ordered barrier after the no-op lookup.");
                         Assert.That(updates.VersionUpdates, Is.Empty);
                         Assert.That(updates.ResourceUpdates.ToList().Select(evt => evt.MetaEpoch),
-                            Is.EqualTo(new[] { metaBefore.Epoch + 1, metaBefore.Epoch + 2 }));
+                            Is.EqualTo([metaBefore.Epoch + 1, metaBefore.Epoch + 2]));
                         Assert.That(creation.Epoch, Is.EqualTo(1u));
                         Assert.That(deletion.Epoch, Is.EqualTo(3u));
                         Assert.That(deletion.Time, Is.GreaterThanOrEqualTo(creation.Time!.Value));
@@ -955,8 +949,9 @@ namespace Opc.Ua.XRegistry.Tests
                 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
                 CancellationToken ct = timeout.Token;
                 await native.StartAsync(ct).ConfigureAwait(false);
-                output.WriteLine(
-                    $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}");
+                await output.WriteLineAsync(
+                    $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}")
+                    .ConfigureAwait(false);
                 NodeId groupId = await native.Client.GetRegistry(native.Client.RegistryNodeId)
                     .CreateGroupAsync("schemas", ct).ConfigureAwait(false);
                 GroupTypeClient group = native.Client.GetGroup(groupId);
@@ -1051,9 +1046,10 @@ namespace Opc.Ua.XRegistry.Tests
 
                 foreach (ResourceSnapshot version in initialVersions)
                 {
-                    output.WriteLine(
+                    await output.WriteLineAsync(
                         $"{version.ResourceId}/{version.VersionId}: " +
-                        $"CreatedAt={version.CreatedAt.Value}; ModifiedAt={version.ModifiedAt.Value}");
+                        $"CreatedAt={version.CreatedAt.Value}; ModifiedAt={version.ModifiedAt.Value}")
+                        .ConfigureAwait(false);
                 }
                 Assert.Multiple(() =>
                 {
@@ -1196,9 +1192,10 @@ namespace Opc.Ua.XRegistry.Tests
             ArrayOf<WireArgument> expected,
             CancellationToken ct)
         {
-            List<ReferenceDescription> matches = properties.ToList()
-                .Where(reference => reference.BrowseName.Name == propertyName)
-                .ToList();
+            List<ReferenceDescription> matches =
+            [
+                .. properties.ToList().Where(reference => reference.BrowseName.Name == propertyName)
+            ];
             if (expected.Count == 0)
             {
                 Assert.That(matches, Is.Empty, "This type method declares no OutputArguments property.");
@@ -1329,9 +1326,10 @@ namespace Opc.Ua.XRegistry.Tests
             ArrayOf<ReferenceDescription> references,
             QualifiedName browseName)
         {
-            List<ReferenceDescription> matches = references.ToList()
-                .Where(reference => reference.BrowseName.Name == browseName.Name)
-                .ToList();
+            List<ReferenceDescription> matches =
+            [
+                .. references.ToList().Where(reference => reference.BrowseName.Name == browseName.Name)
+            ];
             Assert.That(matches, Has.Count.EqualTo(1), $"Expected one native child named {browseName}.");
             Assert.That(matches[0].BrowseName, Is.EqualTo(browseName));
             return matches[0];
@@ -1583,7 +1581,7 @@ namespace Opc.Ua.XRegistry.Tests
                     null, 100, 1200, 20, 0, true, 0, ct).ConfigureAwait(false);
                 Assert.That(subscription.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                 m_subscriptionId = subscription.SubscriptionId;
-                var decoders = new EventRecordDecoderRegistry()
+                EventRecordDecoderRegistry decoders = new EventRecordDecoderRegistry()
                     .RegisterxRegistryDecoders(native.Session.NamespaceUris);
                 EventFilter resourceFilter = ResourceUpdatedEventTypeRecord.EventFilters.Build(
                     native.Session.NamespaceUris, decoders);
@@ -1841,6 +1839,10 @@ namespace Opc.Ua.XRegistry.Tests
             /// <summary>
             /// Creates an additional caller-owned session using the same isolated client and identity.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The client configuration is not initialized, the encrypted endpoint has not been discovered,
+            /// or the discovered endpoint has no URL.
+            /// </exception>
             public async Task<ISession> CreateSessionAsync(CancellationToken ct)
             {
                 ApplicationConfiguration configuration = m_clientConfiguration
@@ -1879,7 +1881,7 @@ namespace Opc.Ua.XRegistry.Tests
             public NodeId LocalNodeId(ExpandedNodeId expandedId)
             {
                 Assert.That(expandedId.ServerIndex, Is.Zero, "Role references must remain on the local native server.");
-                NodeId nodeId = ExpandedNodeId.ToNodeId(expandedId, Session.NamespaceUris);
+                var nodeId = ExpandedNodeId.ToNodeId(expandedId, Session.NamespaceUris);
                 Assert.That(nodeId.IsNull, Is.False, $"The native namespace table must resolve {expandedId}.");
                 return nodeId;
             }
@@ -2049,7 +2051,8 @@ namespace Opc.Ua.XRegistry.Tests
                         {
                             try
                             {
-                                var certificateManager = m_clientConfiguration?.CertificateManager;
+                                ICertificateManager? certificateManager =
+                                    m_clientConfiguration?.CertificateManager;
                                 if (certificateManager is IAsyncDisposable asyncCertificateManager)
                                 {
                                     await asyncCertificateManager.DisposeAsync().ConfigureAwait(false);
@@ -2130,6 +2133,7 @@ namespace Opc.Ua.XRegistry.Tests
         private const string kLogicalXid = "/groups/schemas/resources/pump";
         private const string kEventSourceUrl = "https://registry.example.test";
         private const int kOperationTimeout = 10000;
+
         private static readonly string[] s_documentChanged = ["epoch", "modifiedat", "resource"];
         private static readonly string[] s_defaultSwitchChanged =
         [

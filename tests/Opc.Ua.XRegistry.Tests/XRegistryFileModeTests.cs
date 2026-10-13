@@ -147,9 +147,9 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
             await CommitAsync(nm, resource, [1, 2, 3, 4]).ConfigureAwait(false);
-            var ownerContext = (ServerSystemContext)nm.SystemContext.Copy();
+            ServerSystemContext ownerContext = nm.SystemContext.Copy();
             ownerContext.SessionId = new NodeId("cursor-owner", 1);
-            var callerContext = (ServerSystemContext)ownerContext.Copy();
+            ServerSystemContext callerContext = ownerContext.Copy();
             if (foreignSession)
             {
                 callerContext.SessionId = new NodeId("other-cursor-session", 1);

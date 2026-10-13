@@ -2077,7 +2077,7 @@ namespace Opc.Ua.XRegistry.Server
             bool initialized = false;
             try
             {
-                var baseline = new byte[entry.BaselineLength];
+                byte[] baseline = new byte[entry.BaselineLength];
                 int offset = 0;
                 do
                 {

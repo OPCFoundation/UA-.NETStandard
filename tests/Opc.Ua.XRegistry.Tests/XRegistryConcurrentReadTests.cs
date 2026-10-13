@@ -136,8 +136,9 @@ namespace Opc.Ua.XRegistry.Tests
             Task<ReadMethodStateResult> cancelled = ReadAsync(nm, resource, handle, 4, cancellation.Token).AsTask();
             try
             {
-                cancellation.Cancel();
-                Assert.That(() => cancelled, Throws.InstanceOf<OperationCanceledException>());
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await Assert.ThatAsync(() => cancelled, Throws.InstanceOf<OperationCanceledException>())
+                    .ConfigureAwait(false);
             }
             finally
             {

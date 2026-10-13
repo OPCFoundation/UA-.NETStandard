@@ -83,7 +83,7 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task SessionDiscardReportsUnsupportedForAnExistingProviderWithoutTheOptionalCapability()
         {
             var strategy = new ContentlessClaimStrategy();
-            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            var harness = ProjectionHarness.Create(suppliedStrategy: strategy);
             using XRegistryProjectionEngine engine = harness.Engine;
             await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task SessionDiscardRejectsANullSessionId()
         {
-            ProjectionHarness harness = ProjectionHarness.Create();
+            var harness = ProjectionHarness.Create();
             using XRegistryProjectionEngine engine = harness.Engine;
             await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
 
@@ -2859,9 +2859,11 @@ namespace Opc.Ua.XRegistry.Tests
             public bool OmitEventMetadata { get; set; }
             public List<ProjectedDeleteInvocation> ProjectedDeletes { get; } = [];
             public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
+
             public List<(string GroupId, string ResourceId, string VersionId, string Key, string Value, long? Epoch)>
                 AddVersionLabelCalls
             { get; } = [];
+
             public List<(string GroupId, string ResourceId, string VersionId, string Key, long? Epoch)>
                 RemoveVersionLabelCalls
             { get; } = [];

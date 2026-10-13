@@ -180,10 +180,10 @@ namespace Opc.Ua.XRegistry.Tests
             var store = (IXRegistryAtomicResourceStore)CreateStore();
             await store.ReplaceAsync("a", ByteString.From([1, 2, 3, 4])).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
+            await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(() => store.ReplaceAsync("a", ByteString.From([9]), cancellation.Token).AsTask(),
-                Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => store.ReplaceAsync("a", ByteString.From([9]), cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
             ByteString document = await store.ReadAsync("a", 0, 8).ConfigureAwait(false);
 
             Assert.That(document, Is.EqualTo(ByteString.From([1, 2, 3, 4])));

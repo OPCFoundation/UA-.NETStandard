@@ -547,7 +547,7 @@ namespace Opc.Ua.XRegistry.Tests
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadCommunicationError));
             Assert.That(reads, Is.EqualTo(2));
-            Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Close), Is.EqualTo(1));
+            Assert.That(CountCalls(calls, MethodIds.FileType_Close), Is.EqualTo(1));
         }
 
         [Test]
@@ -804,15 +804,16 @@ namespace Opc.Ua.XRegistry.Tests
             Func<ByteString>? readChunk = null)
         {
             bool read = false;
-            Func<ByteString> nextRead = readChunk ?? (() =>
-            {
-                if (read)
+            Func<ByteString> nextRead = readChunk ??
+                (() =>
                 {
-                    return ByteString.Empty;
-                }
-                read = true;
-                return ByteString.From(s_readChunk);
-            });
+                    if (read)
+                    {
+                        return ByteString.Empty;
+                    }
+                    read = true;
+                    return ByteString.From(s_readChunk);
+                });
             session
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader?>(),
