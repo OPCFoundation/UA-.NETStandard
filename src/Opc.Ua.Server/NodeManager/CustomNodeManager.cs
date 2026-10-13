@@ -6333,6 +6333,37 @@ namespace Opc.Ua.Server
             NodeState target,
             NodeMetadata metadata)
         {
+            // the defaults are read once per namespace and service request, like
+            // AsyncCustomNodeManager does: every read takes two server-wide locks and
+            // copies the role permission array.
+            ushort namespaceIndex = target.NodeId.NamespaceIndex;
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            {
+                metadata.DefaultAccessRestrictions = cached.DefaultAccessRestrictions;
+                metadata.DefaultRolePermissions = cached.DefaultRolePermissions;
+                metadata.DefaultUserRolePermissions = cached.DefaultUserRolePermissions;
+                return;
+            }
+
+            ReadDefaultPermissions(systemContext, target, metadata);
+
+            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
+                namespaceIndex,
+                metadata.DefaultAccessRestrictions,
+                metadata.DefaultRolePermissions,
+                metadata.DefaultUserRolePermissions));
+        }
+
+        /// <summary>
+        /// Reads the namespace default permissions of the node's namespace into the metadata.
+        /// </summary>
+        private void ReadDefaultPermissions(
+            ServerSystemContext systemContext,
+            NodeState target,
+            NodeMetadata metadata)
+        {
             // check if NamespaceMetadata is defined for NamespaceUri
             string? namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
             NamespaceMetadataState namespaceMetadataState =

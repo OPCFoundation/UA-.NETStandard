@@ -38,13 +38,89 @@ namespace Opc.Ua
     /// </summary>
     public sealed class RequestLifetime : IDisposable
     {
-        private static readonly Lazy<RequestLifetime> s_default = new(
-            () =>
+        /// <summary>
+        /// Initializes a new instance of the RequestLifetime class.
+        /// </summary>
+        /// <param name="externalTokens">
+        /// Tokens whose cancellation also cancels this request. The lifetime owns the registrations
+        /// and releases them when it completes.
+        /// </param>
+        public RequestLifetime(params CancellationToken[] externalTokens)
+        {
+            m_cts = new CancellationTokenSource();
+            CancellationToken = m_cts.Token;
+            m_externalRegistrations = externalTokens is { Length: > 0 }
+                ? new CancellationTokenRegistration[externalTokens.Length]
+                : [];
+            try
             {
-                var r = new RequestLifetime();
-                r.MarkCompleted();
-                return r;
-            });
+                for (int i = 0; i < m_externalRegistrations.Length; i++)
+                {
+                    m_externalRegistrations[i] = RegisterExternal(externalTokens[i]);
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Initializes a lifetime that is cancelled by either token or once
+        /// <paramref name="timeout"/> elapses.
+        /// </summary>
+        /// <remarks>
+        /// The timeout is an owned timer that claims the terminal state through
+        /// <see cref="TryCancel"/> and is released with the other resources, so it races
+        /// with explicit cancellation like an external token. Tokens that cannot be cancelled
+        /// are not registered. A timeout cancellation reports <see cref="StatusCodes.Good"/>.
+        /// </remarks>
+        /// <param name="timeout">The time after which the request is cancelled, or
+        /// <see cref="TimeSpan.Zero"/> or <see cref="Timeout.InfiniteTimeSpan"/> for none.</param>
+        /// <param name="first">A token that cancels the request.</param>
+        /// <param name="second">Another token that cancels the request.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative
+        /// and not <see cref="Timeout.InfiniteTimeSpan"/>.</exception>
+        public RequestLifetime(TimeSpan timeout, CancellationToken first, CancellationToken second)
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
+            m_cts = new CancellationTokenSource();
+            CancellationToken = m_cts.Token;
+            bool useFirst = first.CanBeCanceled;
+            bool useSecond = second.CanBeCanceled && second != first;
+            int count = (useFirst ? 1 : 0) + (useSecond ? 1 : 0);
+            m_externalRegistrations = count == 0 ? [] : new CancellationTokenRegistration[count];
+            try
+            {
+                int index = 0;
+                if (useFirst)
+                {
+                    m_externalRegistrations[index++] = RegisterExternal(first);
+                }
+                if (useSecond)
+                {
+                    m_externalRegistrations[index] = RegisterExternal(second);
+                }
+                if (timeout > TimeSpan.Zero)
+                {
+                    m_timeoutTimer = new Timer(
+                        static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                        this,
+                        timeout,
+                        Timeout.InfiniteTimeSpan);
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
 
         /// <summary>
         /// A default instance of the RequestLifetime class that is already completed and cannot be cancelled.
@@ -59,7 +135,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the derived UA StatusCode for the cancellation.
         /// </summary>
-        public StatusCode StatusCode => m_statusCode;
+        public StatusCode StatusCode => new(unchecked((uint)Volatile.Read(ref m_state)));
 
         /// <summary>
         /// Gets or sets the optional sink that is notified when the request
@@ -76,23 +152,6 @@ namespace Opc.Ua
         public IRequestParkSink? ParkSink { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the RequestLifetime class.
-        /// </summary>
-        public RequestLifetime(params CancellationToken[] externalTokens)
-        {
-            if (externalTokens != null && externalTokens.Length > 0)
-            {
-                m_cts = CancellationTokenSource.CreateLinkedTokenSource(externalTokens);
-            }
-            else
-            {
-                m_cts = new CancellationTokenSource();
-            }
-            CancellationToken = m_cts.Token;
-            m_statusCode = StatusCodes.Good;
-        }
-
-        /// <summary>
         /// Attempts to cancel the request and assigns the corresponding status code.
         /// </summary>
         /// <remarks>
@@ -101,27 +160,36 @@ namespace Opc.Ua
         /// code is the one reported and a later caller can never overwrite it.
         /// </remarks>
         /// <returns><c>true</c> when this call cancelled the request.</returns>
+        /// <param name="statusCode">The status code reported when this call wins the cancellation.</param>
         public bool TryCancel(StatusCode statusCode)
         {
-            if (m_disposed ||
-                m_cts.IsCancellationRequested ||
-                Interlocked.CompareExchange(ref m_cancelClaimed, 1, 0) != 0)
+            long requested = c_cancelled | c_cancelling | statusCode.Code;
+            if (Interlocked.CompareExchange(ref m_state, requested, 0) != 0)
             {
                 return false;
             }
-
-            m_statusCode = statusCode;
 
             try
             {
                 m_cts.Cancel();
+                return true;
             }
-            catch (ObjectDisposedException)
+            finally
             {
-                return false;
-            }
+                long observed;
+                long completed;
+                do
+                {
+                    observed = Volatile.Read(ref m_state);
+                    completed = observed & ~c_cancelling;
+                }
+                while (Interlocked.CompareExchange(ref m_state, completed, observed) != observed);
 
-            return true;
+                if ((observed & c_completed) != 0)
+                {
+                    DisposeResources();
+                }
+            }
         }
 
         /// <summary>
@@ -135,17 +203,66 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (!m_disposed)
+            long observed;
+            long completed;
+            do
             {
-                m_disposed = true;
-                m_cts.Dispose();
+                observed = Volatile.Read(ref m_state);
+                if ((observed & c_completed) != 0)
+                {
+                    return;
+                }
+                completed = observed | c_completed;
+            }
+            while (Interlocked.CompareExchange(ref m_state, completed, observed) != observed);
+
+            if ((observed & c_cancelling) == 0)
+            {
+                DisposeResources();
             }
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Registers an external token so that its cancellation claims the terminal state.
+        /// </summary>
+        /// <param name="token">The external token.</param>
+        /// <returns>The registration that the lifetime releases when it completes.</returns>
+        private CancellationTokenRegistration RegisterExternal(CancellationToken token)
+        {
+            return token.Register(
+                static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                this);
+        }
+
+        /// <summary>
+        /// Releases the external registrations and the cancellation source once the lifetime is
+        /// completed and no cancellation callback is running.
+        /// </summary>
+        private void DisposeResources()
+        {
+            foreach (CancellationTokenRegistration registration in m_externalRegistrations)
+            {
+                registration.Dispose();
+            }
+            m_timeoutTimer?.Dispose();
+            m_cts.Dispose();
+        }
+
+        // The lower bits publish the winning status together with its terminal ownership.
+        private const long c_cancelled = 1L << 32;
+        private const long c_cancelling = 1L << 33;
+        private const long c_completed = 1L << 34;
+        private static readonly Lazy<RequestLifetime> s_default = new(
+            () =>
+            {
+                var r = new RequestLifetime();
+                r.MarkCompleted();
+                return r;
+            });
         private readonly CancellationTokenSource m_cts;
-        private StatusCode m_statusCode;
-        private int m_cancelClaimed;
-        private bool m_disposed;
+        private readonly CancellationTokenRegistration[] m_externalRegistrations;
+        private Timer? m_timeoutTimer;
+        private long m_state;
     }
 }
