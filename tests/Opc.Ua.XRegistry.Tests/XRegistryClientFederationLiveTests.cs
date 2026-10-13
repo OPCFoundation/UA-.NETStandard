@@ -39,6 +39,7 @@ using Opc.Ua.Tests;
 using Opc.Ua.XRegistry.Client;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.XRegistry.Tests
 {
@@ -340,7 +341,7 @@ namespace Opc.Ua.XRegistry.Tests
         private static async Task WithProxyAsync(
             RegistryContext context,
             XRegistryFederationTarget target,
-            Func<Client.ISession, NodeId, Task> action)
+            Func<ISession, NodeId, Task> action)
         {
             string proxyRoot = Path.Combine(context.Root, "proxy");
             var factory = new FederationNodeManagerFactory(new XRegistryServerOptions
@@ -361,7 +362,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await using var connection = new ClientFixture(context.Telemetry);
                 await connection.LoadClientConfigurationAsync(proxyRoot, "XRegistryFederationProxyClient")
                     .ConfigureAwait(false);
-                using Client.ISession session = await connection.ConnectAsync(
+                using ISession session = await connection.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 try
@@ -411,7 +412,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await using var connection = new ClientFixture(telemetry);
                 await connection.LoadClientConfigurationAsync(root, "XRegistryFederationClient")
                     .ConfigureAwait(false);
-                using Client.ISession session = await connection.ConnectAsync(
+                using ISession session = await connection.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 try
@@ -441,7 +442,7 @@ namespace Opc.Ua.XRegistry.Tests
         {
             public RegistryContext(
                 GenericXRegistryClient client,
-                Client.ISession session,
+                ISession session,
                 NodeId resourceNodeId,
                 string resourceXid,
                 ResourceState resource,
@@ -467,7 +468,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public ITelemetryContext Telemetry { get; }
 
-            public Client.ISession Session { get; }
+            public ISession Session { get; }
 
             public CancellationToken Token { get; }
 
