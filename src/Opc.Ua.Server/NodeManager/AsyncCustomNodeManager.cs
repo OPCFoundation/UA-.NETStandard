@@ -1885,6 +1885,8 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            // The event filter cannot inspect this node after it has been removed.
+            bool emitNodeDeleted = !RequireNodeVersionForModelChange || node.HasNodeVersion();
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
             NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
@@ -1950,7 +1952,10 @@ namespace Opc.Ua.Server
 
             if (ModelChangeEmissionEnabled)
             {
-                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                if (emitNodeDeleted)
+                {
+                    ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                }
                 if (!modelChangeParentId.IsNull)
                 {
                     ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);

@@ -969,6 +969,8 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            // The event filter cannot inspect this node after it has been removed.
+            bool emitNodeDeleted = !RequireNodeVersionForModelChange || node.HasNodeVersion();
             IReadOnlyList<IMonitoredItem> monitoredItems =
                 GetMonitoredItemsForNodeSubtree(contextToUse, node);
             var detachedItems = new List<IMonitoredItem>(monitoredItems.Count);
@@ -1023,7 +1025,7 @@ namespace Opc.Ua.Server
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
-            if (ModelChangeEmissionEnabled)
+            if (ModelChangeEmissionEnabled && emitNodeDeleted)
             {
                 ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
                 EmitModelChange(contextToUse);
