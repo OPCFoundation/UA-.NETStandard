@@ -7596,6 +7596,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asynchronously calls a method on an object.
         /// </summary>
+        /// <param name="context">The context for the method invocation.</param>
+        /// <param name="methodToCall">The requested receiver, method and input arguments.</param>
+        /// <param name="method">The resolved method state.</param>
+        /// <param name="result">The result populated for the Call service response.</param>
+        /// <param name="cancellationToken">The caller's cancellation token.</param>
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             CallMethodRequest methodToCall,
@@ -7616,70 +7621,8 @@ namespace Opc.Ua.Server
                cancellationToken
             ).ConfigureAwait(false);
 
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore set here to the argument results
-                // and return a Bad status code.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
 
         /// <summary>
@@ -10628,13 +10571,24 @@ namespace Opc.Ua.Server
             NodeState target,
             CancellationToken cancellationToken = default)
         {
+            ushort namespaceIndex = target.NodeId.NamespaceIndex;
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            {
+                return (
+                    cached.DefaultAccessRestrictions,
+                    cached.DefaultRolePermissions,
+                    cached.DefaultUserRolePermissions);
+            }
+
             AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
             ArrayOf<RolePermissionType> defaultRolePermissions = default;
             ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
 
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
             NamespaceMetadataState? namespaceMetadataState = await
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
                 .ConfigureAwait(false);
 
             if (namespaceMetadataState != null)
@@ -10691,6 +10645,12 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
+                namespaceIndex,
+                defaultAccessRestrictions,
+                defaultRolePermissions,
+                defaultUserRolePermissions));
 
             return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
         }

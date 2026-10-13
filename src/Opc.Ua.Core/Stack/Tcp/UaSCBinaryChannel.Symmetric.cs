@@ -782,7 +782,7 @@ namespace Opc.Ua.Bindings
                 token.TokenId,
                 LastSentSequenceNumber, // already incremented to create this message. need the last one sent.
                 m_symmetricProvider,
-                useClientKeys ? token.ClientAes : token.ServerAes);
+                useClientKeys ? token.ClientCiphers : token.ServerCiphers);
         }
 
         /// <summary>
@@ -967,7 +967,7 @@ namespace Opc.Ua.Bindings
                 m_remoteSequenceNumber,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 m_symmetricProvider,
-                useClientKeys ? token.ClientAes : token.ServerAes);
+                useClientKeys ? token.ClientCiphers : token.ServerCiphers);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");

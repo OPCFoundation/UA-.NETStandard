@@ -71,6 +71,18 @@ namespace Opc.Ua.Server
             => ReadSnapshot.VisibleNamespaceManagers;
 
         /// <summary>
+        /// Gets the visible NodeManagers in dispatch order and the namespace routes from one
+        /// snapshot, so a service call cannot see the routes of one lifecycle generation and
+        /// the dispatch order of another.
+        /// </summary>
+        public (IAsyncNodeManager[] NodeManagers,
+            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers) GetDispatchView()
+        {
+            RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
+            return (snapshot.VisibleNodeManagers, snapshot.VisibleNamespaceManagers);
+        }
+
+        /// <summary>
         /// Adds a NodeManager during server startup, before the namespace routes are built.
         /// </summary>
         /// <param name="nodeManager">The NodeManager to add.</param>

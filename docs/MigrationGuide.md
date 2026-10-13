@@ -817,6 +817,14 @@ limits control how many requests may wait, execute, or remain parked, and how
 much request data they may retain. A request refused at that stage receives
 `BadServerTooBusy`, even if it fitted in a single transport chunk.
 
+`MaxQueuedRequestCount` keeps its 1.5.x meaning: established Sessions can have
+that many decoded requests waiting. Balanced and TrustedReservations add their
+reserved queue entries on top of it. Earlier 2.0 previews carved them out of it,
+so a client that kept exactly `MaxQueuedRequestCount` requests outstanding could
+receive `BadServerTooBusy`. A server that relied on the smaller queue should
+lower `MaxQueuedRequestCount` or set `ResourceIsolationStageOptions.Capacity` for
+the RequestQueue stage. See [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits).
+
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
 `ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners

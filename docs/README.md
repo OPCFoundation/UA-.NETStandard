@@ -98,6 +98,8 @@ Assumes [Getting started](GettingStarted.md).
    — host a server and configure its endpoints, security, and node managers.
 2. [Node managers: start with a model](NodeManagers.md#start-with-a-model) —
    generate a node manager from your model and attach callbacks.
+   [Complete method invocation results](NodeManagers.md#complete-method-results-and-diagnostic-forwarding) covers
+   ordered output values and resolved operation/input diagnostics.
    [Your first information model](FirstModel.md) is a complete example.
 3. [Runtime NodeSets](RuntimeNodeSets.md#quick-start-examples) — load NodeSet2
    models without generated code when models change independently of your
@@ -262,6 +264,8 @@ The subscription guides assume the client path; the sizing guides assume
   to a new session.
 - [Durable subscriptions](DurableSubscription.md) — keep subscriptions and
   queued notifications while clients are disconnected.
+- [Generation-bound session clients](SessionBindings.md) — capture dispatch,
+  session identity and mapping snapshots without reconnecting to a replacement peer.
 - [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 

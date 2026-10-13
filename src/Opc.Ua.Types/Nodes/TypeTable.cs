@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores the type tree for a server.
     /// </summary>
-    public class TypeTable : ITypeTable
+    public partial class TypeTable : ITypeTable
     {
         /// <summary>
         /// Initializes the type table with default values.
@@ -52,8 +52,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
         public bool IsKnown(ExpandedNodeId typeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsKnown(typeId);
+            }
             if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return false;
@@ -73,8 +78,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
         public bool IsKnown(NodeId typeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsKnown(typeId);
+            }
             if (typeId.IsNull)
             {
                 return false;
@@ -87,8 +97,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
         public NodeId FindSuperType(ExpandedNodeId typeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindSuperType(typeId);
+            }
             if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return NodeId.Null;
@@ -118,8 +133,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
         public NodeId FindSuperType(NodeId typeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindSuperType(typeId);
+            }
             if (typeId.IsNull)
             {
                 return NodeId.Null;
@@ -154,8 +174,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="typeId">The type identifier.</param>
         public ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindSubTypes(typeId);
+            }
             var subtypes = new List<NodeId>();
 
             if (typeId.IsNull)
@@ -182,8 +207,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="subTypeId">The sub type identifier.</param>
+        /// <param name="superTypeId">The super type identifier.</param>
         public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsTypeOf(subTypeId, superTypeId);
+            }
             if (subTypeId.IsNull || subTypeId.ServerIndex != 0)
             {
                 return false;
@@ -231,8 +262,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="subTypeId">The sub type identifier.</param>
+        /// <param name="superTypeId">The super type identifier.</param>
         public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsTypeOf(subTypeId, superTypeId);
+            }
             // check for null.
             if (subTypeId.IsNull || superTypeId.IsNull)
             {
@@ -257,8 +294,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="referenceTypeId">The reference type identifier.</param>
         public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindReferenceTypeName(referenceTypeId);
+            }
             lock (m_lock)
             {
                 if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo? typeInfo))
@@ -271,8 +313,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="browseName">The browse name.</param>
         public NodeId FindReferenceType(QualifiedName browseName)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindReferenceType(browseName);
+            }
             // check for empty name.
             if (browseName.IsNull)
             {
@@ -291,8 +338,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="encodingId">The encoding identifier.</param>
+        /// <param name="datatypeId">The datatype identifier.</param>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsEncodingOf(encodingId, datatypeId);
+            }
             // check for invalid ids.
             if (encodingId.IsNull || datatypeId.IsNull)
             {
@@ -347,8 +400,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="expectedTypeId">The expected type identifier.</param>
+        /// <param name="value">The extension object.</param>
         public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsEncodingFor(expectedTypeId, value);
+            }
             // no match on null values.
             if (value.IsNull)
             {
@@ -375,8 +434,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="expectedTypeId">The expected type identifier.</param>
+        /// <param name="value">The value whose encoding is checked.</param>
         public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
+            if (CurrentView is { } view)
+            {
+                return view.IsEncodingFor(expectedTypeId, value);
+            }
             // null actual datatype matches nothing.
             if (value.IsNull)
             {
@@ -433,8 +498,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="encodingId">The encoding identifier.</param>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindDataTypeId(encodingId);
+            }
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId.IsNull)
@@ -454,8 +524,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <param name="encodingId">The encoding identifier.</param>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
+            if (CurrentView is { } view)
+            {
+                return view.FindDataTypeId(encodingId);
+            }
             lock (m_lock)
             {
                 if (!m_encodings.TryGetValue(encodingId, out TypeInfo? typeInfo))
@@ -474,6 +549,13 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Clear();
+                    return;
+                }
+                EnsureMutable();
+                m_revision++;
                 m_nodes.Clear();
                 m_encodings.Clear();
                 m_referenceTypes.Clear();
@@ -526,6 +608,12 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Add(node);
+                    return;
+                }
+                EnsureMutable();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -538,6 +626,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
+                m_revision++;
                 if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
@@ -633,6 +722,8 @@ namespace Opc.Ua
         /// Adds an encoding for an existing data type. Registering the
         /// same encoding again is a no-op that still succeeds.
         /// </summary>
+        /// <param name="dataTypeId">The data type identifier.</param>
+        /// <param name="encodingId">The encoding identifier.</param>
         public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
         {
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
@@ -644,11 +735,23 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    return view.AddEncoding(dataTypeId, encodingId);
+                }
                 if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo? typeInfo))
                 {
                     return false;
                 }
 
+                if (typeInfo.Encodings is not null &&
+                    System.Array.IndexOf(typeInfo.Encodings, localId) >= 0 &&
+                    m_encodings.TryGetValue(localId, out TypeInfo? existing) &&
+                    ReferenceEquals(existing, typeInfo))
+                {
+                    return true;
+                }
+                EnsureMutable();
                 if (typeInfo.Encodings == null)
                 {
                     typeInfo.Encodings = [localId];
@@ -661,6 +764,7 @@ namespace Opc.Ua
                     typeInfo.Encodings = encodings;
                 }
 
+                m_revision++;
                 m_encodings[localId] = typeInfo;
                 return true;
             }
@@ -680,6 +784,12 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.AddSubtype(subTypeId, superTypeId, browseName);
+                    return;
+                }
+                EnsureMutable();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -692,6 +802,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
+                m_revision++;
                 if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
@@ -750,6 +861,11 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
+                if (CurrentView is { } view)
+                {
+                    view.Remove(typeId);
+                    return;
+                }
                 // remove type.
 
                 if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
@@ -757,6 +873,8 @@ namespace Opc.Ua
                     return;
                 }
 
+                EnsureMutable();
+                m_revision++;
                 m_nodes.Remove(localId);
 
                 // setting the flag to deleted ensures references from subtypes are not broken.
