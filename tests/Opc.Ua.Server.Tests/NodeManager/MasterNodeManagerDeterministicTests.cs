@@ -1299,6 +1299,42 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedItemWithFilterReportsUnsupportedFilterAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            ((IDetachableMonitoredItem)item).QueueNodeIdUnknown();
+            var request = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 44,
+                    SamplingInterval = 2000,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new DataChangeFilter())
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            await sut.ModifyMonitoredItemsAsync(
+                CreateContext(),
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+                Assert.That(item.ClientHandle, Is.Not.EqualTo(44U));
+            });
+        }
+
+        [Test]
         public void SetMonitoringModeAsync_NullContext_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();

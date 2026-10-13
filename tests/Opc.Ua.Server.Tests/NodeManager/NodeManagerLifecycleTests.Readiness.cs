@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed class ReadinessLifecycleNodeManager :
             NodeManagementLifecycleNodeManager,
-            INodeManagerReadinessParticipant
+            INodeManagerReadinessNotification
         {
             public ReadinessLifecycleNodeManager(
                 IServerInternal server,

@@ -2063,7 +2063,7 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
-            await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
+            await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 m_owner.GetConditionRefreshDispatches(
@@ -2479,7 +2479,12 @@ namespace Opc.Ua.Server
                     try
                     {
                         ServiceResult result = await SetEventSubscriptionAsync(
-                            compensationManagers[ii], context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                            compensationManagers[ii],
+                            context,
+                            subscriptionId,
+                            monitoredItem,
+                            true,
+                            CancellationToken.None)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result) &&
                             result.StatusCode != StatusCodes.BadNodeIdUnknown &&
@@ -2928,7 +2933,7 @@ namespace Opc.Ua.Server
                 ServiceResult subscriptionResult = ServiceResult.Good;
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
+                    await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
                     IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
@@ -3313,7 +3318,7 @@ namespace Opc.Ua.Server
                 processedItems[ii] = true;
                 ServiceResult result = ServiceResult.Good;
 
-                await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
+                await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
                 NotificationDispatchLease[]? dispatches = null;
                 try
                 {

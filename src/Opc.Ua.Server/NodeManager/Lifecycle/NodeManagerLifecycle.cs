@@ -275,7 +275,7 @@ namespace Opc.Ua.Server
             using OperationLifetime operation = EnterLifecycleOperation();
             for (int ii = 0; ii < initialManagers.Count; ii++)
             {
-                if (initialManagers[ii] is INodeManagerReadinessParticipant participant)
+                if (initialManagers[ii] is INodeManagerReadinessNotification participant)
                 {
                     ct.ThrowIfCancellationRequested();
                     await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
@@ -660,7 +660,7 @@ namespace Opc.Ua.Server
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await using var bindingAdmission =
-                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -963,7 +963,7 @@ namespace Opc.Ua.Server
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await using var bindingAdmission =
-                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -1027,7 +1027,7 @@ namespace Opc.Ua.Server
                     prepared,
                     allowRequestCallback)
                 {
-                    ReadinessPending = nodeManager is INodeManagerReadinessParticipant
+                    ReadinessPending = nodeManager is INodeManagerReadinessNotification
                 };
                 lock (m_registrationLock)
                 {
@@ -1228,7 +1228,7 @@ namespace Opc.Ua.Server
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await using var bindingAdmission =
-                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Server
                     replacement,
                     allowRequestCallback)
                 {
-                    ReadinessPending = replacementManager is INodeManagerReadinessParticipant
+                    ReadinessPending = replacementManager is INodeManagerReadinessNotification
                 };
                 lock (m_registrationLock)
                 {
@@ -1787,7 +1787,7 @@ namespace Opc.Ua.Server
             RegistrationState state,
             CancellationToken ct)
         {
-            if (state.Prepared.NodeManager is not INodeManagerReadinessParticipant participant)
+            if (state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
             {
                 return;
             }
@@ -3068,6 +3068,8 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             CancellationToken ct)
         {
+            // Lifecycle rebind has no originating request context; the no-context overload deliberately checks the
+            // ambient admission of the delete that may be removing this item.
             if ((server.NodeManager as IDynamicNodeManagerBatchHost)?.IsRemovingBinding(monitoredItem) == true)
             {
                 return false;

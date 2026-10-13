@@ -211,7 +211,11 @@ namespace Opc.Ua.Server
                 Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
                 CancellationToken cancellationToken = default)
             {
-                _ = inspectAsync ?? throw new ArgumentNullException(nameof(inspectAsync));
+                if (inspectAsync is null)
+                {
+                    throw new ArgumentNullException(nameof(inspectAsync));
+                }
+
                 using IDisposable namespaces = Capture.Server.NamespaceUris.UsePrivateCopy();
                 using IDisposable servers = Capture.Server.ServerUris.UsePrivateCopy();
                 IPreparedNodeManagerBatch batch = await PrepareCoreAsync(

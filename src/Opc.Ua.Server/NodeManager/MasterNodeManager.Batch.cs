@@ -40,44 +40,68 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
         {
-            _ = owner ?? throw new ArgumentNullException(nameof(owner));
+            if (owner is null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+
             return m_nodeManagers.GetReadImage(owner);
         }
 
+        /// <inheritdoc/>
         NodeManagerRoutingTable.RoutingSnapshot IDynamicNodeManagerBatchHost.RoutingRevision
             => m_nodeManagers.Revision;
 
+        /// <inheritdoc/>
         IDisposable IDynamicNodeManagerBatchHost.UseLiveRouting()
         {
             return m_nodeManagers.UseLiveRouting();
         }
 
+        /// <inheritdoc/>
         IDisposable IDynamicNodeManagerBatchHost.UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
         {
             return m_nodeManagers.UseTypeImage(typeTree, factory);
         }
 
+        /// <inheritdoc/>
         IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission()
         {
-            return m_currentBindingAdmission.Value?.Suspend() ?? BindingAdmissionSuspension.Empty;
+            return SuspendBindingAdmission((IOperationContext?)null);
         }
 
+        /// <inheritdoc/>
+        IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
+        {
+            return SuspendBindingAdmission(context);
+        }
+
+        /// <inheritdoc/>
+        bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem)
+        {
+            return IsRemovingBinding(context, monitoredItem);
+        }
+
+        /// <inheritdoc/>
         bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IMonitoredItem monitoredItem)
         {
-            return m_currentBindingAdmission.Value?.IsRemoving(monitoredItem) == true;
+            return IsRemovingBinding(null, monitoredItem);
         }
 
+        /// <inheritdoc/>
         async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
             IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
+                IOperationContext? context,
                 Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
                 CancellationToken cancellationToken)
         {
-        await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        using BindingAdmission admission = EnterBindingAdmission();
-        using IDisposable routing = m_nodeManagers.UseLiveRouting();
-        return await activateAsync().ConfigureAwait(false);
+            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using BindingAdmission admission = EnterBindingAdmission(context);
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            return await activateAsync().ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,

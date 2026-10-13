@@ -82,7 +82,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                OwnerReleaseState? owner = Interlocked.Exchange(ref m_ownerState, s_disposedOwner);
+                Action? owner = Interlocked.Exchange(ref m_ownerRelease, s_disposedOwner);
                 if (ReferenceEquals(owner, s_disposedOwner))
                 {
                     return;
@@ -94,13 +94,14 @@ namespace Opc.Ua.Server
                 finally
                 {
                     RoutingSnapshot = null;
-                    owner?.Release?.Invoke();
+                    owner?.Invoke();
                 }
             }
         }
 
         /// <summary>
-        /// Registers the callback that releases the owning session slot when the continuation point is disposed.
+        /// Registers the callback that releases the owning session slot when the continuation point is
+        /// disposed.
         /// </summary>
         /// <param name="releaseOwner">The callback invoked once when the continuation point is disposed.</param>
         internal void SetOwnerRelease(Action releaseOwner)
@@ -109,8 +110,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(releaseOwner));
             }
-            OwnerReleaseState? previous = Interlocked.CompareExchange(
-                ref m_ownerState, new OwnerReleaseState(releaseOwner), null);
+            Action? previous = Interlocked.CompareExchange(ref m_ownerRelease, releaseOwner, null);
             if (ReferenceEquals(previous, s_disposedOwner))
             {
                 throw new ObjectDisposedException(nameof(ContinuationPoint));
@@ -290,20 +290,8 @@ namespace Opc.Ua.Server
                     ReferenceEquals(syncManager, candidate.SyncNodeManager));
         }
 
-        private static readonly OwnerReleaseState s_disposedOwner = new(null);
-        private OwnerReleaseState? m_ownerState;
+        private static readonly Action s_disposedOwner = static () => { };
+        private Action? m_ownerRelease;
         private IAsyncNodeManager[]? m_dependencyOwners;
-
-        /// <summary>
-        /// Holds the owner release callback and distinguishes a released continuation from an unowned one.
-        /// </summary>
-        /// <param name="release">The callback to invoke on release, or null for the disposed marker.</param>
-        private sealed class OwnerReleaseState(Action? release)
-        {
-            /// <summary>
-            /// Gets the callback that releases the owner.
-            /// </summary>
-            public Action? Release { get; } = release;
-        }
     }
 }

@@ -270,6 +270,15 @@ The default server does not create file-system, alias-name, or runtime-NodeSet m
 
 `StandardServer` also creates a `NodeManagerLifecycle` provider. It is not itself a node manager; it is the host control-plane object behind `INodeManagerLifecycle`. Hosted servers expose it through dependency injection, and direct `StandardServer` users can access `StandardServer.NodeManagerLifecycle`. The lifecycle provider prepares, commits, reloads, removes, and drains lifecycle-managed managers through the master node manager.
 
+#### Why the lifecycle provider exists
+
+Without it, a node manager can only be added at startup. Changing the address space of a running
+server would then require a restart, which drops every session and subscription. The provider
+lets an application add, reload or remove a manager while the server runs, and it coordinates the
+hand-over so that in-flight requests, MonitoredItems and Browse continuation points are neither
+lost nor served by a half-disposed manager. If you do not need runtime changes, register the
+manager as a normal startup factory and ignore the provider.
+
 ## Core vs custom node managers
 
 `CoreNodeManager` is the built-in owner of core server nodes. It derives from
@@ -647,11 +656,11 @@ services.AddOpcUa()
 
 ### Awaited readiness
 
-Implement `INodeManagerReadinessParticipant` when your manager needs initialized
+Implement `INodeManagerReadinessNotification` when your manager needs initialized
 server subsystems or registers dependent runtime NodeManagers:
 
 ```csharp
-public interface INodeManagerReadinessParticipant
+public interface INodeManagerReadinessNotification
 {
     ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default);
 }
@@ -741,7 +750,7 @@ ArrayOf<IAsyncNodeManager> initialManagers = [.. master.AsyncNodeManagers];
 // Initialize server subsystems and enable runtime lifecycle operations here.
 for (int ii = 0; ii < initialManagers.Count; ii++)
 {
-    if (initialManagers[ii] is INodeManagerReadinessParticipant participant)
+    if (initialManagers[ii] is INodeManagerReadinessNotification participant)
     {
         await participant.OnServerReadyAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -841,7 +850,7 @@ Before invoking lifetime callbacks, cancellation and expiry first select the req
 without changing that selection. Requests admitted by a callback are
 handled by a later cancellation or expiry pass; a new timed request retains its
 own expiry timer.
-Only lifetimes that accept cancellation contribute to the cancellation count
+Only lifetimes that accept cancellations contribute to the cancellation count
 and cancellation notifications.
 Each lifetime has one terminal owner. The winning cancellation status is visible
 before callbacks run. If a request completes while the callbacks run, token-resource
@@ -920,19 +929,16 @@ custom Subscription implementation needs the equivalent snapshots from
 
 #### Continuation points
 
-`ShadowReloadAsync` and graceful prepared-batch replacement/removal retain saved
-Browse continuation points even when the old NodeManagers have no MonitoredItems.
-A continuation point keeps its issuing NodeManager alive and also keeps alive
-each old-generation NodeManager needed to return or filter later references.
-The server resolves these dependencies by exact NodeId, not namespace membership.
-Two continuation points that need the same target retain its NodeManager
-independently. Unrelated managers can retire, even in the same namespace.
+##### What a continuation point retains
 
-Restoring a continuation point transfers its use to `BrowseNext` without
-releasing any retained NodeManager. Each page uses the original routing,
-reference, type and encodeable-factory information and Browse filters.
-The server checks current permissions on every page. New Browse requests use
-the active generation.
+A client may page through a large Browse result while you reload the NodeManager that produced it.
+To keep `BrowseNext` working, a saved continuation point keeps its issuing NodeManager, and every
+old NodeManager that owns a reference target it still needs, alive until it is released. Targets are
+matched by exact NodeId, so unrelated managers, even in the same namespace, can still retire.
+Each page uses the original model and is checked against the Session's current permissions. New
+Browse requests use the active generation.
+
+##### Browse flow across a reload
 
 ```mermaid
 sequenceDiagram
@@ -953,80 +959,63 @@ sequenceDiagram
     Server->>Old: Delete address space after all retained work drains
 ```
 
-**Custom browser compatibility:** paginated Browse requires a complete dependency declaration
-through `IBrowseContinuationDependencies` on `ContinuationPoint.Data`. The built-in
-`AsyncCustomNodeManager` forwards that query to its browser; `CustomNodeManager2` stores the browser
-directly. The standard `NodeBrowser` reports its remaining stored references, including pushback,
-without advancing. Derived or custom lazy browsers must explicitly implement/override the query
-and include every future target owner they can need, not just currently buffered targets.
-`GetRemainingReferenceTargets()` supplies the stored part for a derived browser's declaration.
-An empty successful declaration means that only the issuing NodeManager is needed.
-If the complete set cannot be declared, paginated Browse returns `BadNotSupported`, with no
-continuation or partial references, instead of guessing, retaining the whole server, or silently
-losing targets later. Unpaged Browse is unchanged. A declaration is captured before first save and
-remains valid for that continuation point's lifetime. New external dependencies cannot appear later.
+##### Custom browsers
 
-Final-page completion, explicit release, cache eviction, failed or cancelled
-`BrowseNext`, and Session close/disposal release the NodeManagers retained by
-that continuation point. The cache evicts only saved continuation points, not
-those executing in a request. Releasing one continuation point does not release
-the retention held by another. A retired NodeManager is deleted only after its
-MonitoredItems, Browse and participating HistoryRead continuation points, and
-in-flight requests have finished.
+If you write a custom lazy browser, implement `IBrowseContinuationDependencies` on
+`ContinuationPoint.Data` and list every NodeManager that owns a target the browser can still return,
+not only the targets already buffered. `GetRemainingReferenceTargets()` gives you the stored part.
+An empty declaration means only the issuing NodeManager is needed. The standard `NodeBrowser`,
+`AsyncCustomNodeManager` and `CustomNodeManager2` already do this. If the set cannot be declared,
+paginated Browse returns `BadNotSupported` rather than risk losing targets later; unpaged Browse is
+unchanged. The declaration is fixed when the continuation point is first saved.
 
-The default historian also retains old-generation HistoryRead continuation points during shadow reload and
-graceful prepared-batch replacement/removal, even with no Browse continuation points or MonitoredItems.
-Each continuation point keeps its exact provider, source Node, requested Node identity, original query and
-data selection, and captured routing/type/factory/reference images. Resumed reads recheck the
-calling Session's permissions against the retained source; they do not look up a replacement
-provider or route a token to the new model. A foreign Session cannot consume the continuation point.
+##### When retention ends
+
+The last page, an explicit release, cache eviction, a failed or cancelled `BrowseNext`, or Session
+close releases what the continuation point retained. Each continuation point releases only its own
+retention. A retired NodeManager is deleted only after its MonitoredItems, Browse and HistoryRead
+continuation points and in-flight requests have finished.
+
+##### HistoryRead continuation points
+
+The default historian applies the same rule to paged HistoryRead. A continuation point keeps its
+exact provider, source Node and original query, so a resumed read never switches to a replacement
+provider. Permissions are rechecked on every page and another Session cannot consume the token.
 New history reads use the active generation.
 
-For paginated dynamic sources, providers implement `IHistorianContinuationDependencies` and
-declare every additional local Node needed for any remaining page. The requested Node and
-provider source are included automatically, including an Annotations Property's parent.
-`InMemoryHistorianProvider` declares no extra owners. Only exact resolved owners are retained,
-not namespace peers or the entire routing snapshot. Unpaged history and legacy providers on
-sources outside the dynamic lifecycle do not require this optional capability. Missing or
-incomplete declarations on dynamic sources return `BadNotSupported`, without partial data or
-a continuation. Opaque custom NodeManager history states cannot be made retirement-safe by
-examining their contents and are likewise rejected for dynamic pagination.
+##### Dynamic history providers
 
-The default Session cache accounts for both saved and executing history
-continuation points. Completion, release, eviction, failure, cancellation and
-Session teardown end their retention. An executing continuation point cannot be
-evicted or disposed by another request. Failed multi-Node HistoryRead responses
-discard continuation points that the client did not receive.
+A provider that pages history from a dynamic source implements `IHistorianContinuationDependencies`
+and declares every extra local Node a later page may need. The requested Node and the provider source
+are included automatically. `InMemoryHistorianProvider` needs no extra owners. Unpaged history and
+sources outside the dynamic lifecycle need nothing. A missing or incomplete declaration, or an opaque
+custom history state, returns `BadNotSupported` with no partial data.
 
-Use the cache supplied by `Session` for dynamic historian pagination.
-`ISessionHistoryContinuationPointLifecycle` reports whether a continuation
-point retains a NodeManager and signals its release. Implementing that interface
-does not provide the original routing, type and reference information needed
-to execute a resumed read. The historian dispatcher rejects a replacement
-cache with `BadNotSupported` before saving such a continuation or returning
-partial data. This restriction prevents custom caches from accepting dynamic
-history reads they cannot resume safely.
+##### Session history cache
 
-Replicated history records identify their original Session so a standby can
-clean them up. They do not recreate the live provider, source Node or old
-NodeManager on that process. Resuming one returns `BadContinuationPointInvalid`.
-The client must start a new history read on the standby. See
+Use the cache supplied by `Session` for dynamic historian pagination. It tracks saved and executing
+continuation points, never evicts one that is executing, and discards points the client did not
+receive. A replacement cache is rejected with `BadNotSupported` before anything is saved, because
+implementing `ISessionHistoryContinuationPointLifecycle` alone does not carry the routing and type
+information needed to resume a read.
+
+A replicated history record lets a standby clean up the original Session's state but cannot resume the
+read; resuming returns `BadContinuationPointInvalid` and the client starts a new read. See
 [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget)
 for provider setup and continuation rules.
 
-Normal and immediate reload/removal invalidate continuation points requiring the removed manager, whether it
-is the source or a dependency. A later `BrowseNext` returns
-`BadContinuationPointInvalid` rather than invoking a disposed generation. An invalidated or
-closed-session continuation point cannot be saved again by a request that was already executing. Shutdown
-discards saved continuation points and waits for the bounded request drain before cleanup.
+##### Invalidation and custom caches
 
-Custom Session continuation caches can implement `ISessionContinuationPointLifecycle` to report
-exact saved and executing Browse ownership and signal final release. Their ownership and
-invalidation checks must use `ContinuationPoint.RequiresManager`, not only `Manager`, so they
-include dependencies. Existing `ISessionContinuationPoints` callers need no changes.
-Graceful cleanup refuses an unsupported
-ownership query instead of guessing that the manager is unused; a prepared batch reports that
-post-commit failure through `CleanupFailure` without rolling back publication.
+A normal or immediate reload/removal invalidates every continuation point that needs the removed
+manager, as source or dependency; a later `BrowseNext` returns `BadContinuationPointInvalid`.
+Shutdown discards saved continuation points and waits for in-flight requests.
+
+A custom Session continuation cache implements `ISessionContinuationPointLifecycle` to report saved
+and executing Browse ownership and signal final release. Its checks must use
+`ContinuationPoint.RequiresManager`, not only `Manager`, so dependencies count. Existing
+`ISessionContinuationPoints` callers need no changes. If a cache cannot answer the ownership query,
+graceful cleanup refuses to delete the manager and reports it through `CleanupFailure` without rolling
+back publication.
 
 #### Namespaces
 

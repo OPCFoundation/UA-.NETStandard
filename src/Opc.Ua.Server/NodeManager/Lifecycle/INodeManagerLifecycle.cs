@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// Adds, reloads, and removes lifecycle-managed NodeManagers on a running server.
     /// </summary>
     /// <remarks>
-    /// Add and reload await <see cref="INodeManagerReadinessParticipant"/> after committing
+    /// Add and reload await <see cref="INodeManagerReadinessNotification"/> after committing
     /// the generation. Its registration remains visible but cannot be removed or reloaded
     /// until that startup operation completes. A readiness failure or cancellation is a
     /// post-commit failure; the live registration remains available for recovery or removal.

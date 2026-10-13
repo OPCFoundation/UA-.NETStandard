@@ -173,7 +173,10 @@ namespace Opc.Ua.Server
 
             // Publish the initial manager and namespace routing snapshot.
             var factory = server.Factory as EncodeableFactory;
-            m_nodeManagers.Initialize(namespaceManagers, server.TypeTree.CaptureSnapshot(out _, out _), factory?.Fork());
+            m_nodeManagers.Initialize(
+                namespaceManagers,
+                server.TypeTree.CaptureSnapshot(out _, out _),
+                factory?.Fork());
             server.TypeTree.SetViewSelector(() => m_nodeManagers.TypeTree);
             m_factoryViewOwner = factory?.SetViewSelector(() => m_nodeManagers.Factory);
 
@@ -438,7 +441,7 @@ namespace Opc.Ua.Server
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             m_dynamicMutationSemaphore.Release();
 
-            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
+            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -482,7 +485,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
+            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);

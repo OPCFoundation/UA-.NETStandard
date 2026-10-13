@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         IDisposable,
         IAsyncDisposable,
         INodeManagerMonitoredItemLifecycle,
-        INodeManagerReadinessParticipant
+        INodeManagerReadinessNotification
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -119,9 +119,18 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
         {
-            return SyncNodeManager is INodeManagerReadinessParticipant participant
-                ? participant.OnServerReadyAsync(cancellationToken)
-                : default;
+            if (SyncNodeManager is INodeManagerReadinessNotification participant)
+            {
+                return participant.OnServerReadyAsync(cancellationToken);
+            }
+
+            if (SyncNodeManager is ISyncNodeManagerReadinessNotification syncParticipant)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                syncParticipant.OnServerReady();
+            }
+
+            return default;
         }
 
         /// <inheritdoc/>

@@ -7980,6 +7980,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; } = null!;
 
             /// <summary>
+            /// Gets or sets a callback that receives the operation context of an all-events subscription change.
+            /// </summary>
+            public Func<OperationContext, bool, CancellationToken, ValueTask> AllEventsContextCallback
+            { get; set; } = null!;
+            /// <summary>
             /// Gets or sets a callback observing or delaying the condition-refresh item batch.
             /// </summary>
             public Func<
@@ -8103,6 +8108,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     m_subscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
 
+                if (AllEventsContextCallback is not null)
+                {
+                    await AllEventsContextCallback(context, unsubscribe, cancellationToken).ConfigureAwait(false);
+                }
                 if (AllEventsCallback is not null)
                 {
                     await AllEventsCallback(

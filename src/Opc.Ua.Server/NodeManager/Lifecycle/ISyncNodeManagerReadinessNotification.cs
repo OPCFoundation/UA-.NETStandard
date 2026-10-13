@@ -27,37 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Performs awaited initialization that requires a published address space and
-    /// initialized server subsystems, including registration of dependent NodeManagers.
+    /// Synchronous counterpart of <see cref="INodeManagerReadinessNotification"/> for
+    /// <see cref="INodeManager"/> implementations. <see cref="AsyncNodeManagerAdapter"/> invokes it
+    /// when the wrapped manager implements it.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// StandardServer invokes this optional participant for its initial NodeManagers.
-    /// The lifecycle invokes it for each newly committed Add or reload generation.
-    /// Both await completion before returning to their caller. Custom hosts must invoke
-    /// it after address-space creation and server initialization, not during preparation.
-    /// </para>
-    /// <para>
-    /// Runtime readiness runs outside registration serialization. The generation remains
-    /// published and owned by its startup operation: competing removal or reload is
-    /// rejected until that operation completes. A readiness failure, including cancellation,
-    /// is a post-commit failure, not a rollback. The live registration remains available
-    /// for recovery or removal. DeleteAddressSpaceAsync must release any dependencies
-    /// created before the failure.
-    /// </para>
-    /// </remarks>
-    public interface INodeManagerReadinessParticipant
+    public interface ISyncNodeManagerReadinessNotification
     {
         /// <summary>
         /// Completes initialization once runtime lifecycle operations are available.
         /// </summary>
-        /// <param name="cancellationToken">The caller's startup or registration cancellation token.</param>
-        ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default);
+        void OnServerReady();
     }
 }

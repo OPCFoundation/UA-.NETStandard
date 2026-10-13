@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class SyncNodeManagerAdapter :
         INodeManager3,
-        INodeManagerReadinessParticipant,
+        INodeManagerReadinessNotification,
         INodeManagementAsyncNodeManager
     {
         /// <summary>
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
         {
-            return m_nodeManager is INodeManagerReadinessParticipant participant
+            return m_nodeManager is INodeManagerReadinessNotification participant
                 ? participant.OnServerReadyAsync(cancellationToken)
                 : default;
         }

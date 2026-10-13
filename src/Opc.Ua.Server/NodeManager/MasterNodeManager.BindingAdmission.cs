@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,35 +39,121 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Defers resuming binding admission of the current scope until the returned suspension is disposed.
         /// </summary>
+        /// <param name="context">The operation context of the admitted request, or null for the legacy ambient
+        /// scope.</param>
         /// <returns>The suspension to dispose, or an empty one if no admission is active.</returns>
-        internal BindingAdmissionSuspension DeferBindingAdmissionResumption()
+        internal BindingAdmissionSuspension DeferBindingAdmissionResumption(IOperationContext? context = null)
         {
-            return m_currentBindingAdmission.Value?.DeferResumption() ?? BindingAdmissionSuspension.Empty;
+            return FindBindingAdmission(context)?.DeferResumption() ?? BindingAdmissionSuspension.Empty;
+        }
+
+        /// <summary>
+        /// Releases the binding admission of the specified request, or of the ambient scope for a null context
+        /// (legacy public no-context callers). A non-null context that is not admitted suspends nothing.
+        /// </summary>
+        /// <param name="context">The operation context of the admitted request, or null.</param>
+        /// <returns>The suspension that restores admission, or an empty one if no admission is active.</returns>
+        internal BindingAdmissionSuspension SuspendBindingAdmission(IOperationContext? context)
+        {
+            return FindBindingAdmission(context)?.Suspend() ?? BindingAdmissionSuspension.Empty;
+        }
+
+        /// <summary>
+        /// Checks whether the admitted request or the ambient scope is removing the monitored item.
+        /// </summary>
+        /// <param name="context">The operation context of the admitted request, or null.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <returns>True if the item is being removed.</returns>
+        internal bool IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem)
+        {
+            return FindBindingAdmission(context)?.IsRemoving(monitoredItem) == true;
         }
 
         /// <summary>
         /// Enters a binding admission scope for the current asynchronous flow.
         /// </summary>
+        /// <param name="context">The operation context of the admitted request, or null for a scope without one.
+        /// </param>
         /// <param name="removingItems">The monitored items that are being removed in this scope.</param>
         /// <returns>The scope to dispose when the admission ends.</returns>
-        private BindingAdmission EnterBindingAdmission(ArrayOf<IMonitoredItem> removingItems = default)
+        private BindingAdmission EnterBindingAdmission(
+            IOperationContext? context,
+            ArrayOf<IMonitoredItem> removingItems = default)
         {
-            var admission = new BindingAdmission(this, m_currentBindingAdmission.Value, removingItems);
+            var admission = new BindingAdmission(
+                this, FindBindingAdmission(context), m_currentBindingAdmission.Value, context, removingItems);
             m_currentBindingAdmission.Value = admission;
+            if (context is not null)
+            {
+                lock (m_contextAdmissionLock)
+                {
+                    m_contextAdmissions.Remove(context);
+                    m_contextAdmissions.Add(context, admission);
+                }
+            }
             return admission;
         }
 
+        /// <summary>
+        /// Finds the admission captured for the context. Only a null context, the legacy public no-context call,
+        /// resolves the ambient scope; a non-null context never inherits another request's admission.
+        /// </summary>
+        /// <param name="context">The operation context, or null.</param>
+        /// <returns>The admission, or null if none is active.</returns>
+        private BindingAdmission? FindBindingAdmission(IOperationContext? context)
+        {
+            if (context is null)
+            {
+                return m_currentBindingAdmission.Value;
+            }
+            lock (m_contextAdmissionLock)
+            {
+                return m_contextAdmissions.TryGetValue(context, out BindingAdmission? captured) ? captured : null;
+            }
+        }
+
+        /// <summary>
+        /// Restores the enclosing admission for a context when a scope ends.
+        /// </summary>
+        /// <param name="context">The operation context the scope was captured for.</param>
+        /// <param name="ending">The scope that ends.</param>
+        /// <param name="previous">The enclosing scope, or null.</param>
+        private void ReleaseContextAdmission(
+            IOperationContext context,
+            BindingAdmission ending,
+            BindingAdmission? previous)
+        {
+            lock (m_contextAdmissionLock)
+            {
+                if (m_contextAdmissions.TryGetValue(context, out BindingAdmission? current) &&
+                    ReferenceEquals(current, ending))
+                {
+                    m_contextAdmissions.Remove(context);
+                    if (previous is not null)
+                    {
+                        m_contextAdmissions.Add(context, previous);
+                    }
+                }
+            }
+        }
+
         private readonly AsyncLocal<BindingAdmission?> m_currentBindingAdmission = new();
+        private readonly ConditionalWeakTable<IOperationContext, BindingAdmission> m_contextAdmissions = new();
+        private readonly Lock m_contextAdmissionLock = new();
 
         /// <summary>
         /// Holds the binding admission semaphore for a scope and allows temporarily suspending it.
         /// </summary>
         /// <param name="owner">The master node manager.</param>
-        /// <param name="previous">The enclosing admission scope, or null.</param>
+        /// <param name="previous">The enclosing admission of the same context chain, or null.</param>
+        /// <param name="ambientPrevious">The ambient scope to restore when this scope ends, or null.</param>
+        /// <param name="context">The operation context the scope is captured for, or null.</param>
         /// <param name="removingItems">The monitored items that are being removed.</param>
         private sealed class BindingAdmission(
             MasterNodeManager owner,
             BindingAdmission? previous,
+            BindingAdmission? ambientPrevious,
+            IOperationContext? context,
             ArrayOf<IMonitoredItem> removingItems) : IDisposable
         {
             /// <summary>
@@ -141,7 +228,11 @@ namespace Opc.Ua.Server
                         return;
                     }
                     m_disposed = true;
-                    owner.m_currentBindingAdmission.Value = previous;
+                    owner.m_currentBindingAdmission.Value = ambientPrevious;
+                    if (context is not null)
+                    {
+                        owner.ReleaseContextAdmission(context, this, previous);
+                    }
                     if (m_held)
                     {
                         m_held = false;

@@ -1272,7 +1272,7 @@ namespace Opc.Ua.Server
                 (serverNonce, ServiceResult activationStatus) =
                     ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
                         ? await batchHost.DispatchSessionActivationAsync(
-                            ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
+                            context, ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
                         : await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
 

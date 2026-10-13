@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
         /// <param name="request">The modify request.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The modification error and the revised filter result, if any.</returns>
-        internal async ValueTask<(ServiceResult? Error, MonitoringFilterResult? FilterResult)>
+        internal async ValueTask<DetachedModifyResult>
             ModifyDetachedMonitoredItemAsync(
                 OperationContext context,
                 TimestampsToReturn timestampsToReturn,
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
             NodeState? metadata = monitoredItem.SourceMetadata;
             if (metadata is null && !parameters.Filter.IsNull)
             {
-                return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
+                return new DetachedModifyResult(StatusCodes.BadMonitoredItemFilterUnsupported, null);
             }
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 parameters.SamplingInterval, monitoredItem.SamplingInterval, metadata,
@@ -128,14 +128,23 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(validated.StatusCode))
             {
-                return (validated.StatusCode, validated.FilterResult);
+                return new DetachedModifyResult(validated.StatusCode, validated.FilterResult);
             }
             ServiceResult? error = monitoredItem.ModifyAttributes(
                 context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
                 validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
                 queueSize, parameters.DiscardOldest);
-            return (error, validated.FilterResult);
+            return new DetachedModifyResult(error, validated.FilterResult);
         }
+
+        /// <summary>
+        /// The outcome of modifying a detached monitored item.
+        /// </summary>
+        /// <param name="Error">The modification error, if any.</param>
+        /// <param name="FilterResult">The revised filter result, if any.</param>
+        internal readonly record struct DetachedModifyResult(
+            ServiceResult? Error,
+            MonitoringFilterResult? FilterResult);
 
         /// <summary>
         /// Updates the diagnostics node manager with the nodes that were imported.

@@ -111,6 +111,8 @@ namespace Opc.Ua.Server
                 using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server);
+                // Public batch entry: the prepare API carries no caller context, so this is the labeled legacy
+                // no-context path that resolves an admitted callback through the ambient fallback.
                 await using var bindingAdmission = batchHost.SuspendBindingAdmission().ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
                 TypeTable? preparedTypes = null;
@@ -175,7 +177,7 @@ namespace Opc.Ua.Server
                             entry.Manager);
                         entry.Next = new RegistrationState(registration, entry.Prepared, allowRequestCallback)
                         {
-                            ReadinessPending = entry.Manager is INodeManagerReadinessParticipant
+                            ReadinessPending = entry.Manager is INodeManagerReadinessNotification
                         };
                     }
                     // Staging can register hidden namespace routes; freeze its completed routing image.
@@ -233,6 +235,8 @@ namespace Opc.Ua.Server
             using IDisposable routing = ((IDynamicNodeManagerBatchHost)batch.Host).UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 EnterRequestLifecycleWaiter(batch.Server);
+            // Public commit entry: no caller context exists on the prepared batch, so this is the labeled legacy
+            // no-context path that resolves an admitted callback through the ambient fallback.
             await using var bindingAdmission =
                 ((IDynamicNodeManagerBatchHost)batch.Host).SuspendBindingAdmission().ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);

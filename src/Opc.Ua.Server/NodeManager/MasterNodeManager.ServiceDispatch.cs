@@ -432,7 +432,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission();
+            using BindingAdmission admission = EnterBindingAdmission(context);
             using IDisposable routing = m_nodeManagers.UseLiveRouting();
             await m_serviceDispatch.CreateMonitoredItemsAsync(
                 context,
@@ -495,7 +495,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission();
+            using BindingAdmission admission = EnterBindingAdmission(context);
             using IDisposable routing = m_nodeManagers.UseLiveRouting();
             await m_serviceDispatch.ModifyMonitoredItemsAsync(
                 context,
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission([.. itemsToDelete]);
+            using BindingAdmission admission = EnterBindingAdmission(context, [.. itemsToDelete]);
             using IDisposable routing = m_nodeManagers.UseLiveRouting();
             await m_serviceDispatch.DeleteMonitoredItemsAsync(
                 context,
