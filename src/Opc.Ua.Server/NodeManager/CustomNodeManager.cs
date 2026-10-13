@@ -959,6 +959,32 @@ namespace Opc.Ua.Server
         public bool DeleteNode(ServerSystemContext context, NodeId nodeId)
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
+            var changes = new NodeDeletionModelChanges(
+                SystemContext.Copy(context), nodeId, PredefinedNodes,
+                ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
+            bool result = false;
+            Exception? failure = null;
+            try
+            {
+                result = DeleteNodeCore(context, nodeId);
+            }
+            catch (Exception deletionFailure) when (deletionFailure is not OutOfMemoryException)
+            {
+                failure = deletionFailure;
+            }
+            changes.Complete(failure, committed =>
+            {
+                foreach (ModelChangeStructureDataType change in committed)
+                {
+                    ModelChangeAggregator.Add(change);
+                }
+                EmitModelChange(SystemContext.Copy(context));
+            });
+            return result;
+        }
+
+        private bool DeleteNodeCore(ServerSystemContext context, NodeId nodeId)
+        {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             var referencesToRemove = new List<LocalReference>();
@@ -968,7 +994,6 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             IReadOnlyList<IMonitoredItem> monitoredItems =
                 GetMonitoredItemsForNodeSubtree(contextToUse, node);
             var detachedItems = new List<IMonitoredItem>(monitoredItems.Count);
@@ -1021,12 +1046,6 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-            }
-
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
-                EmitModelChange(contextToUse);
             }
 
             return true;

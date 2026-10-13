@@ -108,6 +108,15 @@ in-memory `NodeStateCollection`), you can either:
 changes, so it is safe to call at the end of an arbitrary service
 implementation.
 
+Deletion captures the subtree's model-change eligibility before mutation.
+Completion reports only nodes actually removed and references actually removed
+from surviving local nodes, including when later cleanup fails or the request
+is cancelled. A versioned descendant is reported even if its root is unversioned.
+The deletion error is still returned; notification failures are not suppressed.
+For reference endpoints owned by another node manager, automatic reporting
+requires successful cleanup because their remaining references cannot be inspected
+locally.
+
 ### Manual aggregation across a transaction
 
 `ModelChangeAggregator` is thread-safe and supports arbitrary batching:
