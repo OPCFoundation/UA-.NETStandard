@@ -305,14 +305,11 @@ actual application/endpoint rather than mutable configured endpoint labels, and 
 registry root, Group ownership, logical Resource type/Xid, typed Versions folder and executable
 FileType read Methods. Verification does not open a file or read content.
 
-Both the remote session and referencing session must provide a session-binding capability (a client-side
-`ISessionBindingProvider` that captures authenticated dispatch, session incarnation and namespace/server maps
-coherently). That client binding API is **not** part of this change: it is owned by the session-binding work
-(Waves 5+6) and is a prerequisite for `XRegistryClient.Federation.cs` to compile. Once it is available, all
-verification requests and the returned generated client use that binding, not a mutable ISession forwarder.
-Sessions without a binding are rejected with `Bad_NotSupported` before native verification or content
-actions. The verification and binding paths use no reflection and add no NativeAOT-specific requirements beyond
-those of the existing generated clients.
+Both the remote session and referencing session must provide [`ISessionBindingProvider`](SessionBindings.md).
+Stock native/managed sessions capture authenticated dispatch, session incarnation and namespace/server maps
+coherently. All verification requests and the returned generated client use that binding, not a mutable ISession
+forwarder. Sessions without a binding are rejected with `Bad_NotSupported` before native verification or content
+actions.
 
 The alternative stable `OriginUri` form is available to explicitly configured custom providers.
 It has empty `ServerUri` and null `RegistryNodeId` inside `OriginRegistry`; the native Session
@@ -395,9 +392,7 @@ These are the bounded client/provider and proxy-publication surfaces for the xRe
 and WoT Connectivity federated-origin contracts. They do not implement automatic federated
 dependency acquisition, durable federation-record storage or projection restore/startup orchestration.
 Hosts retain their trusted configuration and obtain fresh provider verification on reconstruction.
-This section describes the federation surface of this branch only. It depends on the uncompiled prerequisites above
-(the client binding API and the `RegistryOriginDataType` model types generated from the companion NodeSet) and has not
-been built or tested here. This support alone is not a claim of Full, XREG-Federation or WOTC-Federation conformance.
+This support alone is not a claim of Full, XREG-Federation or WOTC-Federation conformance.
 
 ### Labels
 
