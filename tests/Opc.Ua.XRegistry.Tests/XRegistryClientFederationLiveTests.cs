@@ -396,10 +396,7 @@ namespace Opc.Ua.XRegistry.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string root = Path.Combine(Path.GetTempPath(), "xrf-" + Guid.NewGuid().ToString("N")[..8]);
-            var factory = new RegistryNodeManagerFactory(new XRegistryServerOptions
-            {
-                ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
-            });
+            var factory = new RegistryNodeManagerFactory("schemas", "doc");
             var fixture = new ServerFixture<RegistryServer>(context => new RegistryServer(context, factory))
             {
                 AutoAccept = true
@@ -408,17 +405,9 @@ namespace Opc.Ua.XRegistry.Tests
             try
             {
                 server = await fixture.StartAsync(root).ConfigureAwait(false);
-                XRegistryRegistrationNodeManager manager = factory.Manager!;
-                ushort registryNamespace = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(
-                    XRegistryWellKnown.XRegistryNamespaceUri);
-                var registryNodeId = new NodeId(XRegistryWellKnown.RegistryObject, registryNamespace);
-                CreateGroupMethodStateResult group = await manager.OnCreateGroupAsync(
-                    manager.SystemContext, null!, registryNodeId, "schemas", timeout.Token).ConfigureAwait(false);
-                CreateResourceMethodStateResult created = await manager.OnCreateResourceAsync(
-                    manager.SystemContext, null!, group.GroupNodeId, "doc", "1", true, timeout.Token)
-                    .ConfigureAwait(false);
-                var resource = (ResourceState)manager.Find(created.ResourceNodeId)!;
-                string resourceXid = string.Join("/", resource.Xid!.Value.Split('/'), 0, 5);
+                ResourceState resource = factory.Manager!.LogicalResource!;
+                NodeId resourceNodeId = resource.NodeId;
+                string resourceXid = "/groups/schemas/resources/doc";
 
                 await using var connection = new ClientFixture(telemetry);
                 await connection.LoadClientConfigurationAsync(root, "XRegistryFederationClient")
@@ -430,7 +419,7 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     var client = new GenericXRegistryClient(session, telemetry);
                     await action(new RegistryContext(
-                        client, session, created.ResourceNodeId, resourceXid, resource, root, telemetry, timeout.Token))
+                        client, session, resourceNodeId, resourceXid, resource, root, telemetry, timeout.Token))
                         .ConfigureAwait(false);
                 }
                 finally
@@ -558,14 +547,15 @@ namespace Opc.Ua.XRegistry.Tests
 
         private sealed class RegistryNodeManagerFactory : IAsyncNodeManagerFactory
         {
-            public RegistryNodeManagerFactory(XRegistryServerOptions options)
+            public RegistryNodeManagerFactory(string groupId, string resourceId)
             {
-                m_options = options;
+                m_groupId = groupId;
+                m_resourceId = resourceId;
             }
 
             public ArrayOf<string> NamespacesUris => [XRegistryWellKnown.XRegistryNamespaceUri];
 
-            public XRegistryRegistrationNodeManager? Manager { get; private set; }
+            public XRegistryLogicalProjectionNodeManager? Manager { get; private set; }
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
@@ -573,11 +563,13 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Manager = new XRegistryRegistrationNodeManager(server, configuration, m_options);
+                Manager = new XRegistryLogicalProjectionNodeManager(
+                    server, configuration, m_groupId, m_resourceId);
                 return new ValueTask<IAsyncNodeManager>(Manager);
             }
 
-            private readonly XRegistryServerOptions m_options;
+            private readonly string m_groupId;
+            private readonly string m_resourceId;
         }
     }
 }
