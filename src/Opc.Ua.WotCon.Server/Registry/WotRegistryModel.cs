@@ -696,12 +696,15 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Creates a copy of this resource with selected fields replaced.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
+        /// <param name="versions">The replacement version list, or null to keep the current versions.</param>
         /// <param name="defaultVersionId">The default version ID.</param>
         /// <param name="desiredVersionId">The desired version ID.</param>
         /// <param name="activeVersionId">The active version ID.</param>
         /// <param name="enabled">The enabled flag supplied by the caller.</param>
         /// <param name="loadState">The load state.</param>
         /// <param name="validation">The wo t validation outcome data type.</param>
+        /// <param name="diagnostics">The replacement diagnostics, or null to keep the current ones.</param>
+        /// <param name="epoch">The replacement registry epoch, or null to keep the current epoch.</param>
         /// <param name="refreshGeneration">The refresh generation.</param>
         /// <param name="lastRefreshTime">The last refresh time.</param>
         /// <param name="materializedNodeCount">The materialized node count.</param>
