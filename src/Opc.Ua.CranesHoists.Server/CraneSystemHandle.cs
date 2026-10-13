@@ -681,12 +681,13 @@ namespace Opc.Ua.CranesHoists.Server
                 {
                     return StatusCodes.BadOutOfRange;
                 }
-                if (signal is CraneSignal.SpeedLimitDirMinus or CraneSignal.SpeedLimitDirPlus or
-                    CraneSignal.SpeedLimitDirMinusSetpoint or CraneSignal.SpeedLimitDirPlusSetpoint)
+                if (signal is CraneSignal.SpeedOverride or CraneSignal.SpeedLimitDirMinus or
+                    CraneSignal.SpeedLimitDirPlus or CraneSignal.SpeedLimitDirMinusSetpoint or
+                    CraneSignal.SpeedLimitDirPlusSetpoint)
                 {
                     return number is >= 0 and <= 100 ? StatusCodes.Good : StatusCodes.BadOutOfRange;
                 }
-                return (signal is CraneSignal.LoadMass or CraneSignal.SpeedOverride) && number < 0
+                return signal == CraneSignal.LoadMass && number < 0
                     ? StatusCodes.BadOutOfRange
                     : StatusCodes.Good;
             }

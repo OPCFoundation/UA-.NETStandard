@@ -185,6 +185,55 @@ namespace Opc.Ua.CranesHoists.Tests
         }
 
         /// <summary>
+        /// Inherited speed override is a percentage in the inclusive range zero through one hundred.
+        /// Rejected acquisition must preserve every value, quality and timestamp in the previous report.
+        /// </summary>
+        [TestCase(0.0, true)]
+        [TestCase(100.0, true)]
+        [TestCase(100.0001, false)]
+        [TestCase(101.0, false)]
+        [TestCase(-0.0001, false)]
+        [TestCase(double.NaN, false)]
+        [TestCase(double.PositiveInfinity, false)]
+        [TestCase(double.NegativeInfinity, false)]
+        public async Task SpeedOverrideAcquisitionHonorsPercentageBoundsAtomicallyAsync(double speed, bool valid)
+        {
+            const string name = "SpeedOverrideBounds";
+            ArrayOf<CraneSample> initial = CraneRuntimeTestData.Samples(name);
+            await using var provider = new SimulatedCraneProvider(initial);
+            CraneSystemHandle crane = await BuildAsync(Definition(name, provider)).ConfigureAwait(false);
+            ArrayOf<CraneSignalAddress> signals = crane.TelemetrySignals;
+            var before = new DataValue[signals.Count];
+            for (int index = 0; index < signals.Count; index++)
+            {
+                before[index] = crane.ReadSignal(signals[index]);
+            }
+            ArrayOf<CraneSample> next = CraneRuntimeTestData.Replace(initial,
+                CraneRuntimeTestData.Sample(name, CraneSignal.SystemOn, Variant.From(false)));
+            next = CraneRuntimeTestData.Replace(next,
+                CraneRuntimeTestData.Sample("Hoist", CraneSignal.SpeedOverride, Variant.From(speed)));
+            await provider.SetSamplesAsync(next).ConfigureAwait(false);
+
+            if (valid)
+            {
+                await crane.RefreshAsync().ConfigureAwait(false);
+                Assert.That(crane.ReadSignal(new("Hoist", CraneSignal.SpeedOverride)).WrappedValue.GetDouble(),
+                    Is.EqualTo(speed));
+                Assert.That(crane.ReadSignal(new(name, CraneSignal.SystemOn)).WrappedValue.GetBoolean(), Is.False);
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await crane.RefreshAsync().ConfigureAwait(false))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                for (int index = 0; index < signals.Count; index++)
+                {
+                    Assert.That(crane.ReadSignal(signals[index]), Is.EqualTo(before[index]), signals[index].ToString());
+                }
+            }
+        }
+
+        /// <summary>
         /// An owned provider is disposed only after its canceled in-flight callback exits.
         /// </summary>
         [Test]
