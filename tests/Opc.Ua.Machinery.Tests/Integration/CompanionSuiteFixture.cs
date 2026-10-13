@@ -117,6 +117,11 @@ namespace Opc.Ua.Machinery.Tests.Integration
         internal List<WmtpPeripheral> Peripherals { get; } = [];
 
         /// <summary>
+        /// Gets the per-peripheral acquisition clocks supplied through the public builder.
+        /// </summary>
+        internal List<AcquisitionClock> PeripheralClocks { get; } = [];
+
+        /// <summary>
         /// Gets separate nonconsuming record datasets.
         /// </summary>
         internal List<InMemoryWmtpRecordStore> Records { get; } = [];
@@ -418,9 +423,11 @@ namespace Opc.Ua.Machinery.Tests.Integration
             var records = new InMemoryWmtpRecordStore(Telemetry, capacity: 4);
             Records.Add(records);
             await records.AppendAsync(CompanionSuiteData.Record(number), ct).ConfigureAwait(false);
+            var clock = new AcquisitionClock();
+            PeripheralClocks.Add(clock);
             Peripherals.Add(await context.AddWirelessPeripheral("Peripheral" + number)
                 .WithProvider(device.Object).WithMeasurementProvider(sensor.Object)
-                .WithClock(new AcquisitionClock())
+                .WithClock(clock)
                 .WithAuthorization(authorization.Object).WithFeatures(WmtpFeatures.Battery)
                 .WithIdentification(identity => CompanionSuiteData.Identify(identity, "Peripheral" + number))
                 .AddMeasurement(CompanionSuiteData.Measurement())
@@ -440,21 +447,173 @@ namespace Opc.Ua.Machinery.Tests.Integration
         }
 
         /// <summary>
-        /// Keeps the deterministic acquired samples fresh without weakening the production stale-quality policy.
+        /// Advances UTC, monotonic time and timers together only when the test explicitly requests it.
         /// </summary>
-        private sealed class AcquisitionClock : TimeProvider
+        internal sealed class AcquisitionClock : TimeProvider
         {
+            /// <inheritdoc/>
+            public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
             /// <inheritdoc/>
             public override DateTimeOffset GetUtcNow()
             {
-                return new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero).AddTicks(GetTimestamp());
             }
 
             /// <inheritdoc/>
             public override long GetTimestamp()
             {
-                return 0;
+                lock (m_gate)
+                {
+                    return m_ticks;
+                }
             }
+
+            /// <inheritdoc/>
+            public override ITimer CreateTimer(
+                TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                if (callback == null)
+                {
+                    throw new ArgumentNullException(nameof(callback));
+                }
+                var timer = new ScheduledTimer(this, () => callback(state), dueTime, period);
+                lock (m_gate)
+                {
+                    m_timers.Add(timer);
+                }
+                return timer;
+            }
+
+            /// <summary>
+            /// Runs due timer callbacks without introducing wall-clock work into an otherwise frozen acquisition.
+            /// </summary>
+            internal void Advance(TimeSpan elapsed)
+            {
+                if (elapsed < TimeSpan.Zero)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(elapsed));
+                }
+                ScheduledTimer[] timers;
+                long now;
+                lock (m_gate)
+                {
+                    m_ticks = checked(m_ticks + elapsed.Ticks);
+                    now = m_ticks;
+                    timers = m_timers.ToArray();
+                }
+                foreach (ScheduledTimer timer in timers)
+                {
+                    timer.RunDue(now);
+                }
+            }
+
+            /// <summary>
+            /// Represents one clock-owned schedule with the standard change and disposal contract.
+            /// </summary>
+            private sealed class ScheduledTimer : ITimer
+            {
+                /// <summary>
+                /// Stores a callback until its due logical time is reached.
+                /// </summary>
+                internal ScheduledTimer(AcquisitionClock clock, Action callback, TimeSpan dueTime, TimeSpan period)
+                {
+                    m_clock = clock;
+                    m_callback = callback;
+                    _ = Change(dueTime, period);
+                }
+
+                /// <inheritdoc/>
+                public bool Change(TimeSpan dueTime, TimeSpan period)
+                {
+                    ValidateDelay(dueTime, nameof(dueTime));
+                    ValidateDelay(period, nameof(period));
+                    lock (m_gate)
+                    {
+                        if (m_disposed)
+                        {
+                            return false;
+                        }
+                        m_due = dueTime == Timeout.InfiniteTimeSpan
+                            ? long.MaxValue : checked(m_clock.GetTimestamp() + dueTime.Ticks);
+                        m_period = period > TimeSpan.Zero ? period.Ticks : 0;
+                        return true;
+                    }
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    lock (m_gate)
+                    {
+                        m_disposed = true;
+                    }
+                }
+
+                /// <inheritdoc/>
+                public ValueTask DisposeAsync()
+                {
+                    Dispose();
+                    return default;
+                }
+
+                /// <summary>
+                /// Executes elapsed ticks outside the schedule gate; disposed or disabled timers cannot fire.
+                /// </summary>
+                internal void RunDue(long now)
+                {
+                    while (true)
+                    {
+                        lock (m_gate)
+                        {
+                            if (m_disposed || m_due == long.MaxValue || m_due > now)
+                            {
+                                return;
+                            }
+                            m_due = m_period == 0 ? long.MaxValue : checked(m_due + m_period);
+                        }
+                        m_callback();
+                    }
+                }
+
+                /// <summary>
+                /// Accepts nonnegative durations and the standard disabled-timer sentinel only.
+                /// </summary>
+                private static void ValidateDelay(TimeSpan value, string parameterName)
+                {
+                    if (value < TimeSpan.Zero && value != Timeout.InfiniteTimeSpan)
+                    {
+                        throw new ArgumentOutOfRangeException(parameterName);
+                    }
+                }
+
+                /// <summary>The scheduler whose logical timestamp determines the next due time.</summary>
+                private readonly AcquisitionClock m_clock;
+
+                /// <summary>The original runtime callback and state, retained as a typed delegate.</summary>
+                private readonly Action m_callback;
+
+                /// <summary>The private schedule-state gate.</summary>
+                private readonly System.Threading.Lock m_gate = new();
+
+                /// <summary>The next due monotonic timestamp, or the disabled sentinel.</summary>
+                private long m_due;
+
+                /// <summary>The positive repeat interval, or zero for one-shot execution.</summary>
+                private long m_period;
+
+                /// <summary>Whether the runtime has disposed this schedule.</summary>
+                private bool m_disposed;
+            }
+
+            /// <summary>The private clock and timer-list gate.</summary>
+            private readonly System.Threading.Lock m_gate = new();
+
+            /// <summary>The schedules that can run only when this logical clock advances.</summary>
+            private readonly List<ScheduledTimer> m_timers = [];
+
+            /// <summary>The elapsed UTC and monotonic ticks from the deterministic acquisition epoch.</summary>
+            private long m_ticks;
         }
 
         /// <summary>
