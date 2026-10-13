@@ -144,7 +144,36 @@ namespace Opc.Ua.GMS.Client
             }
             EventFilter filter = CreateIntermediateResultFilter(characteristics);
             ArrayOf<QualifiedName> selection = characteristics.IsNull ? [] : new(characteristics.ToArray()!);
-            return ObserveIntermediateCoreAsync(streaming, maximumEvents, selection, filter, cancellationToken);
+            return ObserveIntermediateCoreAsync(streaming, maximumEvents, selection, filter, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Observes bounded intermediate results and reports successful server-side monitored-item creation.
+        /// A deadline before this callback is setup failure, not an empty successful result window.
+        /// It preserves the existing metadata budget, decoder and caller-owned subscription lifetime.
+        /// </summary>
+        public IAsyncEnumerable<GmsIntermediateResultNotification> ObserveIntermediateResultsAsync(
+            IStreamingSubscription streaming,
+            int maximumEvents,
+            Func<CancellationToken, ValueTask> onReady,
+            ArrayOf<QualifiedName> characteristics = default,
+            CancellationToken cancellationToken = default)
+        {
+            if (streaming == null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+            if (onReady == null)
+            {
+                throw new ArgumentNullException(nameof(onReady));
+            }
+            if (maximumEvents < 1 || maximumEvents > m_limits.MaximumResults)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumEvents));
+            }
+            EventFilter filter = CreateIntermediateResultFilter(characteristics);
+            ArrayOf<QualifiedName> selection = characteristics.IsNull ? [] : new(characteristics.ToArray()!);
+            return ObserveIntermediateCoreAsync(streaming, maximumEvents, selection, filter, onReady, cancellationToken);
         }
 
         /// <summary>
@@ -155,14 +184,18 @@ namespace Opc.Ua.GMS.Client
             int maximumEvents,
             ArrayOf<QualifiedName> characteristics,
             EventFilter filter,
+            Func<CancellationToken, ValueTask>? onReady,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             GMSResultManagementTypeClient management = await ResultsAsync(cancellationToken).ConfigureAwait(false);
             var options = new MonitoredItemOptions { QueueSize = (uint)maximumEvents, DiscardOldest = false };
             int count = 0;
             long bytes = 0;
-            await foreach (EventNotification notification in streaming.SubscribeEventsAsync(
-                management.ObjectId, filter, options, cancellationToken).ConfigureAwait(false))
+            IAsyncEnumerable<EventNotification> events = onReady == null
+                ? streaming.SubscribeEventsAsync(management.ObjectId, filter, options, cancellationToken)
+                : streaming.SubscribeEventsWhenReadyAsync(
+                    management.ObjectId, filter, onReady, options, ct: cancellationToken);
+            await foreach (EventNotification notification in events.ConfigureAwait(false))
             {
                 bytes += m_limits.Measure(Variant.From(notification.Fields), Session.MessageContext);
                 if (bytes > m_limits.MaximumMetadataBytes)

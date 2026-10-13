@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -64,6 +65,64 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// </remarks>
     public static class StreamingSubscriptionExtensions
     {
+        /// <summary>
+        /// Opens an event stream and invokes the callback only after successful server-side monitored-item creation.
+        /// Creation failures propagate instead of being mistaken for a successful, empty observation window.
+        /// The caller owns the subscription; disposing the enumerator removes only this stream's monitored item.
+        /// </summary>
+        /// <param name="streaming">An existing streaming subscription with monitored-item readiness support.</param>
+        /// <param name="notifierId">The actual event notifier.</param>
+        /// <param name="filter">The selected event fields and predicate.</param>
+        /// <param name="onReady">An asynchronous callback after successful creation and before yielding notifications.</param>
+        /// <param name="options">The monitored-item queue and sampling options.</param>
+        /// <param name="timeProvider">The clock used while awaiting server-side creation.</param>
+        /// <param name="ct">Cancels creation, the callback and event enumeration.</param>
+        /// <returns>The existing bounded event stream with verified creation readiness.</returns>
+        public static IAsyncEnumerable<EventNotification> SubscribeEventsWhenReadyAsync(
+            this IStreamingSubscription streaming,
+            NodeId notifierId,
+            EventFilter filter,
+            Func<CancellationToken, ValueTask> onReady,
+            MonitoredItems.MonitoredItemOptions? options = null,
+            TimeProvider? timeProvider = null,
+            CancellationToken ct = default)
+        {
+            if (streaming == null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+            if (onReady == null)
+            {
+                throw new ArgumentNullException(nameof(onReady));
+            }
+            if (streaming is not IStreamingSubscriptionReadiness readiness)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "This streaming subscription cannot report server-side monitored-item readiness.");
+            }
+            TimeProvider clock = timeProvider ?? TimeProvider.System;
+            return readiness.SubscribeEventsAsync(notifierId, filter, options, async (item, token) =>
+            {
+                while (true)
+                {
+                    token.ThrowIfCancellationRequested();
+                    ServiceResult error = item.Error;
+                    if (ServiceResult.IsBad(error) &&
+                        (error.StatusCode != StatusCodes.BadWaitingForInitialData ||
+                            item is not IMonitoredItemApplyState { HasPendingChanges: true }))
+                    {
+                        throw new ServiceResultException(error);
+                    }
+                    if (item.Created)
+                    {
+                        break;
+                    }
+                    await clock.Delay(TimeSpan.FromMilliseconds(10), token).ConfigureAwait(false);
+                }
+                await onReady(token).ConfigureAwait(false);
+            }, ct);
+        }
+
         /// <summary>
         /// Yields items until the predicate returns <c>true</c>. The
         /// matching item is yielded last, then enumeration stops.
