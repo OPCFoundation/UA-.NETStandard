@@ -249,6 +249,80 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
+        /// A closed channel must fail the managed browse instead of returning
+        /// empty references with a Good status.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowsePropagatesClosedChannelAsync()
+        {
+            await Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                () => Session.ManagedBrowseAsync(
+                    null, null, [ObjectIds.RootFolder], uint.MaxValue, BrowseDirection.Forward,
+                    ReferenceTypeIds.HierarchicalReferences, true, 0),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadSecureChannelClosed)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A pre-cancelled browse must report cancellation even with no nodes
+        /// or when the channel has already closed.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ManagedBrowsePropagatesCancellationAsync(bool empty, bool closeChannel)
+        {
+            if (closeChannel)
+            {
+                await Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            ArrayOf<NodeId> nodes = empty ? [] : [ObjectIds.RootFolder];
+
+            await Assert.ThatAsync(
+                () => Session.ManagedBrowseAsync(
+                    null, null, nodes, uint.MaxValue, BrowseDirection.Forward,
+                    ReferenceTypeIds.HierarchicalReferences, true, 0, cancellation.Token),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Per-node failures remain in their original slots without failing
+        /// successful nodes or throwing a request-level exception.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowsePreservesPerNodeResultsAsync()
+        {
+            (ArrayOf<ArrayOf<ReferenceDescription>> references, ArrayOf<ServiceResult> errors) =
+                await Session.ManagedBrowseAsync(
+                    null,
+                    null,
+                    [ObjectIds.RootFolder, new NodeId("missing-managed-browse-node", ushort.MaxValue)],
+                    uint.MaxValue,
+                    BrowseDirection.Forward,
+                    ReferenceTypeIds.HierarchicalReferences,
+                    true,
+                    0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(references.Count, Is.EqualTo(2));
+                Assert.That(errors.Count, Is.EqualTo(2));
+                Assert.That(references[0].IsEmpty, Is.False);
+                Assert.That(errors[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(references[1].IsEmpty, Is.True);
+                Assert.That(errors[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            });
+        }
+
+        /// <summary>
         /// <para>
         /// This test is taken from the node cache unit test.
         /// Instead of the original test, there are now restrctions
