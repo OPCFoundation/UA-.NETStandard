@@ -36,6 +36,8 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 #if NET8_0_OR_GREATER
+using System.Net.Sockets;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Http;
 using Opc.Ua.Security.Certificates;
@@ -818,6 +820,58 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return BinaryDecoder.DecodeMessage<ServiceFault>(
                 responseBody.ToArray(),
                 ServiceMessageContext.Create(m_telemetry));
+        }
+
+        /// <summary>
+        /// The listener pins its TLS certificate before Kestrel binds. When the
+        /// bind fails because the port is taken, the failed start stops the
+        /// listener again and releases the certificate, so a caller that drops
+        /// the listener does not leak it.
+        /// </summary>
+        [Test]
+        public async Task OpenOnTakenPortReleasesPinnedTlsCertificateAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=Https Taken Port").CreateForRSA();
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Returns(() => new CertificateEntry(
+                    tlsCertificate, new CertificateCollection(), ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            var settings = new TransportListenerSettings
+            {
+                Descriptions = [],
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificates = registry.Object,
+                CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
+                NamespaceUris = new NamespaceTable()
+            };
+
+            // Dual-mode on [::], so it holds the port Kestrel binds for a host name.
+            TcpListener blocker = TcpListener.Create(0);
+            blocker.Start();
+            try
+            {
+                int port = ((IPEndPoint)blocker.LocalEndpoint).Port;
+                await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+
+                Assert.CatchAsync<IOException>(async () => await listener.OpenAsync(
+                    new Uri($"https://localhost:{port}/taken"),
+                    settings,
+                    Mock.Of<ITransportListenerCallback>()).ConfigureAwait(false));
+
+                Assert.That(GetPrivateField(listener, "m_pinnedServerCert"), Is.Null);
+                Assert.That(GetPrivateField(listener, "m_pinnedServerCertX509"), Is.Null);
+            }
+            finally
+            {
+                blocker.Stop();
+            }
+        }
+
+        private static object? GetPrivateField(HttpsTransportListener listener, string name)
+        {
+            return typeof(HttpsTransportListener)
+                .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(listener);
         }
 
         private static X509Certificate2 CreateTlsTestCertificate(string subject)

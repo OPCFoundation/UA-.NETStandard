@@ -615,7 +615,36 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
+        /// <remarks>
+        /// A start that fails, for example because another process holds the
+        /// port, stops the listener again: it releases the pinned TLS
+        /// certificate and the host it built, so a caller that drops a
+        /// listener which failed to open leaks nothing.
+        /// </remarks>
         public async ValueTask StartAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                await StartCoreAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception startError)
+            {
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupError)
+                {
+                    throw new AggregateException(
+                        "Starting the HTTPS listener and the cleanup after the failed start both failed.",
+                        startError,
+                        cleanupError);
+                }
+                throw;
+            }
+        }
+
+        private async ValueTask StartCoreAsync(CancellationToken ct)
         {
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();

@@ -29,9 +29,12 @@
 
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
 
@@ -68,6 +71,88 @@ namespace Opc.Ua.Server.Tests
             Assert.That(server, Is.Not.Null);
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// When the port is already taken, the first start fails and the
+        /// fixture retries on another port. The listener of the failed start
+        /// must release what it acquired: the https listeners pin their TLS
+        /// certificate before Kestrel binds, and a listener dropped with the
+        /// certificate still pinned fails the assembly's certificate leak check.
+        /// </summary>
+        /// <remarks>
+        /// opc.tcp is not covered: on Windows the UA TCP listener binds a port
+        /// held by another socket's wildcard binding, so its start does not fail.
+        /// </remarks>
+        [TestCase(Utils.UriSchemeHttps)]
+        [TestCase(Utils.UriSchemeOpcHttps)]
+        public async Task StartServerOnTakenPortRetriesOnAnotherPortAsync(string uriScheme)
+        {
+            // Dual-mode on [::], so it also holds the port Kestrel binds for a
+            // host name endpoint.
+            TcpListener blocker = TcpListener.Create(0);
+            blocker.Start();
+            try
+            {
+                int takenPort = ((IPEndPoint)blocker.LocalEndpoint).Port;
+                var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t))
+                {
+                    UriScheme = uriScheme
+                };
+                StandardServer server = await fixture.StartAsync(takenPort).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(server, Is.Not.Null);
+                    Assert.That(fixture.Port, Is.Not.EqualTo(takenPort));
+                }
+                finally
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                blocker.Stop();
+            }
+        }
+
+        /// <summary>
+        /// The server only tracks a listener once it opened, so a listener
+        /// that fails to open has no other owner: the server disposes it
+        /// before it rethrows the error.
+        /// </summary>
+        [Test]
+        public async Task CreateServiceHostEndpointDisposesListenerThatFailedToOpenAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                var bindError = new IOException("Failed to bind to address: address already in use.");
+                var listener = new Mock<ITransportListener>();
+                listener
+                    .Setup(value => value.OpenAsync(
+                        It.IsAny<Uri>(),
+                        It.IsAny<TransportListenerSettings>(),
+                        It.IsAny<ITransportListenerCallback>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask(Task.FromException(bindError)));
+
+                IOException thrown = Assert.ThrowsAsync<IOException>(async () =>
+                    await server.CreateServiceHostEndpointAsync(
+                        new Uri("opc.tcp://localhost:4840/failed"),
+                        [],
+                        EndpointConfiguration.Create(fixture.Config),
+                        listener.Object,
+                        Mock.Of<ICertificateValidatorEx>()).ConfigureAwait(false));
+
+                Assert.That(thrown, Is.SameAs(bindError));
+                listener.Verify(value => value.DisposeAsync(), Times.Once);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
