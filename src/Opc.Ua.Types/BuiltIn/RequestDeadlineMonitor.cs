@@ -261,34 +261,62 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Arms the timer unless it is running. The flag and the timer change together under
+        /// <see cref="m_timerLock"/>, so a start never races a stop into a disarmed timer.
+        /// </summary>
         private void Start()
         {
-            if (m_timer != null && Interlocked.CompareExchange(ref m_running, 1, 0) == 0)
-            {
-                m_timer.Change(Resolution, Resolution);
-            }
-        }
-
-        private void StopIfIdle()
-        {
-            if (Interlocked.CompareExchange(ref m_running, 0, 1) != 1)
+            if (m_timer == null)
             {
                 return;
             }
 
-            m_timer!.Change(Timeout.Infinite, Timeout.Infinite);
-
-            // A lifetime added while the flag was still set did not start the timer.
-            foreach (Shard shard in m_shards)
+            lock (m_timerLock)
             {
-                lock (shard.Lock)
+                if (m_running == 0)
                 {
-                    if (shard.Count != 0)
+                    Volatile.Write(ref m_running, 1);
+                    m_timer.Change(Resolution, Resolution);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Disarms the timer when no lifetime is monitored.
+        /// </summary>
+        /// <remarks>
+        /// The flag is cleared before the shards are looked at again, with a full fence in
+        /// between. <see cref="Add"/> publishes its lifetime and then reads the flag, with a
+        /// full fence in between: either this rescan sees the new lifetime and keeps the timer
+        /// running, or the add sees the cleared flag and calls <see cref="Start"/>, which waits
+        /// for this method to leave the lock and then arms the timer again.
+        /// </remarks>
+        private void StopIfIdle()
+        {
+            lock (m_timerLock)
+            {
+                if (m_running == 0)
+                {
+                    return;
+                }
+
+                Volatile.Write(ref m_running, 0);
+                Interlocked.MemoryBarrier();
+
+                foreach (Shard shard in m_shards)
+                {
+                    lock (shard.Lock)
                     {
-                        Start();
-                        return;
+                        if (shard.Count != 0)
+                        {
+                            Volatile.Write(ref m_running, 1);
+                            return;
+                        }
                     }
                 }
+
+                m_timer!.Change(Timeout.Infinite, Timeout.Infinite);
             }
         }
 
@@ -339,6 +367,7 @@ namespace Opc.Ua
         private readonly Shard[] m_shards;
         private readonly int m_mask;
         private readonly Timer? m_timer;
+        private readonly Lock m_timerLock = new();
         private int m_running;
         private int m_sweeping;
     }

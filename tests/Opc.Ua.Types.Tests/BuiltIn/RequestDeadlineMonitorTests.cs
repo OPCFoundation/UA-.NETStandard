@@ -219,6 +219,37 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(monitor.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// The timer stops whenever the monitor runs empty and starts again with the next
+        /// lifetime. Lifetimes added while it stops, from several threads, must still be swept.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task LifetimesAddedWhileTheTimerStopsAreStillSweptAsync()
+        {
+            using var monitor = new RequestDeadlineMonitor(TimeSpan.FromMilliseconds(1));
+            int missed = 0;
+            var workers = new Task[4];
+            for (int worker = 0; worker < workers.Length; worker++)
+            {
+                workers[worker] = Task.Run(() =>
+                {
+                    for (int ii = 0; ii < 250; ii++)
+                    {
+                        using var lifetime = new RequestLifetime(monitor, TimeSpan.FromMilliseconds(1), default, default);
+                        if (!lifetime.CancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5)))
+                        {
+                            Interlocked.Increment(ref missed);
+                        }
+                    }
+                });
+            }
+
+            await Task.WhenAll(workers).WaitAsync(TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+            Assert.That(missed, Is.Zero, "a lifetime was never swept");
+            Assert.That(monitor.Count, Is.Zero);
+        }
+
         [Test]
         public void SharedMonitorCancelsATimedOutRequestWithinItsResolution()
         {
