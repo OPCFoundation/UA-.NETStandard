@@ -197,7 +197,6 @@ namespace Opc.Ua.Server
             m_server = server;
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
-            SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
             Id = id;
             NodeId = itemToMonitor.NodeId;
@@ -415,11 +414,6 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
-
-        /// <summary>
-        /// Gets or sets the source metadata for <c>MonitoredItem</c>.
-        /// </summary>
-        internal NodeState? SourceMetadata { get; private set; }
 
         /// <summary>
         /// Whether any live monitored item in the process is detached or marked deleted.
@@ -796,12 +790,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
-            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
-                SourceMetadata = metadata;
                 SetDetachState(isDetached: false, isDeleted: false);
             }
         }
@@ -2442,36 +2434,6 @@ namespace Opc.Ua.Server
                         : ArrayOf<string>.Null
                 };
             }
-        }
-
-        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
-        {
-            if (managerHandle is not NodeHandle { Node: { } source })
-            {
-                return null;
-            }
-            if (source is not BaseVariableState variable)
-            {
-                return new BaseObjectState(null) { NodeId = source.NodeId };
-            }
-            var metadata = new BaseDataVariableState(null)
-            {
-                NodeId = source.NodeId,
-                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
-                    ? DataTypeIds.Number
-                    : variable.DataType,
-                MinimumSamplingInterval = variable.MinimumSamplingInterval
-            };
-            if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
-                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
-            {
-                metadata.AddChild(new PropertyState(metadata)
-                {
-                    BrowseName = QualifiedName.From(BrowseNames.EURange),
-                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
-                });
-            }
-            return metadata;
         }
 
         private bool CanQueueSourceEmission()
