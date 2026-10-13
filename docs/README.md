@@ -171,8 +171,8 @@ models that each model depends on.
 
 - [Device Integration](DeviceIntegration.md) (OPC 10000-100) —
   devices, topology, and locking.
-- [Asset Management Basics](AMB.md) (OPC 10000-110; preview
-  package) — make devices, machines, pumps or scales manageable assets:
+- [Asset Management Basics](AMB.md) (OPC 10000-110) — make devices,
+  machines, pumps or scales manageable assets:
   discovery, identification, health alarms, maintenance, documentation links
   and locations. Read Device Integration first.
 - [Software update](SoftwareUpdate.md) (OPC 10000-100) —
@@ -182,11 +182,11 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
-- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101; preview
-  package) — machines with identification, server-driven state machines,
+- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
+  machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
-- [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
+- [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
@@ -200,7 +200,7 @@ models that each model depends on.
 - [Cranes and Hoists](CranesHoists.md) (OPC 40020-1; preview packages) —
   Robotics-derived crane systems, equipment observations and explicitly
   authorized speed-limit requests.
-- [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
+- [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
