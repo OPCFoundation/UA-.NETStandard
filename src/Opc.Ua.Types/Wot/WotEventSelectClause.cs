@@ -1032,6 +1032,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="resolvePrefix">The resolve prefix.</param>
+        /// <param name="element">The element.</param>
         internal static string NormalizeQualifiedElement(
             string element,
             Func<string, string?>? resolvePrefix = null)

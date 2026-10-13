@@ -315,6 +315,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="declaration">The WoT type declaration.</param>
+        /// <param name="failure">The failure.</param>
         internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)
         {
             return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)

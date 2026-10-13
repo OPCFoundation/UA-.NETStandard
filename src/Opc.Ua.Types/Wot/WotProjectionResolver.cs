@@ -2674,6 +2674,7 @@ namespace Opc.Ua.Wot
             }
 
             /// <param name="kind">The WoT affordance kind.</param>
+            /// <param name="name">The name.</param>
             public bool IsClaimed(WotAffordanceKind kind, string name)
             {
                 return Taken(kind).Contains(name);
@@ -2686,6 +2687,7 @@ namespace Opc.Ua.Wot
             /// <param name="definition">The JSON element.</param>
             /// <param name="supporting">The supporting flag supplied by the caller.</param>
             /// <param name="enumerated">The enumerated flag supplied by the caller.</param>
+            /// <param name="name">The name.</param>
             public ResolvedAffordance Add(
                 WotAffordanceKind kind, string name, JsonObject value,
                 ResolvedSource source, string sourceName, JsonElement definition,
@@ -2711,6 +2713,7 @@ namespace Opc.Ua.Wot
 
             /// <param name="source">The resolved source.</param>
             /// <param name="member">The resolved affordance.</param>
+            /// <param name="pointer">The pointer.</param>
             public bool TryLocate(ResolvedSource source, string pointer, out ResolvedAffordance? member)
             {
                 return m_locations.TryGetValue((source.DocumentHref, pointer), out member);
@@ -2718,6 +2721,8 @@ namespace Opc.Ua.Wot
 
             /// <param name="kind">The WoT affordance kind.</param>
             /// <param name="source">The resolved source.</param>
+            /// <param name="name">The name.</param>
+            /// <param name="pointer">The pointer.</param>
             public string AllocateSupportName(
                 WotAffordanceKind kind, ResolvedSource source, string name, string pointer)
             {

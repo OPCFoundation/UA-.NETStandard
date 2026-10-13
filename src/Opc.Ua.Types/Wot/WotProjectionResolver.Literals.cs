@@ -93,6 +93,8 @@ namespace Opc.Ua.Wot
         private sealed class PreservedLiteralConverter : JsonConverter<PreservedLiteral>
         {
             /// <param name="reader">The utf 8 JSON reader.</param>
+            /// <param name="typeToConvert">The type to convert.</param>
+            /// <param name="options">The options.</param>
             public override PreservedLiteral Read(
                 ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
@@ -102,6 +104,7 @@ namespace Opc.Ua.Wot
 
             /// <param name="writer">The utf 8 JSON writer.</param>
             /// <param name="value">The preserved literal.</param>
+            /// <param name="options">The options.</param>
             public override void Write(
                 Utf8JsonWriter writer, PreservedLiteral value, JsonSerializerOptions options)
             {

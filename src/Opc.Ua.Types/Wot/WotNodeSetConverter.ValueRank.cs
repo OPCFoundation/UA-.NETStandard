@@ -143,6 +143,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="schema">The JSON element.</param>
+        /// <param name="member">The member.</param>
         internal static bool MapsRankedJsonType(JsonElement schema, string member)
         {
             if (!schema.TryGetProperty(member, out JsonElement actual))

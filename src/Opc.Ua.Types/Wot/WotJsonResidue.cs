@@ -75,6 +75,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
+        /// <param name="diagnostics">The diagnostics.</param>
+        /// <param name="locale">The locale.</param>
         internal static bool TryGetDocumentLocale(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -123,6 +125,7 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="resolvedDefinitionBinding">The resolved definition binding.</param>
+        /// <param name="diagnostics">The diagnostics.</param>
         public static void Replace(
             UANodeSet nodeSet,
             WotDocument document,
@@ -282,6 +285,7 @@ namespace Opc.Ua.Wot
         /// <param name="generatedJson">The generated JSON.</param>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="options">The WoT node set converter options.</param>
+        /// <param name="diagnostics">The diagnostics.</param>
         public static byte[] Apply(
             byte[] generatedJson,
             UANodeSet nodeSet,

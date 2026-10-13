@@ -240,6 +240,7 @@ namespace Opc.Ua.Wot
         /// <param name="document">The WoT document.</param>
         /// <param name="carryingNode">The carrying node.</param>
         /// <param name="qualifiedName">The qualified name.</param>
+        /// <param name="value">The value.</param>
         internal static bool TryResolveQualifiedName(
             string? value,
             WotDocument document,
@@ -529,6 +530,7 @@ namespace Opc.Ua.Wot
         /// Gets the local authored BrowseName, falling back to the affordance key.
         /// </summary>
         /// <param name="affordance">The JSON element.</param>
+        /// <param name="key">The key.</param>
         internal static string AffordanceName(JsonElement affordance, string key)
         {
             return affordance.ValueKind == JsonValueKind.Object &&

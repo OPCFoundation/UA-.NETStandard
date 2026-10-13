@@ -126,6 +126,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <param name="sourceSchema">The source schema.</param>
+        /// <param name="index">The index.</param>
         internal JsonElement GetArgumentSchema(JsonElement sourceSchema, int index)
         {
             if (index < 0 || index >= ArgumentCount)

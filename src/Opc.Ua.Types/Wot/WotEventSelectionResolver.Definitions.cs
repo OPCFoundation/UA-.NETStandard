@@ -287,6 +287,8 @@ namespace Opc.Ua.Wot
         /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="carryingNode">The carrying node.</param>
+        /// <param name="value">The value.</param>
+        /// <param name="expanded">The expanded.</param>
         internal static bool TryExpandLogicalId(
             WotDocument document, string value, out string expanded, JsonElement carryingNode = default)
         {

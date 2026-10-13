@@ -2273,6 +2273,7 @@ namespace Opc.Ua.Wot
             /// </summary>
             /// <param name="nodeId">The node ID.</param>
             /// <param name="referenceType">The reference type.</param>
+            /// <param name="owner">The owner.</param>
             public void Add(string owner, string nodeId, string? referenceType)
             {
                 for (; m_indexed < m_items.Count; m_indexed++)

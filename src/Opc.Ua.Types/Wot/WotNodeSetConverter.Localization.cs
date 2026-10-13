@@ -155,6 +155,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="nodeSet">The node set.</param>
+        /// <param name="locale">The locale.</param>
         internal static bool TryGetUnrepresentedDocumentLocale(
             WotDocument document, UANodeSet nodeSet, out string? locale)
         {
@@ -216,6 +217,7 @@ namespace Opc.Ua.Wot
         /// </remarks>
         /// <param name="document">The WoT document.</param>
         /// <param name="carryingNode">The carrying node.</param>
+        /// <param name="term">The term.</param>
         internal static string? GetDeclaredLocale(
             WotDocument document, JsonElement carryingNode = default, string? term = null)
         {
@@ -571,6 +573,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="element">The JSON element.</param>
+        /// <param name="singular">The singular.</param>
+        /// <param name="plural">The plural.</param>
         internal static string? ReadSelectedLocalizedTextLocale(
             WotDocument document, JsonElement element, string singular, string plural)
         {
@@ -585,6 +589,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="element">The JSON element.</param>
+        /// <param name="singular">The singular.</param>
+        /// <param name="plural">The plural.</param>
         internal static string? PreservedTextLanguage(
             WotDocument document, JsonElement element, string singular, string plural)
         {

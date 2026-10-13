@@ -878,6 +878,7 @@ namespace Opc.Ua.Wot
             /// <param name="document">The document used to initialize the instance.</param>
             /// <param name="source">The JSON element used to initialize the instance.</param>
             /// <param name="inferred">The inferred flag used to initialize <c>DataTypeValidationNode</c>.</param>
+            /// <param name="identity">The identity.</param>
             public DataTypeValidationNode(WotDocument document, JsonElement source, string identity, bool inferred)
             {
                 Document = document;

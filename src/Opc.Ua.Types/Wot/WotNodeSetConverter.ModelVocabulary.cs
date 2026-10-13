@@ -216,6 +216,7 @@ namespace Opc.Ua.Wot
         /// <param name="element">The JSON element.</param>
         /// <param name="affordanceName">The affordance name.</param>
         /// <param name="parentPointer">The parent pointer.</param>
+        /// <param name="diagnostics">The diagnostics.</param>
         internal static void ValidateUnitProperty(
             WotDocument document,
             JsonElement element,

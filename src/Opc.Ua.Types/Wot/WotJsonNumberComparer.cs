@@ -94,6 +94,9 @@ namespace Opc.Ua.Wot
         /// the value is <c>0.&lt;digits&gt; * 10^exponent</c>, without leading or trailing zeros.
         /// </summary>
         /// <param name="negative">The negative flag supplied by the caller.</param>
+        /// <param name="literal">The literal.</param>
+        /// <param name="digits">The digits.</param>
+        /// <param name="exponent">The exponent.</param>
         internal static bool TryDecompose(
             string literal, out bool negative, out string digits, out long exponent)
         {
