@@ -296,7 +296,7 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
-                            proxySession, ObjectIds.ObjectsFolder, target, context.Token).ConfigureAwait(false));
+                            proxySession, Ua.ObjectIds.Server, target, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
                 }).ConfigureAwait(false);
             }).ConfigureAwait(false);
