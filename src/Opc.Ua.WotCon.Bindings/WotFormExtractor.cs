@@ -47,6 +47,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Extracts the affordance forms from a WoT document.
         /// </summary>
+        /// <param name="document">The serialized WoT document.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         public static ImmutableArray<WotAffordanceForm> Extract(
             ReadOnlyMemory<byte> document, int maxJsonDepth = 64)
@@ -70,6 +71,9 @@ namespace Opc.Ua.WotCon.Bindings
             return forms.ToImmutable();
         }
 
+        /// <summary>
+        /// Extracts the affordance forms from a parsed WoT document.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         internal static ImmutableArray<WotAffordanceForm> Extract(WotDocument document)
         {

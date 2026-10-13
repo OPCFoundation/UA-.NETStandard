@@ -101,6 +101,7 @@ namespace Opc.Ua.WotCon.Client
         /// needed — the first (and only) candidate is returned directly.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="groupNode">The group node.</param>
         /// <param name="targetNamespaceIndex">The target namespace index.</param>

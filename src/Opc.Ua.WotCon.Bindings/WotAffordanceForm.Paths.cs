@@ -51,6 +51,9 @@ namespace Opc.Ua.WotCon.Bindings
 
         private bool HasBrowsePathCapture { get; init; }
 
+        /// <summary>
+        /// Returns a copy of the form that carries the captured browse path target or error.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         internal WotAffordanceForm WithBrowsePathCapture(WotDocument document)
         {
@@ -66,8 +69,12 @@ namespace Opc.Ua.WotCon.Bindings
             };
         }
 
+        /// <summary>
+        /// Tries to get the captured browse path target for the form.
+        /// </summary>
         /// <param name="context">The WoT binding plan context.</param>
         /// <param name="target">The WoT browse path target.</param>
+        /// <param name="error">The error message when no target is available.</param>
         internal bool TryGetBrowsePath(
             WotBindingPlanContext context, out WotBrowsePathTarget? target, out string? error)
         {

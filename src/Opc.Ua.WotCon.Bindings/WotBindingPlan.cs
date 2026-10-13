@@ -368,6 +368,9 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        /// <summary>
+        /// Determines whether the affordance is a local property.
+        /// </summary>
         /// <param name="affordance">The JSON element.</param>
         internal bool IsLocalProperty(JsonElement affordance)
         {

@@ -88,6 +88,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Creates a failed encode result with its precise bad status.
         /// </summary>
+        /// <param name="error">The error message.</param>
         /// <param name="status">The status code.</param>
         public static WotEncodeResult Fail(string error, StatusCode status)
         {

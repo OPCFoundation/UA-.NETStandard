@@ -289,6 +289,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// </returns>
         /// <param name="form">The WoT affordance form.</param>
         /// <param name="context">The WoT binding plan context.</param>
+        /// <param name="diagnostics">The collection receiving binding diagnostics.</param>
         internal static WotEventSelection? ResolveEventSelection(
             WotAffordanceForm form,
             WotBindingPlanContext context,

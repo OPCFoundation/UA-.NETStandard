@@ -309,10 +309,11 @@ namespace Opc.Ua.WotCon.Client
         /// <exception cref="ServiceResultException">
         /// The server rejects Refresh or returns invalid output arguments.
         /// </exception>
-        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="selection">The resource selectors to refresh.</param>
         /// <param name="options">The wo t refresh options data type.</param>
         /// <param name="expectedGeneration">The expected generation.</param>
         /// <param name="requestId">The request ID.</param>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<WotRegistryRefreshResult> RefreshAsync(
             ArrayOf<WoTResourceSelectorDataType> selection,
             WoTRefreshOptionsDataType options,

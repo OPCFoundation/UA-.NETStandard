@@ -181,6 +181,9 @@ namespace Opc.Ua.WotCon.Bindings
             return !UserIdentityToken.HasValue || tokenType == UserIdentityToken;
         }
 
+        /// <summary>
+        /// Gets the security policy name for a policy URI, or an empty string when it is not recognized.
+        /// </summary>
         /// <param name="policyUri">The policy URI.</param>
         internal static string GetSecurityPolicyName(string? policyUri)
         {
@@ -192,6 +195,10 @@ namespace Opc.Ua.WotCon.Bindings
             return WotBindingConformance.IsSecurityPolicy(name) ? name : string.Empty;
         }
 
+        /// <summary>
+        /// Validates the security requirement alternatives.
+        /// </summary>
+        /// <param name="requirements">The security requirement alternatives.</param>
         /// <param name="parameterName">The parameter name.</param>
         internal static void Validate(ArrayOf<WotOpcUaSecurityRequirement> requirements, string parameterName)
         {

@@ -75,6 +75,9 @@ namespace Opc.Ua.WotCon.Bindings
                 : inputs;
         }
 
+        /// <summary>
+        /// Validates that the payload layout agrees with the Condition invocation policy.
+        /// </summary>
         /// <param name="payload">The WoT payload descriptor.</param>
         internal void ValidateLayout(WotPayloadDescriptor payload)
         {
@@ -86,9 +89,13 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        /// <summary>
+        /// Tries to create a Condition invocation from the form and payload descriptor.
+        /// </summary>
         /// <param name="form">The WoT affordance form.</param>
         /// <param name="payload">The WoT payload descriptor.</param>
         /// <param name="invocation">The WoT condition invocation.</param>
+        /// <param name="error">The error message when creation fails.</param>
         internal static bool TryCreate(
             WotAffordanceForm form,
             WotPayloadDescriptor payload,

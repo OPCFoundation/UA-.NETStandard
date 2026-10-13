@@ -120,6 +120,9 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        /// <summary>
+        /// Determines whether the other event source has the same authority.
+        /// </summary>
         /// <param name="other">The WoT event source.</param>
         internal bool HasSameAuthority(WotEventSource other)
         {

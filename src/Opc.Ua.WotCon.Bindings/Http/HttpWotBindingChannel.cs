@@ -84,6 +84,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
 
         public WotCompiledForm Form { get; }
 
+        /// <summary>
+        /// Reads the current value over HTTP.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
@@ -120,6 +123,10 @@ namespace Opc.Ua.WotCon.Bindings.Http
             return new WotWriteResult(status, error);
         }
 
+        /// <summary>
+        /// Invokes the action over HTTP with the supplied input arguments.
+        /// </summary>
+        /// <param name="inputs">The input arguments.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
@@ -136,6 +143,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
             return InvokeAsync(new WotInvokeRequest(values, m_context.MessageContext), cancellationToken);
         }
 
+        /// <summary>
+        /// Invokes the action over HTTP using the supplied request.
+        /// </summary>
         /// <param name="request">The WoT invoke request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotInvokeResult> InvokeAsync(
@@ -173,6 +183,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
             return ValidateOutputs(DecodeLegacyArguments(body, request.Context), request.Context);
         }
 
+        /// <summary>
+        /// Starts polling the resource and reports each polled value to the callback.
+        /// </summary>
         /// <param name="onNotification">The on notification.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -197,6 +210,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 }, onNotification, cancellationToken);
         }
 
+        /// <summary>
+        /// Starts an event subscription that reports events to the callback.
+        /// </summary>
         /// <param name="onEvent">The on event.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotSubscription> SubscribeEventAsync(

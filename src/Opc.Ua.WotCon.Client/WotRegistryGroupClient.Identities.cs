@@ -36,7 +36,7 @@ namespace Opc.Ua.WotCon.Client
     /// Wrapper around a single registry group object (a
     /// <c>ThingDescriptionGroupType</c> or <c>ThingModelGroupType</c>
     /// instance below the <c>WoTRegistry</c> object). Composes the
-    /// generated <see cref="GroupTypeClient"/> proxy shared by
+    /// generated <c>GroupTypeClient</c> proxy shared by
     /// both group subtypes.
     /// </summary>
     public sealed partial class WotRegistryGroupClient

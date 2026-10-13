@@ -85,12 +85,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         public WotCompiledForm Form { get; }
 
+        /// <summary>
+        /// Reads the current value.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             return ReadCoreAsync(default, default, null, cancellationToken);
         }
 
+        /// <summary>
+        /// Reads the current value using the supplied request.
+        /// </summary>
         /// <param name="request">The WoT read request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotReadResult> ReadAsync(
@@ -103,6 +109,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return ReadCoreAsync(request.IndexRange, request.DataEncoding, request.Context, cancellationToken);
         }
 
+        /// <summary>
+        /// Writes the supplied value.
+        /// </summary>
         /// <param name="value">The data value.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotWriteResult> WriteAsync(
@@ -111,6 +120,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return WriteCoreAsync(value, default, null, cancellationToken);
         }
 
+        /// <summary>
+        /// Writes a value using the supplied request.
+        /// </summary>
         /// <param name="request">The WoT write request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotWriteResult> WriteAsync(
@@ -123,6 +135,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return WriteCoreAsync(request.Value, request.IndexRange, request.Context, cancellationToken);
         }
 
+        /// <summary>
+        /// Invokes the Method with the supplied input arguments.
+        /// </summary>
+        /// <param name="inputs">The input arguments.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
@@ -133,6 +149,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 DiagnosticsMasks.None, cancellationToken);
         }
 
+        /// <summary>
+        /// Invokes the Method using the supplied request.
+        /// </summary>
         /// <param name="request">The WoT invoke request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<WotInvokeResult> InvokeAsync(
@@ -145,6 +164,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return InvokeCoreAsync(request.Inputs, request.Context, request.DiagnosticsMask, cancellationToken);
         }
 
+        /// <summary>
+        /// Observes the value through a native data-change subscription.
+        /// </summary>
         /// <param name="onNotification">The on notification.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IWotSubscription> ObserveAsync(
@@ -172,6 +194,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Subscribes to events from the event source.
+        /// </summary>
         /// <param name="onEvent">The on event.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotSubscription> SubscribeEventAsync(
@@ -180,6 +205,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return SubscribeEventCoreAsync(onEvent, [], cancellationToken);
         }
 
+        /// <summary>
+        /// Subscribes to events, optionally capturing the condition fields.
+        /// </summary>
         /// <param name="captureConditionFields">The capture-condition-fields flag supplied by the caller.</param>
         /// <param name="onEvent">The on event.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -192,6 +220,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 ? Ua.ObjectTypeIds.ConditionType : Ua.ObjectTypeIds.BaseEventType, onEvent, cancellationToken);
         }
 
+        /// <summary>
+        /// Subscribes to events of the core event type, capturing the fields it requires.
+        /// </summary>
         /// <param name="coreEventType">The core event type.</param>
         /// <param name="onEvent">The on event.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>

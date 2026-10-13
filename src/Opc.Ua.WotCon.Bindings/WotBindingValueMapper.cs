@@ -46,6 +46,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="element">The selected field element.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         public static QualifiedName ResolveBrowseName(string element, NamespaceTable namespaceUris)
         {
@@ -119,6 +120,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="value">The value to translate.</param>
         /// <param name="source">The service message context.</param>
         /// <param name="target">The service message context.</param>
         /// <param name="allowNamespaceGrowth">The allow-namespace-growth flag supplied by the caller.</param>
@@ -156,6 +158,10 @@ namespace Opc.Ua.WotCon.Bindings
             return decoder.ReadVariant("Value");
         }
 
+        /// <summary>
+        /// Validates that every reference in the value resolves within the context.
+        /// </summary>
+        /// <param name="value">The value to validate.</param>
         /// <param name="context">The service message context.</param>
         internal static void ValidateContext(in Variant value, IServiceMessageContext context)
         {

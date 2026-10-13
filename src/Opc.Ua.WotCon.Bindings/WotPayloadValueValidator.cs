@@ -47,6 +47,10 @@ namespace Opc.Ua.WotCon.Bindings
             m_types = new TypeTable(m_namespaces);
         }
 
+        /// <summary>
+        /// Validates the value against the declared data type and type info.
+        /// </summary>
+        /// <param name="value">The value to validate.</param>
         /// <param name="dataTypeId">The data type identifier.</param>
         /// <param name="typeInfo">The type info.</param>
         public void Validate(in Variant value, ExpandedNodeId dataTypeId, TypeInfo typeInfo)

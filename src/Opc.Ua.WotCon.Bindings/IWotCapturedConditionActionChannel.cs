@@ -88,6 +88,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public ExpandedNodeId Method { get; }
 
+        /// <summary>
+        /// Invokes the captured condition Method for the given captured event occurrence.
+        /// </summary>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="request">The WoT invoke request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -115,6 +118,9 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        /// <summary>
+        /// Invokes the control Method that is not bound to a captured event occurrence.
+        /// </summary>
         /// <param name="request">The WoT invoke request.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         internal async ValueTask<WotInvokeResult> InvokeControlAsync(

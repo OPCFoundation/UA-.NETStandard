@@ -235,6 +235,9 @@ namespace Opc.Ua.WotCon.Bindings
             };
         }
 
+        /// <summary>
+        /// Returns a copy of this notification carrying the supplied captured event.
+        /// </summary>
         /// <param name="capturedEvent">The captured event.</param>
         internal WotNotification WithCapturedEvent(WotCapturedEvent capturedEvent)
         {

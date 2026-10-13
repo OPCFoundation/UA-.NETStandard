@@ -77,6 +77,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// </summary>
         /// <param name="endpoint">The endpoint description.</param>
         /// <param name="floor">The WoT security floor.</param>
+        /// <param name="requirements">The security requirement alternatives.</param>
         public static bool Satisfies(
             EndpointDescription endpoint,
             WotSecurityFloor? floor,
@@ -121,7 +122,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// Selects the strongest endpoint that satisfies the floor and one
         /// complete alternative, including its advertised user-token kind.
         /// </summary>
+        /// <param name="endpoints">The candidate endpoints.</param>
         /// <param name="floor">The WoT security floor.</param>
+        /// <param name="requirements">The security requirement alternatives.</param>
         public static EndpointDescription? Select(
             ArrayOf<EndpointDescription> endpoints,
             WotSecurityFloor? floor,

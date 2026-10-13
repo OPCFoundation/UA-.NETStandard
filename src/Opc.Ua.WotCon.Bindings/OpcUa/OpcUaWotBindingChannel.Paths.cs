@@ -38,7 +38,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// <summary>
     /// A live OPC UA binding channel that translates WoT operations onto OPC UA
     /// services: read / write of a NodeId Value attribute, observe and event
-    /// subscription via a native <see cref="Subscription"/> / <see cref="MonitoredItem"/>
+    /// subscription via a native <c>Subscription</c> / <c>MonitoredItem</c>
     /// pair (Part 4 §5.12 / §5.13), and action invocation via Method Call
     /// preserving argument order and <see cref="DataValue"/> / <see cref="StatusCode"/>
     /// metadata.
@@ -273,6 +273,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             /// </summary>
             public NamespaceTable NamespaceUris => m_context.NamespaceUris;
 
+            /// <summary>
+            /// Determines whether this state matches the other path session state.
+            /// </summary>
             /// <param name="other">The path session state.</param>
             public bool Matches(PathSessionState other)
             {

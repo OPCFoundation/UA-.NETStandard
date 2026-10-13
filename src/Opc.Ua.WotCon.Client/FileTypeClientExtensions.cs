@@ -317,6 +317,7 @@ namespace Opc.Ua.WotCon.Client
         /// sequentially into <paramref name="destination"/>. A short
         /// <c>FileType.Read</c> result does not imply end-of-file.
         /// </summary>
+        /// <param name="destination">The destination stream.</param>
         /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="chunkSize">The chunk size.</param>
         /// <param name="readChunk">The read chunk.</param>

@@ -124,6 +124,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
         }
 
+        /// <summary>
+        /// Enforces the form's security floor against the session's endpoint.
+        /// </summary>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="form">The WoT compiled form.</param>
         internal static void EnforceSessionSecurity(ISession session, WotCompiledForm form)
         {

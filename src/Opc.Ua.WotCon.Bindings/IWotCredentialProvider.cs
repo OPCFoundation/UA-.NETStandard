@@ -273,6 +273,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Parses a <c>securityDefinitions</c> entry into a definition.
         /// </summary>
+        /// <param name="name">The security definition name.</param>
         /// <param name="definition">The JSON element.</param>
         public static WotSecurityDefinition Parse(string name, JsonElement definition)
         {

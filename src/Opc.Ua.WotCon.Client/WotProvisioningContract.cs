@@ -37,6 +37,10 @@ namespace Opc.Ua.WotCon.Client
 {
     internal static class WotProvisioningContract
     {
+        /// <summary>
+        /// Verifies the group Method contract on the receiver, optionally creating the group.
+        /// </summary>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="receiver">The receiver.</param>
         /// <param name="getOrCreate">The get-or-create flag supplied by the caller.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -64,6 +68,10 @@ namespace Opc.Ua.WotCon.Client
                 output.ToArrayOf(), cancellationToken);
         }
 
+        /// <summary>
+        /// Verifies the resource Method contract on the receiver, optionally creating the resource.
+        /// </summary>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="receiver">The receiver.</param>
         /// <param name="kind">The wo t document kind enum.</param>
         /// <param name="getOrCreate">The get-or-create flag supplied by the caller.</param>
@@ -100,7 +108,12 @@ namespace Opc.Ua.WotCon.Client
                 output.ToArrayOf(), cancellationToken);
         }
 
+        /// <summary>
+        /// Reads the identifier assigned to the receiver from its named property.
+        /// </summary>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="receiver">The receiver.</param>
+        /// <param name="name">The property name.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public static async ValueTask<string> ReadAssignedIdentifierAsync(
             ISession session,

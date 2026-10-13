@@ -45,6 +45,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// </summary>
     internal sealed partial class OpcUaWotBindingChannel
     {
+        /// <summary>
+        /// Captures the event source for the channel's form.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotEventSource> CaptureEventSourceAsync(CancellationToken cancellationToken = default)
         {
@@ -94,6 +97,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             return source;
         }
 
+        /// <summary>
+        /// Captures the event source for the form using the supplied session.
+        /// </summary>
+        /// <param name="session">The OPC UA session.</param>
         /// <param name="form">The WoT compiled form.</param>
         /// <param name="context">The WoT executor context.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -136,6 +143,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
         }
 
+        /// <summary>
+        /// Appends the required event fields to the filter and returns their select-clause indexes.
+        /// </summary>
         /// <param name="filter">The event filter.</param>
         /// <param name="requiredSelectClauses">The required select clauses.</param>
         internal static ArrayOf<int> AppendRequiredEventFields(

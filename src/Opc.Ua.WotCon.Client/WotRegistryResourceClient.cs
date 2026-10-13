@@ -529,6 +529,7 @@ namespace Opc.Ua.WotCon.Client
         /// <exception cref="ServiceResultException">
         /// The server rejects the upload or does not return the requested write handle.
         /// </exception>
+        /// <param name="content">The content stream to upload.</param>
         /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="chunkSize">The chunk size.</param>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(

@@ -72,6 +72,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="inputs">The native input arguments.</param>
         /// <param name="context">The service message context.</param>
         public void ValidateInputs(ArrayOf<Variant> inputs, IServiceMessageContext context)
         {
@@ -83,6 +84,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="outputs">The native output arguments.</param>
         /// <param name="context">The service message context.</param>
         public void ValidateOutputs(ArrayOf<Variant> outputs, IServiceMessageContext context)
         {

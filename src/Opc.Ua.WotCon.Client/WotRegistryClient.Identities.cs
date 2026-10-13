@@ -38,7 +38,7 @@ namespace Opc.Ua.WotCon.Client
     /// server, see the <c>xRegistry</c>/<c>WoTRegistryType</c> model).
     /// <para>
     /// As the WoT registry model subtypes the xRegistry base model, this is a
-    /// domain client in the sense of <see cref="XRegistryClient"/>: it inherits
+    /// domain client in the sense of <c>XRegistryClient</c>: it inherits
     /// the base registry lifecycle and adds WoT-specific group/resource
     /// resolution, a typed <c>Refresh</c> result and a dependency-ordered
     /// bulk-load workflow. It composes (does <strong>not</strong> inherit) the

@@ -47,7 +47,12 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     {
         private sealed partial class OpcUaMonitoredItemSubscription
         {
+            /// <summary>
+            /// Publishes a notification translated from the monitored item's value to the path-maintenance state.
+            /// </summary>
             /// <param name="item">The monitored item.</param>
+            /// <param name="value">The notification value.</param>
+            /// <param name="translate">The translation function.</param>
             internal void PublishPathNotification(
                 MonitoredItem item,
                 IEncodeable value,
@@ -56,6 +61,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 m_pathRefresh?.Publish(item, value, translate);
             }
 
+            /// <summary>
+            /// Starts path maintenance for the monitored item subscription.
+            /// </summary>
             /// <param name="token">The cancellation token supplied by the caller.</param>
             internal ValueTask StartPathMaintenanceAsync(CancellationToken token)
             {
@@ -88,7 +96,12 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     m_sessionState = sessionState;
                 }
 
+                /// <summary>
+                /// Publishes a translated notification unless the path is stale or stopping.
+                /// </summary>
                 /// <param name="item">The monitored item.</param>
+                /// <param name="value">The notification value.</param>
+                /// <param name="translate">The translation function.</param>
                 public void Publish(
                     MonitoredItem item,
                     IEncodeable value,
@@ -126,6 +139,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     }
                 }
 
+                /// <summary>
+                /// Starts monitoring the session for path configuration changes.
+                /// </summary>
                 /// <param name="token">The cancellation token supplied by the caller.</param>
                 public async ValueTask StartAsync(CancellationToken token)
                 {

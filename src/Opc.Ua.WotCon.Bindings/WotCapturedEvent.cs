@@ -169,6 +169,9 @@ namespace Opc.Ua.WotCon.Bindings
             new(ConditionTypeId, Ua.BrowseNames.ClientUserId)
         ];
 
+        /// <summary>
+        /// Gets the select clauses required to capture the core event type.
+        /// </summary>
         /// <param name="coreEventType">The core event type.</param>
         internal static ArrayOf<WotResolvedEventSelectClause> GetRequiredSelectClauses(NodeId coreEventType)
         {
@@ -192,7 +195,12 @@ namespace Opc.Ua.WotCon.Bindings
                 StatusCodes.BadNotSupported, "The requested Core event capture representation is unsupported.");
         }
 
+        /// <summary>
+        /// Captures an event from its source, select clauses and received field values.
+        /// </summary>
         /// <param name="source">The WoT event source.</param>
+        /// <param name="selection">The resolved select clauses.</param>
+        /// <param name="values">The received field values.</param>
         internal static WotCapturedEvent Capture(
             WotEventSource source,
             ArrayOf<WotResolvedEventSelectClause> selection,

@@ -189,6 +189,9 @@ namespace Opc.Ua.WotCon.Bindings
             };
         }
 
+        /// <summary>
+        /// Returns a copy of the affordance with the default owner node identifier applied.
+        /// </summary>
         /// <param name="nodeId">The node ID.</param>
         internal WotProjectedAffordance WithDefaultOwner(string nodeId)
         {
@@ -201,6 +204,9 @@ namespace Opc.Ua.WotCon.Bindings
             };
         }
 
+        /// <summary>
+        /// Extracts the projected affordances from a WoT document.
+        /// </summary>
         /// <param name="document">The WoT document.</param>
         internal static ArrayOf<WotProjectedAffordance> Extract(Wot.WotDocument document)
         {

@@ -436,6 +436,9 @@ namespace Opc.Ua.WotCon.Bindings
                 document, Wot.WotAffordanceKind.Action, document.RootElement);
         }
 
+        /// <summary>
+        /// Gets the standard built-in type of the resolved event select clause field.
+        /// </summary>
         /// <param name="clause">The WoT resolved event select clause.</param>
         internal static BuiltInType GetStandardEventFieldType(WotResolvedEventSelectClause clause)
         {
