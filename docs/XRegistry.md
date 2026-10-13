@@ -227,8 +227,8 @@ Read = 1, Write = 2, EraseExisting = 4, Append = 8):
 | `Write` | Start from the stored bytes with the cursor at 0 — writes replace only the range they cover and **do not** truncate the remainder. |
 | `Read \| Write` | Share one cursor over the staged bytes, starting from committed content. |
 
-A mode requesting neither read nor write, reserved mode bits, or `EraseExisting` without `Write`
-is rejected with `Bad_InvalidArgument`. Each Version permits one writer; a second write open fails
+A mode requesting neither read nor write, reserved mode bits, `EraseExisting` or `Append` without
+`Write`, or `EraseExisting` combined with `Append` is rejected with `Bad_InvalidArgument`. Each Version permits one writer; a second write open fails
 with `Bad_NotWritable`, and a read open while that writer is active fails with `Bad_NotReadable`.
 Existing readers also exclude a writer, including across logical/direct aliases. A handle is valid
 only on the file object *and* the Session that opened it, and a Session's handles are

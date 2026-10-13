@@ -1240,7 +1240,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return Failed(StatusCodes.BadInvalidArgument);
             }
-            if (!wantsWrite && erase)
+            if ((!wantsWrite && (erase || append)) || (erase && append))
             {
                 return Failed(StatusCodes.BadInvalidArgument);
             }

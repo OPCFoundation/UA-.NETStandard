@@ -53,6 +53,9 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase((byte)4, TestName = "EraseExistingWithoutWrite")]
         [TestCase((byte)8, TestName = "AppendWithoutReadOrWrite")]
         [TestCase((byte)5, TestName = "EraseExistingWithReadOnly")]
+        [TestCase((byte)9, TestName = "AppendWithoutWrite")]
+        [TestCase((byte)14, TestName = "EraseExistingWithAppend")]
+        [TestCase((byte)15, TestName = "EraseExistingWithAppendAndRead")]
         [TestCase((byte)17, TestName = "ReservedModeBit")]
         public async Task InvalidOpenModesAreRejectedAsync(byte mode)
         {
@@ -211,11 +214,8 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase((byte)3, 0UL)]
         [TestCase((byte)6, 0UL)]
         [TestCase((byte)7, 0UL)]
-        [TestCase((byte)9, 4UL)]
         [TestCase((byte)10, 4UL)]
         [TestCase((byte)11, 4UL)]
-        [TestCase((byte)14, 0UL)]
-        [TestCase((byte)15, 0UL)]
         public async Task LegalModesUseTheSpecifiedInitialCursorAsync(byte mode, ulong expectedPosition)
         {
             using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
