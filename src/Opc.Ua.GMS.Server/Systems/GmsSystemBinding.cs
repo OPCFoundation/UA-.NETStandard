@@ -71,7 +71,7 @@ namespace Opc.Ua.GMS.Server
                 return m_inherited;
             }
             m_options.Validate();
-            ValidateInput(snapshot);
+            var production = ValidateInput(snapshot);
             var sensors = new Dictionary<string, GmsSensor>(StringComparer.Ordinal);
             ArrayOf<MachineToolTool> tools = ConvertSensors(snapshot.Sensors, sensors, false);
             MachineToolSnapshot inherited = snapshot.MachineTool with
@@ -81,6 +81,8 @@ namespace Opc.Ua.GMS.Server
             };
             m_input = snapshot;
             m_inputSensors = sensors;
+            m_jobInput = production.Jobs;
+            m_partInput = production.Parts;
             m_inherited = inherited;
             return inherited;
         }
@@ -175,7 +177,7 @@ namespace Opc.Ua.GMS.Server
             ArrayOf<GmsCalibrationObservation> history = PlanSystems(state, accepted, committedSensors, writes);
             PlanEquipment(accepted, writes);
             PlanProduction(accepted, writes);
-            List<PendingWarning> warnings = PrepareWarnings(accepted, committedSensors, writes);
+            List<PendingWarning> warnings = PrepareWarnings(accepted, writes);
             return () =>
             {
                 foreach (Action write in writes)

@@ -172,25 +172,23 @@ namespace Opc.Ua.GMS.Server
         /// Prepares references and event identities before the containing transaction commits.
         /// Standard condition state helpers and event reporting run only after the coherent value commit.
         /// </summary>
-        private List<PendingWarning> PrepareWarnings(
-            GmsSystemSnapshot snapshot, Dictionary<string, BaseToolState> sensors, List<Action> writes)
+        private List<PendingWarning> PrepareWarnings(GmsSystemSnapshot snapshot, List<Action> writes)
         {
             var pending = new List<PendingWarning>();
             foreach (GmsSensorWarning value in snapshot.SensorWarnings)
             {
-                if (!sensors.TryGetValue(value.SensorKey, out BaseToolState? source) ||
-                    source is not SensorState sensor)
+                if (!m_additionalSensors.TryGetValue(value.SensorKey, out AdditionalSensorState? sensor))
                 {
-                    throw Invalid("A sensor-warning source must be an actual single sensor of this GMS.");
+                    throw Invalid("A sensor-warning source must be an actual additional sensor of this GMS.");
                 }
                 NodeId input = value.InputNodeId;
                 if (input.IsNull)
                 {
-                    input = sensor.ToolLife!.FindChild(m_context.Context, GmsName(BrowseNames.Qualified))!.NodeId;
+                    input = sensor.NodeId;
                 }
-                else if (!HasVariable(sensor, input))
+                else if (input != sensor.NodeId)
                 {
-                    throw Invalid("The sensor-warning input must be a variable under its actual local sensor.");
+                    throw Invalid("The sensor-warning input must be the actual additional sensor's measured value.");
                 }
                 WarningBinding binding = m_warnings[value.Key];
                 if (binding.State.LowLimit != null)
@@ -207,35 +205,6 @@ namespace Opc.Ua.GMS.Server
                 }
             }
             return pending;
-        }
-
-        /// <summary>
-        /// Performs bounded descendant validation rather than trusting a namespace index as instance ownership.
-        /// </summary>
-        private bool HasVariable(NodeState source, NodeId nodeId)
-        {
-            var pending = new Stack<NodeState>();
-            pending.Push(source);
-            int count = 0;
-            while (pending.Count != 0)
-            {
-                NodeState node = pending.Pop();
-                if (++count > 4096)
-                {
-                    throw Invalid("The native sensor subtree exceeds its bounded input-reference search.");
-                }
-                if (node.NodeId == nodeId && node is BaseVariableState)
-                {
-                    return true;
-                }
-                var children = new List<BaseInstanceState>();
-                node.GetChildren(m_context.Context, children);
-                foreach (BaseInstanceState child in children)
-                {
-                    pending.Push(child);
-                }
-            }
-            return false;
         }
 
         /// <summary>
@@ -376,7 +345,8 @@ namespace Opc.Ua.GMS.Server
         /// Captures only a provider observation and its stable event identity, not another condition state machine.
         /// </summary>
         private sealed class PendingWarning(
-            WarningBinding binding, GmsSensorWarning value, SensorState sensor, NodeId input, ByteString eventId)
+            WarningBinding binding, GmsSensorWarning value, AdditionalSensorState sensor,
+            NodeId input, ByteString eventId)
         {
             /// <summary>
             /// Gets the actual condition binding.
@@ -389,9 +359,9 @@ namespace Opc.Ua.GMS.Server
             internal GmsSensorWarning Value { get; } = value;
 
             /// <summary>
-            /// Gets the validated actual sensor source.
+            /// Gets the validated actual additional-sensor source and measured input variable.
             /// </summary>
-            internal SensorState Sensor { get; } = sensor;
+            internal AdditionalSensorState Sensor { get; } = sensor;
 
             /// <summary>
             /// Gets the validated actual input variable.

@@ -39,14 +39,26 @@ surface needs a corresponding provider observation. An explicitly empty
   retained MachineTool production module. Native measurement reason, durations,
   batch information, part properties, and Number-valued catalogs are preserved.
   Inherited statistics can be selected with `WithMachineToolFeatures`.
-- `SensorWarnings` publishes actual `SensorWarningAlarmType` conditions through
-  the standard condition lifecycle. Acknowledgement is not an equipment reset.
-  Warning identities remain modeled when inactive; ordinary enable, disable,
-  comment, and acknowledgement permissions come from the provider.
+- `SensorWarnings` requires `AdditionalSensors` and publishes actual
+  `SensorWarningAlarmType` conditions for additional environmental sensors
+  outside their allowed ranges, as required by
+  [OPC 40210 §9.1](https://reference.opcfoundation.org/specs/OPC-40210/9.1).
+  `GmsSensorWarning.SensorKey` resolves only within `AdditionalSensors`.
+  `SourceNode` and the default `InputNode` identify that sensor's actual numeric
+  variable. An explicit `InputNodeId` must identify the same measured variable,
+  not a metadata property, another sensor, or a probe's qualification countdown.
+  Primary probes in `Sensors` are not valid sources. Acknowledgement is not an
+  equipment reset. Warning identities remain modeled when inactive; ordinary
+  enable, disable, comment, and acknowledgement permissions come from the provider.
 
 `WithPrognoses` composes the existing ten generic forecasts with calibration.
 `WithNotifications` selects the existing MachineTool operator-message and alert
 provider. Refresh that independent provider with `RefreshNotificationsAsync`.
+Primary-probe qualification notifications belong on a distinct appropriate
+condition, such as the existing inherited `MachineToolAlert` / `AlertType`
+through this provider, never on `SensorWarningAlarmType`. The native
+`IsQualifiedStatus` and `Qualified` countdown remain available independently;
+neither warning acknowledgement nor environmental recovery changes them.
 `WithMachinery` permits further shared bindings on the same unpublished root;
 its callback must not build or dispose the supplied builder.
 
@@ -104,6 +116,11 @@ event identity for `RetryPublicationAsync`; it is not a rollback of accepted
 equipment data. Disposal, including direct deletion by the shared owner,
 cancels and joins admitted native operations and releases only that root's
 bindings.
+
+Acquisition indexes are replaced together only after the entire native
+acquisition has passed validation and conversion. Replaying a previously
+accepted snapshot after a rejected observation cannot expose rejected job or
+part metadata.
 
 ## Hosting and clients
 

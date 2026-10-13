@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -46,6 +47,86 @@ namespace Opc.Ua.GMS.Tests
     [NonParallelizable]
     public sealed class GmsSystemProductionTests
     {
+        /// <summary>
+        /// Replaying an accepted acquisition after a later rejection cannot project the rejected native metadata.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RejectedAcquisitionPreservesJobAndPartMetadataOnReplayAsync(bool rejectWarning)
+        {
+            await using var fixture = new GmsResultServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineryBuildContext context = GmsSystemTests.Context(fixture);
+            GmsSystemSnapshot accepted = Example() with { Sensors = [GmsEquipmentTests.Sensor("Probe")] };
+            var provider = new ReplayProvider(accepted);
+            await using GmsHandle handle = await GmsSystemTests.Builder(context, "AtomicAcquisition", provider)
+                .WithOptions(new GmsSystemOptions { Features = GmsFeatures.Production | GmsFeatures.Sensors })
+                .WithMachineToolFeatures(MachineToolFeatures.ProductionStatistics)
+                .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()))
+                .BuildAsync().ConfigureAwait(false);
+            var job = (GMSJobState)handle.State.Production!.ProductionPlan!.FindChild(context.Context,
+                new QualifiedName("JobSlot", context.InstanceNamespaceIndex))!;
+            var set = (ProductionPartSetState)job.PartSets!.FindChild(context.Context,
+                new QualifiedName("Set", context.InstanceNamespaceIndex))!;
+            var part = (GMSPartState)set.PartsPerRun!.FindChild(context.Context,
+                new QualifiedName("Part", context.InstanceNamespaceIndex))!;
+            NodeId jobId = job.NodeId;
+            NodeId partId = part.NodeId;
+            GmsSystemSnapshot rejected = accepted with
+            {
+                Jobs =
+                [
+                    accepted.Jobs[0] with
+                    {
+                        RemainingTime = GmsEquipmentTests.Sample(Variant.From(100.0)),
+                        BatchIdentifier = GmsEquipmentTests.Sample(Variant.From("Rejected batch"))
+                    }
+                ],
+                Parts =
+                [
+                    accepted.Parts[0] with
+                    {
+                        PartDescription = GmsEquipmentTests.Sample(Variant.From("Rejected part"))
+                    }
+                ]
+            };
+            provider.Snapshot = rejectWarning
+                ? rejected with { SensorWarnings = [] }
+                : rejected with { Sensors = [accepted.Sensors[0] with { Qualified = null }] };
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await handle.RefreshAsync().ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(error.Message, Does.Contain(rejectWarning ? "SensorWarnings" : "qualification countdown"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(handle.Observation, Is.SameAs(accepted));
+                Assert.That(job.RemainingTime!.Value, Is.EqualTo(6000.0));
+                Assert.That(job.BatchIdentifier!.Value, Is.EqualTo("B-2026"));
+                Assert.That(part.PartDescription!.Value, Is.EqualTo("Inspection workpiece"));
+            });
+            provider.Snapshot = accepted;
+            await handle.RefreshAsync().ConfigureAwait(false);
+            ISession session = await fixture.ConnectAsync().ConfigureAwait(false);
+            ReadResponse read = await session.ReadAsync(null, 0, TimestampsToReturn.Both,
+            [
+                new ReadValueId { NodeId = job.RemainingTime!.NodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = job.BatchIdentifier!.NodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = part.PartDescription!.NodeId, AttributeId = Attributes.Value }
+            ], default).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(handle.Observation, Is.SameAs(accepted));
+                Assert.That(job.NodeId, Is.EqualTo(jobId));
+                Assert.That(part.NodeId, Is.EqualTo(partId));
+                Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Results[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Results[0].WrappedValue, Is.EqualTo(Variant.From(6000.0)));
+                Assert.That(read.Results[1].WrappedValue, Is.EqualTo(Variant.From("B-2026")));
+                Assert.That(read.Results[2].WrappedValue, Is.EqualTo(Variant.From("Inspection workpiece")));
+            });
+        }
+
         /// <summary>
         /// GMS metadata and sparse numeric catalogs survive shared production updates without introducing commands.
         /// </summary>
@@ -106,7 +187,10 @@ namespace Opc.Ua.GMS.Tests
             var metadata = new MachineToolSampleInfo(GmsEquipmentTests.AcquisitionTime, StatusCodes.Good);
             var program = new MachineToolProgram
             {
-                Key = "Program", Name = "Inspect", JobIdentifier = "J-1", Sample = metadata
+                Key = "Program",
+                Name = "Inspect",
+                JobIdentifier = "J-1",
+                Sample = metadata
             };
             return new GmsSystemSnapshot
             {
@@ -167,6 +251,24 @@ namespace Opc.Ua.GMS.Tests
                     }
                 ]
             };
+        }
+
+        /// <summary>
+        /// Replays immutable acquisitions without replacing their identities or revisions.
+        /// </summary>
+        private sealed class ReplayProvider(GmsSystemSnapshot snapshot) : IGmsProvider
+        {
+            /// <summary>
+            /// Gets or sets the exact acquisition returned through the public provider seam.
+            /// </summary>
+            internal GmsSystemSnapshot Snapshot { get; set; } = snapshot;
+
+            /// <inheritdoc/>
+            public ValueTask<GmsSystemSnapshot> ReadAsync(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<GmsSystemSnapshot>(Snapshot);
+            }
         }
     }
 }

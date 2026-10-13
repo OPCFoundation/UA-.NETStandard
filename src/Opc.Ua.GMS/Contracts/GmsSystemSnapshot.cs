@@ -97,7 +97,8 @@ namespace Opc.Ua.GMS.Contracts
         DynamicProduction = 512,
 
         /// <summary>
-        /// Retained standard SensorWarningAlarmType conditions.
+        /// Retained standard SensorWarningAlarmType conditions for additional environmental sensors.
+        /// Requires AdditionalSensors, not the primary measurement Sensors inventory.
         /// </summary>
         SensorWarnings = 1024,
 

@@ -34,13 +34,15 @@ namespace Opc.Ua.GMS.Contracts
     public sealed partial record GmsSystemSnapshot
     {
         /// <summary>
-        /// Gets all configured persistent sensor-warning identities, including currently inactive conditions.
+        /// Gets all configured persistent additional-sensor warning identities, including inactive conditions.
         /// </summary>
         public ArrayOf<GmsSensorWarning> SensorWarnings { get; init; }
     }
 
     /// <summary>
-    /// A provider-reported SensorWarningAlarmType condition. Standard acknowledgement is not a machine reset.
+    /// A provider-reported SensorWarningAlarmType condition for an additional sensor outside its allowed range.
+    /// Sensors directly involved in geometrical measurement are excluded by OPC 40210 section 9.1.
+    /// Standard acknowledgement is not a machine reset.
     /// </summary>
     public sealed record GmsSensorWarning
     {
@@ -50,13 +52,15 @@ namespace Opc.Ua.GMS.Contracts
         public string Key { get; init; } = string.Empty;
 
         /// <summary>
-        /// Gets the actual local single-sensor slot that is the event source.
+        /// Gets the key in the configured AdditionalSensors inventory that is the event source.
+        /// Primary measurement probes in Sensors cannot be sources of this condition type.
         /// </summary>
         public string SensorKey { get; init; } = string.Empty;
 
         /// <summary>
-        /// Gets an optional actual input-variable NodeId beneath that sensor.
-        /// Null selects its mandatory Qualified life variable; a foreign instance is never accepted.
+        /// Gets the actual additional-sensor measured-variable NodeId.
+        /// Null selects that same variable automatically. Sensor metadata, primary qualification countdowns
+        /// and foreign inputs are never accepted.
         /// </summary>
         public NodeId InputNodeId { get; init; }
 

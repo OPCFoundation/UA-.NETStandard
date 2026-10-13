@@ -79,7 +79,7 @@ namespace Opc.Ua.GMS.Server
             if ((Features & ~GmsFeatures.All) != 0 ||
                 ((Features & GmsFeatures.DynamicSensors) != 0 && (Features & GmsFeatures.Sensors) == 0) ||
                 ((Features & GmsFeatures.ToolMonitoring) != 0 && (Features & GmsFeatures.Sensors) == 0) ||
-                ((Features & GmsFeatures.SensorWarnings) != 0 && (Features & GmsFeatures.Sensors) == 0) ||
+                ((Features & GmsFeatures.SensorWarnings) != 0 && (Features & GmsFeatures.AdditionalSensors) == 0) ||
                 ((Features & GmsFeatures.DynamicProduction) != 0 && (Features & GmsFeatures.Production) == 0) ||
                 MaximumSensors is < 1 or > 4096 || MaximumEquipment is < 1 or > 4096 ||
                 MaximumCalibrationHistory is < 1 or > 1024 || MaximumSensorWarnings is < 1 or > 1024 ||

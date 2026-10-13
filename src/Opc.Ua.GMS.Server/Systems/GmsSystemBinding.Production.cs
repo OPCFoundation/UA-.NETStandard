@@ -201,9 +201,12 @@ namespace Opc.Ua.GMS.Server
         }
 
         /// <summary>
-        /// Validates native metadata against the same actual prospective retained-production graph.
+        /// Stages validated native metadata against the prospective retained-production graph without changing
+        /// the cached acquisition's indexes.
         /// </summary>
-        private void ValidateProduction(GmsSystemSnapshot snapshot)
+        private (Dictionary<string, GmsJobObservation> Jobs,
+            Dictionary<(string Job, string Set, string Part), GmsPartObservation> Parts) ValidateProduction(
+            GmsSystemSnapshot snapshot)
         {
             if ((!Has(GmsFeatures.Production) && (snapshot.Jobs.Count != 0 || snapshot.Parts.Count != 0)) ||
                 snapshot.Jobs.Count > m_options.MaximumArrayLength ||
@@ -278,8 +281,7 @@ namespace Opc.Ua.GMS.Server
                     }
                 }
             }
-            m_jobInput = jobInput;
-            m_partInput = partInput;
+            return (jobInput, partInput);
         }
 
         /// <summary>

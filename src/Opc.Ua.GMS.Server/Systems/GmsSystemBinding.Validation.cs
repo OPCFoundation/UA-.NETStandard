@@ -39,7 +39,9 @@ namespace Opc.Ua.GMS.Server
         /// <summary>
         /// Rejects missing enabled providers and observations for unselected optional capabilities.
         /// </summary>
-        private void ValidateInput(GmsSystemSnapshot snapshot)
+        private (Dictionary<string, GmsJobObservation> Jobs,
+            Dictionary<(string Job, string Set, string Part), GmsPartObservation> Parts) ValidateInput(
+            GmsSystemSnapshot snapshot)
         {
             if (snapshot.MachineTool == null || snapshot.MachineTool.Equipment != null)
             {
@@ -54,8 +56,9 @@ namespace Opc.Ua.GMS.Server
             RequireSelection(GmsFeatures.Calibration, snapshot.Calibration != null);
             ValidateSystems(snapshot);
             ValidateEquipment(snapshot);
-            ValidateProduction(snapshot);
+            var production = ValidateProduction(snapshot);
             ValidateWarnings(snapshot);
+            return production;
         }
 
         /// <summary>

@@ -174,6 +174,7 @@ namespace Opc.Ua.GMS.Tests
         [TestCase(GmsFeatures.DynamicProduction)]
         [TestCase(GmsFeatures.ToolMonitoring)]
         [TestCase(GmsFeatures.SensorWarnings)]
+        [TestCase(GmsFeatures.Sensors | GmsFeatures.SensorWarnings)]
         [TestCase((GmsFeatures)4096)]
         public void InvalidFeatureDependenciesFailConfiguration(GmsFeatures features)
         {
