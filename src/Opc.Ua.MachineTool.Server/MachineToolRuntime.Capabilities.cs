@@ -133,12 +133,14 @@ namespace Opc.Ua.MachineTool.Server
         /// </summary>
         private MachineToolCapabilities BuildCapabilities()
         {
-            List<NodeState> nodes = CapabilityNodes();
-            MachineToolMonitoringCapacity monitoring = ReadMonitoringCapacity(nodes);
             if (m_disposed || !ReferenceEquals(m_context.Manager.FindPredefinedNode(NodeId), State))
             {
-                return new MachineToolCapabilities(NodeId, [], [], monitoring);
+                return new MachineToolCapabilities(NodeId, [], [], new MachineToolMonitoringCapacity(
+                    0, 0, 0, 0, 0, 0, m_monitoringRequirements.Sessions,
+                    m_monitoringRequirements.SubscriptionsPerSession, false, false));
             }
+            List<NodeState> nodes = CapabilityNodes();
+            MachineToolMonitoringCapacity monitoring = ReadMonitoringCapacity(nodes);
             var names = new HashSet<string>(StringComparer.Ordinal);
             bool production = Selected(MachineToolFeatures.Production);
             bool parts = Selected(MachineToolFeatures.ProductionParts);
@@ -363,7 +365,7 @@ namespace Opc.Ua.MachineTool.Server
                     count++;
                 }
             }
-            ServerCapabilitiesState? server = m_context.Manager.Server.DiagnosticsNodeManager
+            ServerCapabilitiesState? server = m_context.Manager.Server.DiagnosticsNodeManager?
                 .FindPredefinedNode<ServerCapabilitiesState>(Ua.ObjectIds.Server_ServerCapabilities);
             uint sessions = server?.MaxSessions?.Value ?? 0;
             uint subscriptions = server?.MaxSubscriptions?.Value ?? 0;
