@@ -1893,12 +1893,8 @@ namespace Opc.Ua.Server
                     contextToUse,
                     node,
                     cancellationToken).ConfigureAwait(false);
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
-
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -1908,8 +1904,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -1923,23 +1917,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
@@ -2351,11 +2331,8 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
 
             var referencesToRemove = new List<LocalReference>();
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -2365,8 +2342,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -2380,23 +2355,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
@@ -2572,22 +2533,61 @@ namespace Opc.Ua.Server
             return detachedItems;
         }
 
-        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+        private async ValueTask RestoreSurvivingMonitoredItemsAsync(
             IReadOnlyList<IMonitoredItem> monitoredItems,
+            Exception deletionFailure)
+        {
+            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                {
+                    survivingItems.Add(monitoredItem);
+                }
+                else
+                {
+                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                }
+            }
+            try
+            {
+                await RestoreDetachedMonitoredItemsAsync(survivingItems, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Node deletion and monitored-item restoration failed.", deletionFailure, restorationFailure);
+            }
+        }
+
+        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+            List<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken)
         {
             TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
             using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
             using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+            List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
-                ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
-                    monitoredItems[ii],
-                    cleanup.Token).ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    throw new ServiceResultException(result);
+                    ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                        monitoredItems[ii],
+                        cleanup.Token).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Monitored-item restoration failed.", failures);
             }
         }
 
