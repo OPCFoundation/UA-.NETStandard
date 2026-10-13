@@ -147,15 +147,17 @@ namespace Opc.Ua
         public int MaxDecoderRecoveries { get; set; }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Read without a lock: every encoder and decoder of a server reads it, from
+        /// all request threads at once, and a lock around a reference read became a
+        /// waiting point once responses were encoded concurrently. Setters still
+        /// serialise on a lock and publish the table before they advance
+        /// <see cref="MappingVersion"/>, so a reader that compares the table and the
+        /// version it read before with the current ones detects any change.
+        /// </remarks>
         public NamespaceTable NamespaceUris
         {
-            get
-            {
-                lock (m_mappingGate)
-                {
-                    return m_namespaceUris;
-                }
-            }
+            get => Volatile.Read(ref m_namespaceUris);
             set
             {
                 lock (m_mappingGate)
@@ -163,23 +165,18 @@ namespace Opc.Ua
                     value ??= new NamespaceTable();
                     if (!ReferenceEquals(m_namespaceUris, value))
                     {
-                        m_namespaceUris = value;
-                        m_mappingVersion++;
+                        Volatile.Write(ref m_namespaceUris, value);
+                        Volatile.Write(ref m_mappingVersion, m_mappingVersion + 1);
                     }
                 }
             }
         }
 
         /// <inheritdoc/>
+        /// <remarks>Read without a lock; see <see cref="NamespaceUris"/>.</remarks>
         public StringTable ServerUris
         {
-            get
-            {
-                lock (m_mappingGate)
-                {
-                    return m_serverUris;
-                }
-            }
+            get => Volatile.Read(ref m_serverUris);
             set
             {
                 lock (m_mappingGate)
@@ -187,8 +184,8 @@ namespace Opc.Ua
                     value ??= new StringTable();
                     if (!ReferenceEquals(m_serverUris, value))
                     {
-                        m_serverUris = value;
-                        m_mappingVersion++;
+                        Volatile.Write(ref m_serverUris, value);
+                        Volatile.Write(ref m_mappingVersion, m_mappingVersion + 1);
                     }
                 }
             }
@@ -215,16 +212,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the monotonic version of the namespace/server table holders.
         /// </summary>
-        internal long MappingVersion
-        {
-            get
-            {
-                lock (m_mappingGate)
-                {
-                    return m_mappingVersion;
-                }
-            }
-        }
+        internal long MappingVersion => Volatile.Read(ref m_mappingVersion);
 
         private readonly Lock m_mappingGate = new();
         private NamespaceTable m_namespaceUris = new();
