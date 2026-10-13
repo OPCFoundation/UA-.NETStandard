@@ -1,5 +1,5 @@
 diff --git a/src/Opc.Ua.Server/NodeManager/MasterNodeManager.Batch.cs b/src/Opc.Ua.Server/NodeManager/MasterNodeManager.Batch.cs
-index 63236d316..7398ba8ee 100644
+index 63236d316..746d0ea52 100644
 --- a/src/Opc.Ua.Server/NodeManager/MasterNodeManager.Batch.cs
 +++ b/src/Opc.Ua.Server/NodeManager/MasterNodeManager.Batch.cs
 @@ -162,6 +162,8 @@ namespace Opc.Ua.Server
