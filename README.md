@@ -10,6 +10,7 @@
 [![Connection Stability](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stability-test.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stability-test.yml?query=branch%3Amaster+event%3Aschedule)
 [![Foreign Interop](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/interop-foreign.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/interop-foreign.yml?query=branch%3Amaster+event%3Aschedule)
 [![HA Long-Haul](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/sample-ha-longhaul.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/sample-ha-longhaul.yml?query=branch%3Amaster+event%3Aschedule)
+[![CTT Regression](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/ctt.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/ctt.yml?query=branch%3Amaster+event%3Aschedule)
 
 > 🆕 **This is version 2.0 of the OPC UA .NET Standard Stack (current `master`).**
 >
