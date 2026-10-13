@@ -150,23 +150,25 @@ namespace Opc.Ua
         /// <remarks>
         /// Read without a lock: every encoder and decoder of a server reads it, from
         /// all request threads at once, and a lock around a reference read became a
-        /// waiting point once responses were encoded concurrently. Setters still
-        /// serialise on a lock and publish the table before they advance
-        /// <see cref="MappingVersion"/>, so a reader that compares the table and the
-        /// version it read before with the current ones detects any change.
+        /// waiting point once responses were encoded concurrently. The tables and
+        /// <see cref="MappingVersion"/> are published together, as one immutable
+        /// snapshot, so a reader that sees the version unchanged around reading a
+        /// table read the table of that version. Setters serialise on a lock.
         /// </remarks>
         public NamespaceTable NamespaceUris
         {
-            get => Volatile.Read(ref m_namespaceUris);
+            get => Volatile.Read(ref m_mapping).NamespaceUris;
             set
             {
                 lock (m_mappingGate)
                 {
                     value ??= new NamespaceTable();
-                    if (!ReferenceEquals(m_namespaceUris, value))
+                    MappingSnapshot current = m_mapping;
+                    if (!ReferenceEquals(current.NamespaceUris, value))
                     {
-                        Volatile.Write(ref m_namespaceUris, value);
-                        Volatile.Write(ref m_mappingVersion, m_mappingVersion + 1);
+                        Volatile.Write(
+                            ref m_mapping,
+                            new MappingSnapshot(value, current.ServerUris, current.Version + 1));
                     }
                 }
             }
@@ -176,16 +178,18 @@ namespace Opc.Ua
         /// <remarks>Read without a lock; see <see cref="NamespaceUris"/>.</remarks>
         public StringTable ServerUris
         {
-            get => Volatile.Read(ref m_serverUris);
+            get => Volatile.Read(ref m_mapping).ServerUris;
             set
             {
                 lock (m_mappingGate)
                 {
                     value ??= new StringTable();
-                    if (!ReferenceEquals(m_serverUris, value))
+                    MappingSnapshot current = m_mapping;
+                    if (!ReferenceEquals(current.ServerUris, value))
                     {
-                        Volatile.Write(ref m_serverUris, value);
-                        Volatile.Write(ref m_mappingVersion, m_mappingVersion + 1);
+                        Volatile.Write(
+                            ref m_mapping,
+                            new MappingSnapshot(current.NamespaceUris, value, current.Version + 1));
                     }
                 }
             }
@@ -212,11 +216,28 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the monotonic version of the namespace/server table holders.
         /// </summary>
-        internal long MappingVersion => Volatile.Read(ref m_mappingVersion);
+        internal long MappingVersion => Volatile.Read(ref m_mapping).Version;
+
+        /// <summary>
+        /// The namespace and server tables with the version they were published at.
+        /// </summary>
+        private sealed class MappingSnapshot
+        {
+            public MappingSnapshot(NamespaceTable namespaceUris, StringTable serverUris, long version)
+            {
+                NamespaceUris = namespaceUris;
+                ServerUris = serverUris;
+                Version = version;
+            }
+
+            public NamespaceTable NamespaceUris { get; }
+
+            public StringTable ServerUris { get; }
+
+            public long Version { get; }
+        }
 
         private readonly Lock m_mappingGate = new();
-        private NamespaceTable m_namespaceUris = new();
-        private StringTable m_serverUris = new();
-        private long m_mappingVersion;
+        private MappingSnapshot m_mapping = new(new NamespaceTable(), new StringTable(), 0);
     }
 }
