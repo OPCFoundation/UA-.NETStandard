@@ -27,6 +27,7 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
     - [Sampling interval revision](#sampling-interval-revision)
+    - [Final-value publication before node removal](#final-value-publication-before-node-removal)
   - [History](#history)
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
@@ -388,12 +389,9 @@ support filter validation, event subscriptions, condition refresh, and role chec
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
 
-For application-driven terminal observations before deleting a dynamic subtree,
-`AsyncCustomNodeManager` implements `INodeValuePublication`. Its bounded
-`WaitForValuePublicationAsync` operation samples final Values and waits for
-their inclusion in actual Publish responses. `ClearChangeMasksAsync` alone
-does not provide that guarantee. See [final-value publication](FinalValuePublication.md)
-for the membership, cancellation, and transport-delivery limitations.
+For terminal observations before deleting dynamic nodes, use the
+[final-value publication barrier](#final-value-publication-before-node-removal),
+not `ClearChangeMasksAsync` alone.
 
 A sampling group checks the Read permission of an item through
 `ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
@@ -465,6 +463,36 @@ to 2000 ms; a node that declares 5000 ms still wins and is revised to 5000 ms.
 automatically through their `MinSupportedSamplingInterval` property. Node
 managers that implement `INodeManager` directly can call
 `SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same rule.
+
+#### Final-value publication before node removal
+
+`AsyncCustomNodeManager` implements `INodeValuePublication` for terminal
+observations such as a completed production job. Stop the subtree's producers,
+keep its values unchanged, and await the owning manager's barrier before deletion:
+
+```csharp
+await manager.WaitForValuePublicationAsync(
+    [job], TimeSpan.FromSeconds(10), cancellationToken);
+cancellationToken.ThrowIfCancellationRequested();
+await manager.DeleteNodeAsync(manager.SystemContext, job.NodeId, cancellationToken);
+```
+
+Completion means final Value notifications entered **responses to real Publish
+requests**, not merely a queue, transport delivery or client acknowledgment.
+The barrier makes permission-checked final reads, preserves index ranges and
+protects pending terminal samples from overwrite. Ordinary refreshes should
+continue using `ClearChangeMasksAsync` without waiting for Publish requests.
+
+Membership is a snapshot of reporting Value items with live sessions;
+descendants are included. New subscriptions, event/non-Value items and
+detached durable subscriptions are outside it. Losing a captured subscriber
+releases its obligation; disabling publishing does not. There is no atomic
+subscription-admission/deletion transaction.
+
+The default deadline is 30 seconds; explicit deadlines must be positive and
+finite. Timeout, cancellation, read/permission failure, transfer or unsupported
+aggregate/custom items fail rather than imply delivery. **Retain the nodes on
+failure.** Never await the barrier while holding a gate its callbacks need.
 
 ### History
 

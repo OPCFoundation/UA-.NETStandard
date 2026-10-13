@@ -78,9 +78,17 @@ private root. Stores are deliberately retained for trust administration; remove
 only your demo directories after both processes exit. Use separate roots for
 server and client.
 
-The net10 project configuration enables NativeAOT publishing. Both `win-x64`
+## NativeAOT
+
+The net10 project configuration enables NativeAOT publishing:
+
+```powershell
+dotnet publish samples\CranesHoists\CranesHoistsServer -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\CranesHoists\CranesHoistsClient -c Release -f net10.0 -r win-x64 --self-contained true
+```
+
+Both `win-x64`
 native sample binaries have also been executed together: native discovery,
 reads, data/events, accepted/refused requests and natural cleanup passed.
-See the [guide's exact publish commands](../../docs/CranesHoists.md#validation-scope-and-nativeaot).
 A CLR run alone is not native evidence; the full repository and MCP-native
 matrix remain separate acceptance requirements.

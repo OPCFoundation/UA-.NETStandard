@@ -152,7 +152,7 @@ needs.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
-- [Final-value publication](FinalValuePublication.md) — await terminal Value
+- [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
   notifications in real Publish responses before removing dynamic subtrees.
 - [Model change tracking](ModelChangeTracking.md) — keep client caches current
   when the address space changes.
