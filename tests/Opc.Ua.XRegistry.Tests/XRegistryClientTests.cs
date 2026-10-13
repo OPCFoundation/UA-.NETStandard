@@ -547,7 +547,7 @@ namespace Opc.Ua.XRegistry.Tests
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadCommunicationError));
             Assert.That(reads, Is.EqualTo(2));
-            Assert.That(CountCalls(calls, MethodIds.FileType_Close), Is.EqualTo(1));
+            Assert.That(CountCalls(calls, Ua.MethodIds.FileType_Close), Is.EqualTo(1));
         }
 
         [Test]
