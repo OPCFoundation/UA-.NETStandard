@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// sampling a MonitoredItem, own no scope and disposing them does nothing.
     /// </para>
     /// </summary>
-    public class OperationContext : ISessionOperationContext, IDisposable
+    public class OperationContext : ISessionOperationContext, IDisposable, IRequestTableEntry
     {
         /// <summary>
         /// Initializes the context with a session.
@@ -454,6 +454,12 @@ namespace Opc.Ua.Server
                 count < kMaxSystemContextCacheEntries ? head : null);
             return copy;
         }
+
+        /// <inheritdoc/>
+        uint IRequestTableEntry.TableKey => RequestId;
+
+        /// <inheritdoc/>
+        int IRequestTableEntry.TableSlot { get; set; } = RequestTable<OperationContext>.kNoSlot;
 
         /// <summary>
         /// The most node managers after the first whose system context copies a request keeps.
