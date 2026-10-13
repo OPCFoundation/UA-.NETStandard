@@ -74,9 +74,9 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | Directory, certificates, credential/token references, onboarding |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows` | Roles/users, files, alarms, historical access |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms, historical access |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded type discovery/loading and schema artifacts |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime` | Policy-controlled HTTP(S), MQTT, Modbus TCP and OPC UA |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management/documents and separately registered HTTP(S), MQTT, Modbus TCP and OPC UA runtimes |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | this ready-to-run `opcua-mcp` tool |
 
 See [Architecture](../../docs/McpServer.md#architecture) for the full picture.

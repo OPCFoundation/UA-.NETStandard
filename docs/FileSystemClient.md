@@ -300,7 +300,7 @@ implicit server rollback) — is sent to the server. The wrapped
 is a no-op.
 
 For retained handles or policy-sensitive transfers, use
-[`SessionRequestContext`](SessionRequestContext.md) and construct the client
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) and construct the client
 with `context.Session`. Its context-taking generation overloads return an opaque
 `SessionFileHandle`; bounded `UploadFromAsync`/`DownloadToAsync` preserve final
 method statuses and never rebind an old handle after recovery. The upload result

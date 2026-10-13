@@ -80,6 +80,17 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Environment.SetEnvironmentVariable(kProfileVariable, m_originalProfile);
         }
 
+        /// <summary>
+        /// Workflow registration and tool types retain one identity in the renamed package.
+        /// </summary>
+        [Test]
+        public void WorkflowTypesUseTheRenamedAssembly()
+        {
+            Assert.That(typeof(ClientWorkflowOptions).Assembly.GetName().Name, Is.EqualTo("Opc.Ua.Mcp.Workflows"));
+            Assert.That(typeof(RoleWorkflowTools).Assembly, Is.SameAs(typeof(ClientWorkflowOptions).Assembly));
+            Assert.That(typeof(HistoryWorkflowTools).Assembly, Is.SameAs(typeof(ClientWorkflowOptions).Assembly));
+        }
+
         [Test]
         public async Task ConfigureServicesRegistersManagersAndOptionsAsSingletonsAsync()
         {

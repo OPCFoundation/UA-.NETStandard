@@ -122,12 +122,11 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device integration, locking and updates |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management and document processing |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management/documents and separately registered, policy-controlled live bindings |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content operations |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | GDS, certificates, credential/token references, onboarding |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows` | Roles/users, files, alarms and historical access |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms and historical access |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded types and XSD/BSD/JSON, PubSub and OpenAPI artifacts |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime` | Policy-controlled execution of installed WoT bindings |
 
 The Robotics library remains preview-only. The other MCP libraries follow the root release channel and are stable
 when the root release is stable.

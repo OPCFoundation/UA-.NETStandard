@@ -3,8 +3,8 @@
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
-    <AssemblyName>$(AssemblyPrefix).Mcp.ClientWorkflows</AssemblyName>
-    <PackageId>$(PackagePrefix).Opc.Ua.Mcp.ClientWorkflows</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Mcp.Workflows</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Mcp.Workflows</PackageId>
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
     <Description>Bounded OPC UA role, user, file, alarm and history workflows for MCP hosts.</Description>
     <IsPackable>true</IsPackable>

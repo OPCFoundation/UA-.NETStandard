@@ -1,6 +1,6 @@
-# OPC UA MCP client workflows
+# OPC UA MCP workflows
 
-One embeddable package provides the `roles`, `users`, `files`, `alarms` and
+`OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` provides the `roles`, `users`, `files`, `alarms` and
 `history` profiles. It reuses the host's existing OPC UA session, generated
 model proxies, file clients, alarm operations and historian.
 

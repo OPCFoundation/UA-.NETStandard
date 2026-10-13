@@ -273,7 +273,7 @@ separately to identity, application and endpoint mappings and is checked before
 client-side decoded-array/list copies. Zero and the existing one-argument
 constructor preserve legacy behavior. This does not bound `ListRolesAsync`.
 For policy-sensitive workflows, use a
-[`SessionRequestContext`](SessionRequestContext.md) session for classification
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) session for classification
 and the subsequent role calls.
 
 ```csharp

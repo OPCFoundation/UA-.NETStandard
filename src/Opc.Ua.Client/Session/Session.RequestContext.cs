@@ -39,7 +39,7 @@ namespace Opc.Ua.Client
     public partial class Session
     {
         /// <summary>
-        /// Signals replacement of the actual server-session identity.
+        /// Signals identity replacement before a request context can capture the new generation.
         /// </summary>
         internal event Action? RequestContextChanged;
 

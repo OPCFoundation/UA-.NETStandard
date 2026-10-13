@@ -4847,8 +4847,8 @@ namespace Opc.Ua.Client
                     m_hadSession = true;
                 }
                 m_requestContextGeneration++;
+                RequestContextChanged?.Invoke();
             }
-            RequestContextChanged?.Invoke();
         }
 
         /// <inheritdoc/>

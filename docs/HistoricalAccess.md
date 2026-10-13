@@ -1007,7 +1007,7 @@ The decoded-page limit is checked before modified-value copies or any page
 items are yielded; it does not replace transport decoding quotas. Generation
 binding keeps pagination and continuation cleanup on the original real session.
 For a cursor retained across calls, capture
-[`SessionRequestContext`](SessionRequestContext.md) before target resolution,
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) before target resolution,
 construct the historian with `context.Session`, and dispose the cursor before
 the context. Recovery invalidates the cursor instead of sending its old
 continuation point to a replacement.

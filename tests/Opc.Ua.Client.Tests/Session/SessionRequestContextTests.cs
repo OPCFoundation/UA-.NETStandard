@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -43,6 +44,70 @@ namespace Opc.Ua.Client.Tests.SessionContexts
     [Parallelizable(ParallelScope.All)]
     public sealed class SessionRequestContextTests
     {
+        /// <summary>
+        /// Identity changes notify old contexts before another capture can subscribe for the new generation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SessionIdentityNotificationExcludesNewCapturesAsync(bool reusedIdentity)
+        {
+            await using var fixture = new SessionRequestContextTestContext();
+            var identity = (Lock)typeof(Session)
+                .GetField("m_requestContextIdentity", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(fixture.InnerSession)!;
+            bool notified = false;
+            bool captureExcluded = false;
+            void ObserveChange()
+            {
+                notified = true;
+                captureExcluded = identity.IsHeldByCurrentThread;
+            }
+            fixture.InnerSession.RequestContextChanged += ObserveChange;
+            try
+            {
+                await using SessionRequestContext original =
+                    await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
+                if (reusedIdentity)
+                {
+                    fixture.InnerSession.SessionCreated(
+                        NodeId.Parse("s=original-session"), NodeId.Parse("s=original-token"));
+                }
+                else
+                {
+                    fixture.Recreate();
+                }
+
+                Assert.That(notified, Is.True);
+                Assert.That(captureExcluded, Is.True,
+                    "A new capture must not enter between the identity change and its invalidation notification.");
+                Assert.That(original.Invalidated.IsCompleted, Is.True);
+                await using SessionRequestContext current =
+                    await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
+                Assert.That(current.Invalidated.IsCompleted, Is.False);
+                Assert.That(current.SessionId, Is.EqualTo(fixture.InnerSession.SessionId));
+                fixture.Handler = (_, _) => new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(Variant.From(19))]
+                });
+
+                ReadResponse response = await current.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }],
+                    CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(response.Results[0].WrappedValue.TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(19));
+                Assert.That(fixture.Requests, Has.Count.EqualTo(1));
+                Assert.That(fixture.Requests[0].RequestHeader.AuthenticationToken, Is.EqualTo(NodeId.Parse(
+                    reusedIdentity ? "s=original-token" : "s=replacement-token")));
+                Assert.That(current.Invalidated.IsCompleted, Is.False);
+            }
+            finally
+            {
+                fixture.InnerSession.RequestContextChanged -= ObserveChange;
+            }
+        }
+
         /// <summary>
         /// Queues a request behind recovery after the caller observed the original identity.
         /// </summary>

@@ -289,10 +289,10 @@ of industrial companion models and remain separately embeddable:
 | Package catalogue | Profiles | Scope |
 | --- | --- | --- |
 | [GDS](../tools/Opc.Ua.Mcp.Gds/NugetREADME.md) | `gds`, `certificates`, `credentials`, `onboarding` | Directory registration/query, certificate requests and push configuration, KeyCredential and token issuance/refresh, Part 21 tickets |
-| [Client workflows](../tools/Opc.Ua.Mcp.ClientWorkflows/NugetREADME.md) | `roles`, `users`, `files`, `alarms`, `history` | Explicit identity administration, bounded regular/temporary files, conditions and finite event observations, historical reads and mutations |
+| [Workflows](../tools/Opc.Ua.Mcp.Workflows/NugetREADME.md) | `roles`, `users`, `files`, `alarms`, `history` | Explicit identity administration, bounded regular/temporary files, conditions and finite event observations, historical reads and mutations |
 | [Schemas](../tools/Opc.Ua.Mcp.Schema/NugetREADME.md) | `schemas` | Bounded data-type discovery/loading, XSD/BSD/UA JSON, PubSub and REST OpenAPI generation |
 | [PubSub](../tools/Opc.Ua.Mcp.PubSub/NugetREADME.md) | `pubsub-runtime`, `pubsub-configuration`, `pubsub-bridge`, `pubsub-security` | Named runtimes, standard remote configuration, declarative adapters/bridges and SKS |
-| [Live WoT](../tools/Opc.Ua.Mcp.WotRuntime/NugetREADME.md) | `wot-runtime` | Explicitly selected HTTP(S), MQTT, Modbus TCP and OPC UA forms; property/action/event operations |
+| [Live WoT](../tools/Opc.Ua.Mcp.WotCon/NugetREADME.md#live-protocol-execution) | `wot-runtime` | Explicitly selected HTTP(S), MQTT, Modbus TCP and OPC UA forms; property/action/event operations |
 
 For example, select historian and file workflows without registering certificate
 or live protocol tools:
@@ -978,7 +978,7 @@ runtime and collect publisher responses):
 
 ## Architecture
 
-The MCP tools ship as nineteen libraries plus the executable that composes them.
+The MCP tools ship as eighteen libraries plus the executable that composes them.
 The executable owns only transport, logging and CLI plumbing; every tool lives
 in a library that an application can reference on its own.
 
@@ -1026,12 +1026,13 @@ tools/
 ├── Opc.Ua.Mcp.Di/                       # Device topology, locking, transfers and software updates
 ├── Opc.Ua.Mcp.ISA95/                    # Common objects and V1/V2 job control
 ├── Opc.Ua.Mcp.Positioning/              # Spatial frames, global locations and transforms
-├── Opc.Ua.Mcp.WotCon/                   # WoT management, document processing and controlled dependencies
+├── Opc.Ua.Mcp.WotCon/                   # WoT management, documents and independently registered live runtimes
+│   ├── Runtime/                        # Explicit live binding execution and lifetime support
+│   └── Tools/                          # Management, document and runtime tool classes
 ├── Opc.Ua.Mcp.XRegistry/                # Generic registry/version/label/file operations
 ├── Opc.Ua.Mcp.Gds/                      # Directory, certificates, credentials/tokens and onboarding
-├── Opc.Ua.Mcp.ClientWorkflows/          # Roles/users, files, alarms and historical access
+├── Opc.Ua.Mcp.Workflows/                # Roles/users, files, alarms and historical access
 ├── Opc.Ua.Mcp.Schema/                   # Bounded types, XSD/BSD/JSON, PubSub and OpenAPI artifacts
-├── Opc.Ua.Mcp.WotRuntime/               # Named policy-controlled HTTP/MQTT/Modbus/OPC UA execution
 └── Opc.Ua.Mcp/                          # .NET 10 project, packaged as dotnet tool
     ├── Program.cs                       # Entry point, stdio + Streamable HTTP transport (/mcp)
     ├── McpHostBuilder.cs                # Composes the tool libraries
@@ -1056,13 +1057,16 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device topology, locks, transfers and software updates | Core + `Opc.Ua.Di.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and job control V1/V2 | Core + `Opc.Ua.ISA95.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames, global locations and transforms | Core + `Opc.Ua.Positioning.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT assets, registry state and document processing | Core + `Opc.Ua.WotCon.Client` + `.Bindings` (planning only) |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT assets, registry state, documents and independently registered live runtime tools | Core + `Opc.Ua.WotCon.Client` + `.Bindings` + `.Bindings.Mqtt` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry` | Generic registry/version/label/content tools | Core + `Opc.Ua.XRegistry.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | GDS, certificates, credential/token references and onboarding | Core + `Opc.Ua.Gds.Client` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ClientWorkflows` | Roles/users, files, alarms/conditions and history | Core + existing typed Client workflows |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms/conditions and history | Core + existing typed Client workflows |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded type and schema workflows | Core + `Opc.Ua.Core.Schema` + `Opc.Ua.PubSub.Schema` |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotRuntime` | Policy-controlled execution of the four installed WoT protocols | Core + MCP WoT preparation + existing binding executors |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
+
+Every tool-bearing library keeps its MCP tool classes and partials in `Tools/`;
+registration, configuration and supporting services stay outside that folder.
+Folder placement does not change public namespaces or tool names.
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
 `net10.0`. Only the Robotics MCP library remains preview-only.
@@ -1197,6 +1201,12 @@ Use `OpcUaMcpWotConExtensions.CreateWotMcpOptions(configuration)` to share the
 executable's reflection-free configuration binding. The module registers a
 dedicated named HTTP client for controlled dependencies; do not attach
 credentials or redirect/proxy handlers to it.
+
+The same `Opc.Ua.Mcp.WotCon` package also contains live execution, but registration
+remains separate: opt in with `AddOpcUaMcpWotRuntime` and
+`WithOpcUaWotRuntimeTools`. `AddOpcUaMcpWotCon` and `WithOpcUaWotConTools` retain
+their management/document-only behavior. Sharing a package does not activate
+executors, select `wot-runtime`, or grant execution authority.
 
 ### Remaining tooling gaps
 

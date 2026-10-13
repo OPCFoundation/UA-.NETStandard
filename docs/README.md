@@ -89,7 +89,7 @@ Assumes [Getting started](GettingStarted.md).
    operation, and call methods through a client generated from the model.
 4. [Subscriptions](Subscriptions.md) — callback subscriptions for long-lived
    monitoring and streams for short observations.
-5. [Generation-bound requests](SessionRequestContext.md) — retain remote file
+5. [Generation-bound requests](Sessions.md#generation-bound-client-requests) — retain remote file
    handles, history cursors and target classifications without following a
    replacement connection.
 

@@ -28,6 +28,7 @@
 
 #if NET10_0
 using System;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -37,6 +38,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
+using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Tools.Tests.McpCompanion
 {
@@ -46,6 +48,30 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
     [TestFixture]
     public sealed class WotRuntimeBindingTests
     {
+        /// <summary>
+        /// Sharing one package must not turn management/document registration into live executor registration.
+        /// </summary>
+        [Test]
+        public async Task UnifiedWotPackageKeepsLiveRegistrationIndependentAsync()
+        {
+            Assert.That(typeof(WotRuntimeOptions).Assembly, Is.SameAs(typeof(WotDocumentTools).Assembly));
+            Assert.That(typeof(WotRuntimeOptions).Assembly.GetName().Name, Is.EqualTo("Opc.Ua.Mcp.WotCon"));
+            var services = new ServiceCollection();
+            services.AddLogging().AddOpcUaMcpCore().AddOpcUaMcpWotCon();
+            services.AddMcpServer()
+                .WithStreamServerTransport(Stream.Null, Stream.Null)
+                .WithOpcUaWotConTools(McpToolProfile.Full);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
+
+            Assert.That(names, Has.Length.EqualTo(25));
+            Assert.That(names, Does.Contain("wot_inspect_document").And.Contain("wot_list_assets"));
+            Assert.That(names.Any(name => name.StartsWith("wot_runtime_", StringComparison.Ordinal)), Is.False);
+            Assert.That(provider.GetService<IWotRuntimeExecutorFactory>(), Is.Null);
+            Assert.That(provider.GetService<WotRuntimeOptions>(), Is.Null);
+            Assert.That(provider.GetRequiredService<OpcUaSessionManager>().IsConnected, Is.False);
+        }
+
         [Test]
         public async Task CatalogueContainsOnlyApprovedToolsAsync()
         {

@@ -60,8 +60,7 @@
     <ProjectReference Include="..\Opc.Ua.Mcp.XRegistry\Opc.Ua.Mcp.XRegistry.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Schema\Opc.Ua.Mcp.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Gds\Opc.Ua.Mcp.Gds.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Mcp.ClientWorkflows\Opc.Ua.Mcp.ClientWorkflows.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Mcp.WotRuntime\Opc.Ua.Mcp.WotRuntime.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.Workflows\Opc.Ua.Mcp.Workflows.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.WotCon\Opc.Ua.Mcp.WotCon.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
