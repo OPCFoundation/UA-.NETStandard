@@ -97,7 +97,7 @@ namespace Alarms
         /// <summary>
         /// Initializes the node manager with the period of the alarm simulation in milliseconds.
         /// </summary>
-        public AlarmNodeManager(
+        internal AlarmNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string[] namespaceUris,
