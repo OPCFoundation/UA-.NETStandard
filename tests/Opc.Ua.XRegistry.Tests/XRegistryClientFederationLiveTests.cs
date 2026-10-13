@@ -296,7 +296,7 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
-                            proxySession, ObjectIds.Server, target, context.Token).ConfigureAwait(false));
+                            proxySession, ObjectIds.ObjectsFolder, target, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
                 }).ConfigureAwait(false);
             }).ConfigureAwait(false);
@@ -430,7 +430,7 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     var client = new GenericXRegistryClient(session, telemetry);
                     await action(new RegistryContext(
-                        client, session, created.ResourceNodeId, resourceXid, timeout.Token, resource, root, telemetry))
+                        client, session, created.ResourceNodeId, resourceXid, resource, root, telemetry, timeout.Token))
                         .ConfigureAwait(false);
                 }
                 finally
@@ -456,10 +456,10 @@ namespace Opc.Ua.XRegistry.Tests
                 Opc.Ua.Client.ISession session,
                 NodeId resourceNodeId,
                 string resourceXid,
-                CancellationToken token,
                 ResourceState resource,
                 string root,
-                ITelemetryContext telemetry)
+                ITelemetryContext telemetry,
+                CancellationToken token)
             {
                 Resource = resource;
                 Root = root;
