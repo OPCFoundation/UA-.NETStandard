@@ -275,7 +275,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             ApplicationConfiguration configuration,
             StartupMembershipProbe probe,
             int value) : AsyncCustomNodeManager(server, configuration, probe.NamespaceUri),
-            INodeManagerReadinessParticipant
+            INodeManagerReadinessNotification
         {
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)

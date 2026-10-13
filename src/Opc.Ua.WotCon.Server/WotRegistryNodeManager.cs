@@ -52,7 +52,7 @@ namespace Opc.Ua.WotCon.Server
     /// </summary>
     public sealed class WotRegistryNodeManager :
         AsyncCustomNodeManager,
-        INodeManagerReadinessParticipant,
+        INodeManagerReadinessNotification,
         IWotRegistryReadImageProjection,
         ILocalAddressSpaceOwnership
     {
