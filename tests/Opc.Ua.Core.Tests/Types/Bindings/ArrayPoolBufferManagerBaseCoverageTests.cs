@@ -263,24 +263,21 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 NUnitTelemetryContext.Create(),
                 metadataByteCount: 0);
 
-#if NET5_0_OR_GREATER
+            // the bounded pool never falls back to the next bucket, on any framework
             const int minimumExpectedSize = 16;
-#else
-            const int minimumExpectedSize = 32;
-#endif
             Assert.That(manager.GetExpectedBufferSize(0), Is.EqualTo(minimumExpectedSize));
             Assert.That(manager.GetExpectedBufferSize(16), Is.EqualTo(minimumExpectedSize));
             Assert.That(manager.GetExpectedBufferSize(17), Is.EqualTo(2 * minimumExpectedSize));
         }
 
         /// <summary>
-        /// Verifies the inclusive shared-pool threshold with and without metadata.
+        /// Verifies the inclusive bounded-pool threshold with and without metadata.
         /// </summary>
         /// <param name="maxBufferSize">The maximum payload size.</param>
         /// <param name="metadataByteCount">The metadata size.</param>
         [TestCase(1024 * 1024, 0)]
         [TestCase((1024 * 1024) - 1, 1)]
-        public void PoolSelectionAtThresholdUsesSharedPool(
+        public void PoolSelectionAtThresholdUsesProcessWideBoundedPool(
             int maxBufferSize,
             int metadataByteCount)
         {
@@ -288,7 +285,23 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 maxBufferSize,
                 metadataByteCount);
 
-            Assert.That(pool, Is.SameAs(ArrayPool<byte>.Shared));
+            Assert.That(pool, Is.Not.SameAs(ArrayPool<byte>.Shared));
+            Assert.That(pool, Is.SameAs(BoundedArrayPool.GetShared(1024 * 1024)));
+        }
+
+        /// <summary>
+        /// Verifies that client and server managers of the default transport buffer size
+        /// share one bounded pool, whatever cookie they append.
+        /// </summary>
+        [Test]
+        public void DefaultTransportBufferManagersShareOneBoundedPool()
+        {
+            ArrayPool<byte> fast = ArrayPoolBufferManagerBase.CreateArrayPool(65535, 0);
+            ArrayPool<byte> cookie = ArrayPoolBufferManagerBase.CreateArrayPool(65535, 1);
+
+            Assert.That(fast, Is.SameAs(cookie));
+            Assert.That(((BoundedArrayPool)fast).MaxArrayLength, Is.EqualTo(65536));
+            Assert.That(((BoundedArrayPool)fast).MaxArraysPerBucket, Is.EqualTo(1024));
         }
 
         /// <summary>

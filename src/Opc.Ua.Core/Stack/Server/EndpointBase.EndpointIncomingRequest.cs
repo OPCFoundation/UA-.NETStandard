@@ -34,12 +34,26 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// An incoming request whose <see cref="IEndpointIncomingRequest.CallAsync"/> links the
+    /// cancellation token it was scheduled with into its request lifetime, so the request queue
+    /// need not link that token again.
+    /// </summary>
+    internal interface ILinksScheduledCancellation
+    {
+        /// <summary>
+        /// The token the request was scheduled with.
+        /// </summary>
+        CancellationToken ScheduledCancellationToken { get; }
+    }
+
     public abstract partial class EndpointBase
     {
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
+        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>,
+            ILinksScheduledCancellation
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -91,14 +105,12 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public readonly async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
-                using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
-                    TimeProvider.System.CreateCancellationTokenSource(
-                        TimeSpan.FromMilliseconds((int)Request.RequestHeader.TimeoutHint)) : null;
-
+                // one token source per request for the caller, the transport and the timeout hint
+                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
                 using var requestLifetime = new RequestLifetime(
-                    timeoutHintCts != null ?
-                    [cancellationToken, m_transportCancellationToken, timeoutHintCts.Token] :
-                    [cancellationToken, m_transportCancellationToken]);
+                    timeoutHint > 0 ? TimeSpan.FromMilliseconds(timeoutHint) : TimeSpan.Zero,
+                    cancellationToken,
+                    m_transportCancellationToken);
 
                 // Flow the park sink so a handler that parks (e.g. a held Publish
                 // waiting for notifications) can release the processing worker.
@@ -205,6 +217,10 @@ namespace Opc.Ua
             {
                 return Request.RequestHeader.Equals(other.Request.RequestHeader);
             }
+
+            /// <inheritdoc/>
+            readonly CancellationToken ILinksScheduledCancellation.ScheduledCancellationToken =>
+                m_transportCancellationToken;
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;

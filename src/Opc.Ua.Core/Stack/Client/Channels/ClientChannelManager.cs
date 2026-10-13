@@ -114,7 +114,21 @@ namespace Opc.Ua
         /// </summary>
         public static ITransportBindingRegistry DefaultChannelBindings => GetDefaultBindingsLazy();
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Opens a transport and transfers the supplied certificate handles to it, releasing them on failure.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint.</param>
+        /// <param name="context">The service message context.</param>
+        /// <param name="clientCertificate">The client certificate handle whose ownership is transferred.</param>
+        /// <param name="clientCertificateChain">The certificate chain whose ownership is transferred.</param>
+        /// <param name="connection">An optional reverse-connect waiting connection.</param>
+        /// <param name="ct">The cancellation token supplied by the caller.</param>
+        /// <returns>The opened transport channel.</returns>
+        /// <remarks>
+        /// Managed entries also retain the supplied handles until transport closure. The entry and transport
+        /// share these idempotently disposed handles, not the manager's reusable handles, so transports that do
+        /// not adopt the settings do not leave additional certificate references behind.
+        /// </remarks>
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
@@ -123,7 +137,24 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            ThrowIfDisposed();
+            try
+            {
+                ThrowIfDisposed();
+                if (endpoint is null)
+                {
+                    throw new ArgumentNullException(nameof(endpoint));
+                }
+                if (context is null)
+                {
+                    throw new ArgumentNullException(nameof(context));
+                }
+            }
+            catch
+            {
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
+                throw;
+            }
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel;

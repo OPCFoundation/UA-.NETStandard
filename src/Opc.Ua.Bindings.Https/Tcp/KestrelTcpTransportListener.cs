@@ -930,7 +930,11 @@ namespace Opc.Ua.Bindings
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
-                await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false);
+                if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
+                {
+                    // encoded and not retained for a reconnect: the response is no longer read.
+                    (response as IPooledEncodeable)?.Reuse();
+                }
             }
             catch (Exception ex)
             {

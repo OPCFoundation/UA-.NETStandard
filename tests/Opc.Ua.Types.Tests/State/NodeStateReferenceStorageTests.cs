@@ -50,11 +50,15 @@ namespace Opc.Ua.Types.Tests.State
     [SetUICulture("en-us")]
     public sealed class NodeStateReferenceStorageTests
     {
+        /// <summary>
+        /// Verifies that fresh node reads do not allocate reference storage.
+        /// </summary>
         [Test]
         public void FreshNodeReadsDoNotAllocateReferenceStorage()
         {
             SystemContext context = CreateContext();
             var node = new BaseObjectState(null);
+            Assert.That(s_referenceSnapshotField.GetValue(node), Is.Null);
             IReference reference = CreateReferences(1)[0];
             Assert.That(GetReferences(node, context), Is.Empty);
             Assert.That(node.ReferenceExists(reference.ReferenceTypeId, false, reference.TargetId), Is.False);
@@ -62,7 +66,9 @@ namespace Opc.Ua.Types.Tests.State
             using INodeBrowser browser = CreateBrowser(node, context, ReferenceTypeIds.Aggregates, true);
             Assert.That(ReadBrowser(browser), Is.Empty);
             Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            Assert.That(s_referencesField.GetValue(node), Is.Null);
+            Assert.That(ReferenceStorage(node), Is.Null);
+            Assert.That(s_referenceSnapshotField.GetValue(node), Is.Null,
+                "Empty reads and unsuccessful removals must not allocate an image.");
         }
 
         [TestCase(0)]
@@ -403,6 +409,9 @@ namespace Opc.Ua.Types.Tests.State
             AssertSameReferences(GetReferences(node, context), [childReference, typeReference, explicitReference]);
         }
 
+        /// <summary>
+        /// Verifies that clone shares references but owns independent storage.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
@@ -415,9 +424,9 @@ namespace Opc.Ua.Types.Tests.State
             node.AddReferences(input);
             var copy = (BaseObjectState)node.Clone();
             AssertSameReferences(GetReferences(copy, context), input);
-            Assert.That(s_referencesField.GetValue(node), Is.Not.Null);
-            Assert.That(s_referencesField.GetValue(copy), Is.Not.Null);
-            Assert.That(s_referencesField.GetValue(copy), Is.Not.SameAs(s_referencesField.GetValue(node)));
+            Assert.That(ReferenceStorage(node), Is.Not.Null);
+            Assert.That(ReferenceStorage(copy), Is.Not.Null);
+            Assert.That(ReferenceStorage(copy), Is.Not.SameAs(ReferenceStorage(node)));
             if (count != 0)
             {
                 IReference first = input[0];
@@ -812,6 +821,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dictionary.Version, Is.EqualTo(6));
         }
 
+        /// <summary>
+        /// Verifies that invalid single mutation does not create storage.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
@@ -834,7 +846,7 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(node.ReferenceExists(type, false, target), Is.False);
             }
             Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            Assert.That(s_referencesField.GetValue(node), Is.Null);
+            Assert.That(ReferenceStorage(node), Is.Null);
         }
 
         [TestCase(false)]
@@ -1017,9 +1029,13 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(62u, 1)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid decoded reference preserves XML snapshot and commits binary prefix.
+        /// </summary>
+        /// <param name="xml">The XML flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task InvalidDecodedReferenceCommitsOnlyValidPrefixWithFormatSpecificMaskAsync(bool xml)
+        public async Task InvalidDecodedReferencePreservesXmlSnapshotAndCommitsBinaryPrefixAsync(bool xml)
         {
             SystemContext context = CreateContext();
             var node = new BaseObjectState(null);
@@ -1042,13 +1058,9 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(() => UpdateBinary(node, context, incoming), Throws.ArgumentNullException);
             }
             List<IReference> current = GetReferences(node, context);
-            AssertReferenceValues(current, xml ? [input[1]] : [input[0], input[1]]);
-            if (!xml)
-            {
-                Assert.That(current[0], Is.SameAs(input[0]));
-            }
-            Assert.That(node.ChangeMasks,
-                Is.EqualTo(xml ? NodeStateChangeMasks.References : NodeStateChangeMasks.None));
+            AssertReferenceValues(current, xml ? [input[0]] : [input[0], input[1]]);
+            Assert.That(current[0], Is.SameAs(input[0]));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
             Assert.That(callbacks, Is.Zero);
         }
 
@@ -1341,11 +1353,16 @@ namespace Opc.Ua.Types.Tests.State
             }
         }
 
+        private static ReferenceDictionary<object?>? ReferenceStorage(NodeState node)
+        {
+            return (s_referenceSnapshotField.GetValue(node) as NodeState.ReferenceSnapshot)?.References;
+        }
+
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
 
-        private static readonly FieldInfo s_referencesField = typeof(NodeState).GetField(
-            "m_references", BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new MissingFieldException(typeof(NodeState).FullName, "m_references");
+        private static readonly FieldInfo s_referenceSnapshotField = typeof(NodeState).GetField(
+            "m_referenceSnapshot", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(typeof(NodeState).FullName, "m_referenceSnapshot");
 
         private static readonly NodeId[] s_referenceTypes =
         [

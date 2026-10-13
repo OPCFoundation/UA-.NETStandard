@@ -1671,7 +1671,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool();
             var budget = new ChunkReassemblyBudget(1024);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
             provider.Setup(value => value.HasSession(It.IsAny<string>())).Returns(() =>
             {
@@ -1693,7 +1693,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool();
             var budget = new ChunkReassemblyBudget(1024);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             provider.Setup(value => value.HasSession(It.IsAny<string>()))
                 .Throws(new InvalidOperationException("Membership lookup failed."));
             using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
@@ -1712,7 +1712,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ManagedMembershipIgnoresSuccessfulResponseCountsAsync()
         {
             var pool = new TrackingArrayPool();
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             bool hasSession = false;
             provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
             using TestServerChannel channel = CreateOpenChannel(pool, bindingProvider: provider.Object);
@@ -1748,7 +1748,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using TestServerChannel probe = CreateOpenChannel(pool);
             int rented = probe.GetRentedLengthForTest(32);
             var budget = new ChunkReassemblyBudget(2 * rented, rented);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             bool hasSession = true;
             provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
             using TestServerChannel holder = CreateOpenChannel(pool, budget: budget);
@@ -1920,7 +1920,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             FakeTimeProvider? clock = null,
             int? channelLifetime = null,
             ChunkReassemblyBudget? budget = null,
-            ISessionBindingProvider? bindingProvider = null,
+            IServerSessionBindingProvider? bindingProvider = null,
             IServerResourceIsolationProvider? isolation = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
