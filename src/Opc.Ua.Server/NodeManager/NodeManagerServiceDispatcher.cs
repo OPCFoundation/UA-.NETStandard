@@ -100,15 +100,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = m_nodeManagers[1].SyncNodeManager.GetManagerHandle(nodeId);
+                // Routing is withdrawn before disposal callbacks release their remaining node references.
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return null;
+                }
+                INodeManager core = routing.NodeManagers[1].SyncNodeManager;
+                handle = core.GetManagerHandle(nodeId);
 
                 if (handle != null)
                 {
-                    nodeManager = m_nodeManagers[1].SyncNodeManager;
+                    nodeManager = core;
                     return handle;
                 }
                 return null;
@@ -145,16 +152,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = await m_nodeManagers[1].GetManagerHandleAsync(nodeId, cancellationToken)
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return (null, null);
+                }
+                IAsyncNodeManager core = routing.NodeManagers[1];
+                handle = await core.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (handle != null)
                 {
-                    return (handle, m_nodeManagers[1]);
+                    return (handle, core);
                 }
                 return (null, null);
             }
