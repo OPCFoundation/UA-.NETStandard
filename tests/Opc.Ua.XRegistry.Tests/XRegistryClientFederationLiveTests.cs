@@ -175,6 +175,214 @@ namespace Opc.Ua.XRegistry.Tests
             }).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a real federation proxy, whose startup admission used a real secured Session to the
+        /// registry, is followed to the verified logical Resource.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceReturnsTheVerifiedLogicalResourceAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
+                {
+                    ResourceTypeClient followed = await context.Client.FollowExternalReferenceAsync(
+                        proxySession, proxyNodeId, target, context.Token).ConfigureAwait(false);
+
+                    Assert.That(followed, Is.Not.Null);
+                    Assert.That(context.Session.Connected, Is.True);
+                    Assert.That(proxySession.Connected, Is.True);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a different trusted application is not followed even when the proxy metadata matches.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceRejectsADifferentTrustedApplicationAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
+                {
+                    XRegistryFederationTarget other = context.CreateTarget(serverUri: "urn:other:application");
+                    await AssertStatusAsync(
+                        context.Client.FollowExternalReferenceAsync(
+                            proxySession, proxyNodeId, other, context.Token).AsTask(),
+                        StatusCodes.BadSecurityChecksFailed).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a different trusted registry root origin is not followed.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceRejectsADifferentRegistryRootAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
+                {
+                    XRegistryFederationTarget other = context.CreateTarget(registryIdentifier: 1234u);
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await context.Client.FollowExternalReferenceAsync(
+                            proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
+                    await Task.CompletedTask.ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a different trusted logical Resource is not followed.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceRejectsADifferentLogicalResourceAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
+                {
+                    XRegistryFederationTarget other = context.CreateTarget(resourceIdentifier: "unknown-resource");
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await context.Client.FollowExternalReferenceAsync(
+                            proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
+                    await Task.CompletedTask.ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a different trusted Xid is not followed.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceRejectsADifferentLogicalXidAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
+                {
+                    XRegistryFederationTarget other = context.CreateTarget(xid: "/groups/schemas/resources/other");
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await context.Client.FollowExternalReferenceAsync(
+                            proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
+                    await Task.CompletedTask.ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a non-proxy Object is not followed.
+        /// </summary>
+        [Test]
+        public async Task FollowExternalReferenceRejectsANonProxyNodeAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+
+                await WithProxyAsync(context, target, async (proxySession, _) =>
+                {
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await context.Client.FollowExternalReferenceAsync(
+                            proxySession, ObjectIds.Server, target, context.Token).ConfigureAwait(false));
+                    await Task.CompletedTask.ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a logical Resource whose Open method is not executable is rejected.
+        /// </summary>
+        [Test]
+        public async Task VerifyLogicalResourceRejectsANonExecutableOpenMethodAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+                context.Resource.Open!.Executable = false;
+
+                await AssertStatusAsync(
+                    context.Client.VerifyLogicalResourceAsync(
+                        target, context.EndpointUrl, context.Token).AsTask(),
+                    StatusCodes.BadNotSupported).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a logical Resource whose Read method is not user executable is rejected.
+        /// </summary>
+        [Test]
+        public async Task VerifyLogicalResourceRejectsANonUserExecutableReadMethodAsync()
+        {
+            await WithRegistryAsync(async context =>
+            {
+                XRegistryFederationTarget target = context.CreateTarget();
+                context.Resource.Read!.UserExecutable = false;
+
+                await AssertStatusAsync(
+                    context.Client.VerifyLogicalResourceAsync(
+                        target, context.EndpointUrl, context.Token).AsTask(),
+                    StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        private static async Task WithProxyAsync(
+            RegistryContext context,
+            XRegistryFederationTarget target,
+            Func<Opc.Ua.Client.ISession, NodeId, Task> action)
+        {
+            string proxyRoot = Path.Combine(context.Root, "proxy");
+            var factory = new FederationNodeManagerFactory(new XRegistryServerOptions
+            {
+                PublishFederationProxy = true,
+                RemoteEndpointUrl = context.EndpointUrl,
+                FederationTarget = target,
+                FederationProvider = context.Client
+            });
+            var fixture = new ServerFixture<ProxyServer>(telemetry => new ProxyServer(telemetry, factory))
+            {
+                AutoAccept = true
+            };
+            ProxyServer? server = null;
+            try
+            {
+                server = await fixture.StartAsync(proxyRoot).ConfigureAwait(false);
+                await using var connection = new ClientFixture(context.Telemetry);
+                await connection.LoadClientConfigurationAsync(proxyRoot, "XRegistryFederationProxyClient")
+                    .ConfigureAwait(false);
+                using Opc.Ua.Client.ISession session = await connection.ConnectAsync(
+                    new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),
+                    SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                try
+                {
+                    ushort ns = (ushort)session.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
+                    await action(session, new NodeId(XRegistryWellKnown.FederationProxyObject, ns))
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                server?.Dispose();
+            }
+        }
+
         private static async Task AssertStatusAsync(Task action, StatusCode expected)
         {
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
@@ -222,7 +430,8 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     var client = new GenericXRegistryClient(session, telemetry);
                     await action(new RegistryContext(
-                        client, session, created.ResourceNodeId, resourceXid, timeout.Token)).ConfigureAwait(false);
+                        client, session, created.ResourceNodeId, resourceXid, timeout.Token, resource, root, telemetry))
+                        .ConfigureAwait(false);
                 }
                 finally
                 {
@@ -247,8 +456,14 @@ namespace Opc.Ua.XRegistry.Tests
                 Opc.Ua.Client.ISession session,
                 NodeId resourceNodeId,
                 string resourceXid,
-                CancellationToken token)
+                CancellationToken token,
+                ResourceState resource,
+                string root,
+                ITelemetryContext telemetry)
             {
+                Resource = resource;
+                Root = root;
+                Telemetry = telemetry;
                 Client = client;
                 Session = session;
                 Token = token;
@@ -257,6 +472,12 @@ namespace Opc.Ua.XRegistry.Tests
             }
 
             public GenericXRegistryClient Client { get; }
+
+            public ResourceState Resource { get; }
+
+            public string Root { get; }
+
+            public ITelemetryContext Telemetry { get; }
 
             public Opc.Ua.Client.ISession Session { get; }
 
@@ -302,6 +523,37 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 AddNodeManager(factory);
             }
+        }
+
+        private sealed class ProxyServer : ReferenceServer
+        {
+            public ProxyServer(ITelemetryContext telemetry, IAsyncNodeManagerFactory factory)
+                : base(telemetry)
+            {
+                AddNodeManager(factory);
+            }
+        }
+
+        private sealed class FederationNodeManagerFactory : IAsyncNodeManagerFactory
+        {
+            public FederationNodeManagerFactory(XRegistryServerOptions options)
+            {
+                m_options = options;
+            }
+
+            public ArrayOf<string> NamespacesUris => [XRegistryWellKnown.XRegistryNamespaceUri];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(
+                    new XRegistryFederationNodeManager(server, configuration, m_options));
+            }
+
+            private readonly XRegistryServerOptions m_options;
         }
 
         private sealed class RegistryNodeManagerFactory : IAsyncNodeManagerFactory
