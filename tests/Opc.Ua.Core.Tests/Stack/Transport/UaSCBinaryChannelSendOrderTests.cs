@@ -344,6 +344,52 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A message whose security fails after its chunks took sequence numbers leaves a
+        /// gap the peer would reject: the writer numbers nothing more for the transport and
+        /// reports a transport error, which faults the channel.
+        /// </summary>
+        [Test]
+        public async Task ASealFailureAfterNumberingStopsTheChannelAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var pool = new CountingPool();
+            using SealProbe writer = SealProbe.Create(
+                SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt, telemetry, pool);
+            using SealProbe reader = SealProbe.Create(
+                SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt, telemetry, new CountingPool());
+            var transport = new RecordingTransport(asyncSendEvery: 2);
+            writer.SetTransport(transport);
+            var readerTokens = new Dictionary<uint, ChannelToken>();
+            try
+            {
+                SealProbe.Renew(writer, reader, 1, readerTokens);
+                writer.Send(1, CreateResponse(null, 10));
+                await transport.WaitForMessageCountAsync(1).ConfigureAwait(false);
+
+                byte[]? key = writer.BreakEncryptionForTest();
+                writer.Send(2, CreateResponse(null, 10));
+                await WaitUntilAsync(() => writer.TransportErrorCount > 0).ConfigureAwait(false);
+
+                // sealable again, but the numbers after the gap would be rejected.
+                writer.RestoreEncryptionForTest(key);
+                writer.Send(3, CreateResponse(null, 10));
+                await WaitUntilAsync(() => !writer.HasPendingWritesForTest).ConfigureAwait(false);
+                List<WireChunk> chunks = await transport.WaitForMessageCountAsync(1).ConfigureAwait(false);
+                Assert.That(chunks, Has.Count.EqualTo(1), "nothing was sent after the failed message.");
+                Assert.That(writer.TransportErrorCount, Is.EqualTo(1));
+                await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+            }
+            finally
+            {
+                reader.ReleaseTokens();
+                foreach (ChannelToken token in readerTokens.Values)
+                {
+                    token.Dispose();
+                }
+            }
+        }
+
         [Test]
         public async Task ResponsesQueuedForAReplacedTransportAreNotNumberedAsync()
         {
@@ -883,6 +929,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Forgets the tokens the reader borrowed, so disposing it does not
             /// dispose them.
             /// </summary>
+            /// <summary>
+            /// Number of transport errors the channel reported.
+            /// </summary>
+            public int TransportErrorCount => Volatile.Read(ref m_transportErrors);
+
+            public bool HasPendingWritesForTest => HasPendingWrites;
+
+            /// <summary>
+            /// Replaces the current token's encrypting key with one AES rejects, so the
+            /// next message fails after its chunks took their sequence numbers.
+            /// </summary>
+            public byte[]? BreakEncryptionForTest()
+            {
+                byte[]? key = CurrentToken!.ServerEncryptingKey;
+                CurrentToken!.ServerEncryptingKey = new byte[3];
+                return key;
+            }
+
+            public void RestoreEncryptionForTest(byte[]? key)
+            {
+                CurrentToken!.ServerEncryptingKey = key;
+            }
+
+            protected override void HandleSocketError(ServiceResult result)
+            {
+                Interlocked.Increment(ref m_transportErrors);
+            }
+
+            private int m_transportErrors;
+
             public void ReleaseTokens()
             {
                 ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(null, previous: null);

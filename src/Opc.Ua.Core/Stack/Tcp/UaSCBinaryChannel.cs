@@ -1668,6 +1668,8 @@ namespace Opc.Ua.Bindings
 
                         SealWriteBatch(batch);
                     }
+
+                    ReportSequenceFailure();
                 }
 
                 if (batch.Count == 0)
@@ -1776,6 +1778,12 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Called under <see cref="SendOrder"/>. A write that fails is reported as
         /// a failed write, after its chunks have been returned.
+        /// <para>
+        /// A message that fails after it took sequence numbers leaves a gap the
+        /// peer rejects. The writer then numbers nothing more for that transport,
+        /// and <see cref="RunWritesAsync"/> faults the channel once it has left
+        /// the lock.
+        /// </para>
         /// </remarks>
         private void SealWriteBatch(List<PendingWrite> batch)
         {
@@ -1790,8 +1798,12 @@ namespace Opc.Ua.Bindings
                     // after a reconnect the peer continues from the OpenSecureChannel
                     // response on the new transport and would see a gap. It is
                     // dropped like a write to the closed transport.
+                    // After a message failed once it had taken sequence numbers, nothing
+                    // more is numbered for that transport either: the peer would see the gap.
                     ChannelToken? token = CurrentToken;
-                    if (token == null || !ReferenceEquals(write.Transport, m_transport))
+                    if (token == null ||
+                        !ReferenceEquals(write.Transport, m_transport) ||
+                        ReferenceEquals(write.Transport, m_sequenceBrokenTransport))
                     {
                         message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
                         ReportWriteComplete(
@@ -1804,6 +1816,7 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
+                    long numbered = Interlocked.Read(ref m_sequenceNumber);
                     try
                     {
                         // returns the chunks to the pool when it fails.
@@ -1813,14 +1826,17 @@ namespace Opc.Ua.Bindings
                     catch (Exception ex)
                     {
                         m_logger.UaSCChannelSealFailed(ex, ChannelId, message.RequestId);
-                        ReportWriteComplete(
-                            null,
-                            write.State,
-                            0,
-                            ServiceResult.Create(
-                                ex,
-                                StatusCodes.BadTcpInternalError,
-                                "Could not secure the outgoing message."));
+                        var failure = ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            "Could not secure the outgoing message.");
+                        if (Interlocked.Read(ref m_sequenceNumber) != numbered)
+                        {
+                            // it failed after taking sequence numbers (its security failed).
+                            m_sequenceBrokenTransport = write.Transport;
+                            m_sequenceFailure = failure;
+                        }
+                        ReportWriteComplete(null, write.State, 0, failure);
                         continue;
                     }
                 }
@@ -1832,6 +1848,28 @@ namespace Opc.Ua.Bindings
             {
                 batch.RemoveRange(kept, batch.Count - kept);
             }
+        }
+
+        /// <summary>
+        /// Faults the channel on the transport whose sequence numbers a failed seal
+        /// left with a gap, once the writer no longer holds <see cref="SendOrder"/>.
+        /// </summary>
+        /// <remarks>
+        /// The fault takes the gate, which comes before <see cref="SendOrder"/> in
+        /// the lock order, so it runs on the pool, as a failed write is reported.
+        /// It is ignored once a reconnect replaced the transport.
+        /// </remarks>
+        private void ReportSequenceFailure()
+        {
+            ServiceResult? failure = m_sequenceFailure;
+            if (failure == null)
+            {
+                return;
+            }
+
+            m_sequenceFailure = null;
+            IUaSCByteTransport transport = m_sequenceBrokenTransport!;
+            _ = Task.Run(() => OnTransportError(transport, failure, CancellationToken.None));
         }
 
         /// <summary>
@@ -2601,6 +2639,18 @@ namespace Opc.Ua.Bindings
         /// channel; written under <see cref="m_writeQueueLock"/>.
         /// </summary>
         private bool m_writerStartDeferred;
+
+        /// <summary>
+        /// The transport on which a message failed after taking sequence numbers;
+        /// nothing more is numbered for it. Changed under <see cref="SendOrder"/>.
+        /// </summary>
+        private IUaSCByteTransport? m_sequenceBrokenTransport;
+
+        /// <summary>
+        /// Why <see cref="m_sequenceBrokenTransport"/> was set, until the writer
+        /// reports it (<see cref="ReportSequenceFailure"/>).
+        /// </summary>
+        private ServiceResult? m_sequenceFailure;
 
         /// <summary>
         /// The channel whose received message the current thread is dispatching,
