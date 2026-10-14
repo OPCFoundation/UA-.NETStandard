@@ -1,10 +1,11 @@
 # Generic recycling deployment examples
 
-These examples run the [sample](../README.md) as one coordinator and ten process views.
+These examples run the [sample](../../README.md) as one coordinator and ten process views.
 They use the same synthetic configuration and typed coordination model as the console host.
 They do not add a WoT connector, cloud ingestion, hardware control, or certification.
 Check the sample README's current limitations before using the data.
 
+The Dockerfile publishes and runs the managed .NET 10 target; all eleven services use that one image.
 The repository does not publish a prebuilt image for these examples. Build your own image.
 All private scenarios, certificate stores, user keys, and runtime state stay outside the
 repository and the container build context.

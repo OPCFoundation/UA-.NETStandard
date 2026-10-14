@@ -36,7 +36,8 @@ using Opc.Ua.Recycling;
 if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal))
 {
     Console.WriteLine(
-        "Generic recycling sample (.NET 10).\n" +
+        "Generic recycling sample (.NET 8, 9 and 10).\n" +
+        "From source: dotnet run -f <net8.0|net9.0|net10.0> -- <options>.\n" +
         "Select --role coordinator or --process <collection|sorting|shredding|washing|density-separation|" +
         "drying|extrusion|melt-filtration|pelletizing|bagging>.\n" +
         "Required: --identities <provisioned-role-mapping.json>.\n" +
