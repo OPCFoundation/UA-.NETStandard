@@ -252,6 +252,7 @@ namespace Opc.Ua.Bindings
             IUaSCByteTransport,
             IUaSCByteTransportLimits,
             IUaSCChunkCoalescing,
+            IUaSCReceiveBuffering,
             IUaSCHandshakeCompletionSource,
             IDisposable
         {
@@ -494,6 +495,12 @@ namespace Opc.Ua.Bindings
             /// </summary>
             bool IUaSCChunkCoalescing.CanCoalesceChunks =>
                 m_transport is IUaSCChunkCoalescing coalescing && coalescing.CanCoalesceChunks;
+
+            /// <summary>
+            /// Whether the attached transport holds the whole next chunk in memory.
+            /// </summary>
+            bool IUaSCReceiveBuffering.HasBufferedChunk =>
+                m_transport is IUaSCReceiveBuffering buffering && buffering.HasBufferedChunk;
 
             /// <summary>
             /// Claims expiry against handshake completion using the original, non-renewable deadline.

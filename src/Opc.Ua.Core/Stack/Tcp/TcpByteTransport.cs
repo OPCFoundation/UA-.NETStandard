@@ -85,6 +85,7 @@ namespace Opc.Ua.Bindings
         IUaSCByteTransport,
         IUaSCByteTransportLimits,
         IUaSCChunkCoalescing,
+        IUaSCReceiveBuffering,
         IDisposable
     {
         /// <summary>
@@ -504,6 +505,20 @@ namespace Opc.Ua.Bindings
         /// A TCP stream carries chunks back to back.
         /// </summary>
         bool IUaSCChunkCoalescing.CanCoalesceChunks => true;
+
+        /// <summary>
+        /// Whether the staging buffer holds the whole next chunk.
+        /// </summary>
+        bool IUaSCReceiveBuffering.HasBufferedChunk
+        {
+            get
+            {
+                byte[]? staging = m_staging;
+                return staging != null &&
+                    m_stagedCount >= TcpMessageLimits.MessageTypeAndSize &&
+                    BitConverter.ToInt32(staging, m_stagedOffset + 4) <= m_stagedCount;
+            }
+        }
 
         void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
         {

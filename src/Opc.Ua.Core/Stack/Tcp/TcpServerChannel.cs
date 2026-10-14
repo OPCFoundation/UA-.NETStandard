@@ -505,6 +505,9 @@ namespace Opc.Ua.Bindings
             // stack. See ProcessRequestMessage.
             if (pending is PendingRequestDispatch dispatch)
             {
+                // a request that runs to completion here queues its response on
+                // this thread; the receive loop starts the writer for all of them.
+                UaSCUaBinaryChannel? dispatching = DeferWriterStart();
                 try
                 {
                     RequestReceived?.Invoke(this, dispatch.RequestId, dispatch.Request);
@@ -519,8 +522,17 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
+                    EndDeferWriterStart(dispatching);
                     dispatch.Chunks?.Release(BufferManager, "ProcessRequestMessage");
                 }
+            }
+
+            // The responses the dispatch of the chunks read so far queued go out
+            // together once no complete chunk is left to dispatch, before the
+            // receive loop can wait for the peer or for write capacity.
+            if (Transport is not IUaSCReceiveBuffering { HasBufferedChunk: true })
+            {
+                StartDeferredWriter();
             }
 
             return ownsBuffer;

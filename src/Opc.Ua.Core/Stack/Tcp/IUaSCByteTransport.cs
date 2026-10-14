@@ -174,6 +174,22 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Implemented by byte transports that read ahead of the chunk they return,
+    /// so that the receiver can tell whether the next chunk is already in memory.
+    /// </summary>
+    internal interface IUaSCReceiveBuffering
+    {
+        /// <summary>
+        /// Whether a complete chunk has been read from the connection and not
+        /// yet returned, so that the next
+        /// <see cref="IUaSCByteTransport.ReceiveChunkAsync(CancellationToken)"/>
+        /// completes without waiting for the peer. Called by the receiving
+        /// thread between receives.
+        /// </summary>
+        bool HasBufferedChunk { get; }
+    }
+
+    /// <summary>
     /// Factory used by client-side transport channels to create an
     /// unconnected <see cref="IUaSCByteTransport"/> instance configured with
     /// the buffer pool and receive sizing required by the UASC channel.
