@@ -227,6 +227,7 @@ namespace Opc.Ua.PubSub.Server
             }
             MethodHandlers.SetSecurityGroupNamespaceIndex(NamespaceIndexes[0]);
 
+            AddStandardConfigurationNodes(diagnosticsNodeManager);
             BindMethods(diagnosticsNodeManager);
             RegisterActionMethodHandlers();
             m_diagnosticsNodeManager = diagnosticsNodeManager;
@@ -271,6 +272,48 @@ namespace Opc.Ua.PubSub.Server
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Materializes implemented optional methods before binding their standard instance nodes.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void AddStandardConfigurationNodes(IDiagnosticsNodeManager diagnosticsNodeManager)
+        {
+            if (!m_options.ExposeConfigurationMethods ||
+                diagnosticsNodeManager.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe)
+                    is not PublishSubscribeState publishSubscribe)
+            {
+                return;
+            }
+
+            publishSubscribe
+                .AddSetSecurityKeys(SystemContext)
+                .AddAddConnection(SystemContext)
+                .AddRemoveConnection(SystemContext)
+                .AddPubSubConfiguration(SystemContext);
+
+            diagnosticsNodeManager.AddNode(publishSubscribe.SetSecurityKeys!);
+            diagnosticsNodeManager.AddNode(publishSubscribe.AddConnection!);
+            diagnosticsNodeManager.AddNode(publishSubscribe.RemoveConnection!);
+
+            PubSubConfigurationState file = publishSubscribe.PubSubConfiguration ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The generated PubSubConfiguration node was not created.");
+            if (file.Writable is not { } writable || file.UserWritable is not { } userWritable)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The generated PubSubConfiguration node is missing mandatory writable attributes.");
+            }
+            writable.Value = true;
+            userWritable.Value = true;
+            BindStandardMethod(file.Open, OnOpenPubSubConfigurationFile);
+            BindStandardMethod(file.Close, OnClosePubSubConfigurationFile);
+            BindStandardMethod(file.Read, OnReadPubSubConfigurationFile);
+            BindStandardMethod(file.Write, OnWritePubSubConfigurationFile);
+            BindStandardMethod(file.ReserveIds, OnReservePubSubConfigurationIds);
+            BindStandardMethod(file.CloseAndUpdate, OnCloseAndUpdatePubSubConfigurationFile);
+            diagnosticsNodeManager.AddNode(file);
+        }
+
         private void BindMethods(IDiagnosticsNodeManager diagnosticsNodeManager)
         {
             MethodState? enable = diagnosticsNodeManager
@@ -300,8 +343,8 @@ namespace Opc.Ua.PubSub.Server
                         }
                     ];
                 }
-                addConn?.OnCallMethod = MethodHandlers.OnAddConnection;
-                removeConn?.OnCallMethod = MethodHandlers.OnRemoveConnection;
+                BindStandardMethod(addConn, MethodHandlers.OnAddConnection);
+                BindStandardMethod(removeConn, MethodHandlers.OnRemoveConnection);
                 BindPublishedDataSetFolderMethods(diagnosticsNodeManager);
             }
 
@@ -332,13 +375,15 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindPublishedDataSetFolderMethods(IDiagnosticsNodeManager diagnosticsNodeManager)
         {
-            BindStandardMethod(diagnosticsNodeManager, AddPublishedDataItemsNodeId, MethodHandlers.OnAddPublishedDataItems);
+            BindStandardMethod(
+                diagnosticsNodeManager, AddPublishedDataItemsNodeId, MethodHandlers.OnAddPublishedDataItems);
             BindStandardMethod(diagnosticsNodeManager, AddPublishedEventsNodeId, MethodHandlers.OnAddPublishedEvents);
             BindStandardMethod(
                 diagnosticsNodeManager,
                 AddPublishedDataItemsTemplateNodeId,
                 MethodHandlers.OnAddPublishedDataItemsTemplate);
-            BindStandardMethod(diagnosticsNodeManager, RemovePublishedDataSetNodeId, MethodHandlers.OnRemovePublishedDataSet);
+            BindStandardMethod(
+                diagnosticsNodeManager, RemovePublishedDataSetNodeId, MethodHandlers.OnRemovePublishedDataSet);
             BindStandardMethod(diagnosticsNodeManager, AddDataSetFolderNodeId, OnAddDataSetFolder);
             BindStandardMethod(diagnosticsNodeManager, RemoveDataSetFolderNodeId, OnRemoveDataSetFolder);
         }
@@ -350,7 +395,19 @@ namespace Opc.Ua.PubSub.Server
         {
             MethodState? method = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(nodeId));
-            method?.OnCallMethod = handler;
+            BindStandardMethod(method, handler);
+        }
+
+        /// <summary>
+        /// Adapts append-style handlers to MethodState's preinitialized output slots.
+        /// </summary>
+        private static void BindStandardMethod(MethodState? method, GenericMethodCalledEventHandler handler)
+        {
+            method?.OnCallMethod = (context, calledMethod, inputs, outputs) =>
+                {
+                    outputs.Clear();
+                    return handler(context, calledMethod, inputs, outputs);
+                };
         }
 
         private void OnConfigurationChanged(
@@ -420,7 +477,8 @@ namespace Opc.Ua.PubSub.Server
                         {
                             BaseObjectState writerGroupNode = CreateObject(
                                 connectionNode,
-                                CreateWriterGroupNodeId(connection.Name ?? string.Empty, writerGroup.Name ?? string.Empty),
+                                CreateWriterGroupNodeId(
+                                    connection.Name ?? string.Empty, writerGroup.Name ?? string.Empty),
                                 writerGroup.Name ?? "WriterGroup",
                                 new NodeId(17725u));
                             BindWriterGroupMethods(writerGroupNode);
@@ -452,7 +510,8 @@ namespace Opc.Ua.PubSub.Server
                         {
                             BaseObjectState readerGroupNode = CreateObject(
                                 connectionNode,
-                                CreateReaderGroupNodeId(connection.Name ?? string.Empty, readerGroup.Name ?? string.Empty),
+                                CreateReaderGroupNodeId(
+                                    connection.Name ?? string.Empty, readerGroup.Name ?? string.Empty),
                                 readerGroup.Name ?? "ReaderGroup",
                                 new NodeId(17999u));
                             BindReaderGroupMethods(readerGroupNode);
@@ -1179,13 +1238,15 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
         {
-            AddInjectedMethod(writerGroupNode, "AddDataSetWriter", MethodHandlers.OnAddDataSetWriter, writerGroupNode.NodeId);
+            AddInjectedMethod(
+                writerGroupNode, "AddDataSetWriter", MethodHandlers.OnAddDataSetWriter, writerGroupNode.NodeId);
             AddPlainMethod(writerGroupNode, "RemoveDataSetWriter", MethodHandlers.OnRemoveDataSetWriter);
         }
 
         private void BindReaderGroupMethods(BaseObjectState readerGroupNode)
         {
-            AddInjectedMethod(readerGroupNode, "AddDataSetReader", MethodHandlers.OnAddDataSetReader, readerGroupNode.NodeId);
+            AddInjectedMethod(
+                readerGroupNode, "AddDataSetReader", MethodHandlers.OnAddDataSetReader, readerGroupNode.NodeId);
             AddPlainMethod(readerGroupNode, "RemoveDataSetReader", MethodHandlers.OnRemoveDataSetReader);
         }
 
@@ -1276,7 +1337,8 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = MethodHandlers.OnRemoveSecurityGroup(context, method, inputArguments, outputArguments);
+            ServiceResult result = MethodHandlers.OnRemoveSecurityGroup(
+                context, method, inputArguments, outputArguments);
             if (StatusCode.IsGood(result.StatusCode))
             {
                 RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
@@ -1600,7 +1662,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            outputArguments.Add(Variant.From(file.Read(length)));
+            outputArguments.Add(Variant.From(ByteString.From(file.Read(length))));
             return ServiceResult.Good;
         }
 
@@ -1966,5 +2028,4 @@ namespace Opc.Ua.PubSub.Server
             Exception exception,
             string id);
     }
-
 }

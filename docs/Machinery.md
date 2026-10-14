@@ -694,6 +694,32 @@ as not carried. Optional fields of the generated ISA-95 structures, such as
 `JobOrderParameters` and `Subparameters`, only reach the wire when their
 `EncodingMask` bit is set.
 
+### Job endpoints and streamed results
+
+`GetJobManagementEndpointsAsync` returns the machine's actual job roles:
+
+```csharp
+MachineryJobManagementEndpoints endpoints =
+    await client.GetJobManagementEndpointsAsync(machineId, ct);
+if (!endpoints.JobResponseProviderId.IsNull)
+{
+    var responses = new Opc.Ua.ISA95.JobControl.V2.ISA95JobResponseProviderObjectTypeClient(
+        client.Session, endpoints.JobResponseProviderId, client.Telemetry);
+    var response = await responses.RequestJobResponseByJobOrderIDAsync("job-1", ct);
+}
+```
+
+Missing roles are `NodeId.Null`; Machinery defines no response receiver.
+The existing three-role `JobManagementAsync` helper retains its historical
+fallback behavior for compatibility. Use the actual role-specific endpoint
+when that distinction matters. ISA-95 return codes are UInt64 bitmaps; only `1`
+means success, independently of the UA service status.
+
+`DownloadResultAsync(machine, resultId, destination, ct)` streams through
+`TemporaryFileTransferClient` and leaves the destination open. The ByteString
+overload shares that implementation. Advanced callers can use
+`OpenResultStreamAsync` and must asynchronously dispose its `UaFileStream`.
+
 ## Conformance matrix
 
 Status key: ✅ implemented and tested · 📄 static NodeSet structure only ·

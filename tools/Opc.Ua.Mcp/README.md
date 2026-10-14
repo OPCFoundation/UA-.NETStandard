@@ -4,7 +4,8 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 ## Features
 
-- **Profile-based tool catalog** covering all OPC UA Part 4 service sets (except session management), plus PKI, configuration, NodeSet export, PubSub, and OPC UA-aware packet capture. The default `full` profile exposes every tool below; smaller profiles (`core`, `services`, `administration`, `pubsub`, `diagnostics`) expose a bounded subset — see [Tool Profiles](../../docs/McpServer.md#tool-profiles)
+- **Profile-based tool catalog** covering OPC UA Part 4 service sets, PKI, configuration, NodeSet export, PubSub, packet capture and industrial companions. The default `full` profile registers all modules, while host-disabled privileged/live tools remain hidden; smaller profiles expose a bounded subset — see [Tool Profiles](../../docs/McpServer.md#tool-profiles)
+- **Higher-level workflows** for GDS/credentials, roles/users, files, alarms, history, schemas and live WoT execution, with explicit host/caller grants, secret references and bounded resource ownership — see [Stack workflow tools](../../docs/McpServer.md#stack-workflow-tools)
 - **Both stdio and Streamable HTTP** transports (HTTP is exposed only at `/mcp`; `--transport sse` is a deprecated alias for `--transport http`)
 - **JSON representation** of all OPC UA types for LLM-friendly interactions; scalar `Variant` values preserve typed `false` and `0` values rather than treating default values as `null`
 - **Session management** via Connect/Disconnect tools
@@ -29,10 +30,11 @@ and neither is provided here.
 
 ### Tool Inventory (`full` profile)
 
-The tables below list every tool available in the default `full` profile. Running with
+The table below lists the general service tools. Running with
 `--profile core|services|administration|pubsub|diagnostics|robotics|vision`
 exposes only the tool classes relevant to that profile — see
-[Tool Profiles](../../docs/McpServer.md#tool-profiles) for the mapping.
+[Tool Profiles](../../docs/McpServer.md#tool-profiles) for the complete catalogue mapping.
+Profiles do not grant permission to execute protected administrative or live operations.
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -68,9 +70,13 @@ builder.Services.AddMcpServer()
 | Package | Tools |
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export |
-| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub transports, configuration, bridges, SKS, actions, discovery |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Gds` | Directory, certificates, credential/token references, onboarding |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms, historical access |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded type discovery/loading and schema artifacts |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon` | WoT management/documents and separately registered HTTP(S), MQTT, Modbus TCP and OPC UA runtimes |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | this ready-to-run `opcua-mcp` tool |
 
 See [Architecture](../../docs/McpServer.md#architecture) for the full picture.

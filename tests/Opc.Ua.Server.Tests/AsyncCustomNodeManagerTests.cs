@@ -1534,6 +1534,44 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Deletion preserves the node's pre-removal model-change eligibility.
+        /// </summary>
+        [TestCase(false, true, false)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        public async Task DeleteNodePreservesModelChangeEligibilityAsync(
+            bool hasNodeVersion,
+            bool requireNodeVersion,
+            bool expectEvent)
+        {
+            using ITestNodeManager manager = CreateManager();
+            manager.RequireNodeVersionForModelChange = requireNodeVersion;
+            var node = new BaseObjectState(null);
+            if (hasNodeVersion)
+            {
+                manager.EnableModelChangeTrackingFor(node);
+            }
+
+            NodeId nodeId = await manager.CreateNodeAsync(
+                manager.SystemContext,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("DeletedObject", manager.NamespaceIndexes[0]),
+                node).ConfigureAwait(false);
+            m_mockServer.Invocations.Clear();
+
+            bool deleted = await manager.DeleteNodeAsync(
+                manager.SystemContext,
+                nodeId).ConfigureAwait(false);
+
+            Assert.That(deleted, Is.True);
+            m_mockServer.Verify(
+                server => server.ReportEvent(It.Is<IFilterTarget>(target => target is GeneralModelChangeEventState)),
+                expectEvent ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
         /// An external write to NodeVersion fires a BaseModelChangeEvent
         /// (Part 5 §9.32.5). The framework-driven bump from
         /// <c>EmitModelChange</c> is suppressed by the re-entrancy guard.

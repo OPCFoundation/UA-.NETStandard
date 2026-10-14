@@ -685,8 +685,7 @@ UaExpert relies on.
 The OPC UA packet-capture feature records UA traffic, stores the
 secure-channel keys needed for offline decoding, reconstructs service
 calls, and replays captured conversations. The reusable engine ships
-as `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`; the OPC UA
-MCP server exposes it as capture, decode, and replay tools.
+as `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`.
 Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
@@ -704,17 +703,13 @@ as a secret.
 
 | Capability | Default | Opt-in mechanism |
 |---|---|---|
-| Frame capture (`start_capture`) | available | `PcapBindings.Install()` / `InstallClient()` / `InstallServer()`, or `AddPcap()` |
+| Frame capture | available | `PcapBindings.Install()` / `InstallClient()` / `InstallServer()`, or `AddPcap()` |
 | Keylog extraction | available when capture runs | implicit when capture is active |
-| MCP `dump_keys` / `decode_pcap_with_keys` / `replay_pcap` | **off** | `PcapOptions.EnableDiagnosticsTools = true` or env `OPCUA_PCAP_ENABLE_DIAGNOSTICS=1` |
 | Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
 | Tamper-evident audit log | **off** | `PcapOptions.EnableTamperEvidentAudit = true` |
 | KMS-backed key escrow (instead of disk) | not registered | register your own `IKeyEscrowProvider` in DI |
 | Env-var auto-start pcap | **off** | `AddPcapFromEnvironment()` + `OPCUA_PCAP_FILE=<path>` |
 | Env-var stand-alone keylog | **off** | `AddPcapFromEnvironment()` + `OPCUA_KEYLOGFILE=<path>` |
-
-When any diagnostic tool is enabled the host emits a `Warning`-level
-log line at startup so the choice is observable in production logs.
 
 #### File-system posture
 
@@ -747,15 +742,6 @@ paths before session folders are created.
 
 The base folder is created with mode `0700` on Unix and inherits the
 user profile ACL on Windows. Override via `PcapOptions.BaseFolder`.
-
-Every MCP tool that accepts a caller-supplied capture or key-log path
-(`decode_pcap_with_keys`, `summarize_service_calls`, `replay_pcap`,
-`pubsub_decode_pcap`, `pubsub_dissect_capture`, `pubsub_load_keylog`,
-`pubsub_write_pcap`) confines it to this folder through
-`McpCapturePath.ResolveAndValidate`, so a path that resolves outside the
-root is rejected rather than read. The root is resolved with the
-precedence `OpcUaMcpOptions.PcapBaseFolder` → `PcapOptions.BaseFolder` →
-the per-user default above.
 
 #### Environment-variable configuration
 
@@ -882,7 +868,7 @@ environment:
    can read them.
 2. Confirm `PcapOptions.BaseFolder` points to a per-user / per-service
    directory (NOT `/tmp` or any shared directory).
-3. Confirm `EnableDiagnosticsTools` is set explicitly (not defaulted)
+3. Confirm remote diagnostic access is explicitly enabled
    and that the MCP transport is authenticated (Bearer token / mutual
    TLS) and audited.
 4. If using replay, populate `AllowedReplayEndpoints` with the
@@ -1528,13 +1514,6 @@ on host shutdown:
 | --- | --- |
 | `OPCUA_PUBSUB_PCAP_FILE` | Auto-start capture; write to this `.pcap` / `.pcapng` on stop. |
 
-### MCP tools
-
-The reference MCP server exposes the PubSub surface as tools — Action /
-configuration, Security Key Service, in-process publish/subscribe runtime, and
-capture / dissection. See [McpServer.md](McpServer.md#pubsub-tools) for the full
-catalogue.
-
 ### Security considerations
 
 The captured key log contains **live security keys** in plaintext JSON-lines.
@@ -1551,9 +1530,6 @@ unchanged.
   `IServiceCollection`.
 - [Sessions](Sessions.md) — the central
   `IClientChannelManager` that packet capture decorates.
-- [MCP Server](McpServer.md) — surfaces the packet-capture
-  tools (`start_capture`, `dump_keys`, `decode_pcap_with_keys`,
-  `replay_pcap`) over JSON-RPC for LLM-driven workflows.
 - [Migration Guide](MigrationGuide.md) — previous releases used
   static `Utils.SetLogger` / `Utils.Trace*` instead of
   `ITelemetryContext`. The migration appendix lists every breaking

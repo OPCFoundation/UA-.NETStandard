@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -64,6 +65,61 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// </remarks>
     public static class StreamingSubscriptionExtensions
     {
+        /// <summary>
+        /// Observes events after the owned monitored item is created and its ConditionRefresh2 request is accepted.
+        /// Refresh markers and subsequent events remain in the returned stream. Disposing its enumerator removes
+        /// only that monitored item, never the caller-owned subscription.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public static IAsyncEnumerable<EventNotification> SubscribeEventsWithRefreshAsync(
+            this IStreamingSubscription streaming,
+            NodeId notifierId,
+            EventFilter filter,
+            MonitoredItems.MonitoredItemOptions? options = null,
+            CancellationToken ct = default)
+        {
+            if (streaming is null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+            if (streaming is not IStreamingSubscriptionReadiness readiness)
+            {
+                throw new NotSupportedException(
+                    "The streaming subscription cannot synchronize refresh with owned monitored-item creation.");
+            }
+            ct.ThrowIfCancellationRequested();
+            return readiness.SubscribeEventsAsync(notifierId, filter, options,
+                async (item, token) =>
+                {
+                    await WaitForMonitoredItemCreatedAsync(item, token).ConfigureAwait(false);
+                    await item.ConditionRefreshAsync(token).ConfigureAwait(false);
+                }, ct);
+        }
+
+        /// <summary>
+        /// Waits for the final server creation result, not merely local registration of a monitored item.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static async ValueTask WaitForMonitoredItemCreatedAsync(
+            this IMonitoredItem item, CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (item.Created)
+                {
+                    return;
+                }
+                if (item is IMonitoredItemApplyState { HasPendingChanges: false } &&
+                    ServiceResult.IsBad(item.Error))
+                {
+                    throw new ServiceResultException(item.Error);
+                }
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Yields items until the predicate returns <c>true</c>. The
         /// matching item is yielded last, then enumeration stops.
