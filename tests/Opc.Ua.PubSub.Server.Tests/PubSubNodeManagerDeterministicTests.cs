@@ -763,9 +763,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25441u))).Returns(AddPushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25444u))).Returns(RemovePushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_AddDataSetFolder)).Returns(AddDataSetFolderMethod);
+                        new NodeId(17398u))).Returns(AddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_RemoveDataSetFolder)).Returns(RemoveDataSetFolderMethod);
+                        new NodeId(17403u))).Returns(RemoveDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(It.IsAny<NodeId>()))
                     .Returns((NodeId id) => id == new NodeId(17406u) ? StatusVariable : null!);

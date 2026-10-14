@@ -413,6 +413,42 @@ namespace Opc.Ua.PubSub.Server.Tests
 
         [Test]
         [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets exposes the DataSetFolderType methods")]
+        public void PublishedDataSetsMethodsAreMaterializedWithTheirInstanceNodeIds()
+        {
+            using var harness = new Harness();
+            var publishedDataSets = new DataSetFolderState(null)
+            {
+                NodeId = ObjectIds.PublishSubscribe_PublishedDataSets,
+                BrowseName = new QualifiedName("PublishedDataSets")
+            };
+
+            ArrayOf<MethodState> methods = PubSubNodeManager.AddPublishedDataSetsMethods(
+                harness.Context,
+                publishedDataSets);
+
+            var ids = new List<(NodeId Method, NodeId Input, NodeId Output)>();
+            foreach (MethodState method in methods)
+            {
+                ids.Add((
+                    method.NodeId,
+                    method.InputArguments?.NodeId ?? NodeId.Null,
+                    method.OutputArguments?.NodeId ?? NodeId.Null));
+                Assert.That(method.Parent, Is.SameAs(publishedDataSets));
+            }
+
+            Assert.That(ids, Is.EqualTo(new List<(NodeId, NodeId, NodeId)>
+            {
+                (new NodeId(17372u), new NodeId(17373u), new NodeId(17374u)),
+                (new NodeId(17375u), new NodeId(17376u), new NodeId(17377u)),
+                (new NodeId(17378u), new NodeId(17379u), new NodeId(17380u)),
+                (new NodeId(17384u), new NodeId(17385u), NodeId.Null),
+                (new NodeId(17398u), new NodeId(17401u), new NodeId(17402u)),
+                (new NodeId(17403u), new NodeId(17404u), NodeId.Null)
+            }));
+        }
+
+        [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets exposes the DataSetFolderType methods")]
         public async Task PublishedDataSetsInstanceMethodsAreBound()
         {
             using var harness = new Harness();
@@ -452,9 +488,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 add,
                 BuildArray(
                     Variant.From("pds-method"),
-                    Variant.From(new ArrayOf<string>(["CurrentTime"])),
+                    Variant.From(new ArrayOf<string>(s_currentTimeAlias)),
                     Variant.From(Array.Empty<DataSetFieldFlags>()),
-                    Variant.FromStructure(new ArrayOf<PublishedVariableDataType>([variable]))),
+                    Variant.FromStructure(new ArrayOf<PublishedVariableDataType>(new[] { variable }))),
                 outputs);
 
             BaseObjectState dataSetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
@@ -615,6 +651,8 @@ namespace Opc.Ua.PubSub.Server.Tests
             return new ArrayOf<Variant>(values);
         }
 
+        private static readonly string[] s_currentTimeAlias = ["CurrentTime"];
+
         private sealed class Harness : IDisposable
         {
             public Harness(
@@ -716,26 +754,26 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25441u))).Returns(AddPushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25444u))).Returns(RemovePushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_AddDataSetFolder)).Returns(AddDataSetFolderMethod);
+                        new NodeId(17398u))).Returns(AddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_RemoveDataSetFolder)).Returns(RemoveDataSetFolderMethod);
+                        new NodeId(17403u))).Returns(RemoveDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedDataItems))
+                        new NodeId(17372u)))
                     .Returns(AddPublishedDataItemsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedEvents))
+                        new NodeId(17375u)))
                     .Returns(AddPublishedEventsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedDataItemsTemplate))
+                        new NodeId(17378u)))
                     .Returns(AddPublishedDataItemsTemplateMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.PublishSubscribe_PublishedDataSets_RemovePublishedDataSet))
+                        new NodeId(17384u)))
                     .Returns(RemovePublishedDataSetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.DataSetFolderType_DataSetFolderName_Placeholder_AddPublishedDataItems))
+                        new NodeId(14479u)))
                     .Returns(PlaceholderAddPublishedDataItemsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        MethodIds.DataSetFolderType_DataSetFolderName_Placeholder_AddDataSetFolder))
+                        new NodeId(16884u)))
                     .Returns(PlaceholderAddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(It.IsAny<NodeId>()))
