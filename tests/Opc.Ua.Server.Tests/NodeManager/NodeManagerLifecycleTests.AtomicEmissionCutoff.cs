@@ -139,6 +139,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
             Task<NodeManagerBatchResult>? commit = null;
             var observed = new Dictionary<uint, DataValue>();
+            // TEMPORARY DIAGNOSTIC (G12 atomic RED): stage probes are not acceptance limits; remove after root repair.
             string stage = "dispatch-entered";
             Exception? primaryFailure = null;
             try
