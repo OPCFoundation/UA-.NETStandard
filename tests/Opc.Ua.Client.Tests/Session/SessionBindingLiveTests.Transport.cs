@@ -169,8 +169,22 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false),
                         Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
                     Assert.That(lease.State, Is.EqualTo(ChannelState.Faulted));
+
+                    // Once the channel manager gives up, a managed session's state machine
+                    // takes over and reconnects after its own backoff. Let that recovery
+                    // start before the manual one and settle after it, so it can neither
+                    // overlap the state assertion nor count as a retry of the bound request.
+                    var managed = session as Client.ManagedSession;
+                    while (managed != null && !managed.Reconnecting)
+                    {
+                        await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+                    }
                     channels.FailConnect = false;
                     await lease.Manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                    if (managed != null)
+                    {
+                        await managed.StateMachine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+                    }
                     Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
                     int connections = channels.Connections;
                     await Assert.ThatAsync(() => binding.ReadValueAsync(
