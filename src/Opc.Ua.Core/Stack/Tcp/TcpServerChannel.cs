@@ -1693,10 +1693,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // decode the request.
-                using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);
-                IServiceRequest request = BinaryDecoder.DecodeMessage<IServiceRequest>(
-                    serviceRequestStream,
-                    Quotas.MessageContext);
+                IServiceRequest request = DecodeRequest(chunksToProcess);
                 if (request == null)
                 {
                     SendServiceFault(
@@ -1757,6 +1754,26 @@ namespace Opc.Ua.Bindings
             {
                 chunksToProcess?.Release(BufferManager, "ProcessRequestMessage");
             }
+        }
+
+        /// <summary>
+        /// Decodes the request in the chunks of a message.
+        /// </summary>
+        /// <remarks>
+        /// A request in one chunk, which most are, is decoded from that chunk's
+        /// buffer without a stream over the chunk list. Either decoder copies the
+        /// values it reads, so the request does not borrow the pooled buffers.
+        /// </remarks>
+        private IServiceRequest DecodeRequest(BufferCollection chunks)
+        {
+            if (chunks.Count == 1)
+            {
+                using var decoder = new BinaryDecoder(chunks[0], Quotas.MessageContext);
+                return decoder.DecodeMessage<IServiceRequest>();
+            }
+
+            using var stream = new ArraySegmentStream(chunks);
+            return BinaryDecoder.DecodeMessage<IServiceRequest>(stream, Quotas.MessageContext);
         }
 
         /// <summary>

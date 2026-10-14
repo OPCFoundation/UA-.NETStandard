@@ -294,10 +294,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket _s = serverSocket;
             using (client)
             {
-                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                var sendLock = (ChannelGate)typeof(TcpByteTransport)
                     .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .GetValue(client)!;
-                sendLock.Wait();
+                ChannelGate.Releaser held = sendLock.Enter();
                 try
                 {
                     using var cts = new CancellationTokenSource();
@@ -314,7 +314,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    sendLock.Release();
+                    held.Dispose();
                 }
             }
         }
@@ -328,10 +328,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket _s = serverSocket;
             using (client)
             {
-                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                var sendLock = (ChannelGate)typeof(TcpByteTransport)
                     .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .GetValue(client)!;
-                sendLock.Wait();
+                ChannelGate.Releaser held = sendLock.Enter();
                 try
                 {
                     Task send = client.SendChunkAsync(
@@ -349,7 +349,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    sendLock.Release();
+                    held.Dispose();
                 }
             }
         }
