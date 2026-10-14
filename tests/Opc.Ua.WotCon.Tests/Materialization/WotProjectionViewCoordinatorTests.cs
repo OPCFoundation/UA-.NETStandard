@@ -66,7 +66,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, m_host,
                 documentConverter: m_converter,
-                viewProjectionHost: m_viewHost);
+                viewProjectionHost: m_viewHost,
+                converterOptions: new WotNodeSetConverterOptions
+                {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                });
         }
 
         [TearDown]

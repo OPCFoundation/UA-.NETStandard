@@ -496,7 +496,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 map[documents[i].Href] = documents[i].Json;
             }
             return new WotProjectionViewBuilder(
-                new MapThingResolver(map), index, null, TestNamespaces());
+                new MapThingResolver(map), index,
+                new WotNodeSetConverterOptions
+                {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                },
+                TestNamespaces());
         }
 
         private static async Task<WotViewProjectionResult> Build(
