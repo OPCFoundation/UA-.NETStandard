@@ -645,7 +645,9 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Returns the system context for an operation, reusing the copy already made
-        /// for the same request. Use it in callbacks that run once per node of a request.
+        /// for the same request. Service calls and the callbacks that run once per node
+        /// of a request share one copy, so a request copies the context once per node
+        /// manager instead of once per call.
         /// </summary>
         private ServerSystemContext GetOperationSystemContext(OperationContext context)
         {
@@ -1885,6 +1887,8 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            // The event filter cannot inspect this node after it has been removed.
+            bool emitNodeDeleted = !RequireNodeVersionForModelChange || node.HasNodeVersion();
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
             NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
@@ -1893,12 +1897,8 @@ namespace Opc.Ua.Server
                     contextToUse,
                     node,
                     cancellationToken).ConfigureAwait(false);
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
-
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -1908,8 +1908,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -1923,23 +1921,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
@@ -1950,7 +1934,10 @@ namespace Opc.Ua.Server
 
             if (ModelChangeEmissionEnabled)
             {
-                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                if (emitNodeDeleted)
+                {
+                    ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                }
                 if (!modelChangeParentId.IsNull)
                 {
                     ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
@@ -2351,11 +2338,8 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
 
             var referencesToRemove = new List<LocalReference>();
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
             try
             {
-                addressSpaceRemovalStarted = true;
                 try
                 {
                     await RemovePredefinedNodeAsync(
@@ -2365,8 +2349,6 @@ namespace Opc.Ua.Server
                 {
                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                 }
-                addressSpaceRemovalCompleted = true;
-
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
                 await RefreshParentComponentCacheAsync(
@@ -2380,23 +2362,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    await RestoreDetachedMonitoredItemsAsync(
-                        detachedItems,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                await RestoreSurvivingMonitoredItemsAsync(detachedItems, failure).ConfigureAwait(false);
                 throw;
             }
 
@@ -2572,22 +2540,61 @@ namespace Opc.Ua.Server
             return detachedItems;
         }
 
-        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+        private async ValueTask RestoreSurvivingMonitoredItemsAsync(
             IReadOnlyList<IMonitoredItem> monitoredItems,
+            Exception deletionFailure)
+        {
+            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                {
+                    survivingItems.Add(monitoredItem);
+                }
+                else
+                {
+                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                }
+            }
+            try
+            {
+                await RestoreDetachedMonitoredItemsAsync(survivingItems, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Node deletion and monitored-item restoration failed.", deletionFailure, restorationFailure);
+            }
+        }
+
+        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+            List<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken)
         {
             TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
-            using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+            List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
-                ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
-                    monitoredItems[ii],
-                    cleanup.Token).ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    throw new ServiceResultException(result);
+                    using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
+                    using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+                    ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                        monitoredItems[ii],
+                        cleanup.Token).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Monitored-item restoration failed.", failures);
             }
         }
 
@@ -4513,9 +4520,22 @@ namespace Opc.Ua.Server
             target.ReadAttributes(
                 systemContext,
                 ref values,
-                Attributes.AccessRestrictions,
-                Attributes.RolePermissions,
-                Attributes.UserRolePermissions);
+                CreateValidationAttributeIds());
+        }
+
+        /// <summary>
+        /// Returns the attributes read by <see cref="ReadValidationAttributes"/>. The array is
+        /// passed to the virtual <see cref="NodeState.ReadAttributes(ISystemContext, ref Variant[], uint[])"/>,
+        /// so every call gets its own; filling it element by element avoids the
+        /// <c>RuntimeHelpers.InitializeArray</c> call of an array initializer.
+        /// </summary>
+        private static uint[] CreateValidationAttributeIds()
+        {
+            uint[] attributeIds = new uint[3];
+            attributeIds[0] = Attributes.AccessRestrictions;
+            attributeIds[1] = Attributes.RolePermissions;
+            attributeIds[2] = Attributes.UserRolePermissions;
+            return attributeIds;
         }
 
         /// <summary>
@@ -4538,7 +4558,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
 
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid view.
             ValidateViewDescription(systemContext, continuationPoint.View!);
@@ -4827,7 +4847,7 @@ namespace Opc.Ua.Server
             IList<NodeId> unresolvedTargetIds,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             // check for valid handle.
@@ -4950,9 +4970,9 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
-            var nodesToValidate = new List<NodeHandle>();
+            List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -4991,7 +5011,7 @@ namespace Opc.Ua.Server
 
                     // must validate node in a separate operation
                     handle.Index = ii;
-                    nodesToValidate.Add(handle);
+                    (nodesToValidate ??= []).Add(handle);
 
                     continue;
                 }
@@ -5044,7 +5064,7 @@ namespace Opc.Ua.Server
             }
 
             // check for nothing to do.
-            if (nodesToValidate.Count == 0)
+            if (nodesToValidate == null)
             {
                 return;
             }
@@ -5214,7 +5234,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
@@ -5942,7 +5962,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -6814,7 +6834,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -7428,7 +7448,7 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             NodeHandle? handle = await GetManagerHandleAsync(
@@ -7488,7 +7508,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
@@ -7585,6 +7605,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asynchronously calls a method on an object.
         /// </summary>
+        /// <param name="context">The context for the method invocation.</param>
+        /// <param name="methodToCall">The requested receiver, method and input arguments.</param>
+        /// <param name="method">The resolved method state.</param>
+        /// <param name="result">The result populated for the Call service response.</param>
+        /// <param name="cancellationToken">The caller's cancellation token.</param>
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             CallMethodRequest methodToCall,
@@ -7605,70 +7630,8 @@ namespace Opc.Ua.Server
                cancellationToken
             ).ConfigureAwait(false);
 
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore set here to the argument results
-                // and return a Bad status code.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
 
         /// <summary>
@@ -7687,7 +7650,7 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(sourceId);
@@ -7723,7 +7686,7 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             ServiceResult firstError = ServiceResult.Good;
 
             // A client has subscribed to the Server object which means all events produced
@@ -8161,7 +8124,7 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -8422,7 +8385,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
@@ -9637,7 +9600,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -9978,7 +9941,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -10141,7 +10104,7 @@ namespace Opc.Ua.Server
             MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var transferredItems = new List<IMonitoredItem>();
             bool deferInitialValues = transferOptions.DeferInitialValues;
 
@@ -10212,7 +10175,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -10602,13 +10565,24 @@ namespace Opc.Ua.Server
             NodeState target,
             CancellationToken cancellationToken = default)
         {
+            ushort namespaceIndex = target.NodeId.NamespaceIndex;
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            {
+                return (
+                    cached.DefaultAccessRestrictions,
+                    cached.DefaultRolePermissions,
+                    cached.DefaultUserRolePermissions);
+            }
+
             AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
             ArrayOf<RolePermissionType> defaultRolePermissions = default;
             ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
 
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
             NamespaceMetadataState? namespaceMetadataState = await
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
                 .ConfigureAwait(false);
 
             if (namespaceMetadataState != null)
@@ -10665,6 +10639,12 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
+                namespaceIndex,
+                defaultAccessRestrictions,
+                defaultRolePermissions,
+                defaultUserRolePermissions));
 
             return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
         }

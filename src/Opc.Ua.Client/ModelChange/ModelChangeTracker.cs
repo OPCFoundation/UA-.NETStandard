@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -247,7 +246,7 @@ namespace Opc.Ua.Client.ModelChange
             {
                 try
                 {
-                    cts.Cancel();
+                    await cts.CancelAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -344,7 +343,8 @@ namespace Opc.Ua.Client.ModelChange
                     options,
                     async (item, itemCt) =>
                     {
-                        await WaitForMonitoredItemCreatedAsync(item, itemCt).ConfigureAwait(false);
+                        await item.WaitForMonitoredItemCreatedAsync(itemCt)
+                            .ConfigureAwait(false);
                         ready.TrySetResult(true);
                     },
                     ct);
@@ -352,29 +352,6 @@ namespace Opc.Ua.Client.ModelChange
 
             ready.TrySetResult(true);
             return m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
-        }
-
-        private static async ValueTask WaitForMonitoredItemCreatedAsync(
-            IMonitoredItem item,
-            CancellationToken ct)
-        {
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                if (item.Created)
-                {
-                    return;
-                }
-
-                if (item is IMonitoredItemApplyState { HasPendingChanges: false } &&
-                    ServiceResult.IsBad(item.Error))
-                {
-                    throw new ServiceResultException(item.Error);
-                }
-
-                await Task.Delay(10, ct).ConfigureAwait(false);
-            }
         }
 
         private static EventFilter BuildModelChangeFilter()
@@ -533,10 +510,8 @@ namespace Opc.Ua.Client.ModelChange
             }
             return false;
 
-            static bool IsUnresolvable(NodeId nodeId, int knownNamespaces)
-            {
-                return !nodeId.IsNull && nodeId.NamespaceIndex >= knownNamespaces;
-            }
+            static bool IsUnresolvable(NodeId nodeId, int knownNamespaces) =>
+                !nodeId.IsNull && nodeId.NamespaceIndex >= knownNamespaces;
         }
 
         private void InvalidateCache(ModelChange change)
@@ -576,5 +551,4 @@ namespace Opc.Ua.Client.ModelChange
             this ILogger logger,
             Exception? exception);
     }
-
 }

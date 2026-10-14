@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
@@ -58,10 +59,15 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
 
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                Client.ISession session = sessionInfo.Session;
                 ArrayOf<Variant> inputArgs = inputArguments != null
                     ? inputArguments.Select(arg => new Variant(arg)).ToArray()
                     : [];
@@ -76,6 +82,9 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeCallsAsync(sessionInfo, methodsToCall, ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 CallResponse response = await session.CallAsync(
                     null,
                     methodsToCall,

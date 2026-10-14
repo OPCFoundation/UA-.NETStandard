@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -88,10 +88,12 @@ namespace Opc.Ua.Mcp
                 options.ProductUri = kProductUri;
             });
             services.AddSingleton<OpcUaSessionManager>();
+            services.AddSingleton<McpFileTransfers>();
 
-            OpcUaMcpOptions options = OpcUaMcpOptions.FromEnvironment();
+            var options = OpcUaMcpOptions.FromEnvironment();
             configure?.Invoke(options);
             services.AddSingleton(options);
+            AddExecutionPolicy(services, options);
             return services;
         }
 
@@ -119,7 +121,9 @@ namespace Opc.Ua.Mcp
                 clientOptions.ProductUri = kProductUri;
             });
             services.AddSingleton<OpcUaSessionManager>();
+            services.AddSingleton<McpFileTransfers>();
             services.AddSingleton(options);
+            AddExecutionPolicy(services, options);
             return services;
         }
 
@@ -143,12 +147,32 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
             mcpServerBuilder.WithRequestFilters(filters =>
             {
                 filters.AddCallToolFilter(McpRequestFilters.ValidateRequiredArguments);
                 filters.AddListToolsFilter(McpSchemaFilters.AddExplicitRequiredArrays);
             });
             return mcpServerBuilder;
+        }
+
+        /// <summary>
+        /// Registers trusted request-identity propagation exactly once on this MCP server.
+        /// Authorization still occurs at the operation and underlying UA request seams.
+        /// </summary>
+        public static IMcpServerBuilder WithOpcUaMcpCallerIdentity(this IMcpServerBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            foreach (ServiceDescriptor descriptor in builder.Services)
+            {
+                if (descriptor.ServiceType == typeof(McpCallerFilterMarker))
+                {
+                    return builder;
+                }
+            }
+            builder.Services.AddSingleton<McpCallerFilterMarker>();
+            builder.WithRequestFilters(filters => filters.AddCallToolFilter(McpExecutionFilters.CaptureCaller));
+            return builder;
         }
 
         /// <summary>
@@ -176,6 +200,7 @@ namespace Opc.Ua.Mcp
             McpToolProfile toolProfile = McpToolProfile.Full)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             switch (toolProfile)
             {
@@ -192,9 +217,21 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
+                    break;
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -221,7 +258,7 @@ namespace Opc.Ua.Mcp
         /// tool set contributes it, deduplicated by tool type. Profiles that
         /// only rely on Part 4 tools indirectly - <see cref="McpToolProfile.Vision"/>,
         /// <see cref="McpToolProfile.Robotics"/> and <see cref="McpToolProfile.Diagnostics"/>
-        /// - cause <see cref="Tools.ConnectionTools"/> to be registered exactly once
+        /// - cause <see cref="ConnectionTools"/> to be registered exactly once
         /// through <see cref="WithOpcUaConnectionTools(IMcpServerBuilder)"/>, so
         /// composing Vision and Robotics on the same builder does not register
         /// the connection tools twice.
@@ -237,6 +274,7 @@ namespace Opc.Ua.Mcp
             McpToolProfileSet toolProfiles)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             if (toolProfiles.Contains(McpToolProfile.Full))
             {
@@ -274,7 +312,7 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Registers <see cref="Tools.ConnectionTools"/> at most once on the
+        /// Registers <see cref="ConnectionTools"/> at most once on the
         /// supplied builder, so several tool packages composed on the same MCP
         /// server share one set of connection tools instead of registering
         /// their own.
@@ -298,6 +336,7 @@ namespace Opc.Ua.Mcp
             this IMcpServerBuilder mcpServerBuilder)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             IServiceCollection services = mcpServerBuilder.Services;
             for (int i = 0; i < services.Count; i++)
@@ -323,6 +362,15 @@ namespace Opc.Ua.Mcp
                 toolProfiles.Contains(McpToolProfile.Diagnostics) ||
                 toolProfiles.Contains(McpToolProfile.Robotics) ||
                 toolProfiles.Contains(McpToolProfile.Vision) ||
+                toolProfiles.Contains(McpToolProfile.Amb) ||
+                toolProfiles.Contains(McpToolProfile.Machinery) ||
+                toolProfiles.Contains(McpToolProfile.Scales) ||
+                toolProfiles.Contains(McpToolProfile.Pumps) ||
+                toolProfiles.Contains(McpToolProfile.Di) ||
+                toolProfiles.Contains(McpToolProfile.Isa95) ||
+                toolProfiles.Contains(McpToolProfile.Positioning) ||
+                toolProfiles.Contains(McpToolProfile.Wot) ||
+                toolProfiles.Contains(McpToolProfile.XRegistry) ||
                 toolProfiles.Contains(McpToolProfile.Full);
         }
 #pragma warning restore RCS1224
@@ -359,7 +407,33 @@ namespace Opc.Ua.Mcp
             registered.Add(typeof(PkiTools));
         }
 
+        /// <summary>
+        /// Registers immutable host defaults while retaining explicitly injected policy implementations.
+        /// </summary>
+        private static void AddExecutionPolicy(IServiceCollection services, OpcUaMcpOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(options.Execution);
+            services.TryAddSingleton(options.Execution.Snapshot());
+            services.TryAddSingleton<McpCallerContext>();
+            services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton<IMcpOperationPolicy>(provider => new McpExecutionPolicy(
+                provider.GetRequiredService<McpExecutionOptions>(),
+                provider.GetRequiredService<McpCallerContext>(),
+                provider.GetRequiredService<ITelemetryContext>()));
+            services.TryAddSingleton<McpRuntimeRegistry>();
+            services.TryAddSingleton(provider => new McpNetworkPolicy(
+                provider.GetRequiredService<IMcpOperationPolicy>(),
+                provider.GetRequiredService<McpExecutionOptions>().NetworkRules,
+                provider.GetService<IMcpDnsResolver>(),
+                provider.GetService<IMcpTcpConnector>()));
+        }
+
         private sealed class ConnectionToolsMarker;
+
+        /// <summary>
+        /// Prevents duplicate request identity filters when several modules share a host.
+        /// </summary>
+        private sealed class McpCallerFilterMarker;
 
         /// <summary>
         /// Registers each tool class the composed profiles asked for, exactly
@@ -432,7 +506,7 @@ namespace Opc.Ua.Mcp
             mcpServerBuilder
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>();
         }
 
@@ -442,7 +516,7 @@ namespace Opc.Ua.Mcp
                 .WithTools<AttributeServiceTools>()
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>()
                 .WithTools<DiscoveryServiceTools>()
                 .WithTools<MethodServiceTools>()
@@ -457,7 +531,7 @@ namespace Opc.Ua.Mcp
             mcpServerBuilder
                 .WithTools<ConfigurationReadTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<NodeSetExportTools>()
                 .WithTools<PkiTools>();
         }
@@ -468,7 +542,7 @@ namespace Opc.Ua.Mcp
                 .WithTools<AttributeServiceTools>()
                 .WithTools<ConfigurationTools>()
                 .WithTools<ConfigurationUpdateTools>()
-                .WithTools<ConnectionTools>()
+                .WithOpcUaConnectionTools()
                 .WithTools<ConvenienceTools>()
                 .WithTools<DiscoveryServiceTools>()
                 .WithTools<MethodServiceTools>()

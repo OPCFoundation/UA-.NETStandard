@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.FileSystem
 {
     /// <summary>
     /// Wraps a server-allocated temporary write file (returned by
-    /// <see cref="TemporaryFileTransferClient.GenerateFileForWriteAsync"/>).
+    /// <see cref="TemporaryFileTransferClient.GenerateFileForWriteAsync(Variant, CancellationToken)"/>).
     /// Owns the close lifecycle: exactly one terminal call —
     /// <see cref="CommitAsync"/> (CloseAndCommit) or
     /// <see cref="DisposeAsync"/> (Close, server rollback) — is sent

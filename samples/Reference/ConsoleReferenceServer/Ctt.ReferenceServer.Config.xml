@@ -194,7 +194,8 @@
     </RegistrationEndpoint>
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>Ctt.ReferenceServer.nodes.xml</NodeManagerSaveFile>
-    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <!-- CTT scripts request short subscription lifetimes and wait for them to expire; Part 4 sets no minimum. -->
+    <MinSubscriptionLifetime>1000</MinSubscriptionLifetime>
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
     <MaxSubscriptionCount>200</MaxSubscriptionCount>
     <MaxEventQueueSize>10000</MaxEventQueueSize>

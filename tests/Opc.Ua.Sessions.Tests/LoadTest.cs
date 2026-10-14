@@ -78,8 +78,11 @@ namespace Opc.Ua.Sessions.Tests
             // fixture for the largest case: one secure channel and one subscription
             // per session plus head-room for the extra writer session. These are
             // caps, not pre-allocations, so a small case pays nothing for the head-room.
-            MaxChannelCount = 10100;
+            // Resource isolation reserves a bootstrap and a reconnect channel and
+            // requires one more shared channel than sessions, so the channel cap
+            // needs the same +3 margin as the framework defaults (100 / 103).
             MaxSessionCount = 10100;
+            MaxChannelCount = MaxSessionCount + 3;
             MaxSubscriptionCount = 10100;
 
             // Each session keeps one long-polled Publish request outstanding. With
@@ -152,9 +155,7 @@ namespace Opc.Ua.Sessions.Tests
 
             var sessions = new ConcurrentBag<ISession>();
             var subscriptions = new ConcurrentBag<Subscription>();
-            var valueChanges = new ConcurrentDictionary<NodeId, int>();
             var monitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
-            var clientHandles = new ConcurrentDictionary<uint, NodeId>();
             using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
             // Resolve the endpoint once so ManagedSession creation does not
@@ -178,6 +179,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
+                var valueChanges = new NodeChangeCounters(nodeIds.Keys);
 
                 // Create reader sessions and subscriptions in parallel
                 var createSessionTasks = new List<Task>();
@@ -197,7 +199,7 @@ namespace Opc.Ua.Sessions.Tests
                             session = managedSession;
                             sessions.Add(session);
 
-                            var handler = new LoadTestDataChangeHandler(valueChanges, clientHandles);
+                            var handler = new LoadTestDataChangeHandler(valueChanges);
 
                             for (int j = 0; j < subscriptionsPerSession; j++)
                             {
@@ -211,7 +213,6 @@ namespace Opc.Ua.Sessions.Tests
 
                                 foreach (NodeId nodeId in nodeIds.Keys)
                                 {
-                                    valueChanges.TryAdd(nodeId, 0);
                                     subscription.TryAddMonitoredItem(
                                         nodeId.ToString(),
                                         nodeId,
@@ -226,7 +227,7 @@ namespace Opc.Ua.Sessions.Tests
 
                                     if (item != null)
                                     {
-                                        clientHandles.TryAdd(item.ClientHandle, nodeId);
+                                        valueChanges.Register(item.ClientHandle, nodeId);
                                     }
                                 }
                             }
@@ -254,8 +255,7 @@ namespace Opc.Ua.Sessions.Tests
                                             MonitoringMode = MonitoringMode.Reporting,
                                             SamplingInterval = 0
                                         };
-                                        valueChanges.TryAdd(nodeId, 0);
-                                        clientHandles.TryAdd(item.ClientHandle, nodeId);
+                                        valueChanges.Register(item.ClientHandle, nodeId);
 
                                         monitoredItems.TryAdd(item.ClientHandle, item);
                                         subscription.AddItem(item);
@@ -273,10 +273,7 @@ namespace Opc.Ua.Sessions.Tests
                                                     dv.DiagnosticInfo.LocalizedText);
                                             }
 
-                                            valueChanges.AddOrUpdate(
-                                                clientHandles[dv.ClientHandle],
-                                                1,
-                                                (key, count) => count + 1);
+                                            valueChanges.Increment(dv.ClientHandle);
                                         }
                                     };
 
@@ -349,15 +346,26 @@ namespace Opc.Ua.Sessions.Tests
                     /* expected */
                 }
 
-                // Wait for server to process last write (testDurationSeconds / writeCount -> time for a single write)
-                // + some publishing intervals for notifications to be processed
-                await Task.Delay((testDurationSeconds / writeCount) + (publishingInterval * 50)).ConfigureAwait(false);
+                // Wait until the notifications of the last writes have been delivered: the
+                // received count stops growing for 10 publishing intervals. A fixed wait counted
+                // notifications that were still queued under load as lost.
+                var drain = System.Diagnostics.Stopwatch.StartNew();
+                long lastReceived = -1;
+                int stableIntervals = 0;
+                while (stableIntervals < 10 && drain.Elapsed < TimeSpan.FromSeconds(testDurationSeconds))
+                {
+                    await Task.Delay(publishingInterval).ConfigureAwait(false);
+                    long received = valueChanges.Total;
+                    stableIntervals = received == lastReceived ? stableIntervals + 1 : 0;
+                    lastReceived = received;
+                }
+                TestContext.Out.WriteLine($"Notifications drained {drain.Elapsed.TotalSeconds:F1} s after the last write.");
 
                 // Verification
                 TestContext.Out.WriteLine($"Writer task wrote {writeCount} times.");
                 const int totalNotifications = sessionCount * subscriptionsPerSession;
                 int expectedNotifications = (writeCount + 1) * totalNotifications * nodeIds.Count;
-                int receivedNotifications = valueChanges.Values.Sum();
+                long receivedNotifications = valueChanges.Total;
 
                 TestContext.Out.WriteLine($"Expected notifications multiplier per node: {totalNotifications}");
                 TestContext.Out.WriteLine($"Total expected notifications: {expectedNotifications}");
@@ -366,7 +374,8 @@ namespace Opc.Ua.Sessions.Tests
                 bool allNodesReceivedChanges = true;
                 foreach (NodeId nodeId in nodeIds.Keys)
                 {
-                    if (valueChanges.TryGetValue(nodeId, out int changes))
+                    long changes = valueChanges.GetCount(nodeId);
+                    if (changes > 0)
                     {
                         TestContext.Out.WriteLine($"Node {nodeId} received {changes} changes.");
                         if (changes < writeCount)
@@ -754,10 +763,19 @@ namespace Opc.Ua.Sessions.Tests
                 TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
                     $"({eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
 
-                // Wait for subscriptions to deliver the events.
-                // Allow enough publishing intervals for all notifications to be sent and acknowledged.
-                const int publishingIntervalsToWait = 20;
-                await Task.Delay(publishingInterval * publishingIntervalsToWait).ConfigureAwait(false);
+                // Wait until the subscriptions have delivered the queued events: the received
+                // count stops growing for 10 publishing intervals.
+                var drain = System.Diagnostics.Stopwatch.StartNew();
+                long lastReceived = -1;
+                int stableIntervals = 0;
+                while (stableIntervals < 10 && drain.Elapsed < TimeSpan.FromSeconds(testDurationSeconds * 2))
+                {
+                    await Task.Delay(publishingInterval).ConfigureAwait(false);
+                    long receivedSoFar = Interlocked.Read(ref eventsReceived);
+                    stableIntervals = receivedSoFar == lastReceived ? stableIntervals + 1 : 0;
+                    lastReceived = receivedSoFar;
+                }
+                TestContext.Out.WriteLine($"Events drained {drain.Elapsed.TotalSeconds:F1} s after the last event.");
 
                 long expectedTotal = (long)eventCount * totalSubscriptions;
                 long received = Interlocked.Read(ref eventsReceived);
@@ -1161,21 +1179,86 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
+        /// Counts the data changes received per node from every subscription.
+        /// </summary>
+        /// <remarks>
+        /// The counters are updated for every notification of 750 subscriptions, so they
+        /// are plain array slots updated with interlocked increments: a shared
+        /// <see cref="ConcurrentDictionary{TKey, TValue}"/> counter per node made the
+        /// callbacks contend on its bucket locks, which slowed the client down enough to
+        /// lose notifications.
+        /// </remarks>
+        private sealed class NodeChangeCounters
+        {
+            public NodeChangeCounters(IEnumerable<NodeId> nodeIds)
+            {
+                foreach (NodeId nodeId in nodeIds)
+                {
+                    m_indexByNode[nodeId] = m_indexByNode.Count;
+                }
+                m_counts = new long[m_indexByNode.Count];
+            }
+
+            /// <summary>
+            /// Remembers which node a monitored item's client handle belongs to.
+            /// </summary>
+            public void Register(uint clientHandle, NodeId nodeId)
+            {
+                m_indexByHandle[clientHandle] = m_indexByNode[nodeId];
+            }
+
+            /// <summary>
+            /// Counts a data change of the monitored item with the client handle.
+            /// </summary>
+            public void Increment(uint clientHandle)
+            {
+                if (m_indexByHandle.TryGetValue(clientHandle, out int index))
+                {
+                    Interlocked.Increment(ref m_counts[index]);
+                }
+            }
+
+            /// <summary>
+            /// The data changes received for a node.
+            /// </summary>
+            public long GetCount(NodeId nodeId)
+            {
+                return Interlocked.Read(ref m_counts[m_indexByNode[nodeId]]);
+            }
+
+            /// <summary>
+            /// The data changes received for all nodes.
+            /// </summary>
+            public long Total
+            {
+                get
+                {
+                    long total = 0;
+                    for (int ii = 0; ii < m_counts.Length; ii++)
+                    {
+                        total += Interlocked.Read(ref m_counts[ii]);
+                    }
+                    return total;
+                }
+            }
+
+            private readonly Dictionary<NodeId, int> m_indexByNode = [];
+            private readonly ConcurrentDictionary<uint, int> m_indexByHandle = new();
+            private readonly long[] m_counts;
+        }
+
+        /// <summary>
         /// Notification handler for the V2 SubscriptionManager path in load tests.
-        /// Routes each <see cref="DataValueChange"/> back to the shared
-        /// <paramref name="valueChanges"/> counter dict via <paramref name="clientHandles"/>.
+        /// Counts each <see cref="DataValueChange"/> in the shared
+        /// <see cref="NodeChangeCounters"/>.
         /// </summary>
         private sealed class LoadTestDataChangeHandler : Client.Subscriptions.ISubscriptionNotificationHandler
         {
-            private readonly ConcurrentDictionary<NodeId, int> m_valueChanges;
-            private readonly ConcurrentDictionary<uint, NodeId> m_clientHandles;
+            private readonly NodeChangeCounters m_valueChanges;
 
-            public LoadTestDataChangeHandler(
-                ConcurrentDictionary<NodeId, int> valueChanges,
-                ConcurrentDictionary<uint, NodeId> clientHandles)
+            public LoadTestDataChangeHandler(NodeChangeCounters valueChanges)
             {
                 m_valueChanges = valueChanges;
-                m_clientHandles = clientHandles;
             }
 
             public ValueTask OnDataChangeNotificationAsync(
@@ -1199,10 +1282,9 @@ namespace Opc.Ua.Sessions.Tests
                             change.DiagnosticInfo.LocalizedText);
                     }
 
-                    if (change.MonitoredItem != null &&
-                        m_clientHandles.TryGetValue(change.MonitoredItem.ClientHandle, out NodeId nodeId))
+                    if (change.MonitoredItem != null)
                     {
-                        m_valueChanges.AddOrUpdate(nodeId, 1, (_, count) => count + 1);
+                        m_valueChanges.Increment(change.MonitoredItem.ClientHandle);
                     }
                 }
                 return default;

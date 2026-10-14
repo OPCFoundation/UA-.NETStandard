@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests
     // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
     // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
 #pragma warning disable CA1001
-    public class AsyncCustomNodeManagerTests
+    public partial class AsyncCustomNodeManagerTests
 #pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
@@ -1145,6 +1145,44 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e => e is GeneralModelChangeEventState)),
                 Times.Once);
+        }
+
+        /// <summary>
+        /// Deletion preserves the node's pre-removal model-change eligibility.
+        /// </summary>
+        [TestCase(false, true, false)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        public async Task DeleteNodePreservesModelChangeEligibilityAsync(
+            bool hasNodeVersion,
+            bool requireNodeVersion,
+            bool expectEvent)
+        {
+            using ITestNodeManager manager = CreateManager();
+            manager.RequireNodeVersionForModelChange = requireNodeVersion;
+            var node = new BaseObjectState(null);
+            if (hasNodeVersion)
+            {
+                manager.EnableModelChangeTrackingFor(node);
+            }
+
+            NodeId nodeId = await manager.CreateNodeAsync(
+                manager.SystemContext,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("DeletedObject", manager.NamespaceIndexes[0]),
+                node).ConfigureAwait(false);
+            m_mockServer.Invocations.Clear();
+
+            bool deleted = await manager.DeleteNodeAsync(
+                manager.SystemContext,
+                nodeId).ConfigureAwait(false);
+
+            Assert.That(deleted, Is.True);
+            m_mockServer.Verify(
+                server => server.ReportEvent(It.Is<IFilterTarget>(target => target is GeneralModelChangeEventState)),
+                expectEvent ? Times.Once() : Times.Never());
         }
 
         /// <summary>
@@ -10288,16 +10326,21 @@ namespace Opc.Ua.Server.Tests
             return monitoredItem;
         }
 
-        private ITestNodeManager CreateManager()
+        /// <summary>
+        /// Creates the selected manager implementation, optionally enabling asynchronous legacy method dispatch.
+        /// </summary>
+        /// <param name="asynchronousLegacyCall">Whether the legacy manager opts into asynchronous method calls.</param>
+        private ITestNodeManager CreateManager(bool asynchronousLegacyCall = false)
         {
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                var cnm2 = new TestableCustomNodeManager2(
-                    m_mockServer.Object,
-                    m_configuration,
-                    m_useSamplingGroups,
-                    m_mockLogger.Object,
-                    m_testNamespaceUri);
+                TestableCustomNodeManager2 cnm2 = asynchronousLegacyCall
+                    ? new AsyncCallTestNodeManager(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri)
+                    : new TestableCustomNodeManager2(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri);
                 var adapter = new AsyncNodeManagerAdapter(cnm2);
                 var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
                 SetupMasterNodeManager(adapterWrapper);

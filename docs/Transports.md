@@ -97,7 +97,15 @@ channels.
 
 ### Committed session bindings
 
-Managed servers expose `ISessionBindingProvider` to their listeners.
+Managed servers expose `IServerSessionBindingProvider` to their listeners.
+This read-only server lookup is separate from the client's
+[`ISessionBindingProvider`](SessionBindings.md), which captures a generation-bound
+dispatch client through `CreateBindingAsync`. Server hosts register custom lookup
+implementations as `IServerSessionBindingProvider`; no shared interface combines
+these capabilities.
+The preview server lookup rename changes its public type identity: custom hosts
+must update implementations and DI registrations and rebuild. It does not change
+the lookup semantics or add members to existing session and transport interfaces.
 `SessionManager` maintains distinct committed session/channel membership:
 reactivation does not add another session, transfer moves only that session's
 binding, and closure, timeout cleanup, or shutdown removes it. Resource

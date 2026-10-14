@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,7 +57,9 @@ namespace Opc.Ua.Mcp.Tools
             "statusCode, sourceTimestamp, and serverTimestamp; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadValueAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Node ID of the variable to read, e.g. 'ns=2;s=MyVariable' or 'i=2258' (ServerStatus/CurrentTime)")] string nodeId,
+            [Description(
+                "Node ID of the variable to read, e.g. 'ns=2;s=MyVariable' or 'i=2258' (ServerStatus/CurrentTime)")]
+            string nodeId,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -72,9 +75,11 @@ namespace Opc.Ua.Mcp.Tools
                     ["value"] = OpcUaJsonHelper.VariantToObject(dataValue.WrappedValue),
                     ["statusCode"] = OpcUaJsonHelper.StatusCodeToString(dataValue.StatusCode),
                     ["sourceTimestamp"] = dataValue.SourceTimestamp != DateTime.MinValue
-                        ? dataValue.SourceTimestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture) : null,
+                        ? dataValue.SourceTimestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+                        : null,
                     ["serverTimestamp"] = dataValue.ServerTimestamp != DateTime.MinValue
-                        ? dataValue.ServerTimestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture) : null
+                        ? dataValue.ServerTimestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+                        : null
                 });
             }
             catch (ServiceResultException ex)
@@ -97,7 +102,8 @@ namespace Opc.Ua.Mcp.Tools
             "node (nodeId, value, statusCode, serviceResult); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadValuesAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of node IDs to read values from, e.g. ['ns=2;s=Temperature', 'ns=2;s=Pressure']")] string[] nodeIds,
+            [Description("Array of node IDs to read values from, e.g. ['ns=2;s=Temperature', 'ns=2;s=Pressure']")]
+            string[] nodeIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -146,14 +152,20 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Node ID of the variable to write")] string nodeId,
             [Description("Value to write (as JSON)")] string value,
             [Description(
-                "Optional data type hint: 'Boolean', 'Int32', 'UInt32', 'Int16', 'UInt16', 'Int64', 'UInt64', 'Float', 'Double', 'String', 'DateTime', 'Byte', 'SByte'")]
+                "Optional data type hint: 'Boolean', 'Int32', 'UInt32', 'Int16', 'UInt16', 'Int64', 'UInt64', " +
+                "'Float', 'Double', 'String', 'DateTime', 'Byte', 'SByte'")]
                  string? dataType = null,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                ISession session = sessionInfo.Session;
                 JsonElement jsonElement = JsonDocument.Parse(value).RootElement;
                 Variant variant = OpcUaJsonHelper.JsonElementToVariant(jsonElement, dataType);
 
@@ -167,6 +179,9 @@ namespace Opc.Ua.Mcp.Tools
                     }
                 ];
 
+                await sessionManager.UaOperationGuard.AuthorizeWritesAsync(sessionInfo, nodesToWrite, ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 WriteResponse response = await session.WriteAsync(null, nodesToWrite, ct).ConfigureAwait(false);
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
@@ -190,7 +205,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Recursively browse the address space from a starting node.
         /// </summary>
         [McpServerTool(Name = "BrowseAll")]
-        [Description("Recursively browse the OPC UA address space from a starting node up to a specified depth. Returns a tree of references.")]
+        [Description(
+            "Recursively browse the OPC UA address space from a starting node up to a specified depth. " +
+            "Returns a tree of references.")]
         public static async Task<string> BrowseAllAsync(
             OpcUaSessionManager sessionManager,
             [Description("Starting node ID (default: 'i=85' for Objects folder)")] string? nodeId = null,
@@ -294,9 +311,14 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            OpcUaSessionManager.SessionInfo sessionInfo = sessionManager.GetSessionInfoOrThrow(sessionName);
             try
             {
+                McpMutationSession operation = await McpMutationSession.CaptureAsync(sessionManager, sessionInfo, ct)
+                    .ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+                sessionInfo = operation.Access;
+                ISession session = sessionInfo.Session;
                 var inputArgs = new List<Variant>();
                 if (inputArguments != null)
                 {
@@ -313,6 +335,9 @@ namespace Opc.Ua.Mcp.Tools
                     InputArguments = inputArgs.ToArray()
                 };
 
+                await sessionManager.UaOperationGuard.AuthorizeCallsAsync(sessionInfo, [request], ct)
+                    .ConfigureAwait(false);
+                operation.VerifyBeforeDispatch(ct);
                 CallResponse response = await session.CallAsync(
                     null,
                     new CallMethodRequest[] { request },
@@ -358,7 +383,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Read all attributes of a single node.
         /// </summary>
         [McpServerTool(Name = "ReadNode")]
-        [Description("Read all standard attributes of a single node (NodeId, BrowseName, DisplayName, Description, NodeClass, etc.). " +
+        [Description(
+            "Read all standard attributes of a single node " +
+            "(NodeId, BrowseName, DisplayName, Description, NodeClass, etc.). " +
             "Returns JSON with those attributes, plus Variable-, Object-, or Method-specific fields depending on the " +
             "node's NodeClass; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadNodeAsync(

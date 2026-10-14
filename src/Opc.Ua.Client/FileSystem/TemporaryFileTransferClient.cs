@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.FileSystem
     /// either <see cref="UaTemporaryWriteFile.CommitAsync"/> (which
     /// invokes <c>CloseAndCommit</c>) or
     /// <see cref="UaTemporaryWriteFile.DisposeAsync"/> (which falls
-    /// back to <c>Close</c>). The wrapped <see cref="System.IO.Stream"/>
+    /// back to <c>Close</c>). The wrapped <see cref="Stream"/>
     /// itself does NOT close the server handle on disposal.
     /// </para>
     /// </remarks>
@@ -90,18 +90,111 @@ namespace Opc.Ua.Client.FileSystem
                 session.MessageContext.Telemetry);
         }
 
-        /// <summary>The session.</summary>
+        /// <summary>
+        /// The session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>The NodeId of the underlying
-        /// <c>TemporaryFileTransferType</c> object.</summary>
+        /// <summary>
+        /// The NodeId of the underlying <c>TemporaryFileTransferType</c> object.
+        /// </summary>
         public NodeId ObjectId { get; }
 
-        /// <summary>The (cloned, immutable) configuration.</summary>
+        /// <summary>
+        /// The (cloned, immutable) configuration.
+        /// </summary>
         public FileSystemClientOptions Options { get; }
 
-        /// <summary>The underlying generated proxy.</summary>
+        /// <summary>
+        /// The underlying generated proxy.
+        /// </summary>
         public TemporaryFileTransferTypeClient Proxy { get; }
+
+        /// <summary>
+        /// Allocates a temporary read handle in the context used to construct this client.
+        /// </summary>
+        public async ValueTask<SessionFileHandle> GenerateFileForReadAsync(
+            SessionRequestContext requestContext, Variant generateOptions = default, CancellationToken ct = default)
+        {
+            ValidateRequestContext(requestContext);
+            (NodeId fileId, uint handle, NodeId completion) = await Proxy.GenerateFileForReadAsync(generateOptions, ct)
+                .ConfigureAwait(false);
+            var file = new FileTypeClient(Session, fileId, Session.MessageContext.Telemetry);
+            try
+            {
+                if (!completion.IsNull)
+                {
+                    await WaitForReadTransferAsync(completion, ct).ConfigureAwait(false);
+                }
+                return new SessionFileHandle(requestContext, file, handle);
+            }
+            catch
+            {
+                await file.CloseAfterFailureAsync(handle).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Allocates a temporary write handle that can only write, close or commit through the original context.
+        /// </summary>
+        public async ValueTask<SessionFileHandle> GenerateFileForWriteAsync(
+            SessionRequestContext requestContext, Variant generateOptions = default, CancellationToken ct = default)
+        {
+            ValidateRequestContext(requestContext);
+            (NodeId fileId, uint handle) = await Proxy.GenerateFileForWriteAsync(generateOptions, ct)
+                .ConfigureAwait(false);
+            var file = new FileTypeClient(Session, fileId, Session.MessageContext.Telemetry);
+            return new SessionFileHandle(requestContext, file, handle, Proxy);
+        }
+
+        /// <summary>
+        /// Performs a bounded temporary upload and explicit CloseAndCommit through one captured session.
+        /// The caller owns the source and receives the final method result without a post-commit cancellation check.
+        /// </summary>
+        /// <exception cref="IOException"></exception>
+        public async ValueTask<(
+            long BytesTransferred, NodeId FileId, NodeId CompletionStateMachine, CallMethodResult Result)>
+            UploadFromAsync(
+            SessionRequestContext requestContext, Stream source, long maxBytes,
+            Variant generateOptions = default, CancellationToken ct = default)
+        {
+            ValidateRequestContext(requestContext);
+            source.ValidateStream(maxBytes, Options.ChunkSize, readingSource: true);
+            if (source.CanSeek && source.Length - source.Position > maxBytes)
+            {
+                throw new IOException("The source exceeds the configured transfer limit.");
+            }
+            SessionFileHandle handle = await GenerateFileForWriteAsync(requestContext, generateOptions, ct)
+                .ConfigureAwait(false);
+            await using (handle.ConfigureAwait(false))
+            {
+                long total = await handle.WriteFromAsync(source, maxBytes, Options.ChunkSize, ct).ConfigureAwait(false);
+                (NodeId completion, CallMethodResult result) = await handle.CommitAsync(ct).ConfigureAwait(false);
+                return (total, handle.FileId, completion, result);
+            }
+        }
+
+        /// <summary>
+        /// Performs a bounded temporary download and Close through one captured session.
+        /// The caller owns the destination; short nonempty reads are not treated as end of file.
+        /// </summary>
+        public async ValueTask<(long BytesTransferred, NodeId FileId, CallMethodResult Result)> DownloadToAsync(
+            SessionRequestContext requestContext, Stream destination, long maxBytes,
+            Variant generateOptions = default, CancellationToken ct = default)
+        {
+            ValidateRequestContext(requestContext);
+            destination.ValidateStream(maxBytes, Options.ChunkSize, readingSource: false);
+            SessionFileHandle handle = await GenerateFileForReadAsync(requestContext, generateOptions, ct)
+                .ConfigureAwait(false);
+            await using (handle.ConfigureAwait(false))
+            {
+                long total = await handle.ReadToAsync(destination, maxBytes, Options.ChunkSize, ct)
+                    .ConfigureAwait(false);
+                CallMethodResult result = await handle.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                return (total, handle.FileId, result);
+            }
+        }
 
         /// <summary>
         /// Asks the server to generate a temporary file for reading.
@@ -152,23 +245,33 @@ namespace Opc.Ua.Client.FileSystem
             }
             catch
             {
-                try
-                {
-                    await fileProxy.CloseAsync(handle, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Best-effort cleanup.
-                }
+                await fileProxy.CloseAfterFailureAsync(handle).ConfigureAwait(false);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Asks the server to allocate a temporary file for writing.
+        /// The returned <see cref="UaTemporaryWriteFile"/> owns the close lifecycle:
+        /// call <see cref="UaTemporaryWriteFile.CommitAsync"/> to publish the file,
+        /// or <see cref="UaTemporaryWriteFile.DisposeAsync"/> to request Close.
+        /// </summary>
+        /// <param name="generateOptions">Server-defined generation options.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask<UaTemporaryWriteFile> GenerateFileForWriteAsync(
+            Variant generateOptions = default, CancellationToken ct = default)
+        {
+            (NodeId fileNodeId, uint handle) = await Proxy
+                .GenerateFileForWriteAsync(generateOptions, ct).ConfigureAwait(false);
+            var fileProxy = new FileTypeClient(Session, fileNodeId, Session.MessageContext.Telemetry);
+            return new UaTemporaryWriteFile(Proxy, fileProxy, fileNodeId, handle, Options.ChunkSize);
         }
 
         /// <summary>
         /// Polls <c>CurrentState/Id</c> of the completion state machine until
         /// the asynchronous generation reaches <c>ReadTransfer</c>.
         /// </summary>
+        /// <exception cref="IOException"></exception>
         private async ValueTask WaitForReadTransferAsync(
             NodeId stateMachine,
             CancellationToken ct)
@@ -221,7 +324,7 @@ namespace Opc.Ua.Client.FileSystem
                     AttributeId = Attributes.Value
                 }
             }.ToArrayOf();
-            TimeSpan delay = TimeSpan.FromMilliseconds(50);
+            var delay = TimeSpan.FromMilliseconds(50);
             while (true)
             {
                 ReadResponse read = await Session.ReadAsync(
@@ -260,38 +363,24 @@ namespace Opc.Ua.Client.FileSystem
             }
         }
 
-        private static readonly TimeSpan s_maxStatePollDelay = TimeSpan.FromSeconds(1);
-
         /// <summary>
-        /// Asks the server to allocate a temporary file for writing.
-        /// The returned <see cref="UaTemporaryWriteFile"/> owns the
-        /// close lifecycle: call
-        /// <see cref="UaTemporaryWriteFile.CommitAsync"/> to publish
-        /// the file or rely on <see cref="UaTemporaryWriteFile.DisposeAsync"/>
-        /// to roll back.
+        /// Refuses to attach a context to a client that was constructed for a different session.
         /// </summary>
-        /// <param name="generateOptions">Server-defined generation
-        /// options.</param>
-        /// <param name="ct">Cancellation token.</param>
-        public async ValueTask<UaTemporaryWriteFile> GenerateFileForWriteAsync(
-            Variant generateOptions = default,
-            CancellationToken ct = default)
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        private void ValidateRequestContext(SessionRequestContext requestContext)
         {
-            (NodeId fileNodeId, uint handle) = await Proxy
-                .GenerateFileForWriteAsync(generateOptions, ct)
-                .ConfigureAwait(false);
-
-            var fileProxy = new FileTypeClient(
-                Session,
-                fileNodeId,
-                Session.MessageContext.Telemetry);
-
-            return new UaTemporaryWriteFile(
-                Proxy,
-                fileProxy,
-                fileNodeId,
-                handle,
-                Options.ChunkSize);
+            if (requestContext is null)
+            {
+                throw new ArgumentNullException(nameof(requestContext));
+            }
+            if (!ReferenceEquals(Session, requestContext.Session))
+            {
+                throw new ArgumentException(
+                    "Construct the temporary-file client with the captured context's Session.", nameof(requestContext));
+            }
         }
+
+        private static readonly TimeSpan s_maxStatePollDelay = TimeSpan.FromSeconds(1);
     }
 }

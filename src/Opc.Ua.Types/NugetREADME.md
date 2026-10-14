@@ -18,6 +18,15 @@ standard address-space proxies on the client side.
 The classes in this package are emitted from the standard XML NodeSet
 by the OPC UA source generators (`Opc.Ua.SourceGeneration.Stack`).
 
+## Captured metadata
+
+`StringTable.GetSnapshot(out long version)` captures an independent mapping and
+its monotonic mutation `Version` in one observation. `EncodeableFactory.Fork()`
+retains independent registration maps. Internal reference, type-table and factory
+images allow publication owners to prepare isolated changes and reject stale
+captures; they do not introduce a public node-manager batch or retention API.
+Empty nodes do not allocate a reference image until mutation or owner capture.
+
 ## WoT / NodeSet conversion
 
 The package also exposes the dependency-light `Opc.Ua.Wot`

@@ -109,6 +109,25 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.Throws<ArgumentNullException>(() => new TestableClientBase(null!, m_telemetry!));
         }
 
+        /// <summary>
+        /// Accessing the message context after closure must report the channel
+        /// failure instead of dereferencing a missing transport channel.
+        /// </summary>
+        [Test]
+        public async Task MessageContextReportsClosedChannelAsync()
+        {
+            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
+            Assert.That(sut.MessageContext, Is.SameAs(m_messageContextMock!.Object));
+
+            await sut.TestCloseChannelAsync().ConfigureAwait(false);
+
+            Assert.That(
+                () => sut.MessageContext,
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadSecureChannelClosed));
+        }
+
         [Test]
         public async Task RequestCompletedAfterChannelCloseWithMetricsDoesNotThrowAsync()
         {

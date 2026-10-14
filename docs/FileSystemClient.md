@@ -22,6 +22,7 @@ to make remote file-system navigation feel like working with a local disk.
 | `UaPath` | `System.IO.Path` | Helpers for parsing, formatting, combining, and splitting OPC UA file paths. |
 | `FileSystemClientOptions` | n/a | Tuning knobs: `ChunkSize`, `MaxBufferedReadSize`, `PathCacheSize`, type-subtype filters. |
 | `TemporaryFileTransferClient` + `UaTemporaryWriteFile` | n/a | Separate surface for Part 5 §C.5 atomic temp-file transfers (`GenerateFileForRead/Write` + `CloseAndCommit`). |
+| `SessionFileHandle` | n/a | Opaque, generation-bound handle for bounded transfers that must not follow a replacement session. |
 
 ## Contents
 
@@ -41,6 +42,7 @@ to make remote file-system navigation feel like working with a local disk.
 - [Error mapping](#error-mapping)
 - [Move, copy, and delete semantics](#move-copy-and-delete-semantics)
 - [Temporary file transfer](#temporary-file-transfer-part-5-c5)
+- [Generation-bound transfers](#generation-bound-transfers)
 - [What lives where](#what-lives-where)
 - [Server-side file bindings](#server-side-file-bindings)
 - [See also](#see-also)
@@ -306,6 +308,48 @@ or dispose the wrapper rather than closing the handle separately. Cleanup
 after a closed session uses the normal `BadSecureChannelClosed` protocol
 failure instead of dereferencing a missing channel.
 
+## Generation-bound transfers
+
+Use [`SessionRequestContext`](Sessions.md#generation-bound-client-requests) when
+retaining a remote file handle across calls. If the owning managed session
+recovers, the transfer fails rather than sending the old handle to its
+replacement.
+
+```csharp
+using Opc.Ua.Client;
+using Opc.Ua.Client.FileSystem;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+await using SessionFileHandle file = await context.OpenFileAsync(fileId, mode: 6, ct);
+long bytes = await file.WriteFromAsync(source, maxBytes: 64 * 1024 * 1024, ct: ct);
+CallMethodResult close = await file.CloseAsync(ct);
+```
+
+`SessionFileHandle` has no raw-handle constructor or import method and cannot be
+attached to another context. Use it sequentially like a stream and dispose it
+before the context. Disposal attempts Close only on the original session;
+cleanup failures are logged without replacing the transfer failure.
+
+For whole transfers, `context.UploadFromWithResultAsync` and
+`context.DownloadToStreamWithResultAsync` return the byte count and unmodified
+Close result, including a refused Close. They enforce chunk and total-byte
+bounds, continue after short nonempty reads, and leave the caller's stream open.
+
+Construct `TemporaryFileTransferClient(context.Session, transferId)` for
+generation-bound temporary transfers. Its context-taking generation overloads
+return `SessionFileHandle`; bounded `UploadFromAsync` and `DownloadToAsync`
+preserve the final method result. Upload returns the file ID, the
+completion-state-machine ID and the actual `CloseAndCommit` result.
+`IsCommitted` remains true if a successful commit has malformed output, so
+disposal does not close the consumed handle again.
+
+Ordinary Close is not an atomic commit or rollback. A known committed result
+is not replaced by late cancellation. Existing raw-handle helpers remain
+compatible, but keep Open/Generate, every chunk and Close/CloseAndUpdate or
+CloseAndCommit on the same captured session; do not recreate a proxy from the
+newly current connection.
+
 ## What lives where
 
 ```
@@ -321,6 +365,7 @@ src/Opc.Ua.Client/FileSystem/
 ├── UaFileInfo.cs                       # System.IO.FileInfo mirror
 ├── UaDirectoryInfo.cs                  # System.IO.DirectoryInfo mirror
 ├── UaFileStream.cs                     # System.IO.Stream mirror
+├── SessionFileHandle.cs                # opaque generation-bound transfer handle
 ├── TemporaryFileTransferClient.cs      # Part 5 §C.5 surface
 └── UaTemporaryWriteFile.cs             # commit/rollback wrapper
 ```

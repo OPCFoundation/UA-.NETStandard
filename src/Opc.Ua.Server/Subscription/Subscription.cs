@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -43,7 +44,8 @@ namespace Opc.Ua.Server
     public class Subscription :
 
         ISubscriptionPublishPipeline,
-        ISubscriptionMonitoredItemLifecycle
+        ISubscriptionMonitoredItemLifecycle,
+        IMonitoredItemReadySink
     {
         /// <summary>
         /// Initializes the object.
@@ -390,6 +392,7 @@ namespace Opc.Ua.Server
                     m_messageQueue.Clear();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
+                    ClearReadyCandidates();
                 }
             }
         }
@@ -683,6 +686,7 @@ namespace Opc.Ua.Server
                     m_itemsToTrigger.Clear();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
+                    ClearReadyCandidates();
                 }
 
                 if (monitoredItems.Count > 0)
@@ -867,8 +871,203 @@ namespace Opc.Ua.Server
         /// Moves the monitored items that have data to report from the check list to the
         /// publish list, including items linked to a triggering item that has data.
         /// </summary>
-        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. Only the items that signalled pending
+        /// notifications since they were last looked at are checked
+        /// (<see cref="IReadySignalingMonitoredItem"/>), so the cost follows the number of
+        /// changed items rather than the size of the subscription. A subscription that has
+        /// an item which cannot signal scans all items, as before.
+        /// </remarks>
         private void PromoteReadyMonitoredItems()
+        {
+            // an item the subscription does not know to signal: a custom IMonitoredItem.
+            if (m_monitoredItems.Count != m_signalingItemCount)
+            {
+                ScanAllMonitoredItems();
+                return;
+            }
+
+            TakeReadyIntake();
+
+            // compacts the candidates in place; triggered items may be appended while the
+            // list is walked and are checked in the same pass.
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                IMonitoredItem monitoredItem = m_readyCandidates[ii];
+                var signaling = (IReadySignalingMonitoredItem)monitoredItem;
+
+                if (!m_monitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, monitoredItem) ||
+                    !ReferenceEquals(node.List, m_itemsToCheck))
+                {
+                    // deleted, or already in the publish list, which checks it again when
+                    // the item leaves the list.
+                    signaling.ReleaseReadySignal();
+                    continue;
+                }
+
+                bool ready = IsReadyToReport(monitoredItem);
+                if (ready)
+                {
+                    m_itemsToCheck.Remove(node);
+                    m_itemsToPublish.AddLast(node);
+                }
+
+                // update any triggered items; ready ones are appended to the publish list.
+                TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+
+                if (!ready && signaling.HasPendingNotifications)
+                {
+                    m_readyCandidates[kept++] = monitoredItem;
+                    continue;
+                }
+
+                // a value queued after the flags were read signals again; one queued before
+                // the release is seen by the second check.
+                signaling.ReleaseReadySignal();
+                if (!ready &&
+                    signaling.HasPendingNotifications &&
+                    signaling.TryAcquireReadySignal())
+                {
+                    m_readyCandidates[kept++] = monitoredItem;
+                }
+            }
+
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// Moves the ready signals received from the monitored items to the candidates.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void TakeReadyIntake()
+        {
+            List<IMonitoredItem> taken;
+            lock (m_readyIntakeLock)
+            {
+                taken = m_readyIntake;
+                if (taken.Count == 0)
+                {
+                    return;
+                }
+                m_readyIntake = m_readyIntakeSpare;
+            }
+
+            m_readyCandidates.AddRange(taken);
+            taken.Clear();
+            m_readyIntakeSpare = taken;
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemReadySink.OnMonitoredItemReady(IMonitoredItem monitoredItem)
+        {
+            lock (m_readyIntakeLock)
+            {
+                m_readyIntake.Add(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Makes the publish timer check a monitored item at its next expiry, for changes
+        /// that the item does not signal itself (created, restored, modified, monitoring
+        /// mode or triggering links changed).
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void MarkReadyCandidate(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
+                signaling.TryAcquireReadySignal())
+            {
+                m_readyCandidates.Add(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Marks a monitored item that left the publish list as a candidate when it still has
+        /// something pending.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void MarkPendingCandidate(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
+                signaling.HasPendingNotifications)
+            {
+                MarkReadyCandidate(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Forgets all candidates when the monitored items are removed together.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void ClearReadyCandidates()
+        {
+            lock (m_readyIntakeLock)
+            {
+                m_readyIntake.Clear();
+            }
+            m_readyCandidates.Clear();
+            m_signalingItemCount = 0;
+            CountPooledItems(-m_pooledItemCount);
+        }
+
+        /// <summary>
+        /// Adds the monitored items of this subscription to the process-wide count that sizes
+        /// the notification pools, and raises the pool bounds when the count grew.
+        /// </summary>
+        /// <remarks>
+        /// The activator pools are process-wide and retain 1024 instances by default. A
+        /// notification is recycled after its message was sent and acknowledged, so about two
+        /// publishing cycles of notifications are in flight; with more items than the bound
+        /// most notifications would be allocated again. The bound follows twice the number of
+        /// monitored items of all subscriptions in the process, capped at
+        /// <see cref="kMaxPooledNotifications"/>, and is never lowered.
+        /// </remarks>
+        private void CountPooledItems(int delta)
+        {
+            if (delta == 0)
+            {
+                return;
+            }
+
+            m_pooledItemCount += delta;
+            long total = Interlocked.Add(ref s_pooledItemCount, delta);
+            if (delta > 0)
+            {
+                int bound = (int)Math.Min(
+                    kMaxPooledNotifications,
+                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
+                MonitoredItemNotificationActivator.Instance.EnsureMaximumRetained(bound);
+                EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
+            }
+        }
+
+        /// <summary>
+        /// Tracks a monitored item that was added to the subscription.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void OnMonitoredItemAdded(IMonitoredItem monitoredItem)
+        {
+            CountPooledItems(1);
+            if (monitoredItem is IReadySignalingMonitoredItem)
+            {
+                m_signalingItemCount++;
+
+                // a value queued before the item was attached to the subscription was not
+                // signalled to it.
+                MarkReadyCandidate(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Checks all monitored items for data to report; used while the subscription has an
+        /// item that does not signal it.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void ScanAllMonitoredItems()
         {
             // check for monitored items that are ready to publish.
             LinkedListNode<IMonitoredItem>? current = m_itemsToCheck.First;
@@ -978,11 +1177,17 @@ namespace Opc.Ua.Server
                     m_monitoredItems.TryGetValue(
                         triggeredItems[ii].Id,
                         out LinkedListNode<IMonitoredItem>? triggeredNode) &&
-                    ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
-                    IsReadyToReport(triggeredNode.Value))
+                    ReferenceEquals(triggeredNode.List, m_itemsToCheck))
                 {
-                    m_itemsToCheck.Remove(triggeredNode);
-                    m_itemsToPublish.AddLast(triggeredNode);
+                    if (IsReadyToReport(triggeredNode.Value))
+                    {
+                        m_itemsToCheck.Remove(triggeredNode);
+                        m_itemsToPublish.AddLast(triggeredNode);
+                    }
+                    else
+                    {
+                        MarkReadyCandidate(triggeredNode.Value);
+                    }
                 }
             }
 
@@ -1564,6 +1769,21 @@ namespace Opc.Ua.Server
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications)
         {
+            // without a lease the message is never recycled.
+            return ((ISubscriptionPublishPipeline)this).Publish(
+                context,
+                out availableSequenceNumbers,
+                out moreNotifications,
+                out _);
+        }
+
+        /// <inheritdoc/>
+        NotificationMessage? ISubscriptionPublishPipeline.Publish(
+            OperationContext context,
+            out ArrayOf<uint> availableSequenceNumbers,
+            out bool moreNotifications,
+            out NotificationMessageLease? lease)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1574,6 +1794,7 @@ namespace Opc.Ua.Server
             {
                 moreNotifications = false;
                 availableSequenceNumbers = default;
+                lease = null;
 
                 // check if expired.
                 if (m_expired)
@@ -1593,7 +1814,8 @@ namespace Opc.Ua.Server
                     message = InnerPublish(
                         context,
                         out availableSequenceNumbers,
-                        out moreNotifications);
+                        out moreNotifications,
+                        out lease);
 
                     lock (m_diagnosticsLock)
                     {
@@ -1680,8 +1902,11 @@ namespace Opc.Ua.Server
         private NotificationMessage? InnerPublish(
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
-            out bool moreNotifications)
+            out bool moreNotifications,
+            out NotificationMessageLease? lease)
         {
+            lease = null;
+
             // check session.
             VerifySession(context);
 
@@ -1711,7 +1936,8 @@ namespace Opc.Ua.Server
                 ? m_messageQueue.TryDequeueQueued(
                     availableSequenceNumberList,
                     m_itemsToPublish.Count > 0,
-                    out moreNotifications)
+                    out moreNotifications,
+                    out lease)
                 : null;
             if (queuedMessage != null)
             {
@@ -1722,16 +1948,24 @@ namespace Opc.Ua.Server
                 return queuedMessage;
             }
 
-            var messages = new List<NotificationMessage>();
+            // the collections are reused by every Publish of the subscription (under m_lock);
+            // the constructed messages copy what they keep.
+            List<NotificationMessage> messages = m_publishMessages;
+            List<MonitoredItemNotification[]?> rentedItemArrays = m_publishRentedItemArrays;
+            messages.Clear();
+            rentedItemArrays.Clear();
 
             if (m_publishingEnabled)
             {
                 DateTime start1 = DateTime.UtcNow;
 
                 // collect notifications to publish.
-                var events = new Queue<EventFieldList>();
-                var datachanges = new Queue<MonitoredItemNotification>();
-                var datachangeDiagnostics = new Queue<DiagnosticInfo>();
+                Queue<EventFieldList> events = m_publishEvents;
+                Queue<MonitoredItemNotification> datachanges = m_publishDataChanges;
+                Queue<DiagnosticInfo> datachangeDiagnostics = m_publishDataChangeDiagnostics;
+                events.Clear();
+                datachanges.Clear();
+                datachangeDiagnostics.Clear();
 
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem>? current = m_itemsToPublish.First;
@@ -1764,6 +1998,7 @@ namespace Opc.Ua.Server
                     {
                         m_itemsToPublish.Remove(current);
                         m_itemsToCheck.AddLast(current);
+                        MarkPendingCandidate(monitoredItem);
                         current = next;
                         continue;
                     }
@@ -1804,6 +2039,10 @@ namespace Opc.Ua.Server
                     {
                         m_itemsToPublish.Remove(current);
                         m_itemsToCheck.AddLast(current);
+
+                        // a value queued while the item was in the publish list was not
+                        // looked at by the publish timer.
+                        MarkPendingCandidate(monitoredItem);
                     }
 
                     while (m_maxNotificationsPerPublish > 0 &&
@@ -1818,10 +2057,12 @@ namespace Opc.Ua.Server
                             events,
                             datachanges,
                             datachangeDiagnostics,
-                            out int notificationCount);
+                            out int notificationCount,
+                            out MonitoredItemNotification[]? rentedItems);
 
                         // add to list of messages to send.
                         messages.Add(message);
+                        rentedItemArrays.Add(rentedItems);
 
                         lock (m_diagnosticsLock)
                         {
@@ -1848,10 +2089,12 @@ namespace Opc.Ua.Server
                         events,
                         datachanges,
                         datachangeDiagnostics,
-                        out int notificationCount);
+                        out int notificationCount,
+                        out MonitoredItemNotification[]? rentedItems);
 
                     // add to list of messages to send.
                     messages.Add(message);
+                    rentedItemArrays.Add(rentedItems);
 
                     lock (m_diagnosticsLock)
                     {
@@ -1900,6 +2143,9 @@ namespace Opc.Ua.Server
                 message.SequenceNumber = m_messageQueue.KeepAliveSequenceNumber;
                 m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
 
+                // the keep-alive is not retained: the response is its only owner.
+                lease = new NotificationMessageLease(message);
+
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 availableSequenceNumbers = availableSequenceNumberList;
                 return message;
@@ -1909,7 +2155,12 @@ namespace Opc.Ua.Server
                 messages,
                 availableSequenceNumberList,
                 out moreNotifications,
-                out uint discardedMessageCount);
+                out uint discardedMessageCount,
+                out NotificationMessageLease newLease,
+                rentedItemArrays);
+            lease = newLease;
+            messages.Clear();
+            rentedItemArrays.Clear();
             moreNotifications |= m_itemsToPublish.Count > 0;
 
             if (discardedMessageCount > 0)
@@ -1953,9 +2204,11 @@ namespace Opc.Ua.Server
             Queue<EventFieldList> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
-            out int notificationCount)
+            out int notificationCount,
+            out MonitoredItemNotification[]? rentedItems)
         {
             notificationCount = 0;
+            rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -1971,52 +2224,59 @@ namespace Opc.Ua.Server
                 ? uint.MaxValue
                 : m_maxNotificationsPerPublish;
 
+            // the counts are known up front, so every list is allocated once at its final size.
+            int eventCount = (int)Math.Min((uint)events.Count, notificationLimit);
+            int dataChangeCount = (int)Math.Min((uint)datachanges.Count, notificationLimit - (uint)eventCount);
+            var notificationData = new ExtensionObject[(eventCount > 0 ? 1 : 0) + (dataChangeCount > 0 ? 1 : 0)];
+            int dataIndex = 0;
+
             // add events.
-            if (events.Count > 0 && notificationCount < notificationLimit)
+            if (eventCount > 0)
             {
-                var eventList = new List<EventFieldList>();
-                while (events.Count > 0 && notificationCount < notificationLimit)
+                var eventList = new EventFieldList[eventCount];
+                for (int ii = 0; ii < eventList.Length; ii++)
                 {
-                    eventList.Add(events.Dequeue());
-                    notificationCount++;
+                    eventList[ii] = events.Dequeue();
                 }
+                notificationCount += eventCount;
                 var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
                 notification.Events = eventList;
-                message.NotificationData =
-                    message.NotificationData.AddItem(new ExtensionObject(notification));
+                notificationData[dataIndex++] = new ExtensionObject(notification);
             }
 
             // add datachanges (space permitting).
-            if (datachanges.Count > 0 && notificationCount < notificationLimit)
+            if (dataChangeCount > 0)
             {
-                bool diagnosticsExist = false;
+                // the array is rented and returned with the payload of the message
+                // (NotificationMessageLease); the message sees an exact-length slice.
+                MonitoredItemNotification[] dataChangeList =
+                    ArrayPool<MonitoredItemNotification>.Shared.Rent(dataChangeCount);
+                rentedItems = dataChangeList;
 
-                var dataChangeList = new List<MonitoredItemNotification>(datachanges.Count);
-                var diagnosticInfos = new List<DiagnosticInfo>(datachanges.Count);
-                while (datachanges.Count > 0 && notificationCount < notificationLimit)
+                // the diagnostics list is only sent when one of the notifications has one,
+                // which is rare, so it is only allocated then.
+                DiagnosticInfo[]? diagnosticInfos = null;
+                for (int ii = 0; ii < dataChangeCount; ii++)
                 {
-                    MonitoredItemNotification datachange = datachanges.Dequeue();
-                    dataChangeList.Add(datachange);
+                    dataChangeList[ii] = datachanges.Dequeue();
 
                     DiagnosticInfo diagnosticInfo = datachangeDiagnostics.Dequeue();
-
                     if (diagnosticInfo != null)
                     {
-                        diagnosticsExist = true;
+                        diagnosticInfos ??= new DiagnosticInfo[dataChangeCount];
+                        diagnosticInfos[ii] = diagnosticInfo;
                     }
-
-                    diagnosticInfos.Add(diagnosticInfo!);
-                    notificationCount++;
                 }
+                notificationCount += dataChangeCount;
 
                 var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
-                notification.MonitoredItems = dataChangeList;
-                notification.DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default!;
-
-                message.NotificationData =
-                    message.NotificationData.AddItem(new ExtensionObject(notification));
+                notification.MonitoredItems = new ArrayOf<MonitoredItemNotification>(
+                    dataChangeList.AsMemory(0, dataChangeCount));
+                notification.DiagnosticInfos = diagnosticInfos.ToArrayOf();
+                notificationData[dataIndex] = new ExtensionObject(notification);
             }
 
+            message.NotificationData = notificationData;
             return message;
         }
 
@@ -2362,6 +2622,9 @@ namespace Opc.Ua.Server
                     triggeringNode.Value.IsReadyToTrigger = false;
                 }
 
+                // the links changed: look at the triggering item at the next publish timer.
+                MarkReadyCandidate(triggeringNode.Value);
+
                 // clear diagnostics if not required.
                 if (!diagnosticsExist)
                 {
@@ -2496,6 +2759,7 @@ namespace Opc.Ua.Server
 
                                 LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
                                 m_monitoredItems.Add(monitoredItem.Id, node);
+                                OnMonitoredItemAdded(monitoredItem);
                                 countChange?.Increment();
 
                                 errors[ii] = monitoredItem.GetCreateResult(out result);
@@ -2799,6 +3063,9 @@ namespace Opc.Ua.Server
                             originalSamplingIntervals[ii],
                             result.RevisedSamplingInterval,
                             monitoredItems[ii].MonitoringMode);
+
+                        // a new filter or sampling interval can change when the item is ready.
+                        MarkReadyCandidate(monitoredItems[ii]);
                     }
 
                     if (filterResults[ii] != null)
@@ -2926,6 +3193,14 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    if (monitoredItem is IReadySignalingMonitoredItem)
+                    {
+                        m_signalingItemCount--;
+                    }
+                    if (m_pooledItemCount > 0)
+                    {
+                        CountPooledItems(-1);
+                    }
                     countChange?.Decrement();
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
@@ -3143,6 +3418,9 @@ namespace Opc.Ua.Server
                             monitoredItems[ii].SamplingInterval,
                             originalMonitoringModes[ii],
                             monitoringMode);
+
+                        // values a SAMPLING item kept are reported once it is REPORTING.
+                        MarkReadyCandidate(monitoredItems[ii]);
                     }
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
@@ -3583,6 +3861,7 @@ namespace Opc.Ua.Server
 
                     LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
                     m_monitoredItems.Add(monitoredItem.Id, node);
+                    OnMonitoredItemAdded(monitoredItem);
 
                     // update sampling interval diagnostics.
                     AddItemToSamplingInterval(
@@ -3775,9 +4054,22 @@ namespace Opc.Ua.Server
         private bool m_waitingForPublish;
         private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
+        private readonly List<NotificationMessage> m_publishMessages = [];
+        private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
+        private readonly Queue<EventFieldList> m_publishEvents = new();
+        private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
+        private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
+        private readonly Lock m_readyIntakeLock = new();
+        private List<IMonitoredItem> m_readyIntake = [];
+        private List<IMonitoredItem> m_readyIntakeSpare = [];
+        private readonly List<IMonitoredItem> m_readyCandidates = [];
+        private int m_signalingItemCount;
+        private int m_pooledItemCount;
+        private static long s_pooledItemCount;
+        private const int kMaxPooledNotifications = 65536;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;
