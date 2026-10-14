@@ -243,8 +243,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(request.Plan.Omissions, Is.Empty);
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-clean");
-            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
+            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), projection.Message);
             Assert.That(projection.Message, Does.Contain("organizing 1 Node(s)"));
             Assert.That(projection.Message, Does.Not.Contain("omitted"));
         }
