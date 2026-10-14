@@ -378,10 +378,18 @@ namespace Opc.Ua.Security.Pkcs11
         private static bool HasSamePublicKey(Certificate a, Certificate b)
         {
             return string.Equals(a.PublicKey.Oid.Value, b.PublicKey.Oid.Value, StringComparison.Ordinal) &&
-                a.PublicKey.EncodedParameters.RawData.AsSpan()
-                    .SequenceEqual(b.PublicKey.EncodedParameters.RawData) &&
+                KeyParameters(a).AsSpan().SequenceEqual(KeyParameters(b)) &&
                 a.PublicKey.EncodedKeyValue.RawData.AsSpan()
                     .SequenceEqual(b.PublicKey.EncodedKeyValue.RawData);
+        }
+
+        /// <summary>
+        /// The DER encoded parameters of the certificate's public key algorithm,
+        /// empty when the certificate has none.
+        /// </summary>
+        private static byte[] KeyParameters(Certificate certificate)
+        {
+            return certificate.PublicKey.EncodedParameters?.RawData ?? [];
         }
 
         /// <summary>
@@ -422,7 +430,7 @@ namespace Opc.Ua.Security.Pkcs11
 
             // CKA_EC_PARAMS holds the DER encoded curve, the same encoding as
             // the parameters of the certificate's public key.
-            byte[] curve = certificate.PublicKey.EncodedParameters.RawData;
+            byte[] curve = KeyParameters(certificate);
 
             // CKA_EC_POINT holds the DER encoded OCTET STRING; some modules
             // store the bare point instead.

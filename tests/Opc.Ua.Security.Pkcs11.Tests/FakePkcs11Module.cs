@@ -581,7 +581,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             byte[] curve;
             using (Certificate eccCertificate = Certificate.FromRawData(EccCertificate))
             {
-                curve = eccCertificate.PublicKey.EncodedParameters.RawData;
+                curve = eccCertificate.PublicKey.EncodedParameters!.RawData;
             }
 
             m_objects.Add(new FakeObject(
