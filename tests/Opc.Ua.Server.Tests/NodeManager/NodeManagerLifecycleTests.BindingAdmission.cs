@@ -269,7 +269,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 304, _ => { }, kReadinessProbeNamespaceUri);
             var callbackFactory = new CallbackSafeNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
-            var outcome = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var attempted = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var addCancellation = new CancellationTokenSource();
             int callbacks = 0;
             manager.AllEventsCallback = async (_, unsubscribe, _) =>
             {
@@ -277,34 +278,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     return;
                 }
-                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                // Documented as unsupported: a null context cannot identify the request that must be drained.
+                Task add = m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, addCancellation.Token)
+                    .AsTask();
+                attempted.TrySetResult(add);
                 try
                 {
-                    // Documented as unsupported: a null context cannot identify the request that must be drained.
-                    await m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, bounded.Token)
-                        .ConfigureAwait(false);
-                    outcome.TrySetResult(null);
+                    await add.ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
                 {
-                    outcome.TrySetResult(ex);
+                    // Observed by the test after it cancels the attempt.
                 }
             };
+            Task<uint>? admission = null;
             try
             {
-                await CreateEventMonitoredItemAsync(
-                    services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
-                Exception? failure = await outcome.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                admission = CreateEventMonitoredItemAsync(
+                    services, subscription.SubscriptionId, ObjectIds.Server, 1);
+                Task add = await attempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                // The token is cancelled only after the attempt started and had time to succeed; an ambient
+                // fallback would complete the add here, a pre-cancelled token could not be told apart.
+                Task completed = await Task.WhenAny(
+                    add, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(ReferenceEquals(completed, add), Is.False);
+                    Assert.That(callbackFactory.CreateCount, Is.Zero);
+                    Assert.That(addCancellation.IsCancellationRequested, Is.False);
+                }
+                addCancellation.Cancel();
+                OperationCanceledException? failure = Assert.CatchAsync<OperationCanceledException>(
+                    async () => await add.WaitAsync(timeout.Token).ConfigureAwait(false));
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(failure, Is.Not.Null);
-                    Assert.That(failure, Is.InstanceOf<OperationCanceledException>());
                     Assert.That(callbackFactory.CreateCount, Is.Zero);
                 }
             }
             finally
             {
+                addCancellation.Cancel();
                 manager.AllEventsCallback = (_, _, _) => default;
+                if (admission is not null)
+                {
+                    await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task DeleteRequestCallbackLifecycleCallUsesItsOwnContextAndSucceedsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
+            uint itemId = await CreateEventMonitoredItemAsync(
+                services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                305, _ => { }, kReadinessProbeNamespaceUri);
+            var callbackFactory = new CallbackSafeNodeManagerFactory(
+                [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
+            OperationContext? deleteContext = null;
+            NodeManagerRegistration? added = null;
+            manager.AllEventsContextCallback = (context, unsubscribe, _) =>
+            {
+                if (unsubscribe)
+                {
+                    Volatile.Write(ref deleteContext, context);
+                }
+                return default;
+            };
+            manager.AllEventsCallback = async (_, unsubscribe, token) =>
+            {
+                if (unsubscribe && added is null)
+                {
+                    added = await m_server.NodeManagerLifecycle.AddAsync(
+                        callbackFactory, Volatile.Read(ref deleteContext), token).ConfigureAwait(false);
+                }
+            };
+            try
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                DeleteMonitoredItemsResponse response = await services.DeleteMonitoredItemsAsync(
+                    m_requestHeader, subscription.SubscriptionId, [itemId])
+                    .WaitAsync(TimeSpan.FromSeconds(15), timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+                    Assert.That(deleteContext, Is.Not.Null);
+                    Assert.That(added, Is.Not.Null);
+                    Assert.That(callbackFactory.CreateCount, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                manager.AllEventsCallback = (_, _, _) => default;
+                manager.AllEventsContextCallback = null!;
                 await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
             }
         }
