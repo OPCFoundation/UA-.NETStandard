@@ -200,7 +200,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             var groups = new List<WotOrganizationalGroup>();
-            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+            WotProjection? projection = WotProjection.Parse(
+                document, diagnostics, m_options.ProjectionCompatibilityMode);
             if (projection is not null && !projection.OrganizingLinks.IsNull)
             {
                 for (int i = 0; i < projection.OrganizingLinks.Count; i++)
