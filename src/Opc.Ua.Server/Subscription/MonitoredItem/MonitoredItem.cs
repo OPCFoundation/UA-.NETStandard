@@ -2446,6 +2446,14 @@ namespace Opc.Ua.Server
                         !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
         }
 
+        /// <summary>
+        /// Retires the item when its source emission was cut off so the cutoff is reported to the subscription.
+        /// </summary>
+        internal void RetireCutOffSource()
+        {
+            EnsureSourceRetirement();
+        }
+
         private void EnsureSourceRetirement(bool includeCaptured = true)
         {
             lock (m_lock)

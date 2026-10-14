@@ -967,6 +967,8 @@ namespace Opc.Ua.Server
             using var emissionLease = emission;
             if (!admitted)
             {
+                // A cut-off source still retires the item so the subscription reports BadNodeIdUnknown.
+                (monitoredItem as MonitoredItem)?.RetireCutOffSource();
                 return;
             }
             using var emissionScope = emission?.EnterSourceEmission();
