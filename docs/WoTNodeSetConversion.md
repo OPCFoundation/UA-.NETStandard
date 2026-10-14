@@ -6,6 +6,10 @@ to NodeSet2. The sections of the conversion guidance live in
 [WoT bindings and conversion](WotBindings.md); the anchors below preserve
 existing links.
 
+For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
+`WotDocumentSet` with caller-supplied thing/schema resolution while preserving
+set-local precedence. It performs no transport I/O itself.
+
 ## Contents
 
 <a id="contents"></a>

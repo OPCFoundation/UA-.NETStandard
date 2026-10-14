@@ -53,6 +53,13 @@ reference the identity abstraction without pulling in the client or the server.
 Resource path plus `/versions/{version}` for a materialized Version file. Replacing document bytes
 never changes `Xid`, `ResourceId`, `VersionId`, AddressSpace placement, or event `Subject`.
 
+Projected groups, logical Resources and concrete Versions retain their
+collection references after generated-node initialization. The inherited
+`Versions` child keeps its xRegistry-qualified browse name, even when a domain
+registry uses another namespace for instance NodeIds. Generic clients accept
+`Organizes` or `HasComponent` collection links and distinguish those from the
+parallel event-notifier chain when checking deletion scope.
+
 Every registry may separately supply an `IResourceContentIdProvider` that maps a document plus its
 format to an opaque content key:
 

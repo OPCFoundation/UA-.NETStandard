@@ -351,6 +351,7 @@ namespace Opc.Ua.Wot
                 options.ToComparisonOptions()).AreEquivalent;
             var entries = new List<WotDocumentSetEntry>();
             WotDocumentSet? preserved = null;
+            long totalBytes = 0;
             try
             {
                 for (int index = 0; index < partitions.Count; index++)
@@ -382,18 +383,21 @@ namespace Opc.Ua.Wot
                         }
                     }
                     json = WotJsonResidue.Apply(json, partition, options, diagnostics);
-                    if (HasErrors(diagnostics) || json.Length > options.MaxJsonDocumentSize)
+                    bool exceedsBytes = json.Length > options.MaxJsonDocumentSize ||
+                        json.Length > options.MaxDocumentSetBytes - totalBytes;
+                    if (HasErrors(diagnostics) || exceedsBytes)
                     {
-                        if (json.Length > options.MaxJsonDocumentSize)
+                        if (exceedsBytes)
                         {
                             diagnostics.Add(new WotDiagnostic(
                                 WotDiagnosticSeverity.Error,
                                 WotDiagnosticCode.JsonDocumentTooLarge,
-                                $"Document '{original.Href}' exceeds the configured JSON byte limit.",
+                                $"Document '{original.Href}' exceeds the per-document or cumulative JSON byte limit.",
                                 new WotLocation(reference: original.Href)));
                         }
                         return new WotConversionResult<WotDocumentSet>(null, diagnostics);
                     }
+                    totalBytes += json.Length;
                     WotDocumentSetEntry? entry = null;
                     try
                     {
@@ -542,9 +546,11 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             IWotNodeResolver? nodeResolver,
             CancellationToken cancellationToken,
-            WotResolutionContext? resolution = null)
+            WotResolutionContext? resolution = null,
+            IWotThingResolver? fallback = null,
+            WotExternalSchemaResolver? schemaResolver = null)
         {
-            var resolver = new DocumentSetThingResolver(documents) { DeferPreservedFactValidation = true };
+            var resolver = new DocumentSetThingResolver(documents, fallback) { DeferPreservedFactValidation = true };
             IWotNodeResolver context = ComposeSetLocalContext(documents, nodeResolver);
             var results = new List<WotConversionResult<UANodeSet>>();
             var archived = new List<UANode>();
@@ -579,7 +585,7 @@ namespace Opc.Ua.Wot
                 cancellationToken.ThrowIfCancellationRequested();
                 results.Add(await ToNodeSetResultAsync(
                     documents.Entries[index].Document, options, resolver, resolution, context,
-                    cancellationToken).ConfigureAwait(false));
+                    schemaResolver, cancellationToken).ConfigureAwait(false));
             }
             return results;
         }

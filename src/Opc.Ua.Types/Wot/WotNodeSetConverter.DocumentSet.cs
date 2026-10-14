@@ -178,6 +178,19 @@ namespace Opc.Ua.Wot
             string? title = null,
             WotNodeSetConverterOptions? options = null)
         {
+            return FromNodeSetDocumentsCore(nodeSet, rootHref, title, options, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Generates one bounded candidate while observing cancellation between documents and graph nodes.
+        /// </summary>
+        private static WotConversionResult<WotDocumentSet> FromNodeSetDocumentsCore(
+            UANodeSet nodeSet,
+            string rootHref,
+            string? title,
+            WotNodeSetConverterOptions? options,
+            CancellationToken cancellationToken)
+        {
             if (nodeSet is null)
             {
                 throw new ArgumentNullException(nameof(nodeSet));
@@ -189,7 +202,14 @@ namespace Opc.Ua.Wot
 
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
+            cancellationToken.ThrowIfCancellationRequested();
             var diagnostics = new List<WotDiagnostic>();
+            if (nodeSet.Items?.Length > resolved.MaxNodeCount)
+            {
+                diagnostics.Add(new WotDiagnostic(WotDiagnosticSeverity.Error, WotDiagnosticCode.NodeCountExceeded,
+                    "The source NodeSet exceeds the configured Node count."));
+                return new WotConversionResult<WotDocumentSet>(null, diagnostics);
+            }
             List<UANode> roots = SelectRootNodes(nodeSet);
             if (roots.Count == 0)
             {
@@ -207,6 +227,7 @@ namespace Opc.Ua.Wot
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
             var emitted = new HashSet<string>(StringComparer.Ordinal);
             bool withinLimits = true;
+            long totalBytes = 0;
 
             // Section 6.1 lets an event affordance name its EventType
             // definition with tm:ref, and the definition is the Thing Model of
@@ -215,8 +236,12 @@ namespace Opc.Ua.Wot
             // EventType can name the sibling document that defines it. The
             // allocation walks exactly the traversal the write pass walks, so
             // the two agree by construction.
-            Dictionary<string, string> eventTypeHrefs = AllocateEventTypeHrefs(
-                nodeSet, index, roots, rootHref, declaredChildren);
+            Dictionary<string, string>? eventTypeHrefs = AllocateEventTypeHrefs(
+                nodeSet, index, roots, rootHref, declaredChildren, resolved, diagnostics, cancellationToken);
+            if (eventTypeHrefs is null)
+            {
+                return new WotConversionResult<WotDocumentSet>(null, diagnostics);
+            }
             try
             {
                 // The first root keeps the caller's href so an existing single
@@ -235,7 +260,7 @@ namespace Opc.Ua.Wot
                         nodeSet, index, root, href, null,
                         documentTitle, first && title is not null,
                         nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted,
-                        declaredChildren, eventTypeHrefs))
+                        declaredChildren, eventTypeHrefs, ref totalBytes, cancellationToken))
                     {
                         withinLimits = false;
                         break;
@@ -323,7 +348,7 @@ namespace Opc.Ua.Wot
             }
 
             WotConversionResult<WotDocumentSet> candidate =
-                FromNodeSetDocuments(nodeSet, rootHref, title, resolved);
+                FromNodeSetDocumentsCore(nodeSet, rootHref, title, resolved, cancellationToken);
             WotDocumentSet? readable = candidate.Value;
             if (readable is null)
             {
@@ -392,31 +417,39 @@ namespace Opc.Ua.Wot
         /// (WoT Binding Section 6.1), and that definition is a sibling document
         /// whose href is not known until the whole set has been laid out.
         /// </remarks>
-        private static Dictionary<string, string> AllocateEventTypeHrefs(
+        private static Dictionary<string, string>? AllocateEventTypeHrefs(
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
             List<UANode> roots,
             string rootHref,
-            Dictionary<string, List<UANode>> declaredChildren)
+            Dictionary<string, List<UANode>> declaredChildren,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken)
         {
             var eventTypeHrefs = new Dictionary<string, string>(StringComparer.Ordinal);
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
             var emitted = new HashSet<string>(StringComparer.Ordinal);
             bool first = true;
+            int documents = 0;
             foreach (UANode root in roots)
             {
                 string href = first
                     ? rootHref
                     : ChildHref(rootHref, LocalName(root.BrowseName) ?? root.NodeId ?? "node", hrefs);
-                AllocateDocumentHrefs(
-                    nodeSet, index, root, href, hrefs, emitted, declaredChildren, eventTypeHrefs);
+                if (!AllocateDocumentHrefs(
+                    nodeSet, index, root, href, hrefs, emitted, declaredChildren, eventTypeHrefs,
+                    options, diagnostics, 0, ref documents, cancellationToken))
+                {
+                    return null;
+                }
                 first = false;
             }
             return eventTypeHrefs;
         }
 
         /// <inheritdoc cref="AllocateEventTypeHrefs"/>
-        private static void AllocateDocumentHrefs(
+        private static bool AllocateDocumentHrefs(
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
             UANode node,
@@ -424,12 +457,34 @@ namespace Opc.Ua.Wot
             HashSet<string> hrefs,
             HashSet<string> emitted,
             Dictionary<string, List<UANode>> declaredChildren,
-            Dictionary<string, string> eventTypeHrefs)
+            Dictionary<string, string> eventTypeHrefs,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics,
+            int depth,
+            ref int documents,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!hrefs.Add(href) ||
                 (node.NodeId is not null && !emitted.Add(node.NodeId)))
             {
-                return;
+                return true;
+            }
+            if (depth > options.MaxDocumentSetDepth)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.DepthExceeded,
+                    "The linked document graph exceeds the configured resolution depth.",
+                    new WotLocation(nodeId: node.NodeId, reference: href)));
+                return false;
+            }
+            if (++documents > options.MaxDocumentSetDocuments)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ResolverLimitExceeded,
+                    "The generated set exceeds the configured document count.",
+                    new WotLocation(nodeId: node.NodeId, reference: href)));
+                return false;
             }
             if (node.NodeId is { Length: > 0 } nodeId && IsEventTypeRoot(node, nodeSet))
             {
@@ -442,10 +497,15 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 string local = LocalName(child.BrowseName) ?? child.NodeId ?? href;
-                AllocateDocumentHrefs(
+                if (!AllocateDocumentHrefs(
                     nodeSet, index, child, ChildHref(href, local, hrefs), hrefs, emitted,
-                    declaredChildren, eventTypeHrefs);
+                    declaredChildren, eventTypeHrefs, options, diagnostics, depth + 1, ref documents,
+                    cancellationToken))
+                {
+                    return false;
+                }
             }
+            return true;
         }
 
         /// <summary>
@@ -468,8 +528,11 @@ namespace Opc.Ua.Wot
             HashSet<string> hrefs,
             HashSet<string> emitted,
             Dictionary<string, List<UANode>> declaredChildren,
-            IReadOnlyDictionary<string, string>? eventTypeHrefs = null)
+            IReadOnlyDictionary<string, string> eventTypeHrefs,
+            ref long totalBytes,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!hrefs.Add(href) ||
                 (node.NodeId is not null && !emitted.Add(node.NodeId)))
             {
@@ -483,15 +546,17 @@ namespace Opc.Ua.Wot
                 nativeProjection: null, emitEnvelope: false,
                 options, diagnostics, parentHref, eventTypeHrefs, href,
                 foldEventSourceType: false);
-            if (json.Length > options.MaxJsonDocumentSize)
+            if (json.Length > options.MaxJsonDocumentSize ||
+                json.Length > options.MaxDocumentSetBytes - totalBytes)
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.JsonDocumentTooLarge,
-                    $"Generated document '{href}' exceeds the configured {options.MaxJsonDocumentSize} byte limit.",
+                    $"Generated document '{href}' exceeds the per-document or cumulative JSON byte limit.",
                     new WotLocation(nodeId: node.NodeId, reference: href)));
                 return false;
             }
+            totalBytes += json.Length;
 #pragma warning disable CA2000 // Ownership transfers to the entry, disposed with the set.
             entries.Add(new WotDocumentSetEntry(href, WotDocument.FromOwnedBytes(json, options)));
 #pragma warning restore CA2000
@@ -510,7 +575,7 @@ namespace Opc.Ua.Wot
                     nodeSet, index, child, ChildHref(href, local, hrefs), href,
                     FirstText(child.DisplayName) ?? local, false,
                     nodeSetBytes, options, diagnostics, entries, hrefs, emitted,
-                    declaredChildren, eventTypeHrefs))
+                    declaredChildren, eventTypeHrefs, ref totalBytes, cancellationToken))
                 {
                     return false;
                 }
@@ -764,11 +829,50 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentNullException">
         /// <paramref name="documents"/> is <c>null</c>.
         /// </exception>
-        public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetAsync(
+        public static ValueTask<WotConversionResult<UANodeSet>> ToNodeSetAsync(
             WotDocumentSet documents,
             WotNodeSetConverterOptions? options = null,
             IWotNodeResolver? nodeResolver = null,
             CancellationToken cancellationToken = default)
+        {
+            return ToNodeSetCoreAsync(documents, options, nodeResolver, null, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Converts a complete document set with caller-controlled external reference and schema resolution.
+        /// Set-local documents retain precedence; this method itself performs no network or filesystem I/O.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">A required resolver is null.</exception>
+        public static ValueTask<WotConversionResult<UANodeSet>> ToNodeSetWithResolversAsync(
+            WotDocumentSet documents,
+            IWotThingResolver thingResolver,
+            WotExternalSchemaResolver schemaResolver,
+            WotNodeSetConverterOptions? options = null,
+            IWotNodeResolver? nodeResolver = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (thingResolver is null)
+            {
+                throw new ArgumentNullException(nameof(thingResolver));
+            }
+            if (schemaResolver is null)
+            {
+                throw new ArgumentNullException(nameof(schemaResolver));
+            }
+            return ToNodeSetCoreAsync(
+                documents, options, nodeResolver, thingResolver, schemaResolver, cancellationToken);
+        }
+
+        /// <summary>
+        /// Shares set reconstruction and merging across local-only and resolver-enabled callers.
+        /// </summary>
+        private static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetCoreAsync(
+            WotDocumentSet documents,
+            WotNodeSetConverterOptions? options,
+            IWotNodeResolver? nodeResolver,
+            IWotThingResolver? fallback,
+            WotExternalSchemaResolver? schemaResolver,
+            CancellationToken cancellationToken)
         {
             if (documents is null)
             {
@@ -788,16 +892,18 @@ namespace Opc.Ua.Wot
                 resolved.DocumentSetMode == WotDocumentSetMode.PartitionReconstruction)
             {
                 WotConversionResult<UANodeSet> single = await ToNodeSetResultAsync(
-                    documents.Entries[0].Document, resolved, new DocumentSetThingResolver(documents),
+                    documents.Entries[0].Document, resolved, new DocumentSetThingResolver(documents, fallback),
                     resolution,
-                    ComposeSetLocalContext(documents, nodeResolver), cancellationToken).ConfigureAwait(false);
+                    ComposeSetLocalContext(documents, nodeResolver), schemaResolver, cancellationToken)
+                    .ConfigureAwait(false);
                 diagnostics.AddRange(single.Diagnostics);
                 ValidateDocumentSetOutput(single.Value, documents.RootHref, resolved, diagnostics, cancellationToken);
                 return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : single.Value, diagnostics);
             }
 
             List<WotConversionResult<UANodeSet>> results = await ReadDocumentSetPartsAsync(
-                documents, resolved, nodeResolver, cancellationToken, resolution).ConfigureAwait(false);
+                documents, resolved, nodeResolver, cancellationToken, resolution, fallback, schemaResolver)
+                .ConfigureAwait(false);
             foreach (WotConversionResult<UANodeSet> part in results)
             {
                 diagnostics.AddRange(part.Diagnostics);
@@ -844,9 +950,10 @@ namespace Opc.Ua.Wot
         /// </summary>
         private sealed class DocumentSetThingResolver : IWotThingResolver
         {
-            public DocumentSetThingResolver(WotDocumentSet documents)
+            public DocumentSetThingResolver(WotDocumentSet documents, IWotThingResolver? fallback = null)
             {
                 m_documents = documents;
+                m_fallback = fallback;
             }
 
             public UANodeSet? ArchiveContext { get; set; }
@@ -879,14 +986,17 @@ namespace Opc.Ua.Wot
                 WotResolutionContext context,
                 CancellationToken cancellationToken)
             {
-                WotResolverResult result =
-                    m_documents.TryGetDocument(reference, out WotDocument document)
-                    ? WotResolverResult.FromBytes(document.Utf8Json.ToArray())
-                    : WotResolverResult.NotFound;
-                return new ValueTask<WotResolverResult>(result);
+                if (m_documents.TryGetDocument(reference, out WotDocument document))
+                {
+                    return new ValueTask<WotResolverResult>(
+                        WotResolverResult.FromBytes(document.Utf8Json.ToArray()));
+                }
+                return m_fallback?.ResolveThingAsync(reference, context, cancellationToken) ??
+                    new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
             }
 
             private readonly WotDocumentSet m_documents;
+            private readonly IWotThingResolver? m_fallback;
         }
     }
 }

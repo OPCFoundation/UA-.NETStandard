@@ -244,6 +244,24 @@ namespace Opc.Ua.Wot
         public int MaxAffordanceCount { get; set; } = 100_000;
 
         /// <summary>
+        /// Gets or sets the maximum generated linked-document count.
+        /// Defaults to no additional bound for compatibility; untrusted-input hosts should set a ceiling.
+        /// </summary>
+        public int MaxDocumentSetDocuments { get; set; } = int.MaxValue;
+
+        /// <summary>
+        /// Gets or sets the maximum containment depth of a generated linked document set, with the root at zero.
+        /// Defaults to no additional bound for compatibility; untrusted-input hosts should set a ceiling.
+        /// </summary>
+        public int MaxDocumentSetDepth { get; set; } = int.MaxValue;
+
+        /// <summary>
+        /// Gets or sets the cumulative generated JSON byte ceiling, including preserved partitions.
+        /// Defaults to no additional bound for compatibility; untrusted-input hosts should set a ceiling.
+        /// </summary>
+        public long MaxDocumentSetBytes { get; set; } = long.MaxValue;
+
+        /// <summary>
         /// Gets or sets the maximum external-document resolution depth used
         /// when following contexts, schemas and referenced TD/TM documents.
         /// </summary>
@@ -332,6 +350,15 @@ namespace Opc.Ua.Wot
             EnsurePositive(MaxXmlDepth, nameof(MaxXmlDepth));
             EnsurePositive(MaxNodeCount, nameof(MaxNodeCount));
             EnsurePositive(MaxAffordanceCount, nameof(MaxAffordanceCount));
+            EnsurePositive(MaxDocumentSetDocuments, nameof(MaxDocumentSetDocuments));
+            EnsurePositive(MaxDocumentSetDepth, nameof(MaxDocumentSetDepth));
+            if (MaxDocumentSetBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MaxDocumentSetBytes),
+                    MaxDocumentSetBytes,
+                    "The configured limit must be a positive value.");
+            }
             EnsurePositive(MaxResolverDepth, nameof(MaxResolverDepth));
             EnsurePositive(MaxResolverDocuments, nameof(MaxResolverDocuments));
             EnsurePositive(MaxResolverDocumentBytes, nameof(MaxResolverDocumentBytes));

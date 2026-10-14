@@ -210,6 +210,21 @@ namespace Opc.Ua.Client.Historian
             uint maxValuesPerNode,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            if (Options.BindSessionGeneration && Session is not Session { IsGenerationBound: true })
+            {
+                SessionRequestContext requestContext =
+                    await SessionRequestContext.CaptureAsync(Session, cancellationToken).ConfigureAwait(false);
+                await using (requestContext.ConfigureAwait(false))
+                {
+                    var client = new HistoryClient(requestContext.Session, Options);
+                    await foreach (Annotation annotation in client.ReadAnnotationsAsync(
+                        variableId, startTime, endTime, maxValuesPerNode, cancellationToken).ConfigureAwait(false))
+                    {
+                        yield return annotation;
+                    }
+                }
+                yield break;
+            }
             NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
                 variableId, cancellationToken).ConfigureAwait(false);
             if (annotationsNode.IsNull)
@@ -827,9 +842,10 @@ namespace Opc.Ua.Client.Historian
             {
                 string profile = profiles[i];
                 // A null element is wire-legal in a String array; skip it.
-                if (profile != null && profile.Contains(
-                    "Historical",
-                    StringComparison.OrdinalIgnoreCase))
+                if (profile != null &&
+                    profile.Contains(
+                        "Historical",
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     historical.Add(profile);
                 }

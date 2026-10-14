@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,10 +48,22 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         /// Initializes a new Modbus TCP client.
         /// </summary>
         public ModbusTcpClient(string host, int port, TimeSpan timeout)
+            : this(host, port, timeout, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a client with a host-supplied connector for every connection attempt.
+        /// The connector transfers ownership of its readable, writable stream to this client.
+        /// </summary>
+        public ModbusTcpClient(
+            string host, int port, TimeSpan timeout,
+            Func<string, int, CancellationToken, ValueTask<Stream>>? streamConnector)
         {
             m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_port = port <= 0 ? 502 : port;
             m_timeout = timeout <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : timeout;
+            m_streamConnector = streamConnector;
         }
 
         /// <summary>
@@ -123,6 +136,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         /// <summary>
         /// Writes multiple holding registers (function code 16).
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask WriteMultipleRegistersAsync(
             byte unitId, ushort address, ushort[] values, CancellationToken cancellationToken)
         {
@@ -163,6 +177,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         /// <summary>
         /// Writes multiple coils (function code 15).
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask WriteMultipleCoilsAsync(
             byte unitId, ushort address, bool[] values, CancellationToken cancellationToken)
         {
@@ -343,7 +358,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                     await ReconnectCoreAsync(timeout.Token).ConfigureAwait(false);
                 }
 
-                NetworkStream? stream = m_stream ??
+                Stream stream = m_stream ??
                     throw new ModbusException("The Modbus client is not connected.");
 
                 byte[] responsePdu;
@@ -365,7 +380,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                     responsePdu = await ReadExactAsync(stream, responseLength, timeout.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (
-                    ex is OperationCanceledException or System.IO.IOException or
+                    ex is OperationCanceledException or IOException or
                           SocketException or ObjectDisposedException or ModbusException)
                 {
                     // A timeout, cancellation, transport error, transaction-id
@@ -417,10 +432,36 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         {
             // Dispose any prior (possibly faulted) connection so a reconnect
             // always starts from a clean, deterministic state.
-            m_stream?.Dispose();
+            if (m_stream is not null)
+            {
+                await m_stream.DisposeAsync().ConfigureAwait(false);
+            }
             m_client?.Dispose();
             m_stream = null;
             m_client = null;
+
+            if (m_streamConnector is not null)
+            {
+                Stream stream = await m_streamConnector(m_host, m_port, cancellationToken)
+                    .ConfigureAwait(false) ??
+                    throw new InvalidOperationException("The Modbus connector returned no stream.");
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!stream.CanRead || !stream.CanWrite)
+                    {
+                        throw new InvalidOperationException("The Modbus connector requires a duplex stream.");
+                    }
+                    m_stream = stream;
+                    m_faulted = false;
+                }
+                catch
+                {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+                return;
+            }
 
             var client = new TcpClient { NoDelay = true };
             try
@@ -438,7 +479,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         }
 
         private static async ValueTask<byte[]> ReadExactAsync(
-            NetworkStream stream, int count, CancellationToken cancellationToken)
+            Stream stream, int count, CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[count];
             int offset = 0;
@@ -482,9 +523,10 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         private readonly string m_host;
         private readonly int m_port;
         private readonly TimeSpan m_timeout;
+        private readonly Func<string, int, CancellationToken, ValueTask<Stream>>? m_streamConnector;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
         private TcpClient? m_client;
-        private NetworkStream? m_stream;
+        private Stream? m_stream;
         private int m_transaction;
         private bool m_faulted;
     }
