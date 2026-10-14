@@ -670,17 +670,21 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task ExhaustedNativeContextBoundFailsExplicitlyAsync(bool documentBound)
         {
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            int selectedLength = contents[resource.DefaultVersion!.DigestHex].Length;
+            long aggregate = contents.Values.Sum(c => (long)c.Length);
+            Assert.That(contents, Has.Count.GreaterThan(2));
+            Assert.That(aggregate, Is.GreaterThan(selectedLength));
             if (documentBound)
             {
                 options.MaxResolverDocuments = 2;
             }
             else
             {
-                options.MaxResolverTotalBytes = 1024;
+                options.MaxResolverTotalBytes = selectedLength;
             }
-            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
-                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
-            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
             var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
 
             Opc.Ua.WotCon.Server.Materialization.WotConversionOutput output = await converter.ConvertAsync(
@@ -695,7 +699,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             using IDisposable scope = Assert.EnterMultipleScope();
             Assert.That(output.Succeeded, Is.False);
             Assert.That(output.NodeSet, Is.Null);
-            Assert.That(string.Join("; ", output.Errors), Does.Contain("limit"));
+            Assert.That(
+                string.Join("; ", output.Errors),
+                Does.Contain("The native document context is incomplete")
+                    .And.Contain("resolver document or byte limit"));
             Assert.That(
                 async () => await new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options)
                     .ConvertAsync(
@@ -739,6 +746,58 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(selected.Succeeded, Is.False);
             Assert.That(selected.Errors, Is.Not.Empty);
             Assert.That(string.Join("; ", other.Errors), Does.Not.Contain("limit"));
+        }
+
+        /// <summary>
+        /// An archive that declares no model has no authoritative identity, so a set of them supplies
+        /// no cross-document context, while the same export with its model does.
+        /// </summary>
+        [Test]
+        public async Task UnmodelledNativeCarriersSupplyNoCrossDocumentAuthorityAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            string source = RepositoryPath(Path.Combine(
+                "tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml"));
+            UANodeSet modelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            UANodeSet unmodelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            unmodelled.Models = null;
+            using WotDocumentSet modelledSet = ExportSet(modelled, options);
+            using WotDocumentSet unmodelledSet = ExportSet(unmodelled, options);
+            var withModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var withoutModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList())
+            {
+                withModel.Add(entry.Document);
+            }
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                withoutModel.Add(entry.Document);
+            }
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(
+                modelledSet.Entries.ToList().Any(e => withModel.Find(e.Document) is not null),
+                Is.True,
+                "The modelled export must supply context.");
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                Assert.That(withoutModel.Find(entry.Document), Is.Null, entry.Href);
+                WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options).ConfigureAwait(false);
+                WotConversionResult<UANodeSet> viaIndex = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
+                    .ConfigureAwait(false);
+                Assert.That(viaIndex.Success, Is.EqualTo(alone.Success), entry.Href);
+                Assert.That(viaIndex.Diagnostics.Count, Is.EqualTo(alone.Diagnostics.Count), entry.Href);
+            }
+        }
+
+        private static WotDocumentSet ExportSet(UANodeSet source, WotNodeSetConverterOptions options)
+        {
+            WotConversionResult<WotDocumentSet> result = WotNodeSetConverter.FromNodeSetDocuments(
+                source, "opc-ua-di", "OPC UA Device Integration", options);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            return result.Value!;
         }
 
         private static Opc.Ua.WotCon.Server.Registry.WotResource FindResource(
