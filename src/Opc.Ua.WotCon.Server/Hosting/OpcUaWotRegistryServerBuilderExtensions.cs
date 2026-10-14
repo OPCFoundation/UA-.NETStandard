@@ -181,17 +181,16 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 WotRegistryServerOptions options =
                     sp.GetRequiredService<WotRegistryServerOptions>();
-                var converterOptions = new WotNodeSetConverterOptions
-                {
-                    MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
-                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
-                    // A partitioned model keeps one document per partition in a resource
-                    // group, so the registry's own per-group capacity is the largest
-                    // model it can hold; the default would reject a large companion model.
-                    MaxResolverDocuments = Math.Max(
-                        new WotNodeSetConverterOptions().MaxResolverDocuments,
-                        options.Bounds.MaxResourcesPerGroup)
-                };
+                // A converter options instance registered in DI replaces the defaults, so a
+                // deployment that holds a large partitioned model (more documents than the
+                // default resolver budget) states that budget explicitly.
+                WotNodeSetConverterOptions converterOptions =
+                    sp.GetService<WotNodeSetConverterOptions>() ??
+                    new WotNodeSetConverterOptions
+                    {
+                        MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
+                        MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes
+                    };
                 return new WotMaterializationCoordinator(
                     sp.GetRequiredService<IWotRegistryService>(),
                     sp.GetRequiredService<IWotProjectionHost>(),

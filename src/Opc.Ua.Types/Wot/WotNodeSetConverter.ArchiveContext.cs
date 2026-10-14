@@ -99,31 +99,9 @@ namespace Opc.Ua.Wot
             /// <exception cref="ArgumentNullException"><paramref name="document"/> is <c>null</c>.</exception>
             public void Add(WotDocument document)
             {
-                Add(document, 0);
-            }
-
-            /// <summary>
-            /// Adds the preserved native nodes of a document and charges its size to the
-            /// model it belongs to. The document count and byte total of one model are
-            /// bounded by <see cref="WotNodeSetConverterOptions.MaxResolverDocuments"/> and
-            /// <see cref="WotNodeSetConverterOptions.MaxResolverTotalBytes"/>. Exhausting
-            /// either bound marks only that model incomplete: asking for its context
-            /// fails, and no other model is affected. Documents that retain nothing,
-            /// such as unmodelled or unrestorable ones, are never charged.
-            /// </summary>
-            /// <param name="document">The document.</param>
-            /// <param name="sizeInBytes">The size of the document in bytes.</param>
-            /// <exception cref="ArgumentNullException"><paramref name="document"/> is <c>null</c>.</exception>
-            /// <exception cref="ArgumentOutOfRangeException"><paramref name="sizeInBytes"/> is negative.</exception>
-            public void Add(WotDocument document, long sizeInBytes)
-            {
                 if (document is null)
                 {
                     throw new ArgumentNullException(nameof(document));
-                }
-                if (sizeInBytes < 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sizeInBytes));
                 }
                 if (RestoreArchivePart(document, m_options) is not { } part)
                 {
@@ -141,24 +119,6 @@ namespace Opc.Ua.Wot
                         group = new Group(part);
                         m_groups.Add(key, group);
                     }
-                    if (group.Incomplete is not null)
-                    {
-                        return;
-                    }
-                    if (group.Documents >= m_options.MaxResolverDocuments ||
-                        group.Bytes + sizeInBytes > m_options.MaxResolverTotalBytes)
-                    {
-                        group.Incomplete =
-                            "the model exceeds the resolver document or byte limit " +
-                            $"({m_options.MaxResolverDocuments} documents, " +
-                            $"{m_options.MaxResolverTotalBytes} bytes).";
-                        group.Items.Clear();
-                        group.NodeIds.Clear();
-                        group.Context = null;
-                        return;
-                    }
-                    group.Documents++;
-                    group.Bytes += sizeInBytes;
                     group.Merge(part);
                     foreach (UANode node in part.Items ?? [])
                     {
@@ -223,11 +183,6 @@ namespace Opc.Ua.Wot
                     if (!m_groups.TryGetValue(ModelKey(part), out Group? group))
                     {
                         return null;
-                    }
-                    if (group.Incomplete is not null)
-                    {
-                        throw new InvalidOperationException(
-                            "The native document context is incomplete: " + group.Incomplete);
                     }
                     if (group.Conflicted)
                     {
@@ -302,12 +257,6 @@ namespace Opc.Ua.Wot
                 public HashSet<string> NodeIds { get; } = new(StringComparer.Ordinal);
 
                 public bool Conflicted { get; set; }
-
-                public string? Incomplete { get; set; }
-
-                public int Documents { get; set; }
-
-                public long Bytes { get; set; }
 
                 public void Merge(UANodeSet part)
                 {
