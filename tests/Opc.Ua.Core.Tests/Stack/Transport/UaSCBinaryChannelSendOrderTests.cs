@@ -407,6 +407,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 writer.Send(2, CreateResponse(null, 10));
                 await WaitUntilAsync(() => writer.TransportErrorCount > 0).ConfigureAwait(false);
 
+                // a producer numbers a message before the channel faults, as an
+                // OpenSecureChannel response or a fault does: it follows the gap too.
+                writer.QueueNumberedMessageForTest(4);
+
                 // sealable again, but the numbers after the gap would be rejected.
                 writer.RestoreEncryptionForTest(key);
                 writer.Send(3, CreateResponse(null, 10));
@@ -976,6 +980,26 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Replaces the current token's encrypting key with one AES rejects, so the
             /// next message fails after its chunks took their sequence numbers.
             /// </summary>
+            /// <summary>
+            /// Numbers and queues a message under the send order lock, as the producers
+            /// of OpenSecureChannel responses and faults do.
+            /// </summary>
+            public void QueueNumberedMessageForTest(uint requestId)
+            {
+                const int size = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                using (SendOrder.Enter())
+                {
+                    byte[] buffer = BufferManager.TakeBuffer(size, nameof(QueueNumberedMessageForTest));
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(0), TcpMessageType.Message | TcpMessageType.Final);
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4), size);
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(8), ChannelId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(12), CurrentToken!.TokenId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(16), GetNewSequenceNumber());
+                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(20), requestId);
+                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                }
+            }
+
             public byte[]? BreakEncryptionForTest()
             {
                 byte[]? key = CurrentToken!.ServerEncryptingKey;

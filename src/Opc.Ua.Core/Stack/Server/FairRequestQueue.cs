@@ -1064,12 +1064,13 @@ namespace Opc.Ua
             /// </summary>
             public void Dispose()
             {
-                int prior = Interlocked.Exchange(ref m_registrationState, kDisposed);
-                if (prior == kDisposed)
+                var prior = (RegistrationState)Interlocked.Exchange(
+                    ref m_registrationState, (int)RegistrationState.Disposed);
+                if (prior == RegistrationState.Disposed)
                 {
                     return;
                 }
-                if (prior == kRegistered)
+                if (prior == RegistrationState.Registered)
                 {
                     m_registration.Dispose();
                 }
@@ -1105,7 +1106,10 @@ namespace Opc.Ua
 
                 // published unless the entry was disposed meanwhile, possibly by the
                 // callback running inside Register; the registration is ours to end then.
-                if (Interlocked.CompareExchange(ref m_registrationState, kRegistered, kNone) != kNone)
+                if (Interlocked.CompareExchange(
+                    ref m_registrationState,
+                    (int)RegistrationState.Registered,
+                    (int)RegistrationState.None) != (int)RegistrationState.None)
                 {
                     registration.Dispose();
                 }
@@ -1148,15 +1152,31 @@ namespace Opc.Ua
             private CancellationTokenRegistration m_registration;
 
             /// <summary>
-            /// <see cref="kNone"/>, <see cref="kRegistered"/> once the registration is
-            /// published, or <see cref="kDisposed"/> once disposal started. Changed with
-            /// <see cref="Interlocked"/>, so that an entry needs no lock object.
+            /// A <see cref="RegistrationState"/>, stored as an <see cref="int"/> so that
+            /// <see cref="Interlocked"/> can change it; an entry needs no lock object.
             /// </summary>
             private int m_registrationState;
 
-            private const int kNone = 0;
-            private const int kRegistered = 1;
-            private const int kDisposed = 2;
+            /// <summary>
+            /// Who owns the cancellation registration of an entry.
+            /// </summary>
+            private enum RegistrationState
+            {
+                /// <summary>
+                /// Not registered yet.
+                /// </summary>
+                None,
+
+                /// <summary>
+                /// Registered; disposal ends the registration.
+                /// </summary>
+                Registered,
+
+                /// <summary>
+                /// Disposal started; a registration made afterwards is ended by its maker.
+                /// </summary>
+                Disposed
+            }
         }
 
         /// <summary>

@@ -367,32 +367,41 @@ namespace Opc.Ua.Bindings
                         throw new ObjectDisposedException(nameof(TcpServerChannel));
                     }
 
-                    // put channel back in open state.
+                    // Retire the old loop BEFORE closing the socket it reads
+                    // from. Closing first makes that loop fail out of
+                    // ReceiveChunkAsync with a socket error rather than a
+                    // cancellation, and its error path faults the channel - on
+                    // the new transport, after this method has already reported
+                    // the reconnect as successful. Detached before the new token
+                    // is activated, nothing still queued for the old transport is
+                    // secured with that token: the writer drops it unnumbered, and
+                    // responses produced meanwhile wait for the gate.
+                    dropped = DetachTransport();
+
                     ActivateToken(token);
-                    State = TcpChannelState.Open;
 
                     if (transport is IUaSCByteTransportLimits transportLimits)
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                     }
 
-                    // Retire the old loop BEFORE closing the socket it reads
-                    // from. Closing first makes that loop fail out of
-                    // ReceiveChunkAsync with a socket error rather than a
-                    // cancellation, and its error path faults the channel - on
-                    // the new transport, after this method has already reported
-                    // the reconnect as successful.
-                    dropped = DetachTransport();
-
-                    Transport = transport;
                     if (Volatile.Read(ref m_disposed) != 0)
                     {
                         throw new ObjectDisposedException(nameof(TcpServerChannel));
                     }
-                    StartReceiveLoop();
 
-                    // send response.
-                    SendOpenSecureChannelResponse(requestId, token, request, true);
+                    // The transport and the response change together under the
+                    // send order lock, so the writer numbers nothing in between:
+                    // the response is the first message on the new transport.
+                    using (SendOrder.Enter())
+                    {
+                        Transport = transport;
+                        StartReceiveLoop();
+                        SendOpenSecureChannelResponse(requestId, token, request, true);
+                    }
+
+                    // put channel back in open state.
+                    State = TcpChannelState.Open;
 
                     // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
@@ -1320,8 +1329,9 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Used by the synchronous reconnect handoff, which is reached through a
         /// public override that cannot become asynchronous without breaking the
-        /// contract. Signing here with a key served over a network still occupies
-        /// a thread; the open path proper uses
+        /// contract, and which holds <see cref="UaSCUaBinaryChannel.SendOrder"/>
+        /// while it calls this. Signing here with a key served over a network still
+        /// occupies a thread; the open path proper uses
         /// <see cref="SendOpenSecureChannelResponseAsync"/> and does not.
         /// </remarks>
         private void SendOpenSecureChannelResponse(
@@ -1345,26 +1355,24 @@ namespace Opc.Ua.Bindings
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 
-            // numbered and queued under SendOrder; see SendOpenSecureChannelResponseAsync.
-            using (SendOrder.Enter())
+            // numbered and queued under SendOrder, which the caller holds; see
+            // SendOpenSecureChannelResponseAsync.
+            BufferCollection chunksToSend = WriteAsymmetricMessage(
+                TcpMessageType.Open,
+                requestId,
+                ServerCertificate,
+                ServerCertificateChain,
+                ClientCertificate,
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                !renew ? m_oscRequestSignature : null,
+                out byte[] signature);
+
+            if (!renew)
             {
-                BufferCollection chunksToSend = WriteAsymmetricMessage(
-                    TcpMessageType.Open,
-                    requestId,
-                    ServerCertificate,
-                    ServerCertificateChain,
-                    ClientCertificate,
-                    new ArraySegment<byte>(buffer, 0, buffer.Length),
-                    !renew ? m_oscRequestSignature : null,
-                    out byte[] signature);
-
-                if (!renew)
-                {
-                    ChannelThumbprint = signature;
-                }
-
-                SendOpenSecureChannelChunks(chunksToSend);
+                ChannelThumbprint = signature;
             }
+
+            SendOpenSecureChannelChunks(chunksToSend);
         }
 
         /// <summary>
