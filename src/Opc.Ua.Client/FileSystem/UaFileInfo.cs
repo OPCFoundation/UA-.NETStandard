@@ -55,32 +55,74 @@ namespace Opc.Ua.Client.FileSystem
     {
         /// <summary>
         /// Creates a handle to the <c>FileType</c> instance with the given
-        /// NodeId, for a file that is already known by its NodeId rather than
-        /// by a path below the <see cref="FileSystemClient"/> root.
+        /// NodeId inside a known directory, for a file that is already known
+        /// by its NodeId rather than by a path below the
+        /// <see cref="FileSystemClient"/> root.
         /// </summary>
-        /// <param name="owner">The file system client whose session is used.</param>
-        /// <param name="parent">The directory holding the file, or <c>null</c>
-        /// when it is not known.</param>
+        /// <remarks>
+        /// The file belongs to the <see cref="UaFileSystemInfo.Owner"/> of
+        /// <paramref name="parent"/>, and its path is the path of
+        /// <paramref name="parent"/> followed by
+        /// <paramref name="browseName"/>. Every operation, including
+        /// <see cref="UaFileSystemInfo.DeleteAsync(CancellationToken)"/>,
+        /// moving and copying, is available.
+        /// </remarks>
+        /// <param name="parent">The directory that contains the file.</param>
         /// <param name="nodeId">The NodeId of the <c>FileType</c> instance.</param>
         /// <param name="browseName">The BrowseName of the file.</param>
-        /// <param name="segments">The path of the file relative to the root of
-        /// <paramref name="owner"/>; path based operations such as
-        /// <see cref="UaFileSystemInfo.MoveToAsync(string, System.Threading.CancellationToken)"/>
-        /// use it.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="owner"/>,
-        /// <paramref name="nodeId"/> or <paramref name="segments"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/>
+        /// or <paramref name="nodeId"/> is null.</exception>
         public UaFileInfo(
+            UaDirectoryInfo parent,
+            NodeId nodeId,
+            QualifiedName browseName)
+            : this(
+                (parent ?? throw new ArgumentNullException(nameof(parent))).Owner,
+                parent,
+                nodeId,
+                browseName,
+                FileSystemClient.AppendSegment(parent.Segments, browseName))
+        {
+        }
+
+        /// <summary>
+        /// Creates a handle to a detached <c>FileType</c> instance: a file
+        /// that is known only by its NodeId, for example from a reference
+        /// or a method result, and whose containing directory is not known.
+        /// </summary>
+        /// <remarks>
+        /// A detached file can be refreshed, opened, read and written. It
+        /// cannot be deleted, moved or copied, because these operations
+        /// are methods of the containing <c>FileDirectoryType</c>; they
+        /// throw <see cref="InvalidOperationException"/>. Its
+        /// <see cref="UaFileSystemInfo.Parent"/> is <c>null</c>, and its
+        /// <see cref="UaFileSystemInfo.Segments"/> contain only
+        /// <paramref name="browseName"/> because its location below the
+        /// root of <paramref name="owner"/> is not known. Use
+        /// <see cref="UaFileInfo(UaDirectoryInfo, NodeId, QualifiedName)"/>
+        /// when the directory is known.
+        /// </remarks>
+        /// <param name="owner">The file system client whose session is used.</param>
+        /// <param name="nodeId">The NodeId of the <c>FileType</c> instance.</param>
+        /// <param name="browseName">The BrowseName of the file.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="owner"/>
+        /// or <paramref name="nodeId"/> is null.</exception>
+        public UaFileInfo(
+            FileSystemClient owner,
+            NodeId nodeId,
+            QualifiedName browseName)
+            : this(owner, parent: null, nodeId, browseName, [browseName])
+        {
+            IsDetached = true;
+        }
+
+        internal UaFileInfo(
             FileSystemClient owner,
             UaDirectoryInfo? parent,
             NodeId nodeId,
             QualifiedName browseName,
             IReadOnlyList<QualifiedName> segments)
-            : base(
-                owner,
-                parent,
-                nodeId,
-                browseName,
-                segments ?? throw new ArgumentNullException(nameof(segments)))
+            : base(owner, parent, nodeId, browseName, segments)
         {
             Proxy = new FileTypeClient(
                 owner.Session,
@@ -90,6 +132,15 @@ namespace Opc.Ua.Client.FileSystem
 
         /// <inheritdoc/>
         public override bool IsDirectory => false;
+
+        /// <summary>
+        /// <c>true</c> when the file was created for a known NodeId
+        /// without its containing directory; see
+        /// <see cref="UaFileInfo(FileSystemClient, NodeId, QualifiedName)"/>.
+        /// Deleting, moving and copying a detached file throw
+        /// <see cref="InvalidOperationException"/>.
+        /// </summary>
+        public bool IsDetached { get; }
 
         /// <summary>The cached <c>Size</c> property in bytes.</summary>
         public ulong Size { get; private set; }
