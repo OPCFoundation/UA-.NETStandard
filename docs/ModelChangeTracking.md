@@ -117,6 +117,9 @@ For reference endpoints owned by another node manager, automatic reporting
 requires requested and successful target-reference cleanup because their remaining
 references cannot be inspected locally. A successful `DeleteNodes` call with
 `DeleteTargetReferences = false` does not imply that foreign references were removed.
+This reporting covers both directions of hierarchical and non-hierarchical
+references to other node managers in the same server. Absolute targets are
+excluded, matching the deletion cleanup path.
 
 ### Manual aggregation across a transaction
 

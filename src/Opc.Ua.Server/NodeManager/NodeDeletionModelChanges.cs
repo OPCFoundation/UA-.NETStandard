@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.NodeManager
                     }
                     else
                     {
-                        m_externalParents.Add((parent.NodeId, node.NodeId));
+                        m_externalReferences.Add((parent.NodeId, node.NodeId));
                     }
                 }
 
@@ -101,10 +101,9 @@ namespace Opc.Ua.Server.NodeManager
                                 targetId, target, reference.ReferenceTypeId, !reference.IsInverse, node.NodeId, null));
                         }
                     }
-                    else if (reference.IsInverse &&
-                        context.TypeTable.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HierarchicalReferences))
+                    else
                     {
-                        m_externalParents.Add((targetId, node.NodeId));
+                        m_externalReferences.Add((targetId, node.NodeId));
                     }
                 }
             }
@@ -187,13 +186,13 @@ namespace Opc.Ua.Server.NodeManager
             // Foreign reference endpoints cannot be inspected after partial or skipped cleanup.
             if (targetReferenceCleanupCompleted)
             {
-                foreach ((NodeId parent, NodeId child) in m_externalParents)
+                foreach ((NodeId target, NodeId source) in m_externalReferences)
                 {
-                    if (!m_nodes.ContainsKey(child))
+                    if (!m_nodes.ContainsKey(source))
                     {
-                        changes[parent] = new ModelChangeStructureDataType
+                        changes[target] = new ModelChangeStructureDataType
                         {
-                            Affected = parent,
+                            Affected = target,
                             Verb = (byte)ModelChangeVerbs.ReferenceDeleted
                         };
                     }
@@ -217,6 +216,6 @@ namespace Opc.Ua.Server.NodeManager
         private readonly List<(NodeId Id, NodeState Node, NodeId Type, bool Eligible)> m_deletedNodes = [];
         private readonly List<(NodeId Id, NodeState Source, NodeId Type, bool Inverse,
             NodeId Target, BaseInstanceState? Child)> m_references = [];
-        private readonly List<(NodeId Parent, NodeId Child)> m_externalParents = [];
+        private readonly List<(NodeId Target, NodeId Source)> m_externalReferences = [];
     }
 }
