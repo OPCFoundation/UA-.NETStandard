@@ -240,6 +240,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Admits a request for execution on the caller's thread, without queueing it, when
+        /// nothing is queued and the provider grants execution capacity at once.
+        /// </summary>
+        /// <remarks>
+        /// The entry holds the retained-request cost and the execution lease, like a queued
+        /// entry once it is selected; it is never linked, so cancellation does not need to
+        /// remove it. A request this declines is admitted with <see cref="TryEnqueue"/>.
+        /// Parkable requests and session establishment or control requests always queue.
+        /// </remarks>
+        public bool TryAdmitInline(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken,
+            [NotNullWhen(true)] out Entry? entry)
+        {
+            entry = null;
+            if (Volatile.Read(ref m_count) != 0 ||
+                Volatile.Read(ref m_stopped) != 0 ||
+                cancellationToken.IsCancellationRequested ||
+                IsSessionEstablishment(request.Request) ||
+                IsControlRequest(request.Request) ||
+                (m_decoupleHeldPublishRequests && request is IParkableIncomingRequest { ParkSink: not null }))
+            {
+                return false;
+            }
+
+            ResourceIsolationOwner owner = Classify(request);
+            if (!m_provider.TryAcquire(
+                ResourceIsolationStage.RequestQueueBytes, owner, m_requestCost, out IDisposable? costLease, out _))
+            {
+                return false;
+            }
+            IDisposable? executionLease;
+            try
+            {
+                if (!m_provider.TryAcquire(
+                    ResourceIsolationStage.RequestExecution, owner, 1, out executionLease, out _))
+                {
+                    costLease!.Dispose();
+                    return false;
+                }
+            }
+            catch
+            {
+                costLease!.Dispose();
+                throw;
+            }
+            entry = new Entry(this, request, owner, null, costLease!, null, cancellationToken);
+            entry.SetExecutionLease(executionLease!);
+            return true;
+        }
+
+        /// <summary>
         /// Makes at most one attempt per currently eligible scheduling FIFO per capacity version.
         /// A blocked global FIFO head cannot be overtaken by another owner.
         /// Provider calls and completions are deliberately outside the owner gates.
@@ -910,7 +962,7 @@ namespace Opc.Ua
                 FairRequestQueue queue,
                 IEndpointIncomingRequest request,
                 ResourceIsolationOwner owner,
-                IDisposable queueLease,
+                IDisposable? queueLease,
                 IDisposable costLease,
                 IDisposable? parkedLease,
                 CancellationToken cancellationToken)

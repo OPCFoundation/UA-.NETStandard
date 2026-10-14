@@ -100,6 +100,7 @@ namespace Opc.Ua
 
                 m_workers = [];
                 m_cts = new CancellationTokenSource();
+                m_requestStopToken = m_cts.Token;
                 m_activeThreadCount = 0;
                 m_totalThreadCount = 0;
                 m_stopped = false;
@@ -198,6 +199,10 @@ namespace Opc.Ua
 
                 if (m_fairQueue != null)
                 {
+                    if (TryRunInline(request, cancellationToken))
+                    {
+                        return;
+                    }
                     try
                     {
                         if (!m_fairQueue.TryEnqueue(request, cancellationToken, out StatusCode error))
@@ -222,6 +227,41 @@ namespace Opc.Ua
                     // TODO: make a metric
                     m_server.m_logger.RequestQueueFull(m_activeThreadCount);
                 }
+            }
+
+            /// <summary>
+            /// Runs a request on the caller's thread when nothing is queued and execution
+            /// capacity is available, up to its first asynchronous wait.
+            /// </summary>
+            /// <returns>False when the request has to be queued instead.</returns>
+            private bool TryRunInline(IEndpointIncomingRequest request, CancellationToken cancellationToken)
+            {
+                FairRequestQueue.Entry? entry;
+                try
+                {
+                    if (!m_server.CanRunRequestInline(request))
+                    {
+                        return false;
+                    }
+                    // ProcessRequestSafeAsync disposes the entry
+#pragma warning disable CA2000
+                    if (!m_fairQueue!.TryAdmitInline(request, cancellationToken, out entry))
+#pragma warning restore CA2000
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // a provider failure faults the request, as it does on the queued path.
+                    m_server.m_logger.RequestQueueProcessingFailed(ex);
+                    CompleteRequest(request, StatusCodes.BadInternalError);
+                    return true;
+                }
+
+                // ProcessRequestSafeAsync never throws and always completes the request.
+                _ = ProcessRequestSafeAsync(new QueuedRequest(request, cancellationToken), entry, m_requestStopToken);
+                return true;
             }
 
             /// <summary>
@@ -534,6 +574,12 @@ namespace Opc.Ua
             /// Worker cancellation source retained until shutdown has drained all handlers.
             /// </summary>
             private readonly CancellationTokenSource m_cts;
+
+            /// <summary>
+            /// The token of <see cref="m_cts"/>, read once so that a request run inline
+            /// while shutdown runs does not touch a disposed source.
+            /// </summary>
+            private readonly CancellationToken m_requestStopToken;
 #pragma warning restore CA2213
             /// <summary>
             /// Worker tasks joined by asynchronous shutdown.

@@ -1066,7 +1066,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var provider = new TestProvider(executionCapacity: 1, costCapacity: 20) { UseFairScheduling = false };
             NodeId a = provider.AddOwner("A", queueLimit: 1, executionLimit: 1, parkedLimit: 1);
             NodeId b = provider.AddOwner("B");
-            using var server = new QueueServer(provider, workers: 1);
+            // counts the admission attempts of the queued path; a request that runs
+            // inline is never queued and does not pass the queue stage.
+            using var server = new QueueServer(provider, workers: 1) { RunInline = false };
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var running = new TestRequest(a);
             server.Enqueue(running);
@@ -1897,6 +1899,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     this, minWorkers ?? workers, workers, 100, decoupleHeldPublishRequests, provider, requestCost);
             }
 
+            /// <summary>
+            /// Whether requests may run on the scheduling thread when nothing is queued.
+            /// </summary>
+            public bool RunInline { get; set; } = true;
+
             public void Enqueue(TestRequest request, CancellationToken cancellationToken = default)
             {
                 m_queue.ScheduleIncomingRequest(request, cancellationToken);
@@ -1910,6 +1917,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public ValueTask FinishAsync(CancellationToken cancellationToken)
             {
                 return m_queue.StopAsync(cancellationToken);
+            }
+
+            protected override bool CanRunRequestInline(IEndpointIncomingRequest request)
+            {
+                return RunInline;
             }
 
             protected override Task ProcessRequestAsync(
