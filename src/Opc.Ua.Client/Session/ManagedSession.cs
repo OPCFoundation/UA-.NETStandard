@@ -1946,8 +1946,11 @@ namespace Opc.Ua.Client
 
             // ConfiguredEndpoint never holds a null Description (its
             // constructors substitute or reject null and Update clones a
-            // non-null description), so the snapshot is never null either.
-            EndpointDescription current = CoreUtils.Clone(endpoint.Description)!;
+            // non-null description); should that ever change, fail the
+            // reconnect here rather than continue without a snapshot.
+            EndpointDescription current = CoreUtils.Clone(endpoint.Description) ??
+                throw new InvalidOperationException(
+                    "The configured endpoint has no description to restore if the rediscovered endpoint is rejected.");
             ServiceResult? result;
             try
             {
