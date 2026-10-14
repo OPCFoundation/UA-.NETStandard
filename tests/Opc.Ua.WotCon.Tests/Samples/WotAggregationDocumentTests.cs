@@ -316,7 +316,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task PumpAssetProjectionDocumentsResolveToExpectedGroupsAndMembers()
         {
             var resolver = new WotProjectionResolver(
-                new WotAggregationDocumentGenerator.SampleThingResolver(ReadManifestDocuments()),
+                new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
 
             foreach (string pumpName in s_pumpAssetNames)
@@ -1375,6 +1375,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
         }
 
+        private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()
+        {
+            return ReadManifestDocuments().ToArrayOf(document => document with
+            {
+                Json = ByteString.From(Encoding.UTF8.GetBytes(
+                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
+            });
+        }
+
         private static ArrayOf<SampleDocument> ReadPumpDocuments()
         {
             return ReadManifestDocuments().Filter(document =>
@@ -1719,8 +1728,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(property.Root.GetRawText()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
-            UANodeSet nodes = WotNodeSetConverter.ToNodeSet(
-                document, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            UANodeSet nodes = WotAggregationDocumentGenerator.ReadOwnedPartition(document, property.ResourceId);
             var namespaces = new NamespaceTable();
             foreach (string uri in nodes.NamespaceUris ?? [])
             {
