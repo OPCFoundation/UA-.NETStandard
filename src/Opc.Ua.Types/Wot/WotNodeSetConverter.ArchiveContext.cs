@@ -259,12 +259,18 @@ namespace Opc.Ua.Wot
             return part is not null && !HasErrors(ignored) ? part : null;
         }
 
+        private static bool CarriesPreservedNodes(WotDocument document)
+        {
+            return document.TryGetEnvelope(out _) || document.TryGetNativeProjection(out _);
+        }
+
         private static UANodeSet? GetProvidedArchiveContext(IWotThingResolver? resolver, WotDocument document)
         {
             return resolver switch
             {
                 DocumentSetThingResolver set => set.ArchiveContext,
-                IWotArchiveContextProvider provider => provider.GetArchiveContext(document),
+                IWotArchiveContextProvider provider when CarriesPreservedNodes(document) =>
+                    provider.GetArchiveContext(document),
                 _ => null
             };
         }

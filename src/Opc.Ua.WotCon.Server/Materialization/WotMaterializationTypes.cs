@@ -303,7 +303,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
-            WotNodeSetConverter.ArchiveContextIndex? archiveContexts = null)
+            Func<WotNodeSetConverter.ArchiveContextIndex>? archiveContexts = null)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
@@ -313,7 +313,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         public UANodeSet? GetArchiveContext(WotDocument document)
         {
-            return m_archiveContexts?.Find(document);
+            return m_archiveContexts?.Invoke().Find(document);
         }
 
         /// <summary>
@@ -336,6 +336,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly WotRegistrySnapshot m_snapshot;
         private readonly IReadOnlyDictionary<string, ByteString> m_contents;
-        private readonly WotNodeSetConverter.ArchiveContextIndex? m_archiveContexts;
+        private readonly Func<WotNodeSetConverter.ArchiveContextIndex>? m_archiveContexts;
     }
 }

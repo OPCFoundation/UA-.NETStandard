@@ -211,7 +211,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
                 var resolver = new SnapshotThingResolver(
-                    snapshot, contents, GetArchiveContexts(snapshot, contents, cancellationToken));
+                    snapshot, contents, () => GetArchiveContexts(snapshot, contents, cancellationToken));
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
