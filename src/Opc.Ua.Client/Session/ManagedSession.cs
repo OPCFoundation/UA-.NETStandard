@@ -533,6 +533,18 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ISessionFactory SessionFactory { get; }
 
+        /// <summary>
+        /// Validates the endpoint that a reconnect rediscovered before the
+        /// session is recreated against it. When a reconnect is rejected with a
+        /// status that requires the endpoint to be refreshed, the endpoint is
+        /// read again from the server's discovery endpoint and replaces the one
+        /// in use. The validator receives the endpoint in use and the
+        /// rediscovered one; a Bad result keeps the endpoint in use and fails
+        /// the reconnect attempt with that result. When <c>null</c>, the
+        /// rediscovered endpoint is used as it is.
+        /// </summary>
+        public RediscoveredEndpointValidator? ValidateRediscoveredEndpoint { get; set; }
+
         /// <inheritdoc/>
         /// <remarks>
         /// Reports the endpoint of the current inner session, so it follows a
@@ -1873,18 +1885,60 @@ namespace Opc.Ua.Client
 
         private async Task RefreshEndpointAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
         {
-            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, ct)
-                .ConfigureAwait(false);
-            if (connection == null)
+            await RefreshAndValidateEndpointAsync(
+                endpoint,
+                async token =>
+                {
+                    ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, token)
+                        .ConfigureAwait(false);
+                    if (connection == null)
+                    {
+                        await endpoint.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, token)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await endpoint.UpdateFromServerAsync(
+                            endpoint.EndpointUrl!, connection, endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri!, SessionFactory.Telemetry, token)
+                            .ConfigureAwait(false);
+                    }
+                },
+                ValidateRediscoveredEndpoint,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Refreshes <paramref name="endpoint"/> through <paramref name="update"/>
+        /// and lets <paramref name="validator"/> accept or reject the result.
+        /// A rejected endpoint is restored to the description it had before.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The validator rejected the
+        /// rediscovered endpoint.</exception>
+        internal static async Task RefreshAndValidateEndpointAsync(
+            ConfiguredEndpoint endpoint,
+            Func<CancellationToken, Task> update,
+            RediscoveredEndpointValidator? validator,
+            CancellationToken ct)
+        {
+            EndpointDescription? current = validator == null
+                ? null
+                : CoreUtils.Clone(endpoint.Description);
+
+            await update(ct).ConfigureAwait(false);
+
+            if (validator == null)
             {
-                await endpoint.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, ct)
-                    .ConfigureAwait(false);
+                return;
             }
-            else
+
+            ServiceResult result = await validator(current!, endpoint.Description, ct)
+                .ConfigureAwait(false);
+
+            if (ServiceResult.IsBad(result))
             {
-                await endpoint.UpdateFromServerAsync(
-                    endpoint.EndpointUrl!, connection, endpoint.Description.SecurityMode,
-                    endpoint.Description.SecurityPolicyUri!, SessionFactory.Telemetry, ct).ConfigureAwait(false);
+                endpoint.Update(current!);
+                throw new ServiceResultException(result);
             }
         }
 
