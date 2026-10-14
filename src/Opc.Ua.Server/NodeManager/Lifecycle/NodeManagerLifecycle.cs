@@ -658,7 +658,7 @@ namespace Opc.Ua.Server
                 GetRunningServer(allowRequestCallback, callerContext);
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
-                EnterRequestLifecycleWaiter(entryServer);
+                EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
                 ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
@@ -964,7 +964,7 @@ namespace Opc.Ua.Server
                 GetRunningServer(allowRequestCallback, callerContext);
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
-                EnterRequestLifecycleWaiter(entryServer);
+                EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
                 ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
@@ -1235,7 +1235,7 @@ namespace Opc.Ua.Server
                 GetRunningServer(allowRequestCallback, callerContext);
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
-                EnterRequestLifecycleWaiter(entryServer);
+                EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
                 ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(callerContext) ??
                     BindingAdmissionSuspension.Empty).ConfigureAwait(false);
@@ -2240,7 +2240,7 @@ namespace Opc.Ua.Server
         }
 
         private static RequestManagerLifecycleExtension.RequestLifecycleWaiterScope?
-            EnterRequestLifecycleWaiter(IServerInternal server)
+            EnterRequestLifecycleWaiter(IServerInternal server, IOperationContext? callerContext = null)
         {
             RequestManagerLifecycleExtension? extension =
                 server.RequestManager.LifecycleExtension;
@@ -2249,10 +2249,14 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            // The drain waiter correlates by the ambient request that is executing the
-            // lifecycle operation, not by the explicit caller context. ShadowReloadAsync and
-            // other internal callers pass a null caller context but still run inside a request
-            // scope, so gating on the ambient request keeps them excluded from their own drain.
+            // An executing request named by the explicit caller context is the one to exclude from its own
+            // drain. Callers without such a context (ShadowReloadAsync and other internal callers) still run
+            // inside a request scope, so the ambient request keeps them excluded.
+            if (callerContext is OperationContext operation &&
+                server.RequestManager.IsExecutingRequest(operation))
+            {
+                return extension.EnterLifecycleWaiter(operation.RequestId);
+            }
             uint? currentRequestId =
                 server.RequestManager.GetCurrentRequestIdForLifecycleExtension();
             return currentRequestId.HasValue && currentRequestId.Value != uint.MaxValue

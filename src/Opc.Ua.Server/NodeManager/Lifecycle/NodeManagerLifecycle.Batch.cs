@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
                 }
                 using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
-                    EnterRequestLifecycleWaiter(server);
+                    EnterRequestLifecycleWaiter(server, callerContext);
                 await using var bindingAdmission =
                     batchHost.SuspendBindingAdmission(callerContext).ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);

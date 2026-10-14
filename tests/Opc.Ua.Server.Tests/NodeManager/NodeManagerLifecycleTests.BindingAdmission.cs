@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task NullContextLifecycleCallFromAdmittedCallbackDoesNotSucceedSilentlyAsync()
+        public async Task NullContextLifecycleCallFromAdmittedCallbackDoesNotBorrowAdmissionAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -269,56 +269,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 304, _ => { }, kReadinessProbeNamespaceUri);
             var callbackFactory = new CallbackSafeNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
-            var attempted = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var addCancellation = new CancellationTokenSource();
+            var attempted = new TaskCompletionSource<Task<NodeManagerRegistration>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
-            manager.AllEventsCallback = async (_, unsubscribe, _) =>
+            manager.AllEventsCallback = async (_, unsubscribe, token) =>
             {
                 if (unsubscribe || Interlocked.Increment(ref callbacks) != 1)
                 {
                     return;
                 }
-                // Documented as unsupported: a null context cannot identify the request that must be drained.
-                Task add = m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, addCancellation.Token)
+                // A null context is an ordinary external caller: it borrows neither the admission nor the
+                // request of the callback it was started from, and is not awaited here so the request can end.
+                Task<NodeManagerRegistration> add = m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, CancellationToken.None)
                     .AsTask();
                 attempted.TrySetResult(add);
-                try
-                {
-                    await add.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Observed by the test after it cancels the attempt.
-                }
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
             Task<uint>? admission = null;
             try
             {
                 admission = CreateEventMonitoredItemAsync(
                     services, subscription.SubscriptionId, ObjectIds.Server, 1);
-                Task add = await attempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                // The token is cancelled only after the attempt started and had time to succeed; an ambient
-                // fallback would complete the add here, a pre-cancelled token could not be told apart.
+                Task<NodeManagerRegistration> add =
+                    await attempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Task completed = await Task.WhenAny(
                     add, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false);
+                // While the admitted request is running the add must not complete by borrowing its admission.
+                Assert.That(ReferenceEquals(completed, add), Is.False);
+                release.TrySetResult(true);
+                await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration registration = await add.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(ReferenceEquals(completed, add), Is.False);
-                    Assert.That(callbackFactory.CreateCount, Is.Zero);
-                    Assert.That(addCancellation.IsCancellationRequested, Is.False);
-                }
-                addCancellation.Cancel();
-                OperationCanceledException? failure = Assert.CatchAsync<OperationCanceledException>(
-                    async () => await add.WaitAsync(timeout.Token).ConfigureAwait(false));
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(failure, Is.Not.Null);
-                    Assert.That(callbackFactory.CreateCount, Is.Zero);
+                    Assert.That(registration, Is.Not.Null);
+                    Assert.That(callbackFactory.CreateCount, Is.EqualTo(1));
                 }
             }
             finally
             {
-                addCancellation.Cancel();
+                release.TrySetResult(true);
                 manager.AllEventsCallback = (_, _, _) => default;
                 if (admission is not null)
                 {
