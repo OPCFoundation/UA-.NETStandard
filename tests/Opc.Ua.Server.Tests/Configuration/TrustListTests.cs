@@ -2159,7 +2159,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notACa.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
                 // The validation takes its own references: the caller's
                 // certificates are still usable afterwards.
-                Assert.That(leaf.RawData.Length, Is.GreaterThan(0));
+                Assert.That(leaf.RawData, Has.Length.GreaterThan(0));
                 Assert.That(caCert.Subject, Does.Contain("Prevalidated CA"));
                 Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await trustList.ValidateNewTrustListAsync(
