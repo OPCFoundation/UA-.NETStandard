@@ -196,8 +196,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that a node-wide change notification after an immediate cutoff retires the item with
-        /// BadNodeIdUnknown without any pre-poll, while a non-immediate removal keeps delivering the value.
+        /// Verifies that a node-wide change notification after an immediate cutoff retires only the cut-off
+        /// Value items with BadNodeIdUnknown and without any pre-poll. A surviving source keeps delivering, a
+        /// change whose mask does not reach the Value attribute retires nothing, a Disabled item queues nothing
+        /// until it is re-enabled, and a non-immediate removal keeps delivering the value.
         /// </summary>
         /// <param name="immediate">The immediate flag for this test case.</param>
         [TestCase(false)]
@@ -209,24 +211,49 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var master = (MasterNodeManager)server.NodeManager;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? first = null;
+            TrackingLifecycleNodeManager? survivor = null;
             NodeManagerRegistration registration = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(101, manager => first = manager),
                 null, timeout.Token).ConfigureAwait(false);
+            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                303, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
+                .ConfigureAwait(false);
             AssertLifecycleValue(first);
+            AssertLifecycleValue(survivor);
             BaseVariableState node = RequireLifecycleValue(
                 first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0])) as BaseVariableState);
+            BaseVariableState survivorNode = RequireLifecycleValue(
+                survivor.Find(new NodeId(kValueNodeId, survivor.NamespaceIndexes[0])) as BaseVariableState);
             node.StatusCode = StatusCodes.Good;
+            survivorNode.StatusCode = StatusCodes.Good;
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint subscriptionId, _) = await CreateSubscriptionAndMonitoredItemAsync(
                 services, node.NodeId, 1).ConfigureAwait(false);
+            RequestHeader header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            CreateMonitoredItemsResponse created = await services.CreateMonitoredItemsAsync(
+                header, subscriptionId, TimestampsToReturn.Both,
+                [
+                    CreateEmissionDataRequest(survivorNode.NodeId, 2),
+                    CreateEmissionDataRequest(node.NodeId, 3)
+                ], timeout.Token).ConfigureAwait(false);
+            Assert.That(created.Results.Count, Is.EqualTo(2));
+            uint disabledItemId = created.Results[1].MonitoredItemId;
             uint eventItemId = await CreateEventMonitoredItemAsync(
                 services, subscriptionId, ObjectIds.Server, 4).ConfigureAwait(false);
             IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
                 .Single(item => item.Id == eventItemId);
             MonitoredNode2 source = first.GetEmissionSource(node.NodeId);
+            MonitoredNode2 survivorSource = survivor.GetEmissionSource(survivorNode.NodeId);
             var initial = await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
                 .ConfigureAwait(false);
-            Assert.That(initial.Values[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(initial.Values.Values.Select(value => value.StatusCode),
+                Is.All.EqualTo(StatusCodes.Good));
+            header.Timestamp = DateTimeUtc.Now;
+            SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
+                header, subscriptionId, MonitoringMode.Disabled, [disabledItemId], timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -252,17 +279,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DateTimeUtc producedAt = DateTimeUtc.Now;
                 node.Value = 501;
                 node.Timestamp = producedAt;
+                survivorNode.Value = 702;
+                survivorNode.Timestamp = producedAt;
+                await survivorSource.OnMonitoredNodeChangedAsync(
+                    server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
+                    .ConfigureAwait(false);
+                await source.OnMonitoredNodeChangedAsync(
+                    server.DefaultSystemContext, node, NodeStateChangeMasks.NonValue, timeout.Token)
+                    .ConfigureAwait(false);
+                // The helper requires exactly the expected handles, so a retired item 1 or 3 would fail here.
+                (Dictionary<uint, DataValue> survivorOnly, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
+                    await PublishEmissionDataAsync(
+                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [2])
+                        .ConfigureAwait(false);
+                Assert.That(survivorOnly[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(702)));
                 await source.OnMonitoredNodeChangedAsync(
                     server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
                     .ConfigureAwait(false);
-                (Dictionary<uint, DataValue> delivered, _) = await PublishEmissionDataAsync(
-                    services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
+                (Dictionary<uint, DataValue> delivered, acknowledgements) = await PublishEmissionDataAsync(
+                    services, subscriptionId, acknowledgements, timeout.Token, [1]).ConfigureAwait(false);
                 DataValue value = delivered[1];
                 Assert.That(value.StatusCode,
                     Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good));
                 if (!immediate)
                 {
                     Assert.That(value.WrappedValue, Is.EqualTo(new Variant(501)));
+                }
+                else
+                {
+                    header.Timestamp = DateTimeUtc.Now;
+                    SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
+                        header, subscriptionId, MonitoringMode.Reporting, [disabledItemId], timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
+                    (Dictionary<uint, DataValue> reenabled, _) = await PublishEmissionDataAsync(
+                        services, subscriptionId, acknowledgements, timeout.Token, [3]).ConfigureAwait(false);
+                    Assert.That(reenabled[3].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 }
             }
             finally
@@ -474,10 +527,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                uint[]? handles = null)
         {
+            handles ??= [1, 2, 3];
             var values = new Dictionary<uint, DataValue>();
-            while (values.Count < 3)
+            while (values.Count < handles.Length)
             {
                 RequestHeader header = m_requestHeader;
                 header.Timestamp = DateTimeUtc.Now;
@@ -499,7 +554,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
             }
-            Assert.That(values.Keys, Is.EquivalentTo(new uint[] { 1, 2, 3 }));
+            Assert.That(values.Keys, Is.EquivalentTo(handles));
             return (values, acknowledgements);
         }
 
