@@ -64,32 +64,26 @@ namespace Opc.Ua.Bindings
     /// <para>
     /// It is deliberately <b>not</b> disposable. It replaces a monitor, which has
     /// no disposed state, and channel teardown enters it and then continues to run
-    /// paths that enter it again. Disposing the underlying semaphore would turn
-    /// those into <see cref="ObjectDisposedException"/> where they previously
-    /// worked. Nothing leaks: the semaphore only allocates an operating system
-    /// wait handle if <see cref="SemaphoreSlim.AvailableWaitHandle"/> is read, and
-    /// it never is.
+    /// paths that enter it again. It holds no operating system resource.
     /// </para>
     /// <para>
-    /// <b>What it costs.</b> Measured by <c>ChannelGateBenchmarks</c>, an
-    /// uncontended acquisition costs what the underlying
-    /// <see cref="SemaphoreSlim"/> costs and allocates nothing, against about
-    /// 13 ns for the monitor it replaced. The per-message work it is taken
-    /// around — <c>SymmetricChannelCryptoBenchmarks.EncryptSignThenDecryptVerify</c>
-    /// — is about 10,500 ns, so the gate does not register against it. The
-    /// asynchronous entry completes synchronously when uncontended, which a test
-    /// asserts, so it costs no suspension and no task.
+    /// <b>What it costs.</b> An uncontended entry and exit are one interlocked
+    /// compare-and-exchange each and allocate nothing. Only a contended entry
+    /// takes a lock, to queue a waiter, and only an exit with waiters queued takes
+    /// it to hand the gate to the first of them. A <see cref="SemaphoreSlim"/>,
+    /// which this used to wrap, takes its monitor on every wait and release; the
+    /// receive loop takes the gate for every message, and once that monitor had
+    /// seen contention every entry went through its slow path. The asynchronous
+    /// entry completes synchronously when uncontended, which a test asserts, so
+    /// it costs no suspension and no task.
+    /// </para>
+    /// <para>
+    /// Waiters are served first in, first out, and an exit with waiters hands the
+    /// gate straight to the first one, so a new entrant cannot overtake them. A
+    /// waiter resumes on the thread pool, never on the thread that left the gate.
     /// </para>
     /// </remarks>
-    // CA1001: the semaphore is deliberately not disposed. This type replaces a
-    // monitor, which has no disposed state, and channel teardown enters the gate
-    // and then runs paths that enter it again; disposing would turn those into
-    // ObjectDisposedException where they previously worked. SemaphoreSlim only
-    // allocates an operating system wait handle when AvailableWaitHandle is read,
-    // which this type never does, so there is nothing to release.
-#pragma warning disable CA1001
     internal sealed class ChannelGate
-#pragma warning restore CA1001
     {
         /// <summary>
         /// Enters the gate, blocking until it is free.
@@ -102,7 +96,12 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public Releaser Enter()
         {
-            m_semaphore.Wait();
+            if (Interlocked.CompareExchange(ref m_state, kHeld, kFree) != kFree)
+            {
+                Waiter? waiter = QueueWaiter();
+                // a queued waiter is completed only by the exit that hands it the gate.
+                waiter?.Task.GetAwaiter().GetResult();
+            }
 
             return new Releaser(this);
         }
@@ -114,18 +113,25 @@ namespace Opc.Ua.Bindings
         /// <returns>A handle that leaves the gate when disposed.</returns>
         public ValueTask<Releaser> EnterAsync(CancellationToken ct = default)
         {
-            Task wait = m_semaphore.WaitAsync(ct);
+            if (ct.IsCancellationRequested)
+            {
+                return new ValueTask<Releaser>(Task.FromCanceled<Releaser>(ct));
+            }
 
             // Uncontended is the common case. Completing synchronously keeps the
             // caller's sequencing identical to the lock this replaces.
-            // Task.IsCompletedSuccessfully does not exist on the .NET Framework
-            // targets, so the status is read directly.
-            if (wait.Status == TaskStatus.RanToCompletion)
+            if (Interlocked.CompareExchange(ref m_state, kHeld, kFree) == kFree)
             {
                 return new ValueTask<Releaser>(new Releaser(this));
             }
 
-            return AwaitEntryAsync(wait);
+            Waiter? waiter = QueueWaiter();
+            if (waiter == null)
+            {
+                return new ValueTask<Releaser>(new Releaser(this));
+            }
+
+            return AwaitEntryAsync(waiter, ct);
         }
 
         /// <summary>
@@ -134,21 +140,234 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Used by tests that need to establish contention before entering.
         /// </remarks>
-        internal bool IsHeldBySomeContextForTest => m_semaphore.CurrentCount == 0;
+        internal bool IsHeldBySomeContextForTest => Volatile.Read(ref m_state) != kFree;
 
-        private async ValueTask<Releaser> AwaitEntryAsync(Task wait)
+        private async ValueTask<Releaser> AwaitEntryAsync(Waiter waiter, CancellationToken ct)
         {
-            await wait.ConfigureAwait(false);
+            CancellationTokenRegistration registration = default;
+            if (ct.CanBeCanceled)
+            {
+                // runs at once when the token is already cancelled.
+                registration = ct.Register(static state => ((Waiter)state!).Cancel(), waiter);
+            }
+
+            try
+            {
+                await waiter.Task.ConfigureAwait(false);
+            }
+            finally
+            {
+                registration.Dispose();
+            }
 
             return new Releaser(this);
         }
 
-        private void Leave()
+        /// <summary>
+        /// Queues a waiter for a gate that is held, or takes the gate when it was
+        /// left in the meantime.
+        /// </summary>
+        /// <returns>The waiter, or <see langword="null"/> when the caller took the
+        /// gate.</returns>
+        private Waiter? QueueWaiter()
         {
-            m_semaphore.Release();
+            lock (m_waitersLock)
+            {
+                while (true)
+                {
+                    int state = Volatile.Read(ref m_state);
+                    if (state == kFree)
+                    {
+                        if (Interlocked.CompareExchange(ref m_state, kHeld, kFree) == kFree)
+                        {
+                            return null;
+                        }
+                    }
+                    else if (state == kContended ||
+                        Interlocked.CompareExchange(ref m_state, kContended, kHeld) == kHeld)
+                    {
+                        // from here on the exit cannot leave the gate without the lock.
+                        break;
+                    }
+                }
+
+                var waiter = new Waiter(this);
+                Append(waiter);
+                return waiter;
+            }
         }
 
-        private readonly SemaphoreSlim m_semaphore = new(1, 1);
+        /// <summary>
+        /// Leaves the gate, or hands it to the first waiter.
+        /// </summary>
+        private void Leave()
+        {
+            int state = Interlocked.CompareExchange(ref m_state, kFree, kHeld);
+            if (state == kHeld)
+            {
+                return;
+            }
+
+            if (state == kFree)
+            {
+                throw new SynchronizationLockException("The channel gate is not held.");
+            }
+
+            Waiter? next;
+            lock (m_waitersLock)
+            {
+                // waiters are queued while the state is contended; a cancelled one
+                // is unlinked, and the last one to go returns the state to held,
+                // possibly after the exchange above saw it contended.
+                next = m_first;
+                if (next == null)
+                {
+                    Volatile.Write(ref m_state, kFree);
+                    return;
+                }
+                Unlink(next);
+                if (m_first == null)
+                {
+                    Volatile.Write(ref m_state, kHeld);
+                }
+            }
+
+            // the gate stays held: ownership passes to the waiter.
+            next.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Removes a waiter whose wait was cancelled, unless it has already been
+        /// handed the gate.
+        /// </summary>
+        /// <returns><see langword="true"/> when the waiter was removed.</returns>
+        private bool Remove(Waiter waiter)
+        {
+            lock (m_waitersLock)
+            {
+                if (!waiter.Queued)
+                {
+                    return false;
+                }
+
+                Unlink(waiter);
+                if (m_first == null)
+                {
+                    // the holder still holds the gate, now without waiters.
+                    Volatile.Write(ref m_state, kHeld);
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Appends a waiter; called under <see cref="m_waitersLock"/>.
+        /// </summary>
+        private void Append(Waiter waiter)
+        {
+            waiter.Previous = m_last;
+            if (m_last == null)
+            {
+                m_first = waiter;
+            }
+            else
+            {
+                m_last.Next = waiter;
+            }
+            m_last = waiter;
+            waiter.Queued = true;
+        }
+
+        /// <summary>
+        /// Unlinks a queued waiter; called under <see cref="m_waitersLock"/>.
+        /// </summary>
+        private void Unlink(Waiter waiter)
+        {
+            if (waiter.Previous == null)
+            {
+                m_first = waiter.Next;
+            }
+            else
+            {
+                waiter.Previous.Next = waiter.Next;
+            }
+
+            if (waiter.Next == null)
+            {
+                m_last = waiter.Previous;
+            }
+            else
+            {
+                waiter.Next.Previous = waiter.Previous;
+            }
+
+            waiter.Next = null;
+            waiter.Previous = null;
+            waiter.Queued = false;
+        }
+
+        /// <summary>
+        /// The gate is free.
+        /// </summary>
+        private const int kFree = 0;
+
+        /// <summary>
+        /// The gate is held and no waiter is queued; it is left without the lock.
+        /// </summary>
+        private const int kHeld = 1;
+
+        /// <summary>
+        /// The gate is held and waiters are queued; leaving it takes the lock.
+        /// </summary>
+        private const int kContended = 2;
+
+        /// <summary>
+        /// <see cref="kFree"/>, <see cref="kHeld"/> or <see cref="kContended"/>.
+        /// The change to and from <see cref="kContended"/> is made under
+        /// <see cref="m_waitersLock"/>, the others with a compare-and-exchange.
+        /// </summary>
+        private int m_state;
+
+        /// <summary>
+        /// Protects the waiter queue.
+        /// </summary>
+        private readonly Lock m_waitersLock = new();
+
+        private Waiter? m_first;
+        private Waiter? m_last;
+
+        /// <summary>
+        /// A queued entry, completed with the gate or cancelled.
+        /// </summary>
+        private sealed class Waiter : TaskCompletionSource<bool>
+        {
+            public Waiter(ChannelGate gate)
+                : base(TaskCreationOptions.RunContinuationsAsynchronously)
+            {
+                m_gate = gate;
+            }
+
+            /// <summary>
+            /// Whether the waiter is in the queue; changed under the gate's lock.
+            /// </summary>
+            public bool Queued;
+
+            public Waiter? Next;
+            public Waiter? Previous;
+
+            /// <summary>
+            /// Cancels the wait, unless the gate was handed over already.
+            /// </summary>
+            public void Cancel()
+            {
+                if (m_gate.Remove(this))
+                {
+                    TrySetCanceled();
+                }
+            }
+
+            private readonly ChannelGate m_gate;
+        }
 
         /// <summary>
         /// Leaves the gate when disposed.

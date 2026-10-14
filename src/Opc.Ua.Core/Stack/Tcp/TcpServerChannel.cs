@@ -427,7 +427,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
-            using IDisposable usage = TrackPendingRequest();
+            using PendingRequestScope usage = TrackPendingRequest();
             PendingRequestDispatch? pending = null;
             bool ownsBuffer;
 
@@ -503,11 +503,11 @@ namespace Opc.Ua.Bindings
             // Outside the gate on purpose: the handler is application code, and
             // its continuation may call SendResponse straight back on this
             // stack. See ProcessRequestMessage.
-            if (pending != null)
+            if (pending is PendingRequestDispatch dispatch)
             {
                 try
                 {
-                    RequestReceived?.Invoke(this, pending.RequestId, pending.Request);
+                    RequestReceived?.Invoke(this, dispatch.RequestId, dispatch.Request);
                 }
                 catch (Exception e)
                 {
@@ -519,7 +519,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    pending.Chunks?.Release(BufferManager, "ProcessRequestMessage");
+                    dispatch.Chunks?.Release(BufferManager, "ProcessRequestMessage");
                 }
             }
 
@@ -1532,7 +1532,7 @@ namespace Opc.Ua.Bindings
         /// Stream decoding copies the request's strings and byte strings; an asynchronous
         /// callback may continue after these buffers are released.
         /// </param>
-        private sealed record PendingRequestDispatch(
+        private readonly record struct PendingRequestDispatch(
             uint RequestId,
             IServiceRequest Request,
             BufferCollection? Chunks);
