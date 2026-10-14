@@ -55,6 +55,52 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Source-compatible entry points for ordinary external callers of the batch lifecycle.
+    /// They forward to the canonical overload with a null caller context and hold no ambient state.
+    /// Code running inside an OPC UA request or binding callback must use the explicit context overload.
+    /// </summary>
+    public static class NodeManagerBatchLifecycleExtensions
+    {
+        /// <summary>
+        /// Prepares a unit for an ordinary external caller that is not running under a request.
+        /// </summary>
+        /// <param name="lifecycle">The batch lifecycle.</param>
+        /// <param name="changes">The additions, replacements and retirements to prepare.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit.</returns>
+        public static ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            this INodeManagerBatchLifecycle lifecycle,
+            ArrayOf<NodeManagerBatchChange> changes,
+            CancellationToken cancellationToken = default)
+        {
+            if (lifecycle == null)
+            {
+                throw new ArgumentNullException(nameof(lifecycle));
+            }
+
+            return lifecycle.PrepareAsync(changes, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reserves an invocation for an ordinary external caller that is not running under a request.
+        /// </summary>
+        /// <param name="capture">The publication capture.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The invocation that retains publication admission until disposed.</returns>
+        public static ValueTask<INodeManagerPublication> BeginAsync(
+            this INodeManagerPublicationCapture capture,
+            CancellationToken cancellationToken = default)
+        {
+            if (capture == null)
+            {
+                throw new ArgumentNullException(nameof(capture));
+            }
+
+            return capture.BeginAsync(null, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Optional isolation of an invocation containing several prepared publication units.
     /// </summary>
     public interface INodeManagerPublicationLifecycle : INodeManagerBatchLifecycle

@@ -254,6 +254,62 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task NullContextLifecycleCallFromAdmittedCallbackDoesNotSucceedSilentlyAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                304, _ => { }, kReadinessProbeNamespaceUri);
+            var callbackFactory = new CallbackSafeNodeManagerFactory(
+                [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
+            var outcome = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int callbacks = 0;
+            manager.AllEventsCallback = async (_, unsubscribe, _) =>
+            {
+                if (unsubscribe || Interlocked.Increment(ref callbacks) != 1)
+                {
+                    return;
+                }
+                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                try
+                {
+                    // Documented as unsupported: a null context cannot identify the request that must be drained.
+                    await m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, bounded.Token)
+                        .ConfigureAwait(false);
+                    outcome.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    outcome.TrySetResult(ex);
+                }
+            };
+            try
+            {
+                await CreateEventMonitoredItemAsync(
+                    services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
+                Exception? failure = await outcome.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failure, Is.Not.Null);
+                    Assert.That(failure, Is.InstanceOf<OperationCanceledException>());
+                    Assert.That(callbackFactory.CreateCount, Is.Zero);
+                }
+            }
+            finally
+            {
+                manager.AllEventsCallback = (_, _, _) => default;
+                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task RealRequestContextSuspendsOnlyItsOwnAdmissionAndNestedSuspensionRestoresOuterAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

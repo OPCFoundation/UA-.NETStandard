@@ -890,10 +890,15 @@ image fail with `InvalidOperationException` while the decision callback runs.
 
 ```csharp
 await using IPreparedNodeManagerBatch batch = await batchLifecycle.PrepareAsync(
-    [NodeManagerBatchChange.Add(factory)], callerContext: null, ct);
+    [NodeManagerBatchChange.Add(factory)], ct);
 NodeManagerBatchResult result = await batch.CommitAsync(
     async token => await store.SaveDecisionAsync(token), ct);
 ```
+
+`PrepareAsync(changes, ct)` and `BeginAsync(ct)` are shortcuts for ordinary external callers; they
+forward `callerContext: null`. Code running inside an OPC UA request or binding callback must call the
+overload that takes its `OperationContext`; a `null` context there is not a compatibility mode and
+waits for its own request.
 
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to
