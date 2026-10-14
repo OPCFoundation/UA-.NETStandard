@@ -36,6 +36,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -82,6 +83,77 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Is.False,
                 "a declined request runs on a worker");
             await request.Completed.Task.ConfigureAwait(false);
+        }
+
+        [Test]
+        [CancelAfter(30000)]
+        public async Task DisabledInlineExecutionQueuesEveryRequestAsync()
+        {
+            using var server = new TestServer(new TestProvider(), InlineRequestExecutionMode.Disabled);
+            var request = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+
+            Schedule(server, request);
+
+            Assert.That(await request.Started.Task.ConfigureAwait(false), Is.False);
+            await request.Completed.Task.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Two requests in a row that hold the receive loop of their channel longer
+        /// than the budget pause inline execution on that channel; the requests of
+        /// the channel are queued until the pause ends.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task RequestsThatOverrunTheBudgetPauseInlineExecutionOnTheirChannelAsync()
+        {
+            var time = new FakeTimeProvider();
+            var channel = new InlineExecutionValve(time);
+            var other = new InlineExecutionValve(time);
+            using var server = new TestServer(new TestProvider(), inlineRequestTimeBudget: 5);
+            Action overrun = () => time.Advance(TimeSpan.FromMilliseconds(20));
+
+            var first = new TestRequest(new ReadRequest()) { CompleteSynchronously = true, OnCall = overrun };
+            var second = new TestRequest(new ReadRequest()) { CompleteSynchronously = true, OnCall = overrun };
+            Schedule(server, first, channel);
+            Schedule(server, second, channel);
+            Assert.That(await first.Started.Task.ConfigureAwait(false), Is.True);
+            Assert.That(await second.Started.Task.ConfigureAwait(false), Is.True);
+
+            var paused = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+            Schedule(server, paused, channel);
+            Assert.That(await paused.Started.Task.ConfigureAwait(false), Is.False, "queued while paused");
+            await paused.Completed.Task.ConfigureAwait(false);
+
+            var elsewhere = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+            Schedule(server, elsewhere, other);
+            Assert.That(await elsewhere.Started.Task.ConfigureAwait(false), Is.True, "other channels run inline");
+
+            time.Advance(TimeSpan.FromSeconds(1));
+            var resumed = new TestRequest(new ReadRequest()) { CompleteSynchronously = true };
+            Schedule(server, resumed, channel);
+            Assert.That(await resumed.Started.Task.ConfigureAwait(false), Is.True, "inline again after the pause");
+        }
+
+        [Test]
+        [CancelAfter(30000)]
+        public async Task AZeroBudgetDoesNotPauseInlineExecutionAsync()
+        {
+            var time = new FakeTimeProvider();
+            var channel = new InlineExecutionValve(time);
+            using var server = new TestServer(new TestProvider(), inlineRequestTimeBudget: 0);
+
+            for (int ii = 0; ii < 3; ii++)
+            {
+                var request = new TestRequest(new ReadRequest())
+                {
+                    CompleteSynchronously = true,
+                    OnCall = () => time.Advance(TimeSpan.FromSeconds(1))
+                };
+                Schedule(server, request, channel);
+                Assert.That(await request.Started.Task.ConfigureAwait(false), Is.True);
+            }
+            Assert.That(channel.IsPaused, Is.False);
         }
 
         /// <summary>
@@ -294,15 +366,20 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// Schedules a request with <see cref="t_scheduling"/> set on this thread, so that a
         /// handler can tell whether it runs inside the call.
         /// </summary>
-        private static void Schedule(ServerBase server, IEndpointIncomingRequest request)
+        private static void Schedule(
+            ServerBase server,
+            IEndpointIncomingRequest request,
+            InlineExecutionValve? channel = null)
         {
             t_scheduling = true;
+            InlineExecutionValve? previous = InlineExecutionValve.Enter(channel);
             try
             {
                 server.ScheduleIncomingRequest(request);
             }
             finally
             {
+                InlineExecutionValve.Exit(previous);
                 t_scheduling = false;
             }
         }
@@ -324,7 +401,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// </summary>
         private sealed class TestServer : ServerBase
         {
-            public TestServer(IServerResourceIsolationProvider provider)
+            public TestServer(
+                IServerResourceIsolationProvider provider,
+                InlineRequestExecutionMode inlineRequestExecution = InlineRequestExecutionMode.Auto,
+                int inlineRequestTimeBudget = 5)
                 : base(NUnitTelemetryContext.Create(true))
             {
                 FieldInfo context = typeof(ServerBase).GetField(
@@ -333,7 +413,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 FieldInfo queueField = typeof(ServerBase).GetField(
                     "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
                 ((IDisposable)queueField.GetValue(this)!).Dispose();
-                m_queue = new RequestQueue(this, 1, 1, 10, true, provider, 10);
+                m_queue = new RequestQueue(
+                    this, 1, 1, 10, true, provider, 10, inlineRequestExecution, inlineRequestTimeBudget);
                 queueField.SetValue(this, m_queue);
             }
 
@@ -434,6 +515,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             public bool Parkable { get; set; }
 
+            /// <summary>
+            /// Runs when the request starts, on the thread it starts on.
+            /// </summary>
+            public Action? OnCall { get; set; }
+
             public IServiceRequest Request { get; }
 
             public SecureChannelContext SecureChannelContext { get; } = NewContext();
@@ -453,6 +539,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 StartOrder = Interlocked.Increment(ref s_startOrder);
+                OnCall?.Invoke();
                 Started.TrySetResult(t_scheduling);
                 if (WaitForCancellation)
                 {

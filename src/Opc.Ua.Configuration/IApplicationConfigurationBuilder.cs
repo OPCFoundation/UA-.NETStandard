@@ -160,6 +160,14 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetMaxQueuedRequestCount(
             int maxQueuedRequestCount);
 
+        /// <inheritdoc cref="ServerBaseConfiguration.InlineRequestExecution"/>
+        IApplicationConfigurationBuilderServerOptions SetInlineRequestExecution(
+            InlineRequestExecutionMode inlineRequestExecution);
+
+        /// <inheritdoc cref="ServerBaseConfiguration.InlineRequestTimeBudget"/>
+        IApplicationConfigurationBuilderServerOptions SetInlineRequestTimeBudget(
+            int inlineRequestTimeBudget);
+
         /// <inheritdoc cref="ServerConfiguration.DiagnosticsEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(
             bool diagnosticsEnabled);

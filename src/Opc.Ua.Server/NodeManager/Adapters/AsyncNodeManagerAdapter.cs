@@ -65,7 +65,8 @@ namespace Opc.Ua.Server
         IAsyncNodeManager,
         IDisposable,
         IAsyncDisposable,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemLifecycle,
+        INodeManagerInlineExecution
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -114,6 +115,15 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public INodeManager SyncNodeManager { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// What the wrapped NodeManager declares; <c>false</c> when it does not
+        /// implement <see cref="INodeManagerInlineExecution"/>, as its calls are
+        /// synchronous.
+        /// </remarks>
+        public bool SupportsInlineExecution =>
+            SyncNodeManager is INodeManagerInlineExecution inline && inline.SupportsInlineExecution;
 
         /// <inheritdoc/>
         ValueTask<IReadOnlyList<IMonitoredItem>>

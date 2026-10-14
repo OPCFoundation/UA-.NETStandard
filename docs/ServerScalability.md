@@ -8,6 +8,7 @@ This document describes how the reference server scales to large numbers of conc
 - [What bounds single-node scale](#what-bounds-single-node-scale)
 - [Admission control and rate limiting](#admission-control-and-rate-limiting)
 - [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
+- [Inline request execution](#inline-request-execution)
 - [Session diagnostics cost](#session-diagnostics-cost)
 - [Garbage collector mode](#garbage-collector-mode)
 - [Configuration](#configuration)
@@ -64,6 +65,53 @@ Each held `Publish` then occupies a worker for the duration of its wait. A
 server serving N sessions needs `MaxRequestThreadCount` well above N to avoid
 starving other requests.
 
+## Inline request execution
+
+A request that arrives while no other request waits for a worker runs on the
+thread that received it, when the isolation provider grants it execution
+capacity at once. For UA TCP that thread is the receive loop of its secure
+channel. The request runs up to its first asynchronous wait. The responses
+of the requests that complete there are sent together once the channel has
+worked through the chunks it already read. This saves handing each request
+to a worker and its response back, which dominated the cost of small Reads
+on a loaded server. In read benchmarks with 10 clients it raised throughput
+by about a third to a half and cut CPU time per request by 40–50%.
+
+It does not cost scalability across clients. Every channel has its own
+receive loop, so requests of different channels still run in parallel, and a
+receive loop that is busy with a request leaves the other channels alone.
+Two limits apply to the requests of one channel:
+
+- **Head-of-line blocking.** While a request runs synchronously, the channel
+  reads no further request, so a slow request delays the ones the client
+  pipelined behind it.
+- **Less parallelism within one channel.** The pipelined requests of one
+  channel run one after the other until each completes or waits, where
+  workers would have run them concurrently.
+
+Three controls keep this in check:
+
+- **NodeManagers declare whether their calls may run inline**
+  (`INodeManagerInlineExecution.SupportsInlineExecution`).
+  `AsyncCustomNodeManager` and the generated and fluent NodeManagers do.
+  `CustomNodeManager2`, whose callbacks are synchronous, does not. With the
+  default `InlineRequestExecution` of `Auto`, a request runs inline only when
+  every NodeManager it can reach declares support. Reads and Writes reach the
+  NodeManagers of their namespaces. Browse, Call, HistoryRead and the
+  MonitoredItem services reach all of them.
+- **A time budget per channel** (`InlineRequestTimeBudget`, default 5 ms)
+  bounds head-of-line blocking. When two requests in a row each hold the
+  receive loop longer than the budget, the channel queues its requests for
+  the workers for one second. While the overruns persist, the pause doubles
+  up to about a minute. A single overrun, as from a garbage collection or the
+  thread being descheduled, does not count. The same rule hands consistently
+  long requests back to the workers, which run them in parallel again.
+- **`InlineRequestExecution` set to `Disabled`** queues every request, as in
+  1.5.x.
+
+See [Requests that run on the thread that received them](MigrationGuide.md#requests-that-run-on-the-thread-that-received-them)
+for what to check when migrating NodeManagers.
+
 ## Session diagnostics cost
 
 Creating a session or subscription registers a diagnostics node and marks the live `SessionDiagnostics` and `SubscriptionDiagnostics` arrays for refresh. The arrays are rebuilt on demand when they are read or monitored, and the rebuild is throttled so that a burst of session creates does not trigger a rebuild per create. Servers that do not need the live session-diagnostics arrays can turn them off with the `DiagnosticsEnabled` server setting to remove the cost entirely.
@@ -90,6 +138,7 @@ The following settings size a single node for its hardware (see also the sizing 
 - **`MaxRequestThreadCount`** caps concurrent request processing. With `DecoupleHeldPublishRequests` enabled it can be sized for the *active* (non-parked) request concurrency rather than the session count. **`MinRequestThreadCount`** pre-warms the pool so a connect burst is not throttled by thread-pool cold-start.
 - **`MaxQueuedRequestCount`** is how many decoded requests established sessions can have waiting for a worker. Size it at or above the total pipelining of your clients (for example 10 clients with 1,000 outstanding requests each need 10,000). The reserved queue entries of the Balanced and TrustedReservations isolation profiles are added on top; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits).
 - **`DecoupleHeldPublishRequests`** (default `true`) releases a held `Publish`'s request-processing worker while it waits, so a small worker pool can hold many outstanding long-polls.
+- **`InlineRequestExecution`** (default `Auto`) runs a request on the receive loop of its channel when every NodeManager it can reach supports that; `Enabled` ignores the NodeManagers' declarations, `Disabled` queues every request. **`InlineRequestTimeBudget`** (default 5 ms, `0` turns it off) is how long inline requests may hold a channel's receive loop before the channel queues its requests for a while. See [Inline request execution](#inline-request-execution).
 - **`MaxMonitoredItemCount`** and **`MaxMonitoredItemsPerSubscription`** (default `0`, no limit) cap the monitored items in the server and in one subscription. `CreateMonitoredItems` answers `Bad_TooManyMonitoredItems` for the items over the limit, and the values are published in `ServerCapabilities.MaxMonitoredItems` and `MaxMonitoredItemsPerSubscription`. Set them on servers reachable by untrusted clients; `MaxMonitoredItemsPerCall` only bounds a single request.
 - **`MaxFailedAuthenticationAttempts`** (default 5; `0` disables) is the per-certificate brute-force lockout. A single-certificate client that opens many sessions can trip it on transient handshake failures and then be rejected with `BadUserAccessDenied`; raise or disable it for bulk-connect clients.
 - **Stagger client connects.** Because establishment is CPU-bound but parallelizes across cores, throttling and staggering concurrent connects — rather than bursting them all at once — avoids self-inflicting a connect storm and is the most effective client-side measure.

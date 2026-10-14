@@ -291,6 +291,42 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// While the channel dispatches a request, its inline execution valve is the
+        /// current one of the dispatching thread, so a request queue that runs the
+        /// request inline accounts the time to this channel; outside, there is none.
+        /// </summary>
+        [Test]
+        public async Task TheChannelValveIsCurrentWhileARequestIsDispatchedAsync()
+        {
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool);
+            var transport = new RecordingTransport(asyncSendEvery: 2);
+            channel.SetTransport(transport);
+            var valves = new List<InlineExecutionValve?>();
+            channel.SetRequestReceivedCallback((target, requestId, request) =>
+            {
+                lock (valves)
+                {
+                    valves.Add(InlineExecutionValve.Current);
+                }
+                _ = ((TcpServerChannel)target).SendResponseAsync(requestId, CreateResponse(null, 10)).AsTask();
+            });
+
+            for (uint ii = 1; ii <= 2; ii++)
+            {
+                transport.Feed(channel.CreateRequestChunkForTest(ii, ii));
+            }
+            channel.StartReceiveLoopForTest();
+
+            await transport.WaitForFinalChunksAsync(2).ConfigureAwait(false);
+            Assert.That(valves, Has.Count.EqualTo(2));
+            Assert.That(valves[0], Is.Not.Null);
+            Assert.That(valves[1], Is.SameAs(valves[0]));
+            Assert.That(InlineExecutionValve.Current, Is.Null);
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// A response that cannot be encoded is answered with a ServiceFault carrying
         /// its RequestHandle, whether it is sent on the receive loop while that
         /// dispatches the request (with the gate free) or from another thread.

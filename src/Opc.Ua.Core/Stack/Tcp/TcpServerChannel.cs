@@ -97,6 +97,7 @@ namespace Opc.Ua.Bindings
             m_logger = telemetry.CreateLogger<TcpServerChannel>();
             m_eventLogger = telemetry.CreateLogger(CoreEventIds.CoreCompatibilityCategory);
             m_queuedResponses = [];
+            m_inlineExecutionValve = new InlineExecutionValve(TimeProvider);
         }
 
         /// <summary>
@@ -508,6 +509,7 @@ namespace Opc.Ua.Bindings
                 // a request that runs to completion here queues its response on
                 // this thread; the receive loop starts the writer for all of them.
                 UaSCUaBinaryChannel? dispatching = DeferWriterStart();
+                InlineExecutionValve? valve = InlineExecutionValve.Enter(m_inlineExecutionValve);
                 try
                 {
                     RequestReceived?.Invoke(this, dispatch.RequestId, dispatch.Request);
@@ -522,6 +524,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
+                    InlineExecutionValve.Exit(valve);
                     EndDeferWriterStart(dispatching);
                     dispatch.Chunks?.Release(BufferManager, "ProcessRequestMessage");
                 }
@@ -2113,6 +2116,12 @@ namespace Opc.Ua.Bindings
 
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
+
+        /// <summary>
+        /// Pauses running the requests of this channel on its receive loop once they
+        /// hold it too long; current while a request is dispatched.
+        /// </summary>
+        private readonly InlineExecutionValve m_inlineExecutionValve;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;
         private byte[]? m_oscRequestSignature;

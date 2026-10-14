@@ -83,6 +83,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets which requests reach only NodeManagers that support inline execution.
+        /// </summary>
+        public InlineExecutionRoutes InlineRoutes => Volatile.Read(ref m_snapshot).InlineRoutes;
+
+        /// <summary>
         /// Adds a NodeManager during server startup, before the namespace routes are built.
         /// </summary>
         /// <param name="nodeManager">The NodeManager to add.</param>
@@ -1010,6 +1015,9 @@ namespace Opc.Ua.Server
                     CreateVisibleNamespaceManagers(
                         namespaceManagers,
                         hiddenNodeManagers);
+                InlineRoutes = InlineExecutionRoutes.Create(
+                    VisibleNodeManagers,
+                    VisibleNamespaceManagers);
             }
 
             /// <summary>
@@ -1046,6 +1054,12 @@ namespace Opc.Ua.Server
             public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>>
                 VisibleNamespaceManagers
             { get; }
+
+            /// <summary>
+            /// Gets which requests reach only visible NodeManagers that support inline
+            /// execution.
+            /// </summary>
+            public InlineExecutionRoutes InlineRoutes { get; }
 
             /// <summary>
             /// Builds the namespace routes that exclude hidden NodeManagers, dropping namespaces

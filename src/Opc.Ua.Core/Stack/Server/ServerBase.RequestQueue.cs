@@ -62,6 +62,15 @@ namespace Opc.Ua
             /// Positive maximum encoded request footprint charged to every retained decoded request.
             /// Required when isolation is enabled; this cost is not managed-heap accounting.
             /// </param>
+            /// <param name="inlineRequestExecution">
+            /// Whether a request may run on the thread that received it; see
+            /// <see cref="ServerBaseConfiguration.InlineRequestExecution"/>. Only the
+            /// isolation path runs requests so.
+            /// </param>
+            /// <param name="inlineRequestTimeBudget">
+            /// How long, in milliseconds, requests run inline may hold the receive loop of
+            /// their channel; see <see cref="ServerBaseConfiguration.InlineRequestTimeBudget"/>.
+            /// </param>
             public RequestQueue(
                 ServerBase server,
                 int minThreadCount,
@@ -69,7 +78,9 @@ namespace Opc.Ua
                 int maxRequestCount,
                 bool decoupleHeldPublishRequests = true,
                 IServerResourceIsolationProvider? resourceIsolationProvider = null,
-                long maxRequestCost = 0)
+                long maxRequestCost = 0,
+                InlineRequestExecutionMode inlineRequestExecution = InlineRequestExecutionMode.Auto,
+                int inlineRequestTimeBudget = ServerBaseConfiguration.DefaultInlineRequestTimeBudget)
             {
                 m_server = server ?? throw new ArgumentNullException(nameof(server));
                 if (minThreadCount <= 0 || maxThreadCount < minThreadCount)
@@ -79,6 +90,10 @@ namespace Opc.Ua
                 m_minThreadCount = minThreadCount;
                 m_maxThreadCount = maxThreadCount;
                 m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
+                m_runInline = inlineRequestExecution != InlineRequestExecutionMode.Disabled;
+                m_inlineRequestTimeBudget = inlineRequestTimeBudget > 0
+                    ? TimeSpan.FromMilliseconds(inlineRequestTimeBudget)
+                    : TimeSpan.Zero;
 
                 var options = new System.Threading.Channels.BoundedChannelOptions(maxRequestCount)
                 {
@@ -199,7 +214,7 @@ namespace Opc.Ua
 
                 if (m_fairQueue != null)
                 {
-                    if (TryRunInline(request, cancellationToken))
+                    if (m_runInline && TryRunInline(request, cancellationToken))
                     {
                         return;
                     }
@@ -234,8 +249,23 @@ namespace Opc.Ua
             /// capacity is available, up to its first asynchronous wait.
             /// </summary>
             /// <returns>False when the request has to be queued instead.</returns>
+            /// <remarks>
+            /// On a connection that dispatches on its receive loop, the
+            /// <see cref="InlineExecutionValve"/> of the connection measures how long the
+            /// request held the loop, and pauses inline execution there once requests
+            /// exceed the budget.
+            /// </remarks>
             private bool TryRunInline(IEndpointIncomingRequest request, CancellationToken cancellationToken)
             {
+                InlineExecutionValve? valve = m_inlineRequestTimeBudget > TimeSpan.Zero
+                    ? InlineExecutionValve.Current
+                    : null;
+                long started = 0;
+                if (valve != null && !valve.TryBegin(out started))
+                {
+                    return false;
+                }
+
                 FairRequestQueue.Entry? entry;
                 try
                 {
@@ -261,6 +291,19 @@ namespace Opc.Ua
 
                 // ProcessRequestSafeAsync never throws and always completes the request.
                 _ = ProcessRequestSafeAsync(new QueuedRequest(request, cancellationToken), entry, m_requestStopToken);
+
+                if (valve != null)
+                {
+                    TimeSpan pause = valve.Complete(started, m_inlineRequestTimeBudget, out TimeSpan held);
+                    if (pause > TimeSpan.Zero)
+                    {
+                        m_server.m_logger.InlineExecutionPaused(
+                            request.SecureChannelContext.SecureChannelId,
+                            held.TotalMilliseconds,
+                            m_inlineRequestTimeBudget.TotalMilliseconds,
+                            pause.TotalSeconds);
+                    }
+                }
                 return true;
             }
 
@@ -557,6 +600,17 @@ namespace Opc.Ua
             /// Whether parked requests release their execution workers.
             /// </summary>
             private readonly bool m_decoupleHeldPublishRequests;
+
+            /// <summary>
+            /// Whether a request may run on the thread that received it.
+            /// </summary>
+            private readonly bool m_runInline;
+
+            /// <summary>
+            /// How long requests run inline may hold the receive loop of their channel;
+            /// zero when not limited.
+            /// </summary>
+            private readonly TimeSpan m_inlineRequestTimeBudget;
 
             /// <summary>
             /// Compatibility FIFO used when no isolation provider is installed.

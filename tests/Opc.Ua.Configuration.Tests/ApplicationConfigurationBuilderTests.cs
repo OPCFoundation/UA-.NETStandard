@@ -1225,6 +1225,24 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public async Task ServerOptionsSetInlineRequestExecutionAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetInlineRequestExecution(InlineRequestExecutionMode.Disabled)
+                    .SetInlineRequestTimeBudget(2);
+
+                ServerConfiguration server = appInstance.ApplicationConfiguration!.ServerConfiguration!;
+                Assert.That(server.InlineRequestExecution, Is.EqualTo(InlineRequestExecutionMode.Disabled));
+                Assert.That(server.InlineRequestTimeBudget, Is.EqualTo(2));
+            }
+        }
+
+        [Test]
         public async Task ServerOptionsSetDiagnosticsEnabledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
