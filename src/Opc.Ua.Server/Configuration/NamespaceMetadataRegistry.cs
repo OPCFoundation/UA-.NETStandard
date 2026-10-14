@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,6 +107,11 @@ namespace Opc.Ua.Server
         /// <c>null</c> when none exists. Results are cached until the
         /// <c>Namespaces</c> object changes.
         /// </summary>
+        /// <remarks>
+        /// Permission checks call this for every request. Cached results,
+        /// found and missing, are read without a lock; only filling and
+        /// invalidating the cache take it.
+        /// </remarks>
         public async ValueTask<NamespaceMetadataState?> GetAsync(
             string namespaceUri,
             CancellationToken cancellationToken = default)
@@ -115,12 +121,9 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            lock (m_lock)
+            if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataState? value))
             {
-                if (m_statesByUri.TryGetValue(namespaceUri, out NamespaceMetadataState? value))
-                {
-                    return value;
-                }
+                return value;
             }
 
             // A missing metadata node is only remembered while the
@@ -131,18 +134,10 @@ namespace Opc.Ua.Server
             // the generation (Invalidate) or leave pending change masks on
             // the Namespaces node, both checked without enumerating it.
             NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
-            long generation;
-            lock (m_lock)
+            long generation = Interlocked.Read(ref m_generation);
+            if (IsCachedMiss(m_missingByUri, namespaceUri, generation, pendingChanges))
             {
-                if (m_missingByUri.TryGetValue(
-                        namespaceUri,
-                        out (long Generation, NodeStateChangeMasks PendingChanges) missing) &&
-                    missing.Generation == m_generation &&
-                    (pendingChanges & ~missing.PendingChanges) == 0)
-                {
-                    return null;
-                }
-                generation = m_generation;
+                return null;
             }
 
             NamespaceMetadataState? namespaceMetadataState = await FindAsync(
@@ -150,11 +145,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // remember the result for faster access.
+                // remember the result for faster access. A miss found before an
+                // invalidation carries the old generation and is never used.
                 if (namespaceMetadataState != null)
                 {
                     m_statesByUri[namespaceUri] = namespaceMetadataState;
-                    m_missingByUri.Remove(namespaceUri);
+                    m_missingByUri.TryRemove(namespaceUri, out _);
                 }
                 else
                 {
@@ -169,31 +165,65 @@ namespace Opc.Ua.Server
         /// Gets the metadata node for <paramref name="namespaceIndex"/>, or
         /// <c>null</c> when none exists.
         /// </summary>
+        /// <remarks>
+        /// A namespace without a metadata node is remembered by index as well,
+        /// with the same validity as the miss remembered by URI, so the common
+        /// case of a namespace without metadata resolves no URI.
+        /// </remarks>
         public async ValueTask<NamespaceMetadataState?> GetAsync(
             ushort namespaceIndex,
             CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataState? value))
             {
-                if (m_statesByIndex.TryGetValue(namespaceIndex, out NamespaceMetadataState? value))
-                {
-                    return value;
-                }
+                return value;
+            }
+
+            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+            long generation = Interlocked.Read(ref m_generation);
+            if (IsCachedMiss(m_missingByIndex, namespaceIndex, generation, pendingChanges))
+            {
+                return null;
             }
 
             string? namespaceUri = m_host.SystemContext.Server.NamespaceUris.GetString(namespaceIndex);
             NamespaceMetadataState? namespaceMetadataState = await GetAsync(
                 namespaceUri!, cancellationToken).ConfigureAwait(false);
 
-            if (namespaceMetadataState != null)
+            lock (m_lock)
             {
-                lock (m_lock)
+                if (namespaceMetadataState != null)
                 {
                     m_statesByIndex[namespaceIndex] = namespaceMetadataState;
+                    m_missingByIndex.TryRemove(namespaceIndex, out _);
+                }
+                else
+                {
+                    m_missingByIndex[namespaceIndex] = (generation, pendingChanges);
                 }
             }
 
             return namespaceMetadataState;
+        }
+
+        /// <summary>
+        /// Whether a remembered miss is still valid: it was recorded in the current
+        /// generation, and no change of <c>Server/Namespaces</c> is pending now that
+        /// was not pending when the miss was recorded.
+        /// </summary>
+        /// <typeparam name="TKey">The namespace URI or index.</typeparam>
+        private static bool IsCachedMiss<TKey>(
+            ConcurrentDictionary<TKey, (long Generation, NodeStateChangeMasks PendingChanges)> missing,
+            TKey key,
+            long generation,
+            NodeStateChangeMasks pendingChanges)
+            where TKey : notnull
+        {
+            return missing.TryGetValue(
+                    key,
+                    out (long Generation, NodeStateChangeMasks PendingChanges) entry) &&
+                entry.Generation == generation &&
+                (pendingChanges & ~entry.PendingChanges) == 0;
         }
 
         /// <summary>
@@ -293,9 +323,11 @@ namespace Opc.Ua.Server
             {
                 tracked = [.. m_tracked];
                 m_tracked.Clear();
+                Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
                 m_missingByUri.Clear();
+                m_missingByIndex.Clear();
             }
 
             foreach (NamespaceMetadataState metadataState in tracked)
@@ -386,10 +418,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // The generation moves first, so a lookup that still finds a miss
+                // that is about to be cleared compares it against the new generation.
+                Interlocked.Increment(ref m_generation);
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
                 m_missingByUri.Clear();
-                m_generation++;
+                m_missingByIndex.Clear();
             }
         }
 
@@ -508,9 +543,11 @@ namespace Opc.Ua.Server
 
         private readonly INamespaceMetadataHost m_host;
         private readonly ILogger m_logger;
-        private readonly Dictionary<string, NamespaceMetadataState> m_statesByUri = [];
-        private readonly Dictionary<ushort, NamespaceMetadataState> m_statesByIndex = [];
-        private readonly Dictionary<string, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByUri = [];
+        // Read without the lock; filled and cleared under it.
+        private readonly ConcurrentDictionary<string, NamespaceMetadataState> m_statesByUri = new();
+        private readonly ConcurrentDictionary<ushort, NamespaceMetadataState> m_statesByIndex = new();
+        private readonly ConcurrentDictionary<string, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByUri = new();
+        private readonly ConcurrentDictionary<ushort, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByIndex = new();
         private long m_generation;
         private readonly HashSet<NamespaceMetadataState> m_tracked = [];
         private readonly Lock m_lock = new();

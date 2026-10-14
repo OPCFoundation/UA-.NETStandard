@@ -98,7 +98,6 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_logger = telemetry.CreateLogger<TcpByteTransport>();
-            m_sendLock = new SemaphoreSlim(1, 1);
         }
 
         /// <summary>
@@ -232,14 +231,9 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource? linkedCts = ct.CanBeCanceled
                 ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
                 : null;
-            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
-            try
+            using (await m_sendLock.EnterAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false))
             {
                 await SendMemoryAsync(socket, chunk, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_sendLock.Release();
             }
         }
 
@@ -257,8 +251,7 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource? linkedCts = ct.CanBeCanceled
                 ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
                 : null;
-            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
-            try
+            using (await m_sendLock.EnterAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false))
             {
                 if (buffers.Count == 1)
                 {
@@ -280,10 +273,6 @@ namespace Opc.Ua.Bindings
                     socket,
                     static (s, pending) => s.SendAsync(pending, SocketFlags.None))
                     .ConfigureAwait(false);
-            }
-            finally
-            {
-                m_sendLock.Release();
             }
         }
 
@@ -744,11 +733,11 @@ namespace Opc.Ua.Bindings
         private bool m_receiveBroken;
         private readonly ILogger m_logger;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Usage",
-            "CA2213:Disposable fields should be disposed",
-            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
-        private readonly SemaphoreSlim m_sendLock;
+        /// <summary>
+        /// Serialises the sends. The channel has one writer, so it is uncontended
+        /// there and costs one interlocked exchange each way.
+        /// </summary>
+        private readonly ChannelGate m_sendLock = new();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,7 +63,7 @@ namespace Opc.Ua.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<RequestManager>();
-            m_requests = new ConcurrentDictionary<uint, OperationContext>();
+            m_requests = new RequestTable<OperationContext>();
             m_requestTimer = null;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
@@ -97,12 +96,11 @@ namespace Opc.Ua.Server
                     }
 
                     m_disposed = true;
-                    operations = [.. m_requests.Values];
-                    m_requests.Clear();
+                    operations = m_requests.Clear();
+                    m_validationScopes.Clear();
                     requestDrains = [.. m_requestDrains];
                     m_requestDrains.Clear();
                     PublishDrainCountLocked();
-                    m_activeValidationScopes.Clear();
                     m_lifecycleExtension?.DisposeLocked();
                 }
 
@@ -144,10 +142,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a new request arrives.
         /// </summary>
+        /// <remarks>
+        /// Requests are tracked by their context; registering the same context again does
+        /// nothing.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// A different request with the same request id is already active.
-        /// </exception>
         /// <exception cref="ServiceResultException">
         /// A registered request lifecycle extension closed request admission because the server
         /// is shutting down.
@@ -159,12 +158,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            OperationContext existingContext = m_requests.GetOrAdd(context.RequestId, context);
-            if (!ReferenceEquals(existingContext, context))
-            {
-                throw new InvalidOperationException(
-                    $"A different request with id {context.RequestId} is already active.");
-            }
+            m_requests.Add(context);
             m_currentServiceDispatchScope.Value?.RegisterRequest(context.RequestId);
 
             // Registration takes no lock. A Session close marks the Session before it sweeps the
@@ -214,8 +208,7 @@ namespace Opc.Ua.Server
             }
 
             // remove the request, only when it is this context.
-            bool removed = ((ICollection<KeyValuePair<uint, OperationContext>>)m_requests).Remove(
-                new KeyValuePair<uint, OperationContext>(context.RequestId, context));
+            bool removed = m_requests.Remove(context);
             if (removed)
             {
                 if (HasRequestDrains())
@@ -274,10 +267,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            return m_requests.TryGetValue(
-                operation.RequestId,
-                out OperationContext? existingContext) &&
-                ReferenceEquals(existingContext, operation);
+            return m_requests.Contains(operation);
         }
 
         /// <summary>
@@ -333,12 +323,13 @@ namespace Opc.Ua.Server
         {
             long validationId = Interlocked.Increment(
                 ref m_lastValidationScopeId);
-            m_activeValidationScopes.TryAdd(validationId, 0);
+            var scope = new RequestValidationScope(this, validationId);
+            m_validationScopes.Add(scope);
 
             // A drain that misses this scope started first; the fence orders the registration
             // before validation reads the routing tables the drain's caller has already changed.
             Interlocked.MemoryBarrier();
-            return new RequestValidationScope(this, validationId);
+            return scope;
         }
 
         /// <summary>
@@ -459,7 +450,7 @@ namespace Opc.Ua.Server
             // the lock either completed before the snapshot, or sees a drain and takes the lock.
             Interlocked.Exchange(ref m_drainCount, m_requestDrains.Count + 1);
             List<uint> requestIds = CollectRequestsToAwait(out budget);
-            List<long> validationIds = [.. m_activeValidationScopes.Keys];
+            List<long> validationIds = m_validationScopes.GetEntries().ConvertAll(scope => scope.ValidationId);
 
             RequestDrain? requestDrain = null;
             if (requestIds.Count != 0 || validationIds.Count != 0)
@@ -570,9 +561,10 @@ namespace Opc.Ua.Server
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             DateTime abandoned = now - RequestDrainTimeout;
             var longest = TimeSpan.Zero;
-            var awaited = new List<uint>(m_requests.Count);
+            List<OperationContext> requests = m_requests.GetEntries();
+            var awaited = new List<uint>(requests.Count);
 
-            foreach (OperationContext request in m_requests.Values)
+            foreach (OperationContext request in requests)
             {
                 if (m_lifecycleExtension?.ShouldExcludeRequestLocked(request.RequestId) == true)
                 {
@@ -662,7 +654,7 @@ namespace Opc.Ua.Server
             var matchingRequests = new List<OperationContext>();
             lock (m_requestsLock)
             {
-                foreach (OperationContext request in m_requests.Values)
+                foreach (OperationContext request in m_requests.GetEntries())
                 {
                     // an in-flight ActivateSession has no Session context yet, but it is
                     // aborted with the Session it is activating.
@@ -755,7 +747,7 @@ namespace Opc.Ua.Server
                     AddPendingCancelLocked(sessionId, requestHandle, cancelTimestamp);
                 }
 
-                foreach (OperationContext request in m_requests.Values)
+                foreach (OperationContext request in m_requests.GetEntries())
                 {
                     if (request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
@@ -951,7 +943,7 @@ namespace Opc.Ua.Server
                 // find the completed request.
                 bool deadlineExists = false;
 
-                foreach (OperationContext request in m_requests.Values)
+                foreach (OperationContext request in m_requests.GetEntries())
                 {
                     if (request.OperationDeadline < m_timeProvider.GetUtcNow().UtcDateTime)
                     {
@@ -1001,13 +993,14 @@ namespace Opc.Ua.Server
         private readonly AsyncLocal<ServiceDispatchScope?> m_currentServiceDispatchScope = new();
 
         /// <summary>
-        /// The executing requests. Registration and completion take no lock; enumeration,
-        /// drains, timeouts and Cancel run under <see cref="m_requestsLock"/>.
+        /// The executing requests and the open validation scopes. Registration and completion
+        /// take no lock; enumeration, drains, timeouts and Cancel run under
+        /// <see cref="m_requestsLock"/>.
         /// </summary>
-        private readonly ConcurrentDictionary<uint, OperationContext> m_requests;
+        private readonly RequestTable<OperationContext> m_requests;
+        private readonly RequestTable<RequestValidationScope> m_validationScopes = new();
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
-        private readonly ConcurrentDictionary<long, byte> m_activeValidationScopes = new();
 
         /// <summary>
         /// The number of registered drains (plus one while a drain takes its snapshot).
@@ -1209,8 +1202,16 @@ namespace Opc.Ua.Server
         /// attaching its execution scope to the context that <c>ValidateRequestAsync</c> returns.
         /// </para>
         /// </summary>
-        private sealed class RequestValidationScope : IDisposable
+        private sealed class RequestValidationScope : IDisposable, IRequestTableEntry
         {
+            /// <inheritdoc/>
+            uint IRequestTableEntry.TableKey => unchecked((uint)m_validationId);
+
+            /// <inheritdoc/>
+            ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
+
+            private int m_tableSlot = RequestTable<RequestValidationScope>.kNoSlot;
+
             /// <summary>
             /// Initializes a new instance of the <see cref="RequestValidationScope"/> class.
             /// </summary>
@@ -1234,7 +1235,7 @@ namespace Opc.Ua.Server
                 if (!m_disposed)
                 {
                     m_disposed = true;
-                    m_requestManager.m_activeValidationScopes.TryRemove(m_validationId, out _);
+                    m_requestManager.m_validationScopes.Remove(this);
                     if (!m_requestManager.HasRequestDrains())
                     {
                         return;
