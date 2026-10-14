@@ -945,7 +945,8 @@ namespace Opc.Ua.Wot
             catch (FormatException)
             {
                 // A document whose preserved native context cannot be restored contributes nothing to the local
-                // context; its own conversion reports the failure as a diagnostic.
+                // context only. Every document of the set is still converted, so that document's own conversion
+                // reports the failure as an error and the overall result cannot succeed.
                 var usable = new List<WotDocument>(siblings.Count);
                 foreach (WotDocument sibling in siblings)
                 {

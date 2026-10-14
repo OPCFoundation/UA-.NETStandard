@@ -4006,7 +4006,20 @@ namespace Opc.Ua.Wot
                 }
                 if (resolvedId is not null)
                 {
-                    var nodes = new WotDocumentNodeResolver([resolved]);
+                    WotDocumentNodeResolver nodes;
+                    try
+                    {
+                        nodes = new WotDocumentNodeResolver([resolved]);
+                    }
+                    catch (FormatException exception)
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.UnresolvedReference,
+                            $"The referenced document '{reference}' cannot supply a node: {exception.Message}",
+                            new WotLocation(reference: reference)));
+                        return null;
+                    }
                     return await nodes.ResolveByNodeIdAsync(resolvedId, cancellationToken).ConfigureAwait(false);
                 }
 

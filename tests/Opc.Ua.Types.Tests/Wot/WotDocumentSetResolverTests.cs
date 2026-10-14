@@ -128,28 +128,55 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// A document whose preserved native envelope cannot be restored yields error diagnostics instead of
-        /// throwing from the set-local context, alone or beside a valid document.
+        /// A document whose preserved native envelope cannot be restored still reaches conversion and fails the
+        /// whole set with an error diagnostic, whether it is the root, an unreferenced sibling or alone.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task InvalidPreservationEnvelopeReportsDiagnosticsInsteadOfThrowingAsync(bool multiple)
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        public async Task InvalidPreservationEnvelopeFailsTheSetWithDiagnosticsAsync(bool multiple, bool invalidRoot)
         {
             WotDocument invalid = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"uav:nodeSet":{}}"""));
-            ArrayOf<WotDocumentSetEntry> entries = multiple
-                ? [new WotDocumentSetEntry("root", invalid), new WotDocumentSetEntry("other", Document("Other"))]
-                : [new WotDocumentSetEntry("root", invalid)];
+            ArrayOf<WotDocumentSetEntry> entries = !multiple
+                ? [new WotDocumentSetEntry("root", invalid)]
+                : invalidRoot
+                    ? [new WotDocumentSetEntry("root", invalid), new WotDocumentSetEntry("other", Document("Other"))]
+                    : [new WotDocumentSetEntry("root", Document("Root")), new WotDocumentSetEntry("other", invalid)];
             using var set = new WotDocumentSet("root", entries);
 
             WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
                 set, NullWotResolver.Instance, new WotExternalSchemaResolver()).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.UnsupportedContentType &&
-                diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, Describe(result));
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.JsonPointer == "/uav:nodeSet"), Is.True, Describe(result));
         }
 
+        /// <summary>
+        /// An externally resolved document with an unrestorable native envelope is reported, not thrown.
+        /// </summary>
+        [Test]
+        public async Task ExternalDocumentWithInvalidPreservationEnvelopeIsReportedAsync()
+        {
+            using var set = new WotDocumentSet("root",
+                [new WotDocumentSetEntry("root", Document("Root", link: "external"))]);
+            var resolver = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            resolver.Setup(value => value.ResolveThingAsync(
+                "external", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(
+                    Encoding.UTF8.GetBytes("""{"uav:id":"nsu=urn:wot-set;s=External","uav:nodeSet":{}}""")));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, resolver.Object, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False, Describe(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.Reference == "external"), Is.True, Describe(result));
+        }
         /// <summary>
         /// The resolver fallback also serves references of a multi-document set through the shared merge path.
         /// </summary>
