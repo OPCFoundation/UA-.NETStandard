@@ -427,6 +427,60 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        /// <summary>
+        /// An asynchronous contentless Open that completes Good after its Session started closing
+        /// must not hand out the handle: the provider handle is closed exactly once and the call
+        /// reports BadSessionClosed.
+        /// </summary>
+        [Test]
+        public async Task AsyncContentlessOpenRacingSessionCloseReleasesHandleAsync()
+        {
+            var strategy = new AsyncContentlessClaimStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+            var sessionId = new NodeId("closing-session", 1);
+            bool closing = false;
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.IsClosing).Returns(() => closing);
+            ServerSystemContext context = harness.Context.Copy(
+                new Opc.Ua.Server.OperationContext(session.Object, DiagnosticsMasks.None));
+            context.SessionId = sessionId;
+            using var cts = new CancellationTokenSource();
+            var output = new List<Variant>();
+
+            Task<ServiceResult> create = group.CreateResource!.OnCallMethod2Async!(
+                context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant("v1"),
+                    new Variant(true)
+                ],
+                output,
+                cts.Token).AsTask();
+            await Task.WhenAny(strategy.File.Entered, create).ConfigureAwait(false);
+            Assert.That(strategy.File.Entered.IsCompleted, Is.True);
+
+            closing = true;
+            await harness.Engine.DiscardSessionAsync(sessionId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(create.IsCompleted, Is.False);
+            strategy.File.Release();
+            ServiceResult result = await create.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(output, Is.Empty);
+                Assert.That(strategy.File.Closes, Has.Count.EqualTo(1));
+                Assert.That(strategy.File.Closes[0].Handle, Is.EqualTo(AsyncContentlessResourceFile.ClaimedHandle));
+                Assert.That(strategy.File.Closes[0].Token.CanBeCanceled, Is.False);
+            });
+        }
+
         [Test]
         public async Task VersionedDeletePassesLogicalRoleAndEpochToAtomicStrategyAsync()
         {
@@ -3077,6 +3131,137 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 return new ValueTask<IXRegistryProjectionResource?>(
                     (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        private sealed class AsyncContentlessClaimStrategy : VersionedTestStrategy
+        {
+            public AsyncContentlessClaimStrategy()
+            {
+                Snapshot = new TestSnapshot(
+                [
+                    new TestGroup(
+                        "schemas",
+                        [new VersionedTestResource("schemas", "pump", "v1")])
+                ]);
+            }
+
+            public AsyncContentlessResourceFile File { get; } = new();
+
+            public override IXRegistryProjectedResourceFile CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                return File;
+            }
+
+            public override ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                CancellationToken ct)
+            {
+                return new ValueTask<IXRegistryProjectionResource?>(
+                    (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        /// <summary>
+        /// Contentless provider whose asynchronous claim is held open by the test until
+        /// <see cref="Release"/> is called, and which records every forwarded Close.
+        /// </summary>
+        private sealed class AsyncContentlessResourceFile :
+            IXRegistryProjectedResourceFile,
+            IXRegistryAsyncProjectedContentlessResourceFile,
+            IXRegistryProjectedResourceFileHandleForwarder
+        {
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public const uint ClaimedHandle = 77;
+
+            public Task Entered => m_entered.Task;
+
+            public List<(uint Handle, CancellationToken Token)> Closes { get; } = [];
+
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public ServiceResult TryOpenWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult TryOpenContentlessWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public async ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                m_entered.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                return new OpenMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    FileHandle = ClaimedHandle
+                };
+            }
+
+            public ServiceResult ForwardOpen(
+                ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ValueTask<ServiceResult> ForwardCloseAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, CancellationToken cancellationToken)
+            {
+                Closes.Add((fileHandle, cancellationToken));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, int length, CancellationToken cancellationToken)
+            {
+                return new ValueTask<(ServiceResult, ByteString)>(
+                    (StatusCodes.BadNotSupported, ByteString.Empty));
+            }
+
+            public ServiceResult ForwardWrite(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ByteString data)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardGetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ref ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardSetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public void ApplyResource(IXRegistryProjectionResource resource)
+            {
+            }
+
+            public void Dispose()
+            {
             }
         }
 
