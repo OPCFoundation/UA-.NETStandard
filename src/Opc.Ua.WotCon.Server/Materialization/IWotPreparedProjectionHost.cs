@@ -121,12 +121,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
-            IWotPreparedViewPublication? views = null,
-            CancellationToken cancellationToken = default);
-
+            IWotPreparedViewPublication? views,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -153,20 +156,49 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Reserves publication admission and reports whether preparation is still current.
         /// </summary>
-        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Reserves publication admission for the executing request, so the post-commit request drain
-        /// excludes that request. Owners that do not track request contexts ignore it.
-        /// </summary>
-        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, so the post-commit request drain excludes that request,
+        /// or <c>null</c> for an external caller that does not run inside a server request.
+        /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotProjectionPublication> BeginAsync(
             IOperationContext? callerContext,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// External-caller conveniences for the source-owner admission and preparation contracts.
+    /// </summary>
+    public static class WotProjectionHostExtensions
+    {
+        /// <summary>
+        /// Reserves publication admission for an external caller without a request context.
+        /// </summary>
+        /// <param name="capture">The captured source-owner revisions.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<IWotProjectionPublication> BeginAsync(
+            this IWotProjectionPublicationCapture capture,
+            CancellationToken cancellationToken = default)
         {
-            return BeginAsync(cancellationToken);
+            return (capture ?? throw new ArgumentNullException(nameof(capture)))
+                .BeginAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Privately prepares source changes for an external caller without a request context.
+        /// </summary>
+        /// <param name="host">The prepared source host.</param>
+        /// <param name="changes">The source projection changes to prepare.</param>
+        /// <param name="views">The WoT prepared view publication.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+            this IWotPreparedProjectionHost host,
+            ArrayOf<WotProjectionChange> changes,
+            IWotPreparedViewPublication? views = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (host ?? throw new ArgumentNullException(nameof(host)))
+                .PrepareAsync(changes, views, null, cancellationToken);
         }
     }
 

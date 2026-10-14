@@ -180,11 +180,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
-                ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views = null,
-                CancellationToken cancellationToken = default)
+                ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views,
+                IOperationContext? callerContext, CancellationToken cancellationToken)
             {
                 prepare?.Invoke(changes);
-                IWotPreparedProjectionPublication unit = await inner.PrepareAsync(changes, views, cancellationToken)
+                IWotPreparedProjectionPublication unit = await inner
+                    .PrepareAsync(changes, views, callerContext, cancellationToken)
                     .ConfigureAwait(false);
                 return new ObservedUnit(unit, changes, published);
             }
@@ -238,10 +239,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             : IWotProjectionPublicationCapture
         {
             /// <inheritdoc/>
+            /// <param name="callerContext">The executing request's context, if any.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<IWotProjectionPublication> BeginAsync(
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
-                IWotProjectionPublication invocation = await inner.BeginAsync(cancellationToken).ConfigureAwait(false);
+                IWotProjectionPublication invocation = await inner.BeginAsync(callerContext, cancellationToken)
+                    .ConfigureAwait(false);
                 return new ObservedInvocation(invocation, published, validate, prepare);
             }
         }

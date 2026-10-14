@@ -76,19 +76,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
+        /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
-            IWotPreparedViewPublication? views = null,
-            CancellationToken cancellationToken = default)
+            IWotPreparedViewPublication? views,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken)
         {
-            return PrepareCoreAsync(changes, views, null, cancellationToken);
+            return PrepareCoreAsync(changes, views, null, callerContext, cancellationToken);
         }
 
         private async ValueTask<IWotPreparedProjectionPublication> PrepareCoreAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             INodeManagerPublication? publication,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
             if (m_lifecycle is not INodeManagerBatchLifecycle lifecycle)
@@ -97,7 +100,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             PreparedChanges candidate = CreatePreparedChanges(changes, views);
             IPreparedNodeManagerBatch? batch = publication is null
-                ? await lifecycle.PrepareAsync(candidate.Changes, cancellationToken).ConfigureAwait(false)
+                ? await lifecycle.PrepareAsync(candidate.Changes, callerContext, cancellationToken)
+                    .ConfigureAwait(false)
                 : await publication.PrepareAsync(candidate.Changes, cancellationToken).ConfigureAwait(false);
             try
             {
@@ -239,17 +243,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             LifecycleWotProjectionHost owner, INodeManagerPublicationCapture capture) : IWotProjectionPublicationCapture
         {
             /// <summary>
-            /// Begins a publication invocation on the captured source-owner revisions.
-            /// </summary>
-            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public async ValueTask<IWotProjectionPublication> BeginAsync(
-                CancellationToken cancellationToken = default)
-            {
-                return await BeginAsync(null, cancellationToken).ConfigureAwait(false);
-            }
-
-            /// <summary>
-            /// Begins a publication invocation for the executing request.
+            /// Begins a publication invocation for the executing request on the captured source-owner revisions.
             /// </summary>
             /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -282,7 +276,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
-                return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
+                return owner.PrepareCoreAsync(changes, views, publication, null, cancellationToken);
             }
 
             /// <summary>

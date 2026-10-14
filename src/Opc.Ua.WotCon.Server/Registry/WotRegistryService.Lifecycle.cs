@@ -262,12 +262,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             string groupId,
             string resourceId,
             long? expectedEpoch,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
             WotDeleteOutcome result = await coordinator.DeleteAsync(new WotDeleteRequest
             {
                 GroupId = groupId, ResourceId = resourceId,
-                ExpectedEpoch = expectedEpoch, Policy = coordinator.DeletePolicy
+                ExpectedEpoch = expectedEpoch, Policy = coordinator.DeletePolicy,
+                CallerContext = callerContext
             }, cancellationToken).ConfigureAwait(false);
             return new WotRegistryMutationResult(
                 result.Delete.Outcome, Current.FindResource(groupId, resourceId),

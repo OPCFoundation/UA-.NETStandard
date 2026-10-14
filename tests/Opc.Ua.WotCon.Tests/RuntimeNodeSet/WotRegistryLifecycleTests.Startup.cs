@@ -140,15 +140,18 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             /// <param name="changes">The projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
+            /// <param name="callerContext">The executing request's context, if any.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
                 ArrayOf<WotProjectionChange> changes,
-                IWotPreparedViewPublication? views = null,
-                CancellationToken cancellationToken = default)
+                IWotPreparedViewPublication? views,
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
                 RecordAdditions(changes);
                 IWotPreparedProjectionPublication prepared = await WithDeadlineAsync(
-                    token => inner.PrepareAsync(changes, views, token), cancellationToken).ConfigureAwait(false);
+                    token => inner.PrepareAsync(changes, views, callerContext, token), cancellationToken)
+                    .ConfigureAwait(false);
                 return new DeadlinePublication(this, prepared);
             }
 
@@ -238,12 +241,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 /// <summary>
                 /// Begins a projection publication under the deadline.
                 /// </summary>
+                /// <param name="callerContext">The executing request's context, if any.</param>
                 /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
                 public async ValueTask<IWotProjectionPublication> BeginAsync(
-                    CancellationToken cancellationToken = default)
+                    IOperationContext? callerContext,
+                    CancellationToken cancellationToken)
                 {
                     IWotProjectionPublication invocation = await owner.WithDeadlineAsync(
-                        capture.BeginAsync, cancellationToken).ConfigureAwait(false);
+                        token => capture.BeginAsync(callerContext, token), cancellationToken).ConfigureAwait(false);
                     return new DeadlineInvocation(owner, invocation);
                 }
             }

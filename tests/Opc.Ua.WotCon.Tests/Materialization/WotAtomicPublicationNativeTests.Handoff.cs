@@ -658,21 +658,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(() => inner.SupportsPreparedPublication);
             host.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<WotProjectionChange>>(), It.IsAny<IWotPreparedViewPublication?>(),
-                It.IsAny<CancellationToken>())).Returns(async (
+                It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>())).Returns(async (
                     ArrayOf<WotProjectionChange> changes,
                     IWotPreparedViewPublication? views,
+                    IOperationContext? callerContext,
                     CancellationToken token) =>
-                Track(await inner.PrepareAsync(changes, views, token).ConfigureAwait(false), changes));
+                Track(await inner.PrepareAsync(changes, views, callerContext, token).ConfigureAwait(false), changes));
             Mock<IWotInvocationProjectionHost> isolated = host.As<IWotInvocationProjectionHost>();
             isolated.SetupGet(owner => owner.SupportedAtomicities).Returns(() => inner.SupportedAtomicities);
             isolated.Setup(owner => owner.CapturePublication()).Returns(() =>
             {
                 IWotProjectionPublicationCapture captured = inner.CapturePublication();
                 var capture = new Mock<IWotProjectionPublicationCapture>(MockBehavior.Strict);
-                capture.Setup(value => value.BeginAsync(It.IsAny<CancellationToken>()))
-                    .Returns(async (CancellationToken token) =>
+                capture.Setup(value => value.BeginAsync(
+                        It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (IOperationContext? callerContext, CancellationToken token) =>
                     {
-                        IWotProjectionPublication admitted = await captured.BeginAsync(token).ConfigureAwait(false);
+                        IWotProjectionPublication admitted = await captured.BeginAsync(callerContext, token)
+                            .ConfigureAwait(false);
                         var invocation = new Mock<IWotProjectionPublication>(MockBehavior.Strict);
                         invocation.SetupGet(value => value.IsCurrent).Returns(() => admitted.IsCurrent);
                         invocation.Setup(value => value.PrepareAsync(

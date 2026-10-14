@@ -194,7 +194,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     throw new NotSupportedException("The registry invocation cannot recover a committed image.");
                 }
-                IWotProjectionPublication publication = await sourceCapture.BeginAsync(cancellationToken)
+                IWotProjectionPublication publication = await sourceCapture.BeginAsync(null, cancellationToken)
                     .ConfigureAwait(false);
                 await using var publicationLifetime = publication.ConfigureAwait(false);
                 if (!ReferenceEquals(snapshot, registryPublication.Current) || !publication.IsCurrent)
@@ -402,7 +402,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new NotSupportedException("The registry invocation cannot reconcile recovered metadata.");
             }
-            IWotProjectionPublication source = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+            IWotProjectionPublication source = await capture.BeginAsync(null, cancellationToken).ConfigureAwait(false);
             await using var sourceLifetime = source.ConfigureAwait(false);
             if (!ReferenceEquals(snapshot, registryPublication.Current) || !source.IsCurrent)
             {

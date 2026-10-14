@@ -462,7 +462,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 IWotPreparedProjectionPublication prepared = publication is null
                     ? await host.PrepareAsync(
-                        capture.Changes.Select(change => change.Change).ToArrayOf(), views, cancellationToken)
+                        capture.Changes.Select(change => change.Change).ToArrayOf(), views,
+                        request.CallerContext, cancellationToken)
                         .ConfigureAwait(false)
                     : await publication.PrepareAsync(
                         capture.Changes.Select(change => change.Change).ToArrayOf(), views, cancellationToken)

@@ -764,13 +764,15 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             /// <param name="changes">The projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
+            /// <param name="callerContext">The executing request's context, if any.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
                 ArrayOf<WotProjectionChange> changes,
-                IWotPreparedViewPublication? views = null,
-                CancellationToken cancellationToken = default)
+                IWotPreparedViewPublication? views,
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
-                return inner.PrepareAsync(changes, views, cancellationToken);
+                return inner.PrepareAsync(changes, views, callerContext, cancellationToken);
             }
 
             /// <summary>

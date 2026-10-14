@@ -659,7 +659,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 return deleteLogicalResource
                     ? await DeleteThroughLifecycleAsync(
-                        coordinator, groupId, resourceId, expectedEpoch, cancellationToken).ConfigureAwait(false)
+                        coordinator, groupId, resourceId, expectedEpoch, null, cancellationToken)
+                        .ConfigureAwait(false)
                     : await coordinator.DeleteVersionAsync(
                         groupId, resourceId, versionId, expectedEpoch, cancellationToken).ConfigureAwait(false);
             }
@@ -1443,16 +1444,35 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="groupId">The group ID.</param>
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
-        public async ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
+        public ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
             string groupId,
             string resourceId,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            return DeleteResourceAsync(groupId, resourceId, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a resource and all of its versions for the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        public async ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
+            string groupId,
+            string resourceId,
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken)
+        {
             if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
             {
                 return await DeleteThroughLifecycleAsync(
-                    coordinator, groupId, resourceId, expectedEpoch, cancellationToken).ConfigureAwait(false);
+                    coordinator, groupId, resourceId, expectedEpoch, callerContext, cancellationToken)
+                    .ConfigureAwait(false);
             }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try

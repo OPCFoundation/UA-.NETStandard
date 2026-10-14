@@ -67,12 +67,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
-            IWotPreparedViewPublication? views = null,
-            CancellationToken cancellationToken = default)
+            IWotPreparedViewPublication? views,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken)
         {
             RecordNewDocuments(changes);
             await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
-            return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
+            return await inner.PrepareAsync(changes, views, callerContext, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -203,10 +204,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IWotProjectionPublicationCapture inner, PausableWotProjectionHost owner) : IWotProjectionPublicationCapture
         {
             /// <inheritdoc/>
+            /// <param name="callerContext">The executing request's context, if any.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<IWotProjectionPublication> BeginAsync(
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
-                return new Invocation(await inner.BeginAsync(cancellationToken).ConfigureAwait(false), owner);
+                return new Invocation(
+                    await inner.BeginAsync(callerContext, cancellationToken).ConfigureAwait(false), owner);
             }
         }
 
