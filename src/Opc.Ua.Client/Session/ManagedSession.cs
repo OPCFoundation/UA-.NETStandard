@@ -875,6 +875,9 @@ namespace Opc.Ua.Client
             ConnectionStateBudgetOperation? operation = connection == null && channel == null
                 ? null
                 : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
+
+            // An explicit reconnect always runs, even after a channel recovery.
+            Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
             if (!StateMachine.RequestReconnect(operation))
             {
                 throw new ServiceResultException(
@@ -1665,6 +1668,18 @@ namespace Opc.Ua.Client
                 using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
+                    // The channel manager may have recovered the channel while this
+                    // reconnect waited out its backoff, e.g. when the faulted lease
+                    // was reconnected directly. Reconnecting again would only tear
+                    // down the freshly reactivated channel.
+                    if (ChannelReactivatedSinceReconnectTrigger(session))
+                    {
+                        Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
+                        m_reconnectPolicy.Reset();
+                        m_logger.ManagedSessionReconnectSkippedChannelRecovered();
+                        return ServiceResult.Good;
+                    }
+
                     try
                     {
                         ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
@@ -1741,6 +1756,7 @@ namespace Opc.Ua.Client
 
                 await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
 
+                Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
                 m_reconnectPolicy.Reset();
 
                 m_logger.ManagedSessionReconnected();
@@ -2343,7 +2359,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    StateMachine.TriggerReconnect();
+                    TriggerRecoveryReconnect();
                 }
             }
 
@@ -2376,6 +2392,10 @@ namespace Opc.Ua.Client
                     }
                     break;
                 case ChannelState.Ready:
+                    if (change.PreviousState == ChannelState.TransportConnectedSessionReactivating)
+                    {
+                        Interlocked.Increment(ref m_channelSessionReactivations);
+                    }
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
                     if (m_session?.ChannelRecoveryInProgress != true)
                     {
@@ -2388,7 +2408,7 @@ namespace Opc.Ua.Client
                     // Channel-mgr gave up. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
-                    StateMachine.TriggerReconnect(change);
+                    TriggerRecoveryReconnect(change);
                     break;
                 case ChannelState.Closed:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
@@ -2396,9 +2416,41 @@ namespace Opc.Ua.Client
                     // Channel-mgr closed. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
-                    StateMachine.TriggerReconnect();
+                    TriggerRecoveryReconnect();
                     break;
             }
+        }
+
+        /// <summary>
+        /// Requests an outer reconnect for a channel fault or keep-alive failure
+        /// and remembers how many channel reactivations had happened by then, so
+        /// the reconnect can be skipped if the channel manager reactivates the
+        /// session again before it runs.
+        /// </summary>
+        private void TriggerRecoveryReconnect(ChannelStateChange? change = null)
+        {
+            // Recorded before the request so the worker never reads an older mark.
+            Interlocked.Exchange(
+                ref m_reconnectTriggerMark,
+                Interlocked.Read(ref m_channelSessionReactivations));
+            if (!StateMachine.RequestReconnect(underlyingChannelState: change))
+            {
+                Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
+            }
+        }
+
+        /// <summary>
+        /// Whether the channel manager reactivated the session after the pending
+        /// outer reconnect was requested and the channel is still ready, in which
+        /// case another reconnect would only tear down the recovered channel.
+        /// </summary>
+        private bool ChannelReactivatedSinceReconnectTrigger(Session session)
+        {
+            long mark = Interlocked.Read(ref m_reconnectTriggerMark);
+            return mark != NoReconnectTrigger &&
+                Interlocked.Read(ref m_channelSessionReactivations) > mark &&
+                !session.ChannelRecoveryInProgress &&
+                session.ManagedChannel?.State == ChannelState.Ready;
         }
 
         private void RaiseChannelStateChanged(ChannelStateChange change)
@@ -2933,6 +2985,22 @@ namespace Opc.Ua.Client
         /// suppressed by a stuck reconnect reports how long it has been suppressed.
         /// </summary>
         private long m_channelReconnectStartedAt;
+
+        /// <summary>
+        /// Counts channel-manager reconnect cycles that reactivated this session
+        /// (a Ready transition out of
+        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>).
+        /// </summary>
+        private long m_channelSessionReactivations;
+
+        /// <summary>
+        /// <see cref="m_channelSessionReactivations"/> when a channel fault or a
+        /// keep-alive failure last requested an outer reconnect, or
+        /// <see cref="NoReconnectTrigger"/> when the pending reconnect must run
+        /// regardless (an explicit request, or none recorded).
+        /// </summary>
+        private long m_reconnectTriggerMark = NoReconnectTrigger;
+        private const long NoReconnectTrigger = -1;
         private ServerRedundancyInfo? m_redundancyInfo;
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
         private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
@@ -3069,5 +3137,9 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 29, Level = LogLevel.Error,
             Message = "ManagedSession: Asynchronous teardown initiated by Dispose failed.")]
         public static partial void ManagedSessionDisposalFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 30, Level = LogLevel.Information,
+            Message = "ManagedSession: Reconnect skipped; the channel manager already reactivated the session.")]
+        public static partial void ManagedSessionReconnectSkippedChannelRecovered(this ILogger logger);
     }
 }
