@@ -1888,7 +1888,8 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
                     NodeId targetId = ImportNodeId(ii.Value);
-                    NodeDesign? target = FindNode<NodeDesign>(targetId);
+                    NodeDesign? target = FindNode<NodeDesign>(targetId) ??
+                        FindOrCreateExternalTarget(targetId, nodeId);
 
                     if (target == null)
                     {
@@ -1942,6 +1943,54 @@ namespace Opc.Ua.Schema.Model
                 existing.HasReferences = true;
                 existing.References = [.. references];
             }
+        }
+
+        /// <summary>
+        /// Returns a stand-in for the target of a reference into another
+        /// namespace whose node is not part of any loaded design, for example
+        /// the DeviceSet of DI organizing a device when DI is supplied by a
+        /// referenced assembly. The dependency metadata of a referenced
+        /// assembly carries types only, so such a target cannot be resolved
+        /// and the reference used to be dropped. The stand-in carries only
+        /// the NodeId the generated reference needs and is not generated.
+        /// </summary>
+        private NodeDesign? FindOrCreateExternalTarget(NodeId targetId, NodeId sourceId)
+        {
+            if (targetId.IsNull ||
+                targetId.NamespaceIndex == 0 ||
+                targetId.NamespaceIndex == sourceId.NamespaceIndex)
+            {
+                return null;
+            }
+
+            string? namespaceUri = m_settings.NamespaceUris.GetString(targetId.NamespaceIndex);
+            object? identifier = ImportIdentifier(targetId);
+
+            if (string.IsNullOrEmpty(namespaceUri) || identifier == null)
+            {
+                return null;
+            }
+
+            var symbolicId = new XmlQualifiedName(
+                "ExternalNode_" + GetCollisionSuffix(targetId.ToString()),
+                namespaceUri);
+
+            if (m_settings.NodesByQName!.TryGetValue(symbolicId, out NodeDesign? existing))
+            {
+                return existing;
+            }
+
+            var target = new ObjectDesign
+            {
+                SymbolicId = symbolicId,
+                SymbolicName = symbolicId,
+                BrowseName = symbolicId.Name
+            };
+            target.SetIdentifier(identifier);
+
+            m_settings.NodesByQName![symbolicId] = target;
+            m_settings.NodesById[targetId] = target;
+            return target;
         }
 
         private static Permissions[] ToPermissions(PermissionType input)
