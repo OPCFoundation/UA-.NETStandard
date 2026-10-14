@@ -104,6 +104,44 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void ExternalTargetsWithCollidingNamesKeepTheirOwnNodeIds()
+        {
+            CSharpCompilation consumer = ModelDependencyScannerTests
+                .CreateStackCompilation("ExternalTargetCollisions")
+                .AddReferences(s_diProducer.Value.ToMetadataReference());
+            GeneratorDriver driver = CreateDriver(EmbeddedText.From("ExternalTargetCollisions.NodeSet2.xml"));
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                consumer,
+                out Compilation output,
+                out ImmutableArray<Diagnostic> diagnostics);
+            string generated = string.Join(
+                Environment.NewLine,
+                driver.GetRunResult().Results[0].GeneratedSources
+                    .Select(s => s.SourceText.ToString()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.Concat(output.GetDiagnostics())
+                        .Where(d => d.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics.Concat(output.GetDiagnostics())));
+                Assert.That(
+                    ExtractMethodBody(generated, "CreateNumericTarget"),
+                    Does.Contain(OrganizedBy("5001u")));
+                Assert.That(
+                    ExtractMethodBody(generated, "CreateStringTarget"),
+                    Does.Contain(OrganizedBy("\"5001\"")));
+                Assert.That(
+                    ExtractMethodBody(generated, "CreateDottedTarget"),
+                    Does.Contain(OrganizedBy("\"A.B\"")));
+                Assert.That(
+                    ExtractMethodBody(generated, "CreateSlashedTarget"),
+                    Does.Contain(OrganizedBy("\"A/B\"")));
+            });
+        }
+
+        [Test]
         public void GeneratedReferenceToInstanceOfReferencedModelCompiles()
         {
             CSharpCompilation consumer = ModelDependencyScannerTests
@@ -166,6 +204,13 @@ namespace Opc.Ua.SourceGeneration
                 Is.Empty,
                 string.Join(Environment.NewLine, diagnostics));
             return (CSharpCompilation)output;
+        }
+
+        private static string OrganizedBy(string identifier)
+        {
+            return "state.AddReference(global::Opc.Ua.NodeId.Create(35u, global::Opc.Ua.Namespaces.OpcUa, " +
+                "context.NamespaceUris), true, global::Opc.Ua.NodeId.Create(" + identifier + ", " +
+                "global::DI.Namespaces.DI, context.NamespaceUris));";
         }
 
         private static string ExtractMethodBody(string code, string methodName)

@@ -1954,7 +1954,7 @@ namespace Opc.Ua.Schema.Model
         /// and the reference used to be dropped. The stand-in carries only
         /// the NodeId the generated reference needs and is not generated.
         /// </summary>
-        private NodeDesign? FindOrCreateExternalTarget(NodeId targetId, NodeId sourceId)
+        private ObjectDesign? FindOrCreateExternalTarget(NodeId targetId, NodeId sourceId)
         {
             if (targetId.IsNull ||
                 targetId.NamespaceIndex == 0 ||
@@ -1971,13 +1971,18 @@ namespace Opc.Ua.Schema.Model
                 return null;
             }
 
-            var symbolicId = new XmlQualifiedName(
-                "ExternalNode_" + GetCollisionSuffix(targetId.ToString()),
-                namespaceUri);
-
-            if (m_settings.NodesByQName!.TryGetValue(symbolicId, out NodeDesign? existing))
+            // The identifier alone does not make a unique name: the identifier
+            // type is dropped and punctuation is replaced (i=5001 and s=5001,
+            // or s=A.B and s=A/B, give the same name). FindNode already
+            // returns the stand-in of a NodeId seen before, so a name taken
+            // here always belongs to another node and gets a numeric suffix.
+            string baseName = "ExternalNode_" + GetCollisionSuffix(targetId.ToString());
+            var symbolicId = new XmlQualifiedName(baseName, namespaceUri);
+            for (int suffix = 2; m_settings.NodesByQName!.ContainsKey(symbolicId); suffix++)
             {
-                return existing;
+                symbolicId = new XmlQualifiedName(
+                    baseName + "_" + suffix.ToString(CultureInfo.InvariantCulture),
+                    namespaceUri);
             }
 
             var target = new ObjectDesign
