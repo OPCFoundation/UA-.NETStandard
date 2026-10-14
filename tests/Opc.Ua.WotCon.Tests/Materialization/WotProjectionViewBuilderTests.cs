@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotViewProjectionResult result = await Build(builder, SimpleProjection);
 
             Assert.That(result.Success, Is.True,
-                string.Join(Environment.NewLine, result.Diagnostics.ToArray().Select(d => d.ToString())));
+                string.Join(Environment.NewLine, (result.Diagnostics.ToArray() ?? Array.Empty<WotDiagnostic>()).Select(d => d.ToString())));
             WotViewProjectionPlan plan = result.Plan!;
             Assert.That(plan.OrganizedNodeIds.ToArray(),
                 Is.EquivalentTo(new[] { s_alphaNode, s_betaNode }),
