@@ -558,18 +558,8 @@ namespace Opc.Ua.Wot
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                UANodeSet? part = null;
-                var ignored = new List<WotDiagnostic>();
-                if (entry.Document.TryGetEnvelope(out JsonElement envelope))
-                {
-                    part = RestoreFromEnvelope(envelope, options, ignored);
-                }
-                else if (entry.Document.TryGetNativeProjection(out JsonElement projection) &&
-                    !WotNativeProjection.HasUnsupportedProfile(projection))
-                {
-                    part = WotNativeProjection.Read(projection, options, ignored);
-                }
-                if (part is not null && !HasErrors(ignored))
+                UANodeSet? part = RestoreArchivePart(entry.Document, options);
+                if (part is not null)
                 {
                     archiveHeader ??= part;
                     archived.AddRange(part.Items ?? []);

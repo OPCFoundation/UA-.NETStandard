@@ -400,7 +400,7 @@ namespace Opc.Ua.Wot
                 eventSelectionsResolved,
                 declarations,
                 externalSchemas,
-                (thingResolver as DocumentSetThingResolver)?.ArchiveContext,
+                GetProvidedArchiveContext(thingResolver, document),
                 affordanceBindings,
                 componentTargets,
                 dataTypeSources,

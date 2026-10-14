@@ -565,6 +565,76 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AssertConnectsToSuperType(generated, nonHierarchicalReferences, di.FileName);
         }
 
+        /// <summary>
+        /// A link whose authoritative facts live in sibling partitions validates
+        /// clean against the context of the partitions that share its namespace
+        /// table, and still conflicts when the readable reference is genuinely wrong.
+        /// </summary>
+        [Test]
+        public async Task LinkedNativeReferenceValidatesAgainstSiblingPartitionsAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            string directory = DocumentPath("opc-ua-di");
+            byte[] cpIdentifier = File.ReadAllBytes(Path.Combine(directory, "opc-ua-di-cpidentifier.json"));
+            string text = Encoding.UTF8.GetString(cpIdentifier);
+            const string target = "\"nsu=http://opcfoundation.org/UA/DI/;i=6247\"";
+            Assert.That(text, Does.Contain(target));
+            byte[] conflicting = Encoding.UTF8.GetBytes(text.Replace(
+                target, "\"nsu=http://opcfoundation.org/UA/DI/;i=6000\"", StringComparison.Ordinal));
+
+            var contexts = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                using WotDocument sibling = WotDocument.Parse(File.ReadAllBytes(path), options);
+                contexts.Add(sibling);
+            }
+
+            using WotDocument document = WotDocument.Parse(cpIdentifier, options);
+            using WotDocument wrong = WotDocument.Parse(conflicting, options);
+            WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContext = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options, new ContextResolver(contexts)).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContextConflict = await WotNodeSetConverter
+                .ToNodeSetResultAsync(wrong, options, new ContextResolver(contexts)).ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(
+                alone.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A lone partition cannot see the reverse reference or symmetric ReferenceType.");
+            Assert.That(
+                withContext.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.False);
+            Assert.That(withContext.Success, Is.True);
+            Assert.That(
+                withContextConflict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True);
+        }
+
+        private sealed class ContextResolver : IWotThingResolver, IWotArchiveContextProvider
+        {
+            public ContextResolver(WotNodeSetConverter.ArchiveContextIndex contexts)
+            {
+                m_contexts = contexts;
+            }
+
+            public UANodeSet? GetArchiveContext(WotDocument document)
+            {
+                return m_contexts.Find(document);
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+
+            private readonly WotNodeSetConverter.ArchiveContextIndex m_contexts;
+        }
+
         private static void AssertConnectsToSuperType(
             UANodeSet nodeSet,
             string expectedSuperType,

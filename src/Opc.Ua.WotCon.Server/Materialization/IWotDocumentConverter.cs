@@ -210,7 +210,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
-                var resolver = new SnapshotThingResolver(snapshot, contents);
+                var resolver = new SnapshotThingResolver(
+                    snapshot, contents, GetArchiveContexts(snapshot, contents));
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
@@ -325,7 +326,60 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Gets the native NodeSet contexts of the supplied snapshot, reusing the
+        /// previous index while the snapshot is unchanged.
+        /// </summary>
+        /// <remarks>
+        /// A document of a partitioned model states references whose
+        /// authoritative facts live in sibling partitions, so the converter
+        /// validates it against the preserved nodes of the documents that share
+        /// its namespace table. Documents of other models never contribute. The
+        /// document count and byte total are bounded like the sibling index.
+        /// </remarks>
+        private WotNodeSetConverter.ArchiveContextIndex GetArchiveContexts(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents)
+        {
+            lock (m_resolverLock)
+            {
+                if (m_archiveContexts is not null && ReferenceEquals(m_archiveSnapshot, snapshot))
+                {
+                    return m_archiveContexts;
+                }
+                var index = new WotNodeSetConverter.ArchiveContextIndex(m_options);
+                long maxBytes = m_options.MaxResolverTotalBytes;
+                long total = 0;
+                foreach (WotResource resource in snapshot.AllResources())
+                {
+                    WotResourceVersion? version = resource.DefaultVersion;
+                    if (version is null ||
+                        !contents.TryGetValue(version.DigestHex, out ByteString content) ||
+                        total + content.Length > maxBytes)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        using var sibling = WotDocument.Parse(content.Span.ToArray(), m_options);
+                        index.Add(sibling);
+                    }
+                    catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
+                    {
+                        // A malformed sibling contributes no context; its own conversion reports the failure.
+                        continue;
+                    }
+                    total += content.Length;
+                }
+                m_archiveSnapshot = snapshot;
+                m_archiveContexts = index;
+                return index;
+            }
+        }
+
         private readonly WotNodeSetConverterOptions m_options;
+        private WotRegistrySnapshot? m_archiveSnapshot;
+        private WotNodeSetConverter.ArchiveContextIndex? m_archiveContexts;
         private readonly WotExternalSchemaResolver m_schemaResolver;
         private readonly System.Threading.Lock m_resolverLock = new();
         private IWotNodeResolver? m_addressSpace;
