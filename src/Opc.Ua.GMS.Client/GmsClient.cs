@@ -55,7 +55,7 @@ namespace Opc.Ua.GMS.Client
         }
 
         /// <summary>
-        /// Creates an owning facade only for a session opened by the explicit client factory.
+        /// Creates a facade with explicit ownership; only independently created sessions may transfer ownership.
         /// </summary>
         internal GmsClient(
             ISession session, ITelemetryContext telemetry, bool ownsSession, GmsClientOptions? options,
@@ -83,7 +83,7 @@ namespace Opc.Ua.GMS.Client
         }
 
         /// <summary>
-        /// Gets the underlying session, owned by the caller except when opened by GmsClientFactory.
+        /// Gets the underlying session. Public constructors and factories do not take its ownership.
         /// </summary>
         public ISession Session { get; }
 

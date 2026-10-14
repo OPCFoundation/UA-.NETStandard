@@ -74,6 +74,11 @@ namespace Opc.Ua.GMS.Tests
         internal MachineryNodeManager Manager => m_factory.Manager!;
 
         /// <summary>
+        /// Gets the real endpoint used by clients registered through dependency injection.
+        /// </summary>
+        internal Uri Endpoint => new(m_fixture.Config.ServerConfiguration!.BaseAddresses[0]);
+
+        /// <summary>
         /// Gets the application-owned instance namespace.
         /// </summary>
         internal const string InstanceNamespace = "urn:opcfoundation:gms:result-tests";
@@ -109,21 +114,29 @@ namespace Opc.Ua.GMS.Tests
         internal async Task<ISession> ConnectAsync(bool managed = false)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var fixture = new ClientFixture(telemetry);
-            m_clients.Add(fixture);
-            fixture.UseSubscriptionEngineFactory(DefaultSubscriptionEngineFactory.Instance);
+            ClientFixture fixture = await CreateClientFixtureAsync(telemetry).ConfigureAwait(false);
             if (managed)
             {
                 fixture.SessionFactory = new ManagedSessionFactory(telemetry)
                     .WithSubscriptionEngine(DefaultSubscriptionEngineFactory.Instance);
             }
-            await fixture.LoadClientConfigurationAsync(NewPkiPath(), "GmsResultClient").ConfigureAwait(false);
             ISession session = await fixture.ConnectAsync(
-                new Uri(m_fixture.Config.ServerConfiguration!.BaseAddresses[0]),
-                SecurityPolicies.None).ConfigureAwait(false);
+                Endpoint, SecurityPolicies.None).ConfigureAwait(false);
             session.MessageContext.Factory.Builder.AddGmsTypeSystem().Commit();
             m_sessions.Add(session);
             return session;
+        }
+
+        /// <summary>
+        /// Creates an owned test client configuration for direct or container-managed sessions.
+        /// </summary>
+        internal async Task<ClientFixture> CreateClientFixtureAsync(ITelemetryContext telemetry)
+        {
+            var fixture = new ClientFixture(telemetry);
+            m_clients.Add(fixture);
+            fixture.UseSubscriptionEngineFactory(DefaultSubscriptionEngineFactory.Instance);
+            await fixture.LoadClientConfigurationAsync(NewPkiPath(), "GmsResultClient").ConfigureAwait(false);
+            return fixture;
         }
 
         /// <inheritdoc/>

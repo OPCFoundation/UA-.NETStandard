@@ -35,14 +35,14 @@ using Opc.Ua.Client;
 namespace Opc.Ua.MachineTool.Client
 {
     /// <summary>
-    /// Creates clients that own only the managed sessions this factory opens.
+    /// Creates clients that borrow application- or container-owned managed sessions.
     /// </summary>
     public sealed class MachineToolClientFactory
     {
         /// <summary>
         /// Creates an injectable or directly constructed client factory.
         /// </summary>
-        /// <param name="sessionFactory">Opens the managed session.</param>
+        /// <param name="sessionFactory">Acquires a managed session whose ownership remains with its provider.</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <param name="timeProvider">The clock used for bounded observations.</param>
         public MachineToolClientFactory(
@@ -56,33 +56,19 @@ namespace Opc.Ua.MachineTool.Client
         }
 
         /// <summary>
-        /// Opens a session and returns its owning client; dispose the client asynchronously.
+        /// Acquires a session without taking ownership; asynchronously dispose the client to drain its observations.
         /// </summary>
         /// <param name="cancellationToken">Cancels connection setup.</param>
-        /// <returns>The session-owning client.</returns>
+        /// <returns>A client that borrows the acquired session.</returns>
         public async Task<MachineToolClient> CreateAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ManagedSession session = await m_sessionFactory(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return new MachineToolClient(session, m_telemetry, ownsSession: true, m_timeProvider);
-            }
-            catch
-            {
-                try
-                {
-                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    session.Dispose();
-                }
-                throw;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return new MachineToolClient(session, m_telemetry, m_timeProvider);
         }
 
-        /// <summary>The application's managed-session opener.</summary>
+        /// <summary>The application's managed-session accessor.</summary>
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
 
         /// <summary>The telemetry context.</summary>

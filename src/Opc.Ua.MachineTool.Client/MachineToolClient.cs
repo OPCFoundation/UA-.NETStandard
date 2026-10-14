@@ -54,7 +54,7 @@ namespace Opc.Ua.MachineTool.Client
         }
 
         /// <summary>
-        /// Creates a facade with explicit ownership only for factory-opened sessions.
+        /// Creates a facade with explicit ownership; only independently created sessions may transfer ownership.
         /// </summary>
         internal MachineToolClient(
             ISession session, ITelemetryContext telemetry, bool ownsSession, TimeProvider? timeProvider = null)
@@ -90,7 +90,7 @@ namespace Opc.Ua.MachineTool.Client
                 ? MachineToolParts.Wmtp : MachineToolParts.None);
 
         /// <summary>
-        /// Closes a factory-owned session while leaving application-owned sessions intact.
+        /// Cancels and drains facade-owned observations while leaving borrowed sessions intact.
         /// </summary>
         public ValueTask DisposeAsync()
         {

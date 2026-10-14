@@ -35,24 +35,28 @@ using Opc.Ua.Client;
 namespace Opc.Ua.GMS.Client
 {
     /// <summary>
-    /// Opens explicitly factory-owned managed GMS client sessions.
+    /// Creates GMS facades that borrow application- or container-owned managed sessions.
     /// </summary>
     public interface IGmsClientFactory
     {
         /// <summary>
-        /// Opens a managed session and transfers its lifetime to the returned facade.
+        /// Acquires a managed session without taking ownership and returns a facade that owns only its workflows.
         /// </summary>
         Task<GmsClient> CreateAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>
-    /// Uses the existing managed-session opener without introducing a new transport or reconnect implementation.
+    /// Uses the existing managed-session accessor without taking ownership of the acquired session.
     /// </summary>
     public sealed class GmsClientFactory : IGmsClientFactory
     {
         /// <summary>
         /// Creates a directly constructed or injected factory using the application's managed-session infrastructure.
         /// </summary>
+        /// <param name="sessionFactory">Acquires a managed session whose ownership remains with its provider.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">The bounded workflow options.</param>
+        /// <param name="timeProvider">The clock used for bounded observations.</param>
         public GmsClientFactory(
             Func<CancellationToken, Task<ManagedSession>> sessionFactory, ITelemetryContext telemetry,
             GmsClientOptions? options = null, TimeProvider? timeProvider = null)
@@ -69,26 +73,11 @@ namespace Opc.Ua.GMS.Client
         {
             cancellationToken.ThrowIfCancellationRequested();
             ManagedSession session = await m_sessionFactory(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return new GmsClient(session, m_telemetry, true, m_options, m_timeProvider);
-            }
-            catch
-            {
-                try
-                {
-                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                }
-                throw;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return new GmsClient(session, m_telemetry, m_options, m_timeProvider);
         }
 
-        /// <summary>The existing managed-session opener.</summary>
+        /// <summary>The existing managed-session accessor.</summary>
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
 
         /// <summary>The shared telemetry context.</summary>

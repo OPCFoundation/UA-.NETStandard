@@ -13,8 +13,9 @@ and acquisition time; optional absence is distinct from a failed read.
 
 `AddMachineToolClient` registers an injectable managed-session factory.
 `CreateMachineToolClient` wraps an existing session without taking ownership.
-Clients created by the factory close their own sessions on asynchronous
-disposal; borrowed sessions remain application-owned.
+Factory-created clients also borrow their sessions. The application or DI
+container retains session ownership; asynchronous facade disposal drains only
+its own observations without closing or disposing the shared session.
 
 `ObserveDataAsync` creates a private options-based subscription for the same
 monitoring and active-program variables returned by `ReadSnapshotAsync`. The

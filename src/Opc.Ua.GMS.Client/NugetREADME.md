@@ -19,7 +19,9 @@ var production = await gms.ReadProductionAsync(gmsNodeId, cancellationToken);
 ```
 
 `AddGmsClient` registers `IGmsClientFactory` on the existing client builder.
-Factory-opened sessions are owned; supplied sessions remain caller owned.
+Factory-created and directly constructed facades borrow their sessions.
+The application or DI container retains session ownership; disposing a facade
+drains its own workflows without closing or disposing the shared session.
 `GetProxy` exposes advanced generated operations.
 
 Discovery recognizes vendor subtypes and releases continuation points. Reads

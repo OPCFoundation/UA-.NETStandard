@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,11 +42,13 @@ using Opc.Ua.GMS.Client;
 using Opc.Ua.GMS.Contracts;
 using Opc.Ua.GMS.Server;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.MachineTool;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
+using ISubscriptionManager = Opc.Ua.Client.Subscriptions.ISubscriptionManager;
 
 namespace Opc.Ua.GMS.Tests
 {
@@ -108,7 +111,8 @@ namespace Opc.Ua.GMS.Tests
                 var server = new StandardServer(telemetry);
                 server.AddNodeManager(owner);
                 return server;
-            }) { AutoAccept = true, SecurityNone = true };
+            })
+            { AutoAccept = true, SecurityNone = true };
             string root = Path.GetFullPath(Path.Combine(
                 Environment.GetEnvironmentVariable("OPCUA_GMS_TEST_ROOT") ?? Environment.CurrentDirectory,
                 ".gms-system", "di-" + Guid.NewGuid().ToString("N")[..8]));
@@ -159,10 +163,10 @@ namespace Opc.Ua.GMS.Tests
         }
 
         /// <summary>
-        /// Direct and injectable client factories own only the managed session that they explicitly open.
+        /// Disposing one factory facade leaves the real container-cached session available to other consumers.
         /// </summary>
         [Test]
-        public async Task ClientFactoryUsesExistingManagedSessionAndDisposesItsOwnConnectionAsync()
+        public async Task ClientFactoryBorrowsContainerSessionWithoutDisconnectingOtherConsumersAsync()
         {
             await using var fixture = new GmsResultServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
@@ -171,45 +175,241 @@ namespace Opc.Ua.GMS.Tests
                 .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()))
                 .BuildAsync().ConfigureAwait(false);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ManagedSession? opened = null;
-            var services = new ServiceCollection();
-            services.AddOpcUa().AddClient(_ => { }).AddGmsClient().AddGmsClient();
-            services.AddSingleton(telemetry);
-            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(async _ =>
-            {
-                ISession session = await fixture.ConnectAsync(managed: true).ConfigureAwait(false);
-                opened = session as ManagedSession ??
-                    throw new InvalidOperationException("Expected a managed session.");
-                return opened;
-            });
-            await using ServiceProvider provider = services.BuildServiceProvider();
+            await using ServiceProvider provider = await CreateClientProviderAsync(fixture, telemetry)
+                .ConfigureAwait(false);
             IGmsClientFactory factory = provider.GetRequiredService<IGmsClientFactory>();
-            await using GmsClient client = await factory.CreateAsync().ConfigureAwait(false);
-            Assert.That((await client.DiscoverAsync().ConfigureAwait(false)).Count, Is.EqualTo(1));
-            await client.DisposeAsync().ConfigureAwait(false);
-            Assert.That(opened!.Connected, Is.False);
+            Func<CancellationToken, Task<ManagedSession>> acquire =
+                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+            ManagedSession shared = await acquire(CancellationToken.None).ConfigureAwait(false);
+            int closing = 0;
+            shared.ConnectionStateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Closing)
+                {
+                    Interlocked.Increment(ref closing);
+                }
+            };
+            await using GmsClient first = await factory.CreateAsync().ConfigureAwait(false);
+            await using GmsClient second = await factory.CreateAsync().ConfigureAwait(false);
+            Assert.That(first.Session, Is.SameAs(shared));
+            Assert.That(second.Session, Is.SameAs(shared));
+            Assert.That(await first.DiscoverAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
+            Assert.That(shared.TryGetSubscriptionManager(out ISubscriptionManager? subscriptions), Is.True);
+            int before = subscriptions!.Count;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            Task<MachineToolEventObservation> pending = first.ObserveEventsAsync(
+                handle.NodeId,
+                new MachineToolObservationOptions { Window = TimeSpan.FromMinutes(1) },
+                deadline.Token).AsTask();
+            while (subscriptions.Count == before)
+            {
+                await Task.Delay(10, deadline.Token).ConfigureAwait(false);
+            }
+
+            await first.DisposeAsync().ConfigureAwait(false);
+            await first.DisposeAsync().ConfigureAwait(false);
+
+            Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+            Assert.That(subscriptions.Count, Is.EqualTo(before));
+            Assert.That(shared.Disposed, Is.False);
+            Assert.That(shared.Connected, Is.True);
+            Assert.That(closing, Is.Zero);
+            Assert.That(await acquire(CancellationToken.None).ConfigureAwait(false), Is.SameAs(shared));
+            Assert.That(await second.DiscoverAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
+            DataValue value = await shared.ReadValueAsync(Ua.VariableIds.Server_ServerStatus_CurrentTime)
+                .ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(() => first.DiscoverAsync().AsTask(), Throws.InstanceOf<ObjectDisposedException>());
+
+            await second.DisposeAsync().ConfigureAwait(false);
+            Assert.That(shared.Connected, Is.True);
+            await provider.DisposeAsync().ConfigureAwait(false);
+            Assert.That(shared.Disposed, Is.True, "Only the container owns the cached session.");
+            Assert.That(closing, Is.EqualTo(1));
         }
 
         /// <summary>
-        /// Cancellation after connection establishment releases the newly acquired session before returning failure.
+        /// Cancellation after cached-session acquisition does not close or dispose another consumer's session.
         /// </summary>
         [Test]
-        public async Task ClientFactoryCancellationAfterOpenClosesAcquiredSessionAsync()
+        public async Task ClientFactoryCancellationAfterAcquisitionPreservesSharedSessionAsync()
         {
             await using var fixture = new GmsResultServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using ServiceProvider provider = await CreateClientProviderAsync(fixture, telemetry)
+                .ConfigureAwait(false);
+            Func<CancellationToken, Task<ManagedSession>> acquire =
+                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+            ManagedSession shared = await acquire(CancellationToken.None).ConfigureAwait(false);
+            await using GmsClient other = await provider.GetRequiredService<IGmsClientFactory>()
+                .CreateAsync().ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
-            ManagedSession? opened = null;
-            var factory = new GmsClientFactory(async _ =>
+            int closing = 0;
+            shared.ConnectionStateChanged += (_, change) =>
             {
-                ISession session = await fixture.ConnectAsync(managed: true).ConfigureAwait(false);
-                opened = session as ManagedSession ?? throw new InvalidOperationException("Expected managed session.");
-                cancellation.Cancel();
-                return opened;
+                if (change.NewState == ConnectionState.Closing)
+                {
+                    Interlocked.Increment(ref closing);
+                }
+            };
+            int acquisitions = 0;
+            var factory = new GmsClientFactory(async token =>
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                ManagedSession cached = await acquire(token).ConfigureAwait(false);
+                Assert.That(cached, Is.SameAs(shared));
+                acquisitions++;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                return cached;
+            }, telemetry);
+
+            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token))!;
+
+            Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(acquisitions, Is.EqualTo(1));
+            Assert.That(closing, Is.Zero);
+            Assert.That(shared.Disposed, Is.False);
+            Assert.That(shared.Connected, Is.True);
+            Assert.That(other.Session, Is.SameAs(shared));
+            DataValue value = await other.Session.ReadValueAsync(Ua.VariableIds.Server_ServerStatus_CurrentTime)
+                .ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(await acquire(CancellationToken.None).ConfigureAwait(false), Is.SameAs(shared));
+        }
+
+        /// <summary>
+        /// Failed facade construction leaves disposal of the borrowed session with its container.
+        /// </summary>
+        [Test]
+        public async Task ClientFactoryCreationFailureDoesNotDisposeBorrowedSessionAsync()
+        {
+            await using var fixture = new GmsResultServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using ServiceProvider provider = await CreateClientProviderAsync(fixture, telemetry)
+                .ConfigureAwait(false);
+            Func<CancellationToken, Task<ManagedSession>> acquire =
+                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+            ManagedSession shared = await acquire(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(await shared.CloseAsync(CancellationToken.None).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That(shared.Disposed, Is.False);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                () => provider.GetRequiredService<IGmsClientFactory>().CreateAsync())!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+            Assert.That(shared.Disposed, Is.False);
+            Assert.That(await acquire(CancellationToken.None).ConfigureAwait(false), Is.SameAs(shared));
+            await provider.DisposeAsync().ConfigureAwait(false);
+            Assert.That(shared.Disposed, Is.True);
+        }
+
+        /// <summary>
+        /// A pre-cancelled request never invokes the session accessor.
+        /// </summary>
+        [Test]
+        public void ClientFactoryRejectsCancellationBeforeAcquisition()
+        {
+            bool acquired = false;
+            var factory = new GmsClientFactory(_ =>
+            {
+                acquired = true;
+                throw new InvalidOperationException("The cancelled request must not acquire a session.");
             }, NUnitTelemetryContext.Create());
-            Assert.That(() => factory.CreateAsync(cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
-            Assert.That(opened, Is.Not.Null);
-            Assert.That(opened!.Connected, Is.False);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token))!;
+
+            Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(acquired, Is.False);
+        }
+
+        /// <summary>
+        /// Invalid factory bounds fail before any shared connection can be acquired.
+        /// </summary>
+        [TestCase(0, 1, 1)]
+        [TestCase(1, 0, 1)]
+        [TestCase(1, 1, 0)]
+        public void ClientFactoryRejectsInvalidOptionsBeforeAcquisition(int elements, int references, int payload)
+        {
+            bool acquired = false;
+            Assert.That(() => new GmsClientFactory(_ =>
+            {
+                acquired = true;
+                throw new InvalidOperationException("Invalid options must not acquire a session.");
+            }, NUnitTelemetryContext.Create(), new GmsClientOptions
+            {
+                MaximumElements = elements,
+                MaximumReferences = references,
+                MaximumPayloadBytes = payload
+            }), Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(acquired, Is.False);
+        }
+
+        /// <summary>
+        /// Explicit ownership of an independently created session still closes that session exactly once.
+        /// </summary>
+        [Test]
+        public async Task ExplicitOwnedFacadeStillClosesItsIndependentSessionAsync()
+        {
+            await using var fixture = new GmsResultServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            ISession session = await fixture.ConnectAsync(managed: true).ConfigureAwait(false);
+            var independent = (ManagedSession)session;
+            int closing = 0;
+            independent.ConnectionStateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Closing)
+                {
+                    Interlocked.Increment(ref closing);
+                }
+            };
+            ConstructorInfo constructor = typeof(GmsClient).GetConstructor(
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                [
+                    typeof(ISession),
+                    typeof(ITelemetryContext),
+                    typeof(bool),
+                    typeof(GmsClientOptions),
+                    typeof(TimeProvider)
+                ],
+                modifiers: null)!;
+            await using var client = (GmsClient)constructor.Invoke(
+                [independent, NUnitTelemetryContext.Create(), true, null, null]);
+
+            await client.DisposeAsync().ConfigureAwait(false);
+            await client.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(independent.Disposed, Is.True);
+            Assert.That(independent.Connected, Is.False);
+            Assert.That(closing, Is.EqualTo(1));
+        }
+
+        private static async Task<ServiceProvider> CreateClientProviderAsync(
+            GmsResultServerFixture fixture,
+            ITelemetryContext telemetry)
+        {
+            ClientFixture transport = await fixture.CreateClientFixtureAsync(telemetry).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await transport.GetEndpointAsync(fixture.Endpoint, SecurityPolicies.None)
+                .ConfigureAwait(false);
+            var services = new ServiceCollection();
+            services.AddSingleton(telemetry);
+            services.AddOpcUa().AddClient(options =>
+            {
+                options.Configuration = transport.Config;
+                options.Session = new ManagedSessionOptions
+                {
+                    Endpoint = endpoint,
+                    SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance
+                };
+            }).AddGmsClient().AddGmsClient();
+            return services.BuildServiceProvider();
         }
     }
 }

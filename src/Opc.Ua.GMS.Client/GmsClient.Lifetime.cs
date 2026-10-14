@@ -59,7 +59,7 @@ namespace Opc.Ua.GMS.Client
         }
 
         /// <summary>
-        /// Cancels native reads and shared subscriptions before releasing an explicitly factory-owned session.
+        /// Cancels native reads and facade-owned subscriptions before releasing an explicitly owned session.
         /// </summary>
         private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
         {
