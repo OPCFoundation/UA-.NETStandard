@@ -90,11 +90,21 @@ namespace Opc.Ua.PubSub.Server
         // The methods of the PublishSubscribe.PublishedDataSets instance (i=17371)
         // and their argument variables, not the DataSetFolderType declarations.
         private const uint PublishedDataSetsAddPublishedDataItemsNodeId = 17372;
+        private const uint PublishedDataSetsAddPublishedDataItemsInputArgumentsNodeId = 17373;
+        private const uint PublishedDataSetsAddPublishedDataItemsOutputArgumentsNodeId = 17374;
         private const uint PublishedDataSetsAddPublishedEventsNodeId = 17375;
+        private const uint PublishedDataSetsAddPublishedEventsInputArgumentsNodeId = 17376;
+        private const uint PublishedDataSetsAddPublishedEventsOutputArgumentsNodeId = 17377;
         private const uint PublishedDataSetsAddPublishedDataItemsTemplateNodeId = 17378;
+        private const uint PublishedDataSetsAddPublishedDataItemsTemplateInputArgumentsNodeId = 17379;
+        private const uint PublishedDataSetsAddPublishedDataItemsTemplateOutputArgumentsNodeId = 17380;
         private const uint PublishedDataSetsRemovePublishedDataSetNodeId = 17384;
+        private const uint PublishedDataSetsRemovePublishedDataSetInputArgumentsNodeId = 17385;
         private const uint PublishedDataSetsAddDataSetFolderNodeId = 17398;
+        private const uint PublishedDataSetsAddDataSetFolderInputArgumentsNodeId = 17401;
+        private const uint PublishedDataSetsAddDataSetFolderOutputArgumentsNodeId = 17402;
         private const uint PublishedDataSetsRemoveDataSetFolderNodeId = 17403;
+        private const uint PublishedDataSetsRemoveDataSetFolderInputArgumentsNodeId = 17404;
         private static readonly NodeId s_publishedDataSetsNodeId = ObjectIds.PublishSubscribe_PublishedDataSets;
         private static readonly NodeId s_securityGroupsNodeId = new(15443u);
         private static readonly NodeId s_keyPushTargetsNodeId = new(25440u);
@@ -348,43 +358,74 @@ namespace Opc.Ua.PubSub.Server
             [
                 AssignInstanceIds(
                     publishedDataSets.AddPublishedDataItems,
-                    PublishedDataSetsAddPublishedDataItemsNodeId),
-                AssignInstanceIds(publishedDataSets.AddPublishedEvents, PublishedDataSetsAddPublishedEventsNodeId),
+                    nameof(publishedDataSets.AddPublishedDataItems),
+                    PublishedDataSetsAddPublishedDataItemsNodeId,
+                    PublishedDataSetsAddPublishedDataItemsInputArgumentsNodeId,
+                    PublishedDataSetsAddPublishedDataItemsOutputArgumentsNodeId),
+                AssignInstanceIds(
+                    publishedDataSets.AddPublishedEvents,
+                    nameof(publishedDataSets.AddPublishedEvents),
+                    PublishedDataSetsAddPublishedEventsNodeId,
+                    PublishedDataSetsAddPublishedEventsInputArgumentsNodeId,
+                    PublishedDataSetsAddPublishedEventsOutputArgumentsNodeId),
                 AssignInstanceIds(
                     publishedDataSets.AddPublishedDataItemsTemplate,
-                    PublishedDataSetsAddPublishedDataItemsTemplateNodeId),
+                    nameof(publishedDataSets.AddPublishedDataItemsTemplate),
+                    PublishedDataSetsAddPublishedDataItemsTemplateNodeId,
+                    PublishedDataSetsAddPublishedDataItemsTemplateInputArgumentsNodeId,
+                    PublishedDataSetsAddPublishedDataItemsTemplateOutputArgumentsNodeId),
                 AssignInstanceIds(
                     publishedDataSets.RemovePublishedDataSet,
-                    PublishedDataSetsRemovePublishedDataSetNodeId),
+                    nameof(publishedDataSets.RemovePublishedDataSet),
+                    PublishedDataSetsRemovePublishedDataSetNodeId,
+                    PublishedDataSetsRemovePublishedDataSetInputArgumentsNodeId,
+                    outputArgumentsId: null),
                 AssignInstanceIds(
                     publishedDataSets.AddDataSetFolder,
+                    nameof(publishedDataSets.AddDataSetFolder),
                     PublishedDataSetsAddDataSetFolderNodeId,
-                    inputArgumentsId: 17401,
-                    outputArgumentsId: 17402),
-                AssignInstanceIds(publishedDataSets.RemoveDataSetFolder, PublishedDataSetsRemoveDataSetFolderNodeId)
+                    PublishedDataSetsAddDataSetFolderInputArgumentsNodeId,
+                    PublishedDataSetsAddDataSetFolderOutputArgumentsNodeId),
+                AssignInstanceIds(
+                    publishedDataSets.RemoveDataSetFolder,
+                    nameof(publishedDataSets.RemoveDataSetFolder),
+                    PublishedDataSetsRemoveDataSetFolderNodeId,
+                    PublishedDataSetsRemoveDataSetFolderInputArgumentsNodeId,
+                    outputArgumentsId: null)
             ];
         }
 
         /// <summary>
-        /// Gives a materialized method its instance NodeId. Its InputArguments and
-        /// OutputArguments take the NodeIds that follow it, unless given explicitly.
+        /// Gives a materialized method and its argument variables their instance
+        /// NodeIds. A method without output arguments passes a null
+        /// <paramref name="outputArgumentsId"/>; an argument variable the generated
+        /// method does not match is a configuration error.
         /// </summary>
-        private static MethodState AssignInstanceIds(
+        internal static MethodState AssignInstanceIds(
             MethodState? method,
+            string name,
             uint methodId,
-            uint inputArgumentsId = 0,
-            uint outputArgumentsId = 0)
+            uint inputArgumentsId,
+            uint? outputArgumentsId)
         {
-            inputArgumentsId = inputArgumentsId == 0 ? methodId + 1 : inputArgumentsId;
-            outputArgumentsId = outputArgumentsId == 0 ? methodId + 2 : outputArgumentsId;
             if (method == null)
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                    "A generated PublishedDataSets method was not created.");
+                    $"The generated PublishedDataSets method {name} (i={methodId}) was not created.");
+            }
+            if (method.InputArguments == null ||
+                (method.OutputArguments == null) != (outputArgumentsId == null))
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    $"The arguments of the generated PublishedDataSets method {name} (i={methodId}) " +
+                    "do not match its standard declaration.");
             }
             method.NodeId = new NodeId(methodId);
-            method.InputArguments?.NodeId = new NodeId(inputArgumentsId);
-            method.OutputArguments?.NodeId = new NodeId(outputArgumentsId);
+            method.InputArguments.NodeId = new NodeId(inputArgumentsId);
+            if (method.OutputArguments != null && outputArgumentsId is uint outputId)
+            {
+                method.OutputArguments.NodeId = new NodeId(outputId);
+            }
             return method;
         }
 

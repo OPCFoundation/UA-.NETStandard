@@ -438,13 +438,77 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.That(ids, Is.EqualTo(new List<(NodeId, NodeId, NodeId)>
             {
-                (new NodeId(17372u), new NodeId(17373u), new NodeId(17374u)),
-                (new NodeId(17375u), new NodeId(17376u), new NodeId(17377u)),
-                (new NodeId(17378u), new NodeId(17379u), new NodeId(17380u)),
-                (new NodeId(17384u), new NodeId(17385u), NodeId.Null),
-                (new NodeId(17398u), new NodeId(17401u), new NodeId(17402u)),
-                (new NodeId(17403u), new NodeId(17404u), NodeId.Null)
+                (new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItems),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsInputArguments),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsOutputArguments)),
+                (new NodeId(PublishedDataSetsNodeIds.AddPublishedEvents),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedEventsInputArguments),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedEventsOutputArguments)),
+                (new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplate),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplateInputArguments),
+                    new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplateOutputArguments)),
+                (new NodeId(PublishedDataSetsNodeIds.RemovePublishedDataSet),
+                    new NodeId(PublishedDataSetsNodeIds.RemovePublishedDataSetInputArguments),
+                    NodeId.Null),
+                (new NodeId(PublishedDataSetsNodeIds.AddDataSetFolder),
+                    new NodeId(PublishedDataSetsNodeIds.AddDataSetFolderInputArguments),
+                    new NodeId(PublishedDataSetsNodeIds.AddDataSetFolderOutputArguments)),
+                (new NodeId(PublishedDataSetsNodeIds.RemoveDataSetFolder),
+                    new NodeId(PublishedDataSetsNodeIds.RemoveDataSetFolderInputArguments),
+                    NodeId.Null)
             }));
+        }
+
+        [Test]
+        public void PublishedDataSetsMethodThatWasNotCreatedIsAConfigurationError()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => PubSubNodeManager.AssignInstanceIds(
+                    null,
+                    "AddDataSetFolder",
+                    PublishedDataSetsNodeIds.AddDataSetFolder,
+                    PublishedDataSetsNodeIds.AddDataSetFolderInputArguments,
+                    PublishedDataSetsNodeIds.AddDataSetFolderOutputArguments))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(ex.Message, Does.Contain("AddDataSetFolder (i=17398)"));
+            });
+        }
+
+        [TestCase(false, true, true, TestName = "PublishedDataSetsMethodWithoutInputArgumentsIsAConfigurationError")]
+        [TestCase(true, true, false, TestName = "PublishedDataSetsMethodWithUndeclaredOutputArgumentsIsAConfigurationError")]
+        [TestCase(true, false, true, TestName = "PublishedDataSetsMethodWithoutDeclaredOutputArgumentsIsAConfigurationError")]
+        public void PublishedDataSetsMethodWhoseArgumentsDoNotMatchIsAConfigurationError(
+            bool hasInputArguments,
+            bool hasOutputArguments,
+            bool declaresOutputArguments)
+        {
+            var method = new MethodState(null) { BrowseName = new QualifiedName("AddDataSetFolder") };
+            if (hasInputArguments)
+            {
+                method.InputArguments = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            }
+            if (hasOutputArguments)
+            {
+                method.OutputArguments = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            }
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => PubSubNodeManager.AssignInstanceIds(
+                    method,
+                    "AddDataSetFolder",
+                    PublishedDataSetsNodeIds.AddDataSetFolder,
+                    PublishedDataSetsNodeIds.AddDataSetFolderInputArguments,
+                    declaresOutputArguments ? PublishedDataSetsNodeIds.AddDataSetFolderOutputArguments : null))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(ex.Message, Does.Contain("AddDataSetFolder (i=17398)"));
+                Assert.That(method.NodeId, Is.EqualTo(NodeId.Null));
+            });
         }
 
         [Test]
@@ -702,12 +766,12 @@ namespace Opc.Ua.PubSub.Server.Tests
                 RemoveSecurityGroupMethod = NewMethod(15447);
                 AddPushTargetMethod = NewMethod(25441);
                 RemovePushTargetMethod = NewMethod(25444);
-                AddDataSetFolderMethod = NewMethod(17398);
-                RemoveDataSetFolderMethod = NewMethod(17403);
-                AddPublishedDataItemsMethod = NewMethod(17372);
-                AddPublishedEventsMethod = NewMethod(17375);
-                AddPublishedDataItemsTemplateMethod = NewMethod(17378);
-                RemovePublishedDataSetMethod = NewMethod(17384);
+                AddDataSetFolderMethod = NewMethod(PublishedDataSetsNodeIds.AddDataSetFolder);
+                RemoveDataSetFolderMethod = NewMethod(PublishedDataSetsNodeIds.RemoveDataSetFolder);
+                AddPublishedDataItemsMethod = NewMethod(PublishedDataSetsNodeIds.AddPublishedDataItems);
+                AddPublishedEventsMethod = NewMethod(PublishedDataSetsNodeIds.AddPublishedEvents);
+                AddPublishedDataItemsTemplateMethod = NewMethod(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplate);
+                RemovePublishedDataSetMethod = NewMethod(PublishedDataSetsNodeIds.RemovePublishedDataSet);
                 PlaceholderAddPublishedDataItemsMethod = NewMethod(14479);
                 PlaceholderAddDataSetFolderMethod = NewMethod(16884);
                 StatusVariable = new BaseDataVariableState(null)
@@ -754,20 +818,20 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25441u))).Returns(AddPushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25444u))).Returns(RemovePushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17398u))).Returns(AddDataSetFolderMethod);
+                        new NodeId(PublishedDataSetsNodeIds.AddDataSetFolder))).Returns(AddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17403u))).Returns(RemoveDataSetFolderMethod);
+                        new NodeId(PublishedDataSetsNodeIds.RemoveDataSetFolder))).Returns(RemoveDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17372u)))
+                        new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItems)))
                     .Returns(AddPublishedDataItemsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17375u)))
+                        new NodeId(PublishedDataSetsNodeIds.AddPublishedEvents)))
                     .Returns(AddPublishedEventsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17378u)))
+                        new NodeId(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplate)))
                     .Returns(AddPublishedDataItemsTemplateMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(17384u)))
+                        new NodeId(PublishedDataSetsNodeIds.RemovePublishedDataSet)))
                     .Returns(RemovePublishedDataSetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
                         new NodeId(14479u)))
