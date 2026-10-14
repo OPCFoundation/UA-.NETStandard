@@ -12,8 +12,18 @@ product's advertised capabilities, and its version-specific certification scope.
 
 The SDK ships implementations and helpers for:
 
+- Part 1 (Overview and Concepts)
+- Part 2 (Security Model)
+- Part 3 (Address Space Model)
+- Part 4 (Services)
+- Part 5 (Information Model)
+- Part 6 (Mappings)
+- Part 7 (Profiles)
+- Part 8 (Data Access)
 - Part 9 (Alarms & Conditions)
-- Part 11 (Historical Access) and Part 13 (Aggregates)
+- Part 11 (Historical Access)
+- Part 12 (Discovery and Global Services, including LDS/GDS)
+- Part 13 (Aggregates)
 - Part 14 (PubSub)
 - Part 16 (State Machines)
 - Part 17 (Alias Names)
@@ -31,7 +41,9 @@ The SDK ships implementations and helpers for:
 - OPC 40501-1 (MachineTool), with OPC 40505 (Wireless Machine Tool Peripherals)
 - OPC 40210 (Geometric Measurement Systems), with the Production-facet exception below
 - OPC 40020-1 (Cranes and Hoists)
-- The Local Discovery Server
+
+Part 10 (Programs) is being implemented in a separate pull request and is not
+included in this support list.
 
 See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
