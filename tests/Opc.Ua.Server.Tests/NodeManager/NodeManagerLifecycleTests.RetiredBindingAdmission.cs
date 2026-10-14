@@ -46,7 +46,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedImmediateRetirementFinishesAdmittedEventMutationAsync(bool delete)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var abortCallback = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
@@ -105,23 +104,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerRegistration>? adding = null;
             int callbackClaims = 0;
-            originalManager.AllEventsCallback = async (item, unsubscribe, _) =>
+            originalManager.AllEventsCallback = (item, unsubscribe, _) =>
             {
                 if (item.Id != eventId || unsubscribe != delete ||
                     Interlocked.CompareExchange(ref callbackClaims, 1, 0) != 0)
                 {
-                    return;
+                    return default;
                 }
+                // A callback has no request context, so the add is an ordinary external call. It is not awaited
+                // here: awaiting it would make the admitted callback wait for the commit that drains it.
                 adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
                 queued.TrySetResult(true);
-                try
-                {
-                    await adding.WaitAsync(abortCallback.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (abortCallback.IsCancellationRequested)
-                {
-                    // Permit deterministic teardown after a bounded liveness failure.
-                }
+                return default;
             };
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
             {
@@ -133,19 +127,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).ConfigureAwait(false);
+                Task<NodeManagerRegistration> pendingAdd = adding ??
+                    throw new AssertionException("The external lifecycle add was not started.");
+                Assert.That(pendingAdd.IsCompleted, Is.False, "The external add must not borrow the admission.");
                 Assert.That(factory.CreateCount, Is.Zero);
                 release.TrySetResult(true);
-                try
-                {
-                    await Task.WhenAll(commit, mutation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
-                        .ConfigureAwait(false);
-                }
-                finally
-                {
-                    abortCallback.Cancel();
-                    await Task.WhenAll(commit, mutation).WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
+                await Task.WhenAll(commit, mutation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
+                    .ConfigureAwait(false);
+                await pendingAdd.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult result = await commit.ConfigureAwait(false);
                 Assert.That(await mutation.ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
                 Assert.That(result.CleanupFailure, Is.Null);
@@ -165,7 +154,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                abortCallback.Cancel();
                 originalManager.AllEventsCallback = (_, _, _) => default;
                 if (adding is not null)
                 {
@@ -210,7 +198,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedRetirementLetsAdmittedSessionReleaseItsNotificationLeaseAsync(bool immediate)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var abortCallback = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
@@ -239,19 +226,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerRegistration>? adding = null;
-            originalManager.SessionActivatedCallback = async _ =>
+            originalManager.SessionActivatedCallback = _ =>
             {
                 Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
+                // A callback has no request context, so the add is an ordinary external call. It is not awaited
+                // here: awaiting it would make the admitted callback wait for the commit that drains it.
                 adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
                 queued.TrySetResult(true);
-                try
-                {
-                    await adding.WaitAsync(abortCallback.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (abortCallback.IsCancellationRequested)
-                {
-                    // Release the captured notification only after detecting the reproduced wait cycle.
-                }
+                return default;
             };
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
             {
@@ -262,36 +244,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task<Opc.Ua.Client.ISession> activation = client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
             Opc.Ua.Client.ISession? session = null;
-            bool cycle = false;
             try
             {
                 await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).ConfigureAwait(false);
+                Task<NodeManagerRegistration> pendingAdd = adding ??
+                    throw new AssertionException("The external lifecycle add was not started.");
+                Assert.That(pendingAdd.IsCompleted, Is.False, "The external add must not borrow the admission.");
                 Assert.That(factory.CreateCount, Is.Zero);
                 release.TrySetResult(true);
-                try
-                {
-                    await Task.WhenAll(commit, activation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
-                        .ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                    cycle = !commit.IsCompleted && !activation.IsCompleted && factory.CreateCount == 1;
-                    throw;
-                }
-                finally
-                {
-                    abortCallback.Cancel();
-                    await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    session = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    if (adding is not null)
-                    {
-                        await adding.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    }
-                    Assert.That(cycle, Is.False,
-                        "Immediate retirement must not hold binding admission while a captured callback " +
-                        "needs it to finish and release the notification being drained.");
-                }
+                await Task.WhenAll(commit, activation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
+                    .ConfigureAwait(false);
+                session = await activation.ConfigureAwait(false);
+                await pendingAdd.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult result = await commit.ConfigureAwait(false);
                 ISession initialSession = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken) ??
                     throw new AssertionException("The original server session was not found.");
@@ -317,7 +281,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                abortCallback.Cancel();
                 originalManager.SessionActivatedCallback = _ => default;
                 Opc.Ua.Client.ISession completedSession = RequireLifecycleValue(session);
                 await completedSession.CloseAsync(timeout.Token).ConfigureAwait(false);
