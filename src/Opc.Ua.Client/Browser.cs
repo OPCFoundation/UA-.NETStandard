@@ -406,6 +406,12 @@ namespace Opc.Ua.Client
         /// a prototype for evaluation of all server capabilities (this is not an
         /// operation limit).
         /// </summary>
+        /// <remarks>
+        /// Per-node failures are returned in the result set. Request failures and
+        /// cancellation propagate to the caller instead of returning partial results
+        /// as a successful browse. An already-cancelled token is checked before
+        /// accessing the session or sending a request.
+        /// </remarks>
         /// <param name="nodesToBrowse">The nodes to browse</param>
         /// <param name="ct">Cancellation token to use</param>
         /// <returns></returns>
@@ -414,6 +420,7 @@ namespace Opc.Ua.Client
             ArrayOf<NodeId> nodesToBrowse,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             BrowserOptions state = State;
             ISessionClient session = Session ??
                 throw new ServiceResultException(

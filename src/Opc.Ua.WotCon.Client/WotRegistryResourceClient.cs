@@ -32,7 +32,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Encoders;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 
@@ -412,6 +411,27 @@ namespace Opc.Ua.WotCon.Client
             int chunkSize,
             CancellationToken ct)
         {
+            PendingWrite? write = await TryClaimPendingVersionAsync(ct).ConfigureAwait(false);
+            if (write is null)
+            {
+                return null;
+            }
+            await CreateProxy(write.NodeId)
+                .WriteDocumentAsync(write.Handle, content, chunkSize, ct)
+                .ConfigureAwait(false);
+            if (content.Length > 0)
+            {
+                m_pendingStructuralVersion = false;
+                HasContent = true;
+            }
+            return new WotRegistryUploadResult(write.NodeId, write.VersionId);
+        }
+
+        /// <summary>
+        /// Claims the pending version before consuming a source, so non-seekable uploads need no replay buffer.
+        /// </summary>
+        private async ValueTask<PendingWrite?> TryClaimPendingVersionAsync(CancellationToken ct)
+        {
             NodeId nodeId;
             string assignedVersionId;
             uint fileHandle;
@@ -443,15 +463,7 @@ namespace Opc.Ua.WotCon.Client
                 return null;
             }
 
-            await CreateProxy(nodeId)
-                .WriteDocumentAsync(fileHandle, content, chunkSize, ct)
-                .ConfigureAwait(false);
-            if (content.Length > 0)
-            {
-                m_pendingStructuralVersion = false;
-                HasContent = true;
-            }
-            return new WotRegistryUploadResult(nodeId, assignedVersionId);
+            return new PendingWrite(nodeId, assignedVersionId, fileHandle);
         }
 
         private async ValueTask<WotRegistryUploadResult> AllocateAndUploadAsync(
@@ -517,6 +529,17 @@ namespace Opc.Ua.WotCon.Client
         /// Uploads a stream as a new Version and returns the exact Version node
         /// and id that received the bytes.
         /// </summary>
+        public ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
+            Stream content,
+            int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return UploadNewVersionAndGetResultAsync(content, long.MaxValue, Math.Min(chunkSize, 1_048_576), ct);
+        }
+
+        /// <summary>
+        /// Streams a new version within a byte limit, returning its exact identity without buffering or replaying.
+        /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="content"/> is <c>null</c>.
         /// </exception>
@@ -524,16 +547,21 @@ namespace Opc.Ua.WotCon.Client
         /// <paramref name="content"/> is not readable.
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// <paramref name="chunkSize"/> is not positive.
+        /// <paramref name="chunkSize"/> or <paramref name="maxBytes"/> is not positive.
+        /// </exception>
+        /// <exception cref="IOException">
+        /// The source exceeds <paramref name="maxBytes"/>.
         /// </exception>
         /// <exception cref="ServiceResultException">
         /// The server rejects the upload or does not return the requested write handle.
         /// </exception>
         /// <param name="content">The content stream to upload.</param>
-        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="maxBytes">The maximum number of bytes to transfer.</param>
         /// <param name="chunkSize">The chunk size.</param>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
             Stream content,
+            long maxBytes,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
@@ -545,54 +573,44 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Stream must be readable.", nameof(content));
             }
-            if (chunkSize <= 0)
+            if (chunkSize is <= 0 or > 1_048_576)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(chunkSize),
-                    "Chunk size must be positive.");
+                    "Chunk size must be between 1 and 1048576.");
             }
-            if (m_pendingStructuralVersion)
+            if (maxBytes <= 0)
             {
-                using var replay = new MemoryStream();
-                await content.CopyToAsync(replay, chunkSize, ct).ConfigureAwait(false);
-                return await UploadNewVersionAndGetResultAsync(
-                        ByteString.From(replay.ToArray()),
-                        chunkSize,
-                        ct)
+                throw new ArgumentOutOfRangeException(nameof(maxBytes));
+            }
+            if (content.CanSeek && content.Length - content.Position > maxBytes)
+            {
+                throw new IOException("The source exceeds the configured transfer limit.");
+            }
+            PendingWrite? write = m_pendingStructuralVersion
+                ? await TryClaimPendingVersionAsync(ct).ConfigureAwait(false)
+                : null;
+            bool fillingPending = write is not null;
+            if (write is null)
+            {
+                (NodeId nodeId, string assignedVersionId, uint fileHandle) = await m_groupProxy.CreateResourceAsync(
+                    ResourceId, versionId: string.Empty, requestFileOpen: true, ct)
                     .ConfigureAwait(false);
+                if (fileHandle == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "CreateResource did not return the requested write handle.");
+                }
+                write = new PendingWrite(nodeId, assignedVersionId, fileHandle);
             }
-
-            (NodeId nodeId, string assignedVersionId, uint fileHandle) = await m_groupProxy
-                .CreateResourceAsync(
-                    ResourceId,
-                    versionId: string.Empty,
-                    requestFileOpen: true,
-                    ct)
-                .ConfigureAwait(false);
-            if (fileHandle == 0)
+            long transferred = await CreateProxy(write.NodeId)
+                .WriteDocumentAsync(write.Handle, content, maxBytes, chunkSize, ct).ConfigureAwait(false);
+            if (m_pendingStructuralVersion && (!fillingPending || transferred > 0))
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    "CreateResource did not return the requested write handle.");
+                m_pendingStructuralVersion = false;
+                HasContent = fillingPending ? true : null;
             }
-            WoTDocumentTypeClient proxy = CreateProxy(nodeId);
-            try
-            {
-                await content.CopyStreamInChunksAsync(
-                        chunkSize,
-                        (chunk, token) => proxy.WriteAsync(
-                            fileHandle,
-                            ByteString.From(chunk),
-                            token),
-                        ct)
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                await proxy.CloseAsync(fileHandle, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            return new WotRegistryUploadResult(nodeId, assignedVersionId);
+            return new WotRegistryUploadResult(write.NodeId, write.VersionId);
         }
 
         /// <summary>
@@ -600,7 +618,7 @@ namespace Opc.Ua.WotCon.Client
         /// / default version) via chunked <c>Read</c> calls.
         /// <para>
         /// A WoT document resource is an xRegistry <c>ResourceType</c>, so this reuses the shared
-        /// <see cref="ResourceTypeClientExtensions.ReadDocumentAsync"/> helper directly on the
+        /// <see cref="ResourceTypeClientExtensions"/> read helper directly on the
         /// generated proxy rather than round-tripping the document through a <c>byte[]</c>.
         /// </para>
         /// </summary>
@@ -648,6 +666,11 @@ namespace Opc.Ua.WotCon.Client
 
         private readonly GroupTypeClient m_groupProxy;
         private bool m_pendingStructuralVersion;
+
+        /// <summary>
+        /// An atomically acquired write handle and its exact version identity.
+        /// </summary>
+        private sealed record PendingWrite(NodeId NodeId, string VersionId, uint Handle);
     }
 
     /// <summary>

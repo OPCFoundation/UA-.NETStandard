@@ -17,6 +17,9 @@
     <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.XRegistry\XRegistryNodeIdCopy.cs" Link="XRegistryNodeIdCopy.cs" />
+  </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

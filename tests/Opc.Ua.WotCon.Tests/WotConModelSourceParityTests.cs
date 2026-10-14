@@ -330,6 +330,16 @@ namespace Opc.Ua.WotCon.Tests
 
         private static string FindModel(string fileName)
         {
+            string? assemblyDirectory = Path.GetDirectoryName(
+                typeof(WotConModelSourceParityTests).Assembly.Location);
+            if (!string.IsNullOrEmpty(assemblyDirectory))
+            {
+                string linked = Path.Combine(assemblyDirectory, "Models", fileName);
+                if (File.Exists(linked))
+                {
+                    return linked;
+                }
+            }
             string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
             string? directory;
             if (!string.IsNullOrEmpty(configured))
@@ -343,7 +353,7 @@ namespace Opc.Ua.WotCon.Tests
             }
             else
             {
-                directory = Path.GetDirectoryName(typeof(WotConModelSourceParityTests).Assembly.Location);
+                directory = assemblyDirectory;
             }
             while (!string.IsNullOrEmpty(directory))
             {
@@ -407,7 +417,11 @@ namespace Opc.Ua.WotCon.Tests
             ("ns=1;i=63562", "1:NamespaceUri"),
             ("ns=1;i=63563", "1:NamespaceVersion"),
             ("ns=1;i=63564", "1:NamespacePublicationDate"),
-            ("ns=1;i=63565", "1:IsNamespaceSubset")
+            ("ns=1;i=63565", "1:IsNamespaceSubset"),
+            ("ns=1;i=63026", "1:RegistryOriginDataType"),
+            ("ns=1;i=63591", "Default Binary"),
+            ("ns=1;i=63592", "Default JSON"),
+            ("ns=1;i=63593", "1:OriginRegistry")
         ];
     }
 }

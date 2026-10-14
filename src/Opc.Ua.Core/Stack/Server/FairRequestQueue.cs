@@ -50,7 +50,11 @@ namespace Opc.Ua
     /// Admission and dispatch take no lock. Each owner has a lock-free FIFO, and the weighted
     /// round robin runs over a lock-free ready queue of turn tokens: an owner holds one token per
     /// queued request, up to its weight per turn, and queues for its next turn behind the other
-    /// owners when the last token of a turn is taken. A request is claimed exactly once, by
+    /// owners when the last token of a turn is taken. The weighting holds over time, not for every
+    /// window: a worker preempted between taking an owner's last token and publishing its next
+    /// turn leaves that owner without a queued token for the length of the stall, the
+    /// work-conserving dispatch serves the other owners meanwhile, and the lost share is not made
+    /// up afterwards. A request is claimed exactly once, by
     /// selection, cancellation or stop. The count bound is reserved atomically. Only a head that
     /// failed execution admission and the retirement of an empty owner FIFO use the owner's gate.
     /// </remarks>
@@ -997,17 +1001,16 @@ namespace Opc.Ua
             /// </summary>
             public void Dispose()
             {
-                CancellationTokenRegistration registration;
-                lock (m_registrationGate)
+                var prior = (RegistrationState)Interlocked.Exchange(
+                    ref m_registrationState, (int)RegistrationState.Disposed);
+                if (prior == RegistrationState.Disposed)
                 {
-                    if (m_disposed)
-                    {
-                        return;
-                    }
-                    m_disposed = true;
-                    registration = m_registration;
+                    return;
                 }
-                registration.Dispose();
+                if (prior == RegistrationState.Registered)
+                {
+                    m_registration.Dispose();
+                }
                 ReleaseQueueLease();
                 ReleaseExecution();
                 Interlocked.Exchange(ref m_parkedLease, null)?.Dispose();
@@ -1036,16 +1039,14 @@ namespace Opc.Ua
             internal void RegisterCancellation()
             {
                 CancellationTokenRegistration registration = CancellationToken.Register(() => m_queue.Cancel(this));
-                bool disposed;
-                lock (m_registrationGate)
-                {
-                    disposed = m_disposed;
-                    if (!disposed)
-                    {
-                        m_registration = registration;
-                    }
-                }
-                if (disposed)
+                m_registration = registration;
+
+                // published unless the entry was disposed meanwhile, possibly by the
+                // callback running inside Register; the registration is ours to end then.
+                if (Interlocked.CompareExchange(
+                    ref m_registrationState,
+                    (int)RegistrationState.Registered,
+                    (int)RegistrationState.None) != (int)RegistrationState.None)
                 {
                     registration.Dispose();
                 }
@@ -1055,11 +1056,6 @@ namespace Opc.Ua
             /// Queue that controls ordering and classification validity.
             /// </summary>
             private readonly FairRequestQueue m_queue;
-
-            /// <summary>
-            /// Serializes registration transfer against entry disposal.
-            /// </summary>
-            private readonly Lock m_registrationGate = new();
 
             /// <summary>
             /// The owning FIFO while linked.
@@ -1087,14 +1083,37 @@ namespace Opc.Ua
             private IDisposable? m_parkedLease;
 
             /// <summary>
-            /// Registration owned until disposal starts.
+            /// Registration owned until disposal starts; published by
+            /// <see cref="m_registrationState"/>.
             /// </summary>
             private CancellationTokenRegistration m_registration;
 
             /// <summary>
-            /// Whether registration ownership has been released.
+            /// A <see cref="RegistrationState"/>, stored as an <see cref="int"/> so that
+            /// <see cref="Interlocked"/> can change it; an entry needs no lock object.
             /// </summary>
-            private bool m_disposed;
+            private int m_registrationState;
+
+            /// <summary>
+            /// Who owns the cancellation registration of an entry.
+            /// </summary>
+            private enum RegistrationState
+            {
+                /// <summary>
+                /// Not registered yet.
+                /// </summary>
+                None,
+
+                /// <summary>
+                /// Registered; disposal ends the registration.
+                /// </summary>
+                Registered,
+
+                /// <summary>
+                /// Disposal started; a registration made afterwards is ended by its maker.
+                /// </summary>
+                Disposed
+            }
         }
 
         /// <summary>

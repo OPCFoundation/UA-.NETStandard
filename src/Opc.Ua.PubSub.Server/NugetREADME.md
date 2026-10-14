@@ -17,6 +17,15 @@ builder.Services.AddOpcUaServer()
     .AddPubSubServer();
 ```
 
+Enabling `PubSubServerOptions.ExposeConfigurationMethods` materializes the
+standard optional `AddConnection`, `RemoveConnection`, `SetSecurityKeys`, and
+`PubSubConfiguration` nodes before binding their handlers. The configuration
+file retains the standard namespace-zero browse names, method declarations, and
+argument metadata so generated `PublishSubscribeTypeClient`,
+`PubSubConfigurationTypeClient`, and `FileTypeClient` proxies can access it.
+The existing vendor-namespace configuration file remains available for
+compatibility.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`, `net10.0`.

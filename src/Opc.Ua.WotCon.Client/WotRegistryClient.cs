@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Encoders;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 
@@ -364,7 +363,7 @@ namespace Opc.Ua.WotCon.Client
                     "Refresh returned unexpected output arguments: " +
                     $"{output[0].TypeInfo}, {output[1].TypeInfo}, {output[2].TypeInfo}.");
             }
-            return new WotRegistryRefreshResult(summary, results, newGeneration);
+            return new WotRegistryRefreshResult(summary, results, newGeneration, callResult.StatusCode);
         }
 
         private bool TryDecodeStructure<T>(Variant value, out T? result)
@@ -800,11 +799,13 @@ namespace Opc.Ua.WotCon.Client
         internal WotRegistryRefreshResult(
             WoTRefreshSummaryDataType summary,
             ArrayOf<WoTResourceLoadResultDataType> results,
-            uint newGeneration)
+            uint newGeneration,
+            StatusCode methodStatus)
         {
             Summary = summary;
             Results = results;
             NewGeneration = newGeneration;
+            MethodStatus = methodStatus;
         }
 
         /// <summary>
@@ -821,6 +822,11 @@ namespace Opc.Ua.WotCon.Client
         /// The registry generation committed by this refresh.
         /// </summary>
         public uint NewGeneration { get; }
+
+        /// <summary>
+        /// Gets the actual method status, including non-default Good completion codes.
+        /// </summary>
+        public StatusCode MethodStatus { get; }
 
         /// <summary>
         /// True when the registry-wide outcome, or any per-resource

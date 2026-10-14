@@ -402,6 +402,20 @@ automatic federated dependency fetching or establish Full-profile conformance.
 
 <a id="112-registry-service-and-persistence"></a>
 
+Bounded consumers can use the stream overload of
+`UploadNewVersionAndGetResultAsync` with `maxBytes`; pending structural versions
+are claimed before consuming a non-seekable source, without buffering it for
+replay. The returned version id and NodeId identify the bytes actually written.
+`WotRegistryRefreshResult.MethodStatus` retains the actual method completion
+status alongside the summary and per-resource outcomes.
+
+For the legacy file workflow, `UploadAndUpdateWithResultAsync` returns the
+consumed byte count and actual `CloseAndUpdate` status, including
+`GoodResultsMayBeIncomplete`. `ValidateWithResultAsync` on a generated document
+proxy validates that exact node and returns the method status plus the typed
+outcome. These result-bearing helpers do not replace completed results with
+late cancellation.
+
 ## Persistence and manifest schema
 
 `FileWotRegistryStore` persists registry metadata in `manifest.json` and document
