@@ -1566,7 +1566,11 @@ namespace Opc.Ua.Bindings
                     numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
                 }
 
-                if (!numbered)
+                if (numbered)
+                {
+                    DiscardWritesNumberedAfterGap(batch);
+                }
+                else
                 {
                     // Sealing takes sequence numbers and the current token, so it runs
                     // under the send order lock, and in queue order. The batch is taken
@@ -1582,6 +1586,7 @@ namespace Opc.Ua.Bindings
                             }
                         }
 
+                        DiscardWritesNumberedAfterGap(batch);
                         SealWriteBatch(batch);
                     }
 
@@ -1755,6 +1760,57 @@ namespace Opc.Ua.Bindings
                         ReportWriteComplete(null, write.State, 0, failure);
                         continue;
                     }
+                }
+
+                batch[kept++] = write;
+            }
+
+            if (kept < batch.Count)
+            {
+                batch.RemoveRange(kept, batch.Count - kept);
+            }
+        }
+
+        /// <summary>
+        /// Drops the writes of a batch that their producers numbered for a transport
+        /// on which a failed seal already left a gap in the sequence numbers.
+        /// </summary>
+        /// <remarks>
+        /// A producer can number a message for that transport (an OpenSecureChannel
+        /// response or a fault, or a client request) before the channel faults:
+        /// <see cref="ReportSequenceFailure"/> faults it from the pool. Sent, it
+        /// would reach the peer after the gap. The writer seals only once no write
+        /// numbered by a producer is queued ahead, and producers cannot number while
+        /// it holds <see cref="SendOrder"/>, so every such write queued for the
+        /// broken transport was numbered after the gap. Unsealed writes are left to
+        /// <see cref="SealWriteBatch"/>.
+        /// </remarks>
+        private void DiscardWritesNumberedAfterGap(List<PendingWrite> batch)
+        {
+            IUaSCByteTransport? broken = m_sequenceBrokenTransport;
+            if (broken == null)
+            {
+                return;
+            }
+
+            int kept = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                PendingWrite write = batch[ii];
+                if (write.Unsealed == null && ReferenceEquals(write.Transport, broken))
+                {
+                    if (write.Buffers == null && write.BackingBuffer != null)
+                    {
+                        BufferManager.ReturnBuffer(write.BackingBuffer, nameof(DiscardWritesNumberedAfterGap));
+                    }
+                    ReportWriteComplete(
+                        write.Buffers,
+                        write.State,
+                        0,
+                        ServiceResult.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "The channel was closed before the message was sent."));
+                    continue;
                 }
 
                 batch[kept++] = write;
