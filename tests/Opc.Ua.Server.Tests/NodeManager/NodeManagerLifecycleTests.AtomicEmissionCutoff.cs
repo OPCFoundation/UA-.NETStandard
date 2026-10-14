@@ -138,12 +138,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
             Task<NodeManagerBatchResult>? commit = null;
+            var observed = new Dictionary<uint, DataValue>();
+            string stage = "dispatch-entered";
+            Exception? primaryFailure = null;
             try
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
-                    .AsTask();
-                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (var stageTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token))
+                {
+                    stageTimeout.CancelAfter(TimeSpan.FromSeconds(20));
+                    try
+                    {
+                        await entered.Task.WaitAsync(stageTimeout.Token).ConfigureAwait(false);
+                        stage = "commit-published";
+                        commit = prepared.CommitAsync(
+                            _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
+                        await published.Task.WaitAsync(stageTimeout.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (
+                        stageTimeout.IsCancellationRequested && !timeout.IsCancellationRequested)
+                    {
+                        throw new TimeoutException(Describe());
+                    }
+                }
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(dispatch.IsCompleted, Is.False);
                 Assert.That(first.DisposeCount, Is.Zero);
@@ -161,13 +177,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await secondSource.QueueValueAsync(server.DefaultSystemContext, secondNode, item, timeout.Token)
                         .ConfigureAwait(false);
                 }
-                var delivered = await PublishEmissionDataAsync(
-                    services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
+                stage = "queued-values-delivered";
+                Dictionary<uint, DataValue> delivered;
+                using (var stageTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token))
+                {
+                    stageTimeout.CancelAfter(TimeSpan.FromSeconds(20));
+                    try
+                    {
+                        (delivered, _) = await PublishEmissionDataAsync(
+                            services, subscriptionId, initial.Acknowledgements, stageTimeout.Token, observed)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (
+                        stageTimeout.IsCancellationRequested && !timeout.IsCancellationRequested)
+                    {
+                        throw new TimeoutException(Describe());
+                    }
+                }
                 using (Assert.EnterMultipleScope())
                 {
                     foreach (uint handle in new uint[] { 1, 2, 3 })
                     {
-                        DataValue value = delivered.Values[handle];
+                        DataValue value = delivered[handle];
                         Assert.That(value.StatusCode,
                             Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
                             $"Source for client handle {handle} sampled after the joint publication while A was held.");
@@ -182,16 +213,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(second.AllEventsUnsubscribeCount, Is.Zero);
                 }
             }
+            catch (Exception failure)
+            {
+                primaryFailure = failure;
+                throw;
+            }
             finally
             {
                 release.TrySetResult(true);
-                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (commit is not null)
+                try
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    Assert.That(result.CleanupFailure, Is.Null);
+                    // Cleanup gets its own bound so an expired test timeout cannot replace the original failure.
+                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    await dispatch.WaitAsync(cleanup.Token).ConfigureAwait(false);
+                    if (commit is not null)
+                    {
+                        NodeManagerBatchResult result = await commit.WaitAsync(cleanup.Token).ConfigureAwait(false);
+                        Assert.That(result.CleanupFailure, Is.Null);
+                    }
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
                 }
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                catch (Exception cleanupFailure) when (primaryFailure is not null)
+                {
+                    TestContext.Out.WriteLine(
+                        $"Cleanup after the failure at stage '{stage}' also failed: {cleanupFailure}");
+                }
+            }
+
+            string Describe()
+            {
+                string values = string.Join(", ", observed.Select(entry => $"{entry.Key}={entry.Value.StatusCode}"));
+                return $"Stage '{stage}' did not complete within 20s. dispatch={dispatch.Status}, " +
+                    $"commit={commit?.Status.ToString() ?? "none"}, committed={prepared.IsCommitted}, " +
+                    $"observed[{values}].";
             }
         }
 
@@ -392,9 +446,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                Dictionary<uint, DataValue>? observed = null)
         {
-            var values = new Dictionary<uint, DataValue>();
+            Dictionary<uint, DataValue> values = observed ?? [];
             while (values.Count < 3)
             {
                 RequestHeader header = m_requestHeader;
