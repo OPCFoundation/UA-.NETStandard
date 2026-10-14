@@ -50,12 +50,6 @@ namespace Opc.Ua.Schema.Model
         bool UseAllowSubtypes { get; }
 
         /// <summary>
-        /// Whether the target model was read from a NodeSet2 rather than
-        /// from a ModelDesign.
-        /// </summary>
-        bool IsSourceNodeSet { get; }
-
-        /// <summary>
         /// Get all node designs in the model including declarations etc.
         /// </summary>
         NodeDesign[] Nodes { get; }

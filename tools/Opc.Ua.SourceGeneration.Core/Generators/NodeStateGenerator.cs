@@ -2053,7 +2053,7 @@ namespace Opc.Ua.SourceGeneration
         private bool IsOmittedFromNodeSetAddressSpace(NodeToGenerate node)
         {
             if (!m_context.Options.EmitNodeSetNodesOnly ||
-                !m_context.ModelDesign.IsSourceNodeSet ||
+                m_context.ModelDesign is not ModelDesignValidator { IsSourceNodeSet: true } ||
                 !node.IsNotExplicitlyDefined)
             {
                 return false;
