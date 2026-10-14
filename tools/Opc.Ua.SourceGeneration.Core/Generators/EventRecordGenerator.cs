@@ -277,9 +277,7 @@ namespace Opc.Ua.SourceGeneration
                 [allFields],
                 WriteTemplate_FieldTable);
 
-            // Skip fields without a known reader — Variant fallback
-            // types have no helper, so the property defaults to its
-            // record-default value.
+            // Skip fields without a known reader.
             List<FieldEntry> decodedFields = [];
             foreach (FieldEntry field in allFields)
             {
@@ -385,7 +383,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string browseName = GetBrowseNameExpression(field);
-            string path = field.IsTwoStateVariableId
+            string path = field.IsVariableId
                 ? CoreUtils.Format(
                     "{0}, global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
                     browseName)
@@ -483,7 +481,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Collects only the fields declared directly on this type
         /// (not inherited). Recognizes simple properties and
-        /// TwoStateVariableType.Id sub-properties. Skips children
+        /// state and transition variable Id sub-properties. Skips children
         /// whose browse name already appears on a supertype — these
         /// are re-declarations / promotions in OPC UA semantics that
         /// do not introduce a new C# property.
@@ -607,7 +605,7 @@ namespace Opc.Ua.SourceGeneration
                         BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         BrowseNameText = child.BrowseName,
                         ReaderMethod = MapReaderMethod(property.DataTypeNode!, dotnet),
-                        IsTwoStateVariableId = false
+                        IsVariableId = false
                     });
                     continue;
                 }
@@ -628,7 +626,7 @@ namespace Opc.Ua.SourceGeneration
                             BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                             BrowseNameText = child.BrowseName,
                             ReaderMethod = "GetNullableBool",
-                            IsTwoStateVariableId = true
+                            IsVariableId = true
                         });
                         continue;
                     }
@@ -649,8 +647,30 @@ namespace Opc.Ua.SourceGeneration
                         BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         BrowseNameText = child.BrowseName,
                         ReaderMethod = MapReaderMethod(variable.DataTypeNode!, dotnetVar),
-                        IsTwoStateVariableId = false
+                        IsVariableId = false
                     });
+                    for (TypeDesign? variableType = variable.TypeDefinitionNode;
+                        variableType != null;
+                        variableType = variableType.BaseTypeNode)
+                    {
+                        if (variableType.SymbolicId?.Namespace == Namespaces.OpcUa &&
+                            variableType.SymbolicId.Name is "StateVariableType" or "TransitionVariableType")
+                        {
+                            fields.Add(new FieldEntry
+                            {
+                                PropertyName = CoreUtils.Format("{0}Id", browseName),
+                                DotNetType = "global::Opc.Ua.Variant",
+                                Description = SanitizeDescription($"Identifier of {browseName}."),
+                                BrowseName = browseName,
+                                NamespaceUri = child.SymbolicId?.Namespace,
+                                BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
+                                BrowseNameText = child.BrowseName,
+                                ReaderMethod = "GetVariant",
+                                IsVariableId = true
+                            });
+                            break;
+                        }
+                    }
                 }
 
                 // Objects (state machines, sub-objects) are not emitted as
@@ -1154,7 +1174,7 @@ namespace Opc.Ua.SourceGeneration
             public string? BrowseNameNamespaceUri { get; set; }
             public string? BrowseNameText { get; set; }
             public string? ReaderMethod { get; set; }
-            public bool IsTwoStateVariableId { get; set; }
+            public bool IsVariableId { get; set; }
             public bool IsConditionId { get; set; }
             public int FieldIndex { get; set; }
         }
