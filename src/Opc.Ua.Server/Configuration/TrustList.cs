@@ -2230,7 +2230,25 @@ namespace Opc.Ua.Server
         /// The stores being replaced are never consulted for a specified list.
         /// Certificates in IssuerCertificates must be CA certificates.
         /// </summary>
-        private async Task<ServiceResult> ValidateNewTrustListAsync(
+        /// <remarks>
+        /// This is the check <c>CloseAndUpdate</c> applies before it commits
+        /// a new TrustList. It is public so that an application that applies
+        /// a TrustList by other means (for example a GDS push it receives
+        /// through its own channel) can apply the same check first.
+        /// </remarks>
+        /// <param name="issuerCertificates">The new issuer certificates, or
+        /// <c>null</c> to keep the current issuer store.</param>
+        /// <param name="trustedCertificates">The new trusted certificates, or
+        /// <c>null</c> to keep the current trusted store.</param>
+        /// <param name="issuerCrls">The new issuer CRLs, or <c>null</c> to keep
+        /// the current ones.</param>
+        /// <param name="trustedCrls">The new trusted CRLs, or <c>null</c> to keep
+        /// the current ones.</param>
+        /// <param name="securityConfiguration">The security configuration the
+        /// certificates are validated with.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Good, or the reason the TrustList would be rejected.</returns>
+        public async Task<ServiceResult> ValidateNewTrustListAsync(
             CertificateCollection? issuerCertificates,
             CertificateCollection? trustedCertificates,
             X509CRLCollection? issuerCrls,

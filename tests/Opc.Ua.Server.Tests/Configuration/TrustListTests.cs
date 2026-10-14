@@ -2115,6 +2115,56 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ValidateNewTrustListAsyncCanBeCalledBeforeApplyingATrustListAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Prevalidated CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Prevalidated Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using var issuers = new CertificateCollection { caCert };
+            using var trusted = new CertificateCollection { leaf };
+            using var leafAsIssuer = new CertificateCollection { leaf };
+
+            ServiceResult accepted = await trustList.ValidateNewTrustListAsync(
+                issuers,
+                trusted,
+                new X509CRLCollection(),
+                new X509CRLCollection(),
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+            ServiceResult missingIssuer = await trustList.ValidateNewTrustListAsync(
+                null,
+                trusted,
+                null,
+                null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+            ServiceResult notACa = await trustList.ValidateNewTrustListAsync(
+                leafAsIssuer,
+                null,
+                null,
+                null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(accepted), Is.True, accepted.ToString());
+                Assert.That(missingIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(notACa.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            });
+        }
+
+        [Test]
         public async Task AddCertificateWithValidationRejectsCertificateWhoseIssuerIsMissingAsync()
         {
             TrustListState node = CreateNode();
