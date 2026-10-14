@@ -357,10 +357,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
         /// </summary>
-        internal IDisposable TrackPendingRequest()
+        internal PendingRequestScope TrackPendingRequest()
         {
             Interlocked.Increment(ref m_pendingServiceRequests);
-            return new PendingRequest(() => Interlocked.Decrement(ref m_pendingServiceRequests));
+            return new PendingRequestScope(this);
         }
 
         /// <summary>
@@ -1042,11 +1042,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a fault response secured with the symmetric keys.
         /// </summary>
-        /// <param name="token">The token that secures the fault.</param>
+        /// <param name="token">The token of the failed request. The fault is
+        /// secured with the token that is current when the writer sends it, which
+        /// is this one or the one the client activated after it.</param>
         /// <param name="requestId">The request id of the failed request.</param>
         /// <param name="fault">The fault to report.</param>
         /// <param name="requestHandle">The RequestHandle of the failed request, echoed in
         /// the ResponseHeader as OPC 10000-4 §7.33 recommends; 0 if it is unknown.</param>
+        /// <remarks>
+        /// Needs no lock: the fault is encoded here and queued for the writer, which
+        /// numbers and secures it (see <see cref="UaSCUaBinaryChannel.SendOrder"/>).
+        /// </remarks>
         protected void SendServiceFault(
             ChannelToken token,
             uint requestId,
@@ -1055,7 +1061,8 @@ namespace Opc.Ua.Bindings
         {
             m_logger.TcpListenChannelLog7(ChannelId, requestId, fault.StatusCode);
 
-            BufferCollection? buffers = null;
+            _ = token;
+            EncodedSymmetricMessage? encoded = null;
 
             try
             {
@@ -1079,22 +1086,25 @@ namespace Opc.Ua.Bindings
 
                 // the limits should never be exceeded when sending a fault.
 
-                // secure message.
-                buffers = WriteSymmetricMessage(
+                EncodedSymmetricMessage message = EncodeSymmetricMessage(
                     TcpMessageType.Message,
                     requestId,
-                    token,
                     response,
                     false,
-                    out bool limitsExceeded);
+                    out _);
+                encoded = message;
 
-                // send message.
-                BeginWriteMessage(buffers, null);
-                buffers = null;
+                // queue for the writer, which secures it. Without a transport the
+                // fault is dropped, as a write to a closed transport would be.
+                if (BeginWriteSymmetricMessage(message, null))
+                {
+                    encoded = null;
+                }
             }
             catch (Exception e)
             {
-                buffers?.Release(BufferManager, "SendServiceFault");
+                encoded?.Chunks.Release(BufferManager, "SendServiceFault");
+                encoded = null;
 
                 m_logger.TcpListenChannelLog8(e, ChannelId, requestId, fault.StatusCode);
 
@@ -1103,6 +1113,10 @@ namespace Opc.Ua.Bindings
                         e,
                         StatusCodes.BadTcpInternalError,
                         "Unexpected error sending a service fault."));
+            }
+            finally
+            {
+                encoded?.Chunks.Release(BufferManager, "SendServiceFault");
             }
         }
 
@@ -1242,23 +1256,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Keeps a decoded request in use until its owner releases the pending-request count once.
+        /// Keeps a decoded request in use until its owner releases the pending-request count.
         /// </summary>
-        /// <param name="release">Callback that returns this request's pending count.</param>
-        private sealed class PendingRequest(Action release) : IDisposable
+        /// <remarks>
+        /// A struct, so tracking a request allocates nothing. Every use is a
+        /// <see langword="using"/> declaration over the value returned by
+        /// <see cref="TrackPendingRequest"/>, which disposes it exactly once.
+        /// </remarks>
+        internal readonly struct PendingRequestScope : IDisposable
         {
-            /// <summary>
-            /// Returns the pending-request count at most once.
-            /// </summary>
-            public void Dispose()
+            internal PendingRequestScope(TcpListenerChannel channel)
             {
-                Interlocked.Exchange(ref m_release, null)?.Invoke();
+                m_channel = channel;
             }
 
             /// <summary>
-            /// Pending-count release callback, cleared atomically when consumed.
+            /// Returns the pending-request count.
             /// </summary>
-            private Action? m_release = release;
+            public void Dispose()
+            {
+                if (m_channel != null)
+                {
+                    Interlocked.Decrement(ref m_channel.m_pendingServiceRequests);
+                }
+            }
+
+            private readonly TcpListenerChannel? m_channel;
         }
 
         private readonly ILogger m_logger;
