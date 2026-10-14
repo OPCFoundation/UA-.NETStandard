@@ -1426,7 +1426,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     : member.Name;
                 string localId = LocalNodeId(pumpName, localPath);
                 Affordance declaration = FindAffordance(sources, mapName, localId);
-                string reference = declaration.ResourceId + "#" + declaration.Pointer;
+                string reference = fileName == $"{pumpName}.Members.td.json"
+                    ? declaration.ResourceId + "#" + declaration.Pointer
+                    : $"{pumpName.ToLowerInvariant()}-members#/{mapName}/{EscapePointer(member.Name)}";
                 Assert.That(
                     member.Value.GetProperty("uav:resolvedFrom").GetString(),
                     Is.EqualTo(reference),
