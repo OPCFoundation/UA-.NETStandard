@@ -57,7 +57,8 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemLifecycle,
+        INodeManagerInlineExecution
     {
         /// <summary>
         /// Initializes the node manager.
@@ -3266,6 +3267,14 @@ namespace Opc.Ua.Server
                 instance.EventNotifier = attributes.EventNotifier;
             }
         }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Defaults to <c>true</c>: the service calls of this NodeManager wait
+        /// asynchronously. A subclass whose overrides or node callbacks block the
+        /// calling thread, or compute for long, returns <c>false</c>.
+        /// </remarks>
+        public virtual bool SupportsInlineExecution => true;
 
         /// <summary>
         /// Returns the namespaces used by the node manager.

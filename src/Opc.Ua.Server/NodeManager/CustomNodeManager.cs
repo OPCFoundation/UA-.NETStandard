@@ -55,7 +55,8 @@ namespace Opc.Ua.Server
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemLifecycle,
+        INodeManagerInlineExecution
     {
         /// <summary>
         /// Initializes the node manager.
@@ -1080,6 +1081,15 @@ namespace Opc.Ua.Server
         {
             return Server.NodeManager.FindNodeInAddressSpaceAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Defaults to <c>false</c>: the service calls of this NodeManager, and
+        /// the node callbacks they invoke, are synchronous and may block the
+        /// calling thread. A subclass whose calls return quickly returns
+        /// <c>true</c>.
+        /// </remarks>
+        public virtual bool SupportsInlineExecution => false;
 
         /// <summary>
         /// Returns the namespaces used by the node manager.

@@ -3542,6 +3542,24 @@ namespace Opc.Ua.Server
             await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// With <see cref="InlineRequestExecutionMode.Auto"/>, only when every
+        /// NodeManager the request can reach declares
+        /// <see cref="INodeManagerInlineExecution.SupportsInlineExecution"/>; with
+        /// <see cref="InlineRequestExecutionMode.Enabled"/>, always. An override that
+        /// declines further requests calls this one for the others.
+        /// </remarks>
+        protected override bool CanRunRequestInline(IEndpointIncomingRequest request)
+        {
+            if (InlineRequestExecution == InlineRequestExecutionMode.Enabled)
+            {
+                return true;
+            }
+            return Volatile.Read(ref m_serverInternal)?.NodeManager is MasterNodeManager nodeManager &&
+                nodeManager.AllowsInlineExecution(request.Request);
+        }
+
         /// <summary>
         /// Verifies that the request header is valid.
         /// <para>

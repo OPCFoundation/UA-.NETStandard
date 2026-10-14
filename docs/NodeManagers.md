@@ -31,6 +31,7 @@ a server yet, start with [Getting started](GettingStarted.md).
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
   - [Delivery and callback lifecycle](#delivery-and-callback-lifecycle)
+  - [Inline execution of service calls](#inline-execution-of-service-calls)
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
   - [Registration generations](#registration-generations)
@@ -588,6 +589,24 @@ coordinated without holding a gate across its asynchronous completion, so
 first-subscriber callbacks can still reenter monitoring operations.
 Virtual monitored sources register the same shutdown behavior as concrete
 sources; every live materialized instance is released at teardown.
+
+### Inline execution of service calls
+
+The server may run a request on the thread that received it, for UA TCP the
+receive loop of the client's secure channel, instead of on a request worker.
+While a NodeManager call runs synchronously there, the channel reads no
+further request. A NodeManager therefore declares whether its calls may run
+so, through `INodeManagerInlineExecution.SupportsInlineExecution`:
+
+- `AsyncCustomNodeManager`, and the generated and fluent NodeManagers derived
+  from it, return `true`. Override it to return `false` if an override or a
+  node callback (`OnReadValue`, `OnWriteValue`, a method handler) blocks the
+  calling thread or computes for long.
+- `CustomNodeManager2` returns `false`, because its callbacks are synchronous.
+  Override it to return `true` when they only touch memory.
+
+The value is read when the NodeManager is registered. See
+[Inline request execution](ServerScalability.md#inline-request-execution).
 
 ## Registering node managers
 

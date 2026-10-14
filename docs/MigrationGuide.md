@@ -32,6 +32,10 @@ covers cross-cutting changes.
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
+- [Requests that run on the thread that received them](#requests-that-run-on-the-thread-that-received-them)
+  - [Side effects](#side-effects)
+  - [Controls](#controls)
+  - [What to do](#what-to-do)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
@@ -838,6 +842,113 @@ for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
 for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+## Requests that run on the thread that received them
+
+A 2.0 server runs a request on the thread that received it when it can,
+instead of handing it to a request-processing worker. For UA TCP that thread
+is the receive loop of the request's secure channel. The request runs there up
+to its first asynchronous wait. If it completes without waiting, its response
+is encoded on that thread too. Responses produced while the channel works
+through the chunks it has already read are then sent together. This saves two
+thread handoffs per request, which on a busy server cost more than a small
+Read itself. In read benchmarks with 10 clients, it raised throughput by about
+a third to a half and cut CPU time per request by 40–50%.
+
+A request runs inline only when all of the following hold:
+
+- The server uses a resource isolation profile other than SharedOnly (Balanced
+  is the default).
+- No other request is waiting for a worker.
+- The isolation provider grants the request execution capacity at once.
+
+Session establishment, `CloseSession`, `Cancel` and requests that can park
+(`Publish`) are always queued.
+
+### Side effects
+
+- **Head-of-line blocking on the channel.** While a request runs
+  synchronously on the receive loop, the channel reads no further request.
+  The requests the same client sent after it on that channel wait, even those
+  that would complete at once. Other channels are not affected. A `Cancel`
+  for the request is only read once it returns. Its timeout still applies,
+  because a timer cancels the request's token.
+- **Less parallelism within one channel.** Workers used to run the pipelined
+  requests of one client concurrently. Inline, they run one after the other,
+  each until it completes or waits. Throughput across channels is unchanged,
+  because each channel has its own receive loop.
+- **Blocking code holds up the client.** A NodeManager override or node
+  callback that blocks the calling thread now blocks the receive loop of the
+  client's channel instead of a worker. Examples are synchronous I/O, a
+  `.Result` or `.Wait()` on a task, a device round trip, or waiting for a
+  long-held lock.
+
+### Controls
+
+**Per server.** `ServerConfiguration.InlineRequestExecution` is read when the
+server starts:
+
+| Value | Behavior |
+| --- | --- |
+| `Auto` (default) | A request runs inline when every NodeManager it can reach supports inline execution. |
+| `Enabled` | A request runs inline whenever the request queue allows it, whatever its NodeManagers declare. |
+| `Disabled` | Every request is queued for the workers, as in 1.5.x. |
+
+```xml
+<ServerConfiguration>
+  ...
+  <InlineRequestExecution>Disabled</InlineRequestExecution>
+</ServerConfiguration>
+```
+
+The builder offers `SetInlineRequestExecution(...)` and
+`SetInlineRequestTimeBudget(...)`.
+
+**Per NodeManager.** A NodeManager declares support through
+`INodeManagerInlineExecution.SupportsInlineExecution`. The server reads the
+value when the NodeManager is registered.
+
+| NodeManager | Default |
+| --- | --- |
+| `AsyncCustomNodeManager` and the generated and fluent NodeManagers derived from it | `true` |
+| `CustomNodeManager2` | `false` |
+| A synchronous `INodeManager` wrapped by `AsyncNodeManagerAdapter` | What the wrapped NodeManager declares, otherwise `false` |
+| Any other `IAsyncNodeManager` that does not implement the interface | `false` |
+
+Read and Write reach only the NodeManagers of the namespaces of their nodes.
+The other services that reach NodeManagers, such as Browse, Call,
+HistoryRead and the MonitoredItem services, reach all of them. With `Auto`,
+one NodeManager without support therefore keeps these services on the
+workers, while Reads and Writes of other namespaces still run inline.
+
+**Per channel.** `ServerConfiguration.InlineRequestTimeBudget` bounds
+head-of-line blocking even when a NodeManager is classified wrongly. The
+default is 5 ms; zero or less turns the limit off.
+
+- Two requests in a row that each hold the receive loop longer than the
+  budget pause inline execution on that channel for one second.
+- If the first request after a pause overruns again, the next pause doubles,
+  up to about a minute.
+- A single overrun, as from a garbage collection, is ignored.
+- Each pause is logged at Debug level (event id 323).
+
+**Per request.** Override `ServerBase.CanRunRequestInline(request)`. The
+`StandardServer` override applies the NodeManager check, so call the base
+implementation for the requests you do not decline.
+
+### What to do
+
+- **A NodeManager derived from `AsyncCustomNodeManager` that blocks** in an
+  override or node callback (`OnReadValue`, `OnWriteValue`, method handlers):
+  override `SupportsInlineExecution` to return `false`, or make the blocking
+  part asynchronous.
+- **A `CustomNodeManager2` whose callbacks are fast** (in-memory values):
+  override `SupportsInlineExecution` to return `true` to get the speedup.
+- **To restore the 1.5.x behavior:** set `InlineRequestExecution` to
+  `Disabled`.
+
+See [Inline request execution](ServerScalability.md#inline-request-execution)
+for how this affects scaling.
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 

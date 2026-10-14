@@ -229,6 +229,13 @@ namespace Opc.Ua
         public IRequestParkingPolicy? RequestParkingPolicy { get; set; }
 
         /// <summary>
+        /// Whether the server runs a request on the thread that received it, as
+        /// configured by <see cref="ServerBaseConfiguration.InlineRequestExecution"/>
+        /// when the server started.
+        /// </summary>
+        protected InlineRequestExecutionMode InlineRequestExecution { get; private set; }
+
+        /// <summary>
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
@@ -274,6 +281,12 @@ namespace Opc.Ua
         /// <see langword="false"/> for such requests and they are queued for the
         /// workers. Session establishment, Cancel, CloseSession and requests that
         /// can park (Publish) are always queued.
+        /// </para>
+        /// <para>
+        /// Not called when <see cref="InlineRequestExecution"/> is
+        /// <see cref="InlineRequestExecutionMode.Disabled"/>, nor while a UA TCP
+        /// channel has paused inline execution because its requests exceeded
+        /// <see cref="ServerBaseConfiguration.InlineRequestTimeBudget"/>.
         /// </para>
         /// </remarks>
         protected virtual bool CanRunRequestInline(IEndpointIncomingRequest request)
@@ -649,25 +662,20 @@ namespace Opc.Ua
             int maxRequestThreadCount = 1000;
             int maxQueuedRequestCount = 2000;
             bool decoupleHeldPublishRequests = true;
+            InlineRequestExecutionMode inlineRequestExecution = InlineRequestExecutionMode.Auto;
+            int inlineRequestTimeBudget = ServerBaseConfiguration.DefaultInlineRequestTimeBudget;
 
-            if (configuration.ServerConfiguration != null)
+            ServerBaseConfiguration? serverConfiguration =
+                (ServerBaseConfiguration?)configuration.ServerConfiguration ??
+                configuration.DiscoveryServerConfiguration;
+            if (serverConfiguration != null)
             {
-                minRequestThreadCount = configuration.ServerConfiguration.MinRequestThreadCount;
-                maxRequestThreadCount = configuration.ServerConfiguration.MaxRequestThreadCount;
-                maxQueuedRequestCount = configuration.ServerConfiguration.MaxQueuedRequestCount;
-                decoupleHeldPublishRequests = configuration.ServerConfiguration
-                    .DecoupleHeldPublishRequests;
-            }
-            else if (configuration.DiscoveryServerConfiguration != null)
-            {
-                minRequestThreadCount = configuration.DiscoveryServerConfiguration
-                    .MinRequestThreadCount;
-                maxRequestThreadCount = configuration.DiscoveryServerConfiguration
-                    .MaxRequestThreadCount;
-                maxQueuedRequestCount = configuration.DiscoveryServerConfiguration
-                    .MaxQueuedRequestCount;
-                decoupleHeldPublishRequests = configuration.DiscoveryServerConfiguration
-                    .DecoupleHeldPublishRequests;
+                minRequestThreadCount = serverConfiguration.MinRequestThreadCount;
+                maxRequestThreadCount = serverConfiguration.MaxRequestThreadCount;
+                maxQueuedRequestCount = serverConfiguration.MaxQueuedRequestCount;
+                decoupleHeldPublishRequests = serverConfiguration.DecoupleHeldPublishRequests;
+                inlineRequestExecution = serverConfiguration.InlineRequestExecution;
+                inlineRequestTimeBudget = serverConfiguration.InlineRequestTimeBudget;
             }
 
             // ensure configuration errors don't render the server inoperable.
@@ -691,6 +699,7 @@ namespace Opc.Ua
                 maxQueuedRequestCount = 100;
             }
 
+            InlineRequestExecution = inlineRequestExecution;
             m_requestQueue?.Dispose();
             m_requestQueue = new RequestQueue(
                 this,
@@ -699,7 +708,9 @@ namespace Opc.Ua
                 maxQueuedRequestCount,
                 decoupleHeldPublishRequests,
                 ResourceIsolationProvider,
-                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize,
+                inlineRequestExecution,
+                inlineRequestTimeBudget);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -2263,5 +2274,11 @@ namespace Opc.Ua
             Message = "Failed to fault an incoming request after an error.")]
         public static partial void RequestFaultDeliveryFailed(
             this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 13, Level = LogLevel.Debug,
+            Message = "A request on secure channel {ChannelId} held its receive loop for {HeldMs} ms, " +
+                "over the {BudgetMs} ms budget; the channel queues its requests for {PauseSeconds} s.")]
+        public static partial void InlineExecutionPaused(
+            this ILogger logger, string? channelId, double heldMs, double budgetMs, double pauseSeconds);
     }
 }

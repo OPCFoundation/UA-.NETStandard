@@ -1188,6 +1188,30 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(roundTripped.ServerConfiguration.ShutdownDelay, Is.EqualTo(5));
         }
 
+        [Test]
+        public void InlineRequestExecutionSettingsRoundTrip()
+        {
+            ApplicationConfiguration config =
+                DecodeFromFile<ApplicationConfiguration>("test-server-defaults.xml");
+            ServerConfiguration server = config.ServerConfiguration!;
+            Assert.That(server.InlineRequestExecution, Is.EqualTo(InlineRequestExecutionMode.Auto));
+            Assert.That(server.InlineRequestTimeBudget, Is.EqualTo(5));
+
+            server.InlineRequestExecution = InlineRequestExecutionMode.Disabled;
+            server.InlineRequestTimeBudget = 2;
+            string xml = EncodeToXml(config);
+            Assert.That(xml, Does.Contain("<InlineRequestExecution>Disabled</InlineRequestExecution>"));
+
+            ServerConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml).ServerConfiguration!;
+            Assert.That(roundTripped.InlineRequestExecution, Is.EqualTo(InlineRequestExecutionMode.Disabled));
+            Assert.That(roundTripped.InlineRequestTimeBudget, Is.EqualTo(2));
+
+            // an unknown mode leaves the default.
+            ServerConfiguration unknown = DecodeFromString<ApplicationConfiguration>(
+                xml.Replace(">Disabled<", ">Sometimes<", StringComparison.Ordinal)).ServerConfiguration!;
+            Assert.That(unknown.InlineRequestExecution, Is.EqualTo(InlineRequestExecutionMode.Auto));
+        }
+
         private static string EncodeToXml<T>(T value) where T : IEncodeable
         {
             IServiceMessageContext ctx = CreateMessageContext();

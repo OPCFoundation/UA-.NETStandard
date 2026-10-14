@@ -1051,9 +1051,89 @@ namespace Opc.Ua
         [DataTypeField(Order = 6)]
         public bool DecoupleHeldPublishRequests { get; set; } = true;
 
+        /// <summary>
+        /// Whether a request may run on the thread that received it, instead of
+        /// being handed to a request-processing worker.
+        /// </summary>
+        /// <value>
+        /// <see cref="InlineRequestExecutionMode.Auto"/> (the default) runs a request
+        /// so when the NodeManagers it reaches allow it;
+        /// <see cref="InlineRequestExecutionMode.Enabled"/> also when they do not;
+        /// <see cref="InlineRequestExecutionMode.Disabled"/> queues every request
+        /// for the workers. Read when the server starts.
+        /// </value>
+        /// <remarks>
+        /// A request runs inline only while no other request waits for a worker
+        /// and the server's resource isolation grants it execution capacity at
+        /// once, and only up to its first asynchronous wait. While it runs, the
+        /// secure channel it arrived on reads no further request; see
+        /// <see cref="InlineRequestTimeBudget"/>.
+        /// </remarks>
+        public InlineRequestExecutionMode InlineRequestExecution { get; set; }
+
+        [DataTypeField(Order = 7, Name = "InlineRequestExecution")]
+        private string InlineRequestExecutionString
+        {
+            get => InlineRequestExecution.ToString();
+            set
+            {
+                if (Enum.TryParse(value, out InlineRequestExecutionMode parsed))
+                {
+                    InlineRequestExecution = parsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// How long, in milliseconds, requests run inline may hold the receive
+        /// loop of their secure channel before the channel hands its requests to
+        /// the workers for a while.
+        /// </summary>
+        /// <value>
+        /// The default is 5 ms. Zero or less turns the limit off.
+        /// </value>
+        /// <remarks>
+        /// When two requests in a row exceed the budget, or the first one after
+        /// such a pause does, the channel stops running requests inline for one
+        /// second, doubling up to about a minute while the overruns persist.
+        /// A single overrun, as a garbage collection or the operating system
+        /// descheduling the thread can cause, does not count.
+        /// </remarks>
+        [DataTypeField(Order = 8)]
+        public int InlineRequestTimeBudget { get; set; } = DefaultInlineRequestTimeBudget;
+
+        /// <summary>
+        /// The default of <see cref="InlineRequestTimeBudget"/>, in milliseconds.
+        /// </summary>
+        internal const int DefaultInlineRequestTimeBudget = 5;
+
         private ArrayOf<string> m_baseAddresses;
         private ArrayOf<string> m_alternateBaseAddresses;
         private ArrayOf<ServerSecurityPolicy> m_securityPolicies;
+    }
+
+    /// <summary>
+    /// Whether a server runs a request on the thread that received it.
+    /// </summary>
+    public enum InlineRequestExecutionMode
+    {
+        /// <summary>
+        /// A request runs on the thread that received it when every NodeManager
+        /// it can reach declares that it supports this; otherwise it is queued
+        /// for the request-processing workers.
+        /// </summary>
+        Auto,
+
+        /// <summary>
+        /// A request runs on the thread that received it whenever the request
+        /// queue allows it, whatever its NodeManagers declare.
+        /// </summary>
+        Enabled,
+
+        /// <summary>
+        /// Every request is queued for the request-processing workers.
+        /// </summary>
+        Disabled
     }
 
     /// <summary>

@@ -735,6 +735,24 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetInlineRequestExecution(
+            InlineRequestExecutionMode inlineRequestExecution)
+        {
+            ApplicationConfiguration.ServerConfiguration!.InlineRequestExecution
+                = inlineRequestExecution;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetInlineRequestTimeBudget(
+            int inlineRequestTimeBudget)
+        {
+            ApplicationConfiguration.ServerConfiguration!.InlineRequestTimeBudget
+                = inlineRequestTimeBudget;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(
             bool diagnosticsEnabled)
         {

@@ -2500,6 +2500,16 @@ namespace Opc.Ua.Server
         internal IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
             => m_nodeManagers.NamespaceManagers;
 
+        /// <summary>
+        /// Whether every NodeManager the request can reach supports inline execution
+        /// (<see cref="INodeManagerInlineExecution"/>).
+        /// </summary>
+        /// <param name="request">The request.</param>
+        internal bool AllowsInlineExecution(IServiceRequest request)
+        {
+            return m_nodeManagers.InlineRoutes.Allows(request);
+        }
+
         internal sealed class NotificationDispatchLease : IDisposable
         {
             public NotificationDispatchLease(
