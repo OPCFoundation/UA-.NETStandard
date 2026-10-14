@@ -475,6 +475,7 @@ namespace Opc.Ua.Server
 
             if (restoreResult == null || !restoreResult.Success)
             {
+                m_logger.SubscriptionStoreReportedRestoreFailure(ContinueOnRestoreFailure);
                 if (ContinueOnRestoreFailure)
                 {
                     return;
@@ -515,11 +516,15 @@ namespace Opc.Ua.Server
 
             m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
 
-            if (failures != null && !ContinueOnRestoreFailure)
+            if (failures != null)
             {
-                throw new AggregateException(
-                    $"{failures.Count} of the stored durable subscriptions could not be restored.",
-                    failures);
+                if (!ContinueOnRestoreFailure)
+                {
+                    throw new AggregateException(
+                        $"{failures.Count} of the stored durable subscriptions could not be restored.",
+                        failures);
+                }
+                m_logger.DurableSubscriptionsLostOnRestore(failures.Count, failures.Count + createdSubscriptions.Count);
             }
 
             await m_subscriptionStore
@@ -3486,5 +3491,20 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 30, Level = LogLevel.Error,
             Message = "Server - CleanupSubscriptions Task Halted Unexpectedly")]
         public static partial void ServerCleanupSubscriptionsTaskHaltedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 31, Level = LogLevel.Error,
+            Message = "The subscription store reported that the durable subscriptions could not be restored " +
+                "(continue on restore failure: {ContinueOnRestoreFailure})")]
+        public static partial void SubscriptionStoreReportedRestoreFailure(
+            this ILogger logger,
+            bool continueOnRestoreFailure);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 32, Level = LogLevel.Warning,
+            Message = "{FailedCount} of {StoredCount} stored durable subscriptions could not be restored and " +
+                "are lost; continuing because continue on restore failure is enabled")]
+        public static partial void DurableSubscriptionsLostOnRestore(
+            this ILogger logger,
+            int failedCount,
+            int storedCount);
     }
 }

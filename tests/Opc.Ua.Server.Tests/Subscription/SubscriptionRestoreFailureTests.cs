@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -134,6 +135,65 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ContinueOnRestoreFailureLogsAStoreThatReportsFailureAsync()
+        {
+            using var fixture = new Fixture(store => store
+                .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new RestoreSubscriptionResult(false, null)));
+            fixture.Manager.ContinueOnRestoreFailure = true;
+
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(fixture.Manager.GetSubscriptions(), Is.Empty);
+            Assert.That(
+                fixture.Logs.Entries,
+                Has.Some.Matches<(LogLevel Level, string Message)>(entry =>
+                    entry.Level == LogLevel.Error &&
+                    entry.Message.Contains("could not be restored", StringComparison.Ordinal)));
+            fixture.Store.Verify(
+                value => value.OnSubscriptionRestoreCompleteAsync(
+                    It.IsAny<Dictionary<uint, ArrayOf<uint>>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task ContinueOnRestoreFailureLogsTheLostSubscriptionsAsync()
+        {
+            using var fixture = new Fixture(
+                store => store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new RestoreSubscriptionResult(
+                        true,
+                        [CreateStored(41), CreateStored(42)])),
+                failingSubscriptionId: 41);
+            fixture.Manager.ContinueOnRestoreFailure = true;
+
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(
+                fixture.Logs.Entries,
+                Has.Some.Matches<(LogLevel Level, string Message)>(entry =>
+                    entry.Level == LogLevel.Warning &&
+                    entry.Message.StartsWith("1 of 2 stored durable subscriptions", StringComparison.Ordinal)));
+        }
+
+        [Test]
+        public void StoreThatReportsFailureIsLoggedBeforeTheRestoreFails()
+        {
+            using var fixture = new Fixture(store => store
+                .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new RestoreSubscriptionResult(false, null)));
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+
+            Assert.That(
+                fixture.Logs.Entries,
+                Has.Some.Matches<(LogLevel Level, string Message)>(entry => entry.Level == LogLevel.Error));
+        }
+
+        [Test]
         public async Task ContinueOnRestoreFailureIgnoresAFailingStoreAsync()
         {
             using var fixture = new Fixture(store => store
@@ -173,6 +233,12 @@ namespace Opc.Ua.Server.Tests
                 Mock<IServerInternal> server = DeterministicServerMock.Create(
                     out m_queueFactory, clock);
                 server.SetupGet(value => value.IsRunning).Returns(false);
+                Logs = new RecordingLogger();
+                var loggerFactory = new Mock<ILoggerFactory>();
+                loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(Logs);
+                var telemetry = new Mock<ITelemetryContext>();
+                telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+                server.SetupGet(value => value.Telemetry).Returns(telemetry.Object);
                 server.SetupGet(value => value.DiagnosticsNodeManager)
                     .Returns(Mock.Of<IDiagnosticsNodeManager>());
                 var factory = new Mock<IMainNodeManagerFactory>();
@@ -206,6 +272,8 @@ namespace Opc.Ua.Server.Tests
             public Mock<ISubscriptionStore> Store { get; }
 
             public FailingSubscriptionManager Manager { get; }
+
+            public RecordingLogger Logs { get; }
 
             public void Dispose()
             {
@@ -243,6 +311,47 @@ namespace Opc.Ua.Server.Tests
             }
 
             private readonly uint m_failingSubscriptionId;
+        }
+
+        private sealed class RecordingLogger : ILogger
+        {
+            public IReadOnlyList<(LogLevel Level, string Message)> Entries
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return [.. m_entries];
+                    }
+                }
+            }
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                lock (m_lock)
+                {
+                    m_entries.Add((logLevel, formatter(state, exception)));
+                }
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly List<(LogLevel Level, string Message)> m_entries = [];
         }
     }
 }

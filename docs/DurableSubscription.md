@@ -38,6 +38,21 @@ Typically the following porting steps are necessary:
   server restarts. After restoring a subscription, the store must also provide
   persistent queues to its monitored items. Register the store by overriding
   `StandardServer.CreateSubscriptionStore`.
+- Report a store that cannot read its subscriptions from
+  `RestoreSubscriptionsAsync`, either by throwing or by returning
+  `RestoreSubscriptionResult.Success = false`; return `Success = true` with no
+  subscriptions when nothing was stored. Keep the stored subscriptions and the
+  queue snapshots of their monitored items until
+  `OnSubscriptionRestoreCompleteAsync` is called: the server calls it only
+  after it has recreated every stored subscription, so a store that deletes
+  its data while reading it loses the subscriptions when the restore fails.
+- A failed restore fails `SubscriptionManager.RestoreSubscriptionsAsync` and
+  with it the server startup: a store failure surfaces as a
+  `ServiceResultException` (`BadInternalError`), stored subscriptions that
+  cannot be recreated as an `AggregateException`. To start anyway, set
+  `SubscriptionManager.ContinueOnRestoreFailure` to `true` in an override of
+  `StandardServer.CreateSubscriptionManager`; failures are then logged as
+  errors and warnings, and the subscriptions concerned are lost.
 - If you implement a custom `INodeManager` or override
   `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
   the `MonitoredItem` constructor. When you check queue length for a durable
