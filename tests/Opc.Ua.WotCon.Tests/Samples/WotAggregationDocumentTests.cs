@@ -1499,18 +1499,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     support.Name);
                 Assert.That(
                     support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
-                        ? CompactJson(carriedUnits)
+                        ? CanonicalJson(carriedUnits)
                         : null,
                     Is.EqualTo(supportDeclaration.Value.TryGetProperty(
-                        "uav:engineeringUnits", out JsonElement declaredUnits) ? CompactJson(declaredUnits) : null),
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? CanonicalJson(declaredUnits) : null),
                     support.Name);
                 Assert.That(
                     support.Value.GetProperty("type").GetString(),
                     Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
                     support.Name);
                 Assert.That(
-                    CompactJson(support.Value.GetProperty("uav:componentOf")),
-                    Is.EqualTo(CompactJson(supportDeclaration.Value.GetProperty("uav:componentOf"))),
+                    CanonicalJson(support.Value.GetProperty("uav:componentOf")),
+                    Is.EqualTo(CanonicalJson(supportDeclaration.Value.GetProperty("uav:componentOf"))),
                     support.Name);
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
@@ -1566,8 +1566,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
-                        Assert.That(CompactJson(member.Value.GetProperty("const")),
-                            Is.EqualTo(CompactJson(constant)), member.Name);
+                        Assert.That(CanonicalJson(member.Value.GetProperty("const")),
+                            Is.EqualTo(CanonicalJson(constant)), member.Name);
                     }
                 }
                 else
@@ -1752,9 +1752,51 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
-        private static string CompactJson(JsonElement element)
+        private static string CanonicalJson(JsonElement element)
         {
-            return JsonSerializer.Serialize(element);
+            var builder = new StringBuilder();
+            AppendCanonicalJson(builder, element);
+            return builder.ToString();
+        }
+
+        private static void AppendCanonicalJson(StringBuilder builder, JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    builder.Append('{');
+                    bool firstProperty = true;
+                    foreach (JsonProperty property in element.EnumerateObject()
+                        .OrderBy(p => p.Name, StringComparer.Ordinal))
+                    {
+                        if (!firstProperty)
+                        {
+                            builder.Append(',');
+                        }
+                        firstProperty = false;
+                        builder.Append(JsonSerializer.Serialize(property.Name)).Append(':');
+                        AppendCanonicalJson(builder, property.Value);
+                    }
+                    builder.Append('}');
+                    break;
+                case JsonValueKind.Array:
+                    builder.Append('[');
+                    bool firstItem = true;
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        if (!firstItem)
+                        {
+                            builder.Append(',');
+                        }
+                        firstItem = false;
+                        AppendCanonicalJson(builder, item);
+                    }
+                    builder.Append(']');
+                    break;
+                default:
+                    builder.Append(element.GetRawText());
+                    break;
+            }
         }
 
         private static Affordance FindAffordance(
