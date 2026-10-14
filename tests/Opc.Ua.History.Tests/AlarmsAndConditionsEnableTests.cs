@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -369,7 +370,37 @@ namespace Opc.Ua.History.Tests
             AssertEventRetain(enableEvent, expected: true,
                 "Enable should restore Retain when the source changed to an active alarm while disabled.");
 
+            // One EnabledState change causes one Event Notification (Part 9 5.5.2). Both notifications of a
+            // duplicate report are generated during the call, so count the events of the call window.
+            await Task.Delay(500).ConfigureAwait(false);
+            int enableEvents = CountEventsInWindow(collector, alarmId, enableStart, enableEnd);
+            Assert.That(enableEvents, Is.EqualTo(1),
+                "Enable should report the EnabledState change with exactly one condition event.");
+
             await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+        }
+
+        private static int CountEventsInWindow(
+            AlarmEventCollector collector,
+            NodeId alarmId,
+            DateTime start,
+            DateTime end)
+        {
+            if (!collector.EventLog.TryGetValue(alarmId, out List<EventFieldList>? events))
+            {
+                return 0;
+            }
+            int count = 0;
+            foreach (EventFieldList e in events)
+            {
+                if (AlarmEventCollector.TryGetDateTime(e, AlarmEventCollector.FieldIndex.Time, out DateTime time) &&
+                    time >= start.AddMilliseconds(-50) &&
+                    time <= end.AddMilliseconds(50))
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         private static void AssertTransitionTimeInCallWindow(

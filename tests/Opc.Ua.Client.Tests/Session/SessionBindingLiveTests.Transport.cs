@@ -169,8 +169,22 @@ namespace Opc.Ua.Client.Tests
                             .ConfigureAwait(false),
                         Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
                     Assert.That(lease.State, Is.EqualTo(ChannelState.Faulted));
+
+                    // Once the channel manager gives up, a managed session's state machine
+                    // takes over and reconnects after its own backoff. Let that recovery
+                    // start before the manual one and settle after it, so it can neither
+                    // overlap the state assertion nor count as a retry of the bound request.
+                    var managed = session as Client.ManagedSession;
+                    while (managed != null && !managed.Reconnecting)
+                    {
+                        await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+                    }
                     channels.FailConnect = false;
                     await lease.Manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                    if (managed != null)
+                    {
+                        await managed.StateMachine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+                    }
                     Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
                     int connections = channels.Connections;
                     await Assert.ThatAsync(() => binding.ReadValueAsync(
@@ -188,6 +202,175 @@ namespace Opc.Ua.Client.Tests
                     binding.Dispose();
                 }
             }, timeout.Token, channels).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a managed session does not reconnect a channel again once the
+        /// channel manager has reactivated the session while the outer reconnect waited.
+        /// </summary>
+        [Test]
+        public async Task ManagedSessionSkipsOuterReconnectAfterChannelManagerReactivationAsync()
+        {
+            if (!m_managed)
+            {
+                Assert.Ignore("Only a managed session runs an outer reconnect.");
+            }
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var channels = new BarrierChannelBindings();
+            using var policy = new GatedReconnectPolicy();
+            await WithSessionAsync(async session =>
+            {
+                var managed = (Client.ManagedSession)session;
+                var lease = (IManagedTransportChannel)session.TransportChannel;
+                try
+                {
+                    await FaultLeaseAsync(lease, channels, timeout.Token).ConfigureAwait(false);
+
+                    // The outer reconnect is held in its backoff until the manager recovered.
+                    await policy.Entered.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await lease.Manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                    Assert.That(managed.Reconnecting, Is.True, "The outer reconnect is still waiting.");
+                    int connections = channels.Connections;
+
+                    policy.Release();
+                    await managed.StateMachine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(channels.Connections, Is.EqualTo(connections),
+                        "The outer reconnect must not reconnect a channel the manager already recovered.");
+                    DataValue value = await session.ReadValueAsync(
+                        VariableIds.Server_ServerStatus_State, timeout.Token).ConfigureAwait(false);
+                    Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                finally
+                {
+                    channels.FailConnect = false;
+                    policy.Release();
+                }
+            }, timeout.Token, channels, policy).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that an explicit reconnect still reconnects when it joins a pending
+        /// outer reconnect, a later fault triggers it again, and the channel manager
+        /// reactivates the session meanwhile.
+        /// </summary>
+        [Test]
+        public async Task ExplicitManagedReconnectRunsAfterChannelManagerReactivationAsync()
+        {
+            if (!m_managed)
+            {
+                Assert.Ignore("Only a managed session runs an outer reconnect.");
+            }
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var channels = new BarrierChannelBindings();
+            using var policy = new GatedReconnectPolicy();
+            await WithSessionAsync(async session =>
+            {
+                var managed = (Client.ManagedSession)session;
+                var lease = (IManagedTransportChannel)session.TransportChannel;
+                try
+                {
+                    await FaultLeaseAsync(lease, channels, timeout.Token).ConfigureAwait(false);
+                    await policy.Entered.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                    Task reconnect = managed.ReconnectAsync(null, null, timeout.Token);
+
+                    // An automatic trigger (another fault) after the explicit request,
+                    // followed by a channel manager recovery, must not turn the explicit
+                    // reconnect into a skippable one.
+                    await lease.Manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                    await FaultLeaseAsync(lease, channels, timeout.Token).ConfigureAwait(false);
+                    await lease.Manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                    Assert.That(reconnect.IsCompleted, Is.False, "The outer reconnect is still waiting.");
+                    int connections = channels.Connections;
+
+                    policy.Release();
+                    await reconnect.ConfigureAwait(false);
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(channels.Connections, Is.GreaterThan(connections),
+                        "An explicit reconnect must not be skipped.");
+                    DataValue value = await session.ReadValueAsync(
+                        VariableIds.Server_ServerStatus_State, timeout.Token).ConfigureAwait(false);
+                    Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                finally
+                {
+                    channels.FailConnect = false;
+                    policy.Release();
+                }
+            }, timeout.Token, channels, policy).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Exhausts the channel manager's reconnect policy so the lease faults and the
+        /// managed session's outer reconnect takes over, then lets connects succeed again.
+        /// </summary>
+        private static async Task FaultLeaseAsync(
+            IManagedTransportChannel lease,
+            BarrierChannelBindings channels,
+            CancellationToken ct)
+        {
+            channels.FailConnect = true;
+            try
+            {
+                var budget = new RetryBudget(TimeSpan.FromSeconds(10), TimeProvider.System);
+                var manager = (ClientChannelManager)lease.Manager;
+                await Assert.ThatAsync(async () => await manager.ReconnectAsync(lease, budget, ct)
+                        .ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Faulted));
+            }
+            finally
+            {
+                channels.FailConnect = false;
+            }
+        }
+
+        /// <summary>
+        /// Holds the first outer reconnect in its backoff until released, so a test can
+        /// order the channel manager's recovery before it without depending on timing.
+        /// </summary>
+        private sealed class GatedReconnectPolicy : IReconnectPolicy, IDisposable
+        {
+            public Task Entered => m_entered.Task;
+
+            public void Release()
+            {
+                m_gate.Set();
+            }
+
+            public TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default)
+            {
+                m_entered.TrySetResult(true);
+                m_gate.Wait(ct);
+                return TimeSpan.Zero;
+            }
+
+            public bool TryGetNextDelay(
+                int attempt,
+                StatusCode lastStatus,
+                TimeSpan? serverRetryAfter,
+                out TimeSpan? delay,
+                CancellationToken ct = default)
+            {
+                delay = null;
+                return false;
+            }
+
+            public void Reset()
+            {
+            }
+
+            public void Dispose()
+            {
+                m_gate.Dispose();
+            }
+
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly ManualResetEventSlim m_gate = new();
         }
 
         private sealed class BarrierChannelBindings : ITransportChannelBindings, IUaSCByteTransportFactory

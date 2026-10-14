@@ -1449,9 +1449,10 @@ namespace Opc.Ua.Bindings
         /// Both matter. Running off the caller's stack is required because the
         /// write reports completion through <see cref="HandleWriteComplete"/>,
         /// which enters the gate the caller may be holding. Preserving order is
-        /// required because sequence numbers are assigned under that gate, and a
-        /// peer rejects a chunk whose sequence number does not follow its
-        /// predecessor. Independently queued work items carry no such guarantee,
+        /// required because sequence numbers are assigned in queue order (see
+        /// <see cref="SendOrder"/>), and a peer rejects a chunk whose sequence
+        /// number does not follow its predecessor. Independently queued work items
+        /// carry no such guarantee,
         /// so the writes are queued and a single writer on the thread pool sends
         /// them one after the other; a write cannot start before the one issued
         /// before it has finished.
@@ -1468,6 +1469,61 @@ namespace Opc.Ua.Bindings
                 m_writerRunning = true;
             }
 
+            ScheduleWriter();
+        }
+
+        /// <summary>
+        /// Queues a message encoded by <see cref="EncodeSymmetricMessage"/> for the
+        /// writer, which seals it in queue order and sends it.
+        /// </summary>
+        /// <param name="message">The message. Ownership transfers when this
+        /// returns <see langword="true"/>.</param>
+        /// <param name="state">Reported to <see cref="HandleWriteComplete"/>.</param>
+        /// <returns><see langword="false"/> when no transport is attached; the
+        /// caller still owns the message.</returns>
+        /// <remarks>
+        /// The caller needs no lock: nothing ordered per channel is decided until
+        /// the writer seals the message. See <see cref="SendOrder"/>.
+        /// <para>
+        /// The writer always starts on the pool, never on the caller's thread. Run
+        /// on the thread that produced the first response, it sealed and sent
+        /// batches of one message, which cost more send calls and serialised the
+        /// signing on the producers; on four cores, encrypted, it lost 30 % of the
+        /// throughput a pool-scheduled writer reaches with larger coalesced batches.
+        /// </para>
+        /// </remarks>
+        private protected bool BeginWriteSymmetricMessage(
+            EncodedSymmetricMessage message,
+            object? state)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                return false;
+            }
+
+            Interlocked.Increment(ref m_activeWriteRequests);
+            var write = new PendingWrite(transport, default, null, null, state, message);
+
+            lock (m_writeQueueLock)
+            {
+                m_unsealedWriteQueue.Enqueue(write);
+                if (m_writerRunning)
+                {
+                    return true;
+                }
+                m_writerRunning = true;
+            }
+
+            ScheduleWriter();
+            return true;
+        }
+
+        /// <summary>
+        /// Starts the writer on the thread pool.
+        /// </summary>
+        private void ScheduleWriter()
+        {
             // The execution context is not needed by the write and is not flowed.
             // The write goes to the local queue of the issuing thread, which picks
             // it up as soon as it returns to the pool (typically to await the
@@ -1488,46 +1544,70 @@ namespace Opc.Ua.Bindings
 #endif
 
         /// <summary>
-        /// Sends the queued writes in order until the queue is empty.
+        /// Seals and sends the queued writes in order until the queue is empty.
         /// </summary>
         private async Task RunWritesAsync()
         {
             List<PendingWrite> batch = m_writeBatch;
             while (true)
             {
-                PendingWrite write;
+                bool numbered;
                 lock (m_writeQueueLock)
                 {
-                    if (m_writeQueue.Count == 0)
+                    if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
                     {
                         m_writerRunning = false;
                         return;
                     }
-                    write = m_writeQueue.Dequeue();
 
-                    // Writes queued behind this one for the same transport go out
-                    // with it in one vectored send, when the transport is a stream.
-                    if (m_writeQueue.Count > 0 &&
-                        write.Transport is IUaSCChunkCoalescing coalescing &&
-                        coalescing.CanCoalesceChunks)
-                    {
-                        batch.Add(write);
-                        while (m_writeQueue.Count > 0 &&
-                            batch.Count < kMaxCoalescedWrites &&
-                            ReferenceEquals(m_writeQueue.Peek().Transport, write.Transport))
-                        {
-                            batch.Add(m_writeQueue.Dequeue());
-                        }
-                    }
+                    // Writes numbered by their producers go out without the send
+                    // order lock: each was queued under it, after the writes numbered
+                    // before it. A client channel only queues such writes.
+                    numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
                 }
 
-                Task pending;
-                if (batch.Count > 0)
+                if (numbered)
                 {
-                    pending = WriteCoalescedAsync(write.Transport, batch);
+                    DiscardWritesNumberedAfterGap(batch);
                 }
                 else
                 {
+                    // Sealing takes sequence numbers and the current token, so it runs
+                    // under the send order lock, and in queue order. The batch is taken
+                    // under the same lock: see SendOrder for why that orders the wire.
+                    using (await SendOrder.EnterAsync().ConfigureAwait(false))
+                    {
+                        lock (m_writeQueueLock)
+                        {
+                            if (!TakeWriteBatch(batch, includeUnsealed: true))
+                            {
+                                m_writerRunning = false;
+                                return;
+                            }
+                        }
+
+                        DiscardWritesNumberedAfterGap(batch);
+                        SealWriteBatch(batch);
+                    }
+
+                    ReportSequenceFailure();
+                }
+
+                if (batch.Count == 0)
+                {
+                    // every message in the batch failed to seal and was reported.
+                    continue;
+                }
+
+                Task pending;
+                if (batch.Count > 1)
+                {
+                    pending = WriteCoalescedAsync(batch[0].Transport, batch);
+                }
+                else
+                {
+                    PendingWrite write = batch[0];
+                    batch.Clear();
                     pending = write.Buffers != null
                         ? WriteBuffersAsync(write.Transport, write.Buffers, write.State)
                         : WriteSingleChunkAsync(write.Transport, write.Chunk, write.BackingBuffer!, write.State);
@@ -1556,8 +1636,218 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Takes the next writes to send together, the numbered ones first.
+        /// </summary>
+        /// <param name="batch">Receives the writes; empty on entry.</param>
+        /// <param name="includeUnsealed">Whether unsealed writes may be taken; only
+        /// a caller that holds <see cref="SendOrder"/> may number them.</param>
+        /// <returns><see langword="false"/> when nothing is queued that may be taken.</returns>
+        /// <remarks>
+        /// Called under the write queue lock, and under <see cref="SendOrder"/> when
+        /// <paramref name="includeUnsealed"/> is set. Every sealed write in the
+        /// queue was numbered before the caller took <see cref="SendOrder"/>, so it
+        /// goes out before the unsealed writes the caller is about to number. Writes
+        /// queued behind the first one for the same transport go out with it in one
+        /// vectored send, when the transport is a stream.
+        /// </remarks>
+        private bool TakeWriteBatch(List<PendingWrite> batch, bool includeUnsealed)
+        {
+            PendingWrite first;
+            if (m_writeQueue.Count > 0)
+            {
+                first = m_writeQueue.Dequeue();
+            }
+            else if (includeUnsealed && m_unsealedWriteQueue.Count > 0)
+            {
+                first = m_unsealedWriteQueue.Dequeue();
+            }
+            else
+            {
+                return false;
+            }
+
+            batch.Add(first);
+
+            if (first.Transport is IUaSCChunkCoalescing coalescing &&
+                coalescing.CanCoalesceChunks)
+            {
+                while (m_writeQueue.Count > 0 &&
+                    batch.Count < kMaxCoalescedWrites &&
+                    ReferenceEquals(m_writeQueue.Peek().Transport, first.Transport))
+                {
+                    batch.Add(m_writeQueue.Dequeue());
+                }
+
+                // unsealed writes only once no sealed write is left ahead of them.
+                while (includeUnsealed &&
+                    m_writeQueue.Count == 0 &&
+                    m_unsealedWriteQueue.Count > 0 &&
+                    batch.Count < kMaxCoalescedWrites &&
+                    ReferenceEquals(m_unsealedWriteQueue.Peek().Transport, first.Transport))
+                {
+                    batch.Add(m_unsealedWriteQueue.Dequeue());
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Seals the unsealed writes of a batch in order, and drops and reports
+        /// those that cannot be sealed.
+        /// </summary>
+        /// <remarks>
+        /// Called under <see cref="SendOrder"/>. A write that fails is reported as
+        /// a failed write, after its chunks have been returned.
+        /// <para>
+        /// A message that fails after it took sequence numbers leaves a gap the
+        /// peer rejects. The writer then numbers nothing more for that transport,
+        /// and <see cref="RunWritesAsync"/> faults the channel once it has left
+        /// the lock.
+        /// </para>
+        /// </remarks>
+        private void SealWriteBatch(List<PendingWrite> batch)
+        {
+            int kept = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                PendingWrite write = batch[ii];
+                if (write.Unsealed is EncodedSymmetricMessage message)
+                {
+                    // A message queued for a transport the channel no longer uses (a
+                    // reconnect replaced it, or the channel closed) is not numbered:
+                    // after a reconnect the peer continues from the OpenSecureChannel
+                    // response on the new transport and would see a gap. It is
+                    // dropped like a write to the closed transport.
+                    // After a message failed once it had taken sequence numbers, nothing
+                    // more is numbered for that transport either: the peer would see the gap.
+                    ChannelToken? token = CurrentToken;
+                    if (token == null ||
+                        !ReferenceEquals(write.Transport, m_transport) ||
+                        ReferenceEquals(write.Transport, m_sequenceBrokenTransport))
+                    {
+                        message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                        ReportWriteComplete(
+                            null,
+                            write.State,
+                            0,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecureChannelClosed,
+                                "The channel was closed before the message was sent."));
+                        continue;
+                    }
+
+                    long numbered = Interlocked.Read(ref m_sequenceNumber);
+                    try
+                    {
+                        // returns the chunks to the pool when it fails.
+                        BufferCollection sealedChunks = SealSymmetricMessage(message, token);
+                        write = new PendingWrite(write.Transport, default, null, sealedChunks, write.State);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.UaSCChannelSealFailed(ex, ChannelId, message.RequestId);
+                        var failure = ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            "Could not secure the outgoing message.");
+                        if (Interlocked.Read(ref m_sequenceNumber) != numbered)
+                        {
+                            // it failed after taking sequence numbers (its security failed).
+                            m_sequenceBrokenTransport = write.Transport;
+                            m_sequenceFailure = failure;
+                        }
+                        ReportWriteComplete(null, write.State, 0, failure);
+                        continue;
+                    }
+                }
+
+                batch[kept++] = write;
+            }
+
+            if (kept < batch.Count)
+            {
+                batch.RemoveRange(kept, batch.Count - kept);
+            }
+        }
+
+        /// <summary>
+        /// Drops the writes of a batch that their producers numbered for a transport
+        /// on which a failed seal already left a gap in the sequence numbers.
+        /// </summary>
+        /// <remarks>
+        /// A producer can number a message for that transport (an OpenSecureChannel
+        /// response or a fault, or a client request) before the channel faults:
+        /// <see cref="ReportSequenceFailure"/> faults it from the pool. Sent, it
+        /// would reach the peer after the gap. The writer seals only once no write
+        /// numbered by a producer is queued ahead, and producers cannot number while
+        /// it holds <see cref="SendOrder"/>, so every such write queued for the
+        /// broken transport was numbered after the gap. Unsealed writes are left to
+        /// <see cref="SealWriteBatch"/>.
+        /// </remarks>
+        private void DiscardWritesNumberedAfterGap(List<PendingWrite> batch)
+        {
+            IUaSCByteTransport? broken = m_sequenceBrokenTransport;
+            if (broken == null)
+            {
+                return;
+            }
+
+            int kept = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                PendingWrite write = batch[ii];
+                if (write.Unsealed == null && ReferenceEquals(write.Transport, broken))
+                {
+                    if (write.Buffers == null && write.BackingBuffer != null)
+                    {
+                        BufferManager.ReturnBuffer(write.BackingBuffer, nameof(DiscardWritesNumberedAfterGap));
+                    }
+                    ReportWriteComplete(
+                        write.Buffers,
+                        write.State,
+                        0,
+                        ServiceResult.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "The channel was closed before the message was sent."));
+                    continue;
+                }
+
+                batch[kept++] = write;
+            }
+
+            if (kept < batch.Count)
+            {
+                batch.RemoveRange(kept, batch.Count - kept);
+            }
+        }
+
+        /// <summary>
+        /// Faults the channel on the transport whose sequence numbers a failed seal
+        /// left with a gap, once the writer no longer holds <see cref="SendOrder"/>.
+        /// </summary>
+        /// <remarks>
+        /// The fault takes the gate, which comes before <see cref="SendOrder"/> in
+        /// the lock order, so it runs on the pool, as a failed write is reported.
+        /// It is ignored once a reconnect replaced the transport.
+        /// </remarks>
+        private void ReportSequenceFailure()
+        {
+            ServiceResult? failure = m_sequenceFailure;
+            if (failure == null)
+            {
+                return;
+            }
+
+            m_sequenceFailure = null;
+            IUaSCByteTransport transport = m_sequenceBrokenTransport!;
+            _ = Task.Run(() => OnTransportError(transport, failure, CancellationToken.None));
+        }
+
+        /// <summary>
         /// A write waiting for its turn: either one contiguous chunk with the
-        /// buffer to return, or a collection of buffers.
+        /// buffer to return, a collection of buffers, or a message the writer
+        /// still has to seal.
         /// </summary>
         private readonly struct PendingWrite
         {
@@ -1566,13 +1856,15 @@ namespace Opc.Ua.Bindings
                 ReadOnlyMemory<byte> chunk,
                 byte[]? backingBuffer,
                 BufferCollection? buffers,
-                object? state)
+                object? state,
+                EncodedSymmetricMessage? unsealed = null)
             {
                 Transport = transport;
                 Chunk = chunk;
                 BackingBuffer = backingBuffer;
                 Buffers = buffers;
                 State = state;
+                Unsealed = unsealed;
             }
 
             public IUaSCByteTransport Transport { get; }
@@ -1580,6 +1872,7 @@ namespace Opc.Ua.Bindings
             public byte[]? BackingBuffer { get; }
             public BufferCollection? Buffers { get; }
             public object? State { get; }
+            public EncodedSymmetricMessage? Unsealed { get; }
         }
 
         /// <summary>
@@ -2071,6 +2364,41 @@ namespace Opc.Ua.Bindings
         internal ChannelGate Gate { get; } = new();
 
         /// <summary>
+        /// Orders the sequence numbers of outgoing chunks with the order they
+        /// reach the transport, and guards the token the writer secures them with.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 §6.7.2.4 requires the sequence numbers on the wire to
+        /// increase by one per chunk, and a message's chunks to be contiguous.
+        /// Messages are numbered in one of two ways, both under this lock:
+        /// <list type="bullet">
+        /// <item>The writer seals unsealed messages
+        /// (<see cref="BeginWriteSymmetricMessage"/>) while it holds the lock,
+        /// in queue order, after taking them from the queue under it.</item>
+        /// <item>A producer that numbers its own message (asymmetric messages,
+        /// <see cref="WriteSymmetricMessage"/>) holds the lock from taking the
+        /// numbers until the message is in the queue of sealed writes, unless its
+        /// channel queues no unsealed messages and orders those producers itself
+        /// (the client, under its gate).</item>
+        /// </list>
+        /// The writer sends every sealed write ahead of the unsealed ones it takes
+        /// with them, so a write numbered by a producer — necessarily before the
+        /// writer took the lock — precedes the numbers the writer assigns, and one
+        /// writer sends batches one after the other. Sealed writes alone the writer
+        /// takes without the lock: they are in the queue in the order of their
+        /// numbers, and a write still being numbered under the lock is queued after
+        /// them. Messages without sequence numbers (Hello, Acknowledge,
+        /// ReverseHello, Error) need no lock.
+        /// <para>
+        /// Token changes that can dispose a token take the lock too, so the writer
+        /// never secures a chunk with a disposed token. Lock order: <see cref="Gate"/>,
+        /// then this, then the write queue lock. Nothing takes the gate while
+        /// holding this.
+        /// </para>
+        /// </remarks>
+        internal ChannelGate SendOrder { get; } = new();
+
+        /// <summary>
         /// The byte-level transport that carries UASC chunks for the channel.
         /// Set by listener channels after a successful accept/connect, by
         /// client channels after <c>ConnectAsync</c>, or by reverse-connect
@@ -2274,7 +2602,20 @@ namespace Opc.Ua.Bindings
         private TaskCompletionSource<bool>? m_writeCapacityWaiter;
         private readonly Lock m_writeQueueLock = new();
         private readonly Queue<PendingWrite> m_writeQueue = new();
+        private readonly Queue<PendingWrite> m_unsealedWriteQueue = new();
         private bool m_writerRunning;
+
+        /// <summary>
+        /// The transport on which a message failed after taking sequence numbers;
+        /// nothing more is numbered for it. Changed under <see cref="SendOrder"/>.
+        /// </summary>
+        private IUaSCByteTransport? m_sequenceBrokenTransport;
+
+        /// <summary>
+        /// Why <see cref="m_sequenceBrokenTransport"/> was set, until the writer
+        /// reports it (<see cref="ReportSequenceFailure"/>).
+        /// </summary>
+        private ServiceResult? m_sequenceFailure;
 
         /// <summary>
         /// The most writes sent together in one vectored send.
@@ -2626,5 +2967,13 @@ namespace Opc.Ua.Bindings
             uint channelId,
             long limitBytes,
             bool hasSession);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 18, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: Could not secure the message for RequestId {RequestId}; it is not sent.")]
+        public static partial void UaSCChannelSealFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId,
+            uint requestId);
     }
 }
