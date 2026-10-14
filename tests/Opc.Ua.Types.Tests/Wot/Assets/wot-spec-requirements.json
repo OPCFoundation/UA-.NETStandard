@@ -67,9 +67,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:1ffcfaaf422e4893830d98e93c2603477ebb0ef1d3f549c5615e69d415e2840d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-applied-atomicity-observation#002",
@@ -78,9 +77,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:0915ac5427d0bcdaeec7c2289aff0714b16fa3020c114ecbbdbc9bc9afa6610e",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-applied-atomicity-observation#003",
@@ -89,9 +87,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:9f0554689b77e921179dce3e3dea520eaf8d659926536ee14a091ae5d3411bcd",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-automatic-and-explicit-refresh-idempotence#001",
@@ -134,7 +131,7 @@
       "statementHash": "sha256:370bbafadbf70dc75ad16b7e1dcf42a9bfefe8da99a1df26ae6af515ffcbe21b",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent"
       ]
     },
     {
@@ -145,7 +142,8 @@
       "statementHash": "sha256:336d4f176a1e506a322b365c0b80aec9416e2bc1f341be590b8779265ea6970b",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ForceRefreshReprocessesUnchangedContent"
       ]
     },
     {
@@ -156,7 +154,8 @@
       "statementHash": "sha256:f160de568aae202c9832984f90a648ffe6289987df3a02169128106bd7de8c6c",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryModelTests.ComputeProducesSameDigestForSameContent",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryModelTests.ComputeProducesDifferentDigestsForDifferentContent"
       ]
     },
     {
@@ -166,9 +165,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:b3d5e0ecc9278834ca8e6f9596f60c96af14e95355d41f6a010fd3701bf694f9",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-binding-an-existing-type#001",
@@ -278,8 +276,6 @@
       "statementHash": "sha256:950479fa7349f106eed0d7bf8534e8d65c2fedc160faa099c282e4d841722907",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -291,8 +287,6 @@
       "statementHash": "sha256:a3cca75e8f69095581a41f124a3f2f0103647c3d844c61691a82c89c79f834aa",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -304,8 +298,6 @@
       "statementHash": "sha256:bb072e5ed458af86069546820d775fbecf26419582064c5d3d9e4a3ea394f3ed",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -317,8 +309,6 @@
       "statementHash": "sha256:9a90d19d3aa60993ba1fa2cd40cf3a6c622489052ea1d910d40a195c0e454939",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -330,8 +320,6 @@
       "statementHash": "sha256:7ad5256c6a5a5b61a45d893a2bb8a6c5e2b1590309cdc6bb0905d5addfc764d9",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -343,8 +331,6 @@
       "statementHash": "sha256:29131b054767a2aede6510c6b306ce332f10b8b4a785b70cb3d260ae048e2873",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -356,8 +342,6 @@
       "statementHash": "sha256:64d713dc04fa4fa397ca94ea4b1c0d14d29f411cbb70b08955414d151a4262e8",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -369,8 +353,6 @@
       "statementHash": "sha256:4ec4b17c9316f1ca4160640c153ef2714b0777fa374506f90dfd6131459f9061",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -382,7 +364,8 @@
       "statementHash": "sha256:580edbb134abce6109048ddb6c1c6d51043b3baa59968bfc7b332986ff5eef32",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.ConcurrentRefreshReturnsBadServerTooBusy",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RefreshGenerationIncrements"
       ]
     },
     {
@@ -392,9 +375,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:197af69ae085fbda2cd8f96dbb77e3dfa17f9619efbd6b3e5afe3ccaaea2d215",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-concurrency-and-generation-behaviour#003",
@@ -403,9 +385,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:12e0d1562dfc42eeba04b6126815216dd1c810381c17b29bcb8057ff35953bbb",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-concurrency-and-generation-behaviour#004",
@@ -414,9 +395,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:3d6879a768be65b3a2f25db10427bd6f630497ccb30aa423476d8f3b3ba554ed",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-concurrency-and-generation-behaviour#005",
@@ -425,9 +405,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:98e25dbad912a6ec541ea3c0a5afeedd9a8932db94605cc2d64b3dc7d40b5614",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-condition-action-correlation#001",
@@ -437,8 +416,6 @@
       "statementHash": "sha256:86d35f65f286c214b0d21b73e3552ac6b434fc009eb8f9ba0cd4f70ca4635186",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -450,8 +427,6 @@
       "statementHash": "sha256:24eced28e9fdcab2f42833c02cd91b0efe919e0f3cf10aec13e849f0408b26c6",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -463,8 +438,6 @@
       "statementHash": "sha256:7eda79afeed5869c615813f2fa43df9971adf71d5de5c87b76926454cb550e87",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -476,8 +449,6 @@
       "statementHash": "sha256:1ac99c27858ad5ae9fb7c97cf4eb9e9ce9036dd7c15f3d53b689bab6b2cd978f",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -489,8 +460,6 @@
       "statementHash": "sha256:7f97b8eee46fe8b1c5272271b08b069ba9119dcbd71c4ddd54efff1c499750ef",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -502,8 +471,6 @@
       "statementHash": "sha256:e53913c5ae630319750caddfa01fff4389ae227eb89428b8876fac6e53473712",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -515,8 +482,6 @@
       "statementHash": "sha256:78934200d1ffd0453d02f5d81c58ba02dc7458f38f91e64408492dcae462860b",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -528,8 +493,6 @@
       "statementHash": "sha256:1b618babeb757d8c537e8355707cf4e22c2edfc81203d305963e16bb6a7b86c1",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -541,8 +504,6 @@
       "statementHash": "sha256:0ec69fc99a4b7f2cb0d4baa90093cf1efe65a0433fb8aa279aa5b7c3f25db32f",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -554,8 +515,6 @@
       "statementHash": "sha256:fec1f7ae1abe84744d0ffa5bef292a5446867ede01f067b8e48e82c99f0bb9ab",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -567,8 +526,6 @@
       "statementHash": "sha256:186e03cb1920bb37c671f3ac4f53f96ec30ec70c090bac26a5464f9803860da6",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -651,11 +608,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:aed2ef973d6f287d204f8ec4e177ceb7e828d1b35f8e50375d56bd0514bc79ab",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#002",
@@ -664,11 +618,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:2dfd741642e6aabb5049fcc49998b879c611eeb95a42432316f78a32b465110f",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#003",
@@ -677,11 +628,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:45d770c01b9937e100afa327e62d8797c59ead38f58bb8d9e1a8d3281ae743e5",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#004",
@@ -690,11 +638,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:eac5d1b19e19fb5e693e82c05c4dfa8b3ba074810dfbfdacc81a31dd0e63bfba",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#005",
@@ -703,11 +648,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:0c58707f4f9a9cdd9edeb7f1e97288298799bbd4f02210a75793c742772e2d44",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#006",
@@ -716,11 +658,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:c8de951dc71ee8d6eda78414a91a32b145adda93fdba8c4dcf08caf298ebb875",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#007",
@@ -729,11 +668,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:c6c36500b679c89f2dcfbeca0dfb349ceee2c829a234cdd1f8a7c191a7e20496",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#008",
@@ -742,11 +678,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:cfdcac253992795670a8c499ccbe94cf71337db347b2449c77470838d92e8eb6",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#009",
@@ -755,11 +688,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:ae1704335eab625f654acae6fa5c1cd0ded8653468245994afed0706882385f6",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#010",
@@ -768,11 +698,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:cbbca156027f7707f45db71e3b063c70656116daf43285bf7cc81ae2fc52ee09",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencySnapshotTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotSelectedDependencyTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#011",
@@ -792,9 +719,8 @@
       "statementHash": "sha256:96d10f5dd348723b35b73c01318bc7debe02880b6a17c763d7aef86732f04f53",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncSlugifiesSpaces",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncSlugifiesUppercase"
       ]
     },
     {
@@ -805,9 +731,7 @@
       "statementHash": "sha256:ed1a87b9c243830ed8593ca79e9f4f4349822d006ad89a40e16a0f31e38e48f6",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncWithNameSetsDisplayName"
       ]
     },
     {
@@ -818,9 +742,7 @@
       "statementHash": "sha256:af802c82ec1d5472c6021f7e06d4093290695e911282be8d71db63bd370701bf",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceExtendedTests.GetOrCreateGroupAsyncWithNameSetsDisplayName"
       ]
     },
     {
@@ -830,11 +752,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:5890b63829502fce6972412b326d3b5097cd01329757a87a5255357b6b55219c",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#005",
@@ -843,11 +762,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:b0f09794d7aea2fa3066a654f6b1a894b914056cadcfabc81a3decbd4f8d69df",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#006",
@@ -856,11 +772,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:165af48b786735f1c017555310258fdeae78334709a0a6708ef94839915962c5",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#007",
@@ -869,11 +782,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:19b649b313129807e057d275d190c9076a428320febacc5a5701f4411f3fc5ff",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#008",
@@ -882,11 +792,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:e8647fd08df7a015d8419f06f75c4999e95bba68c36ca3e222eb9c1392224d9c",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#009",
@@ -895,11 +802,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:5c58d215a56722877e11d153cef3a53e08d6138618111f62907f091119e2691e",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#010",
@@ -908,11 +812,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:b9cb26228991fa721ee14c07979b24335add1e0f3541de554566760aff335648",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#011",
@@ -921,11 +822,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:81914174d2934307b0b528d24b677f6d3334559e4b21dde2ff7d61ad4a71e5d8",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#012",
@@ -934,11 +832,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:3b9759ed166f059237c3f51882b3858af149cee722f7806b06a4c1cbbcc78337",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-document-identifiers-and-names#013",
@@ -947,11 +842,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:218b7b4f547ea5ce24f64bfaaab4808eec58a4b2fabc9e8250a8de85ab1c3141",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-documents-wotdocumenttype-thingdescriptionfiletype-thingmodelfiletype#001",
@@ -960,11 +852,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:fac32fdfb18176056ed8ca13553496fc863d19c32a28230fbdabe477c5b7d8e5",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-event-occurrence-domains#001",
@@ -974,8 +863,6 @@
       "statementHash": "sha256:f2e1a445d9f198387182c863cb893ad6be8120484247483368cdb9dbb4a6a92f",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -987,8 +874,6 @@
       "statementHash": "sha256:83e63d5cdf5d2ac9453dc88f073f2db290406012b832e11e562c8cd28e4fac44",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1000,8 +885,6 @@
       "statementHash": "sha256:d64858c43988868c6b0ce4d0f3b4a6b35172cff77829eaf99876b48be8c97108",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1013,8 +896,6 @@
       "statementHash": "sha256:56b306f98c49d343898442d0df6204e9001739b46ba9a245d6b37a958d485da7",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1026,8 +907,6 @@
       "statementHash": "sha256:c7f3a7924d6e1596acc13b00eb0e036c04e8e3c195451daa6c727d8edf76b84a",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1039,8 +918,6 @@
       "statementHash": "sha256:513be259d8a0ffa4647cb0ce69dd85d735b02b7d0fef2a051bee26ded4272b05",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1052,8 +929,6 @@
       "statementHash": "sha256:1966cbb346af2396604e9385bfd3d3f45c10112186d9ed86f18ac389d3d0c0b3",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1065,8 +940,6 @@
       "statementHash": "sha256:eb53fc3af6b4c5a44c251a75451b073c67729887fc588e413bbf66e25c0695ad",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1078,8 +951,6 @@
       "statementHash": "sha256:7f414e7b00bf773a3cafe37b81a3a040983000cad89d2f471469d78d74f3d50d",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1091,8 +962,6 @@
       "statementHash": "sha256:ed48b8d049371ae0bee0b4cc8f2c6c2d29c99717c4392fd3f1b47b3c5d402a6c",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1104,8 +973,6 @@
       "statementHash": "sha256:d38246d7db76a5bdc36eddbebd33ff7b978f294f62558899c7c5584f494a64a7",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1117,8 +984,6 @@
       "statementHash": "sha256:23e26c19eb3642f52cebc8119793c212811db3bfcf2d80525f5c562e26441aa4",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1130,8 +995,6 @@
       "statementHash": "sha256:66aebd1da681d19d31531179d621a785c39180f19045dba59a8381b2eedf0d7e",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1143,8 +1006,6 @@
       "statementHash": "sha256:2fa4bb1fe12c5cdafdb146956a9754b8d604d50b7550a57c32d6282abba58248",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1156,8 +1017,6 @@
       "statementHash": "sha256:28ce8aa8c417a2993e01294998b24dd4bc7ae47e8b5e49bb2fc1878256d35e50",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1169,8 +1028,6 @@
       "statementHash": "sha256:8176229965818c8143ba8f4d05ee6c61f9dc6bf72d6b51dba8c6bf9d5f1a7470",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1182,8 +1039,6 @@
       "statementHash": "sha256:15797d04ae9f21f4eb26952e51b62cbf999b6a0fabc4f6ad5b4ac6ed18d3bbfd",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1195,8 +1050,6 @@
       "statementHash": "sha256:ee87cdafbee78e73d0922f84d6f08c1134034e292e85307323915ca70553c7a1",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1208,8 +1061,6 @@
       "statementHash": "sha256:5375e1d7ffc225f11bb127a1712bde19c882ee7749114b890949dfe5ec5b2488",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1221,8 +1072,6 @@
       "statementHash": "sha256:e52d089535f3d543ee8665a17314a8c13bd05568943784141f9b4fd6fa14c8e8",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1234,8 +1083,6 @@
       "statementHash": "sha256:76fce2e45c4ba7eb5c045d78903f1ac6429793511892d63b64ec2f14b971e1ee",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1247,8 +1094,6 @@
       "statementHash": "sha256:c5ca0a89e0890579939aa622975a74e392bb75a8ee4f69c48c8512038406a391",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1260,8 +1105,6 @@
       "statementHash": "sha256:4d5e3819c123ccd902804ecd222dd399026d95e04745229c0dcd6d3985f11a04",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1273,8 +1116,6 @@
       "statementHash": "sha256:520e065364ac3735643ef1f6834ff8007476cc5aea607f085498f95844f0c708",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1286,8 +1127,6 @@
       "statementHash": "sha256:50456d79fa5e58e266e828375ce1a10c071af69e0a6bce610e8fe174b4331e53",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotEventIdentityModeTests",
         "Opc.Ua.WotCon.Tests.Materialization.WotProjectedEventRuntimeTests"
       ]
     },
@@ -1299,7 +1138,9 @@
       "statementHash": "sha256:58467f712a58140d1ec21ffbd022efb1cec5104178cae865420b7fa5730f2344",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ValidationFailureEventIsRaisedForInvalidContent",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.LoadFailureEventIsRaisedForMissingDependency",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RefreshCompletedEventIsRaisedAfterRefresh"
       ]
     },
     {
@@ -1310,7 +1151,9 @@
       "statementHash": "sha256:21953adb8feedc5d81210e6f6293fd062de33fd9ac15e42fa29f8cbbd4059945",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain",
+        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain",
+        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain"
       ]
     },
     {
@@ -1321,7 +1164,7 @@
       "statementHash": "sha256:9f3750c2d771f35e5e70311d7ecd6c6bcdacbe145f46583d2a4f01196ca2e529",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.ResourceEventIsRaisedAfterSuccessfulProjection"
       ]
     },
     {
@@ -1332,7 +1175,8 @@
       "statementHash": "sha256:8d4d21604165734ead6deeccb9fd94954fb55d7641174946d513c91bc737c072",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.UnchangedRefreshPreservesRegistrationNoModelEvent",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunDoesNotCommit"
       ]
     },
     {
@@ -1342,9 +1186,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:22bfc6d08f869f08599d175843d7e9f4b96bc5aa54450426c0c3acc704e366df",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-events-and-change-notifications-normative#006",
@@ -1353,9 +1196,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:57958f1c54c70a6746a62ea513f13888139ee334603ce49f0f5c80c3171fb4be",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-events-and-change-notifications-normative#007",
@@ -1384,9 +1226,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:8e49e89492426f4e944e36896861ff64ee2e34ed9d830c2e654bb76e7ab3353a",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-events-and-the-notifier-chain#001",
@@ -1395,9 +1236,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:089a00997687879fa8e398aa3c3261bf809f861c22e45436c34ca811a3385955",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#001",
@@ -1406,9 +1246,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:1babe34b16b9ae6f0e18a8ab56613d2d78b584f5f92ae40a70dd9deef8190e20",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#002",
@@ -1417,9 +1256,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:4ce4653d0f40673e6fc625f98736c8def051483d42294ae38021c25268e31ab0",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#003",
@@ -1428,9 +1266,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:4fc9b76b58956c660d2b75ef4e8c0df8bc32e5515c18f6df3c554ee207efd4db",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#004",
@@ -1439,9 +1276,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:be078e120a953b0cf07d9bff977e659c1118f752c718f9c209a994212b68ec62",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#005",
@@ -1450,9 +1286,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:38829490f82f65bfb0b24614a9fd2ee5bc663a543784f04fdce47b84e6aea678",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#006",
@@ -1461,9 +1296,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:d1dbfe86d98024f375c06d88328232ee2e6039b45d5338e73a85b8abb460c8a7",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#007",
@@ -1472,9 +1306,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:9488ad9f6cc506b1a6a4816c110667ef39aaeef2b3d18b38b5a76be3384e07ff",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#008",
@@ -1483,9 +1316,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:f47a688e1cb6f12ac1e8d8959a87e961b88e01e760d1a0e6367ae7a5c3bf6c4b",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-federated-origin-identity#009",
@@ -1494,9 +1326,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:4ef8b97a21d00be1abbacd27c5ea174e99ef8853cbb1feb7c508b06a4c99458e",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-identity-and-the-root#001",
@@ -1528,7 +1359,8 @@
       "statementHash": "sha256:00422e64f0f5b5686983210348e90ac5a02e3040addbfa4f3d35b05d6dcc82f1",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.WotRegistryProjectionLiveTests.RefreshEmitsValidationFailureEventWhenConverterFails",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateInvalidDocumentReportsFailure"
       ]
     },
     {
@@ -1539,7 +1371,7 @@
       "statementHash": "sha256:abd48ac582f6804e73a9ea4ac93360934f3e1a692bba3c47d5fcca9ba4d4830f",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.InvalidVersionFailureRetainsPreviousActiveProjection"
       ]
     },
     {
@@ -1582,9 +1414,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:11b45a78d34c3a50f6fbeabbf12f1186f84618372cb0628727cb306e5578f0d8",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#002",
@@ -1593,9 +1424,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:cabf48d7a9f79885b8991e9380e6d6c0434b0f9c2f811918302a5a068191d8ce",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#003",
@@ -1604,9 +1434,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:64fa4e86acea480737b793478b879a3a9b1dc38291040828e3eb877eee920443",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#004",
@@ -1615,9 +1444,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:569bff4440c3b86d377eb572d4caf6fc184f851cd6098ebab0d6e0e020a0262b",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#005",
@@ -1626,9 +1454,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:18a6d421971ec6403df090459df82a8264efc62f7562add8bb441ab99746175a",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#006",
@@ -1637,9 +1464,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:d444972a4525429e991a74ccec62eb12c159feefe0082bf7c14c9c2eca47511d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-model-change-events-and-nodeversion-correlation#007",
@@ -1648,9 +1474,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:3d6bfb91768b134bd67002f1b282766994a99efee7c054a5ae46815187d38aeb",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-outcomes-errors-and-implementer-responsibilities#001",
@@ -1660,7 +1485,9 @@
       "statementHash": "sha256:22f2410e78d45e2c9710e3d0e8166292d41c9d46a1f1b839198c212468d9caf6",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunDoesNotCommit",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunRetirementDoesNotTearDownProjection",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateValidDocumentReportsSuccess"
       ]
     },
     {
@@ -1671,7 +1498,8 @@
       "statementHash": "sha256:5eac15518aa5414d757ffe53f46c7ea00896c6fb9efa87ba836ab8d62cd94f38",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DetailedResultsCarryNodeCountAndDigest",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.FailedNodeIdCanCarryConcreteNodeId"
       ]
     },
     {
@@ -1682,7 +1510,8 @@
       "statementHash": "sha256:e5ffd403239a7cf423965bd670d4d8f7755aed2b5dfda8ba4edfd3fbef568ba7",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.IndependentClosuresPartialSuccess",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.TwoIndependentClosuresProjectAsTwoSeparateRegistrations"
       ]
     },
     {
@@ -1760,9 +1589,8 @@
       "statementHash": "sha256:91c9d4a7e5b9d89e22de69f4c145808bfe0383c0596cc1db283d3f3faf5e6f9a",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.ViewOrganizesTheSourceNodesAndDefinesNoAffordanceNode",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionDocumentMaterializesAViewAndCreatesNoAffordanceSource"
       ]
     },
     {
@@ -1773,9 +1601,8 @@
       "statementHash": "sha256:6d0ac5e4da6d1820c9e54d3c4a028333b48fb8be868af7ce3794ded924ebf926",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewBuilderTests.OrganizingLinksProduceObjectsWithOnlyTheOutermostAView",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.RefreshingAProjectionLeavesExactlyOneAppliedView"
       ]
     },
     {
@@ -1786,9 +1613,8 @@
       "statementHash": "sha256:7576e246caedf6c0801661e55da0614541faafae7463c420d0f94995f1e4b5c5",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionViewRootNodeIdIsDistinctFromTheResourceNode",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCoordinatorTests.ProjectionViewIsRemovedWhenTheProjectionResourceIsDeleted"
       ]
     },
     {
@@ -1870,11 +1696,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:26155a0ea9c89e4b7e0e9ffd4d073c31b1264890cfb5d32ba23c642cbdf66a9d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#011",
@@ -1883,11 +1706,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:00043f83fdc19eadd7e0b4d82ae413f9743bd346982699b7d8445cb352181835",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#012",
@@ -1896,11 +1716,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:8d0976958b2650337a58165ab544e251af0d82d08080e6e6999428b7dd6ee2f4",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#013",
@@ -1909,11 +1726,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:746d8526cfeb08a533ff3b555c8f8a9ed068cff44a1084c9d6cddee34842f5c8",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#014",
@@ -1922,11 +1736,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:4498bfb5a540d54688322ae24bb104000dea675d729cf522575bb0f55611be37",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#015",
@@ -1935,11 +1746,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:095d45c7dab25d1bb3f4c2dbb0f6781c36cb4ae7636c474b24f7f68532fc67d4",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#016",
@@ -1948,11 +1756,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:562faaf0b43549ae1ec9969e94f8e629353903dd17d36278d6194e0995b28e61",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#017",
@@ -1961,11 +1766,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:8dcc15270e03647b4076a233f8444b89c271c2ce2bec59e85bd19c8e77def3fe",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#018",
@@ -1974,11 +1776,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:210e83355fa7846445c9c4c9f7720ff6b261118205d8bd35e84298b13dd5fdc2",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#019",
@@ -1987,11 +1786,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:84c3a782bf6b2ea2844de169a865dc0f966461c1c42858a3247f7a7a94d47e6a",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#020",
@@ -2010,11 +1806,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:6167f5926017061022377640d35805f5fc87c63edb6745fc3002b6896f18f6c5",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#022",
@@ -2023,11 +1816,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:ba86bf19497dbc6e1ca562c8f43f427f297a3341480bac19b0ef747f6b268c3f",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#023",
@@ -2036,11 +1826,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:90078595d67993bbad6f97cdd97437e53ee9e7efdfd1a4b195b1b58d05009bd7",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#024",
@@ -2049,11 +1836,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:47a57422be80abaeb4963615c9d75f088618d6ed9fb0a975dac4ae072a08c092",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-documents#025",
@@ -2062,11 +1846,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:75c08051060433f5739ff5063bf423a861fc9a948253a4332fdc34f522269b0c",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-projection-mapping#001",
@@ -2077,9 +1858,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2091,9 +1870,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2105,9 +1882,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2119,9 +1894,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2133,9 +1906,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2147,9 +1918,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2161,9 +1930,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2175,9 +1942,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2189,9 +1954,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2203,9 +1966,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2217,9 +1978,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2426,9 +2185,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2440,9 +2197,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationDeclarationTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.NativeTypeBindingResolvesTheCapturedThingModel",
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests.SelectedDefinitionOwnerMaterializesThroughTheStockNativePath"
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionDeclarationContextTests"
       ]
     },
     {
@@ -2581,7 +2336,8 @@
       "statementHash": "sha256:5e876145155d99bafd2a2472792ea8973bc1996c9139285a9be5bd66cc046c70",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesImmediateReloadWhenConfigured"
       ]
     },
     {
@@ -2592,7 +2348,8 @@
       "statementHash": "sha256:0c62e7c0944f6994ce18c3ba2418c062cb1f70d42b3e790b787d3cd58e4e0020",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorExtendedTests.RemoveAllAsyncRetiresPreviouslyProjectedClosures",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchCleanupWarningTracksCommittedReplacement"
       ]
     },
     {
@@ -2602,9 +2359,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:519af174ff51f4b83dafec5b3a690c6dd4f2d61387a83ca4e2032165bcd8fd24",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-shadow-prepare-switch-and-retirement#005",
@@ -2613,9 +2369,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:aff2ed5a7281daa254e5a397ed057705ee5b2434877716e0e3875bf9aab35cbf",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-shadow-prepare-switch-and-retirement#006",
@@ -2712,9 +2467,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:dc705ceb489d0977a39e144ba9b6b4d28c28c7d9d567b7c1626786a4f206cf3b",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-shadow-prepare-switch-and-retirement#015",
@@ -2723,9 +2477,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:b18b3d21f064624b8377e3a4e1db18a129fa18eceff33facc44e72723165fb12",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-signature#001",
@@ -2781,11 +2534,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:242fb790c61b2588531f0d308d66f13ded3cbf18367d630537ce7cfdf65cb23a",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#002",
@@ -2794,11 +2544,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:77953bd8efbb5a732c515669e5895a54c8320cd5dc087c255eb010f92efb4a9c",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#003",
@@ -2807,11 +2554,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:3080704fa3c51fc65c8cf0f58fbddb768fecb19771fe9faf446108444a96e8d4",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#004",
@@ -2820,11 +2564,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:4eea6bd9f8949607e16264e81a4b4b80e27530257871527eb090e13e6812ae10",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#005",
@@ -2833,11 +2574,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:8587d7f9b9af0ba29ce37ab8ddb06caab559ab51a306982206e179d828c1cbf6",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#006",
@@ -2846,11 +2584,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:9afd5bc5356271d8a296082497f7bd2567c6e26890d1925371c6bb8d45a91a01",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#007",
@@ -2859,11 +2594,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:70215dadbcb5181932b50dae830072fde5a3835e413b9c390b2abf072a3f3857",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#008",
@@ -2872,11 +2604,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:44f28d3fe59dc50add5c4ef31df6ec059ca1f31c2e1f44cf8f2489c5e1e3d5ee",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#009",
@@ -2885,11 +2614,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:7c73b389845f2cf8a0588ae4bf1df0d49a286684f9a2a9edd7f7feb52b4fc2b2",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#010",
@@ -2898,11 +2624,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:eb12e1de20979f347907d56522f827d7bee50e9df8b3649d249ef233d0dd8743",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#011",
@@ -2911,11 +2634,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:d22c866f083dd1d9f09c17969383dd0fc2922ee6fde1c204cf1d0c82991d8296",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#012",
@@ -2924,11 +2644,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:e61d7c4bc4253d6b71efe8b74643c9032741f0eee8a1f3cdbde0adf622f8acbf",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#013",
@@ -2937,11 +2654,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:a93c157862c810d4201a43b5b54b11e740f6089ce1ffeea41301ba07bd72cf42",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#014",
@@ -2950,11 +2664,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:51f23d17ae24a8a785b7fffbf5904ababbe45cab24ceba8286d3a6c70cab19f2",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#015",
@@ -2963,11 +2674,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:3d96306aefc997e4f60c9bdae29e007e35b54389be6c5d38ae0b0ad6caa0ad5d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#016",
@@ -2976,11 +2684,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:b2cff7c540c940267cac46665f6bb662457ca9722ff92f8b219d13388e600ced",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#017",
@@ -2989,11 +2694,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:a65629deea7b61534088928a2787bcefdfa879c54952f6644b1296492dfcd719",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#018",
@@ -3002,11 +2704,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:1a0aa34da0e6c8c956b372a511f661828f5f45a50f86408d531dcb955f2713bc",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-typed-provisioning-behavior#019",
@@ -3015,11 +2714,8 @@
       "applicability": "runtime",
       "statementHash": "sha256:7aa24a96f2ec0ceec132ba9d3d289fa6370d9d48389bec1929a543d8a8545a9d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityTests",
-        "Opc.Ua.WotCon.Tests.Registry.FileWotRegistryIdentityTests"
-      ]
+      "tests": [],
+      "gap": "The runtime evidence for this requirement is owned by the WoT runtime materialization change (#4757) and is not part of this tree. It is deferred, not proved."
     },
     {
       "specId": "sec-uri-base-and-href-rules#001",
@@ -3169,7 +2865,7 @@
       "statementHash": "sha256:fcb680eaa5bf96ab1c9e3b6dd6f1d61158ce94b837320bcbbb4ba87f884d8e6c",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.VersionSwitchUsesShadowReload"
       ]
     },
     {
@@ -3207,7 +2903,8 @@
       "statementHash": "sha256:11f7e6c3d442b10639489d16cce7b2497d3b912fc32e674e01a1cacb94f17269",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DeleteRetiresProjection",
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.DeleteGroupRemovesGroupAndResources"
       ]
     },
     {
@@ -3218,7 +2915,7 @@
       "statementHash": "sha256:1f074d77d011f8d4bc3313d1f6fa80e87b08c5b9dec7becf8d81843324bf6e77",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolveByRegistryUriFindsResource"
       ]
     },
     {
@@ -3229,7 +2926,7 @@
       "statementHash": "sha256:d016c9823919778addc91d7e4726f0cb8b73b5a15ca1e5388dbb4d55f042597e",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.ExternalWebDependencyIsNotResolvedOutsideRegistry"
       ]
     },
     {
@@ -3240,15 +2937,9 @@
       "statementHash": "sha256:121074b1f667cb0e1d7c3f1ed89ae3a6d78027d5c98c47383792db83358615c7",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
-        "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolveByXidFindsResource",
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolvePrefersTmOverTd"
       ]
     }
-  ],
-  "testTargetFrameworks": {
-    "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests": [
-      "net8.0",
-      "net9.0",
-      "net10.0"
-    ]
-  }
+  ]
 }
