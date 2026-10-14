@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -150,6 +151,122 @@ namespace Opc.Ua.Redundancy
         public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
         {
             return ProposeAsync(OpDelete, key, default, default, ct);
+        }
+
+        /// <summary>
+        /// Captures the state of the store in a snapshot.
+        /// </summary>
+        /// <remarks>
+        /// A barrier is committed through the consensus first, so the snapshot
+        /// holds every command committed before the call. An application uses
+        /// it to bound the Raft log: persist the snapshot, compact the log of
+        /// its consensus engine, and on restart pass the snapshot to
+        /// <see cref="RestoreSnapshot"/> before the store applies the rest of
+        /// the log. The format is versioned and owned by this store.
+        /// </remarks>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The encoded snapshot.</returns>
+        public async ValueTask<ReadOnlyMemory<byte>> CreateSnapshotAsync(CancellationToken ct = default)
+        {
+            _ = await ProposeAsync(OpBarrier, string.Empty, default, default, ct).ConfigureAwait(false);
+
+            using var stream = new MemoryStream();
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(s_snapshotEncodingVersion);
+                lock (m_lock)
+                {
+                    writer.Write(m_state.Count);
+                    foreach (KeyValuePair<string, ByteString> entry in m_state)
+                    {
+                        byte[] key = Encoding.UTF8.GetBytes(entry.Key);
+                        writer.Write(key.Length);
+                        writer.Write(key);
+                        writer.Write(entry.Value.IsNull);
+                        byte[] value = entry.Value.IsNull ? [] : entry.Value.ToArray() ?? [];
+                        writer.Write(value.Length);
+                        writer.Write(value);
+                    }
+                }
+            }
+            return stream.ToArray();
+        }
+
+        /// <summary>
+        /// Replaces the state of the store with a snapshot created by
+        /// <see cref="CreateSnapshotAsync"/>. Commands committed afterwards are
+        /// applied on top of it.
+        /// </summary>
+        /// <param name="snapshot">The encoded snapshot.</param>
+        /// <exception cref="InvalidOperationException">The store has already
+        /// started applying the log, or it is disposed.</exception>
+        /// <exception cref="FormatException">The snapshot is not a valid
+        /// snapshot of this store.</exception>
+        public void RestoreSnapshot(ReadOnlySpan<byte> snapshot)
+        {
+            Dictionary<string, ByteString> state = DecodeSnapshot(snapshot);
+
+            lock (m_proposalLock)
+            {
+                ThrowIfDisposed();
+                if (Volatile.Read(ref m_started) != 0)
+                {
+                    throw new InvalidOperationException(
+                        "A snapshot can only be restored before the store applies the log.");
+                }
+                lock (m_lock)
+                {
+                    m_state.Clear();
+                    foreach (KeyValuePair<string, ByteString> entry in state)
+                    {
+                        m_state[entry.Key] = entry.Value;
+                    }
+                }
+            }
+        }
+
+        private static Dictionary<string, ByteString> DecodeSnapshot(ReadOnlySpan<byte> snapshot)
+        {
+            var state = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            try
+            {
+                using var reader = new BinaryReader(new MemoryStream(snapshot.ToArray()), Encoding.UTF8);
+                if (reader.ReadByte() != s_snapshotEncodingVersion)
+                {
+                    throw new FormatException("The snapshot has an unknown encoding version.");
+                }
+                int count = reader.ReadInt32();
+                if (count < 0)
+                {
+                    throw new FormatException("The snapshot holds a negative entry count.");
+                }
+                for (int ii = 0; ii < count; ii++)
+                {
+                    string key = Encoding.UTF8.GetString(ReadBlock(reader));
+                    bool isNull = reader.ReadBoolean();
+                    byte[] value = ReadBlock(reader);
+                    state[key] = isNull ? default : ByteString.From(value);
+                }
+                if (reader.BaseStream.Position != reader.BaseStream.Length)
+                {
+                    throw new FormatException("The snapshot has trailing data.");
+                }
+            }
+            catch (EndOfStreamException e)
+            {
+                throw new FormatException("The snapshot is truncated.", e);
+            }
+            return state;
+        }
+
+        private static byte[] ReadBlock(BinaryReader reader)
+        {
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new FormatException("The snapshot holds an invalid length.");
+            }
+            return reader.ReadBytes(length);
         }
 
         /// <inheritdoc/>
@@ -667,6 +784,7 @@ namespace Opc.Ua.Redundancy
         private const byte OpCas = 2;
         private const byte OpBarrier = 3;
         private const byte s_commandEncodingVersion = 1;
+        private const byte s_snapshotEncodingVersion = 1;
         private const int s_minCommandLength = 30;
 
         private readonly IRaftConsensus m_consensus;
