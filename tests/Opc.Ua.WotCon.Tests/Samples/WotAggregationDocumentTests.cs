@@ -756,6 +756,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task UnmodelledNativeCarriersSupplyNoCrossDocumentAuthorityAsync()
         {
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            options.PreservationMode = WotNodeSetPreservationMode.Always;
             string source = RepositoryPath(Path.Combine(
                 "tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml"));
             UANodeSet modelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
@@ -765,6 +766,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             using WotDocumentSet unmodelledSet = ExportSet(unmodelled, options);
             var withModel = new WotNodeSetConverter.ArchiveContextIndex(options);
             var withoutModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var empty = new WotNodeSetConverter.ArchiveContextIndex(options);
             foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList())
             {
                 withModel.Add(entry.Document);
@@ -783,7 +785,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 Assert.That(withoutModel.Find(entry.Document), Is.Null, entry.Href);
                 WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
-                    .ToNodeSetResultAsync(entry.Document, options).ConfigureAwait(false);
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(empty))
+                    .ConfigureAwait(false);
                 WotConversionResult<UANodeSet> viaIndex = await WotNodeSetConverter
                     .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
                     .ConfigureAwait(false);
