@@ -90,6 +90,9 @@ namespace Opc.Ua.Schema.Model
         public bool UseAllowSubtypes { get; set; }
 
         /// <inheritdoc/>
+        public bool IsSourceNodeSet { get; private set; }
+
+        /// <inheritdoc/>
         public NamespaceTable NamespaceUris { get; private set; } = null!;
 
         /// <inheritdoc/>
@@ -431,6 +434,7 @@ namespace Opc.Ua.Schema.Model
                 namespaces,
                 designFilePaths[0],
                 identifierFilePath);
+            IsSourceNodeSet = targetModel.IsSourceNodeSet;
 
             for (int ii = targetIndex - 1; ii >= 0; ii--)
             {

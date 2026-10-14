@@ -96,6 +96,15 @@ namespace Opc.Ua.SourceGeneration
         public bool UseTypeDefinitionModellingRules { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the predefined nodes generated for a
+        /// NodeSet2 input are exactly the nodes of the NodeSet2. See
+        /// <c>GeneratorOptions.EmitNodeSetNodesOnly</c>.
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorEmitNodeSetNodesOnly</c> property.
+        /// </summary>
+        public bool EmitNodeSetNodesOnly { get; set; }
+
+        /// <summary>
         /// Override for whether the generator emits the
         /// <c>[assembly: ModelDependencyAttribute]</c> + corresponding
         /// <c>[assembly: ModelSnapshotAttribute]</c> metadata for the
@@ -196,6 +205,8 @@ namespace Opc.Ua.SourceGeneration
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
                     nameof(UseTypeDefinitionModellingRules)),
+                EmitNodeSetNodesOnly = provider.GlobalOptions.GetBool(
+                    nameof(EmitNodeSetNodesOnly)),
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
                     nameof(EmitDependencyMetadata))),
                 OmitFluentApi = provider.GlobalOptions.GetBool(

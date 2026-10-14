@@ -118,6 +118,7 @@ namespace Opc.Ua.SourceGeneration
                             : m_options.ObjectTypeProxyNamespace,
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
+                    EmitNodeSetNodesOnly = m_options.EmitNodeSetNodesOnly,
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,

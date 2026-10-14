@@ -2043,11 +2043,41 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
+        /// <summary>
+        /// With <see cref="GeneratorOptions.EmitNodeSetNodesOnly"/>, a
+        /// predefined node of a NodeSet2 input gets only the children the
+        /// NodeSet2 declares: a child the generator derives from a supertype
+        /// or a type definition is not added. The <c>CreateInstanceOf*</c>
+        /// factories still add every Mandatory child of the type.
+        /// </summary>
+        private bool IsOmittedFromNodeSetAddressSpace(NodeToGenerate node)
+        {
+            if (!m_context.Options.EmitNodeSetNodesOnly ||
+                !m_context.ModelDesign.IsSourceNodeSet ||
+                !node.IsNotExplicitlyDefined)
+            {
+                return false;
+            }
+
+            NodeToGenerate root = node;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+
+            return root.InstanceOf == null;
+        }
+
         private TemplateString? LoadTemplate_ReplaceChild(ILoadContext context)
         {
             if (context.Target is not NodeToGenerate node ||
                 node.Design is not InstanceDesign instance ||
                 node.Design is ViewDesign)
+            {
+                return null;
+            }
+
+            if (IsOmittedFromNodeSetAddressSpace(node))
             {
                 return null;
             }
