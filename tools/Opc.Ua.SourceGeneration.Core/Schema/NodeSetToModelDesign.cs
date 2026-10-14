@@ -772,6 +772,7 @@ namespace Opc.Ua.Schema.Model
             UpdateTypeDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRankSpecified = true;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
@@ -1118,6 +1119,7 @@ namespace Opc.Ua.Schema.Model
             UpdateInstanceDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
             output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);

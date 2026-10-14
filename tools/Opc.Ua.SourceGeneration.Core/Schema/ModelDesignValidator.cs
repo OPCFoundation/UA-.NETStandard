@@ -5673,6 +5673,10 @@ namespace Opc.Ua.Schema.Model
             VariableDesign mergedVariable,
             VariableDesign variable)
         {
+            // A NodeSet2 node without a Value has a null Value, whatever its
+            // DataType; a ModelDesign declaration implies the DataType default.
+            mergedVariable.NodeSetValueIsNull = variable.NodeSetValueIsNull;
+
             if (variable.TypeDefinition != null &&
                 variable.TypeDefinition != s_baseDataVariableTypeQn)
             {
