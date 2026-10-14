@@ -577,6 +577,7 @@ namespace Opc.Ua.WotCon.Server
                 return decoded;
             }
 
+            request.CallerContext = context.OperationContext;
             if (!await m_refreshGate
                     .WaitAsync(0, cancellationToken)
                     .ConfigureAwait(false))

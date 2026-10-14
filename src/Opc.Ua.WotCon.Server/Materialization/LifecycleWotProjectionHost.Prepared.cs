@@ -245,7 +245,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public async ValueTask<IWotProjectionPublication> BeginAsync(
                 CancellationToken cancellationToken = default)
             {
-                INodeManagerPublication invocation = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+                return await BeginAsync(null, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Begins a publication invocation for the executing request.
+            /// </summary>
+            /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public async ValueTask<IWotProjectionPublication> BeginAsync(
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
+            {
+                INodeManagerPublication invocation = await capture.BeginAsync(callerContext, cancellationToken)
+                    .ConfigureAwait(false);
                 return new PublicationInvocation(owner, invocation);
             }
         }

@@ -582,7 +582,7 @@ namespace Opc.Ua.WotCon.Server
                     StatusCodes.BadInvalidArgument, "The Enabled argument is required.");
             }
             WotRegistryMutationResult result = await m_manager.Coordinator
-                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct)
+                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct, context.OperationContext)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return ToServiceResult(result);

@@ -221,7 +221,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                 .BeginPublicationAsync(cancellationToken).ConfigureAwait(false);
                             await using var registryLifetime = registryPublication.ConfigureAwait(false);
                             CheckExpectedGeneration(invocation, registryPublication.Current.RefreshGeneration);
-                            IWotProjectionPublication publication = await sourceCapture.BeginAsync(cancellationToken)
+                            IWotProjectionPublication publication = await sourceCapture
+                                .BeginAsync(invocation.CallerContext, cancellationToken)
                                 .ConfigureAwait(false);
                             await using var publicationLifetime = publication.ConfigureAwait(false);
                             if (!ReferenceEquals(expectedRegistry, registryPublication.Current) ||
@@ -478,7 +479,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             return ApplyResourceLifecycleAsync(
                 request.GroupId, request.ResourceId, true, request.Policy, request.ExpectedEpoch,
-                request.RequestId, cancellationToken);
+                request.RequestId, cancellationToken, callerContext: request.CallerContext);
         }
 
         /// <summary>

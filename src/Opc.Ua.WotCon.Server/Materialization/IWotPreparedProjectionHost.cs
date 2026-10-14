@@ -155,6 +155,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reserves publication admission for the executing request, so the post-commit request drain
+        /// excludes that request. Owners that do not track request contexts ignore it.
+        /// </summary>
+        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        ValueTask<IWotProjectionPublication> BeginAsync(
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken)
+        {
+            return BeginAsync(cancellationToken);
+        }
     }
 
     /// <summary>

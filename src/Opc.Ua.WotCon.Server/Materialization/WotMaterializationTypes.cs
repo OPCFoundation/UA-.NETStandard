@@ -64,6 +64,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets or sets an opaque request id echoed in the summary.
         /// </summary>
         public string RequestId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the executing request's operation context, or <c>null</c> for an
+        /// external or background caller that does not run inside a server request.
+        /// </summary>
+        public IOperationContext? CallerContext { get; set; }
     }
 
     /// <summary>
@@ -130,6 +136,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets or sets an opaque request id echoed in the summary.
         /// </summary>
         public string RequestId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the executing request's operation context, or <c>null</c> for an
+        /// external or background caller that does not run inside a server request.
+        /// </summary>
+        public IOperationContext? CallerContext { get; set; }
     }
 
     /// <summary>

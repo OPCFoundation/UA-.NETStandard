@@ -68,7 +68,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             string resourceId,
             bool enabled,
             long? expectedEpoch = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            IOperationContext? callerContext = null)
         {
             _ = groupId ?? throw new ArgumentNullException(nameof(groupId));
             _ = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
@@ -78,7 +79,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     .ConfigureAwait(false);
             }
             WotDeleteOutcome outcome = await ApplyResourceLifecycleAsync(
-                groupId, resourceId, false, DeletePolicy, expectedEpoch, "SetEnabled", cancellationToken)
+                groupId, resourceId, false, DeletePolicy, expectedEpoch, "SetEnabled", cancellationToken,
+                callerContext: callerContext)
                 .ConfigureAwait(false);
             return new WotRegistryMutationResult(
                 outcome.Delete.Outcome, m_registry.Current.FindResource(groupId, resourceId),
@@ -128,7 +130,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             string requestId,
             CancellationToken cancellationToken,
             string? versionId = null,
-            bool deleteGroup = false)
+            bool deleteGroup = false,
+            IOperationContext? callerContext = null)
         {
             _ = groupId ?? throw new ArgumentNullException(nameof(groupId));
             _ = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
@@ -194,6 +197,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         WotCapturedRefreshRequest request = WotCapturedRefreshRequest.Capture(new WotRefreshRequest
                         {
                             RequestId = requestId,
+                            CallerContext = callerContext,
                             Selection = [.. selection],
                             Options = new WoTRefreshOptionsDataType
                             {
@@ -207,7 +211,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         IWotRegistryPublication registryPublication = await registry.BeginPublicationAsync(
                             cancellationToken).ConfigureAwait(false);
                         await using var registryLifetime = registryPublication.ConfigureAwait(false);
-                        IWotProjectionPublication publication = await nativeCapture.BeginAsync(cancellationToken)
+                        IWotProjectionPublication publication = await nativeCapture
+                            .BeginAsync(callerContext, cancellationToken)
                             .ConfigureAwait(false);
                         await using var sourceLifetime = publication.ConfigureAwait(false);
                         if (!ReferenceEquals(mutation.Previous, registryPublication.Current) || !publication.IsCurrent ||

@@ -69,6 +69,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ? []
                 : request.Selection.ToArrayOf().ConvertAll(CopySelector);
             RequestId = request.RequestId ?? string.Empty;
+            CallerContext = request.CallerContext;
             ExpectedGeneration = request.ExpectedGeneration;
             WoTRefreshOptionsDataType? options = request.Options;
             Atomicity = options?.Atomicity ?? WoTAtomicityEnum.PerClosure;
@@ -94,6 +95,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the invocation identifier, independent of subsequent caller mutation.
         /// </summary>
         public string RequestId { get; }
+
+        /// <summary>
+        /// Gets the executing request's operation context, or <c>null</c> for an external caller.
+        /// </summary>
+        public IOperationContext? CallerContext { get; }
 
         /// <summary>
         /// Gets the caller's expected generation. Zero does not waive final stale-input checks.
