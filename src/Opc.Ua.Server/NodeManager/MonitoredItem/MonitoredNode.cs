@@ -444,16 +444,11 @@ namespace Opc.Ua.Server
             {
                 if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
                 {
-                    // A cut-off source still retires the items this change would have reached.
-                    foreach (IDataChangeMonitoredItem2 cutOffItem in DataChangeMonitoredItems.Values)
-                    {
-                        bool isValue = cutOffItem.AttributeId == Attributes.Value;
-                        if (cutOffItem is MonitoredItem { UsesExternalValueSource: false } retirable &&
-                            (changes & (isValue ? NodeStateChangeMasks.Value : NodeStateChangeMasks.NonValue)) != 0)
-                        {
-                            retirable.RetireCutOffSource();
-                        }
-                    }
+                    // A cut-off source still retires the items this change would have reached, in
+                    // channel order so snapshots captured before the cutoff are delivered first.
+                    await m_channel.Writer.WriteAsync(
+                        new CutOffRetirementNotification { Context = context, Changes = changes },
+                        cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 // Collect the distinct attribute IDs being monitored so we can pre-read them.
@@ -603,6 +598,18 @@ namespace Opc.Ua.Server
                         else if (notification is DataChangeSnapshot dataChangeSnapshot)
                         {
                             await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken).ConfigureAwait(false);
+                        }
+                        else if (notification is CutOffRetirementNotification cutOff)
+                        {
+                            foreach (IDataChangeMonitoredItem2 cutOffItem in DataChangeMonitoredItems.Values)
+                            {
+                                bool isValue = cutOffItem.AttributeId == Attributes.Value;
+                                if (cutOffItem is MonitoredItem { UsesExternalValueSource: false } retirable &&
+                                    (cutOff.Changes & (isValue ? NodeStateChangeMasks.Value : NodeStateChangeMasks.NonValue)) != 0)
+                                {
+                                    retirable.RetireCutOffSource();
+                                }
+                            }
                         }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

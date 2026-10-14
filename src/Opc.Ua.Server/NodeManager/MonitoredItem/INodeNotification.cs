@@ -76,6 +76,25 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Marks a change that reached a cut-off source so the items it would have reached are
+    /// retired in channel order, after the snapshots captured before the cutoff.
+    /// </summary>
+    internal sealed class CutOffRetirementNotification : INodeNotification
+    {
+        public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets the source emission, which a cut-off retirement never holds.
+        /// </summary>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+
+        /// <summary>
+        /// Gets or sets the change masks of the cut-off change.
+        /// </summary>
+        public NodeStateChangeMasks Changes { get; set; }
+    }
+
+    /// <summary>
     /// Represents a snapshot of a node event.
     /// </summary>
     internal class EventSnapshot : INodeNotification
