@@ -608,6 +608,65 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that the checked-in native Pumps partitions restore the complete source Pumps NodeSet.
+        /// </summary>
+        [Test]
+        public async Task NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync()
+        {
+            const int expectedNodeCount = 9624;
+            const int expectedPartitionCount = 339;
+            string root = RepositoryPath(string.Empty);
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
+                Path.Combine("samples", "DI", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
+            SampleDocument[] partitions = [.. WotAggregationDocumentGenerator
+                .ReadManifestDocuments(DocumentPath(string.Empty).TrimEnd('\\', '/'))
+                .ToList()
+                .Where(document => document.Path.StartsWith("opc-ua-pumps/", StringComparison.Ordinal))];
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            IWotNodeResolver resolver = WotAggregationDocumentGenerator.CreateCompanionNodeResolver(root);
+            var entries = new List<WotDocumentSetEntry>();
+            try
+            {
+                foreach (SampleDocument partition in partitions)
+                {
+                    entries.Add(new WotDocumentSetEntry(
+                        partition.ResourceId, WotDocument.Parse(partition.Json.ToArray(), options)));
+                }
+                using var set = new WotDocumentSet("opc-ua-pumps", entries.ToArrayOf());
+                entries.Clear();
+
+                WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(
+                    set, options, resolver).ConfigureAwait(false);
+
+                Assert.That(partitions, Has.Length.EqualTo(expectedPartitionCount));
+                Assert.That(
+                    Directory.EnumerateFiles(
+                        DocumentPath("opc-ua-pumps"), "*.json", SearchOption.AllDirectories).Count(),
+                    Is.EqualTo(expectedPartitionCount));
+                Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+                Assert.That(
+                    restored.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    string.Join("; ", restored.Diagnostics));
+                Assert.That(source.Items, Has.Length.EqualTo(expectedNodeCount));
+                Assert.That(restored.Value!.Items, Has.Length.EqualTo(expectedNodeCount));
+                NodeSetComparisonResult comparison = WotNodeSetConverter.CompareDocumentSet(
+                    source, restored.Value, options);
+                Assert.That(
+                    comparison.AreEquivalent,
+                    Is.True,
+                    string.Join("; ", comparison.Differences.Take(20)));
+            }
+            finally
+            {
+                foreach (WotDocumentSetEntry entry in entries)
+                {
+                    entry.Dispose();
+                }
+            }
+        }
+
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetHasRequiredModelDependenciesAndTypeDefinition(string pumpName)
