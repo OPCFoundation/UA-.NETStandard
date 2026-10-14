@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 
 namespace Opc.Ua
@@ -39,7 +38,6 @@ namespace Opc.Ua
     /// enumerations, and structures (encodeable types) in
     /// a common way
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public interface IType
     {
         /// <summary>
@@ -66,7 +64,6 @@ namespace Opc.Ua
     /// <summary>
     /// Built in type or sub datatype of a built in type.
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public interface IBuiltInType : IType
     {
         /// <summary>
@@ -79,7 +76,6 @@ namespace Opc.Ua
     /// <summary>
     /// Enumeration type (Built-in type Enumeration)
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public interface IEnumeratedType : IType
     {
         /// <summary>
@@ -103,7 +99,6 @@ namespace Opc.Ua
     /// Represents a encodeable structure (complex data
     /// type) that implements <see cref="IEncodeable"/>.
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public interface IEncodeableType : IType
     {
         /// <summary>
