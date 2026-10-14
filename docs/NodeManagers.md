@@ -618,16 +618,14 @@ table.
 | Startup | `IOpcUaServerBuilder.AddNodeManager(...)`, `IOpcUaServerBuilder.AddRuntimeNodeSet(...)` | During `CreateAddressSpaceAsync`, before the server accepts connections |
 | Runtime | `INodeManagerLifecycle.AddAsync` / `ReloadAsync` / `RemoveAsync` | While the server is running and serving Clients |
 
-Compile-time and startup registration are the normal path. Use runtime registration only when the
-set of models genuinely has to change without restarting the server.
+Compile-time and startup registration are the normal path; use runtime registration only when the
+set of models must change without a restart.
 
 ### Startup registration
 
-`AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
-created before the server starts, and the server builds its address space from all registered
-factories while it starts. Once startup succeeds, each application NodeManager appears as a
-[generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
-configuration, and core NodeManagers are not exposed there.
+`AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`; the server
+builds its address space from all factories while it starts. Each application NodeManager then
+appears as a [generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`.
 
 ```csharp
 services.AddOpcUa()
@@ -666,65 +664,39 @@ public interface INodeManagerReadinessNotification
 }
 ```
 
-Create the manager's own address space in `CreateAddressSpaceAsync`. Register
-dependent runtime managers in `OnServerReadyAsync`, when the server can process
-runtime lifecycle operations. `AsyncNodeManagerAdapter` and
-`SyncNodeManagerAdapter` forward this asynchronous callback. A manager created
-directly or through a DI factory uses the same readiness contract.
+Create the manager's own address space in `CreateAddressSpaceAsync` and register dependent runtime
+managers in `OnServerReadyAsync`, when the server can process lifecycle operations. The async and
+sync adapters forward the callback. Readiness runs:
 
-| Hosting operation | When readiness runs | Completion |
-| --- | --- | --- |
-| `StandardServer` startup | After initial address spaces and server subsystems are initialized | Startup awaits each initial participant before `OnServerStarted` and before returning |
-| Runtime `AddAsync` | After the new generation is registered and visible to clients | `AddAsync` awaits readiness before returning its handle |
-| Normal, shadow or immediate reload | After the replacement is visible and the applicable retired-generation completion work has run | Reload awaits replacement readiness before returning its handle |
+- **At startup**, after the initial address spaces are built; startup awaits every initial manager.
+- **After a runtime `AddAsync` or reload**, once the new generation is visible; the call awaits it
+  before returning the handle.
 
-The server captures the initial manager set before allowing runtime additions.
-A manager added during startup or inside a readiness callback receives its own
-callback through `AddAsync`. The server does not call it again as an initial
-participant. Static initial managers also receive readiness.
+A manager added by a readiness callback gets its own callback through `AddAsync`, not a second one
+as an initial manager.
 
-#### Concurrent operations and cancellation
+#### Concurrent operations, cancellation and failure
 
-While awaiting readiness, the lifecycle allows operations on unrelated
-registrations, including dependent `AddAsync` calls. It prevents removal or
-reload of the initializing generation until the add or reload that started it completes.
-A competing operation on that registration throws `InvalidOperationException`
-with a readiness-in-progress diagnostic. Retry after initialization finishes.
-Do not remove or reload your own registration inside its readiness callback.
-
-Forward the callback's cancellation token to your awaited work. The lifecycle
-checks it before and after the callback. Cancellation after publication does
-not undo publication. Clients may already have seen the manager.
-Readiness also does not make several registrations visible atomically.
-
-Shutdown rejects new lifecycle operations and waits for active readiness work
-before dismantling the server. After an orderly `StopAsync`, the same server
-and injected `INodeManagerLifecycle` can be used by a later `StartAsync`.
-Disposing the server or lifecycle provider is final.
-
-#### Readiness failure and dependency cleanup
-
-| Failure point | What the caller receives |
-| --- | --- |
-| Preparation | The preparation error. Readiness does not run |
-| Runtime Add readiness | A post-commit `InvalidOperationException` preserving the original error. The published handle is available in `Registrations` for recovery or removal |
-| Reload readiness | `NodeManagerReloadCommittedException`. Its `Registration` identifies the published replacement |
-| Initial readiness | The startup error after `StandardServer` awaits shutdown, including dependent registrations. Cleanup errors are also reported |
-
-Keep every successfully added dependency handle, including dependencies added
-before a later readiness failure. Remove those registrations in your manager's
-`DeleteAddressSpaceAsync`. The manager does not own injected registries, coordinators or stores.
-Dispose them only if your application owns them. After detaching a manager, the host runs its address-space deletion outside
-the lifecycle operation that published or removed it, so deletion can await
-removal of its dependencies. A shadow-retired manager no longer receives new requests but stays alive until its
-retained MonitoredItems and requests finish. Then it is cleaned up.
+- Unrelated registrations, including dependent `AddAsync` calls, stay available while readiness
+  runs. Removing or reloading the initializing registration throws `InvalidOperationException`;
+  retry afterwards, and never do it from inside its own readiness callback.
+- Forward the callback's cancellation token. Cancellation after publication does not undo it:
+  clients may already see the manager, and several registrations are not published atomically.
+- A readiness failure after publication leaves the registration live. Add throws a post-commit
+  `InvalidOperationException` and the handle remains in `Registrations`; reload throws
+  `NodeManagerReloadCommittedException` whose `Registration` is the replacement. A startup failure
+  is reported after `StandardServer` shuts everything down.
+- Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
+  the host runs outside the lifecycle operation, so it can await those removals. Dispose injected
+  registries or stores only if you own them.
+- Shutdown rejects new lifecycle operations and waits for active readiness work. After an orderly
+  `StopAsync` the same server can be started again.
 
 #### Initializing managers in a custom host
 
-If your host does not use `StandardServer`, initialize the address spaces and
-server subsystems, enable runtime lifecycle operations, then await readiness.
-`MasterNodeManager.StartupAsync` and `CreateAddressSpaceAsync` do not perform
-all of these host steps. Capture the initial manager set before callbacks:
+A host that does not use `StandardServer` must initialize the address spaces and server
+subsystems, enable runtime lifecycle operations, then await readiness for a snapshot of the
+initial managers taken beforehand:
 
 ```csharp
 ArrayOf<IAsyncNodeManager> initialManagers = [.. master.AsyncNodeManagers];
@@ -739,23 +711,17 @@ for (int ii = 0; ii < initialManagers.Count; ii++)
 }
 ```
 
-Your host handles startup failure and shuts down initialized managers and their
-dependencies. Use `INodeManagerLifecycle` for runtime additions and reloads.
-Those operations already await readiness, so do not call it a second time.
+Your host handles startup failure and shuts down initialized managers. Runtime additions and
+reloads through `INodeManagerLifecycle` already await readiness; do not call it again.
 
 ### Registration generations
 
 A **generation** identifies one published NodeManager instance within a logical registration.
-`NodeManagerRegistration.Id` stays the same across reloads; `Generation` numbers the successive
-instances. Startup adoption and `AddAsync` both create the first instance with `Generation = 1`,
-hence **generation 1**. The first committed reload creates **generation 2**, the next creates
-**generation 3**, and so on. All [reload modes](#reload-modes) use this numbering; it is independent
-of the information model's version and namespace index.
-
-After a reload, use the newly returned registration handle for further lifecycle operations.
-The previous handle is stale even if a shadow reload keeps its old NodeManager alive for existing
-Clients. Adding a new registration starts at generation 1 with a new `Id`, rather than continuing
-the numbering of a removed registration.
+`NodeManagerRegistration.Id` stays the same across reloads; `Generation` counts the instances:
+startup adoption and `AddAsync` create generation 1 and each committed [reload](#reload-modes)
+creates the next. Generation is independent of the information model's version and namespace
+index. After a reload, use the returned handle; the previous one is stale even if a shadow reload
+keeps the old manager alive. A new registration starts at generation 1 with a new `Id`.
 
 ### Runtime registration
 
@@ -784,20 +750,15 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 }
 ```
 
-Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and
-invalidates the previous handle. `Registrations` also contains application NodeManagers that were
-composed before startup, so a control-plane component can discover their generation-1 handles and
-remove them or, when the current manager implements `INodeManagerReloadParticipant`, reload them.
-Diagnostics, configuration, and core NodeManagers remain protected and absent from the collection.
+Each add returns an immutable `NodeManagerRegistration`; reload returns the next generation and
+invalidates the previous handle. `Registrations` also lists application NodeManagers composed
+before startup (not the protected diagnostics, configuration and core managers), so a control plane
+can remove them or, if they implement `INodeManagerReloadParticipant`, reload them.
 
-`INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
-OPC UA service or Method callback: teardown waits for the requests that already captured the retired
-routing generation to complete before disposing it, so a lifecycle call made from within such a
-request would wait for itself.
-
-Every lifecycle method takes the operation the caller is running under. Pass it from a NodeManager
-or Method callback and the server rejects the call with an `InvalidOperationException` instead of
-deadlocking:
+`INodeManagerLifecycle` is a host control-plane API. Teardown waits for requests that captured the
+retired generation, so a lifecycle call made from inside an OPC UA service or Method callback would
+wait for itself. Every lifecycle method therefore takes the operation the caller is running under;
+pass it from a callback and the server throws `InvalidOperationException` instead of deadlocking:
 
 ```csharp
 private async ValueTask<ServiceResult> OnReloadModelAsync(
@@ -820,163 +781,88 @@ private async ValueTask<ServiceResult> OnReloadModelAsync(
 A control-plane caller — a hosted service, or anything resolved from dependency injection — is not
 serving a request and passes `null`.
 
-The guard is an identity check against the requests the server is currently executing, not ambient
-state, so an internal operation that was never enrolled as a Client request is allowed through, and
-a context whose request has already completed no longer blocks anything. A caller that is inside a
-request but passes no operation is not detected; for that case the wait is bounded instead: it lasts
-at most as long as the longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`,
-after which the lifecycle operation fails with a `TimeoutException` instead of blocking
-indefinitely.
+The guard is an identity check against the requests the server is currently executing. A caller
+that is inside a request but passes no operation is not detected; its wait is bounded by the longest
+outstanding request deadline plus `RequestManager.RequestDrainTimeout`, after which the operation
+fails with a `TimeoutException`. This applies to event-source and session callbacks too: a callback
+that starts a lifecycle operation must pass the `OperationContext` it was given. Passing `null`
+from inside a callback is unsupported, because the operation is then treated as an ordinary
+external caller and waits for the callback's own request to finish.
 
-Before invoking lifetime callbacks, cancellation and expiry first select the requests they affect. A callback may complete a selected request or admit another request
-without changing that selection. Requests admitted by a callback are
-handled by a later cancellation or expiry pass; a new timed request retains its
-own expiry timer.
-Only lifetimes that accept cancellations contribute to the cancellation count
-and cancellation notifications.
-Each lifetime has one terminal owner. The winning cancellation status is visible
-before callbacks run. If a request completes while the callbacks run, token-resource
-disposal waits until the callbacks finish. Linked external cancellation uses the same ownership
-decision and retains its `Good` status.
-
-A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
-does not interfere with this: a rejected request is completed before the exception leaves the
-server, so it never holds a lifecycle operation up.
-
-A lifecycle operation stages and validates the replacement address space before
-its client-visible commit. Preparation failures follow the existing rollback
-path. Failures after publication, including readiness, can retain a live
-registration, so callers must not treat them as pre-commit rollback. Add reports that
-the registration remains available from `Registrations`; reload reports the
-committed handle through `NodeManagerReloadCommittedException.Registration`.
-Readiness does not make several dependent registrations a single transaction.
+A lifecycle operation validates the replacement address space before its client-visible commit and
+rolls back on preparation failure. Failures after publication, including readiness, can leave a live
+registration, so do not treat them as pre-commit rollback.
 
 ### Node manager lifecycle impact on clients
 
 #### Reload modes
 
-All reload modes build and validate the replacement generation before Clients can see it. The
-commit then switches new service requests to the replacement generation atomically. Namespace URI
-indexes are append-only server state, so reloads can add namespace URIs but do not renumber
-existing indexes. Requests that already captured the retired generation are allowed to complete
-before the server detaches and disposes it.
+All reload modes build and validate the replacement generation before Clients can see it, then
+switch new requests to it atomically. Namespace indexes are append-only, so reloads can add
+namespace URIs but never renumber existing ones. Requests that captured the retired generation
+complete on it before it is disposed. Choose the mode by what should happen to existing
+subscriptions:
 
-The modes differ in the client contract for work already attached to the retired generation:
+| Mode | Existing MonitoredItems | Choose it when |
+| --- | --- | --- |
+| `ReloadAsync` (normal) | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
+| `ShadowReloadAsync` | Items stay on the retired generation and keep sampling; only new items use the replacement. | Old subscriptions must keep the old model until they drain. Runs two generations at once. |
+| `ImmediateReloadAsync` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
-| Mode | Existing MonitoredItems | Browse continuation points and in-flight requests | When to choose it | Cost |
-| --- | --- | --- | --- | --- |
-| Normal reload, `ReloadAsync` | The server detaches items from the retired generation before the routing switch, attaches compatible items to the replacement after commit, and reports `BadNodeIdUnknown` once for removed or incompatible items. Subscriptions and compatible MonitoredItem ids are preserved. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after that request drain because no old MonitoredItems remain to keep the generation alive. | The default for compatible model updates where Clients should keep subscriptions and receive a clear status only for removed nodes. | Requires the replacement to support monitored-item attachment and may fail the reload if an unexpected item incompatibility is detected. |
-| Shadow reload, `ShadowReloadAsync` | Existing items stay on the retired generation and continue sampling there. New MonitoredItems are created on the replacement. The retired generation is disposed only after all retained items, Browse continuations, and requests drain. | Each saved or executing Browse continuation retains its issuing owner and exact required target owners independently of MonitoredItems. Final-page completion, explicit release, cache eviction, or Session teardown releases that continuation's ownership; in-flight metadata work still drains before disposal. | Use when existing subscriptions and Browse operations must keep the old model semantics while new operations move to the replacement, for example during long migrations or when compatible hand-over is not desirable. | Runs two generations at once, including the old sampling/event fan-out, so memory and model resources remain allocated until Clients drain. |
-| Immediate reload, `ImmediateReloadAsync` | The server detaches every item owned by the retired generation and reports `BadNodeIdUnknown`; it does not try to attach compatible items to the replacement. Clients may recreate items against the new generation. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after the request drain, and the old generation can then be detached promptly. | Use for destructive or security-sensitive changes where serving or migrating old items is worse than forcing Clients to resubscribe. | Causes deliberate subscription churn and one bad status per old data MonitoredItem. |
-
-All three modes are intentional: normal reload preserves compatible subscriptions, shadow reload
-preserves old subscriptions without migration, and immediate reload fails old subscriptions fast.
+Browse continuation points that captured a retired generation are invalidated after the request
+drain in normal and immediate reload; shadow reload retains them (see
+[Continuation points](#continuation-points)).
 
 #### MonitoredItems
 
-For normal reload, active MonitoredItems are migrated; removal leaves them detached.
-A compatible NodeId in a replacement generation
-keeps the same MonitoredItem and Subscription without a transient bad status. A removed or
-incompatible NodeId is detached and publishes one `BadNodeIdUnknown` data-change notification, as
-required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same NodeId later revalidates
-and reattaches the item automatically. Event MonitoredItems detach and recover their source binding
-without synthesizing a data-change status.
+On a normal reload a compatible NodeId keeps the same MonitoredItem and Subscription without a
+transient bad status. A removed or incompatible NodeId is detached and publishes one
+`BadNodeIdUnknown` data-change notification (Part 4 §5.8.4.1); adding a compatible Node with that
+NodeId later reattaches the item automatically. Event MonitoredItems recover their source binding
+without a data-change status.
 
-That notification is queued in its natural position, because Part 4 §5.13.1.5 requires a Server to
-return notifications in the order they are in the queue. It occupies an ordinary queue slot, but it
-is the one value that is never discarded: once the queue is full, an incoming value is dropped
-instead of the notification, so a full queue cannot swallow it.
+That notification is queued in its natural position (Part 4 §5.13.1.5) and is never discarded: on
+a full queue an incoming value is dropped instead. At the default `queueSize` of 1 there is no
+queue, so the notification simply becomes the served value and a later sample replaces it. Only one
+such notification is pending at a time, and it is not preserved across a durable subscription
+restart. Issue [#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the
+specification ambiguity behind this.
 
-This applies only when queuing is enabled. At the default `queueSize` of 1 the MonitoredItem has no
-queue at all — the last sampled value is what the Client is served — so the notification simply
-becomes that value, and a value sampled after the deletion replaces it in the usual way. Losing
-values is the accepted behaviour of a MonitoredItem without queuing. Issue
-[#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the underlying
-specification ambiguity: the protected, over-capacity slot the specification defines applies to
-`EventQueueOverflowEventType` only, so it says nothing about how a mandatory data-change
-notification survives a full queue. Only one such notification is pending at a time, and a pending
-one is not preserved across a durable subscription restart.
-
-The built-in NodeManager and Subscription implementations support these transitions. A custom
-implementation that the server cannot migrate safely fails with `NotSupportedException` before any
-routing changes, so the operation is rejected rather than half applied.
-
-To make a custom NodeManager participate, derive from `CustomNodeManager2` or
-`AsyncCustomNodeManager`, which already implement the MonitoredItem transition contract, or
-implement `INodeManagerMonitoredItemLifecycle` directly. That interface needs four operations: report
-whether an existing MonitoredItem could attach, detach one without disposing it, attach a detached
-one to the matching Node, and give a detached one back when a lifecycle operation is rolled back. A
-custom Subscription implementation needs the equivalent snapshots from
-`ISubscriptionMonitoredItemLifecycle`.
+Derive from `CustomNodeManager2` or `AsyncCustomNodeManager` to get these transitions, or implement
+`INodeManagerMonitoredItemLifecycle` (and `ISubscriptionMonitoredItemLifecycle` for a custom
+Subscription). An implementation the server cannot migrate safely fails with
+`NotSupportedException` before any routing changes.
 
 #### Continuation points
 
-##### What a continuation point retains
+A Client may page through a large Browse or HistoryRead result while you reload the NodeManager that
+produced it. A saved continuation point keeps its issuing NodeManager, and every old NodeManager
+that owns a reference target it still needs (matched by exact NodeId), alive until it is released.
+Each page uses the original model and is checked against the Session's current permissions; new
+requests use the active generation. A paged HistoryRead keeps its exact provider, source Node and
+query, and another Session cannot consume the token.
 
-A client may page through a large Browse result while you reload the NodeManager that produced it.
-To keep `BrowseNext` working, a saved continuation point keeps its issuing NodeManager, and every
-old NodeManager that owns a reference target it still needs, alive until it is released. Targets are
-matched by exact NodeId, so unrelated managers, even in the same namespace, can still retire.
-Each page uses the original model and is checked against the Session's current permissions. New
-Browse requests use the active generation.
+Retention ends on the last page, an explicit release, cache eviction, a failed or cancelled
+`BrowseNext`, or Session close. A retired NodeManager is deleted only after its MonitoredItems,
+continuation points and in-flight requests have finished. A normal or immediate reload or removal
+instead invalidates every continuation point that needs the removed manager; `BrowseNext` then
+returns `BadContinuationPointInvalid`. Shutdown discards saved continuation points.
 
-##### Custom browsers
+Custom parts, each only needed if you replace the built-in one:
 
-If you write a custom lazy browser, implement `IBrowseContinuationDependencies` on
-`ContinuationPoint.Data` and list every NodeManager that owns a target the browser can still return,
-not only the targets already buffered. `GetRemainingReferenceTargets()` gives you the stored part.
-An empty declaration means only the issuing NodeManager is needed. The standard `NodeBrowser`,
-`AsyncCustomNodeManager` and `CustomNodeManager2` already do this. If the set cannot be declared,
-paginated Browse returns `BadNotSupported` rather than risk losing targets later; unpaged Browse is
-unchanged. The declaration is fixed when the continuation point is first saved.
+- **Lazy browser:** implement `IBrowseContinuationDependencies` on `ContinuationPoint.Data` and list
+  every NodeManager owning a target it can still return. Empty means only the issuing manager. If it
+  cannot be declared, paged Browse returns `BadNotSupported`; unpaged Browse is unchanged.
+- **Dynamic history provider:** implement `IHistorianContinuationDependencies` and declare the extra
+  local Nodes a later page needs. A missing declaration returns `BadNotSupported` with no partial
+  data. See [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).
+- **Session cache:** use the cache `Session` supplies for dynamic history; a replacement is rejected
+  with `BadNotSupported`. A custom Browse cache implements `ISessionContinuationPointLifecycle` and
+  checks `ContinuationPoint.RequiresManager`, not only `Manager`. If it cannot answer, graceful
+  cleanup refuses to delete the manager and reports `CleanupFailure` without rolling back.
 
-##### When retention ends
-
-The last page, an explicit release, cache eviction, a failed or cancelled `BrowseNext`, or Session
-close releases what the continuation point retained. Each continuation point releases only its own
-retention. A retired NodeManager is deleted only after its MonitoredItems, Browse and HistoryRead
-continuation points and in-flight requests have finished.
-
-##### HistoryRead continuation points
-
-The default historian applies the same rule to paged HistoryRead. A continuation point keeps its
-exact provider, source Node and original query, so a resumed read never switches to a replacement
-provider. Permissions are rechecked on every page and another Session cannot consume the token.
-New history reads use the active generation.
-
-##### Dynamic history providers
-
-A provider that pages history from a dynamic source implements `IHistorianContinuationDependencies`
-and declares every extra local Node a later page may need. The requested Node and the provider source
-are included automatically. `InMemoryHistorianProvider` needs no extra owners. Unpaged history and
-sources outside the dynamic lifecycle need nothing. A missing or incomplete declaration, or an opaque
-custom history state, returns `BadNotSupported` with no partial data.
-
-##### Session history cache
-
-Use the cache supplied by `Session` for dynamic historian pagination. It tracks saved and executing
-continuation points, never evicts one that is executing, and discards points the client did not
-receive. A replacement cache is rejected with `BadNotSupported` before anything is saved, because
-implementing `ISessionHistoryContinuationPointLifecycle` alone does not carry the routing and type
-information needed to resume a read.
-
-A replicated history record lets a standby clean up the original Session's state but cannot resume the
-read; resuming returns `BadContinuationPointInvalid` and the client starts a new read. See
-[historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget)
-for provider setup and continuation rules.
-
-##### Invalidation and custom caches
-
-A normal or immediate reload/removal invalidates every continuation point that needs the removed
-manager, as source or dependency; a later `BrowseNext` returns `BadContinuationPointInvalid`.
-Shutdown discards saved continuation points and waits for in-flight requests.
-
-A custom Session continuation cache implements `ISessionContinuationPointLifecycle` to report saved
-and executing Browse ownership and signal final release. Its checks must use
-`ContinuationPoint.RequiresManager`, not only `Manager`, so dependencies count. Existing
-`ISessionContinuationPoints` callers need no changes. If a cache cannot answer the ownership query,
-graceful cleanup refuses to delete the manager and reports it through `CleanupFailure` without rolling
-back publication.
+A replicated history record lets a standby clean up the original Session's state but cannot resume
+the read; the Client gets `BadContinuationPointInvalid` and starts a new read.
 
 #### Namespaces
 
@@ -997,110 +883,65 @@ Runtime DataType registrations are additive. Reload accepts an existing DataType
 definition is structurally compatible, rejects incompatible changes, and retains removed stand-in
 encodeables so existing Sessions and in-flight values remain decodable.
 
-`INodeManagerBatchLifecycle` prepares type relationships, reference-type names,
-encoding mappings, and encodeable-factory registrations in private images.
-A completed commit releases its lifecycle operation ownership, including when
-it returns a cleanup warning. Calling `DisposeAsync` afterward is optional and
-does not undo publication. An unpublished batch still requires `DisposeAsync`,
-including after a failed commit attempt, to discard its candidates.
-Commit reveals the batch's candidates even when they register namespace routes
-during preparation; unrelated hidden registrations remain hidden.
-Publication switches both images with the routing snapshot. An in-flight request
-retains the images captured with its routes. Writes to a serving image fail with
-`InvalidOperationException` while the decision callback runs, rather than being
-silently discarded by publication. Retired images remain readable but cannot be
-changed. Preparation does not replace the shared schema resolver; that update
-belongs to successful publication.
+`INodeManagerBatchLifecycle` stages several lifecycle changes (and their type, reference-type,
+encoding and encodeable-factory registrations) in private images, then publishes them together with
+the routing snapshot. In-flight requests keep the images they captured, and writes to a serving
+image fail with `InvalidOperationException` while the decision callback runs.
 
-Before calling the application's durable commit callback, the batch atomically validates and reserves
-the exact serving routing revision. All routing writers, including public namespace
-registration/unregistration, visibility, startup/reset, and reference-view ownership
-changes, fail with `InvalidOperationException` before routing effects while that
-reservation is held. This is a table-wide reservation, not a per-namespace merge:
-callers may retry against the current image after it releases. Readers and
-request-captured routing images remain available without taking the mutation lock.
-Noncommit or cancellation releases only that prepared owner's reservation.
-After acceptance, the reservation protects the switch and internal host bookkeeping,
-then releases before committed-state and binding-reconciliation callbacks. Successful
-later writes therefore remain effective, and callbacks can use the normal routing APIs.
+```csharp
+await using IPreparedNodeManagerBatch batch = await batchLifecycle.PrepareAsync(
+    [NodeManagerBatchChange.Add(factory)], callerContext: null, ct);
+NodeManagerBatchResult result = await batch.CommitAsync(
+    async token => await store.SaveDecisionAsync(token), ct);
+```
 
-Prepared batches require the default `EncodeableFactory`. An unsupported custom
-factory is rejected before candidate creation. When a server stops, a supplied
-private factory retains its committed registrations and can be reused by a later
-server lifetime.
+- A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
+  publication. An unpublished batch, including one after a failed commit, must be disposed to
+  discard its candidates.
+- Before the durable decision callback runs, the batch reserves the serving routing revision. All
+  routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
+  Retry after it releases. A noncommit or cancellation releases only that batch's reservation.
+- Prepared batches need the default `EncodeableFactory`; a custom factory is rejected before
+  candidate creation.
 
 #### Invocation publication units
 
-The default and hosted lifecycles also implement
-`INodeManagerPublicationLifecycle`. `CapturePublication` records the serving
-routing, type and factory revisions without changing them. Calling the capture's
-`BeginAsync` reserves one logical invocation; `IsCurrent` reports whether those
-revisions still match. A stale invocation cannot prepare units and must be
-disposed before recapturing.
+`INodeManagerPublicationLifecycle` groups sequential prepared batches into one logical invocation.
+`CapturePublication` records the serving revisions; `BeginAsync(callerContext, ct)` reserves the
+invocation, and `IsCurrent` reports whether the revisions still match. A stale invocation must be
+disposed and recaptured. Units are prepared with `INodeManagerPublication.PrepareAsync` and follow
+the same decision and cleanup contracts.
 
-An admitted invocation prepares its sequential units through
-`INodeManagerPublication.PrepareAsync`. These are the same prepared batches
-described above, with the same decision, switch and cleanup contracts. Admission
-remains held across every unit, including post-commit callbacks. Other lifecycle
-mutations fail `BadServerTooBusy` before effects and can retry after disposal;
-they are not silently merged into the invocation. Callback code must defer
-conflicting lifecycle work rather than await a nested mutation. Session,
-MonitoredItem and read-isolation behavior is unchanged.
-
-The invocation retains its operation lifetime until disposal, and shutdown
-waits for it to finish. Disposal drains/aborts its remaining prepared owners,
-reports cleanup failures, and releases admission without replaying a decision.
-The API exposes publication ownership, not a synchronization object.
+Admission stays held across every unit. Other lifecycle mutations fail `BadServerTooBusy` before
+effects and can retry after disposal, so callback code should defer conflicting lifecycle work
+instead of awaiting a nested mutation. Disposal aborts remaining units, reports cleanup failures and
+releases admission; shutdown waits for it.
 
 #### Prepared Session and all-events bindings
 
-Preparing a batch does not activate Sessions or subscribe event sources on its
-candidates. Session activation and MonitoredItem operations remain available while
-the durable decision callback awaits. After acceptance, the host waits for binding
-callbacks that are still dispatching, publishes the joint routing/type/factory/reference image, and
-binds the candidates to the still-live Sessions and all-events MonitoredItems.
-New activations and MonitoredItem create, modify, and delete operations wait until
-this reconciliation finishes, then use the published routes. This admission boundary
-prevents both missed arrivals and duplicate subscriptions across the final snapshot.
+Preparing a batch does not activate Sessions or subscribe event sources on its candidates. After
+the decision is accepted, the host publishes the new routing and binds the candidates to the live
+Sessions and all-events MonitoredItems. New activations and MonitoredItem create, modify and delete
+operations wait for this reconciliation and then use the published routes, so no arrival is missed
+or duplicated.
 
-An admitted callback entering an opted-in, callback-safe lifecycle operation
-suspends its binding admission for that nested operation. Admission resumes after
-all overlapping nested operations release lifecycle serialization, so publication does not wait on a callback
-that is waiting for the same lifecycle owner. Committed binding reconciliation
-does not retain host mutation serialization while draining notification callbacks.
-When such a callback owns notification-dispatch leases, admission resumes only
-after those leases and their binding updates are released. Immediate retirement
-can therefore drain the callback without opening admission to new operations.
-Nested lifecycle work excludes the exact items already being deleted by its
-admitted operation, so deletion cannot create a fresh binding on another manager.
-If provisional all-events creation fails, compensation includes owners published
-while its callback was suspended.
+A Session or all-events callback that starts a lifecycle operation must pass the `OperationContext`
+it received (see the sample above); the server then lets that nested operation proceed instead of
+waiting on the callback's own admission. Without the context the call is treated as external and
+waits for the callback, which is unsupported. Waiting follows the normal cancellation and quiescence
+rules; there is no shortcut around them.
 
-Closed Sessions and deleted MonitoredItems are not restored by reconciliation.
-Rejection leaves binding effects on the serving generation only. Exceptions and
-bad subscription results after publication are reported through
-`NodeManagerBatchResult.CleanupFailure`; they do not turn a committed decision into
-an abort or prevent the other candidates, readiness, and retirement from being processed.
+Closed Sessions and deleted MonitoredItems are not restored. Exceptions and bad subscription
+results after publication are reported in `NodeManagerBatchResult.CleanupFailure`; they do not turn
+a committed decision into an abort or block readiness and retirement.
 
 #### Prepared external references
 
-Prepared batches stage the external references of surviving and candidate
-NodeManagers in private `NodeState` reference images. The routing switch publishes
-these images together with the type and factory images; native Browse and Translate,
-direct reference lookups, cloning, and reference exports use the selected image.
-An in-flight request keeps its captured reference image. Abort leaves the serving
-references unchanged, and reference writes to a reserved or retired image fail
-instead of being lost. Reference callbacks run only after publication; callback
-failures are returned in `NodeManagerBatchResult.CleanupFailure` without undoing the
-committed references or preventing readiness and retirement.
-
-The batch reference path supports the in-memory `NodeState` ownership contract of
-`AsyncCustomNodeManager` and adapted `CustomNodeManager2`, not custom external
-reference stores. A non-null unsupported owner handle is rejected before the
-decision or any reference callback. This path does not call an override of
-`AddReferencesAsync` to mutate serving nodes. Contributions retained from startup
-and surviving registrations are merged without duplicate edges; replacement and
-removal withdraw only edges no remaining contribution requires.
+Prepared batches also stage the external references of surviving and candidate NodeManagers and
+publish them with the other images, so Browse, Translate and reference exports see one consistent
+view. Abort leaves serving references unchanged. This path supports the in-memory `NodeState`
+ownership model of `AsyncCustomNodeManager` and adapted `CustomNodeManager2`; a custom external
+reference store is rejected before the decision.
 
 #### Change notifications
 
@@ -1127,19 +968,12 @@ public interface INodeManagerReloadParticipant
 }
 ```
 
-The server calls it on the outgoing generation, handing it the already-built replacement, before any
-routing changes. The implementation has two jobs:
-
-1. **Re-add the references your NodeManager contributed to Nodes it does not own.** These are the
-   cross-manager references you registered while building the address space — for example a
-   `Organizes` reference from the ns=0 `Objects` folder to your root. Track them as you add them, and
-   in `PrepareReloadAsync` push the same set into the replacement so the foreign Nodes keep pointing
-   at the new generation.
-2. **Return the inbound references the replacement can no longer satisfy.** For every reference whose
-   target NodeId the replacement does not contain, return a `LocalReference` describing the
-   *counterpart* edge so the server can delete it from the foreign Node. `LocalReference` is
-   `(NodeId sourceId, NodeId referenceTypeId, bool isInverse, NodeId targetId)`, so the counterpart is
-   the reference with source and target swapped and `isInverse` negated.
+The server calls it on the outgoing generation, with the already-built replacement, before any
+routing changes. It has two jobs: re-add the references your manager contributed to Nodes it does
+not own (such as an `Organizes` reference from the ns=0 `Objects` folder to your root) so the foreign
+Nodes point at the new generation, and return, as `LocalReference` counterpart edges
+`(sourceId, referenceTypeId, isInverse, targetId)` with source and target swapped and `isInverse`
+negated, every inbound reference whose target the replacement no longer contains.
 
 A minimal implementation looks like this:
 
@@ -1186,23 +1020,17 @@ public async ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
 
 Practical guidance:
 
-* **Keep a record of cross-manager references as you create them.** The base classes do not track
-  them for you. `AddExternalReference` populates the `externalReferences` dictionary handed to
-  `CreateAddressSpaceAsync`; keep that dictionary (or an equivalent map) in a field so
-  `PrepareReloadAsync` can replay it.
-* **Reject an incompatible replacement.** Throwing `NotSupportedException` when the replacement is
-  not the type you expect is safer than silently skipping the reference transfer, and the server
-  fails the reload cleanly.
-* **Do not mutate your own Nodes.** By the time this runs, the replacement generation owns the
-  address space; the retired generation is about to be disposed.
-* **Reload is transactional.** If your implementation throws, the whole operation is rolled back and
-  Clients never see a partially applied model, so it is safe to fail fast.
+* Keep a record of the cross-manager references you create (for example the `externalReferences`
+  dictionary handed to `CreateAddressSpaceAsync`) so `PrepareReloadAsync` can replay it; the base
+  classes do not track them.
+* Throw `NotSupportedException` for an incompatible replacement rather than skipping the transfer.
+* Do not mutate your own Nodes: the replacement already owns the address space.
+* Reload is transactional: if you throw, Clients never see a partially applied model.
 
-`RuntimeNodeSetNodeManager` is the only built-in NodeManager that implements the contract, so runtime
-NodeSets are reloadable out of the box — see
-`src/Opc.Ua.Server/RuntimeNodeSet/RuntimeNodeSetNodeManager.cs` for the reference implementation. A
-NodeManager derived from `CustomNodeManager2` or `AsyncCustomNodeManager` can be added and removed
-live without any of this, and becomes reloadable once it implements the interface.
+`RuntimeNodeSetNodeManager` is the only built-in implementation (see
+`src/Opc.Ua.Server/RuntimeNodeSet/RuntimeNodeSetNodeManager.cs`), so runtime NodeSets reload out of
+the box. A `CustomNodeManager2` or `AsyncCustomNodeManager` can be added and removed live and
+becomes reloadable once it implements the interface.
 
 ### Related documentation
 
