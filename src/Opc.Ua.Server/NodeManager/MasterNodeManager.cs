@@ -173,12 +173,11 @@ namespace Opc.Ua.Server
 
             // Publish the initial manager and namespace routing snapshot.
             var factory = server.Factory as EncodeableFactory;
+            AcquireViewOwners(server.TypeTree, factory, out m_typeViewOwner, out m_factoryViewOwner);
             m_nodeManagers.Initialize(
                 namespaceManagers,
                 server.TypeTree.CaptureSnapshot(out _, out _),
                 factory?.Fork());
-            server.TypeTree.SetViewSelector(() => m_nodeManagers.TypeTree);
-            m_factoryViewOwner = factory?.SetViewSelector(() => m_nodeManagers.Factory);
 
             m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
         }
@@ -262,6 +261,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Decides whether this manager is the canonical publisher of the server's type and factory images.
+        /// A canonical manager owns both selectors; a secondary manager serves private captured images and
+        /// never owns, publishes into, or releases the shared tables.
+        /// </summary>
+        /// <param name="typeTree">The server type table.</param>
+        /// <param name="factory">The server factory, if it supports publication ownership.</param>
+        /// <param name="typeOwner">The acquired type table owner, or <c>null</c> for a secondary manager.</param>
+        /// <param name="factoryOwner">The acquired factory owner, or <c>null</c>.</param>
+        /// <exception cref="InvalidOperationException">The type table and factory ownership disagree.</exception>
+        private void AcquireViewOwners(
+            TypeTable typeTree,
+            EncodeableFactory? factory,
+            out TypeTable.ViewOwner? typeOwner,
+            out EncodeableFactory.ViewOwner? factoryOwner)
+        {
+            typeOwner = typeTree.TryAcquireViewOwner(() => m_nodeManagers.TypeTree);
+            factoryOwner = null;
+            if (factory is null)
+            {
+                return;
+            }
+            factoryOwner = factory.TryAcquireViewOwner(() => m_nodeManagers.Factory);
+            if ((typeOwner is null) == (factoryOwner is null))
+            {
+                return;
+            }
+            // Partial ownership: unwind whichever side was acquired. Nothing was published yet, so the
+            // selectors still resolve to the tables themselves and releasing them is lossless.
+            typeOwner?.Release(typeTree);
+            factoryOwner?.Release(factory);
+            typeOwner = null;
+            factoryOwner = null;
+            throw new InvalidOperationException(
+                "The type table and encodeable factory publication ownership are inconsistent.");
+        }
+
+        /// <summary>
         /// Drains and disposes owned node managers, collecting failures before releasing lifecycle resources.
         /// </summary>
         private async Task DisposeNodeManagersAsync()
@@ -277,6 +313,12 @@ namespace Opc.Ua.Server
                     EncodeableFactory image = m_nodeManagers.Revision.Factory ??
                         throw new InvalidOperationException("The server factory image is unavailable during disposal.");
                     m_factoryViewOwner.Release(image);
+                }
+                if (m_typeViewOwner is not null)
+                {
+                    TypeTable image = m_nodeManagers.Revision.TypeTree ??
+                        throw new InvalidOperationException("The server type image is unavailable during disposal.");
+                    m_typeViewOwner.Release(image);
                 }
                 m_nodeManagers.Clear();
                 m_dynamicExternalReferences.Clear();
@@ -2626,6 +2668,7 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly SemaphoreSlim m_bindingSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly TypeTable.ViewOwner? m_typeViewOwner;
         private readonly EncodeableFactory.ViewOwner? m_factoryViewOwner;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);

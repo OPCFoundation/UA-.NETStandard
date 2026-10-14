@@ -129,6 +129,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks whether a node is currently published by any NodeManager.
+        /// </summary>
+        /// <remarks>
+        /// The query reads the live routing, so a caller inside a dispatched service call, such as a method
+        /// callback that has just published a NodeManager, sees what was committed after the call captured its
+        /// routing image. The result is an existence answer only and does not retain a handle for later service
+        /// operations. The lookup goes through <see cref="GetManagerHandleAsync"/> exactly once.
+        /// </remarks>
+        /// <param name="nodeId">The node to look up.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>True if a NodeManager resolves a handle for the node.</returns>
+        public async ValueTask<bool> IsNodeMaterializedAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            (object? handle, IAsyncNodeManager? _) = await GetManagerHandleAsync(nodeId, cancellationToken)
+                .ConfigureAwait(false);
+            return handle is not null;
+        }
+
+        /// <summary>
         /// Registers a set of node ids.
         /// </summary>
         /// <remarks>
