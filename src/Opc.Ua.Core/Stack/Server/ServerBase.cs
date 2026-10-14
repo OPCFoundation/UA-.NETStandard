@@ -1141,7 +1141,11 @@ namespace Opc.Ua
         /// <param name="endpointUri">The endpoint Uri.</param>
         /// <param name="endpoints">The description of the endpoints.</param>
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
-        /// <param name="listener">The transport listener.</param>
+        /// <param name="listener">
+        /// The transport listener. The server takes ownership of it: an opened
+        /// listener is disposed when the server stops, and a listener that
+        /// fails to open is disposed before the error is rethrown.
+        /// </param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
@@ -1153,6 +1157,8 @@ namespace Opc.Ua
             ICertificateValidatorEx certificateValidator,
             CancellationToken ct = default)
         {
+            bool tracked = false;
+
             // create the stack listener.
             try
             {
@@ -1195,6 +1201,7 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 TransportListeners.Add(listener);
+                tracked = true;
 
                 listener.ConnectionStatusChanged += OnConnectionStatusChanged;
             }
@@ -1203,6 +1210,24 @@ namespace Opc.Ua
                 if (m_logger.IsEnabled(LogLevel.Error))
                 {
                     m_logger.ServerBaseLogMessage5(e, endpointUri.Scheme);
+                }
+
+                // Only a listener in TransportListeners is disposed when the
+                // server stops. One that failed to open, e.g. because the port
+                // is taken, has no other owner.
+                if (!tracked)
+                {
+                    try
+                    {
+                        await listener.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception disposeError)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.ServerBaseLogMessage3(disposeError, listener.GetType().FullName);
+                        }
+                    }
                 }
                 throw;
             }

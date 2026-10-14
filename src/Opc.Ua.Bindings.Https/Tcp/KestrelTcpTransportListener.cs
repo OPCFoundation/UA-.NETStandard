@@ -916,7 +916,7 @@ namespace Opc.Ua.Bindings
             }
             // Keeps a sessionless channel classified as in use while the
             // request is processed so admission does not reclaim it.
-            using IDisposable usage = channel.TrackPendingRequest();
+            using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
             try
             {
                 var context = new SecureChannelContext(

@@ -1869,7 +1869,40 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
+            return CompleteNodeDeletionAsync(
+                SystemContext.Copy(context),
+                nodeId,
+                deleteTargetReferences: true,
+                () => DeleteNodeCoreAsync(context, nodeId, cancellationToken));
+        }
+
+        private async ValueTask<T> CompleteNodeDeletionAsync<T>(
+            ServerSystemContext context,
+            NodeId nodeId,
+            bool deleteTargetReferences,
+            Func<ValueTask<T>> delete)
+        {
+            var changes = new NodeDeletionModelChanges(
+                context, nodeId, PredefinedNodes, ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
+            T result = default!;
+            Exception? failure = null;
+            try
+            {
+                result = await delete().ConfigureAwait(false);
+            }
+            catch (Exception deletionFailure) when (deletionFailure is not OutOfMemoryException)
+            {
+                failure = deletionFailure;
+            }
+            changes.Complete(failure, deleteTargetReferences, committed =>
+            {
+                foreach (ModelChangeStructureDataType change in committed)
+                {
+                    ModelChangeAggregator.Add(change);
+                }
+                EmitModelChange(context);
+            });
+            return result;
         }
 
         private async ValueTask<bool> DeleteNodeCoreAsync(
@@ -1886,11 +1919,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
-            // The event filter cannot inspect this node after it has been removed.
-            bool emitNodeDeleted = !RequireNodeVersionForModelChange || node.HasNodeVersion();
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
-            NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -1930,19 +1959,6 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-            }
-
-            if (ModelChangeEmissionEnabled)
-            {
-                if (emitNodeDeleted)
-                {
-                    ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
-                }
-                if (!modelChangeParentId.IsNull)
-                {
-                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
-                }
-                EmitModelChange(contextToUse);
             }
 
             return true;
@@ -2302,7 +2318,11 @@ namespace Opc.Ua.Server
             DeleteNodesItem item,
             CancellationToken cancellationToken = default)
         {
-            return DeleteNodeCoreAsync(context, item, cancellationToken);
+            return CompleteNodeDeletionAsync(
+                SystemContext.Copy(context),
+                item == null ? NodeId.Null : item.NodeId,
+                item != null && item.DeleteTargetReferences,
+                () => DeleteNodeCoreAsync(context, item!, cancellationToken));
         }
 
         private async ValueTask<ServiceResult> DeleteNodeCoreAsync(
@@ -2327,9 +2347,7 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown);
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
-            NodeId modelChangeParentId = GetModelChangeParentNodeId(systemContext, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -2373,46 +2391,7 @@ namespace Opc.Ua.Server
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeDeleted(item.NodeId, deletedTypeDefinition);
-                if (!modelChangeParentId.IsNull)
-                {
-                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
-                }
-                EmitModelChange(systemContext);
-            }
-
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Returns the node that loses a hierarchical Reference when
-        /// <paramref name="node"/> is deleted: its parent, or for a node
-        /// placed below a node of another NodeManager the source of its first
-        /// inverse hierarchical Reference.
-        /// </summary>
-        private NodeId GetModelChangeParentNodeId(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: NodeState parent })
-            {
-                return parent.NodeId;
-            }
-
-            var references = new List<IReference>();
-            node.GetReferences(context, references);
-            foreach (IReference reference in references)
-            {
-                if (reference.IsInverse &&
-                    !reference.TargetId.IsAbsolute &&
-                    Server.TypeTree.IsTypeOf(
-                        reference.ReferenceTypeId,
-                        ReferenceTypeIds.HierarchicalReferences))
-                {
-                    return ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
-                }
-            }
-            return NodeId.Null;
         }
 
         private List<NodeState> GetSubtreeNotifiers(ISystemContext context, NodeState node)
