@@ -715,6 +715,55 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         /// <summary>
+        /// The resolver bound is charged per model: a model that exceeds it fails alone, while an
+        /// unrelated model in the same index keeps its context however many documents were scanned.
+        /// </summary>
+        [Test]
+        public void ExhaustedBoundIsScopedToTheModelThatExceedsIt()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            options.MaxResolverDocuments = 2;
+            string directory = DocumentPath("opc-ua-di");
+            const string publication = "\"publicationDate\": \"2025-11-15T00:00:00Z\"";
+            string[] paths = [.. Directory.GetFiles(directory, "*.json").Order(StringComparer.Ordinal).Take(3)];
+            Assert.That(paths, Has.Length.EqualTo(3));
+
+            var index = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var documents = new List<WotDocument>();
+            try
+            {
+                foreach (string path in paths)
+                {
+                    byte[] bytes = File.ReadAllBytes(path);
+                    documents.Add(WotDocument.Parse(bytes, options));
+                    index.Add(documents[^1], bytes.Length);
+                }
+                foreach (string path in paths.Take(2))
+                {
+                    string text = File.ReadAllText(path).Replace(
+                        publication, "\"publicationDate\": \"2024-01-01T00:00:00Z\"", StringComparison.Ordinal);
+                    byte[] bytes = Encoding.UTF8.GetBytes(text);
+                    documents.Add(WotDocument.Parse(bytes, options));
+                    index.Add(documents[^1], bytes.Length);
+                }
+
+                using IDisposable scope = Assert.EnterMultipleScope();
+                Assert.That(
+                    () => index.Find(documents[0]),
+                    Throws.InvalidOperationException.With.Message.Contains("resolver document or byte limit"));
+                Assert.That(index.Find(documents[3]), Is.Not.Null);
+                Assert.That(index.Find(documents[4]), Is.Not.Null);
+            }
+            finally
+            {
+                foreach (WotDocument document in documents)
+                {
+                    document.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
         /// A malformed sibling is only omitted from the native context. A document of
         /// the model still converts, and the malformed document fails by itself.
         /// </summary>

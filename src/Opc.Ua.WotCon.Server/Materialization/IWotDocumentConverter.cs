@@ -334,12 +334,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// A document of a partitioned model states references whose
         /// authoritative facts live in sibling partitions, so the converter
         /// validates it against the preserved nodes of the documents of its own
-        /// model. The document count and byte total are bounded like the sibling
-        /// index, and every document read is charged, malformed or not. Exhausting
-        /// a bound marks the index incomplete, so a document that needs context
-        /// fails with an explicit message rather than validating against an
-        /// arbitrary subset. A malformed sibling is omitted; its own conversion
-        /// reports the failure.
+        /// model. Only the documents a model retains are bounded: the document
+        /// count and byte total of each model are limited like the sibling index,
+        /// so an unrelated model never fails the selected one by registry size.
+        /// The registry's own bounds already limit the content held in memory,
+        /// and a scanned document that joins no model is released immediately.
+        /// Exhausting a model's bound marks that model incomplete, so a document
+        /// of it that needs context fails with an explicit message rather than
+        /// validating against an arbitrary subset. A malformed sibling is
+        /// omitted; its own conversion reports the failure.
         /// </remarks>
         private WotNodeSetConverter.ArchiveContextIndex GetArchiveContexts(
             WotRegistrySnapshot snapshot,
@@ -353,10 +356,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return m_archiveContexts;
                 }
                 var index = new WotNodeSetConverter.ArchiveContextIndex(m_options);
-                int maxDocuments = m_options.MaxResolverDocuments;
-                long maxBytes = m_options.MaxResolverTotalBytes;
-                int read = 0;
-                long total = 0;
                 foreach (WotResource resource in snapshot.AllResources())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -365,19 +364,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         continue;
                     }
-                    if (read >= maxDocuments || total + content.Length > maxBytes)
-                    {
-                        index.MarkIncomplete(
-                            "the registry exceeds the resolver document or byte limit " +
-                            $"({maxDocuments} documents, {maxBytes} bytes).");
-                        break;
-                    }
-                    read++;
-                    total += content.Length;
                     try
                     {
                         using var sibling = WotDocument.Parse(content.Span.ToArray(), m_options);
-                        index.Add(sibling);
+                        index.Add(sibling, content.Length);
                     }
                     catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
                     {

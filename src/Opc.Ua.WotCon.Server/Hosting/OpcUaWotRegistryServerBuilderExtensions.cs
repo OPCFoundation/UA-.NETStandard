@@ -184,7 +184,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 var converterOptions = new WotNodeSetConverterOptions
                 {
                     MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
-                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes
+                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
+                    // A partitioned model keeps one document per partition in a resource
+                    // group, so the registry's own per-group capacity is the largest
+                    // model it can hold; the default would reject a large companion model.
+                    MaxResolverDocuments = Math.Max(
+                        new WotNodeSetConverterOptions().MaxResolverDocuments,
+                        options.Bounds.MaxResourcesPerGroup)
                 };
                 return new WotMaterializationCoordinator(
                     sp.GetRequiredService<IWotRegistryService>(),
