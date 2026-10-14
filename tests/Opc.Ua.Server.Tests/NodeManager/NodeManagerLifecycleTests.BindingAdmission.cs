@@ -369,7 +369,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 DeleteMonitoredItemsResponse response = await services.DeleteMonitoredItemsAsync(
                     m_requestHeader, subscription.SubscriptionId, [itemId])
-                    .WaitAsync(TimeSpan.FromSeconds(15), timeout.Token).ConfigureAwait(false);
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(15), timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
