@@ -778,9 +778,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             using IDisposable scope = Assert.EnterMultipleScope();
             Assert.That(
-                modelledSet.Entries.ToList().Any(e => withModel.Find(e.Document) is not null),
-                Is.True,
-                "The modelled export must supply context.");
+                modelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The modelled export must carry preserved native nodes.");
+            Assert.That(
+                unmodelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The unmodelled export must carry preserved native nodes.");
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList().Where(CarriesNative))
+            {
+                Assert.That(withModel.Find(entry.Document), Is.Not.Null, entry.Href);
+            }
             foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
             {
                 Assert.That(withoutModel.Find(entry.Document), Is.Null, entry.Href);
@@ -791,10 +799,20 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
                     .ConfigureAwait(false);
                 Assert.That(viaIndex.Success, Is.EqualTo(alone.Success), entry.Href);
-                Assert.That(viaIndex.Diagnostics, Has.Count.EqualTo(alone.Diagnostics.Count), entry.Href);
+                Assert.That(Describe(viaIndex), Is.EqualTo(Describe(alone)), entry.Href);
             }
         }
 
+        private static bool CarriesNative(WotDocumentSetEntry entry)
+        {
+            return entry.Document.TryGetEnvelope(out _) || entry.Document.TryGetNativeProjection(out _);
+        }
+
+        private static string[] Describe(WotConversionResult<UANodeSet> result)
+        {
+            return [.. result.Diagnostics.Select(d =>
+                $"{d.Severity}|{d.Code}|{d.Location?.JsonPointer}|{d.Location?.NodeId}|{d.Message}")];
+        }
         private static WotDocumentSet ExportSet(UANodeSet source, WotNodeSetConverterOptions options)
         {
             WotConversionResult<WotDocumentSet> result = WotNodeSetConverter.FromNodeSetDocuments(
