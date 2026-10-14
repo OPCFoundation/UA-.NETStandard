@@ -1415,12 +1415,88 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(result.Success, Is.True, fileName);
             using WotDocument view = result.Value!;
             JsonElement map = view.RootElement.GetProperty(mapName);
-            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers), fileName);
-            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
             ArrayOf<SampleDocument> sources = ReadSubstitutedManifestDocuments().Filter(candidate =>
                 candidate.Path.StartsWith("sample-pump/", StringComparison.Ordinal));
-            foreach (JsonProperty member in map.EnumerateObject())
+
+            // A selected property that declares uav:unitProperty carries its unit property into the view as a
+            // supporting dependency, so the declared units are expected alongside the selected members.
+            var expectedSupport = new List<(string Id, Affordance Declaration)>();
+            if (mapName == "properties")
+            {
+                foreach (string selected in expectedMembers)
+                {
+                    string selectedPath = s_propertyBindings.Single(binding => binding.Name == selected).LocalPath;
+                    Affordance selectedDeclaration = FindAffordance(
+                        sources, mapName, LocalNodeId(pumpName, selectedPath));
+                    if (selectedDeclaration.Value.TryGetProperty("uav:unitProperty", out JsonElement unitPointer))
+                    {
+                        string unitId = LocalNodeId(pumpName, selectedPath + ".EngineeringUnits");
+                        Assert.That(unitPointer.GetString(), Does.StartWith("/properties/"), selected);
+                        expectedSupport.Add((unitId, FindAffordance(sources, mapName, unitId)));
+                    }
+                }
+            }
+
+            var membersNameById = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (expectedSupport.Count > 0 && fileName != $"{pumpName}.Members.td.json")
+            {
+                using WotDocument membersDocument = WotDocument.Parse(
+                    File.ReadAllBytes(DocumentPath($"{pumpName}.Members.td.json")),
+                    WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+                WotConversionResult<WotDocument> membersResult = await resolver.ResolveAsync(membersDocument)
+                    .ConfigureAwait(false);
+                Assert.That(membersResult.Success, Is.True, pumpName + " members");
+                using WotDocument membersView = membersResult.Value!;
+                foreach (JsonProperty entry in membersView.RootElement.GetProperty("properties").EnumerateObject())
+                {
+                    membersNameById[entry.Value.GetProperty("uav:id").GetString()!] = entry.Name;
+                }
+            }
+
+            using IDisposable multipleScope = Assert.EnterMultipleScope();
+            Assert.That(
+                PropertyNames(map).Where(name => expectedMembers.Contains(name)),
+                Is.EquivalentTo(expectedMembers),
+                fileName);
+            Assert.That(
+                map.EnumerateObject()
+                    .Where(entry => !expectedMembers.Contains(entry.Name))
+                    .Select(entry => entry.Value.GetProperty("uav:id").GetString()),
+                Is.EquivalentTo(expectedSupport.Select(support => support.Id)),
+                fileName + " supporting members");
+            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
+            foreach ((string supportId, Affordance supportDeclaration) in expectedSupport)
+            {
+                JsonProperty support = map.EnumerateObject().FirstOrDefault(entry =>
+                    entry.Value.TryGetProperty("uav:id", out JsonElement id) && id.GetString() == supportId);
+                if (support.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                string supportReference = fileName == $"{pumpName}.Members.td.json"
+                    ? supportDeclaration.ResourceId + "#" + supportDeclaration.Pointer
+                    : membersNameById.TryGetValue(supportId, out string? membersName)
+                        ? $"{pumpName.ToLowerInvariant()}-members#/properties/{EscapePointer(membersName)}"
+                        : "<unmatched>";
+                Assert.That(
+                    support.Value.GetProperty("uav:resolvedFrom").GetString(),
+                    Is.EqualTo(supportReference),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:mapToType").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:mapToType").GetString()),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:browseName").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:browseName").GetString()),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:engineeringUnits").GetRawText(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:engineeringUnits").GetRawText()),
+                    support.Name);
+            }
+            foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
             {
                 string localPath = mapName == "properties"
                     ? s_propertyBindings.Single(binding => binding.Name == member.Name).LocalPath
@@ -1456,6 +1532,21 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         Is.EqualTo(localId), member.Name);
                     Assert.That(member.Value.GetProperty("uav:mapToType").GetString(),
                         Is.EqualTo(declaration.Value.GetProperty("uav:mapToType").GetString()), member.Name);
+                    if (declaration.Value.TryGetProperty("uav:unitProperty", out _))
+                    {
+                        string unitId = LocalNodeId(pumpName, localPath + ".EngineeringUnits");
+                        string unitReference = member.Value.GetProperty("uav:unitProperty").GetString()!;
+                        Assert.That(unitReference, Does.StartWith("/properties/"), member.Name);
+                        Assert.That(
+                            map.TryGetProperty(unitReference["/properties/".Length..], out JsonElement unitMember),
+                            Is.True,
+                            member.Name + " unit reference " + unitReference);
+                        Assert.That(
+                            unitMember.ValueKind == JsonValueKind.Object &&
+                            unitMember.GetProperty("uav:id").GetString() == unitId,
+                            Is.True,
+                            member.Name + " unit identity");
+                    }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
                         Assert.That(member.Value.GetProperty("const").GetRawText(),
