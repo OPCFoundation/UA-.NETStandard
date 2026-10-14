@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -1497,21 +1498,21 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     support.Value.GetProperty("uav:browseName").GetString(),
                     Is.EqualTo(supportDeclaration.Value.GetProperty("uav:browseName").GetString()),
                     support.Name);
-                Assert.That(
+                AssertJsonEquivalent(
                     support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
-                        ? CanonicalJson(carriedUnits)
+                        ? carriedUnits
                         : null,
-                    Is.EqualTo(supportDeclaration.Value.TryGetProperty(
-                        "uav:engineeringUnits", out JsonElement declaredUnits) ? CanonicalJson(declaredUnits) : null),
-                    support.Name);
+                    supportDeclaration.Value.TryGetProperty(
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? declaredUnits : null,
+                    support.Name + " uav:engineeringUnits");
                 Assert.That(
                     support.Value.GetProperty("type").GetString(),
                     Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
                     support.Name);
-                Assert.That(
-                    CanonicalJson(support.Value.GetProperty("uav:componentOf")),
-                    Is.EqualTo(CanonicalJson(supportDeclaration.Value.GetProperty("uav:componentOf"))),
-                    support.Name);
+                AssertJsonEquivalent(
+                    support.Value.GetProperty("uav:componentOf"),
+                    supportDeclaration.Value.GetProperty("uav:componentOf"),
+                    support.Name + " uav:componentOf");
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
             {
@@ -1566,8 +1567,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
-                        Assert.That(CanonicalJson(member.Value.GetProperty("const")),
-                            Is.EqualTo(CanonicalJson(constant)), member.Name);
+                        AssertJsonEquivalent(member.Value.GetProperty("const"), constant, member.Name + " const");
+
                     }
                 }
                 else
@@ -1752,53 +1753,20 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
-        private static string CanonicalJson(JsonElement element)
+        private static void AssertJsonEquivalent(JsonElement? actual, JsonElement? expected, string message)
         {
-            var builder = new StringBuilder();
-            AppendCanonicalJson(builder, element);
-            return builder.ToString();
-        }
-
-        private static void AppendCanonicalJson(StringBuilder builder, JsonElement element)
-        {
-            switch (element.ValueKind)
+            Assert.That(actual.HasValue, Is.EqualTo(expected.HasValue), message + " presence");
+            if (actual.HasValue && expected.HasValue)
             {
-                case JsonValueKind.Object:
-                    builder.Append('{');
-                    bool firstProperty = true;
-                    foreach (JsonProperty property in element.EnumerateObject()
-                        .OrderBy(p => p.Name, StringComparer.Ordinal))
-                    {
-                        if (!firstProperty)
-                        {
-                            builder.Append(',');
-                        }
-                        firstProperty = false;
-                        builder.Append(JsonSerializer.Serialize(property.Name)).Append(':');
-                        AppendCanonicalJson(builder, property.Value);
-                    }
-                    builder.Append('}');
-                    break;
-                case JsonValueKind.Array:
-                    builder.Append('[');
-                    bool firstItem = true;
-                    foreach (JsonElement item in element.EnumerateArray())
-                    {
-                        if (!firstItem)
-                        {
-                            builder.Append(',');
-                        }
-                        firstItem = false;
-                        AppendCanonicalJson(builder, item);
-                    }
-                    builder.Append(']');
-                    break;
-                default:
-                    builder.Append(element.GetRawText());
-                    break;
+                Assert.That(
+                    JsonNode.DeepEquals(
+                        JsonNode.Parse(actual.Value.GetRawText()),
+                        JsonNode.Parse(expected.Value.GetRawText())),
+                    Is.True,
+                    message + Environment.NewLine + actual.Value.GetRawText() + Environment.NewLine +
+                    expected.Value.GetRawText());
             }
         }
-
         private static Affordance FindAffordance(
             ArrayOf<SampleDocument> documents,
             string mapName,
