@@ -1418,7 +1418,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers), fileName);
             Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> sources = ReadPumpDocuments();
+            ArrayOf<SampleDocument> sources = ReadSubstitutedManifestDocuments().Filter(candidate =>
+                candidate.Path.StartsWith("sample-pump/", StringComparison.Ordinal));
             foreach (JsonProperty member in map.EnumerateObject())
             {
                 string localPath = mapName == "properties"
