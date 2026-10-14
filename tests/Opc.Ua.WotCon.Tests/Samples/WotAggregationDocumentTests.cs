@@ -318,6 +318,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             var resolver = new WotProjectionResolver(
                 new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            using IDisposable allViewsScope = Assert.EnterMultipleScope();
 
             foreach (string pumpName in s_pumpAssetNames)
             {
