@@ -124,9 +124,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public IWotInvocationProjectionHost Observe(
             Action<ArrayOf<WotProjectionChange>> published,
             Action<ArrayOf<WotProjectionChange>>? validate = null,
-            Action<ArrayOf<WotProjectionChange>>? prepare = null)
+            Action<ArrayOf<WotProjectionChange>>? prepare = null,
+            Action<string, IOperationContext?>? contextObserved = null)
         {
-            return new ObservedHost(Host, published, validate, prepare);
+            return new ObservedHost(Host, published, validate, prepare, contextObserved);
         }
 
         public async ValueTask DisposeAsync()
@@ -159,7 +160,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             LifecycleWotProjectionHost inner,
             Action<ArrayOf<WotProjectionChange>> published,
             Action<ArrayOf<WotProjectionChange>>? validate,
-            Action<ArrayOf<WotProjectionChange>>? prepare) : IWotInvocationProjectionHost
+            Action<ArrayOf<WotProjectionChange>>? prepare,
+            Action<string, IOperationContext?>? contextObserved) : IWotInvocationProjectionHost
         {
             /// <summary>
             /// Gets the supports prepared publication for <c>ObservedHost</c>.
@@ -173,7 +175,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public IWotProjectionPublicationCapture CapturePublication()
             {
-                return new ObservedCapture(inner.CapturePublication(), published, validate, prepare);
+                return new ObservedCapture(inner.CapturePublication(), published, validate, prepare, contextObserved);
             }
 
             /// <inheritdoc/>
@@ -184,6 +186,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 IOperationContext? callerContext, CancellationToken cancellationToken)
             {
                 prepare?.Invoke(changes);
+                contextObserved?.Invoke("prepare", callerContext);
                 IWotPreparedProjectionPublication unit = await inner
                     .PrepareAsync(changes, views, callerContext, cancellationToken)
                     .ConfigureAwait(false);
@@ -235,7 +238,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IWotProjectionPublicationCapture inner,
             Action<ArrayOf<WotProjectionChange>> published,
             Action<ArrayOf<WotProjectionChange>>? validate,
-            Action<ArrayOf<WotProjectionChange>>? prepare)
+            Action<ArrayOf<WotProjectionChange>>? prepare,
+            Action<string, IOperationContext?>? contextObserved)
             : IWotProjectionPublicationCapture
         {
             /// <inheritdoc/>
@@ -245,6 +249,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 IOperationContext? callerContext,
                 CancellationToken cancellationToken)
             {
+                contextObserved?.Invoke("begin", callerContext);
                 IWotProjectionPublication invocation = await inner.BeginAsync(callerContext, cancellationToken)
                     .ConfigureAwait(false);
                 return new ObservedInvocation(invocation, published, validate, prepare);
