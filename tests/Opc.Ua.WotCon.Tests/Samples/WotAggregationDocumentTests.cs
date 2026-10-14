@@ -652,6 +652,120 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.True);
         }
 
+        /// <summary>
+        /// Exhausting the resolver document or byte bound while composing the native
+        /// context fails the document that needs it explicitly, never with a partial
+        /// context, and cancellation propagates.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExhaustedNativeContextBoundFailsExplicitlyAsync(bool documentBound)
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            if (documentBound)
+            {
+                options.MaxResolverDocuments = 2;
+            }
+            else
+            {
+                options.MaxResolverTotalBytes = 1024;
+            }
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput output = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            using var cancelled = new System.Threading.CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(output.Succeeded, Is.False);
+            Assert.That(output.NodeSet, Is.Null);
+            Assert.That(string.Join("; ", output.Errors), Does.Contain("limit"));
+            Assert.That(
+                async () => await new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options)
+                    .ConvertAsync(
+                        resource,
+                        contents[resource.DefaultVersion!.DigestHex],
+                        snapshot,
+                        contents,
+                        cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        /// <summary>
+        /// A malformed sibling is only omitted from the native context. A document of
+        /// the model still converts, and the malformed document fails by itself.
+        /// </summary>
+        [Test]
+        public async Task MalformedSiblingIsOmittedFromNativeContextOnlyAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource broken = FindResource(snapshot, "opc-ua-di-networktype");
+            contents[broken.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput selected = await converter.ConvertAsync(
+                broken,
+                contents[broken.DefaultVersion.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput other = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(selected.Succeeded, Is.False);
+            Assert.That(selected.Errors, Is.Not.Empty);
+            Assert.That(string.Join("; ", other.Errors), Does.Not.Contain("limit"));
+        }
+
+        private static Opc.Ua.WotCon.Server.Registry.WotResource FindResource(
+            Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+            string resourceId)
+        {
+            return snapshot.AllResources().Single(
+                r => string.Equals(r.ResourceId, resourceId, StringComparison.Ordinal));
+        }
+
+        private static async Task<(Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot,
+            Dictionary<string, ByteString>)> StoreDiPartitionsAsync()
+        {
+            using var registry = new Opc.Ua.WotCon.Server.Registry.WotRegistryService();
+            var contents = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            foreach (string path in Directory.GetFiles(DocumentPath("opc-ua-di"), "*.json"))
+            {
+                byte[] bytes = File.ReadAllBytes(path);
+                bool model = Encoding.UTF8.GetString(bytes).Contains("tm:ThingModel", StringComparison.Ordinal);
+                ByteString content = ByteString.From(bytes);
+                contents[Opc.Ua.WotCon.Server.Registry.WotContentDigest.ToHex(
+                    Opc.Ua.WotCon.Server.Registry.WotContentDigest.Compute(content))] = content;
+                await registry.UpsertResourceAsync(new Opc.Ua.WotCon.Server.Registry.WotUpsertResourceRequest
+                {
+                    GroupId = model
+                        ? Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingModels
+                        : Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingDescriptions,
+                    ResourceId = Path.GetFileNameWithoutExtension(path),
+                    Kind = model ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                    Content = content
+                }).ConfigureAwait(false);
+            }
+            return (registry.Current, contents);
+        }
+
         private sealed class ContextResolver : IWotThingResolver, IWotArchiveContextProvider
         {
             public ContextResolver(WotNodeSetConverter.ArchiveContextIndex contexts)
