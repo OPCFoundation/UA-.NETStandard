@@ -196,7 +196,7 @@ namespace Opc.Ua.WotCon.Server
                 if (asset.WoTFile != null)
                 {
                     asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
-                    asset.WoTFile.BrowseName = new QualifiedName("WoTFile", AssetNamespaceIndex);
+                    asset.WoTFile.BrowseName = new QualifiedName("WoTFile", WotConNamespaceIndex);
                     asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
                     AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
                 }

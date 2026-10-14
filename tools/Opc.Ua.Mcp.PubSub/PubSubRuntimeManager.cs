@@ -34,14 +34,13 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
-using Opc.Ua.PubSub.Udp;
 
 namespace Opc.Ua.Mcp
 {
@@ -64,10 +63,23 @@ namespace Opc.Ua.Mcp
         private MutablePublishedDataSetSource? m_source;
         private BufferedSubscribedDataSetSink? m_sink;
         private readonly List<PubSubActionResponderRegistration> m_actionResponders = [];
+
+        private readonly List<(PubSubActionResponderRegistration Registration, IAsyncDisposable Binding)> m_bindings
+            = [];
+
         private PubSubRuntimeMode m_mode = PubSubRuntimeMode.Stopped;
         private string m_endpoint = string.Empty;
         private ushort m_publisherId;
         private ushort m_writerGroupId;
+        private McpCallerIdentity? m_owner;
+        private bool m_disposed;
+        private readonly Lock m_disposalState = new();
+        private readonly CancellationTokenSource m_shutdown = new();
+        private readonly TaskCompletionSource m_drained = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private Task? m_disposal;
+        private bool m_disposeRequested;
+        private bool m_controlsDisposed;
+        private int m_pendingUses;
 
         /// <summary>
         /// Initializes a new <see cref="PubSubRuntimeManager"/>.
@@ -92,25 +104,30 @@ namespace Opc.Ua.Mcp
             CancellationToken ct = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
+            _ = RequireExecution();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(fieldSpec?.Length ?? 0, 65536);
 
             List<RuntimeFieldDefinition> fields = ParseFieldSpec(fieldSpec);
-            var source = new MutablePublishedDataSetSource(DataSetName, fields);
-            IPubSubApplication app = CreateBuilder("urn:opcfoundation:OpcUaMcp:PubSubPublisher")
-                .AddDataSetSource(DataSetName, source)
-                .UseConfiguration(BuildPublisherConfiguration(endpoint, publisherId, writerGroupId, fields))
-                .Build();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(fields.Count, 64);
+            MutablePublishedDataSetSource? source = null;
+            try
+            {
+                source = new MutablePublishedDataSetSource(DataSetName, fields);
+                IPubSubApplication app = CreateBuilder(
+                        "urn:opcfoundation:OpcUaMcp:PubSubPublisher", endpoint, publisher: true)
+                    .AddDataSetSource(DataSetName, source)
+                    .UseConfiguration(BuildPublisherConfiguration(endpoint, publisherId, writerGroupId, fields))
+                    .Build();
 
-            await ReplaceAndStartAsync(
-                app,
-                PubSubRuntimeMode.Publisher,
-                endpoint,
-                publisherId,
-                writerGroupId,
-                source,
-                sink: null,
-                ct).ConfigureAwait(false);
-
-            return await StatusAsync(ct).ConfigureAwait(false);
+                await ReplaceAndStartAsync(app, PubSubRuntimeMode.Publisher, endpoint, publisherId, writerGroupId,
+                    source, sink: null, ct).ConfigureAwait(false);
+                source = null;
+                return await StatusAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                source?.Dispose();
+            }
         }
 
         /// <summary>
@@ -124,25 +141,30 @@ namespace Opc.Ua.Mcp
             CancellationToken ct = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
+            _ = RequireExecution();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(fieldSpec?.Length ?? 0, 65536);
 
             List<RuntimeFieldDefinition> fields = ParseFieldSpec(fieldSpec);
-            var sink = new BufferedSubscribedDataSetSink(DefaultRingCapacity);
-            IPubSubApplication app = CreateBuilder("urn:opcfoundation:OpcUaMcp:PubSubSubscriber")
-                .AddSubscribedDataSetSink(ReaderName, sink)
-                .UseConfiguration(BuildSubscriberConfiguration(endpoint, publisherId, writerGroupId, fields))
-                .Build();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(fields.Count, 64);
+            BufferedSubscribedDataSetSink? sink = null;
+            try
+            {
+                sink = new BufferedSubscribedDataSetSink(DefaultRingCapacity);
+                IPubSubApplication app = CreateBuilder(
+                        "urn:opcfoundation:OpcUaMcp:PubSubSubscriber", endpoint, publisher: false)
+                    .AddSubscribedDataSetSink(ReaderName, sink)
+                    .UseConfiguration(BuildSubscriberConfiguration(endpoint, publisherId, writerGroupId, fields))
+                    .Build();
 
-            await ReplaceAndStartAsync(
-                app,
-                PubSubRuntimeMode.Subscriber,
-                endpoint,
-                publisherId,
-                writerGroupId,
-                source: null,
-                sink,
-                ct).ConfigureAwait(false);
-
-            return await StatusAsync(ct).ConfigureAwait(false);
+                await ReplaceAndStartAsync(app, PubSubRuntimeMode.Subscriber, endpoint, publisherId, writerGroupId,
+                    source: null, sink, ct).ConfigureAwait(false);
+                sink = null;
+                return await StatusAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                sink?.Dispose();
+            }
         }
 
         /// <summary>
@@ -154,10 +176,13 @@ namespace Opc.Ua.Mcp
             CancellationToken ct = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(fieldValues);
+            _ = RequireExecution();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(fieldValues.Length, 65536);
 
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 if (m_mode != PubSubRuntimeMode.Publisher || m_source is null)
                 {
                     throw new InvalidOperationException("Start a publisher with pubsub_runtime_start_publisher first.");
@@ -177,7 +202,52 @@ namespace Opc.Ua.Mcp
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
+            }
+        }
+
+        /// <summary>
+        /// Admits a legacy operation without letting shutdown dispose a semaphore with queued callers.
+        /// </summary>
+        private async Task EnterGateAsync(CancellationToken ct)
+        {
+            lock (m_disposalState)
+            {
+                ObjectDisposedException.ThrowIf(m_disposeRequested, this);
+                m_pendingUses++;
+            }
+            try
+            {
+                await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                ReleaseUse();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Releases an admitted operation before signaling that host disposal may complete.
+        /// </summary>
+        private void ExitGate()
+        {
+            m_gate.Release();
+            ReleaseUse();
+        }
+
+        /// <summary>
+        /// Completes the shutdown barrier after the last queued or executing caller leaves.
+        /// </summary>
+        private void ReleaseUse()
+        {
+            lock (m_disposalState)
+            {
+                m_pendingUses--;
+                if (m_disposeRequested && m_pendingUses == 0)
+                {
+                    m_drained.TrySetResult();
+                }
             }
         }
 
@@ -188,16 +258,17 @@ namespace Opc.Ua.Mcp
             bool clear,
             CancellationToken ct = default)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 return m_mode == PubSubRuntimeMode.Subscriber && m_sink is not null
                     ? await m_sink.ReadAsync(clear, ct).ConfigureAwait(false)
                     : [];
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
@@ -206,14 +277,15 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public async ValueTask<PubSubRuntimeStatus> StatusAsync(CancellationToken ct = default)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 return CreateStatus();
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
@@ -231,19 +303,23 @@ namespace Opc.Ua.Mcp
             TimeSpan timeout,
             CancellationToken ct = default)
         {
-            IPubSubApplication app;
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, m_shutdown.Token);
+            ct = lifetime.Token;
+            _ = RequireExecution();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(timeout, TimeSpan.FromSeconds(30));
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ??
+                RequireOwner();
+                IPubSubApplication app = m_application ??
                     throw new InvalidOperationException(
                         "No PubSub runtime is active. Start a publisher or subscriber first.");
+                return await app.RequestDiscoveryAsync(request, timeout, ct).ConfigureAwait(false);
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
-            return await app.RequestDiscoveryAsync(request, timeout, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -259,19 +335,24 @@ namespace Opc.Ua.Mcp
             TimeSpan timeout,
             CancellationToken ct = default)
         {
-            IPubSubApplication app;
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, m_shutdown.Token);
+            ct = lifetime.Token;
+            _ = RequireExecution();
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(timeout, TimeSpan.FromSeconds(30));
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(request.InputFields.Count, 64);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ??
+                RequireOwner();
+                IPubSubApplication app = m_application ??
                     throw new InvalidOperationException(
                         "No PubSub runtime is active. Start a publisher or subscriber first.");
+                return await app.InvokeActionAsync(request, timeout, ct).ConfigureAwait(false);
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
-            return await app.InvokeActionAsync(request, timeout, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -284,16 +365,39 @@ namespace Opc.Ua.Mcp
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The registered responder information.</returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public async ValueTask<PubSubActionResponderRegistration> RegisterActionResponderAsync(
+        public ValueTask<PubSubActionResponderRegistration> RegisterActionResponderAsync(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
             string responderKind,
             string details,
             CancellationToken ct = default)
         {
+            return RegisterActionResponderCoreAsync(target, handler, responderKind, details, null, ct);
+        }
+
+        /// <summary>
+        /// Transfers ownership of an explicitly scoped method binding only after registration succeeds.
+        /// </summary>
+        internal ValueTask<PubSubActionResponderRegistration> RegisterBoundActionResponderAsync(
+            PubSubActionTarget target, IPubSubActionHandler handler, string details,
+            IAsyncDisposable binding, CancellationToken ct)
+        {
+            return RegisterActionResponderCoreAsync(target, handler, "method", details, binding, ct);
+        }
+
+        /// <summary>
+        /// Applies common legacy registration, ownership and bounded-responder rules.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        private async ValueTask<PubSubActionResponderRegistration> RegisterActionResponderCoreAsync(
+            PubSubActionTarget target, IPubSubActionHandler handler, string responderKind, string details,
+            IAsyncDisposable? binding, CancellationToken ct)
+        {
             ArgumentNullException.ThrowIfNull(target);
             ArgumentNullException.ThrowIfNull(handler);
             ArgumentException.ThrowIfNullOrWhiteSpace(responderKind);
+            _ = RequireExecution();
 
             var registration = new PubSubActionResponderRegistration(
                 target.ConnectionName,
@@ -303,9 +407,15 @@ namespace Opc.Ua.Mcp
                 responderKind,
                 details ?? string.Empty);
 
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
+                if (m_actionResponders.Count >= 64 && !m_actionResponders.Any(item => item.MatchesTarget(registration)))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManyOperations,
+                        "The legacy runtime's responder quota is full.");
+                }
                 IPubSubApplication app = m_application ??
                     throw new InvalidOperationException(
                         "No PubSub runtime is active. Start a publisher or subscriber first.");
@@ -315,13 +425,23 @@ namespace Opc.Ua.Mcp
                 // without message security a deliberate, auditable choice rather than
                 // a silent default.
                 app.RegisterActionHandler(target, handler, allowUnsecured: true);
+                foreach ((PubSubActionResponderRegistration previous, IAsyncDisposable owned) in m_bindings
+                    .Where(item => item.Registration.MatchesTarget(registration)).ToArray())
+                {
+                    await owned.DisposeAsync().ConfigureAwait(false);
+                    m_bindings.Remove((previous, owned));
+                }
                 m_actionResponders.RemoveAll(item => item.MatchesTarget(registration));
                 m_actionResponders.Add(registration);
+                if (binding is not null)
+                {
+                    m_bindings.Add((registration, binding));
+                }
                 return registration;
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
@@ -333,9 +453,10 @@ namespace Opc.Ua.Mcp
         public async ValueTask<ArrayOf<PubSubActionTargetInfo>> ListActionTargetsAsync(
             CancellationToken ct = default)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 var targets = new List<PubSubActionTargetInfo>();
                 if (m_application is not null)
                 {
@@ -354,7 +475,7 @@ namespace Opc.Ua.Mcp
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
@@ -366,14 +487,15 @@ namespace Opc.Ua.Mcp
         public async ValueTask<ArrayOf<PubSubActionResponderRegistration>> ListActionRespondersAsync(
             CancellationToken ct = default)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 return [.. m_actionResponders];
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
@@ -382,23 +504,74 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public async ValueTask<PubSubRuntimeStatus> StopAsync(CancellationToken ct = default)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            await EnterGateAsync(ct).ConfigureAwait(false);
             try
             {
+                RequireOwner();
                 await StopCurrentAsync(ct).ConfigureAwait(false);
                 return CreateStatus();
             }
             finally
             {
-                m_gate.Release();
+                ExitGate();
             }
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            await StopAsync(CancellationToken.None).ConfigureAwait(false);
-            m_gate.Dispose();
+            Task disposal;
+            lock (m_disposalState)
+            {
+                if (m_disposal is null)
+                {
+                    m_disposeRequested = true;
+                    if (m_pendingUses == 0)
+                    {
+                        m_drained.TrySetResult();
+                    }
+                    m_disposal = DisposeCoreAsync();
+                }
+                disposal = m_disposal;
+            }
+            try
+            {
+                await disposal.ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_disposalState)
+                {
+                    if (!m_controlsDisposed)
+                    {
+                        m_gate.Dispose();
+                        m_shutdown.Dispose();
+                        m_controlsDisposed = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cancels activation and drains admitted callers before disposing the private gate.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
+            await m_shutdown.CancelAsync().ConfigureAwait(false);
+            await m_drained.Task.ConfigureAwait(false);
+            await m_gate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (!m_disposed)
+                {
+                    await StopCurrentAsync(CancellationToken.None).ConfigureAwait(false);
+                    m_disposed = true;
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
         }
 
         private async ValueTask ReplaceAndStartAsync(
@@ -411,9 +584,17 @@ namespace Opc.Ua.Mcp
             BufferedSubscribedDataSetSink? sink,
             CancellationToken ct)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            CancellationTokenSource? lifetime = null;
+            bool acquired = false;
             try
             {
+                lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, m_shutdown.Token);
+                ct = lifetime.Token;
+                await EnterGateAsync(ct).ConfigureAwait(false);
+                acquired = true;
+                ObjectDisposedException.ThrowIf(m_disposed, this);
+                McpCallerIdentity caller = RequireExecution();
+                RequireOwner();
                 await StopCurrentAsync(ct).ConfigureAwait(false);
                 await app.StartAsync(ct).ConfigureAwait(false);
                 m_application = app;
@@ -423,6 +604,7 @@ namespace Opc.Ua.Mcp
                 m_writerGroupId = writerGroupId;
                 m_source = source;
                 m_sink = sink;
+                m_owner = caller;
             }
             catch
             {
@@ -431,17 +613,25 @@ namespace Opc.Ua.Mcp
             }
             finally
             {
-                m_gate.Release();
+                lifetime?.Dispose();
+                if (acquired)
+                {
+                    ExitGate();
+                }
             }
         }
 
-        private PubSubApplicationBuilder CreateBuilder(string applicationId)
+        private PubSubApplicationBuilder CreateBuilder(string applicationId, string endpoint, bool publisher)
         {
             var telemetry = new ServiceProviderTelemetryContext(m_services);
+            if (m_services.GetService<IMcpPubSubTransportProvider>() is not { } provider)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The legacy UDP runtime requires the host's policy-controlled PubSub transport provider.");
+            }
             return new PubSubApplicationBuilder(telemetry)
                 .WithApplicationId(applicationId)
-                .AddTransportFactory(new UdpPubSubTransportFactory(
-                    Options.Create(new UdpTransportOptions())))
+                .AddTransportFactory(provider.CreateLegacyFactory(endpoint, publisher))
                 .AddEncoder(new UadpEncoder())
                 .AddDecoder(new UadpDecoder());
         }
@@ -451,6 +641,25 @@ namespace Opc.Ua.Mcp
             IPubSubApplication? app = m_application;
             MutablePublishedDataSetSource? source = m_source;
             BufferedSubscribedDataSetSink? sink = m_sink;
+            if (app is not null)
+            {
+                try
+                {
+                    await app.StopAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.StoppingPubSubRuntimeFailed(ex);
+                }
+                await app.DisposeAsync().ConfigureAwait(false);
+            }
+            foreach ((_, IAsyncDisposable binding) in m_bindings)
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+            }
+            m_bindings.Clear();
+            source?.Dispose();
+            sink?.Dispose();
             m_application = null;
             m_source = null;
             m_sink = null;
@@ -458,25 +667,62 @@ namespace Opc.Ua.Mcp
             m_endpoint = string.Empty;
             m_publisherId = 0;
             m_writerGroupId = 0;
+            m_owner = null;
             m_actionResponders.Clear();
+        }
 
-            if (app is null)
-            {
-                return;
-            }
+        /// <summary>
+        /// Requires explicit host/caller opt-in, including for the legacy catalogue and Full.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private McpCallerIdentity RequireExecution()
+        {
+            return (m_services.GetService<IMcpOperationPolicy>() ??
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                    "The host must explicitly configure PubSubRuntime authority before legacy live execution."))
+                .Require(McpCapability.PubSubRuntime);
+        }
 
-            try
+        /// <summary>
+        /// Captures exact host endpoint/node/method permission and the shared protected-target guard.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask<McpPubSubBorrowedSession> CreateMethodBindingAsync(
+            OpcUaSessionManager sessions, OpcUaSessionManager.SessionInfo info, NodeId objectId, NodeId methodId,
+            CancellationToken ct)
+        {
+            _ = sessions.OperationPolicy.RequireSession(McpCapability.PubSubBridge, info.Name);
+            McpPubSubOptions options = m_services.GetRequiredService<McpPubSubOptions>();
+            if (info.Endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                !options.AdapterRules.ToList().Any(rule => rule.Operation == "call" &&
+                    rule.SessionName == info.Name &&
+                    rule.Endpoint == info.Endpoint.EndpointUrl &&
+                    McpPubSubRemote.Node(info.Session, rule.NodeId) == objectId &&
+                    rule.MethodId is not null &&
+                    McpPubSubRemote.Node(info.Session, rule.MethodId) == methodId))
             {
-                await app.StopAsync(ct).ConfigureAwait(false);
+                throw McpPubSubTransportProvider.Refused();
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                m_logger.StoppingPubSubRuntimeFailed(ex);
-            }
+            await sessions.UaOperationGuard.AuthorizeCallsAsync(info,
+                [new CallMethodRequest { ObjectId = objectId, MethodId = methodId }], ct).ConfigureAwait(false);
+            return new McpPubSubBorrowedSession(sessions, info, "call", [objectId], options,
+                m_services.GetService<TimeProvider>() ?? TimeProvider.System, methodId);
+        }
 
-            await app.DisposeAsync().ConfigureAwait(false);
-            source?.Dispose();
-            sink?.Dispose();
+        /// <summary>
+        /// Prevents another caller from reading, replacing or stopping the legacy default.
+        /// Its lifetime remains until explicit stop or host disposal, not a named-runtime lease.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void RequireOwner()
+        {
+            ObjectDisposedException.ThrowIf(m_disposed, this);
+            if (m_owner is not null &&
+                m_services.GetRequiredService<IMcpOperationPolicy>().RequireCaller() != m_owner)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                    "The legacy default PubSub runtime belongs to another caller.");
+            }
         }
 
         private PubSubRuntimeStatus CreateStatus()

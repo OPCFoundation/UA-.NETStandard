@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -41,6 +42,65 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public static class WoTAssetFileTypeClientExtensions
     {
+        /// <summary>
+        /// Uploads a bounded stream and returns the actual CloseAndUpdate status and consumed byte count.
+        /// Does not retry a commit or replace its completed result with late cancellation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">The proxy or source is null.</exception>
+        /// <exception cref="ArgumentException">The source is not readable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A transfer limit is invalid.</exception>
+        /// <exception cref="ServiceResultException">The commit is refused.</exception>
+        /// <exception cref="IOException"></exception>
+        public static async ValueTask<(long BytesTransferred, StatusCode StatusCode)> UploadAndUpdateWithResultAsync(
+            this WoTAssetFileTypeClient file,
+            Stream source,
+            long maxBytes,
+            int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if (!source.CanRead)
+            {
+                throw new ArgumentException("The source must be readable.", nameof(source));
+            }
+            if (maxBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxBytes));
+            }
+            if (chunkSize is <= 0 or > 1_048_576)
+            {
+                throw new ArgumentOutOfRangeException(nameof(chunkSize));
+            }
+            if (source.CanSeek && source.Length - source.Position > maxBytes)
+            {
+                throw new IOException("The source exceeds the configured transfer limit.");
+            }
+            uint handle = await file.OpenAsync(WriteEraseMode, ct).ConfigureAwait(false);
+            try
+            {
+                long total = await file.WriteStreamAsync(handle, source, maxBytes, chunkSize, ct).ConfigureAwait(false);
+                CallMethodResult commit = await file.CallWithResultAsync(
+                    MethodIds.WoTAssetFileType_CloseAndUpdate, [Variant.From(handle)], ct).ConfigureAwait(false);
+                if (StatusCode.IsBad(commit.StatusCode))
+                {
+                    throw new ServiceResultException(commit.StatusCode);
+                }
+                return (total, commit.StatusCode);
+            }
+            catch (Exception)
+            {
+                await file.CloseAfterFailureAsync(handle).ConfigureAwait(false);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Spec §6.3.10 only allows Read (1) and Write|EraseExisting (6).
         /// </summary>

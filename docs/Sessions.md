@@ -24,6 +24,7 @@ choose between them.
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
 | `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
+| `SessionRequestContext` | borrowed session view | rejects stale dispatch instead of reconnecting | not a subscription/reconnect facade | generation-sensitive remote handles, cursors and target classifications |
 | `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
 Everything below explains how these pieces fit together.
@@ -43,6 +44,7 @@ Everything below explains how these pieces fit together.
   - [`ManagedSessionFactory`](#managedsessionfactory)
   - [`ManagedSessionBuilder`](#managedsessionbuilder)
   - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
@@ -423,6 +425,51 @@ is consumed by the initial connection attempt only. Supplying that connection
 without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
+
+### Generation-bound client requests
+
+Use `SessionRequestContext` when several calls must use the **same server
+session**, such as continuing a history read, writing an open file, or acting on
+a target you have already checked. A `ManagedSession` can reconnect between
+those calls. Without a context, an old file handle or continuation point could
+be sent to the replacement session.
+
+Capture a context from your existing `ManagedSession` and pass `context.Session`
+to the clients or generated proxies used by the whole operation:
+
+```csharp
+using Opc.Ua.Client;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+
+ISession requestSession = context.Session;
+// Use requestSession for target lookup and every subsequent call in this operation.
+```
+
+The context borrows the connection; it does not connect or reconnect for you.
+Keep it alive until resources opened through it have been cleaned up. Disposing
+it releases its local resources, not the owning session.
+
+If recovery starts or the captured session becomes stale, later calls fail with
+`BadSessionIdInvalid` instead of following the replacement. `Invalidated` lets you
+stop work that depends on that session. Start a new context and obtain fresh
+handles before starting another operation.
+
+The context does not make a sequence atomic or retry failed calls. Late
+cancellation does not replace a returned mutation result; a lost response can
+mean the mutation committed, so inspect the server before retrying. Changes to the
+server's address space or permissions still need your application's normal
+handling.
+
+Capture requires the stack's `ManagedSession` and a supported transport;
+unsupported custom sessions or managed transports return `BadNotSupported`.
+For ordinary independent calls, continue using the managed session directly.
+
+See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
+[historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
+[role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the
+corresponding client APIs.
 
 ### Closing a `ManagedSession`
 

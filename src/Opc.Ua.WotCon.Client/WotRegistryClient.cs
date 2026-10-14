@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Encoders;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 
@@ -95,6 +94,7 @@ namespace Opc.Ua.WotCon.Client
         /// fetched the server namespace table yet, so this appends rather than failing — matching
         /// what <see cref="ForServerAsync"/> does.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private static string EnsureRegistryNamespace(ISession session)
         {
             if (session is null)
@@ -109,6 +109,7 @@ namespace Opc.Ua.WotCon.Client
         /// Rejects a null registry root. The WoT registry root is server-specific and discovered by
         /// Browse, so unlike the base model there is no well-known identifier to fall back to.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)
         {
             if (registryObjectId.IsNull)
@@ -289,6 +290,7 @@ namespace Opc.Ua.WotCon.Client
         /// generation.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<WotRegistryRefreshResult> RefreshAsync(
             ArrayOf<WoTResourceSelectorDataType> selection,
             WoTRefreshOptionsDataType options,
@@ -339,7 +341,7 @@ namespace Opc.Ua.WotCon.Client
                     "Refresh returned unexpected output arguments: " +
                     $"{output[0].TypeInfo}, {output[1].TypeInfo}, {output[2].TypeInfo}.");
             }
-            return new WotRegistryRefreshResult(summary, results, newGeneration);
+            return new WotRegistryRefreshResult(summary, results, newGeneration, callResult.StatusCode);
         }
 
         private bool TryDecodeStructure<T>(Variant value, out T? result)
@@ -387,8 +389,8 @@ namespace Opc.Ua.WotCon.Client
             var decoded = new T[extensions.Count];
             for (int i = 0; i < extensions.Count; i++)
             {
-                if (!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
-                    !TryDecodeBinaryExtension(extensions[i], out item) ||
+                if ((!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
+                    !TryDecodeBinaryExtension(extensions[i], out item)) ||
                     item is null)
                 {
                     return false;
@@ -775,11 +777,13 @@ namespace Opc.Ua.WotCon.Client
         internal WotRegistryRefreshResult(
             WoTRefreshSummaryDataType summary,
             ArrayOf<WoTResourceLoadResultDataType> results,
-            uint newGeneration)
+            uint newGeneration,
+            StatusCode methodStatus)
         {
             Summary = summary;
             Results = results;
             NewGeneration = newGeneration;
+            MethodStatus = methodStatus;
         }
 
         /// <summary>
@@ -796,6 +800,11 @@ namespace Opc.Ua.WotCon.Client
         /// The registry generation committed by this refresh.
         /// </summary>
         public uint NewGeneration { get; }
+
+        /// <summary>
+        /// Gets the actual method status, including non-default Good completion codes.
+        /// </summary>
+        public StatusCode MethodStatus { get; }
 
         /// <summary>
         /// True when the registry-wide outcome, or any per-resource

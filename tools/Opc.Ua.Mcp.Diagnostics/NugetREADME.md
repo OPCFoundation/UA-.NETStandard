@@ -19,6 +19,36 @@ captured traffic. They are **disabled by default** and are registered only when
 a host opts in, either through `Pcap:EnableDiagnosticsTools` in configuration or
 the `OPCUA_PCAP_ENABLE_DIAGNOSTICS` environment variable. `AreDiagnosticsToolsEnabled`
 evaluates both.
+Enabling diagnostics emits a startup warning so the choice is visible in logs.
+
+Capture and key-log paths are confined by `McpCapturePath.ResolveAndValidate`.
+Root precedence is `OpcUaMcpOptions.PcapBaseFolder`, then `PcapOptions.BaseFolder`,
+then the per-user platform default documented in the
+[diagnostics storage guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#default-storage).
+Keep that directory owned by the dedicated service account. Treat captures and
+key logs as secrets, authenticate the MCP transport, and audit its use.
+Mock-client replay additionally requires `AllowMockClientReplay` and explicit
+`AllowedReplayEndpoints`; no wildcard or implicit permission is granted.
+
+## Arguments and outputs
+
+| Tools | Arguments / result selection |
+| --- | --- |
+| `start_capture`, `capture_now` | `source`: `nic`, `inproc-client`, `inproc-server`, `replay`; optional interface, filter, endpoint, limits and folder |
+| `get_capture`, `capture_now` | `format`: `pcap`, `pcapng`, `json`, `csv`, `text`, `service-timeline`; optional packet/partial controls |
+| `stop_capture`, `get_capture`, `stop_replay` | `sessionId` returned by creation |
+| `list_captures` | Optional `state` |
+| `dump_keys` | Optional `sessionId`, `format`, `includeExpired` |
+| `decode_pcap_with_keys` | `pcapPath`, `keylogPath`, `format`, optional `maxFrames` |
+| `summarize_service_calls` | `sessionId` or `pcapPath` + `keylogPath`, optional `top` |
+| `replay_pcap` | `pcapPath`, `keylogPath`, `mode`, endpoints and `speed` |
+
+Hyphenated enum values are emitted on output; CLR names such as
+`InProcessClient` and `ServiceTimeline` remain accepted on input.
+Interface enumeration does not open adapters, so `linkType` may be null.
+
+See the [tool catalogue](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#packet-capture-tools)
+for per-tool behavior.
 
 ## Usage
 

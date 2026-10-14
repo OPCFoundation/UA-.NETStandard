@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -54,7 +55,7 @@ namespace Opc.Ua.XRegistry.Client
     /// client reuses every convenience method defined here.
     /// </para>
     /// </remarks>
-    public abstract class XRegistryClient
+    public abstract partial class XRegistryClient : IXRegistryFederationProvider
     {
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
@@ -123,7 +124,8 @@ namespace Opc.Ua.XRegistry.Client
             NamespaceIndex = (ushort)index;
             RegistryNodeId = registryNodeId.IsNull
                 ? new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex)
-                : registryNodeId;
+                : XRegistryNodeIdCopy.Own(registryNodeId);
+            m_registryIdentity = NodeId.ToExpandedNodeId(RegistryNodeId, session.NamespaceUris);
         }
 
         /// <summary>
@@ -238,6 +240,26 @@ namespace Opc.Ua.XRegistry.Client
             {
                 return default;
             }
+        }
+
+        /// <summary>
+        /// Resolves a content-derived identity into a bounded, caller-owned stream.
+        /// Missing or failed reads are reported as service errors, not partial successful documents.
+        /// </summary>
+        /// <exception cref="ArgumentException">The content identity is empty.</exception>
+        public ValueTask<long> ResolveResourceToAsync(
+            ByteString contentId,
+            Stream destination,
+            long maxBytes,
+            int chunkSize = 4096,
+            CancellationToken ct = default)
+        {
+            if (contentId.IsEmpty)
+            {
+                throw new ArgumentException("A content identity is required.", nameof(contentId));
+            }
+            return Session.ReadBytesToAsync(
+                new NodeId(contentId, NamespaceIndex), destination, maxBytes, chunkSize, ct);
         }
 
         /// <summary>
@@ -529,10 +551,11 @@ namespace Opc.Ua.XRegistry.Client
             }
 
             return maj > major ||
-                   (maj == major && min > minor) ||
-                   (maj == major && min == minor && pat >= patch);
+                (maj == major && min > minor) ||
+                (maj == major && min == minor && pat >= patch);
         }
 
+        private readonly ExpandedNodeId m_registryIdentity;
         private bool m_hierarchyChecked;
         private bool m_usesDistinctHierarchy;
     }
