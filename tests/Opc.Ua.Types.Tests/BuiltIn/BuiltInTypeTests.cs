@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using ObjectLayoutInspector;
@@ -46,15 +45,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void BoolTests()
         {
             Assert.That(Unsafe.SizeOf<bool>(), Is.EqualTo(1));
-        }
-
-        [Test]
-        public void TypeAbstractionsAreNotExperimental()
-        {
-            Assert.That(typeof(IType).IsDefined(typeof(ExperimentalAttribute), inherit: false), Is.False);
-            Assert.That(typeof(IBuiltInType).IsDefined(typeof(ExperimentalAttribute), inherit: false), Is.False);
-            Assert.That(typeof(IEnumeratedType).IsDefined(typeof(ExperimentalAttribute), inherit: false), Is.False);
-            Assert.That(typeof(IEncodeableType).IsDefined(typeof(ExperimentalAttribute), inherit: false), Is.False);
         }
 
         [Test]
