@@ -108,6 +108,13 @@ in-memory `NodeStateCollection`), you can either:
 changes, so it is safe to call at the end of an arbitrary service
 implementation.
 
+Deletion is not an atomic subtree transaction. If removal fails after deleting
+some nodes, monitored items for removed nodes report `Bad_NodeIdUnknown`, while
+items for descendants that remain registered are restored to their node manager.
+The original failure is still reported; restoration failures are also surfaced.
+Each asynchronous restoration gets its own five-second cleanup budget, so one
+timed-out item does not cancel attempts to restore the remaining items.
+
 ### Manual aggregation across a transaction
 
 `ModelChangeAggregator` is thread-safe and supports arbitrary batching:
