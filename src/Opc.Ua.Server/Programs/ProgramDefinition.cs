@@ -183,6 +183,11 @@ namespace Opc.Ua.Server.Programs
         /// <summary>
         /// Produces ordered internal transitions for the lifetime of this invocation.
         /// </summary>
+        /// <remarks>
+        /// The runtime requests the first element before enabling control methods. Install a hot-source
+        /// observer synchronously when that first MoveNextAsync begins. If installation needs asynchronous
+        /// setup, buffer updates from that point until setup completes; controls must not lose early updates.
+        /// </remarks>
         IAsyncEnumerable<ProgramExecutionUpdate> ObserveAsync(CancellationToken cancellationToken = default);
     }
 

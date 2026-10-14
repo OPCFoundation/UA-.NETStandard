@@ -215,6 +215,8 @@ namespace Opc.Ua.Server.Programs
                 auditEvent = Required(Definition.AuditEventFactory(
                     machine.GetTransitionNodeId(prepared.TransitionId)));
                 auditEvent.Create(context, NodeId.Null, QualifiedName.Null, LocalizedText.Null, false);
+                // Part 10 5.2.6 overrides the base audit Status:
+                // true for a control cause, false for an internal cause.
                 auditEvent.Initialize(context, Node, EventSeverity.Medium,
                     new LocalizedText("Program state transition."), control.HasValue, now);
             }

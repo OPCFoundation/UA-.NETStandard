@@ -179,22 +179,21 @@ namespace Opc.Ua.Server.Programs
         }
 
         /// <summary>
-        /// Enables controls and observation after a host has committed address-space registration.
+        /// Starts observation after address-space registration and enables controls once enumeration has begun.
         /// </summary>
         public ValueTask ActivateAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             lock (m_disposalLock)
             {
-                if (m_stopping || m_activated)
+                if (m_stopping || m_activationStarted)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidState,
                         "A Program runtime can be activated only once before shutdown.");
                 }
-                m_activated = true;
-                m_observation = ObserveAsync();
+                m_activationStarted = true;
+                return new ValueTask(StartObservation(cancellationToken));
             }
-            return default;
         }
 
         /// <summary>
@@ -520,6 +519,7 @@ namespace Opc.Ua.Server.Programs
                         if (ServiceResult.IsGood(result))
                         {
                             callbackOutputs.AddRange(outputs);
+                            bool restartObservation = control == ProgramControlMethod.Reset && m_observationFaulted;
                             result = await CommitAsync(context, Node, prepared, acceptance.IntermediateResult,
                                 default, control, method, inputs, () =>
                                 {
@@ -527,13 +527,13 @@ namespace Opc.Ua.Server.Programs
                                     {
                                         BeginRun(runId);
                                     }
-                                    else if (control == ProgramControlMethod.Reset && m_observationFaulted)
-                                    {
-                                        RestartObservation();
-                                    }
                                 }).ConfigureAwait(false);
                             if (ServiceResult.IsGood(result))
                             {
+                                if (restartObservation)
+                                {
+                                    await RestartObservationAsync(m_lifetime.Token).ConfigureAwait(false);
+                                }
                                 result = acceptance.Result;
                             }
                             terminated = ServiceResult.IsGood(result) &&
@@ -568,29 +568,91 @@ namespace Opc.Ua.Server.Programs
             }
         }
 
-        private async Task ObserveAsync()
+        private Task<bool> StartObservation(CancellationToken cancellationToken)
+        {
+            var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_observation = ObserveAsync(ready, cancellationToken);
+            return ready.Task;
+        }
+
+        private async Task ObserveAsync(TaskCompletionSource<bool> ready, CancellationToken cancellationToken)
         {
             await Task.Yield();
             try
             {
-                await foreach (ProgramExecutionUpdate update in
-                    m_execution!.ObserveAsync(m_lifetime.Token).ConfigureAwait(false))
+                cancellationToken.ThrowIfCancellationRequested();
+                m_lifetime.Token.ThrowIfCancellationRequested();
+                using var observationLifetime = CancellationTokenSource.CreateLinkedTokenSource(m_lifetime.Token);
+                IAsyncEnumerator<ProgramExecutionUpdate> updates =
+                    m_execution!.ObserveAsync(observationLifetime.Token).GetAsyncEnumerator(observationLifetime.Token);
+                await using (updates.ConfigureAwait(false))
                 {
-                    ServiceResult result = await ApplyUpdateAsync(update, m_lifetime.Token).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result))
+                    Task<bool> firstMove = updates.MoveNextAsync().AsTask();
+                    try
                     {
-                        m_logger.UpdateRejected(Node.NodeId, update.RunId, result.StatusCode);
+                        if (firstMove.IsCompleted)
+                        {
+                            await firstMove.ConfigureAwait(false);
+                        }
+                        lock (m_disposalLock)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            m_lifetime.Token.ThrowIfCancellationRequested();
+                            m_observationFaulted = false;
+                            m_activated = true;
+                            ready.SetResult(true);
+                        }
+                        bool more = await firstMove.ConfigureAwait(false);
+                        while (more)
+                        {
+                            ProgramExecutionUpdate update = updates.Current;
+                            ServiceResult result = await ApplyUpdateAsync(update, m_lifetime.Token)
+                                .ConfigureAwait(false);
+                            if (ServiceResult.IsBad(result))
+                            {
+                                m_logger.UpdateRejected(Node.NodeId, update.RunId, result.StatusCode);
+                            }
+                            more = await updates.MoveNextAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (!firstMove.IsCompleted)
+                        {
+                            // Startup cancellation must drain MoveNext before disposing an async iterator.
+                            try
+                            {
+                                observationLifetime.Cancel();
+                            }
+                            finally
+                            {
+                                try
+                                {
+                                    await firstMove.ConfigureAwait(false);
+                                }
+                                catch (OperationCanceledException) when (observationLifetime.IsCancellationRequested)
+                                {
+                                    // The original startup cancellation remains the reported outcome.
+                                }
+                            }
+                        }
                     }
                 }
             }
-            catch (OperationCanceledException) when (m_lifetime.IsCancellationRequested)
+            catch (OperationCanceledException) when (
+                m_lifetime.IsCancellationRequested ||
+                (!ready.Task.IsCompleted && cancellationToken.IsCancellationRequested))
             {
-                // Disposal owns cancellation of the invocation, not a client Call.
+                ready.TrySetCanceled(m_lifetime.IsCancellationRequested ? m_lifetime.Token : cancellationToken);
             }
             catch (Exception exception)
             {
                 m_observationFaulted = true;
                 m_logger.ExecutionFailed(Node.NodeId, exception);
+                if (ready.TrySetException(exception) && !m_activated)
+                {
+                    return;
+                }
                 if (!m_stopping && CurrentState != ProgramState.Halted)
                 {
                     ServiceResult result = await ApplyUpdateAsync(
@@ -605,16 +667,22 @@ namespace Opc.Ua.Server.Programs
             }
         }
 
-        private void RestartObservation()
+        private async ValueTask RestartObservationAsync(CancellationToken cancellationToken)
         {
+            Task previous;
             lock (m_disposalLock)
             {
-                if (!m_stopping)
-                {
-                    m_observationFaulted = false;
-                    m_observation = ObserveAsync();
-                }
+                previous = m_observation;
             }
+            await previous.ConfigureAwait(false);
+            Task ready;
+            lock (m_disposalLock)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_lifetime.Token.ThrowIfCancellationRequested();
+                ready = StartObservation(cancellationToken);
+            }
+            await ready.ConfigureAwait(false);
         }
 
         private static ServiceResult ValidateOutputs(
@@ -888,6 +956,7 @@ namespace Opc.Ua.Server.Programs
         private volatile bool m_started;
         private volatile bool m_stopping;
         private volatile bool m_activated;
+        private bool m_activationStarted;
         private volatile bool m_observationFaulted;
     }
 

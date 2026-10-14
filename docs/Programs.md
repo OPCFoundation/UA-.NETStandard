@@ -62,6 +62,11 @@ caller owns indexing newly materialized children and disposing the runtime.
 For address-space attachment, pass `startObserving: false`, index the children,
 then call `ActivateAsync`. The supplied node manager performs this sequence
 automatically; failed registration cannot start an observation loop.
+`ActivateAsync` waits until the provider's first enumeration request has begun
+before enabling controls. A hot-source provider must install its observer before
+that request yields; providers with asynchronous setup must buffer updates until
+setup completes. Reset uses the same readiness ordering when restarting a failed
+observation stream.
 
 For a custom Program, pass its generated node factory and type identifier.
 The optional model loader on `AddPrograms` supplies its generated node
@@ -221,19 +226,3 @@ The SDK model namespace is `http://opcfoundation.org/UA/SDK/Programs/`.
 It defines concrete events and a default Program type, not an Annex A production
 download engine. Annex A is an illustrative interoperability fixture.
 These implementation tests are not an OPC Foundation certification.
-
-## Requirements and tests
-
-| Clauses | Implementation | Test area |
-| --- | --- | --- |
-| 4.2.3-4.2.8, 5.2.3-5.2.4 | Core Program mappings and ProgramRuntime | ProgramModelTests, ProgramRuntimeTests |
-| 4.2.10, 5.2.1-5.2.2 | ProgramNodeManager, runtime limits and cleanup | ProgramNodeManagerTests |
-| 4.2.9, 5.2.5-5.2.7 | Captured transition events and final results | ProgramIntegrationTests, ProgramRuntimeTests |
-| 4.2.2, 5.2.6 | Program audits, caller identity, server auditing policy | ProgramNodeManagerTests audit cases |
-| 5.2.8-5.2.9 | ProgramDiagnostic2 state/children and access controls | ProgramRuntimeTests, encrypted creator/isolation integration case |
-| Client discovery/control/monitoring | ProgramClient, generated proxies, ProgramStreamExtensions | ProgramClientTests, ProgramStreamTests, ProgramIntegrationTests |
-| Native execution | Generated Program subtypes and event decoding | ProgramsAotTests in the published native harness |
-
-Run the `Programs` test category and the existing state-machine regression
-suites. See [Developer Guide](DeveloperGuide.md) for the framework matrix and
-[Native AOT](NativeAoT.md) for publishing and executing native tests.

@@ -336,6 +336,160 @@ namespace Opc.Ua.Server.Tests.Programs
         }
 
         [Test]
+        public async Task ActivationWaitsForObservationBeforeEnablingControlsAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync(startObserving: false).ConfigureAwait(false);
+            fixture.Execution.PublishHotCompletion = true;
+            var halted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Runtime.Node.OnReportEvent = (_, _, value) =>
+            {
+                if (value is ProgramTransitionEventState transition &&
+                    transition.ToState!.Id!.Value.TryGetValue(out NodeId state) &&
+                    state == ObjectIds.ProgramStateMachineType_Halted)
+                {
+                    halted.TrySetResult(true);
+                }
+            };
+            var scheduler = new DeferredSynchronizationContext();
+            SynchronizationContext? previous = SynchronizationContext.Current;
+            ValueTask activation;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(scheduler);
+                activation = fixture.Runtime.ActivateAsync();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+            try
+            {
+                Assert.That(activation.IsCompleted, Is.False,
+                    "Activation must wait until the provider's first MoveNext has installed its observer.");
+                Assert.That(fixture.Execution.ObservationStarted.Task.IsCompleted, Is.False);
+                MethodInvocationResult before = await fixture.Runtime.ControlAsync(
+                    fixture.Context, ProgramControlMethod.Start).ConfigureAwait(false);
+                Assert.That(before.OperationResult.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
+                Assert.That(fixture.Execution.CallCount, Is.Zero);
+                scheduler.RunPostedCallbacks();
+                await activation.ConfigureAwait(false);
+                Assert.That(fixture.Execution.ObservationStarted.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                MethodInvocationResult start = await fixture.Runtime.ControlAsync(
+                    fixture.Context, ProgramControlMethod.Start).ConfigureAwait(false);
+                Assert.That(start.OperationResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                await halted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(fixture.Execution.DroppedUpdates, Is.Zero,
+                    "A provider that drops updates without an observer must retain the first Start completion.");
+            }
+            finally
+            {
+                scheduler.RunPostedCallbacks();
+            }
+        }
+
+        [Test]
+        public async Task ActivationFailureKeepsControlsDisabledAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync(startObserving: false).ConfigureAwait(false);
+            fixture.Execution.OnObservationStarting =
+                () => throw new InvalidOperationException("Observer setup failed.");
+
+            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+                () => fixture.Runtime.ActivateAsync().AsTask())!;
+
+            Assert.That(exception.Message, Is.EqualTo("Observer setup failed."));
+            MethodInvocationResult start = await fixture.Runtime.ControlAsync(
+                fixture.Context, ProgramControlMethod.Start).ConfigureAwait(false);
+            Assert.That(start.OperationResult.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
+            Assert.That(fixture.Execution.CallCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ActivationCancellationDrainsPendingEnumerationAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync(startObserving: false).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            fixture.Execution.OnObservationStarting = cancellation.Cancel;
+
+            Assert.ThrowsAsync<TaskCanceledException>(
+                () => fixture.Runtime.ActivateAsync(cancellation.Token).AsTask());
+
+            await fixture.Runtime.DisposeAsync().ConfigureAwait(false);
+            Assert.That(fixture.Execution.Disposed, Is.True);
+            Assert.That(fixture.Execution.CallCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ResetWaitsForRestartedObservationBeforeEnablingControlsAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync().ConfigureAwait(false);
+            var halted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Runtime.Node.OnReportEvent = (_, _, value) =>
+            {
+                if (value is ProgramTransitionEventState transition &&
+                    transition.ToState!.Id!.Value.TryGetValue(out NodeId state) &&
+                    state == ObjectIds.ProgramStateMachineType_Halted)
+                {
+                    halted.TrySetResult(true);
+                }
+            };
+            fixture.Execution.FailObservation();
+            await halted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            var scheduler = new DeferredSynchronizationContext();
+            SynchronizationContext? previous = SynchronizationContext.Current;
+            ValueTask<MethodInvocationResult> reset;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(scheduler);
+                reset = fixture.Runtime.ControlAsync(fixture.Context, ProgramControlMethod.Reset);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+                scheduler.RunPostedCallbacks();
+            }
+            MethodInvocationResult result = await reset.ConfigureAwait(false);
+            Assert.That(result.OperationResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(fixture.Execution.ObservationStarted.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion),
+                "A completed Reset must have reinstalled the observer before another Start can run.");
+            fixture.Execution.PublishHotCompletion = true;
+            MethodInvocationResult start = await fixture.Runtime.ControlAsync(
+                fixture.Context, ProgramControlMethod.Start).ConfigureAwait(false);
+            Assert.That(start.OperationResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(fixture.Execution.DroppedUpdates, Is.Zero);
+        }
+
+        [Test]
+        public async Task FailedObservationRestartCanBeResetAgainAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync().ConfigureAwait(false);
+            var halted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Runtime.Node.OnReportEvent = (_, _, value) =>
+            {
+                if (value is ProgramTransitionEventState transition &&
+                    transition.ToState!.Id!.Value.TryGetValue(out NodeId state) &&
+                    state == ObjectIds.ProgramStateMachineType_Halted)
+                {
+                    halted.TrySetResult(true);
+                }
+            };
+            fixture.Execution.FailObservation();
+            await halted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            halted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Execution.OnObservationStarting =
+                () => throw new InvalidOperationException("Observer could not restart.");
+            MethodInvocationResult failedReset = await fixture.Runtime.ControlAsync(
+                fixture.Context, ProgramControlMethod.Reset).ConfigureAwait(false);
+            Assert.That(failedReset.OperationResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            await halted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(fixture.Runtime.CurrentState, Is.EqualTo(ProgramState.Halted));
+
+            fixture.Execution.OnObservationStarting = null;
+            await fixture.CallAsync(ProgramControlMethod.Reset, ProgramState.Ready).ConfigureAwait(false);
+            await fixture.CallAsync(ProgramControlMethod.Start, ProgramState.Running).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task ObservationFailureHaltsAnUnstartedProgramAndResetRestartsObservationAsync()
         {
             await using Fixture fixture = await Fixture.CreateAsync().ConfigureAwait(false);
@@ -432,6 +586,15 @@ namespace Opc.Ua.Server.Tests.Programs
 
             public ArrayOf<Variant> Outputs { get; set; }
 
+            public bool PublishHotCompletion { get; set; }
+
+            public int DroppedUpdates { get; private set; }
+
+            public TaskCompletionSource<bool> ObservationStarted { get; private set; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Action? OnObservationStarting { get; set; }
+
             public ValueTask<ProgramControlResult> ControlAsync(
                 ProgramControlContext context, CancellationToken cancellationToken = default)
             {
@@ -439,7 +602,20 @@ namespace Opc.Ua.Server.Tests.Programs
                 if (context.Control == ProgramControlMethod.Reset && m_failed)
                 {
                     m_updates = Channel.CreateUnbounded<ProgramExecutionUpdate>();
+                    ObservationStarted = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                     m_failed = false;
+                }
+                if (context.Control == ProgramControlMethod.Start && PublishHotCompletion)
+                {
+                    if (ObservationStarted.Task.IsCompleted)
+                    {
+                        m_updates.Writer.TryWrite(new ProgramExecutionUpdate(context.RunId, ProgramState.Halted));
+                    }
+                    else
+                    {
+                        DroppedUpdates++;
+                    }
                 }
                 return new ValueTask<ProgramControlResult>(new ProgramControlResult(Result, Outputs));
             }
@@ -453,6 +629,8 @@ namespace Opc.Ua.Server.Tests.Programs
             public async IAsyncEnumerable<ProgramExecutionUpdate> ObserveAsync(
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
+                OnObservationStarting?.Invoke();
+                ObservationStarted.TrySetResult(true);
                 await foreach (ProgramExecutionUpdate update in
                     m_updates.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                 {
@@ -470,6 +648,24 @@ namespace Opc.Ua.Server.Tests.Programs
             private Channel<ProgramExecutionUpdate> m_updates =
                 Channel.CreateUnbounded<ProgramExecutionUpdate>();
             private bool m_failed;
+        }
+
+        private sealed class DeferredSynchronizationContext : SynchronizationContext
+        {
+            public override void Post(SendOrPostCallback callback, object? state)
+            {
+                m_callbacks.Enqueue(() => callback(state));
+            }
+
+            public void RunPostedCallbacks()
+            {
+                while (m_callbacks.Count != 0)
+                {
+                    m_callbacks.Dequeue()();
+                }
+            }
+
+            private readonly Queue<Action> m_callbacks = new();
         }
     }
 }
