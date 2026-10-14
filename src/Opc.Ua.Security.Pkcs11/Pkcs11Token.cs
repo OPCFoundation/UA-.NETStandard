@@ -274,6 +274,128 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <summary>
+        /// Writes an X.509 certificate object to the token.
+        /// </summary>
+        /// <param name="value">The DER encoded certificate.</param>
+        /// <param name="id">The CKA_ID that links the certificate to its key.</param>
+        /// <param name="label">The CKA_LABEL of the object.</param>
+        /// <param name="subject">The DER encoded subject name.</param>
+        /// <param name="issuer">The DER encoded issuer name.</param>
+        /// <param name="serialNumber">The DER encoded serial number.</param>
+        public void CreateCertificate(
+            byte[] value,
+            byte[] id,
+            string label,
+            byte[] subject,
+            byte[] issuer,
+            byte[] serialNumber)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> template =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE),
+                    m_factories.ObjectAttributeFactory.Create(
+                        CKA.CKA_CERTIFICATE_TYPE,
+                        (ulong)CKC.CKC_X_509),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_TOKEN, true),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_PRIVATE, false),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_LABEL, label),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_ID, id),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_SUBJECT, subject),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_ISSUER, issuer),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_SERIAL_NUMBER, serialNumber),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_VALUE, value)
+                ];
+
+                m_session.CreateObject(template);
+            }
+        }
+
+        /// <summary>
+        /// Destroys the certificate objects, subject to any object label or id
+        /// filter in the options, whose encoding matches. Key objects are
+        /// never touched.
+        /// </summary>
+        /// <param name="match">Selects the DER encoded certificates to destroy.</param>
+        /// <returns>The number of objects destroyed.</returns>
+        public int DestroyCertificates(Func<byte[], bool> match)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> search =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE)
+                ];
+
+                AddObjectFilters(search);
+
+                int destroyed = 0;
+
+                foreach (IObjectHandle handle in m_session.FindAllObjects(search))
+                {
+                    List<IObjectAttribute> values = m_session.GetAttributeValue(
+                        handle,
+                        [(ulong)CKA.CKA_VALUE]);
+
+                    byte[] encoded = values[0].GetValueAsByteArray();
+
+                    if (encoded is { Length: > 0 } && match(encoded))
+                    {
+                        m_session.DestroyObject(handle);
+                        destroyed++;
+                    }
+                }
+
+                return destroyed;
+            }
+        }
+
+        /// <summary>
+        /// Finds the CKA_ID of a key object whose attribute holds the given
+        /// public value, for example the modulus of an RSA key.
+        /// </summary>
+        /// <param name="objectClass">The class of key object to search.</param>
+        /// <param name="keyType">The key type to search.</param>
+        /// <param name="attribute">The attribute holding the public value.</param>
+        /// <param name="value">The public value to match.</param>
+        /// <returns>The CKA_ID, or <c>null</c> when no key matches.</returns>
+        public byte[]? FindKeyId(CKO objectClass, CKK keyType, CKA attribute, byte[] value)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> search =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, objectClass),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType),
+                    m_factories.ObjectAttributeFactory.Create(attribute, value)
+                ];
+
+                foreach (IObjectHandle handle in m_session.FindAllObjects(search))
+                {
+                    List<IObjectAttribute> values = m_session.GetAttributeValue(
+                        handle,
+                        [(ulong)CKA.CKA_ID]);
+
+                    byte[]? id = values[0].GetValueAsByteArray();
+
+                    if (id is { Length: > 0 })
+                    {
+                        return id;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Signs with a key that never leaves the token.
         /// </summary>
         /// <param name="mechanism">The signing mechanism to use.</param>

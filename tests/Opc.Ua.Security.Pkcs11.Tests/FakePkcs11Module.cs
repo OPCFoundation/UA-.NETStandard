@@ -245,6 +245,14 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 .Returns((List<IObjectAttribute> search) => FindObjects(search));
 
             session
+                .Setup(s => s.CreateObject(It.IsAny<List<IObjectAttribute>>()))
+                .Returns((List<IObjectAttribute> template) => CreateObject(template));
+
+            session
+                .Setup(s => s.DestroyObject(It.IsAny<IObjectHandle>()))
+                .Callback((IObjectHandle handle) => DestroyObject(handle));
+
+            session
                 .Setup(s => s.GetAttributeValue(
                     It.IsAny<IObjectHandle>(), It.IsAny<List<ulong>>()))
                 .Returns((IObjectHandle handle, List<ulong> attributes) =>
@@ -271,6 +279,8 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             ulong? keyType = ValueOf(search, (ulong)CKA.CKA_KEY_TYPE);
             byte[]? id = BytesOf(search, (ulong)CKA.CKA_ID);
             string? label = StringOf(search, (ulong)CKA.CKA_LABEL);
+            byte[]? modulus = BytesOf(search, (ulong)CKA.CKA_MODULUS);
+            byte[]? ecPoint = BytesOf(search, (ulong)CKA.CKA_EC_POINT);
 
             var found = new List<IObjectHandle>();
 
@@ -292,6 +302,16 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 }
 
                 if (label != null && label != candidate.Label)
+                {
+                    continue;
+                }
+
+                if (modulus != null && (candidate.Modulus == null || !modulus.SequenceEqual(candidate.Modulus)))
+                {
+                    continue;
+                }
+
+                if (ecPoint != null && (candidate.EcPoint == null || !ecPoint.SequenceEqual(candidate.EcPoint)))
                 {
                     continue;
                 }
@@ -319,6 +339,10 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 else if (attribute == (ulong)CKA.CKA_ID)
                 {
                     value.Setup(a => a.GetValueAsByteArray()).Returns(target.Id);
+                }
+                else if (attribute == (ulong)CKA.CKA_LABEL)
+                {
+                    value.Setup(a => a.GetValueAsString()).Returns(target.Label);
                 }
                 else
                 {
@@ -472,7 +496,14 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             ulong KeyType,
             byte[] Id,
             string Label,
-            byte[] Value);
+            byte[] Value)
+        {
+            public byte[]? Modulus { get; init; }
+
+            public byte[]? EcPoint { get; init; }
+
+            public Dictionary<ulong, byte[]> Extra { get; init; } = [];
+        }
 
         private static IObjectHandle Handle(ulong id)
         {
@@ -516,14 +547,156 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         /// </summary>
         private void Populate()
         {
+            RSAParameters rsa = m_rsaKey.ExportParameters(false);
+            ECParameters ecc = m_eccKey.ExportParameters(false);
+            byte[] point = [0x04, .. ecc.Q.X!, .. ecc.Q.Y!];
+
             m_objects.Add(new FakeObject(
                 Handle(1), (ulong)CKO.CKO_CERTIFICATE, 0, RsaId, "rsa", RsaCertificate));
             m_objects.Add(new FakeObject(
-                Handle(2), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, RsaId, "rsa", []));
+                Handle(2), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, RsaId, "rsa", [])
+            {
+                Modulus = rsa.Modulus
+            });
             m_objects.Add(new FakeObject(
                 Handle(3), (ulong)CKO.CKO_CERTIFICATE, 0, EccId, "ecc", EccCertificate));
             m_objects.Add(new FakeObject(
                 Handle(4), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_EC, EccId, "ecc", []));
+            m_objects.Add(new FakeObject(
+                Handle(5), (ulong)CKO.CKO_PUBLIC_KEY, (ulong)CKK.CKK_EC, EccId, "ecc", [])
+            {
+                // CKA_EC_POINT is the DER encoding of the ECPoint OCTET STRING.
+                EcPoint = [0x04, (byte)point.Length, .. point]
+            });
+            m_nextHandle = 6;
         }
+
+        /// <summary>
+        /// The number of objects of the given class the token holds.
+        /// </summary>
+        /// <param name="objectClass">The object class to count.</param>
+        /// <returns>The number of objects.</returns>
+        public int CountObjects(CKO objectClass)
+        {
+            return m_objects.Count(o => o.ObjectClass == (ulong)objectClass);
+        }
+
+        /// <summary>
+        /// The CKA_ID of the certificate object holding the given encoding.
+        /// </summary>
+        /// <param name="encoded">The DER encoded certificate.</param>
+        /// <returns>The CKA_ID, or <c>null</c> when the token does not hold it.</returns>
+        public byte[]? CertificateId(byte[] encoded)
+        {
+            return m_objects
+                .FirstOrDefault(o =>
+                    o.ObjectClass == (ulong)CKO.CKO_CERTIFICATE &&
+                    o.Value.SequenceEqual(encoded))?
+                .Id;
+        }
+
+        /// <summary>
+        /// The value of an attribute of the certificate object holding the given encoding.
+        /// </summary>
+        /// <param name="encoded">The DER encoded certificate.</param>
+        /// <param name="attribute">The attribute to read.</param>
+        /// <returns>The value, or <c>null</c> when it was not written.</returns>
+        public byte[]? CertificateAttribute(byte[] encoded, CKA attribute)
+        {
+            FakeObject? target = m_objects.FirstOrDefault(o =>
+                o.ObjectClass == (ulong)CKO.CKO_CERTIFICATE &&
+                o.Value.SequenceEqual(encoded));
+            return target != null && target.Extra.TryGetValue((ulong)attribute, out byte[]? value)
+                ? value
+                : null;
+        }
+
+        /// <summary>
+        /// Issues a new certificate for the RSA key the token holds, as a CA
+        /// would when it renews the token's identity.
+        /// </summary>
+        /// <param name="subject">The subject of the new certificate.</param>
+        /// <returns>The DER encoded certificate.</returns>
+        public byte[] IssueRsaCertificate(string subject)
+        {
+            var request = new CertificateRequest(
+                subject, m_rsaKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using X509Certificate2 certificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(2));
+            return certificate.RawData;
+        }
+
+        /// <summary>
+        /// Issues a new certificate for the ECC key the token holds.
+        /// </summary>
+        /// <param name="subject">The subject of the new certificate.</param>
+        /// <returns>The DER encoded certificate.</returns>
+        public byte[] IssueEccCertificate(string subject)
+        {
+            var request = new CertificateRequest(subject, m_eccKey, HashAlgorithmName.SHA256);
+            using X509Certificate2 certificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(2));
+            return certificate.RawData;
+        }
+
+        private IObjectHandle CreateObject(List<IObjectAttribute> template)
+        {
+            ulong objectClass = ValueOf(template, (ulong)CKA.CKA_CLASS) ??
+                throw new Pkcs11Exception("CreateObject", CKR.CKR_TEMPLATE_INCOMPLETE);
+
+            if (objectClass != (ulong)CKO.CKO_CERTIFICATE)
+            {
+                // The token only takes certificates from the store under test.
+                throw new Pkcs11Exception("CreateObject", CKR.CKR_TEMPLATE_INCONSISTENT);
+            }
+
+            var extra = new Dictionary<ulong, byte[]>();
+            foreach (IObjectAttribute attribute in template)
+            {
+                if (attribute.Type is (ulong)CKA.CKA_SUBJECT or
+                    (ulong)CKA.CKA_ISSUER or
+                    (ulong)CKA.CKA_SERIAL_NUMBER)
+                {
+                    extra[attribute.Type] = attribute.GetValueAsByteArray();
+                }
+            }
+
+            IObjectHandle handle = Handle(m_nextHandle++);
+            m_objects.Add(new FakeObject(
+                handle,
+                objectClass,
+                0,
+                BytesOf(template, (ulong)CKA.CKA_ID) ?? [],
+                StringOf(template, (ulong)CKA.CKA_LABEL) ?? string.Empty,
+                BytesOf(template, (ulong)CKA.CKA_VALUE) ??
+                    throw new Pkcs11Exception("CreateObject", CKR.CKR_TEMPLATE_INCOMPLETE))
+            {
+                Extra = extra
+            });
+            CreatedObjects++;
+            return handle;
+        }
+
+        private void DestroyObject(IObjectHandle handle)
+        {
+            if (m_objects.RemoveAll(o => o.Handle.ObjectId == handle.ObjectId) == 0)
+            {
+                throw new Pkcs11Exception("DestroyObject", CKR.CKR_OBJECT_HANDLE_INVALID);
+            }
+
+            DestroyedObjects++;
+        }
+
+        /// <summary>
+        /// How many objects were created on the token.
+        /// </summary>
+        public int CreatedObjects { get; private set; }
+
+        /// <summary>
+        /// How many objects were destroyed on the token.
+        /// </summary>
+        public int DestroyedObjects { get; private set; }
+
+        private ulong m_nextHandle;
     }
 }

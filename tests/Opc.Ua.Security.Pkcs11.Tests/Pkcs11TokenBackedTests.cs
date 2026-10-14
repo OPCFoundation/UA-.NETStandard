@@ -410,6 +410,161 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task StoreAddWritesATrustedCertificateToTheTokenAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate peer = CreatePeerCertificate("CN=TrustedPeer");
+
+            await store.AddAsync(peer).ConfigureAwait(false);
+
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(peer.Thumbprint)
+                .ConfigureAwait(false);
+            using CertificateCollection all = await store.EnumerateAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Has.Count.EqualTo(1));
+                Assert.That(all, Has.Count.EqualTo(3));
+                Assert.That(module.CreatedObjects, Is.EqualTo(1));
+                Assert.That(
+                    module.CertificateAttribute(peer.RawData, CKA.CKA_SUBJECT),
+                    Is.EqualTo(peer.SubjectName.RawData));
+                Assert.That(
+                    module.CertificateAttribute(peer.RawData, CKA.CKA_ISSUER),
+                    Is.EqualTo(peer.IssuerName.RawData));
+                Assert.That(
+                    module.CertificateAttribute(peer.RawData, CKA.CKA_SERIAL_NUMBER),
+                    Is.EqualTo(DerInteger(peer.GetSerialNumber())));
+            });
+        }
+
+        [Test]
+        public async Task StoreAddIsIdempotentAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate peer = CreatePeerCertificate("CN=TrustedPeer");
+
+            await store.AddAsync(peer).ConfigureAwait(false);
+            await store.AddAsync(peer).ConfigureAwait(false);
+
+            Assert.That(module.CreatedObjects, Is.EqualTo(1));
+        }
+
+        [TestCase("RSA")]
+        [TestCase("ECC")]
+        public async Task StoreAddLinksARenewedCertificateToTheKeyOnTheTokenAsync(string keyType)
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            byte[] encoded = keyType == "RSA"
+                ? module.IssueRsaCertificate("CN=Renewed")
+                : module.IssueEccCertificate("CN=Renewed");
+            using Certificate renewed = Certificate.FromRawData(encoded);
+
+            await store.AddAsync(renewed).ConfigureAwait(false);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(renewed.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    module.CertificateId(encoded),
+                    Is.EqualTo(keyType == "RSA" ? module.RsaId : module.EccId));
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded!.HasPrivateKey, Is.True);
+                Assert.That(module.CountObjects(CKO.CKO_PRIVATE_KEY), Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task StoreAddWritesOnlyTheCertificateOfASoftwareIdentityAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using var key = RSA.Create(2048);
+            var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                "CN=SoftwareIdentity", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using Certificate identity = Certificate.From(request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)));
+            Assert.That(identity.HasPrivateKey, Is.True);
+
+            await store.AddAsync(identity).ConfigureAwait(false);
+
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(identity.Thumbprint)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Has.Count.EqualTo(1));
+                Assert.That(found[0].HasPrivateKey, Is.False);
+                Assert.That(store.RejectedPrivateKeyWrites, Is.EqualTo(1));
+                Assert.That(module.CountObjects(CKO.CKO_PRIVATE_KEY), Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task StoreDeleteRemovesTheCertificateFromTheTokenAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate peer = CreatePeerCertificate("CN=TrustedPeer");
+            await store.AddAsync(peer).ConfigureAwait(false);
+
+            bool deleted = await store.DeleteAsync(peer.Thumbprint).ConfigureAwait(false);
+
+            using CertificateCollection found = await store
+                .FindByThumbprintAsync(peer.Thumbprint)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted, Is.True);
+                Assert.That(found, Is.Empty);
+                Assert.That(module.DestroyedObjects, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task StoreDeleteOfAnIdentityKeepsItsKeyOnTheTokenAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate identity = Certificate.FromRawData(module.RsaCertificate);
+
+            bool deleted = await store.DeleteAsync(identity.Thumbprint).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted, Is.True);
+                Assert.That(module.CountObjects(CKO.CKO_CERTIFICATE), Is.EqualTo(1));
+                Assert.That(module.CountObjects(CKO.CKO_PRIVATE_KEY), Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task StoreDeleteOfAnUnknownThumbprintReturnsFalseAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+
+            bool deleted = await store
+                .DeleteAsync("00112233445566778899AABBCCDDEEFF00112233")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted, Is.False);
+                Assert.That(module.DestroyedObjects, Is.Zero);
+            });
+        }
+
+        [Test]
         public async Task StoreFindsByThumbprintAsync()
         {
             using var module = new FakePkcs11Module();
@@ -576,6 +731,28 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
 
             return store;
+        }
+
+        private static Certificate CreatePeerCertificate(string subject)
+        {
+            using var key = RSA.Create(2048);
+            var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using System.Security.Cryptography.X509Certificates.X509Certificate2 certificate =
+                request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+            return Certificate.FromRawData(certificate.RawData);
+        }
+
+        private static byte[] DerInteger(byte[] littleEndianSerial)
+        {
+            var value = new List<byte>(littleEndianSerial);
+            value.Reverse();
+            if ((value[0] & 0x80) != 0)
+            {
+                value.Insert(0, 0);
+            }
+            value.InsertRange(0, [0x02, (byte)value.Count]);
+            return [.. value];
         }
 
         private static async Task<Certificate> LoadRsaAsync()
