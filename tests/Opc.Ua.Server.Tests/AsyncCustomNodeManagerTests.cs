@@ -1306,6 +1306,106 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Foreign cleanup status failures propagate without announcing retained references.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(false, 2)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [TestCase(true, 2)]
+        public async Task DeleteNodeChecksForeignReferenceCleanupStatusAsync(bool service, int statusIndex)
+        {
+            StatusCode cleanupStatus = statusIndex switch
+            {
+                0 => StatusCodes.Good,
+                1 => StatusCodes.BadNotSupported,
+                _ => StatusCodes.BadUnexpectedError
+            };
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(!service || manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ForeignCleanupStatus", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            const string ForeignNamespaceUri = "urn:test:foreign-cleanup-status";
+            var foreignTarget = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ForeignTarget", m_namespaceTable.GetIndexOrAppend(ForeignNamespaceUri))
+            };
+            node.AddReference(ReferenceTypeIds.HasCause, false, foreignTarget.NodeId);
+            foreignTarget.AddReference(ReferenceTypeIds.HasCause, true, id);
+            var foreignManager = new Mock<IAsyncNodeManager>();
+            foreignManager.Setup(value => value.NamespaceUris).Returns([ForeignNamespaceUri]);
+            foreignManager.Setup(value => value.GetManagerHandleAsync(
+                    foreignTarget.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(foreignTarget));
+            foreignManager.Setup(value => value.DeleteReferenceAsync(
+                    foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (StatusCode.IsGood(cleanupStatus))
+                    {
+                        foreignTarget.RemoveReference(ReferenceTypeIds.HasCause, true, id);
+                    }
+                    return new ValueTask<ServiceResult>(new ServiceResult(cleanupStatus));
+                });
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            using var master = new MasterNodeManager(
+                m_mockServer.Object, m_configuration, null, [foreignManager.Object]);
+            m_mockServer.Setup(value => value.NodeManager).Returns(master);
+            m_mockServer.Invocations.Clear();
+
+            if (StatusCode.IsGood(cleanupStatus))
+            {
+                await DeleteTestNodeAsync(manager, id, service).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    async () => await DeleteTestNodeAsync(manager, id, service).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(cleanupStatus))
+                    .ConfigureAwait(false);
+            }
+
+            Assert.That(manager.Find(id), Is.Null);
+            bool cleanupSucceeded = StatusCode.IsGood(cleanupStatus);
+            Assert.That(foreignTarget.ReferenceExists(ReferenceTypeIds.HasCause, true, id),
+                Is.EqualTo(!cleanupSucceeded));
+            foreignManager.Verify(value => value.DeleteReferenceAsync(
+                foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()),
+                Times.Once());
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(cleanupSucceeded ? 2 : 1));
+            bool deletionReported = false;
+            bool foreignReferenceReported = false;
+            foreach (ModelChangeStructureDataType change in changes)
+            {
+                if (change.Affected == id)
+                {
+                    deletionReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+                }
+                if (change.Affected == foreignTarget.NodeId)
+                {
+                    foreignReferenceReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+                }
+            }
+            Assert.That(deletionReported, Is.True);
+            Assert.That(foreignReferenceReported, Is.EqualTo(cleanupSucceeded));
+        }
+
+        /// <summary>
         /// Internal and legacy deletion report foreign non-hierarchical endpoints after successful cleanup.
         /// </summary>
         [TestCase(false)]

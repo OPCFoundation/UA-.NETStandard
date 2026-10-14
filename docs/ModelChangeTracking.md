@@ -122,7 +122,10 @@ is cancelled. A versioned descendant is reported even if its root is unversioned
 The deletion error is still returned; notification failures are not suppressed.
 For reference endpoints owned by another node manager, automatic reporting
 requires requested and successful target-reference cleanup because their remaining
-references cannot be inspected locally. A successful `DeleteNodes` call with
+references cannot be inspected locally. A bad per-reference cleanup result from
+an owning node manager is propagated as a deletion failure, not treated as
+successful cleanup. Committed local changes are still reported, but unconfirmed
+foreign reference removals are not. A successful `DeleteNodes` call with
 `DeleteTargetReferences = false` does not imply that foreign references were removed.
 This reporting covers both directions of hierarchical and non-hierarchical
 references to other node managers in the same server. Absolute targets are
