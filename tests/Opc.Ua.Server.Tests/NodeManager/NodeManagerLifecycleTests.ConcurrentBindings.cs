@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(original,
                     CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager))],
-                timeout.Token).ConfigureAwait(false);
+                null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             int preparedSessions = candidate.SessionActivatedCount;
             int preparedEvents = candidate.AllEventsSubscribeCount;
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(original,
                     CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager))],
-                timeout.Token).ConfigureAwait(false);
+                null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         kFirstRegistrationValue, manager => first = manager)),
                     NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                         kSecondRegistrationValue, manager => second = manager, kSecondModelNamespaceUri))
-                ], timeout.Token).ConfigureAwait(false);
+                ], null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(first);
             AssertLifecycleValue(second);
             var bindingEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -420,7 +420,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         kGeneration2Value, manager => failing = manager)),
                     NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                         kSecondRegistrationValue, manager => succeeding = manager, kSecondModelNamespaceUri))
-                ], timeout.Token).ConfigureAwait(false);
+                ], null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(originalManager);
             AssertLifecycleValue(failing);
             AssertLifecycleValue(succeeding);

@@ -39,17 +39,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Defers resuming binding admission of the current scope until the returned suspension is disposed.
         /// </summary>
-        /// <param name="context">The operation context of the admitted request, or null for the legacy ambient
-        /// scope.</param>
+        /// <param name="context">The operation context of the admitted request. A null or unadmitted context
+        /// has nothing to defer.</param>
         /// <returns>The suspension to dispose, or an empty one if no admission is active.</returns>
-        internal BindingAdmissionSuspension DeferBindingAdmissionResumption(IOperationContext? context = null)
+        internal BindingAdmissionSuspension DeferBindingAdmissionResumption(IOperationContext? context)
         {
             return FindBindingAdmission(context)?.DeferResumption() ?? BindingAdmissionSuspension.Empty;
         }
 
         /// <summary>
-        /// Releases the binding admission of the specified request, or of the ambient scope for a null context
-        /// (legacy public no-context callers). A non-null context that is not admitted suspends nothing.
+        /// Releases the binding admission of the specified request. A null context, or one that is not admitted,
+        /// is an ordinary external caller and suspends nothing.
         /// </summary>
         /// <param name="context">The operation context of the admitted request, or null.</param>
         /// <returns>The suspension that restores admission, or an empty one if no admission is active.</returns>
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Checks whether the admitted request or the ambient scope is removing the monitored item.
+        /// Checks whether the admitted request is removing the monitored item.
         /// </summary>
         /// <param name="context">The operation context of the admitted request, or null.</param>
         /// <param name="monitoredItem">The monitored item.</param>
@@ -70,7 +70,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Enters a binding admission scope for the current asynchronous flow.
+        /// Enters a binding admission scope for the specified request.
         /// </summary>
         /// <param name="context">The operation context of the admitted request, or null for a scope without one.
         /// </param>
@@ -80,9 +80,7 @@ namespace Opc.Ua.Server
             IOperationContext? context,
             ArrayOf<IMonitoredItem> removingItems = default)
         {
-            var admission = new BindingAdmission(
-                this, FindBindingAdmission(context), m_currentBindingAdmission.Value, context, removingItems);
-            m_currentBindingAdmission.Value = admission;
+            var admission = new BindingAdmission(this, FindBindingAdmission(context), context, removingItems);
             if (context is not null)
             {
                 lock (m_contextAdmissionLock)
@@ -95,8 +93,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Finds the admission captured for the context. Only a null context, the legacy public no-context call,
-        /// resolves the ambient scope; a non-null context never inherits another request's admission.
+        /// Finds the admission captured for the context. A null context, or one that was never admitted, never
+        /// resolves an admission.
         /// </summary>
         /// <param name="context">The operation context, or null.</param>
         /// <returns>The admission, or null if none is active.</returns>
@@ -104,7 +102,7 @@ namespace Opc.Ua.Server
         {
             if (context is null)
             {
-                return m_currentBindingAdmission.Value;
+                return null;
             }
             lock (m_contextAdmissionLock)
             {
@@ -137,7 +135,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly AsyncLocal<BindingAdmission?> m_currentBindingAdmission = new();
         private readonly ConditionalWeakTable<IOperationContext, BindingAdmission> m_contextAdmissions = new();
         private readonly Lock m_contextAdmissionLock = new();
 
@@ -146,13 +143,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="owner">The master node manager.</param>
         /// <param name="previous">The enclosing admission of the same context chain, or null.</param>
-        /// <param name="ambientPrevious">The ambient scope to restore when this scope ends, or null.</param>
         /// <param name="context">The operation context the scope is captured for, or null.</param>
         /// <param name="removingItems">The monitored items that are being removed.</param>
         private sealed class BindingAdmission(
             MasterNodeManager owner,
             BindingAdmission? previous,
-            BindingAdmission? ambientPrevious,
             IOperationContext? context,
             ArrayOf<IMonitoredItem> removingItems) : IDisposable
         {
@@ -228,7 +223,6 @@ namespace Opc.Ua.Server
                         return;
                     }
                     m_disposed = true;
-                    owner.m_currentBindingAdmission.Value = ambientPrevious;
                     if (context is not null)
                     {
                         owner.ReleaseContextAdmission(context, this, previous);

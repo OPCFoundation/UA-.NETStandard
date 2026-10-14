@@ -52,7 +52,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
+                null, timeout.Token)
                 .ConfigureAwait(false);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -164,7 +165,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
+                null, timeout.Token)
                 .ConfigureAwait(false);
             if (register)
             {
@@ -215,7 +217,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))],
+                null, timeout.Token)
                 .ConfigureAwait(false);
             int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -315,6 +318,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri))],
+                null,
                 timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager candidateManager = candidate ??
                 throw new AssertionException("The prepared callback generation was not created.");

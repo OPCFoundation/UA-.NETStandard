@@ -65,12 +65,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission()
-        {
-            return SuspendBindingAdmission((IOperationContext?)null);
-        }
-
-        /// <inheritdoc/>
         IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
         {
             return SuspendBindingAdmission(context);
@@ -80,12 +74,6 @@ namespace Opc.Ua.Server
         bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem)
         {
             return IsRemovingBinding(context, monitoredItem);
-        }
-
-        /// <inheritdoc/>
-        bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IMonitoredItem monitoredItem)
-        {
-            return IsRemovingBinding(null, monitoredItem);
         }
 
         /// <inheritdoc/>

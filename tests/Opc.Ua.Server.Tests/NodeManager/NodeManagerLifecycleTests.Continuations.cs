@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
                                 kGeneration2Value, manager => replacement = manager))
                             : NodeManagerBatchChange.Remove(original)
-                    ], timeout.Token).ConfigureAwait(false))
+                    ], null, timeout.Token).ConfigureAwait(false))
                 {
                     if (replace)
                     {
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         NodeManagerBatchChange.Remove(first.Registration),
                         NodeManagerBatchChange.Remove(second.Registration),
                         NodeManagerBatchChange.Remove(unowned.Registration)
-                    ], timeout.Token).ConfigureAwait(false))
+                    ], null, timeout.Token).ConfigureAwait(false))
                 {
                     NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
@@ -449,7 +449,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? NodeManagerBatchChange.Replace(owner.Registration,
                             CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
                         : NodeManagerBatchChange.Remove(owner.Registration, true)
-                ], timeout.Token).ConfigureAwait(false))
+                ], null, timeout.Token).ConfigureAwait(false))
             {
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
@@ -541,7 +541,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], cancellationToken).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration, immediate)], null, cancellationToken)
+                .ConfigureAwait(false);
             NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);

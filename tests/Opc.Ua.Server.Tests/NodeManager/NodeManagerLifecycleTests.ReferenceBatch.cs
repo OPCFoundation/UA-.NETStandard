@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token)
+                        CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null, timeout.Token)
                     .ConfigureAwait(false);
                 await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
                 await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], null, timeout.Token)
                 .ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     NodeManagerBatchChange.Add(CreateReferenceContributorFactory(firstUri, [shared, shared, unique])),
                     NodeManagerBatchChange.Add(CreateReferenceContributorFactory(secondUri, [shared]))
-                ], timeout.Token).ConfigureAwait(false))
+                ], null, timeout.Token).ConfigureAwait(false))
             {
                 NodeManagerBatchResult result = await added.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using (IPreparedNodeManagerBatch retired = await lifecycle.PrepareAsync(
                 [replace
                     ? NodeManagerBatchChange.Replace(first, CreateReferenceContributorFactory(firstUri, []))
-                    : NodeManagerBatchChange.Remove(first)], timeout.Token).ConfigureAwait(false))
+                    : NodeManagerBatchChange.Remove(first)], null, timeout.Token).ConfigureAwait(false))
             {
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, value), Is.True);
                 if (publish)
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             if (publish)
             {
                 await using IPreparedNodeManagerBatch removed = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(second)], timeout.Token).ConfigureAwait(false);
+                    [NodeManagerBatchChange.Remove(second)], null, timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult result = await removed.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Replace(original, factory.Object),
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
-                ]).ConfigureAwait(false);
+                ], null).ConfigureAwait(false);
             AssertLifecycleValue(originalManager);
             AssertLifecycleValue(replacement);
             NodeId root = new(kRootNodeId,
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateUnsupportedReferenceFactory();
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
+                [NodeManagerBatchChange.Add(factory)], null).ConfigureAwait(false);
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
             await Assert.ThatAsync(async () => await prepared.CommitAsync(_ =>
@@ -352,7 +352,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))]).ConfigureAwait(false))
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null).ConfigureAwait(false))
             {
                 Assert.That((await prepared.CommitAsync(_ => default).ConfigureAwait(false)).CleanupFailure, Is.Null);
             }
@@ -383,7 +383,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri))], timeout.Token)
+                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri))], null, timeout.Token)
                 .ConfigureAwait(false);
             object? handle = await prepared.Registrations[0].NodeManager
                 .GetManagerHandleAsync(candidateRoot, timeout.Token)
@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             if (!rejectDecision)
             {
                 await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(source)], timeout.Token).ConfigureAwait(false);
+                    [NodeManagerBatchChange.Remove(source)], null, timeout.Token).ConfigureAwait(false);
                 Assert.That(
                     (await removal.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false)).CleanupFailure,
                     Is.Null);
@@ -458,7 +458,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri, parent))], timeout.Token)
+                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri, parent))], null, timeout.Token)
                 .ConfigureAwait(false))
             {
                 await AssertNativeReferenceAsync(

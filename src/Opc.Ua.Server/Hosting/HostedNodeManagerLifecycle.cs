@@ -64,13 +64,14 @@ namespace Opc.Ua.Server.Hosting
         /// <inheritdoc/>
         public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken = default)
         {
             if (Current is not INodeManagerBatchLifecycle batch)
             {
                 throw new NotSupportedException("The attached lifecycle does not support prepared publication.");
             }
-            return batch.PrepareAsync(changes, cancellationToken);
+            return batch.PrepareAsync(changes, callerContext, cancellationToken);
         }
 
         /// <inheritdoc/>

@@ -51,7 +51,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? manager = null;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => manager = value))], timeout.Token).ConfigureAwait(false);
+                    kFirstRegistrationValue, value => manager = value))], null, timeout.Token)
+                .ConfigureAwait(false);
             AssertLifecycleValue(manager);
             var failure = new IOException("The committed publication callback failed.");
             bool drainedWithoutDisposal;
@@ -113,7 +114,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? candidate = null;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    kFirstRegistrationValue, value => candidate = value))], timeout.Token).ConfigureAwait(false);
+                    kFirstRegistrationValue, value => candidate = value))], null, timeout.Token)
+                .ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             try
             {
@@ -169,7 +171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Add(factory.Object)], null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(manager);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
             Task? disposal = null;

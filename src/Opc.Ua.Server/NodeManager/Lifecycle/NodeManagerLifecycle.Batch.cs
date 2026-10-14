@@ -41,9 +41,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken = default)
         {
-            return PrepareBatchAsync(changes, null, cancellationToken);
+            return PrepareBatchAsync(changes, null, callerContext, cancellationToken);
         }
 
         /// <summary>
@@ -52,6 +53,8 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements and retirements of the unit.</param>
         /// <param name="publication">The invocation that owns publication admission, or null for a standalone
         /// batch.</param>
+        /// <param name="callerContext">The operation the caller is running under, or null for an ordinary external
+        /// caller. It is retained by the prepared batch for its commit.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <param name="readImages">Read images to publish together with the changes.</param>
         /// <param name="validationOnly">Whether the batch is a validation candidate that can never be
@@ -60,6 +63,7 @@ namespace Opc.Ua.Server
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken,
             ArrayOf<INodeManagerReadImage> readImages = default,
             bool validationOnly = false)
@@ -99,7 +103,7 @@ namespace Opc.Ua.Server
             {
                 operation = EnterLifecycleOperation(publication?.Capture);
                 (IServerInternal server, IDynamicNodeManagerHost host) =
-                    GetRunningServer(allowRequestCallback);
+                    GetRunningServer(allowRequestCallback, callerContext);
                 if (host is not IDynamicNodeManagerBatchHost batchHost)
                 {
                     throw new NotSupportedException("The server host does not support prepared publication.");
@@ -111,9 +115,8 @@ namespace Opc.Ua.Server
                 using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server);
-                // Public batch entry: the prepare API carries no caller context, so this is the labeled legacy
-                // no-context path that resolves an admitted callback through the ambient fallback.
-                await using var bindingAdmission = batchHost.SuspendBindingAdmission().ConfigureAwait(false);
+                await using var bindingAdmission =
+                    batchHost.SuspendBindingAdmission(callerContext).ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
                 TypeTable? preparedTypes = null;
                 EncodeableFactory? preparedFactory = null;
@@ -184,7 +187,7 @@ namespace Opc.Ua.Server
                     var prepared = new PreparedBatch(
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
                         batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision,
-                        preparedFactory, originalFactory, factoryRevision, resolver, validationOnly);
+                        preparedFactory, originalFactory, factoryRevision, resolver, validationOnly, callerContext);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -235,10 +238,9 @@ namespace Opc.Ua.Server
             using IDisposable routing = ((IDynamicNodeManagerBatchHost)batch.Host).UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 EnterRequestLifecycleWaiter(batch.Server);
-            // Public commit entry: no caller context exists on the prepared batch, so this is the labeled legacy
-            // no-context path that resolves an admitted callback through the ambient fallback.
             await using var bindingAdmission =
-                ((IDynamicNodeManagerBatchHost)batch.Host).SuspendBindingAdmission().ConfigureAwait(false);
+                ((IDynamicNodeManagerBatchHost)batch.Host).SuspendBindingAdmission(batch.CallerContext)
+                    .ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredNodeManager>();
             var failures = new List<Exception>();
@@ -342,7 +344,11 @@ namespace Opc.Ua.Server
                             try
                             {
                                 await ReconcileBindingsAsync(
-                                    batch.Server, entry.Manager, new ServerBindings(), CancellationToken.None)
+                                    batch.Server,
+                                    entry.Manager,
+                                    new ServerBindings(),
+                                    batch.CallerContext,
+                                    CancellationToken.None)
                                     .ConfigureAwait(false);
                             }
                             catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -581,6 +587,8 @@ namespace Opc.Ua.Server
             /// <param name="factoryRevision">The revision of the published factory.</param>
             /// <param name="resolver">The data type definition resolver, or null.</param>
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
+            /// <param name="callerContext">The operation the batch was prepared under, or null for an ordinary
+            /// external caller.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
@@ -597,9 +605,11 @@ namespace Opc.Ua.Server
                 EncodeableFactory originalFactory,
                 long factoryRevision,
                 IDataTypeDefinitionResolver? resolver,
-                bool validationOnly)
+                bool validationOnly,
+                IOperationContext? callerContext)
             {
                 m_owner = owner;
+                CallerContext = callerContext;
                 Server = server;
                 Host = host;
                 Entries = entries;
@@ -618,6 +628,11 @@ namespace Opc.Ua.Server
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
+
+            /// <summary>
+            /// Gets the operation the batch was prepared under, or null for an ordinary external caller.
+            /// </summary>
+            public IOperationContext? CallerContext { get; }
 
             /// <summary>
             /// Gets the registrations the batch publishes.

@@ -58,30 +58,17 @@ namespace Opc.Ua.Server
         IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
         /// <summary>
-        /// Releases the current binding admission while a callback waits for and executes lifecycle work.
-        /// Async disposal resumes admission after lifecycle serialization has been released.
-        /// </summary>
-        /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
-        IAsyncDisposable SuspendBindingAdmission();
-
-        /// <summary>
-        /// Releases the binding admission captured for the specified request context, or the ambient admission of
-        /// a legacy caller when the context is null or was not admitted.
+        /// Releases the binding admission captured for the specified request context while a callback waits for
+        /// and executes lifecycle work. A null or unadmitted context is an ordinary external caller and suspends
+        /// nothing. Async disposal resumes admission after lifecycle serialization has been released.
         /// </summary>
         /// <param name="context">The operation context the admitted request was started with, or null.</param>
         /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
         IAsyncDisposable SuspendBindingAdmission(IOperationContext? context);
 
         /// <summary>
-        /// Checks whether the admitted operation is already removing this exact monitored item.
-        /// </summary>
-        /// <param name="monitoredItem">The monitored item to check.</param>
-        /// <returns><c>true</c> if the admitted operation is removing the item.</returns>
-        bool IsRemovingBinding(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Checks whether the request admitted for the context, or the ambient admission of a legacy caller, is
-        /// already removing this exact monitored item.
+        /// Checks whether the request admitted for the context is already removing this exact monitored item.
+        /// A null or unadmitted context is removing nothing.
         /// </summary>
         /// <param name="context">The operation context the admitted request was started with, or null.</param>
         /// <param name="monitoredItem">The monitored item to check.</param>

@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             NodeId valueId;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false))
+                [NodeManagerBatchChange.Add(factory.Object)], null, timeout.Token).ConfigureAwait(false))
             {
                 valueId = new NodeId(kValueNodeId,
                     (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
@@ -140,7 +140,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool whilePrepared;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token).ConfigureAwait(false))
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null, timeout.Token)
+                .ConfigureAwait(false))
             {
                 whilePrepared = await ObjectsContainsRootAsync(root).ConfigureAwait(false);
                 if (publish)
@@ -210,7 +211,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))]).ConfigureAwait(false);
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null).ConfigureAwait(false);
             NodeId unrelated = new(8301,
                 m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
             m_server.CurrentInstance.TypeTree.AddSubtype(unrelated, Ua.ObjectTypeIds.BaseObjectType);
@@ -235,7 +236,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token).ConfigureAwait(false);
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null, timeout.Token)
+                .ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
@@ -295,7 +297,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [replace
                     ? NodeManagerBatchChange.Replace(RequireLifecycleValue(previous), factory)
-                    : NodeManagerBatchChange.Add(factory)])
+                    : NodeManagerBatchChange.Add(factory)], null)
                 .ConfigureAwait(false))
             {
                 whilePrepared = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
@@ -380,7 +382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         })),
                     NodeManagerBatchChange.Replace(second,
                         CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
-                ], timeout.Token).ConfigureAwait(false);
+                ], null, timeout.Token).ConfigureAwait(false);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
@@ -518,7 +520,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
             ];
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            Task<IPreparedNodeManagerBatch> pending = lifecycle.PrepareAsync(changes, timeout.Token).AsTask();
+            Task<IPreparedNodeManagerBatch> pending = lifecycle.PrepareAsync(changes, null, timeout.Token).AsTask();
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -597,7 +599,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(original, factory.Object)]).ConfigureAwait(false);
+                [NodeManagerBatchChange.Replace(original, factory.Object)], null).ConfigureAwait(false);
             AssertLifecycleValue(originalManager);
             AssertLifecycleValue(replacement);
             int decisions = 0;
@@ -686,7 +688,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [
                         NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                             CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
-                    ]);
+                    ], null);
                 NodeManagerRegistration intervening = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null);
                 int decisions = 0;
@@ -741,7 +743,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
-                ]);
+                ], null);
             NodeManagerRegistration intervening = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
                 CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null);
             int decisions = 0;
@@ -783,7 +785,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CreateOptions(kModelNamespaceUri, 303))),
                     NodeManagerBatchChange.Replace(second, new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, 404)))
-                ]);
+                ], null);
 
             Assert.ThrowsAsync<IOException>(async () =>
             {
@@ -815,7 +817,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     NodeManagerBatchChange.Replace(first, new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, 303)))
-                ]);
+                ], null);
             NodeManagerRegistration winner = await m_server.NodeManagerLifecycle.ShadowReloadRuntimeNodeSetAsync(
                 first, CreateOptions(kModelNamespaceUri, 505));
             int decisions = 0;
@@ -847,7 +849,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
-                ]);
+                ], null);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
             int decisions = 0;
@@ -877,7 +879,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
-                ]);
+                ], null);
             using var cancellation = new CancellationTokenSource();
             NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
             {
@@ -906,7 +908,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))),
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
-                ]);
+                ], null);
             Assert.That(GetBranchRegistrations(), Is.Empty);
             int decisions = 0;
             NodeManagerBatchResult result = await prepared.CommitAsync(async _ =>

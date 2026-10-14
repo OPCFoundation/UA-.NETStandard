@@ -60,9 +60,14 @@ namespace Opc.Ua.Server
         /// captured revisions are still current.
         /// </summary>
         /// <param name="capture">The capture the invocation belongs to.</param>
+        /// <param name="callerContext">The operation the caller is running under, or null for an ordinary external
+        /// caller.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The publication invocation.</returns>
-        private PublicationInvocation BeginPublication(PublicationCapture capture, CancellationToken cancellationToken)
+        private PublicationInvocation BeginPublication(
+            PublicationCapture capture,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             lock (m_operationLifetimeLock)
@@ -94,7 +99,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     OperationLifetime operation = EnterLifecycleOperation(capture);
-                    return new PublicationInvocation(this, capture, current, finished, operation);
+                    return new PublicationInvocation(this, capture, current, finished, operation, callerContext);
                 }
                 catch
                 {
@@ -151,9 +156,12 @@ namespace Opc.Ua.Server
             long FactoryRevision) : INodeManagerPublicationCapture
         {
             /// <inheritdoc/>
-            public ValueTask<INodeManagerPublication> BeginAsync(CancellationToken cancellationToken = default)
+            public ValueTask<INodeManagerPublication> BeginAsync(
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken = default)
             {
-                return new ValueTask<INodeManagerPublication>(Owner.BeginPublication(this, cancellationToken));
+                return new ValueTask<INodeManagerPublication>(
+                    Owner.BeginPublication(this, callerContext, cancellationToken));
             }
         }
 
@@ -165,12 +173,15 @@ namespace Opc.Ua.Server
         /// <param name="current">Whether the captured revisions were still current at admission.</param>
         /// <param name="finished">The completion source set when the publication ends.</param>
         /// <param name="operation">The lifecycle operation held for the publication.</param>
+        /// <param name="callerContext">The operation the publication was begun under, or null for an ordinary
+        /// external caller.</param>
         private sealed class PublicationInvocation(
             NodeManagerLifecycle owner,
             PublicationCapture capture,
             bool current,
             TaskCompletionSource<bool> finished,
-            OperationLifetime operation) : INodeManagerValidationPublication
+            OperationLifetime operation,
+            IOperationContext? callerContext) : INodeManagerValidationPublication
         {
             /// <summary>
             /// Gets whether the captured revisions were current when the publication was admitted.
@@ -264,7 +275,8 @@ namespace Opc.Ua.Server
                 try
                 {
                     IPreparedNodeManagerBatch batch = await owner.PrepareBatchAsync(
-                        changes, this, cancellationToken, images, validationOnly).ConfigureAwait(false);
+                        changes, this, callerContext, cancellationToken, images, validationOnly)
+                        .ConfigureAwait(false);
                     lock (owner.m_operationLifetimeLock)
                     {
                         m_batches.Add(batch);

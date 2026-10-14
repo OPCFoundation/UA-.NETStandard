@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var lifecycle = (INodeManagerBatchLifecycle)server.NodeManagerLifecycle;
                 ArrayOf<NodeManagerRegistration> initialRegistrations = lifecycle.Registrations;
                 await Assert.ThatAsync(() => lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(candidate.Object)]).AsTask(),
+                    [NodeManagerBatchChange.Add(candidate.Object)], null).AsTask(),
                     Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
                 candidate.VerifyNoOtherCalls();
                 ArrayOf<NodeManagerRegistration> retainedRegistrations = lifecycle.Registrations;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var lifecycle = (INodeManagerBatchLifecycle)second.NodeManagerLifecycle;
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateBatchComplexTypeOptions(false)))]).ConfigureAwait(false);
+                        CreateBatchComplexTypeOptions(false)))], null).ConfigureAwait(false);
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
@@ -138,7 +138,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(current,
-                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(true)))])
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(true)))],
+                null)
                 .ConfigureAwait(false))
             {
                 Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(alias, out _), Is.False);
@@ -160,7 +161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Add(
                         new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false))),
                     NodeManagerBatchChange.Add(failed.Object)
-                ]).AsTask(), Throws.TypeOf<IOException>()).ConfigureAwait(false);
+                ], null).AsTask(), Throws.TypeOf<IOException>()).ConfigureAwait(false);
             Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(
                 new ExpandedNodeId(RuntimeNodeSetTestServer.TestPointDataType, RuntimeNodeSetTestServer.NamespaceUri),
                 out _), Is.False);
@@ -184,7 +185,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RuntimeNodeSetTestServer.NamespaceUri);
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(
-                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
+                null)
                 .ConfigureAwait(false))
             {
                 Assert.That(holder.TryResolve(marker, out _), Is.True);
@@ -204,7 +206,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(
-                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
+                null)
                 .ConfigureAwait(false);
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
             Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? type), Is.True);
@@ -237,6 +240,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(
                     new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
+                null,
                 timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -305,7 +309,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool preparedEnumeration;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(
-                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
+                null)
                 .ConfigureAwait(false))
             {
                 preparedStructure = factory.TryGetEncodeableType(structure, out _);
@@ -350,7 +355,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(current,
-                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(true)))])
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(true)))],
+                null)
                 .ConfigureAwait(false))
             {
                 visibleWhilePrepared = factory.TryGetEncodeableType(alias, out _);

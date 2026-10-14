@@ -44,10 +44,13 @@ namespace Opc.Ua.Server
         /// The returned owner must be committed or asynchronously disposed.
         /// </summary>
         /// <param name="changes">The additions, replacements and retirements to prepare.</param>
+        /// <param name="callerContext">The request the caller is running under, or null for an ordinary external
+        /// caller. Pass the context when preparing from a binding admission callback.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
         /// <returns>The unpublished prepared unit, which owns all resources acquired while preparing.</returns>
         ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
+            IOperationContext? callerContext,
             CancellationToken cancellationToken = default);
     }
 
@@ -77,9 +80,13 @@ namespace Opc.Ua.Server
         /// Reserves one invocation. Conflicting lifecycle work is rejected before effects.
         /// A stale capture returns an invocation whose IsCurrent is false and cannot prepare units.
         /// </summary>
+        /// <param name="callerContext">The request the caller is running under, or null for an ordinary external
+        /// caller.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
         /// <returns>The invocation that retains publication admission until disposed.</returns>
-        ValueTask<INodeManagerPublication> BeginAsync(CancellationToken cancellationToken = default);
+        ValueTask<INodeManagerPublication> BeginAsync(
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

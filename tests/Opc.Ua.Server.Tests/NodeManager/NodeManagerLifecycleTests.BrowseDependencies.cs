@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 kGeneration2Value, manager => newTarget = manager, kSecondModelNamespaceUri))
                             : NodeManagerBatchChange.Remove(target.Registration),
                         NodeManagerBatchChange.Remove(unrelated.Registration)
-                    ], timeout.Token).ConfigureAwait(false))
+                    ], null, timeout.Token).ConfigureAwait(false))
                 {
                     if (replace)
                     {
@@ -710,7 +710,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 changes.Add(NodeManagerBatchChange.Remove(registration, immediate));
             }
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [.. changes], cancellationToken).ConfigureAwait(false);
+                [.. changes], null, cancellationToken).ConfigureAwait(false);
             NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);

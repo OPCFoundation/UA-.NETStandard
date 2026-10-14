@@ -93,7 +93,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             uint eventId = created.Results[0].MonitoredItemId;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(registration, CreateTrackingNodeManagementFactory(
-                    kGeneration2Value, value => candidate = value), true)], timeout.Token).ConfigureAwait(false);
+                    kGeneration2Value, value => candidate = value), true)], null, timeout.Token)
+                .ConfigureAwait(false);
             TrackingLifecycleNodeManager candidateManager = candidate ??
                 throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
@@ -227,7 +228,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 throw new AssertionException("The original generation was not created.");
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(registration, CreateTrackingNodeManagementFactory(
-                    kGeneration2Value, value => candidate = value), immediate)], timeout.Token).ConfigureAwait(false);
+                    kGeneration2Value, value => candidate = value), immediate)], null, timeout.Token)
+                .ConfigureAwait(false);
             TrackingLifecycleNodeManager candidateManager = candidate ??
                 throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(

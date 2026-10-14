@@ -59,14 +59,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var suspended = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
+            manager.AllEventsContextCallback = async (context, unsubscribe, token) =>
             {
                 if (unsubscribe || Interlocked.Increment(ref callbacks) != 1)
                 {
                     return;
                 }
-                await using IAsyncDisposable first = host.SuspendBindingAdmission();
-                await using IAsyncDisposable second = host.SuspendBindingAdmission();
+                await using IAsyncDisposable first = host.SuspendBindingAdmission(context);
+                await using IAsyncDisposable second = host.SuspendBindingAdmission(context);
                 await first.DisposeAsync().ConfigureAwait(false);
                 suspended.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -91,6 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
+                manager.AllEventsContextCallback = null!;
                 manager.AllEventsCallback = (_, _, _) => default;
                 await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 if (secondAdmission is not null)
@@ -123,7 +124,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var resumptionsQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releasePeer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
+            manager.AllEventsContextCallback = async (context, unsubscribe, token) =>
             {
                 if (unsubscribe)
                 {
@@ -131,11 +132,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 if (Interlocked.Increment(ref callbacks) == 1)
                 {
-                    await using IAsyncDisposable first = host.SuspendBindingAdmission();
+                    await using IAsyncDisposable first = host.SuspendBindingAdmission(context);
                     suspended.TrySetResult(true);
                     await resume.Task.WaitAsync(token).ConfigureAwait(false);
                     Task firstResumption = first.DisposeAsync().AsTask();
-                    await using IAsyncDisposable second = host.SuspendBindingAdmission();
+                    await using IAsyncDisposable second = host.SuspendBindingAdmission(context);
                     Task secondResumption = second.DisposeAsync().AsTask();
                     resumptionsQueued.TrySetResult(true);
                     await Task.WhenAll(firstResumption, secondResumption).WaitAsync(timeout.Token)
@@ -170,6 +171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 resume.TrySetResult(true);
                 releasePeer.TrySetResult(true);
+                manager.AllEventsContextCallback = null!;
                 manager.AllEventsCallback = (_, _, _) => default;
                 await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 if (secondAdmission is not null)
@@ -199,7 +201,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(true)]
         [TestCase(false)]
-        public async Task OnlyLegacyNoContextCallbackSuspendsAmbientAdmissionAsync(bool legacyNoContext)
+        public async Task NullOrUnadmittedContextCallbackSuspendsNothingAsync(bool nullContext)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -211,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
                 m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            IOperationContext? custom = legacyNoContext ? null : Mock.Of<IOperationContext>();
+            IOperationContext? custom = nullContext ? null : Mock.Of<IOperationContext>();
             var suspended = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
@@ -235,8 +237,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, subscription.SubscriptionId, ObjectIds.Server, 2);
                 Task completed = await Task.WhenAny(
                     secondAdmission, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false);
-                // An unregistered context must not inherit the admission of the callback it runs inside.
-                Assert.That(ReferenceEquals(completed, secondAdmission), Is.EqualTo(legacyNoContext));
+                // Neither a null nor an unregistered context may release the admission of the callback it runs in.
+                Assert.That(ReferenceEquals(completed, secondAdmission), Is.False);
             }
             finally
             {
@@ -634,7 +636,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value, kSecondModelNamespaceUri))],
-                timeout.Token).ConfigureAwait(false);
+                null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(original);
             AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
@@ -643,11 +645,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            original.SessionActivatedCallback = async _ =>
+            original.SessionActivatedContextCallback = async (context, _) =>
             {
                 Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
                 Task<NodeManagerRegistration> adding = lifecycle.AddAsync(
-                    factory, null, cancellation.Token).AsTask();
+                    factory, context, cancellation.Token).AsTask();
                 queued.TrySetResult(true);
                 await adding.ConfigureAwait(false);
             };
@@ -698,6 +700,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 cancellation.Cancel();
+                original.SessionActivatedContextCallback = null!;
                 original.SessionActivatedCallback = _ => default;
                 if (activatedSession is not null)
                 {
@@ -733,7 +736,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await ((INodeManagerBatchLifecycle)lifecycle).PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri))],
-                timeout.Token).ConfigureAwait(false);
+                null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
@@ -747,6 +750,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycleQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             NodeManagerRegistration? added = null;
             int decisions = 0;
+            OperationContext? admitted = null;
+            original.AllEventsContextCallback = (context, unsubscribe, _) =>
+            {
+                if (!unsubscribe)
+                {
+                    Volatile.Write(ref admitted, context);
+                }
+                return default;
+            };
             original.AllEventsCallback = async (item, unsubscribe, _) =>
             {
                 if (unsubscribe)
@@ -757,7 +769,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 callbackEntered.TrySetResult(item.Id);
                 await releaseCallback.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Task<NodeManagerRegistration> operation = lifecycle.AddAsync(
-                    callbackFactory, null, cleanup.Token).AsTask();
+                    callbackFactory, Volatile.Read(ref admitted), cleanup.Token).AsTask();
                 lifecycleQueued.TrySetResult(true);
                 try
                 {
@@ -901,7 +913,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value, kSecondModelNamespaceUri))],
-                timeout.Token).ConfigureAwait(false);
+                null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(original);
             AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
@@ -912,6 +924,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             uint eventId = 0;
             bool nestedCancelled = false;
+            OperationContext? admitted = null;
+            original.AllEventsContextCallback = (context, unsubscribe, _) =>
+            {
+                if (!unsubscribe)
+                {
+                    Volatile.Write(ref admitted, context);
+                }
+                return default;
+            };
             original.AllEventsCallback = async (item, unsubscribe, _) =>
             {
                 if (unsubscribe)
@@ -920,7 +941,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 eventId = item.Id;
                 Task<NodeManagerRegistration> adding = lifecycle.AddAsync(
-                    nestedFactory, null, nestedCancellation.Token).AsTask();
+                    nestedFactory, Volatile.Read(ref admitted), nestedCancellation.Token).AsTask();
                 queued.TrySetResult(true);
                 try
                 {

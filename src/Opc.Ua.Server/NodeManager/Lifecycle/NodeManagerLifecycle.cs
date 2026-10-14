@@ -779,6 +779,7 @@ namespace Opc.Ua.Server
                                 rollbackBindings = await BindToServerAsync(
                                     server,
                                     state.Prepared.NodeManager,
+                                    callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                                 await CommitWithReconciliationAsync(
                                     server,
@@ -786,6 +787,7 @@ namespace Opc.Ua.Server
                                     state.Prepared,
                                     state.Prepared.NodeManager,
                                     rollbackBindings,
+                                    callerContext,
                                     CancellationToken.None,
                                     afterCommit: () =>
                                         monitoredItemTransition.RollbackAsync(
@@ -812,6 +814,7 @@ namespace Opc.Ua.Server
                                         server,
                                         state.Prepared.NodeManager,
                                         rollbackBindings,
+                                        callerContext,
                                         CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
@@ -1002,6 +1005,7 @@ namespace Opc.Ua.Server
                 ServerBindings bindings = await BindToServerAsync(
                     server,
                     nodeManager,
+                    callerContext,
                     ct).ConfigureAwait(false);
                 await host.PublishAsync(prepared, ct).ConfigureAwait(false);
 
@@ -1011,6 +1015,7 @@ namespace Opc.Ua.Server
                     prepared,
                     nodeManager,
                     bindings,
+                    callerContext,
                     ct,
                     afterCommit: () => RecoverDetachedMonitoredItemsAsync(
                         server,
@@ -1049,6 +1054,7 @@ namespace Opc.Ua.Server
                         server,
                         nodeManager,
                         bindings,
+                        callerContext,
                         CancellationToken.None).ConfigureAwait(false);
                 }
                 await CompleteReadinessOutsideLifecycleSemaphoreAsync(
@@ -1111,11 +1117,13 @@ namespace Opc.Ua.Server
                                 await BindToServerAsync(
                                     server,
                                     nodeManager,
+                                    callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                             await ReconcileBindingsAsync(
                                 server,
                                 nodeManager,
                                 recoveryBindings,
+                                callerContext,
                                 CancellationToken.None).ConfigureAwait(false);
                             await DrainRequestsOutsideLifecycleSemaphoreAsync(
                                     server,
@@ -1131,6 +1139,7 @@ namespace Opc.Ua.Server
                                     server,
                                     nodeManager,
                                     recoveryBindings,
+                                    callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                             }
                         }
@@ -1356,6 +1365,7 @@ namespace Opc.Ua.Server
                 ServerBindings bindings = await BindToServerAsync(
                     server,
                     replacementManager,
+                    callerContext,
                     ct).ConfigureAwait(false);
 
                 await host
@@ -1373,6 +1383,7 @@ namespace Opc.Ua.Server
                     replacement,
                     replacementManager,
                     bindings,
+                    callerContext,
                     ct,
                     beforeCommit: beforeReloadCommit,
                     afterCommit: afterTransitionCommit,
@@ -1489,6 +1500,7 @@ namespace Opc.Ua.Server
                             server,
                             replacementManager,
                             bindings,
+                            callerContext,
                             CancellationToken.None).ConfigureAwait(false);
                         if (!allowActiveMonitoredItems)
                         {
@@ -1668,11 +1680,13 @@ namespace Opc.Ua.Server
                                     await BindToServerAsync(
                                         server,
                                         replacementManager,
+                                        callerContext,
                                         CancellationToken.None).ConfigureAwait(false);
                                 await ReconcileBindingsAsync(
                                     server,
                                     replacementManager,
                                     recoveryBindings,
+                                    callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                                 await DrainRequestsOutsideLifecycleSemaphoreAsync(
                                         server,
@@ -1688,6 +1702,7 @@ namespace Opc.Ua.Server
                                         server,
                                         replacementManager,
                                         recoveryBindings,
+                                        callerContext,
                                         CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
@@ -2681,6 +2696,7 @@ namespace Opc.Ua.Server
             PreparedNodeManager prepared,
             IAsyncNodeManager nodeManager,
             ServerBindings bindings,
+            IOperationContext? callerContext,
             CancellationToken ct,
             Func<ValueTask>? beforeCommit = null,
             Func<ValueTask>? afterCommit = null,
@@ -2705,6 +2721,7 @@ namespace Opc.Ua.Server
                             server,
                             nodeManager,
                             bindings,
+                            callerContext,
                             ct).ConfigureAwait(false);
                     },
                     async () =>
@@ -2745,6 +2762,7 @@ namespace Opc.Ua.Server
         private static async ValueTask<ServerBindings> BindToServerAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
+            IOperationContext? callerContext,
             CancellationToken ct)
         {
             var bindings = new ServerBindings();
@@ -2780,6 +2798,7 @@ namespace Opc.Ua.Server
                         server,
                         nodeManager,
                         monitoredItem,
+                        callerContext,
                         ct).ConfigureAwait(false))
                     {
                         bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
@@ -2812,6 +2831,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             ServerBindings bindings,
+            IOperationContext? callerContext,
             CancellationToken ct)
         {
             ISession[] currentSessions =
@@ -2915,6 +2935,7 @@ namespace Opc.Ua.Server
                     server,
                     nodeManager,
                     monitoredItem,
+                    callerContext,
                     ct).ConfigureAwait(false))
                 {
                     bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
@@ -3066,11 +3087,12 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             IEventMonitoredItem monitoredItem,
+            IOperationContext? callerContext,
             CancellationToken ct)
         {
-            // Lifecycle rebind has no originating request context; the no-context overload deliberately checks the
-            // ambient admission of the delete that may be removing this item.
-            if ((server.NodeManager as IDynamicNodeManagerBatchHost)?.IsRemovingBinding(monitoredItem) == true)
+            // Only the explicit context of the lifecycle caller can identify a delete that is removing this item.
+            if ((server.NodeManager as IDynamicNodeManagerBatchHost)?.IsRemovingBinding(
+                callerContext, monitoredItem) == true)
             {
                 return false;
             }

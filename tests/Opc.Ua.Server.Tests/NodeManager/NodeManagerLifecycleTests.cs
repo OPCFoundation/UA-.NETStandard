@@ -7980,6 +7980,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; } = null!;
 
             /// <summary>
+            /// Gets or sets a callback that receives the operation context of a session activation.
+            /// </summary>
+            public Func<OperationContext, CancellationToken, ValueTask> SessionActivatedContextCallback
+            { get; set; } = null!;
+
+            /// <summary>
             /// Gets or sets a callback that receives the operation context of an all-events subscription change.
             /// </summary>
             public Func<OperationContext, bool, CancellationToken, ValueTask> AllEventsContextCallback
@@ -8066,6 +8072,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Interlocked.Increment(ref m_sessionActivatedCount);
                 m_activatedSessionIds.Enqueue(sessionId);
+                if (SessionActivatedContextCallback is not null)
+                {
+                    await SessionActivatedContextCallback(context, cancellationToken).ConfigureAwait(false);
+                }
                 if (SessionActivatedCallback is not null)
                 {
                     await SessionActivatedCallback(cancellationToken).ConfigureAwait(false);

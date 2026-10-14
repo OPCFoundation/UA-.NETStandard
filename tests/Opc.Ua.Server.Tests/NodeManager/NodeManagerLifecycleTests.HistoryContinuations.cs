@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                     manager.HistoryProvider = newProvider;
                                 }))
                             : NodeManagerBatchChange.Remove(original)
-                    ], timeout.Token).ConfigureAwait(false))
+                    ], null, timeout.Token).ConfigureAwait(false))
                 {
                     if (replace)
                     {
@@ -490,7 +490,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             ? NodeManagerBatchChange.Replace(owner.Registration,
                                 CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
                             : NodeManagerBatchChange.Remove(owner.Registration, true)
-                    ], timeout.Token).ConfigureAwait(false))
+                    ], null, timeout.Token).ConfigureAwait(false))
                 {
                     NodeManagerBatchResult retired = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
@@ -802,7 +802,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(owner.Registration)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(owner.Registration)], null, timeout.Token)
+                .ConfigureAwait(false);
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {

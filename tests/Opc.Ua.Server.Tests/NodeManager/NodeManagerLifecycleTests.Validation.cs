@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateUnsupportedReferenceFactory();
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync().ConfigureAwait(false);
+                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             Assert.That(publication, Is.InstanceOf<INodeManagerValidationPublication>());
             var validation = (INodeManagerValidationPublication)publication;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 kFirstRegistrationValue, created => manager = created);
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync().ConfigureAwait(false);
+                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             var validation = (INodeManagerValidationPublication)publication;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             int decisions = 0;
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             await using (INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync().ConfigureAwait(false))
+                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false))
             {
                 var validation = (INodeManagerValidationPublication)publication;
                 using var cancellation = new CancellationTokenSource();
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync().ConfigureAwait(false);
+                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             var validation = (INodeManagerValidationPublication)publication;
 
             await Assert.ThatAsync(async () => await validation.ValidateAsync(
