@@ -980,9 +980,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
-        public void PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
+        public async Task PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
         {
             ArrayOf<SampleDocument> documents = ReadPumpDocuments();
+            // The complete linked set validates the readable claims that the partition-local reads below omit.
+            UANodeSet linkedSet = await WotAggregationDocumentGenerator
+                .ReadPumpDocumentSetAsync(ReadSubstitutedManifestDocuments().Filter(document =>
+                    document.Path.StartsWith("sample-pump/", StringComparison.Ordinal))).ConfigureAwait(false);
+            Assert.That(linkedSet.Items, Is.Not.Null.And.Not.Empty);
             var placeholders = new HashSet<string>(StringComparer.Ordinal);
             foreach (string pumpName in s_pumpAssetNames)
             {
