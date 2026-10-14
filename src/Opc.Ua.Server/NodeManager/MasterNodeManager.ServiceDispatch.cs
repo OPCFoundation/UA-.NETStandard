@@ -134,8 +134,10 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The query reads the live routing, so a caller inside a dispatched service call, such as a method
         /// callback that has just published a NodeManager, sees what was committed after the call captured its
-        /// routing image. The result is an existence answer only and does not retain a handle for later service
-        /// operations. The lookup goes through <see cref="GetManagerHandleAsync"/> exactly once.
+        /// routing image. The result is a live published-existence answer only. It is not a retained captured
+        /// service handle: the handle resolved by the lookup is discarded, the ambient captured routing image is
+        /// not promoted, and the answer must not be used to perform later service operations. The lookup goes
+        /// through <see cref="GetManagerHandleAsync"/> exactly once.
         /// </remarks>
         /// <param name="nodeId">The node to look up.</param>
         /// <param name="cancellationToken">The cancellation token.</param>

@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests
     [TestFixture]
     [Category("MasterNodeManager")]
     [NonParallelizable]
-    public class MasterNodeManagerViewOwnershipTests
+    public sealed class MasterNodeManagerViewOwnershipTests
     {
         /// <summary>
         /// Verifies that a secondary manager on a running server does not own the shared tables and that
