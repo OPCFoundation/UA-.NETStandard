@@ -377,6 +377,41 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets holds the PublishedDataSet objects")]
+        public async Task PublishedDataSetIsMaterializedUnderPublishSubscribePublishedDataSets()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            await harness.Application.AddPublishedDataSetAsync(new PublishedDataSetDataType
+            {
+                Name = "pds-parent",
+                DataSetMetaData = new DataSetMetaDataType { Name = "pds-parent" },
+                DataSetSource = new ExtensionObject(new PublishedDataItemsDataType
+                {
+                    PublishedData = []
+                })
+            }).ConfigureAwait(false);
+
+            BaseObjectState dataSetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId(
+                    "pubsub:published-data-set:pds-parent",
+                    harness.Manager.AddressSpaceNamespaceIndex));
+            var placeholderChildren = new List<BaseInstanceState>();
+            harness.DataSetFolderPlaceholderObject.GetChildren(harness.Context, placeholderChildren);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataSetNode, Is.Not.Null);
+                Assert.That(
+                    dataSetNode?.Parent?.NodeId,
+                    Is.EqualTo(ObjectIds.PublishSubscribe_PublishedDataSets));
+                Assert.That(placeholderChildren, Is.Empty);
+            });
+        }
+
+        [Test]
         [TestSpec("9.1.3.7", Summary = "PubSubConfigurationType exposes FileType-style import/export")]
         public async Task PubSubConfigurationFileMethods_ReadAndCloseAndUpdateConfiguration()
         {
@@ -583,8 +618,13 @@ namespace Opc.Ua.PubSub.Server.Tests
                 };
                 PublishedDataSetsObject = new BaseObjectState(PublishSubscribeObject)
                 {
-                    NodeId = new NodeId(14478u),
+                    NodeId = ObjectIds.PublishSubscribe_PublishedDataSets,
                     BrowseName = new QualifiedName("PublishedDataSets")
+                };
+                DataSetFolderPlaceholderObject = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.DataSetFolderType_DataSetFolderName_Placeholder,
+                    BrowseName = new QualifiedName("<DataSetFolderName>")
                 };
                 SecurityGroupsObject = new BaseObjectState(PublishSubscribeObject)
                 {
@@ -616,8 +656,11 @@ namespace Opc.Ua.PubSub.Server.Tests
                     .Returns((NodeId id) => id == new NodeId(17406u) ? StatusVariable : null!);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe))
                     .Returns(PublishSubscribeObject);
-                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(14478u)))
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe_PublishedDataSets))
                     .Returns(PublishedDataSetsObject);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(
+                        ObjectIds.DataSetFolderType_DataSetFolderName_Placeholder))
+                    .Returns(DataSetFolderPlaceholderObject);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(15443u)))
                     .Returns(SecurityGroupsObject);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(25440u)))
@@ -673,6 +716,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             public BaseDataVariableState StatusVariable { get; }
             public BaseObjectState PublishSubscribeObject { get; }
             public BaseObjectState PublishedDataSetsObject { get; }
+            public BaseObjectState DataSetFolderPlaceholderObject { get; }
             public BaseObjectState SecurityGroupsObject { get; }
             public BaseObjectState KeyPushTargetsObject { get; }
             public ServerSystemContext Context { get; }

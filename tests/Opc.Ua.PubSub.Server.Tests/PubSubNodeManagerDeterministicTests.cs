@@ -736,7 +736,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 };
                 PublishedDataSetsObject = new BaseObjectState(PublishSubscribeObject)
                 {
-                    NodeId = new NodeId(14478u),
+                    NodeId = ObjectIds.PublishSubscribe_PublishedDataSets,
                     BrowseName = new QualifiedName("PublishedDataSets")
                 };
                 SecurityGroupsObject = new BaseObjectState(PublishSubscribeObject)
@@ -769,7 +769,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     .Returns((NodeId id) => id == new NodeId(17406u) ? StatusVariable : null!);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe))
                     .Returns(PublishSubscribeObject);
-                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(14478u)))
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(ObjectIds.PublishSubscribe_PublishedDataSets))
                     .Returns(PublishedDataSetsObject);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(15443u)))
                     .Returns(SecurityGroupsObject);

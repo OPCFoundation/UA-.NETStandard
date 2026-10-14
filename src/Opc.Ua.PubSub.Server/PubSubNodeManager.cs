@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Server
         private const uint RemovePublishedDataSetNodeId = 14485;
         private const uint AddDataSetFolderNodeId = 16884;
         private const uint RemoveDataSetFolderNodeId = 16923;
-        private static readonly NodeId s_publishedDataSetsNodeId = new(14478u);
+        private static readonly NodeId s_publishedDataSetsNodeId = ObjectIds.PublishSubscribe_PublishedDataSets;
         private static readonly NodeId s_securityGroupsNodeId = new(15443u);
         private static readonly NodeId s_keyPushTargetsNodeId = new(25440u);
 
