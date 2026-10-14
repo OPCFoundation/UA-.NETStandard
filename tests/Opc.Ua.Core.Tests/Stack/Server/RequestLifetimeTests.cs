@@ -394,7 +394,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.False);
             (cancelled == 0 ? first : second).Cancel();
 
-            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+            // the tokens are watched by the shared request sweep, not registered.
+            Assert.That(lifetime.CancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(10)), Is.True);
             Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -450,7 +451,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             Assert.That(lifetime.CancellationToken.WaitHandle.WaitOne(50), Is.False);
             first.Cancel();
-            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(lifetime.CancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(10)), Is.True);
 
             Assert.That(unlinked.CancellationToken.CanBeCanceled, Is.True);
             Assert.That(unlinked.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);

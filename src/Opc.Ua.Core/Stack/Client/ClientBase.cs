@@ -104,7 +104,10 @@ namespace Opc.Ua
             => NullableTransportChannel!.EndpointConfiguration;
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext => NullableTransportChannel!.MessageContext;
+        /// <exception cref="ServiceResultException">
+        /// The transport channel is closed.
+        /// </exception>
+        public IServiceMessageContext MessageContext => TransportChannel.MessageContext;
 
         /// <inheritdoc/>
         public ITransportChannel NullableTransportChannel

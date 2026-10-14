@@ -108,6 +108,13 @@ in-memory `NodeStateCollection`), you can either:
 changes, so it is safe to call at the end of an arbitrary service
 implementation.
 
+Deletion is not an atomic subtree transaction. If removal fails after deleting
+some nodes, monitored items for removed nodes report `Bad_NodeIdUnknown`, while
+items for descendants that remain registered are restored to their node manager.
+The original failure is still reported; restoration failures are also surfaced.
+Each asynchronous restoration gets its own five-second cleanup budget, so one
+timed-out item does not cancel attempts to restore the remaining items.
+
 ### Manual aggregation across a transaction
 
 `ModelChangeAggregator` is thread-safe and supports arbitrary batching:
@@ -346,8 +353,14 @@ class MyInvalidatingCache : INodeCache
 
 ## NodeVersion correlation
 
-OPC UA Part 5 §9.32.2 ties `ModelChangeEvent` emission to the
+OPC UA Part 3 §9.32.2 ties `ModelChangeEvent` emission to the
 `NodeVersion` property:
+
+Automatic deletion captures a node's `NodeVersion` eligibility before removing
+it from the address space. A removed local node must not bypass this check as an
+unresolved external node. Unversioned session diagnostics therefore do not emit
+`NodeDeleted` events on session closure; versioned nodes and the explicit
+`RequireNodeVersionForModelChange = false` compatibility mode retain their events.
 
 > "Every time a `ModelChangeEvent` is issued for a Node, its
 > `NodeVersion` shall be changed, and every time the `NodeVersion` is

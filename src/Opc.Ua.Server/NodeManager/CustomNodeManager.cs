@@ -969,12 +969,11 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            // The event filter cannot inspect this node after it has been removed.
+            bool emitNodeDeleted = !RequireNodeVersionForModelChange || node.HasNodeVersion();
             IReadOnlyList<IMonitoredItem> monitoredItems =
                 GetMonitoredItemsForNodeSubtree(contextToUse, node);
             var detachedItems = new List<IMonitoredItem>(monitoredItems.Count);
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
-
             try
             {
                 foreach (IMonitoredItem monitoredItem in monitoredItems)
@@ -988,9 +987,7 @@ namespace Opc.Ua.Server
                     detachedItems.Add(monitoredItem);
                 }
 
-                addressSpaceRemovalStarted = true;
                 RemovePredefinedNode(contextToUse, node!, referencesToRemove);
-                addressSpaceRemovalCompleted = true;
                 RemoveRootNotifier(node!);
 
                 if (referencesToRemove.Count > 0)
@@ -1000,21 +997,9 @@ namespace Opc.Ua.Server
 #pragma warning restore CS0618
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    RestoreDetachedMonitoredItems(detachedItems);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                RestoreSurvivingMonitoredItems(detachedItems, failure);
                 throw;
             }
 
@@ -1023,7 +1008,7 @@ namespace Opc.Ua.Server
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
-            if (ModelChangeEmissionEnabled)
+            if (ModelChangeEmissionEnabled && emitNodeDeleted)
             {
                 ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
                 EmitModelChange(contextToUse);
@@ -1059,16 +1044,55 @@ namespace Opc.Ua.Server
             return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
         }
 
+        private void RestoreSurvivingMonitoredItems(
+            List<IMonitoredItem> monitoredItems,
+            Exception deletionFailure)
+        {
+            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                {
+                    survivingItems.Add(monitoredItem);
+                }
+                else
+                {
+                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                }
+            }
+            try
+            {
+                RestoreDetachedMonitoredItems(survivingItems);
+            }
+            catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Node deletion and monitored-item restoration failed.", deletionFailure, restorationFailure);
+            }
+        }
+
         private void RestoreDetachedMonitoredItems(
             List<IMonitoredItem> monitoredItems)
         {
+            List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
-                ServiceResult result = AttachMonitoredItemForLifecycle(monitoredItems[ii]);
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    throw new ServiceResultException(result);
+                    ServiceResult result = AttachMonitoredItemForLifecycle(monitoredItems[ii]);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Monitored-item restoration failed.", failures);
             }
         }
 

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -400,6 +401,116 @@ namespace Opc.Ua.Client.Tests
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode")
                     .EqualTo(StatusCodes.BadServerNotConnected));
+        }
+
+        /// <summary>
+        /// Cancellation is checked before sending requests, even for an empty
+        /// node list and when the transport does not observe the token.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ManagedBrowseRejectsPreCancelledTokenAsync(bool empty, bool useSessionExtension)
+        {
+            using SessionMock session = SessionMock.Create();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            ArrayOf<NodeId> nodes = empty ? [] : [ObjectIds.RootFolder];
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results = empty ? [] : [new BrowseResult { StatusCode = StatusCodes.Good }],
+                    DiagnosticInfos = []
+                }));
+
+            await Assert.ThatAsync(
+                async () =>
+                {
+                    if (useSessionExtension)
+                    {
+                        await session.ManagedBrowseAsync(
+                            null, null, nodes, 0, BrowseDirection.Forward,
+                            ReferenceTypeIds.HierarchicalReferences, true, 0, cancellation.Token)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var browser = new Browser(session);
+                        await browser.BrowseAsync(nodes, cancellation.Token).ConfigureAwait(false);
+                    }
+                },
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+
+            session.Channel.Verify(
+                c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Request failures and cancellation must propagate rather than return
+        /// an empty or partially populated successful result.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ManagedBrowsePropagatesRequestFailuresAsync(bool browseNext, bool cancel)
+        {
+            using SessionMock session = SessionMock.Create();
+            using var cancellation = new CancellationTokenSource();
+            Exception expected = cancel
+                ? new OperationCanceledException(cancellation.Token)
+                : new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken ct) =>
+                {
+                    Assert.That(ct, Is.EqualTo(cancellation.Token));
+                    if (browseNext && request is BrowseRequest)
+                    {
+                        return new ValueTask<IServiceResponse>(new BrowseResponse
+                        {
+                            Results =
+                            [
+                                new BrowseResult
+                                {
+                                    StatusCode = StatusCodes.Good,
+                                    References = [CreateReferenceDescription("FirstPage")],
+                                    ContinuationPoint = new ByteString(new byte[] { 1 })
+                                }
+                            ],
+                            DiagnosticInfos = []
+                        });
+                    }
+                    if (cancel)
+                    {
+                        cancellation.Cancel();
+                    }
+                    throw expected;
+                });
+
+            await Assert.ThatAsync(
+                () => session.ManagedBrowseAsync(
+                    null, null, [ObjectIds.RootFolder], 1, BrowseDirection.Forward,
+                    ReferenceTypeIds.HierarchicalReferences, true, 0, cancellation.Token),
+                Throws.Exception.With.SameAs(expected)).ConfigureAwait(false);
+
+            session.Channel.Verify(
+                c => c.SendRequestAsync(It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            session.Channel.Verify(
+                c => c.SendRequestAsync(It.IsAny<BrowseNextRequest>(), It.IsAny<CancellationToken>()),
+                browseNext ? Times.Once() : Times.Never());
         }
 
         private static ReferenceDescription CreateReferenceDescription(string name)
