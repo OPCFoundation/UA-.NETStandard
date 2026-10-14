@@ -340,7 +340,8 @@ namespace Opc.Ua.Client.Tests
         private async Task WithSessionAsync(
             Func<ISession, Task> action,
             CancellationToken ct,
-            ITransportChannelBindings? bindings = null)
+            ITransportChannelBindings? bindings = null,
+            IReconnectPolicy? reconnectPolicy = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string root = Path.Combine(Path.GetTempPath(), "wsb-" + Guid.NewGuid().ToString("N")[..8]);
@@ -375,7 +376,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         await using Client.ManagedSession managed = await Client.ManagedSession.CreateAsync(
                             connection.Config, connection.Endpoint, connection.SessionFactory,
-                            telemetry: telemetry, ct: ct).ConfigureAwait(false);
+                            reconnectPolicy: reconnectPolicy, telemetry: telemetry, ct: ct).ConfigureAwait(false);
                         await action(managed).ConfigureAwait(false);
                     }
                     else
