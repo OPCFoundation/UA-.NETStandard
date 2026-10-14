@@ -548,6 +548,46 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional strategy capability for projections whose delete path needs the executing
+    /// request. The engine prefers these members over the context-free strategy deletes and
+    /// passes the same system context the management method received.
+    /// </summary>
+    public interface IXRegistryProjectionContextualDelete
+    {
+        /// <summary>
+        /// Deletes a group on behalf of the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="epoch">The expected epoch of the group, if any.</param>
+        /// <param name="context">The system context of the executing request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        ValueTask<ServiceResult> DeleteGroupAsync(
+            string groupId,
+            long? epoch,
+            ISystemContext? context,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Deletes a projected Version or logical Resource on behalf of the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The Version ID.</param>
+        /// <param name="deleteLogicalResource">Whether the logical Resource is deleted.</param>
+        /// <param name="epoch">The expected epoch of the entity, if any.</param>
+        /// <param name="context">The system context of the executing request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? epoch,
+            ISystemContext? context,
+            CancellationToken ct);
+    }
+
+    /// <summary>
     /// Additive strategy contract for projections that materialize one file per Version.
     /// </summary>
     public interface IXRegistryVersionedProjectionStrategy : IXRegistryProjectionStrategy

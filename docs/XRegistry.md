@@ -333,6 +333,10 @@ disabled. Event-enabled strategies additionally implement
 immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and lets a domain honor
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
+`IXRegistryProjectionContextualDelete` is an additive, optional capability for Group, Version and
+Resource deletes. When a strategy implements it, the engine passes the same `ISystemContext` of the
+delete call (and thus the caller's `IOperationContext`) instead of the context-free members, which
+remain in use for legacy strategies.
 
 `XRegistryProjectionContext.ProjectionDispatcher` optionally orders current-state
 reconciliation with a domain's notification delivery. The engine uses it for

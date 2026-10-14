@@ -524,6 +524,89 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForVersionAndLogicalDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult version = await InvokeDeleteAsync(harness, FindVersionNode(harness, "v2"), 23)
+                .ConfigureAwait(false);
+            ServiceResult logical = await InvokeDeleteAsync(harness, FindLogicalResourceNode(harness, "pump"), 17)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(version), Is.True);
+                Assert.That(ServiceResult.IsGood(logical), Is.True);
+                Assert.That(strategy.EntityDeletes, Has.Count.EqualTo(2));
+                Assert.That(strategy.EntityDeletes[0].VersionId, Is.EqualTo("v2"));
+                Assert.That(strategy.EntityDeletes[0].Logical, Is.False);
+                Assert.That(strategy.EntityDeletes[0].Epoch, Is.EqualTo(23));
+                Assert.That(strategy.EntityDeletes[0].Context, Is.SameAs(harness.Context));
+                Assert.That(strategy.EntityDeletes[1].Logical, Is.True);
+                Assert.That(strategy.EntityDeletes[1].Epoch, Is.EqualTo(17));
+                Assert.That(strategy.EntityDeletes[1].Context, Is.SameAs(harness.Context));
+            });
+        }
+
+        [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForGroupDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Has.Count.EqualTo(1));
+                Assert.That(strategy.GroupDeletes[0].GroupId, Is.EqualTo("schemas"));
+                Assert.That(strategy.GroupDeletes[0].Epoch, Is.EqualTo(5));
+                Assert.That(strategy.GroupDeletes[0].Context, Is.SameAs(harness.Context));
+            });
+        }
+
+        [Test]
+        public async Task LegacyContextFreeStrategyStillReceivesGroupDeleteAsync()
+        {
+            var strategy = new LegacyGroupDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Is.EqualTo(new[] { ("schemas", (long?)5) }));
+            });
+        }
+
+        [Test]
         public async Task VersionedDeleteUsesLogicalRoleWithoutEventMetadataAsync()
         {
             var strategy = new RecordingVersionedTestStrategy
@@ -2690,7 +2773,7 @@ namespace Opc.Ua.XRegistry.Tests
                     (new TestResource(groupId, resourceId), true));
             }
 
-            public ValueTask<ServiceResult> DeleteGroupAsync(
+            public virtual ValueTask<ServiceResult> DeleteGroupAsync(
                 string groupId,
                 long? epoch,
                 CancellationToken ct)
@@ -2979,6 +3062,71 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken ct)
             {
                 ResourceDeletes.Add(new ResourceDeleteInvocation(groupId, resourceId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class ContextualDeleteTestStrategy :
+            VersionedTestStrategy,
+            IXRegistryProjectionContextualDelete
+        {
+            public List<(string GroupId, long? Epoch, ISystemContext? Context)> GroupDeletes { get; } = [];
+            public List<(string ResourceId, string VersionId, bool Logical, long? Epoch, ISystemContext? Context)>
+                EntityDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free group delete must not be used.");
+            }
+
+            public override ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free entity delete must not be used.");
+            }
+
+            public ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                EntityDeletes.Add((resourceId, versionId, deleteLogicalResource, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class LegacyGroupDeleteTestStrategy : VersionedTestStrategy
+        {
+            public List<(string GroupId, long? Epoch)> GroupDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch));
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
         }

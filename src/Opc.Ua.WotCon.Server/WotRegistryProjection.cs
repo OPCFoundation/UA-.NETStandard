@@ -731,7 +731,8 @@ namespace Opc.Ua.WotCon.Server
         private class Strategy :
             IXRegistryProjectionStrategy,
             IXRegistryProjectionGenerationProvider,
-            IXRegistryProjectionEventMetadataProvider
+            IXRegistryProjectionEventMetadataProvider,
+            IXRegistryProjectionContextualDelete
         {
             public Strategy(WotRegistryProjection projection)
             {
@@ -1085,13 +1086,29 @@ namespace Opc.Ua.WotCon.Server
                 return (new ResourceAdapter(resource, version), created);
             }
 
-            public async ValueTask<ServiceResult> DeleteGroupAsync(
+            public ValueTask<ServiceResult> DeleteGroupAsync(
                 string groupId,
                 long? epoch,
                 CancellationToken ct)
             {
+                return DeleteGroupAsync(groupId, epoch, null, ct);
+            }
+
+            /// <summary>
+            /// Deletes a group, handing the executing request's context to the generic lifecycle.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="epoch">The expected epoch of the group, if any.</param>
+            /// <param name="context">The system context of the executing request, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
                 WotRegistryMutationResult result = await m_projection.m_registry
-                    .DeleteGroupAsync(groupId, epoch, ct).ConfigureAwait(false);
+                    .DeleteGroupAsync(groupId, epoch, context?.OperationContext, ct).ConfigureAwait(false);
                 return ToServiceResult(result);
             }
 
@@ -1102,16 +1119,27 @@ namespace Opc.Ua.WotCon.Server
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="epoch">The expected epoch of the resource, if any.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
-            public async ValueTask<ServiceResult> DeleteResourceAsync(
+            public ValueTask<ServiceResult> DeleteResourceAsync(
                 string groupId,
                 string resourceId,
                 long? epoch,
                 CancellationToken ct)
             {
+                return DeleteResourceAsync(groupId, resourceId, epoch, null, ct);
+            }
+
+            private async ValueTask<ServiceResult> DeleteResourceAsync(
+                string groupId,
+                string resourceId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
                 WotDeleteOutcome result = await m_projection.m_manager.Coordinator.DeleteAsync(new WotDeleteRequest
                 {
                     GroupId = groupId, ResourceId = resourceId, ExpectedEpoch = epoch,
-                    Policy = m_projection.m_manager.Coordinator.DeletePolicy
+                    Policy = m_projection.m_manager.Coordinator.DeletePolicy,
+                    CallerContext = context?.OperationContext
                 }, ct).ConfigureAwait(false);
                 return ToServiceResult(new WotRegistryMutationResult(
                     result.Delete.Outcome, null, result.Delete.Generation, [], result.Delete.Message));
@@ -1126,7 +1154,7 @@ namespace Opc.Ua.WotCon.Server
             /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
             /// <param name="epoch">The expected epoch of the entity, if any.</param>
             /// <param name="ct">The cancellation token supplied by the caller.</param>
-            public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            public ValueTask<ServiceResult> DeleteProjectedEntityAsync(
                 string groupId,
                 string resourceId,
                 string versionId,
@@ -1134,9 +1162,33 @@ namespace Opc.Ua.WotCon.Server
                 long? epoch,
                 CancellationToken ct)
             {
+                return DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, epoch, null, ct);
+            }
+
+            /// <summary>
+            /// Deletes a projected version or the logical resource, handing the executing request's
+            /// context to the generic lifecycle.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="versionId">The version ID.</param>
+            /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
+            /// <param name="epoch">The expected epoch of the entity, if any.</param>
+            /// <param name="context">The system context of the executing request, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
                 if (deleteLogicalResource)
                 {
-                    return await DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
+                    return await DeleteResourceAsync(groupId, resourceId, epoch, context, ct).ConfigureAwait(false);
                 }
                 if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
                 {
@@ -1148,6 +1200,7 @@ namespace Opc.Ua.WotCon.Server
                         versionId,
                         deleteLogicalResource,
                         epoch,
+                        context?.OperationContext,
                         ct)
                     .ConfigureAwait(false);
                 return ToServiceResult(result);
