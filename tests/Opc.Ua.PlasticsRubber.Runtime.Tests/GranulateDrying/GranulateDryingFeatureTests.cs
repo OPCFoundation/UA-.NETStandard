@@ -303,8 +303,9 @@ namespace Opc.Ua.GranulateDrying.Tests
         /// <summary>
         /// Automatic parameter limits reuse OPC 40083's signed lower-band semantics.
         /// </summary>
-        [Test]
-        public async Task CommonParameterBindingUsesSignedBandsAndCommittedWritesAsync()
+        [TestCase(188.0)]
+        [TestCase(189.0)]
+        public async Task CommonParameterBindingUsesSignedBandsAndCommittedWritesAsync(double observedSetpoint)
         {
             GranulateDryingDeviceOptions options = GranulateDryingTestHost.BasicOptions(Name()) with
             {
@@ -346,7 +347,8 @@ namespace Opc.Ua.GranulateDrying.Tests
                     CancellationToken _) =>
                 {
                     observed = request;
-                    authority.Next(DryingAuthority.Value(binTarget, "Temperature/SetValue", Variant.From(value), 7));
+                    authority.Next(DryingAuthority.Value(
+                        binTarget, "Temperature/SetValue", Variant.From(observedSetpoint), 7));
                     return default;
                 });
             GranulateDryingDevice device = await m_host.CreateAsync(
@@ -362,8 +364,10 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingReading<double> written = await parameter.SetValue.ReadAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(written.Value, Is.EqualTo(188));
+                Assert.That(written.Value, Is.EqualTo(observedSetpoint));
                 Assert.That(written.DataValue.SourceTimestamp, Is.EqualTo(DryingAuthority.Time(7)));
+                Assert.That(device.Bin(1).Temperature!.SetValue!.Value, Is.EqualTo(observedSetpoint));
+                Assert.That(device.Bin(1).Temperature!.SetValue!.Timestamp, Is.EqualTo(DryingAuthority.Time(7)));
                 Assert.That(observed!.Value.TargetId, Is.EqualTo(device.Bin(1).Temperature!.NodeId));
                 Assert.That((observed.Value.SystemContext as ISessionSystemContext)!.SessionId,
                     Is.EqualTo(m_host.Session.SessionId));
@@ -405,7 +409,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 .Returns(() =>
                 {
                     authority.Next(DryingAuthority.Value(target, path, Variant.From(5.0), 7));
-                    return ValueTask.CompletedTask;
+                    return default;
                 });
             GranulateDryingDevice device = await m_host.Runtime.CreateDeviceAsync(
                 options, authority.Provider, policy.Object,

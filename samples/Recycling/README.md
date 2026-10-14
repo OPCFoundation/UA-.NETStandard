@@ -1,6 +1,6 @@
 # Generic recycling simulation
 
-The [RecyclingServer sample](../samples/Recycling/RecyclingServer/README.md) separates one
+The [RecyclingServer sample](RecyclingServer/README.md) separates one
 causal, durable simulation coordinator from ten independently hosted OPC UA process views.
 It is a synthetic software simulation, not a controller for physical equipment.
 
@@ -47,10 +47,11 @@ configuration. `IRecyclingProcessViewAdapter` is the seam for native companion i
 under the existing owner. It applies absolute committed state rather than incrementing a
 second set of production counters.
 
-Reuse the existing [Machinery](Machinery.md), [Machine Vision](Vision.md),
-[Pumps](Pumps.md), [Scales](Scales.md), and [AMB](AMB.md) facilities when adding bindings.
-The additional standard families are described in [Plastics and rubber common capabilities](PlasticsRubber.md),
-[Extrusion](Extrusion.md), and [Granulate drying](GranulateDrying.md).
+Reuse the existing [Machinery](../../docs/Machinery.md), [Machine Vision](../../docs/Vision.md),
+[Pumps](../../docs/Pumps.md), [Scales](../../docs/Scales.md), and [AMB](../../docs/AMB.md) facilities when adding bindings.
+The additional standard families are described in [Plastics and rubber](../../docs/PlasticsRubber.md),
+[Extrusion](../../docs/Extrusion.md), and
+[Granulate drying](../../docs/PlasticsRubber.md#granulate-drying-devices-opc-40082-6).
 Pumps and Scales can now compose into the same Machinery owner using
 `AddPumpsToMachinery` / `AddScalesToMachinery` and their `Configure*For` callbacks.
 Do not register competing DI owners or copy those runtimes into the sample.
@@ -82,10 +83,10 @@ for the provider contract, bounds, explicit failure behavior, and synthetic defa
 ## Running
 
 The application targets .NET 10. Its command line selects `--role coordinator` or one
-`--process` value. The [sample README](../samples/Recycling/RecyclingServer/README.md)
+`--process` value. The [sample README](RecyclingServer/README.md)
 describes certificate provisioning, arguments, typed client use, and implementation limits.
 
-[Deployment examples](../samples/Recycling/RecyclingServer/deploy/README.md) cover one
+[Deployment examples](RecyclingServer/deploy/README.md) cover one
 image, Docker Compose, and generic Kubernetes manifests with isolated role storage.
 They require external identities and trusted certificates; they are not pre-provisioned
 production deployments.

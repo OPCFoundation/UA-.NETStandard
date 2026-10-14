@@ -134,6 +134,48 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         }
 
         /// <summary>
+        /// External mode and PID observations remain authoritative after commands acknowledge completion.
+        /// </summary>
+        [Test]
+        public async Task ClosedLoopSnapshotOwnershipPreservesValuesAndUsesCommittedModeAsync()
+        {
+            ClosedLoopControlState node = CreateClosedLoopSettings();
+            bool committedAutomatic = false;
+            node.AutomaticControllerMode!.Value = false;
+            Variant originalPid = ((BaseVariableState)node.PIDParameters!).Value;
+            var provider = new Mock<IClosedLoopControlProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.SetAutomaticModeAsync(
+                    It.IsAny<PlasticsRubberRequestContext>(), true, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            provider.Setup(value => value.SetParametersAsync(
+                    It.IsAny<PlasticsRubberRequestContext>(), It.IsAny<ArrayOf<PIDParametersDataType>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            await using var binding = new ClosedLoopControlBinding(
+                node, m_context, provider.Object, AllowAccess(), () => committedAutomatic);
+
+            ServiceResult mode = await node.AutomaticControllerMode.WriteAttributeAsync(
+                m_context, Attributes.Value, default, new DataValue(Variant.From(true))).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(mode), Is.True);
+            Assert.That(node.AutomaticControllerMode.Value, Is.False);
+            node.AutomaticControllerMode.Value = true;
+            var request = new DataValue(Variant.FromStructure(PidInput(1)));
+            ServiceResult pid = await node.PIDParameters!.WriteAttributeAsync(
+                m_context, Attributes.Value, default, request).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(pid), Is.True);
+            Assert.That(((BaseVariableState)node.PIDParameters).Value, Is.EqualTo(originalPid));
+
+            committedAutomatic = true;
+            node.AutomaticControllerMode.Value = false;
+            ServiceResult refused = await node.PIDParameters.WriteAttributeAsync(
+                m_context, Attributes.Value, default, request).ConfigureAwait(false);
+            Assert.That(refused.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            provider.Verify(value => value.SetParametersAsync(
+                It.IsAny<PlasticsRubberRequestContext>(), It.IsAny<ArrayOf<PIDParametersDataType>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// Invalid coefficients and controller ownership cannot replace the old PID array.
         /// </summary>
         [TestCaseSource(nameof(InvalidClosedLoopSettings))]

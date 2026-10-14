@@ -59,8 +59,8 @@ namespace Opc.Ua.Recycling
                 }
             }
             bool isView = values.TryGetValue("--process", out string? selected);
-            if (isView == values.ContainsKey("--role") ||
-                (!isView && values["--role"] != "coordinator"))
+            bool hasRole = values.TryGetValue("--role", out string? selectedRole);
+            if (isView == hasRole || (hasRole && selectedRole != "coordinator"))
             {
                 throw new ArgumentException("Select exactly --role coordinator or --process <one-of-ten>.");
             }

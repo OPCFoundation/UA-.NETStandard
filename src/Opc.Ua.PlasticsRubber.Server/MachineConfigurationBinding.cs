@@ -96,6 +96,29 @@ namespace Opc.Ua.PlasticsRubber.Server
             IMachineConfigurationProvider provider,
             IPlasticsRubberAccessPolicy accessPolicy,
             int maximumPageBytes = 16 * 1024 * 1024)
+            : this(node, context, provider, accessPolicy, externallyPublishedValues: false, maximumPageBytes)
+        {
+        }
+
+        /// <summary>
+        /// Binds configuration commands and page methods with optional external ownership of configuration values.
+        /// </summary>
+        /// <param name="node">The selected generated configuration.</param>
+        /// <param name="context">The owning address-space context.</param>
+        /// <param name="provider">The asynchronous device authority.</param>
+        /// <param name="accessPolicy">The original-caller authorization policy.</param>
+        /// <param name="externallyPublishedValues">
+        /// Leaves names and timezone values with the committed-state publisher instead of updating them
+        /// from write requests or SetMachineTime arguments. Page-transfer methods remain protocol-owned.
+        /// </param>
+        /// <param name="maximumPageBytes">The existing bound on returned page images.</param>
+        public MachineConfigurationBinding(
+            MachineConfigurationState node,
+            ISystemContext context,
+            IMachineConfigurationProvider provider,
+            IPlasticsRubberAccessPolicy accessPolicy,
+            bool externallyPublishedValues,
+            int maximumPageBytes = 16 * 1024 * 1024)
         {
             Node = node ?? throw new ArgumentNullException(nameof(node));
             if (provider == null)
@@ -111,7 +134,7 @@ namespace Opc.Ua.PlasticsRubber.Server
             {
                 throw new ArgumentException("Mandatory machine configuration members are missing.", nameof(node));
             }
-            m_binding = new PlasticsRubberMethodBinding(node, context, accessPolicy);
+            m_binding = new PlasticsRubberMethodBinding(node, context, accessPolicy, externallyPublishedValues);
             m_binding.BindWrite(node.UserMachineName, (request, value, ct) =>
                 provider.SetMachineNameAsync(request, ReadString(value), ct));
             m_binding.BindWrite(node.LocationName, (request, value, ct) =>
@@ -138,8 +161,11 @@ namespace Opc.Ua.PlasticsRubber.Server
                                     StatusCodes.BadInvalidArgument, "A timezone is required.");
                             }
                             await provider.SetMachineTimeAsync(request, time, zone, token).ConfigureAwait(false);
-                            node.TimeZoneOffset.Value = zone;
-                            node.TimeZoneOffset.ClearChangeMasks(context, false);
+                            if (!externallyPublishedValues)
+                            {
+                                node.TimeZoneOffset.Value = zone;
+                                node.TimeZoneOffset.ClearChangeMasks(context, false);
+                            }
                         },
                         ct).ConfigureAwait(false)
                 };

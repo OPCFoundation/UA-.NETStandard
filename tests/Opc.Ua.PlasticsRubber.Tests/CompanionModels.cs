@@ -46,7 +46,7 @@ using Opc.Ua.GranulateDrying;
 namespace Opc.Ua.PlasticsRubber.Tests
 {
     /// <summary>
-    /// Explicit compiled registrations for the fourteen models in three producing assemblies.
+    /// Explicit compiled registrations for the fourteen models in two producing assemblies.
     /// </summary>
     internal static class CompanionModels
     {

@@ -1,7 +1,7 @@
-# OPC UA plastics and rubber common clients
+# OPC UA plastics and rubber clients
 
 Managed-session integration and typed workflows for OPC 40083 common
-capabilities, including production dataset metadata and file transfer.
+capabilities and OPC 40082-6 granulate drying, including production dataset metadata and file transfer.
 Generated proxies and structured data types come from `Opc.Ua.PlasticsRubber`.
 
 ```csharp
@@ -24,8 +24,12 @@ storage-layer operations. Temporary-file metadata uses the server's existing
 session-owned handle; final commit and rollback remain owned by the stack's
 temporary-file wrapper.
 
+The `Opc.Ua.GranulateDrying.Client` CLR namespace is part of this package.
+Use `GranulateDryingClient` directly or `AddGranulateDryingClient()` on the
+existing client builder. No separate granulate-drying client package is required.
+
 See the [common capability guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PlasticsRubber.md)
-and [production dataset guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PlasticsRubberDatasets.md).
+and [production dataset guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PlasticsRubber.md#production-dataset-protocol).
 The included `licenses/CompanionModels.NOTICE.txt` records the common model's
 independently authored, MIT-basis implementation provenance. Package use does
 not constitute formal OPC Foundation certification.

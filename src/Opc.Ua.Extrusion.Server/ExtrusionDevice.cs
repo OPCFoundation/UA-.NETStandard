@@ -466,7 +466,10 @@ namespace Opc.Ua.Extrusion.Server
             }
             var command = new ExtrusionCommand(
                 context, m_node, (BaseInstanceState)node, ExtrusionCommandKind.Write, value);
-            return new AttributeWriteResult(await ExecuteAsync(command, cancellationToken).ConfigureAwait(false));
+            return new AttributeWriteResult(await ExecuteAsync(command, cancellationToken).ConfigureAwait(false))
+            {
+                SuppressCacheUpdate = true
+            };
         }
 
         /// <summary>
@@ -623,6 +626,7 @@ namespace Opc.Ua.Extrusion.Server
                 {
                     return;
                 }
+                ValidateCommonParameters(snapshot);
                 foreach (ExtrusionValue update in snapshot.Values)
                 {
                     m_values[update.NodeId] = update.Value.Copy();

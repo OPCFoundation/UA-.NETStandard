@@ -22,7 +22,7 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Extrusion.Server\Opc.Ua.Extrusion.Server.csproj" />
-    <ProjectReference Include="..\..\..\src\Opc.Ua.GranulateDrying.Server\Opc.Ua.GranulateDrying.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.PlasticsRubber.Server\Opc.Ua.PlasticsRubber.Server.csproj" />
     <ProjectReference Include="..\..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

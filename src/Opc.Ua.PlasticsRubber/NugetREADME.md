@@ -4,6 +4,12 @@ Information-model foundations based on OPC 40083: source-generated typed
 node states, data types, standard identifiers, client proxies, encodeable factory
 registration, and the `AddOpcUaPlasticsRubber` compiled loader.
 
+The same assembly also contains the OPC 40082-6 granulate-drying model in the
+`Opc.Ua.GranulateDrying` CLR namespace, with its own `AddOpcUaGranulateDrying`
+loader and factory registration. The unchanged inputs and model-specific
+provenance are in `GranulateDrying\Model` and `GranulateDrying\README.md`.
+The two wire namespaces remain distinct; no standalone GranulateDrying package is needed.
+
 ## Model identity
 
 - Wire model URI: `http://opcfoundation.org/UA/PlasticsRubber/GeneralTypes/`

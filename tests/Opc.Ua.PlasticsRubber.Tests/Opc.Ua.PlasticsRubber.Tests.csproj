@@ -24,14 +24,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.PlasticsRubber\Opc.Ua.PlasticsRubber.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.GranulateDrying\Opc.Ua.GranulateDrying.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\Opc.Ua.PlasticsRubber.NodeSet2.xml"
              Link="Model\Opc.Ua.PlasticsRubber.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\Opc.Ua.Extrusion\*\Model\*.NodeSet2.xml"
              Link="Model\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\src\Opc.Ua.GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml"
+    <Content Include="..\..\src\Opc.Ua.PlasticsRubber\GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml"
              Link="Model\Opc.Ua.GranulateDrying.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\Opc.Ua.PlasticsRubber\Model\companion-models.json"
              Link="Model\companion-models.json" CopyToOutputDirectory="PreserveNewest" />

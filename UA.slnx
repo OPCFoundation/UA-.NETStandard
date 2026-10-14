@@ -141,9 +141,6 @@
     <Project Path="src/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
     <Project Path="src/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
     <Project Path="src/Opc.Ua.Di/Opc.Ua.Di.csproj" />
-    <Project Path="src/Opc.Ua.GranulateDrying.Client/Opc.Ua.GranulateDrying.Client.csproj" />
-    <Project Path="src/Opc.Ua.GranulateDrying.Server/Opc.Ua.GranulateDrying.Server.csproj" />
-    <Project Path="src/Opc.Ua.GranulateDrying/Opc.Ua.GranulateDrying.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
@@ -357,7 +354,6 @@
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Extrusion.Tests/Opc.Ua.Extrusion.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
-    <Project Path="tests/Opc.Ua.GranulateDrying.Tests/Opc.Ua.GranulateDrying.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />

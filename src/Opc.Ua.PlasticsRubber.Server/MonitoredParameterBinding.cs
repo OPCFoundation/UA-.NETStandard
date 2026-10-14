@@ -148,15 +148,39 @@ namespace Opc.Ua.PlasticsRubber.Server
             ISystemContext context,
             IMonitoredParameterProvider provider,
             IPlasticsRubberAccessPolicy accessPolicy)
+            : this(node, context, provider, accessPolicy, readCommittedSettings: null)
+        {
+        }
+
+        /// <summary>
+        /// Binds parameter commands while optionally leaving value publication to an external snapshot owner.
+        /// </summary>
+        /// <param name="node">The selected generated parameter.</param>
+        /// <param name="context">The owning address-space context.</param>
+        /// <param name="provider">The asynchronous command authority.</param>
+        /// <param name="accessPolicy">The original-caller authorization policy.</param>
+        /// <param name="readCommittedSettings">
+        /// Supplies limits and monitoring mode from one committed observation. A non-null reader suppresses
+        /// write-through and reset-result publication; the owner publishes observations and calls
+        /// <see cref="RefreshWriteAccess"/> when settings change. Null preserves standalone behavior.
+        /// </param>
+        public MonitoredParameterBinding(
+            MonitoredParameterState node,
+            ISystemContext context,
+            IMonitoredParameterProvider provider,
+            IPlasticsRubberAccessPolicy accessPolicy,
+            Func<(MonitoredParameterLimits Limits, bool AutomaticMonitoring)>? readCommittedSettings)
         {
             Node = node ?? throw new ArgumentNullException(nameof(node));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            m_readCommittedSettings = readCommittedSettings;
             if (node.ActualValue == null || node.ActualValue.EngineeringUnits == null)
             {
                 throw new ArgumentException("ActualValue and its EngineeringUnits are required.", nameof(node));
             }
-            m_binding = new PlasticsRubberMethodBinding(node, context, accessPolicy);
+            m_binding = new PlasticsRubberMethodBinding(
+                node, context, accessPolicy, suppressCacheUpdate: readCommittedSettings != null);
             ReadLimits().Validate();
             BindNumeric(node.SetValue, MonitoredParameterSetting.SetValue);
             BindNumeric(node.MinValue, MonitoredParameterSetting.Minimum);
@@ -179,7 +203,10 @@ namespace Opc.Ua.PlasticsRubber.Server
                         throw Error(StatusCodes.BadTypeMismatch, "AutomaticMonitoring requires a Boolean.");
                     }
                     await provider.SetAutomaticMonitoringAsync(request, automatic, ct).ConfigureAwait(false);
-                    SetToleranceWriteability(!automatic);
+                    if (m_readCommittedSettings == null)
+                    {
+                        SetToleranceWriteability(!automatic);
+                    }
                 });
             }
             if (node.MonitoringSensitivity != null)
@@ -198,10 +225,14 @@ namespace Opc.Ua.PlasticsRubber.Server
                 {
                     MonitoredParameterLimits limits =
                         await provider.ResetMonitoringAsync(request, ct).ConfigureAwait(false);
-                    ApplyLimits(limits.Validate());
-                    AnalogItemState<double> actual = Node.ActualValue ??
-                        throw Error(StatusCodes.BadConfigurationError, "The monitored value was removed.");
-                    Publish(actual.Value, actual.StatusCode, actual.Timestamp);
+                    limits.Validate();
+                    if (m_readCommittedSettings == null)
+                    {
+                        ApplyLimits(limits);
+                        AnalogItemState<double> actual = Node.ActualValue ??
+                            throw Error(StatusCodes.BadConfigurationError, "The monitored value was removed.");
+                        Publish(actual.Value, actual.StatusCode, actual.Timestamp);
+                    }
                 });
             }
             SetToleranceWriteability(node.AutomaticMonitoring?.Value != true);
@@ -221,7 +252,7 @@ namespace Opc.Ua.PlasticsRubber.Server
         /// </remarks>
         public void Publish(double actualValue, StatusCode quality, DateTimeUtc sourceTimestamp)
         {
-            ushort status = ReadLimits().Evaluate(actualValue, quality);
+            ushort status = ReadSettings().Limits.Evaluate(actualValue, quality);
             Node.ActualValue!.Value = actualValue;
             Node.ActualValue.StatusCode = quality;
             Node.ActualValue.Timestamp = sourceTimestamp;
@@ -235,7 +266,20 @@ namespace Opc.Ua.PlasticsRubber.Server
                     Node.Status.ValueAsText.Value = new LocalizedText(s_statusNames[status]);
                 }
             }
+            if (m_readCommittedSettings != null)
+            {
+                RefreshWriteAccess();
+            }
             Node.ClearChangeMasks(m_context, true);
+        }
+
+        /// <summary>
+        /// Updates advertised tolerance access from the current committed monitoring mode without publishing values.
+        /// </summary>
+        /// <param name="allowWrites">Whether the owner currently permits mutation of the device.</param>
+        public void RefreshWriteAccess(bool allowWrites = true)
+        {
+            SetToleranceWriteability(allowWrites && !ReadSettings().AutomaticMonitoring);
         }
 
         /// <inheritdoc/>
@@ -271,7 +315,8 @@ namespace Opc.Ua.PlasticsRubber.Server
                     or MonitoredParameterSetting.UpperTolerance
                     or MonitoredParameterSetting.LowerTolerance2
                     or MonitoredParameterSetting.UpperTolerance2;
-                if (tolerance && Node.AutomaticMonitoring?.Value == true)
+                (MonitoredParameterLimits currentLimits, bool automatic) = ReadSettings();
+                if (tolerance && automatic)
                 {
                     throw Error(StatusCodes.BadNotWritable, "Automatic monitoring owns the tolerance settings.");
                 }
@@ -279,7 +324,7 @@ namespace Opc.Ua.PlasticsRubber.Server
                 {
                     throw Error(StatusCodes.BadOutOfRange, "Ramp rates must be nonnegative.");
                 }
-                MonitoredParameterLimits limits = ReadLimits();
+                MonitoredParameterLimits limits = currentLimits;
                 limits = setting switch
                 {
                     MonitoredParameterSetting.SetValue => limits with { SetValue = number },
@@ -301,6 +346,23 @@ namespace Opc.Ua.PlasticsRubber.Server
                 }
                 await m_provider.WriteSettingAsync(request, setting, number, ct).ConfigureAwait(false);
             });
+        }
+
+        /// <summary>
+        /// Reads validation inputs from one observation, or the standalone binding's current values.
+        /// </summary>
+        private (MonitoredParameterLimits Limits, bool AutomaticMonitoring) ReadSettings()
+        {
+            if (m_readCommittedSettings == null)
+            {
+                return (ReadLimits(), Node.AutomaticMonitoring?.Value == true);
+            }
+            (MonitoredParameterLimits limits, bool automatic) = m_readCommittedSettings();
+            if (limits == null)
+            {
+                throw Error(StatusCodes.BadConfigurationError, "The committed parameter settings are missing.");
+            }
+            return (limits, automatic);
         }
 
         /// <summary>
@@ -406,6 +468,9 @@ namespace Opc.Ua.PlasticsRubber.Server
         /// The owner's context.
         /// </summary>
         private readonly ISystemContext m_context;
+
+        /// <summary>The optional atomic settings reader supplied by the external snapshot owner.</summary>
+        private readonly Func<(MonitoredParameterLimits Limits, bool AutomaticMonitoring)>? m_readCommittedSettings;
 
         /// <summary>
         /// The device-specific setting and calibration provider.

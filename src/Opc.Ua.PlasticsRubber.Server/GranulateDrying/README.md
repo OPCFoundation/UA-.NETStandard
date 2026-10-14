@@ -11,5 +11,8 @@ Provider-backed server support based on OPC 40082-6 version 1.0.0.
 Equipment behavior, persistence, and simulation belong to injected application providers.
 This package does not claim OPC Foundation/EUROMAP certification.
 
-See [Granulate drying documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GranulateDrying.md)
+This module is included in `Opc.Ua.PlasticsRubber.Server`; its CLR namespace remains
+`Opc.Ua.GranulateDrying.Server`.
+
+See [Granulate drying documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PlasticsRubber.md#granulate-drying-devices-opc-40082-6)
 for the complete capability matrix, provider contract, provenance, and examples.

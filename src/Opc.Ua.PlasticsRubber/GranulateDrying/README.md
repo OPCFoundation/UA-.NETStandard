@@ -1,5 +1,8 @@
 # Opc.Ua.GranulateDrying
 
+This CLR namespace and model are included in the `Opc.Ua.PlasticsRubber`
+assembly and package; there is no standalone GranulateDrying package.
+
 Information-model foundations based on OPC 40082-6: source-generated typed
 node states, data types, standard identifiers, client proxies, encodeable factory
 registration, and the `AddOpcUaGranulateDrying` compiled loader.
@@ -29,10 +32,10 @@ messageContext.Factory.Builder.AddOpcUaGranulateDrying().Commit();
 `nodes` is a `NodeStateCollection`, `context` is the hosting `ISystemContext`, and
 `messageContext` is a `ServiceMessageContext`. Load dependency models first using
 their existing compiled loaders and register their data types explicitly as well.
-This package's factory extension registers only its own data types.
+This model's factory extension registers only its own data types.
 Loading model declarations alone does not implement device behavior.
-Server/client runtimes are separate work; no runtime behavior or certification
-is claimed here.
+Use `Opc.Ua.PlasticsRubber.Server` and `Opc.Ua.PlasticsRubber.Client` for runtime
+behavior. No formal certification is claimed.
 
 ## Model validation
 

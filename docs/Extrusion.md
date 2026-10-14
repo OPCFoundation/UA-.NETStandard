@@ -172,6 +172,13 @@ Observation publication is independent of an awaited hardware command, allowing
 an authoritative coordinator to deliver its committed state before replying to
 a forwarded command.
 
+Common parameter and controller settings are snapshot-owned too. A successful
+setting command does not publish its requested value: the previous observation
+remains until `ApplySnapshotAsync` supplies committed data. Later observations
+cannot be overwritten by an older write completion. Reads and parameter-limit
+validation use the committed image; file-transfer and other protocol-owned
+state retain their existing bindings.
+
 ```csharp
 await extruder.State.ApplyAsync(
     new ExtrusionOperatingSnapshot(

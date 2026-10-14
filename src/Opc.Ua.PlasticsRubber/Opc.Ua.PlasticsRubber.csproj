@@ -4,7 +4,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.PlasticsRubber</PackageId>
     <RootNamespace>Opc.Ua.PlasticsRubber</RootNamespace>
-    <Description>OPC 40083 model foundations: typed states, data types, client proxies and compiled model loading.</Description>
+    <Description>OPC 40083 and OPC 40082-6 model foundations: typed states, data types, client proxies and compiled model loading.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
       <OutputItemType>Analyzer</OutputItemType>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
@@ -31,6 +32,17 @@
       <ModelSourceGeneratorIdentifierFile>Opc.Ua.PlasticsRubber.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
     </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.PlasticsRubber.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml" />
+    <None Remove="GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeIds.csv" />
+    <AdditionalFiles Include="GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/GDD/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>GranulateDrying</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.GranulateDrying</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.GranulateDrying.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="GranulateDrying\Model\Opc.Ua.GranulateDrying.NodeIds.csv" />
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>

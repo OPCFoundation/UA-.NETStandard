@@ -1041,7 +1041,7 @@
       "modelDirectory": "Calender/Model"
     },
     {
-      "project": "Opc.Ua.GranulateDrying",
+      "project": "Opc.Ua.PlasticsRubber",
       "specification": "OPC 40082-6",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/GDD/",
       "version": "1.0.0",
@@ -1090,7 +1090,6 @@
       "projectDependencies": [
         "Opc.Ua.Core",
         "Opc.Ua.Di",
-        "Opc.Ua.PlasticsRubber",
         "Opc.Ua.Machinery"
       ],
       "nodeCounts": {
@@ -1101,7 +1100,7 @@
         "UAVariable": 4029
       },
       "upstreamIdentifierDiscrepancies": [],
-      "modelDirectory": "Model"
+      "modelDirectory": "GranulateDrying/Model"
     }
   ]
 }

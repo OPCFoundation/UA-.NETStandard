@@ -72,7 +72,8 @@ namespace Opc.Ua.GranulateDrying.Server
             MachineConfigurationState configuration = State.MachineConfiguration!;
             ClearCommonWriteHandlers(configuration);
             m_resources.Add(new MachineConfigurationBinding(configuration, Context,
-                new ConfigurationProvider(this, m_commonProviders.Configuration), access));
+                new ConfigurationProvider(this, m_commonProviders.Configuration), access,
+                externallyPublishedValues: true));
             m_boundMethods.Add(configuration.SetMachineTime!);
             if (configuration.GetPage != null)
             {
@@ -87,7 +88,9 @@ namespace Opc.Ua.GranulateDrying.Server
                 if (node is MonitoredParameterState parameter)
                 {
                     ClearCommonWriteHandlers(parameter);
-                    var binding = new MonitoredParameterBinding(parameter, Context, parameterProvider, access);
+                    var binding = new MonitoredParameterBinding(
+                        parameter, Context, parameterProvider, access,
+                        () => ReadParameterSettings(parameter, Volatile.Read(ref m_current).Values));
                     m_parameters.Add(binding);
                     m_resources.Add(binding);
                     if (parameter.ResetMonitoring != null)
@@ -98,7 +101,9 @@ namespace Opc.Ua.GranulateDrying.Server
                 else if (node is ClosedLoopControlState control)
                 {
                     ClearCommonWriteHandlers(control);
-                    m_resources.Add(new ClosedLoopControlBinding(control, Context, controlProvider, access));
+                    m_resources.Add(new ClosedLoopControlBinding(
+                        control, Context, controlProvider, access,
+                        () => ReadCommittedBoolean(control.AutomaticControllerMode)));
                     if (control.AutoTuningOn != null)
                     {
                         m_boundMethods.Add(control.AutoTuningOn);
@@ -277,17 +282,7 @@ namespace Opc.Ua.GranulateDrying.Server
         {
             foreach (MonitoredParameterBinding binding in m_parameters)
             {
-                (GranulateDryingTarget target, string path) = Address(binding.Node);
-                var limits = new MonitoredParameterLimits
-                {
-                    SetValue = Number("SetValue"),
-                    Minimum = Number("MinValue"),
-                    Maximum = Number("MaxValue"),
-                    LowerTolerance = Number("LowerTolerance"),
-                    UpperTolerance = Number("UpperTolerance"),
-                    LowerTolerance2 = Number("LowerTolerance2"),
-                    UpperTolerance2 = Number("UpperTolerance2")
-                };
+                MonitoredParameterLimits limits = ReadParameterSettings(binding.Node, values).Limits;
                 try
                 {
                     limits.Validate();
@@ -305,13 +300,44 @@ namespace Opc.Ua.GranulateDrying.Server
                     values[binding.Node.Status.NodeId] = new DataValue(
                         Variant.From(status), StatusCodes.Good, actual.SourceTimestamp);
                 }
-
-                double? Number(string name)
-                {
-                    return TryValue(values, target, path + "/" + name, out DataValue value) &&
-                        value.WrappedValue.TryGetValue(out double number) ? number : null;
-                }
             }
+        }
+
+        /// <summary>
+        /// Captures parameter validation inputs from one committed or staged drying image.
+        /// </summary>
+        private static (MonitoredParameterLimits Limits, bool AutomaticMonitoring) ReadParameterSettings(
+            MonitoredParameterState parameter, Dictionary<NodeId, DataValue> values)
+        {
+            var limits = new MonitoredParameterLimits
+            {
+                SetValue = Number(parameter.SetValue),
+                Minimum = Number(parameter.MinValue),
+                Maximum = Number(parameter.MaxValue),
+                LowerTolerance = Number(parameter.LowerTolerance),
+                UpperTolerance = Number(parameter.UpperTolerance),
+                LowerTolerance2 = Number(parameter.LowerTolerance2),
+                UpperTolerance2 = Number(parameter.UpperTolerance2)
+            };
+            bool automatic = parameter.AutomaticMonitoring != null &&
+                values[parameter.AutomaticMonitoring.NodeId].WrappedValue.TryGetValue(out bool enabled) && enabled;
+            return (limits, automatic);
+
+            double? Number(BaseVariableState? variable)
+            {
+                return variable != null && values[variable.NodeId].WrappedValue.TryGetValue(out double value)
+                    ? value : null;
+            }
+        }
+
+        /// <summary>
+        /// Reads an optional controller mode without consulting the UA write-through cache.
+        /// </summary>
+        private bool ReadCommittedBoolean(BaseVariableState? variable)
+        {
+            return variable != null &&
+                Volatile.Read(ref m_current).Values[variable.NodeId].WrappedValue.TryGetValue(out bool enabled) &&
+                enabled;
         }
 
         /// <summary>

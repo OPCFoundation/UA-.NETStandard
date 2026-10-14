@@ -334,6 +334,27 @@ namespace Opc.Ua.PlasticsRubber.Tests
         }
 
         /// <summary>
+        /// Common capabilities and granulate drying share the model package without changing their identities.
+        /// </summary>
+        [Test]
+        public void CommonAndGranulateDryingShareOneProducingAssembly()
+        {
+            Assembly assembly = typeof(MonitoredParameterState).Assembly;
+            ModelDependencyAttribute[] producers = [.. assembly.GetCustomAttributes<ModelDependencyAttribute>()
+                .Where(item => item.Payload != null)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeof(GranulateDrying.GranulateDryingDeviceState).Assembly, Is.SameAs(assembly));
+                Assert.That(assembly.GetName().Name, Is.EqualTo("Opc.Ua.PlasticsRubber"));
+                Assert.That(producers.Select(item => item.ModelUri), Is.EquivalentTo(new[]
+                {
+                    Namespaces.PlasticsRubber,
+                    GranulateDrying.Namespaces.GranulateDrying
+                }));
+            });
+        }
+
+        /// <summary>
         /// Checks the authored alarm's mandatory UInt16 status and enum properties.
         /// </summary>
         [Test]

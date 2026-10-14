@@ -82,13 +82,35 @@ namespace Opc.Ua.PlasticsRubber.Server
             ISystemContext context,
             IClosedLoopControlProvider provider,
             IPlasticsRubberAccessPolicy accessPolicy)
+            : this(node, context, provider, accessPolicy, readCommittedAutomaticMode: null)
+        {
+        }
+
+        /// <summary>
+        /// Binds commands while optionally retaining externally published PID settings and controller mode.
+        /// </summary>
+        /// <param name="node">The selected generated controller.</param>
+        /// <param name="context">The owning address-space context.</param>
+        /// <param name="provider">The asynchronous command authority.</param>
+        /// <param name="accessPolicy">The original-caller authorization policy.</param>
+        /// <param name="readCommittedAutomaticMode">
+        /// Supplies the committed automatic-mode state for validation. A non-null reader suppresses
+        /// automatic cache updates after writes; null preserves standalone write-through behavior.
+        /// </param>
+        public ClosedLoopControlBinding(
+            ClosedLoopControlState node,
+            ISystemContext context,
+            IClosedLoopControlProvider provider,
+            IPlasticsRubberAccessPolicy accessPolicy,
+            Func<bool>? readCommittedAutomaticMode)
         {
             Node = node ?? throw new ArgumentNullException(nameof(node));
             if (provider == null)
             {
                 throw new ArgumentNullException(nameof(provider));
             }
-            m_binding = new PlasticsRubberMethodBinding(node, context, accessPolicy);
+            m_binding = new PlasticsRubberMethodBinding(
+                node, context, accessPolicy, suppressCacheUpdate: readCommittedAutomaticMode != null);
             if (node.AutoTuningOn != null)
             {
                 m_binding.Bind(node.AutoTuningOn, provider.StartTuningAsync);
@@ -114,7 +136,7 @@ namespace Opc.Ua.PlasticsRubber.Server
             {
                 m_binding.BindWrite(node.PIDParameters, (request, value, ct) =>
                 {
-                    if (node.AutomaticControllerMode?.Value == true)
+                    if (readCommittedAutomaticMode?.Invoke() ?? node.AutomaticControllerMode?.Value == true)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadNotWritable,

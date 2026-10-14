@@ -39,9 +39,6 @@ OPCFoundation.NetStandard.Opc.Ua.Extrusion.Server
 OPCFoundation.NetStandard.Opc.Ua.Gds
 OPCFoundation.NetStandard.Opc.Ua.Gds.Client
 OPCFoundation.NetStandard.Opc.Ua.Gds.Server
-OPCFoundation.NetStandard.Opc.Ua.GranulateDrying
-OPCFoundation.NetStandard.Opc.Ua.GranulateDrying.Client
-OPCFoundation.NetStandard.Opc.Ua.GranulateDrying.Server
 OPCFoundation.NetStandard.Opc.Ua.IA
 OPCFoundation.NetStandard.Opc.Ua.ISA95
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Client

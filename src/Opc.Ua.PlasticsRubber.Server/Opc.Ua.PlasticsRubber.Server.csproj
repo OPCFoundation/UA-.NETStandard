@@ -4,7 +4,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.PlasticsRubber.Server</PackageId>
     <RootNamespace>Opc.Ua.PlasticsRubber.Server</RootNamespace>
-    <Description>Composable OPC 40083 common plastics and rubber machinery services and typed server accessors.</Description>
+    <Description>Composable OPC 40083 common services and OPC 40082-6 granulate drying devices with committed-state providers.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -14,6 +14,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PlasticsRubber.Runtime.Tests" />
     <ProjectReference Include="..\Opc.Ua.PlasticsRubber\Opc.Ua.PlasticsRubber.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />

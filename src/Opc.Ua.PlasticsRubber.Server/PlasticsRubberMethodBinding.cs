@@ -45,11 +45,13 @@ namespace Opc.Ua.PlasticsRubber.Server
         internal PlasticsRubberMethodBinding(
             BaseObjectState node,
             ISystemContext context,
-            IPlasticsRubberAccessPolicy accessPolicy)
+            IPlasticsRubberAccessPolicy accessPolicy,
+            bool suppressCacheUpdate = false)
         {
             m_node = node ?? throw new ArgumentNullException(nameof(node));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_accessPolicy = accessPolicy ?? throw new ArgumentNullException(nameof(accessPolicy));
+            m_suppressCacheUpdate = suppressCacheUpdate;
             m_disposal = new Lazy<Task>(DisposeCoreAsync);
         }
 
@@ -189,7 +191,7 @@ namespace Opc.Ua.PlasticsRubber.Server
                     variable.NodeId,
                     (request, token) => write(request, value, token),
                     ct).ConfigureAwait(false);
-                return new AttributeWriteResult(result);
+                return new AttributeWriteResult(result) { SuppressCacheUpdate = m_suppressCacheUpdate };
             };
             variable.AccessLevel |= AccessLevels.CurrentWrite;
             variable.UserAccessLevel |= AccessLevels.CurrentWrite;
@@ -266,6 +268,9 @@ namespace Opc.Ua.PlasticsRubber.Server
         /// The bound instance.
         /// </summary>
         private readonly BaseObjectState m_node;
+
+        /// <summary>Whether an external publisher owns scalar value updates after command completion.</summary>
+        private readonly bool m_suppressCacheUpdate;
 
         /// <summary>
         /// The owner context used when disabling methods.

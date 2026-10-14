@@ -70,9 +70,18 @@ namespace Opc.Ua.Extrusion.Server
                         if (m_common.Parameters != null)
                         {
                             var binding = new MonitoredParameterBinding(
-                                parameter, context, m_common.Parameters, RequireAccessPolicy());
+                                parameter, context, m_common.Parameters, RequireAccessPolicy(),
+                                () => ReadParameterSettings(parameter));
                             m_commonBindings.Add(binding);
-                            m_parameters.Add(parameter.ActualValue!.NodeId, binding);
+                            foreach (BaseInstanceState member in ExtrusionNodeAccess.Children(context, parameter))
+                            {
+                                if (member is BaseVariableState variable &&
+                                    !ReferenceEquals(variable, parameter.Status))
+                                {
+                                    m_parameters.Add(variable.NodeId, binding);
+                                }
+                            }
+                            BindSnapshotReads(parameter, parameter.Status);
                         }
                         else if (parameter.SetValue != null || parameter.ResetMonitoring != null ||
                             parameter.MinValue != null || parameter.MaxValue != null ||
@@ -85,7 +94,8 @@ namespace Opc.Ua.Extrusion.Server
                         m_commonBindings.Add(new ClosedLoopControlBinding(
                             control, context,
                             m_common.ClosedLoopControl ?? throw MissingProvider(nameof(m_common.ClosedLoopControl)),
-                            RequireAccessPolicy()));
+                            RequireAccessPolicy(), () => ReadCommittedBoolean(control.AutomaticControllerMode)));
+                        BindSnapshotReads(control);
                         break;
                     case MachineConfigurationState configuration:
                         m_commonBindings.Add(new MachineConfigurationBinding(
@@ -120,6 +130,109 @@ namespace Opc.Ua.Extrusion.Server
                         line.ClearMESMessage,
                     context, m_common.MesMessages ?? throw MissingProvider(nameof(m_common.MesMessages)),
                     RequireAccessPolicy()));
+            }
+        }
+
+        /// <summary>
+        /// Reads selected physical parameter members from the commit without replacing custom protocol readers.
+        /// </summary>
+        private void BindSnapshotReads(NodeState owner, BaseVariableState? derivedValue = null)
+        {
+            foreach (BaseInstanceState member in ExtrusionNodeAccess.Children(m_runtime.SystemContext, owner))
+            {
+                if (member is BaseVariableState variable && !ReferenceEquals(variable, derivedValue) &&
+                    variable.OnReadValueAsync == null && variable.OnReadValue == null &&
+                    variable.OnSimpleReadValueAsync == null && variable.OnSimpleReadValue == null)
+                {
+                    variable.OnReadValueAsync = ReadAsync;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Captures limits and monitoring mode together from the current committed image.
+        /// </summary>
+        private (MonitoredParameterLimits Limits, bool AutomaticMonitoring) ReadParameterSettings(
+            MonitoredParameterState parameter)
+        {
+            lock (m_sync)
+            {
+                return ReadParameterSettings(parameter, m_values);
+            }
+        }
+
+        /// <summary>
+        /// Extracts the shared monitored-parameter rules from a committed or staged image.
+        /// </summary>
+        private static (MonitoredParameterLimits Limits, bool AutomaticMonitoring) ReadParameterSettings(
+            MonitoredParameterState parameter, Dictionary<NodeId, DataValue> values)
+        {
+            var limits = new MonitoredParameterLimits
+            {
+                SetValue = Number(parameter.SetValue),
+                Minimum = Number(parameter.MinValue),
+                Maximum = Number(parameter.MaxValue),
+                LowerTolerance = Number(parameter.LowerTolerance),
+                UpperTolerance = Number(parameter.UpperTolerance),
+                LowerTolerance2 = Number(parameter.LowerTolerance2),
+                UpperTolerance2 = Number(parameter.UpperTolerance2)
+            };
+            bool automatic = parameter.AutomaticMonitoring != null &&
+                values[parameter.AutomaticMonitoring.NodeId].WrappedValue.TryGetValue(out bool enabled) && enabled;
+            return (limits, automatic);
+
+            double? Number(BaseVariableState? variable)
+            {
+                return variable != null && values[variable.NodeId].WrappedValue.TryGetValue(out double value)
+                    ? value : null;
+            }
+        }
+
+        /// <summary>
+        /// Reads an optional controller mode from the committed image.
+        /// </summary>
+        private bool ReadCommittedBoolean(BaseVariableState? variable)
+        {
+            lock (m_sync)
+            {
+                return variable != null &&
+                    m_values[variable.NodeId].WrappedValue.TryGetValue(out bool enabled) && enabled;
+            }
+        }
+
+        /// <summary>
+        /// Validates the complete parameter settings before publishing any part of a commit.
+        /// </summary>
+        private void ValidateCommonParameters(ExtrusionSnapshot snapshot)
+        {
+            var affected = new HashSet<MonitoredParameterBinding>();
+            foreach (ExtrusionValue update in snapshot.Values)
+            {
+                if (m_parameters.TryGetValue(update.NodeId, out MonitoredParameterBinding? binding))
+                {
+                    affected.Add(binding);
+                }
+            }
+            if (affected.Count == 0)
+            {
+                return;
+            }
+            var prospective = new Dictionary<NodeId, DataValue>(m_values);
+            foreach (ExtrusionValue update in snapshot.Values)
+            {
+                prospective[update.NodeId] = update.Value;
+            }
+            foreach (MonitoredParameterBinding binding in affected)
+            {
+                try
+                {
+                    ReadParameterSettings(binding.Node, prospective).Limits.Validate();
+                }
+                catch (ArgumentException exception)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadOutOfRange, exception, "The committed parameter limits are inconsistent.");
+                }
             }
         }
 
@@ -169,12 +282,26 @@ namespace Opc.Ua.Extrusion.Server
         /// </summary>
         private void PublishCommonMeasurements(ExtrusionSnapshot snapshot)
         {
+            var refreshed = new HashSet<MonitoredParameterBinding>();
             foreach (ExtrusionValue update in snapshot.Values)
             {
-                if (m_parameters.TryGetValue(update.NodeId, out MonitoredParameterBinding? binding) &&
-                    update.Value.WrappedValue.TryGetValue(out double actual))
+                if (!m_parameters.TryGetValue(update.NodeId, out MonitoredParameterBinding? binding) ||
+                    !refreshed.Add(binding))
                 {
-                    binding.Publish(actual, update.Value.StatusCode, update.Value.SourceTimestamp);
+                    continue;
+                }
+                DataValue observation;
+                lock (m_sync)
+                {
+                    observation = m_values[binding.Node.ActualValue!.NodeId].Copy();
+                }
+                if (observation.WrappedValue.TryGetValue(out double actual))
+                {
+                    binding.Publish(actual, observation.StatusCode, observation.SourceTimestamp);
+                }
+                else
+                {
+                    binding.RefreshWriteAccess();
                 }
             }
         }

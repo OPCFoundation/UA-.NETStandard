@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Machinery;
 using Opc.Ua.Machinery.Server.StateMachines;
 using Opc.Ua.PlasticsRubber;
+using Opc.Ua.PlasticsRubber.Server;
 using ItemIds = Opc.Ua.Machinery.MachineryItemState_StateMachineTypeIds;
 using ModeIds = Opc.Ua.Machinery.MachineryOperationModeStateMachineTypeIds;
 
@@ -147,7 +148,10 @@ namespace Opc.Ua.GranulateDrying.Server
                     Value = value
                 };
                 return new AttributeWriteResult(
-                    await ExecuteAsync(context, command, cancellationToken).ConfigureAwait(false));
+                    await ExecuteAsync(context, command, cancellationToken).ConfigureAwait(false))
+                {
+                    SuppressCacheUpdate = true
+                };
             }
             catch (ServiceResultException exception)
             {
@@ -257,6 +261,10 @@ namespace Opc.Ua.GranulateDrying.Server
                 method.Executable = remote;
             }
             Volatile.Write(ref m_current, next);
+            foreach (MonitoredParameterBinding binding in m_parameters)
+            {
+                binding.RefreshWriteAccess(remote);
+            }
             if (!remote)
             {
                 lock (m_controlLock)
