@@ -149,13 +149,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public async Task ValidateDoesNotTreatAnInvalidPreservationEnvelopeAsSyntaxOnlyAsync()
         {
             using var context = new WotDocumentTestContext();
-            var response = await context.Tools.ValidateDocumentAsync(
+            JsonObject result = WotDocumentTestContext.Payload(await context.Tools.ValidateDocumentAsync(
                 WotDocumentTestContext.Input(/*lang=json,strict*/ """{"uav:nodeSet":{}}"""))
-                .ConfigureAwait(false);
-            // TEMP-DIAGNOSTIC: remove after the payload is captured.
-            TestContext.Out.WriteLine("TEMP-PAYLOAD isError=" + response.IsError + " " +
-                response.StructuredContent?.GetRawText());
-            JsonObject result = WotDocumentTestContext.Payload(response, true);
+                .ConfigureAwait(false), true);
             Assert.That(result["projectionValidated"]!.GetValue<bool>(), Is.True);
             Assert.That(result["valid"]!.GetValue<bool>(), Is.False);
             Assert.That(result["diagnostics"]!["errors"]!.GetValue<int>(), Is.GreaterThan(0));

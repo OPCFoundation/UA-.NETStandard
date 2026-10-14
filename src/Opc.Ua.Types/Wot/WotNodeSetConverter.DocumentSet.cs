@@ -937,7 +937,29 @@ namespace Opc.Ua.Wot
             {
                 siblings.Add(documents.Entries[i].Document);
             }
-            var own = new WotDocumentNodeResolver(siblings);
+            WotDocumentNodeResolver own;
+            try
+            {
+                own = new WotDocumentNodeResolver(siblings);
+            }
+            catch (FormatException)
+            {
+                // A document whose preserved native context cannot be restored contributes nothing to the local
+                // context; its own conversion reports the failure as a diagnostic.
+                var usable = new List<WotDocument>(siblings.Count);
+                foreach (WotDocument sibling in siblings)
+                {
+                    try
+                    {
+                        _ = new WotDocumentNodeResolver([sibling]);
+                        usable.Add(sibling);
+                    }
+                    catch (FormatException)
+                    {
+                    }
+                }
+                own = new WotDocumentNodeResolver(usable);
+            }
             return nodeResolver is null
                 ? own
                 : new WotCompositeNodeResolver(own, nodeResolver);

@@ -128,6 +128,29 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// A document whose preserved native envelope cannot be restored yields error diagnostics instead of
+        /// throwing from the set-local context, alone or beside a valid document.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InvalidPreservationEnvelopeReportsDiagnosticsInsteadOfThrowingAsync(bool multiple)
+        {
+            WotDocument invalid = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"uav:nodeSet":{}}"""));
+            ArrayOf<WotDocumentSetEntry> entries = multiple
+                ? [new WotDocumentSetEntry("root", invalid), new WotDocumentSetEntry("other", Document("Other"))]
+                : [new WotDocumentSetEntry("root", invalid)];
+            using var set = new WotDocumentSet("root", entries);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, NullWotResolver.Instance, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.UnsupportedContentType &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, Describe(result));
+        }
+
+        /// <summary>
         /// The resolver fallback also serves references of a multi-document set through the shared merge path.
         /// </summary>
         [Test]
