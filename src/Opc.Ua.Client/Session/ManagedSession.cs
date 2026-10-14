@@ -1944,6 +1944,9 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // ConfiguredEndpoint never holds a null Description (its
+            // constructors substitute or reject null and Update clones a
+            // non-null description), so the snapshot is never null either.
             EndpointDescription current = CoreUtils.Clone(endpoint.Description)!;
             ServiceResult? result;
             try
