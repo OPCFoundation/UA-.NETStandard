@@ -377,19 +377,17 @@ namespace Opc.Ua.Security.Pkcs11
         /// </summary>
         private static bool HasSamePublicKey(Certificate a, Certificate b)
         {
-            return string.Equals(a.PublicKey.Oid.Value, b.PublicKey.Oid.Value, StringComparison.Ordinal) &&
-                KeyParameters(a).AsSpan().SequenceEqual(KeyParameters(b)) &&
+            if (!string.Equals(a.PublicKey.Oid.Value, b.PublicKey.Oid.Value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            // A key algorithm without parameters compares as empty parameters.
+            byte[]? parametersA = a.PublicKey.EncodedParameters?.RawData;
+            byte[]? parametersB = b.PublicKey.EncodedParameters?.RawData;
+            return parametersA.AsSpan().SequenceEqual(parametersB) &&
                 a.PublicKey.EncodedKeyValue.RawData.AsSpan()
                     .SequenceEqual(b.PublicKey.EncodedKeyValue.RawData);
-        }
-
-        /// <summary>
-        /// The DER encoded parameters of the certificate's public key algorithm,
-        /// empty when the certificate has none.
-        /// </summary>
-        private static byte[] KeyParameters(Certificate certificate)
-        {
-            return certificate.PublicKey.EncodedParameters?.RawData ?? [];
         }
 
         /// <summary>
@@ -429,8 +427,13 @@ namespace Opc.Ua.Security.Pkcs11
             parameters.Q.Y.CopyTo(point, 1 + parameters.Q.X.Length);
 
             // CKA_EC_PARAMS holds the DER encoded curve, the same encoding as
-            // the parameters of the certificate's public key.
-            byte[] curve = KeyParameters(certificate);
+            // the parameters of the certificate's public key. Without them the
+            // curve is unknown, so no key on the token can be matched.
+            byte[]? curve = certificate.PublicKey.EncodedParameters?.RawData;
+            if (curve == null || curve.Length == 0)
+            {
+                return null;
+            }
 
             // CKA_EC_POINT holds the DER encoded OCTET STRING; some modules
             // store the bare point instead.
