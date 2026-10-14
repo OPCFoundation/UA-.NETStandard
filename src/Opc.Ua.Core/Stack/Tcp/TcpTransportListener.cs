@@ -749,7 +749,7 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     channel.SetRequestReceivedCallback(
-                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+                        new TcpChannelRequestEventHandler(OnRequestReceived));
                     channel.SetReportOpenSecureChannelAuditCallback(
                         new ReportAuditOpenSecureChannelEventHandler(
                             OnReportAuditOpenSecureChannelEvent));
@@ -1367,7 +1367,7 @@ namespace Opc.Ua.Bindings
                         m_descriptions, m_telemetry, m_timeProvider);
                 if (m_callback != null)
                 {
-                    channel.SetRequestReceivedCallback(OnRequestReceivedAsync);
+                    channel.SetRequestReceivedCallback(OnRequestReceived);
                     channel.SetReportOpenSecureChannelAuditCallback(OnReportAuditOpenSecureChannelEvent);
                     channel.SetReportCloseSecureChannelAuditCallback(OnReportAuditCloseSecureChannelEvent);
                     channel.SetReportCertificateAuditCallback(OnReportAuditCertificateEvent);
@@ -1705,59 +1705,157 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        private async void OnRequestReceivedAsync(
+        /// <remarks>
+        /// Runs once per request, so it allocates no async state machine: a request that is
+        /// still processing is awaited by a pooled <see cref="PendingRequest"/>, and a response
+        /// the channel queues without waiting completes synchronously. Every other outcome (a
+        /// fault, a send that waits for the channel gate or retries on a new channel) completes
+        /// in <see cref="CompleteRequestAsync"/>.
+        /// </remarks>
+        private void OnRequestReceived(
             TcpListenerChannel channel,
             uint requestId,
             IServiceRequest request)
         {
-            using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
-            IServiceResponse? response = null;
+            TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
+            ITransportListenerCallback? callback = m_callback;
+            if (callback == null)
+            {
+                (request as IPooledEncodeable)?.Reuse();
+                usage.Dispose();
+                return;
+            }
+
+            ValueTask<IServiceResponse> processing;
+            try
+            {
+                var context = new SecureChannelContext(
+                    channel.GlobalChannelId,
+                    channel.EndpointDescription,
+                    RequestEncoding.Binary,
+                    channel.ClientCertificateRawData,
+                    channel.ServerCertificateRawData,
+                    channel.ChannelThumbprint,
+                    (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
+
+                processing = callback.ProcessRequestAsync(context, request);
+            }
+            catch (Exception e)
+            {
+                processing = new ValueTask<IServiceResponse>(Task.FromException<IServiceResponse>(e));
+            }
+
+            if (processing.IsCompleted)
+            {
+                OnRequestProcessed(channel, requestId, request, usage, processing);
+                return;
+            }
+            s_pendingRequests.Get().Await(this, channel, requestId, request, usage, processing);
+        }
+
+        /// <summary>
+        /// Sends the response of a processed request. Completes synchronously when the request
+        /// succeeded and the channel queued the response without waiting.
+        /// </summary>
+        private void OnRequestProcessed(
+            TcpListenerChannel channel,
+            uint requestId,
+            IServiceRequest request,
+            TcpListenerChannel.PendingRequestScope usage,
+            ValueTask<IServiceResponse> processing)
+        {
+            if (!processing.IsCompletedSuccessfully)
+            {
+                CompleteRequestAsync(channel, requestId, request, usage, processing, null, default);
+                return;
+            }
+
+            IServiceResponse response = processing.Result;
+            ValueTask<bool> sending;
+            try
+            {
+                sending = ((TcpServerChannel)channel).SendResponseAsync(requestId, response);
+            }
+            catch (Exception e)
+            {
+                sending = new ValueTask<bool>(Task.FromException<bool>(e));
+            }
+
+            if (!sending.IsCompletedSuccessfully)
+            {
+                CompleteRequestAsync(channel, requestId, request, usage, default, response, sending);
+                return;
+            }
+
+            // Return decoded request and response to their activator pools for reuse,
+            // as CompleteRequestAsync does.
+            bool responseRetained = sending.Result;
+            (request as IPooledEncodeable)?.Reuse();
+            if (!responseRetained)
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
+            usage.Dispose();
+        }
+
+        /// <summary>
+        /// Completes a request whose processing failed, or whose response send did not
+        /// complete synchronously: awaits the outstanding step, retries the send on the
+        /// session's new channel, logs failures and sends a service fault.
+        /// </summary>
+        /// <param name="channel">The channel the request arrived on.</param>
+        /// <param name="requestId">The request id.</param>
+        /// <param name="request">The request.</param>
+        /// <param name="usage">The pending-request scope, disposed when the request completes.</param>
+        /// <param name="processing">The completed processing of the request, unless
+        /// <paramref name="response"/> is set.</param>
+        /// <param name="response">The response whose send is <paramref name="sending"/>.</param>
+        /// <param name="sending">The send of <paramref name="response"/>.</param>
+        private async void CompleteRequestAsync(
+            TcpListenerChannel channel,
+            uint requestId,
+            IServiceRequest request,
+            TcpListenerChannel.PendingRequestScope usage,
+            ValueTask<IServiceResponse> processing,
+            IServiceResponse? response,
+            ValueTask<bool> sending)
+        {
+            using TcpListenerChannel.PendingRequestScope scope = usage;
             bool responseRetained = false;
             try
             {
-                if (m_callback != null)
+                if (response == null)
                 {
-                    var context = new SecureChannelContext(
-                        channel.GlobalChannelId,
-                        channel.EndpointDescription,
-                        RequestEncoding.Binary,
-                        channel.ClientCertificateRawData,
-                        channel.ServerCertificateRawData,
-                        channel.ChannelThumbprint,
-                        (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
+                    response = await processing.ConfigureAwait(false);
+                    sending = ((TcpServerChannel)channel).SendResponseAsync(requestId, response);
+                }
 
-                    response = await m_callback.ProcessRequestAsync(
-                        context,
-                        request).ConfigureAwait(false);
+                try
+                {
+                    responseRetained = await sending.ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                {
+                    // try to find the new channel id for the authentication token to send response over new channel
+                    NodeId authenticationToken = request.RequestHeader.AuthenticationToken;
+                    if (m_callback!.TryGetSecureChannelIdForAuthenticationToken(
+                            authenticationToken,
+                            out uint channelId
+                        ) &&
+                        m_channels!.TryGetValue(channelId, out TcpListenerChannel? newChannel))
+                    {
+                        var serverChannel = (TcpServerChannel)newChannel;
 
-                    try
-                    {
-                        responseRetained = await ((TcpServerChannel)channel)
-                            .SendResponseAsync(requestId, response).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
-                    {
-                        // try to find the new channel id for the authentication token to send response over new channel
-                        NodeId authenticationToken = request.RequestHeader.AuthenticationToken;
-                        if (m_callback.TryGetSecureChannelIdForAuthenticationToken(
-                                authenticationToken,
-                                out uint channelId
-                            ) &&
-                            m_channels!.TryGetValue(channelId, out TcpListenerChannel? newChannel))
+                        // if the channel is not the same as the one we started with, send the response over the new channel
+                        if (serverChannel != channel)
                         {
-                            var serverChannel = (TcpServerChannel)newChannel;
-
-                            // if the channel is not the same as the one we started with, send the response over the new channel
-                            if (serverChannel != channel)
-                            {
-                                responseRetained = await serverChannel
-                                    .SendResponseAsync(requestId, response).ConfigureAwait(false);
-                                return;
-                            }
+                            responseRetained = await serverChannel
+                                .SendResponseAsync(requestId, response).ConfigureAwait(false);
+                            return;
                         }
-                        // if we could not find a new channel, just log the error
-                        throw;
                     }
+                    // if we could not find a new channel, just log the error
+                    throw;
                 }
             }
             catch (Exception e)
@@ -1813,6 +1911,63 @@ namespace Opc.Ua.Bindings
                     (response as IPooledEncodeable)?.Reuse();
                 }
             }
+        }
+
+        /// <summary>
+        /// Awaits the processing of a request in place of an async state machine per request.
+        /// Pooled: it returns itself to the pool before the response is sent.
+        /// </summary>
+        private sealed class PendingRequest
+        {
+            public PendingRequest()
+            {
+                m_onProcessed = OnProcessed;
+            }
+
+            /// <summary>
+            /// Continues with <see cref="OnRequestProcessed"/> once the processing completes.
+            /// </summary>
+            public void Await(
+                TcpTransportListener listener,
+                TcpListenerChannel channel,
+                uint requestId,
+                IServiceRequest request,
+                TcpListenerChannel.PendingRequestScope usage,
+                ValueTask<IServiceResponse> processing)
+            {
+                m_listener = listener;
+                m_channel = channel;
+                m_requestId = requestId;
+                m_request = request;
+                m_usage = usage;
+                m_processing = processing;
+                processing.ConfigureAwait(false).GetAwaiter().OnCompleted(m_onProcessed);
+            }
+
+            private void OnProcessed()
+            {
+                TcpTransportListener listener = m_listener!;
+                TcpListenerChannel channel = m_channel!;
+                uint requestId = m_requestId;
+                IServiceRequest request = m_request!;
+                TcpListenerChannel.PendingRequestScope usage = m_usage;
+                ValueTask<IServiceResponse> processing = m_processing;
+                m_listener = null;
+                m_channel = null;
+                m_request = null;
+                m_usage = default;
+                m_processing = default;
+                s_pendingRequests.Return(this);
+                listener.OnRequestProcessed(channel, requestId, request, usage, processing);
+            }
+
+            private readonly Action m_onProcessed;
+            private TcpTransportListener? m_listener;
+            private TcpListenerChannel? m_channel;
+            private uint m_requestId;
+            private IServiceRequest? m_request;
+            private TcpListenerChannel.PendingRequestScope m_usage;
+            private ValueTask<IServiceResponse> m_processing;
         }
 
         /// <summary>
@@ -1918,6 +2073,12 @@ namespace Opc.Ua.Bindings
         /// How long a refused connection may take to send its Hello before it is closed silently.
         /// </summary>
         private static readonly TimeSpan kResourceRejectionTimeout = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// Continuations of the requests still processing, shared by all listeners.
+        /// </summary>
+        private static readonly ObjectPool<PendingRequest> s_pendingRequests =
+            new(static () => new PendingRequest(), int.MaxValue);
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
