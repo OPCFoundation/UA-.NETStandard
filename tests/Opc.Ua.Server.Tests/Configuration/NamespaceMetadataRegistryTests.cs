@@ -315,6 +315,93 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.SameAs(late));
         }
 
+        [Test]
+        public async Task InvalidateDropsCachedMissByIndexAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddForeignMetadataNode("urn:other");
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null);
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null, "the miss is cached by index");
+
+            NamespaceMetadataState late = host.AddForeignMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            registry.Invalidate();
+
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.SameAs(late));
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.SameAs(late), "the hit is cached by index");
+        }
+
+        [Test]
+        public async Task ConcurrentLookupsSeeMetadataLinkedBeforeInvalidateAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddForeignMetadataNode("urn:other");
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null);
+
+            using var stop = new CancellationTokenSource();
+            NamespaceMetadataState? linked = null;
+            int staleAfterInvalidate = 0;
+            Task[] readers = new Task[4];
+            for (int ii = 0; ii < readers.Length; ii++)
+            {
+                readers[ii] = Task.Run(async () =>
+                {
+                    while (!stop.IsCancellationRequested)
+                    {
+                        // Read the published node first: once it is visible here the
+                        // invalidation has completed, so the lookup must find it.
+                        NamespaceMetadataState? expected = Volatile.Read(ref linked);
+                        NamespaceMetadataState? found = await registry.GetAsync(index).ConfigureAwait(false);
+                        if (expected != null && !ReferenceEquals(found, expected))
+                        {
+                            Interlocked.Increment(ref staleAfterInvalidate);
+                        }
+                    }
+                });
+            }
+
+            await Task.Delay(20).ConfigureAwait(false);
+            NamespaceMetadataState late = host.AddForeignMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            registry.Invalidate();
+            Volatile.Write(ref linked, late);
+            await Task.Delay(50).ConfigureAwait(false);
+            stop.Cancel();
+            await Task.WhenAll(readers).ConfigureAwait(false);
+
+            Assert.That(staleAfterInvalidate, Is.Zero, "a miss cached before the invalidation was returned after it");
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.SameAs(late));
+        }
+
+        [Test]
+        public async Task DefaultPermissionChangeIsSeenThroughCachedLookupAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            NamespaceMetadataState metadata = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.SameAs(metadata));
+            ChangeDefaultRolePermissions(metadata, host.SystemContext);
+            ArrayOf<RolePermissionType> changed = metadata.DefaultRolePermissions!.Value;
+
+            // The cached lookup returns the node itself, so the next request reads the
+            // changed permissions, and the change event invalidates sampling verdicts.
+            NamespaceMetadataState? again = await registry.GetAsync(index).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(again, Is.SameAs(metadata));
+                Assert.That(again!.DefaultRolePermissions!.Value, Is.EqualTo(changed));
+                Assert.That(raised, Is.EqualTo(1));
+            });
+        }
+
         private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());

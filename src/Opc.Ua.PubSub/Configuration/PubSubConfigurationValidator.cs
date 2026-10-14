@@ -261,7 +261,8 @@ namespace Opc.Ua.PubSub.Configuration
                 issues.Add(new PubSubConfigurationIssue(
                     PubSubConfigurationIssueSeverity.Error,
                     IssueCodes.AddressSchemeMismatch,
-                    $"Address Url '{url}' does not match the expected scheme {schemes} for transport profile '{profile}'.",
+                    $"Address Url '{url}' does not match the expected scheme {schemes} " +
+                    $"for transport profile '{profile}'.",
                     path,
                     SpecClauses.PubSubConnection));
             }
@@ -286,7 +287,8 @@ namespace Opc.Ua.PubSub.Configuration
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Info,
                         IssueCodes.DatagramV2InUse,
-                        "PubSubConnection uses DatagramConnectionTransport2DataType v2-only fields; consider documenting the v2 dependency to consumers.",
+                        "PubSubConnection uses DatagramConnectionTransport2DataType v2-only fields; " +
+                        "consider documenting the v2 dependency to consumers.",
                         path + ".TransportSettings",
                         SpecClauses.DatagramTransport));
                 }
@@ -342,7 +344,8 @@ namespace Opc.Ua.PubSub.Configuration
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
                         IssueCodes.KeepAliveBelowPublishingInterval,
-                        $"KeepAliveTime ({writerGroup.KeepAliveTime} ms) must be >= PublishingInterval ({writerGroup.PublishingInterval} ms).",
+                        $"KeepAliveTime ({writerGroup.KeepAliveTime} ms) must be " +
+                        $">= PublishingInterval ({writerGroup.PublishingInterval} ms).",
                         path,
                         SpecClauses.WriterGroup));
                 }
@@ -573,7 +576,8 @@ namespace Opc.Ua.PubSub.Configuration
                     issues.Add(new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
                         IssueCodes.SubscribedDataSetMissing,
-                        "DataSetReader.SubscribedDataSet must be set (TargetVariablesDataType or SubscribedDataSetMirrorDataType).",
+                        "DataSetReader.SubscribedDataSet must be set " +
+                        "(TargetVariablesDataType or SubscribedDataSetMirrorDataType).",
                         path,
                         SpecClauses.DataSetReader));
                 }
@@ -728,7 +732,11 @@ namespace Opc.Ua.PubSub.Configuration
         {
             if (string.Equals(profile, Profiles.PubSubUdpUadpTransport, StringComparison.Ordinal))
             {
-                return [(PubSubUdpScheme, "UDP unicast / multicast")];
+                return
+                [
+                    (PubSubUdpScheme, "UDP unicast / multicast"),
+                    (PubSubDtlsScheme, "UDP unicast with DTLS")
+                ];
             }
             if (string.Equals(profile, Profiles.PubSubMqttUadpTransport, StringComparison.Ordinal) ||
                 string.Equals(profile, Profiles.PubSubMqttJsonTransport, StringComparison.Ordinal))
@@ -745,6 +753,10 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly HashSet<string> m_registeredTransportProfileUris;
 
         private const string PubSubUdpScheme = "opc.udp://";
+
+        /// <summary>The DTLS unicast scheme handled by the UDP-UADP transport factory.</summary>
+        private const string PubSubDtlsScheme = "opc.dtls://";
+
         private const string PubSubMqttScheme = "mqtt://";
         private const string PubSubMqttsScheme = "mqtts://";
 

@@ -75,6 +75,39 @@ namespace Opc.Ua
             OperationContext = context;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SessionSystemContext"/> class
+        /// with the values of another context.
+        /// </summary>
+        /// <remarks>
+        /// Copying with a constructor allocates through the JIT's allocation fast path.
+        /// <see cref="object.MemberwiseClone"/> allocates through a runtime call, which
+        /// costs more on the per-request path of a server.
+        /// </remarks>
+        /// <param name="source">The context to copy.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
+        protected SessionSystemContext(SessionSystemContext source)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            Telemetry = source.Telemetry;
+            SystemHandle = source.SystemHandle;
+            NamespaceUris = source.NamespaceUris;
+            ServerUris = source.ServerUris;
+            TypeTable = source.TypeTable;
+            EncodeableFactory = source.EncodeableFactory;
+            NodeStateFactory = source.NodeStateFactory;
+            NodeIdFactory = source.NodeIdFactory;
+            OperationContext = source.OperationContext;
+            m_sessionId = source.m_sessionId;
+            m_preferredLocales = source.m_preferredLocales;
+            m_auditEntryId = source.m_auditEntryId;
+            m_userIdentity = source.m_userIdentity;
+        }
+
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; }
 

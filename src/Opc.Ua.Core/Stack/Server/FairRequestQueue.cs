@@ -1150,8 +1150,7 @@ namespace Opc.Ua
             /// <summary>
             /// <see cref="kNone"/>, <see cref="kRegistered"/> once the registration is
             /// published, or <see cref="kDisposed"/> once disposal started. Changed with
-            /// <see cref="Interlocked"/>, so that an entry that is never registered (a
-            /// request run inline) needs no lock object.
+            /// <see cref="Interlocked"/>, so that an entry needs no lock object.
             /// </summary>
             private int m_registrationState;
 

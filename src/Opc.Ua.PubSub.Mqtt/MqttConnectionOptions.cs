@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+#if NET8_0_OR_GREATER
+using MQTTnet.Channel;
+#endif
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -54,6 +57,12 @@ namespace Opc.Ua.PubSub.Mqtt
     /// </remarks>
     public sealed class MqttConnectionOptions
     {
+        /// <summary>
+        /// Gets or sets whether the transport installs the standard wildcard discovery subscriptions.
+        /// Restricted hosts can disable these and use only explicit reader topics.
+        /// </summary>
+        public bool IncludeDiscoverySubscriptions { get; set; } = true;
+
         /// <summary>
         /// Broker endpoint URL — <c>mqtt://host[:port]</c> for
         /// plaintext (port 1883 default) or
@@ -185,5 +194,50 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Encoded Last-Will payload populated by publisher presence scheduling.
         /// </summary>
         internal byte[]? WillPayload { get; set; }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Gets the programmatic TCP connector without exposing a bindable configuration property.
+        /// MQTTnet applies TLS using the original broker hostname after this connector opens the stream.
+        /// </summary>
+        public IMqttClientStreamProvider? GetStreamProvider()
+        {
+            return m_streamProvider;
+        }
+
+        /// <summary>
+        /// Installs a programmatic TCP connector without exposing it to generated configuration binding.
+        /// The connector is retained when a transport factory snapshots endpoint-specific options.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public MqttConnectionOptions WithStreamProvider(IMqttClientStreamProvider provider)
+        {
+            m_streamProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+            return this;
+        }
+#endif
+
+        /// <summary>
+        /// Gets programmatic topic authority without exposing it to configuration binding or serialization.
+        /// </summary>
+        public IMqttTopicPolicy? GetTopicPolicy()
+        {
+            return m_topicPolicy;
+        }
+
+        /// <summary>
+        /// Installs programmatic topic authority without accepting a policy implementation from configuration data.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public MqttConnectionOptions WithTopicPolicy(IMqttTopicPolicy policy)
+        {
+            m_topicPolicy = policy ?? throw new ArgumentNullException(nameof(policy));
+            return this;
+        }
+
+#if NET8_0_OR_GREATER
+        private IMqttClientStreamProvider? m_streamProvider;
+#endif
+        private IMqttTopicPolicy? m_topicPolicy;
     }
 }

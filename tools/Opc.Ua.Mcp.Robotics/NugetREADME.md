@@ -53,6 +53,47 @@ Refusals are returned with the server's exact `IntentFailureEnum` and message;
 the MCP layer does not retry, request authority implicitly, or reinterpret
 server decisions.
 
+## Intent, mission and result contracts
+
+For example, a Pick tool request uses native JSON objects:
+
+```json
+{
+  "controller": "BinPickingController",
+  "input": {
+    "intentId": "pick-red",
+    "source": "Bin",
+    "tool": "ParallelGripper",
+    "objectClass": "RedCube"
+  }
+}
+```
+
+Controller selectors accept an exact, unambiguous published name or NodeId.
+Tool/frame/location/output/program selectors resolve against the snapshot read
+for that call. Ambiguity is an error; resolution never takes authority or
+submits exploratory work.
+
+Mission `steps` and `transitions` are typed arrays. Each step requires a closed
+`kind` discriminator and exactly one matching payload. A supplied IntentId is
+preserved; one is generated only when omitted. Results retain the
+`StepId -> IntentId -> operation NodeId -> state` correlation.
+`robotics_wait_mission` takes the mission operation returned by submission,
+not a lookup through mutable active state.
+
+List summaries omit poses and complete output payloads; request Full detail
+only for the page that needs it. Wait timeouts return `completed=false` and
+a refreshed snapshot rather than claiming failure of the operation.
+
+Vision-guided selection first applies exact DetectionId/ClassLabel filters and
+the confidence threshold, then orders by confidence, ordinal DetectionId and
+original result order. Results retain pipeline, sensor, model, frame and
+detection provenance, the selected pose and submission handles. The call does
+not wait for, cancel or retry the submitted work.
+
+For tool behavior and the explicit-authority workflow, see the
+[Robot Intent catalogue](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#robot-intent-tools).
+
 ## Usage
 
 ```csharp

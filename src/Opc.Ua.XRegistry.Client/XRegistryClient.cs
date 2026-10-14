@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -239,6 +240,26 @@ namespace Opc.Ua.XRegistry.Client
             {
                 return default;
             }
+        }
+
+        /// <summary>
+        /// Resolves a content-derived identity into a bounded, caller-owned stream.
+        /// Missing or failed reads are reported as service errors, not partial successful documents.
+        /// </summary>
+        /// <exception cref="ArgumentException">The content identity is empty.</exception>
+        public ValueTask<long> ResolveResourceToAsync(
+            ByteString contentId,
+            Stream destination,
+            long maxBytes,
+            int chunkSize = 4096,
+            CancellationToken ct = default)
+        {
+            if (contentId.IsEmpty)
+            {
+                throw new ArgumentException("A content identity is required.", nameof(contentId));
+            }
+            return Session.ReadBytesToAsync(
+                new NodeId(contentId, NamespaceIndex), destination, maxBytes, chunkSize, ct);
         }
 
         /// <summary>
@@ -530,8 +551,8 @@ namespace Opc.Ua.XRegistry.Client
             }
 
             return maj > major ||
-                   (maj == major && min > minor) ||
-                   (maj == major && min == minor && pat >= patch);
+                (maj == major && min > minor) ||
+                (maj == major && min == minor && pat >= patch);
         }
 
         private readonly ExpandedNodeId m_registryIdentity;

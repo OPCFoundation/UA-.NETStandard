@@ -31,6 +31,8 @@
 param(
     [string] $Configuration = 'Release',
     [string] $ResultsDirectory,
+    [string[]] $AdditionalProfiles = @(),
+    [switch] $IncludePrivilegedCatalogues,
     [switch] $SkipBuild
 )
 
@@ -48,6 +50,8 @@ if ([string]::IsNullOrWhiteSpace($ResultsDirectory))
 $ResultsDirectory = [IO.Path]::GetFullPath($ResultsDirectory)
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("opcua-mcpgrade-" + [Guid]::NewGuid().ToString('N'))
 $graderRoot = Join-Path $temporaryRoot 'mcpgrade'
+$executionEnvironment = @{}
+$executionEnvironmentChanged = $false
 
 function Invoke-CheckedNative
 {
@@ -176,11 +180,35 @@ function Get-McpGradeFindings
     return @($Report.categories | ForEach-Object { @($_.findings) })
 }
 
-New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-
 try
 {
+    if ($IncludePrivilegedCatalogues)
+    {
+        # Advertise schemas without granting a caller, session, secret or network operation.
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            $executionEnvironment[$entry.Name] = $entry.Value
+        }
+        $executionEnvironmentChanged = $true
+        foreach ($name in $executionEnvironment.Keys)
+        {
+            Remove-Item -LiteralPath "Env:$name"
+        }
+        $capabilities = @(
+            'DirectoryAdministration', 'CertificateAdministration', 'CredentialIssuance', 'Onboarding',
+            'IdentityAdministration', 'PubSubRuntime', 'PubSubConfiguration', 'PubSubBridge',
+            'PubSubSecurity', 'WotRuntime', 'WotWrite', 'WotInvoke'
+        )
+        for ($index = 0; $index -lt $capabilities.Count; $index++)
+        {
+            [Environment]::SetEnvironmentVariable(
+                "McpServer__Execution__EnabledCapabilities__$index", $capabilities[$index], 'Process')
+        }
+    }
+
+    New-Item -ItemType Directory -Path $ResultsDirectory -Force | Out-Null
+    New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
+
     if (-not $SkipBuild)
     {
         Invoke-CheckedNative -FilePath 'dotnet' -Arguments @(
@@ -235,8 +263,13 @@ try
         Pop-Location
     }
 
-    foreach ($profile in @('core', 'full'))
+    $profiles = @('core', 'full') + @($AdditionalProfiles) | Select-Object -Unique
+    foreach ($profile in $profiles)
     {
+        if ($profile -notmatch '^[a-z][a-z0-9,+-]*$')
+        {
+            throw "Invalid profile name '$profile'."
+        }
         $server = Start-McpHttpServer -Profile $profile -AssemblyPath $assemblyPath `
             -LogPrefix "$profile-server"
         try
@@ -285,6 +318,22 @@ try
         throw "Full profile grade is $($fullReport.totalScore) with $($fullUnexpected.Count) unexpected finding(s)."
     }
 
+    foreach ($profile in @($AdditionalProfiles | Select-Object -Unique))
+    {
+        if ($profile -in @('core', 'full'))
+        {
+            continue
+        }
+        $report = Get-Content (Join-Path $ResultsDirectory "$profile-static.json") -Raw | ConvertFrom-Json
+        $blocking = @(Get-McpGradeFindings $report |
+            Where-Object { $_.severity -in @('error', 'warn') })
+        if ($report.totalScore -lt 98 -or $blocking.Count -ne 0)
+        {
+            throw "Profile '$profile' grade is $($report.totalScore) with $($blocking.Count) blocking finding(s)."
+        }
+        Write-Host "$profile grade: $($report.grade) / $($report.totalScore)"
+    }
+
     $probeReport = Get-Content (Join-Path $ResultsDirectory 'full-probe.json') -Raw |
         ConvertFrom-Json
     $probeFailures = @(Get-McpGradeFindings $probeReport |
@@ -300,6 +349,17 @@ try
 }
 finally
 {
+    if ($executionEnvironmentChanged)
+    {
+        foreach ($entry in Get-ChildItem Env:McpServer__Execution__*)
+        {
+            Remove-Item -LiteralPath "Env:$($entry.Name)"
+        }
+        foreach ($entry in $executionEnvironment.GetEnumerator())
+        {
+            [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+        }
+    }
     if (Test-Path $temporaryRoot)
     {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force

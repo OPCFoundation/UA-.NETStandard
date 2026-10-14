@@ -102,6 +102,24 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Core", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", false),
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
@@ -133,6 +151,22 @@ namespace Opc.Ua.Tools.Tests
                         $"Package id '{cases[i].Id}' classified incorrectly.");
                 }
             });
+        }
+
+        /// <summary>
+        /// Every intentionally shipped industrial MCP module belongs in the release package allowlist.
+        /// </summary>
+        [Test]
+        public void IndustrialMcpPackagesAreExpectedReleaseArtifacts()
+        {
+            string[] packages = File.ReadAllLines(
+                Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt"));
+            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning"];
+            foreach (string family in families)
+            {
+                string id = $"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}";
+                Assert.That(packages.Count(value => value == id), Is.EqualTo(1), id);
+            }
         }
 
         [TestCase("2.0.0-preview.6", "2.0.0-preview.6", Description = "Already preview: unchanged")]
