@@ -592,6 +592,28 @@ The consensus engine is pluggable through the `IRaftConsensus` seam. By default 
 
 On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedKeyValueStore` and a native `RaftLeaderElection` for a client replica set in one call (the `ClientReplicaCoordinator` consumes both), `AddCrdtClientSharedStore` registers the CRDT-gossip (eventual) equivalent, and `AddRedundantClientSharedStore(mode, …)` is the mode-aware entry point that selects between them.
 
+#### Snapshots of the Raft store
+
+`RaftSharedKeyValueStore` is a replicated state machine: without a snapshot, a restarted replica rebuilds its state by applying the whole consensus log. `IRaftSnapshotManager` captures and restores that state so an application can bound the log. Every registration above (`UseRedundancyConsistency`, `AddRaftClientSharedStore`, `AddRedundantClientSharedStore`) registers it as a singleton next to the store; in eventual mode the `HybridSharedKeyValueStore` delegates to its Raft store, so a snapshot holds the strong keyspaces only.
+
+- `CreateSnapshotAsync` commits a barrier and captures the state while the store applies it, so the snapshot holds exactly the commands committed up to and including the barrier. `RaftKeyValueSnapshot.LastIncludedCommand` is that position in the committed command stream (the commands delivered on `IRaftConsensus.Committed`, the same sequence on every replica); `RaftKeyValueSnapshot.Data` is the versioned encoding to persist, and it carries the position.
+- `RestoreSnapshotAsync` replaces the state before the store applies the log; it shares the startup gate, so a store that is starting or has started rejects it with `InvalidOperationException`. Pass `RaftSnapshotLogReplay.AfterSnapshot` when the consensus delivers only the commands after the snapshot (its log was compacted up to the snapshot, or it starts empty), or `RaftSnapshotLogReplay.FromFirstCommand` when it replays its persisted log from the beginning; the store then skips the commands the snapshot already holds, so no command — in particular no compare-and-swap — is applied twice.
+- A corrupt snapshot is rejected with `FormatException`: the decoder accepts only what the encoder produces (strict UTF-8 keys, canonical value markers, no payload for a null value, no duplicate key).
+
+```csharp
+IRaftSnapshotManager snapshots = provider.GetRequiredService<IRaftSnapshotManager>();
+
+// Periodically, or when the log grows large.
+RaftKeyValueSnapshot snapshot = await snapshots.CreateSnapshotAsync(ct);
+await File.WriteAllBytesAsync(snapshotPath, snapshot.Data.ToArray(), ct);
+
+// On restart, before the first operation on the store.
+var data = ByteString.From(await File.ReadAllBytesAsync(snapshotPath, ct));
+await snapshots.RestoreSnapshotAsync(data, RaftSnapshotLogReplay.FromFirstCommand, ct);
+```
+
+`LastIncludedCommand` counts committed application commands, not entries of the consensus engine's own log (which also holds leader no-ops and configuration changes), because `IRaftConsensus` does not expose log indexes. Compacting an engine's log therefore needs the engine to map the position to its own index.
+
 For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
 
 ### Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)
