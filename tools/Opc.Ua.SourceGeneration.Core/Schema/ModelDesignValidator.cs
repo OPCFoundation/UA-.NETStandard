@@ -1818,11 +1818,14 @@ namespace Opc.Ua.Schema.Model
 
                     foreach (KeyValuePair<string, HierarchyNode> ii in node.Hierarchy.Nodes)
                     {
-                        if (ii.Key.Length != 0 && !ii.Value.ExplicitlyDefined)
+                        if (ii.Key.Length != 0 &&
+                            !ii.Value.ExplicitlyDefined &&
+                            ii.Value.Instance is NodeDesign inheritedChild &&
+                            inheritedChild.HasIdentifier())
                         {
                             // Keep a generated identity for inherited children, not the dependency's published ID.
                             // An explicit string also preserves identifier constants for predefined instances.
-                            ii.Value.Instance.SetIdentifier(ii.Value.Instance!.SymbolicId.Name);
+                            inheritedChild.SetIdentifier(inheritedChild.SymbolicId.Name);
                         }
                         if (ii.Value.Instance is InstanceDesign instance &&
                             instance.NumericId <= 0 &&
