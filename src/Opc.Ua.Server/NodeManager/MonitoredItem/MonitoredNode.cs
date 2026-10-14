@@ -444,6 +444,16 @@ namespace Opc.Ua.Server
             {
                 if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
                 {
+                    // A cut-off source still retires the items this change would have reached.
+                    foreach (IDataChangeMonitoredItem2 cutOffItem in DataChangeMonitoredItems.Values)
+                    {
+                        bool isValue = cutOffItem.AttributeId == Attributes.Value;
+                        if (cutOffItem is MonitoredItem { UsesExternalValueSource: false } retirable &&
+                            (changes & (isValue ? NodeStateChangeMasks.Value : NodeStateChangeMasks.NonValue)) != 0)
+                        {
+                            retirable.RetireCutOffSource();
+                        }
+                    }
                     return;
                 }
                 // Collect the distinct attribute IDs being monitored so we can pre-read them.

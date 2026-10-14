@@ -138,29 +138,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
             Task<NodeManagerBatchResult>? commit = null;
-            var observed = new Dictionary<uint, DataValue>();
-            // TEMPORARY DIAGNOSTIC (G12 atomic RED): stage probes are not acceptance limits; remove after root repair.
-            string stage = "dispatch-entered";
-            Exception? primaryFailure = null;
             try
             {
-                using (var stageTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token))
-                {
-                    stageTimeout.CancelAfter(TimeSpan.FromSeconds(20));
-                    try
-                    {
-                        await entered.Task.WaitAsync(stageTimeout.Token).ConfigureAwait(false);
-                        stage = "commit-published";
-                        commit = prepared.CommitAsync(
-                            _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
-                        await published.Task.WaitAsync(stageTimeout.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (
-                        stageTimeout.IsCancellationRequested && !timeout.IsCancellationRequested)
-                    {
-                        throw new TimeoutException(Describe());
-                    }
-                }
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
+                    .AsTask();
+                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(dispatch.IsCompleted, Is.False);
                 Assert.That(first.DisposeCount, Is.Zero);
@@ -178,28 +161,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await secondSource.QueueValueAsync(server.DefaultSystemContext, secondNode, item, timeout.Token)
                         .ConfigureAwait(false);
                 }
-                stage = "queued-values-delivered";
-                Dictionary<uint, DataValue> delivered;
-                using (var stageTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token))
-                {
-                    stageTimeout.CancelAfter(TimeSpan.FromSeconds(20));
-                    try
-                    {
-                        (delivered, _) = await PublishEmissionDataAsync(
-                            services, subscriptionId, initial.Acknowledgements, stageTimeout.Token, observed)
-                            .ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (
-                        stageTimeout.IsCancellationRequested && !timeout.IsCancellationRequested)
-                    {
-                        throw new TimeoutException(Describe());
-                    }
-                }
+                var delivered = await PublishEmissionDataAsync(
+                    services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     foreach (uint handle in new uint[] { 1, 2, 3 })
                     {
-                        DataValue value = delivered[handle];
+                        DataValue value = delivered.Values[handle];
                         Assert.That(value.StatusCode,
                             Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
                             $"Source for client handle {handle} sampled after the joint publication while A was held.");
@@ -214,39 +182,98 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(second.AllEventsUnsubscribeCount, Is.Zero);
                 }
             }
-            catch (Exception failure)
+            finally
             {
-                primaryFailure = failure;
-                throw;
+                release.TrySetResult(true);
+                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (commit is not null)
+                {
+                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a node-wide change notification after an immediate cutoff retires the item with
+        /// BadNodeIdUnknown without any pre-poll, while a non-immediate removal keeps delivering the value.
+        /// </summary>
+        /// <param name="immediate">The immediate flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync(bool immediate)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? first = null;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(101, manager => first = manager),
+                null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(first);
+            BaseVariableState node = RequireLifecycleValue(
+                first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0])) as BaseVariableState);
+            node.StatusCode = StatusCodes.Good;
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, _) = await CreateSubscriptionAndMonitoredItemAsync(
+                services, node.NodeId, 1).ConfigureAwait(false);
+            uint eventItemId = await CreateEventMonitoredItemAsync(
+                services, subscriptionId, ObjectIds.Server, 4).ConfigureAwait(false);
+            IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
+                .Single(item => item.Id == eventItemId);
+            MonitoredNode2 source = first.GetEmissionSource(node.NodeId);
+            var initial = await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(initial.Values[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            first.ConditionRefreshCallback = async (_, token) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+            ISession session = RequireLifecycleValue(
+                server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
+            using var context = new OperationContext(session, DiagnosticsMasks.None);
+            Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
+            Task<NodeManagerBatchResult>? commit = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                commit = prepared.CommitAsync(
+                    _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
+                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                DateTimeUtc producedAt = DateTimeUtc.Now;
+                node.Value = 501;
+                node.Timestamp = producedAt;
+                await source.OnMonitoredNodeChangedAsync(
+                    server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
+                    .ConfigureAwait(false);
+                (Dictionary<uint, DataValue> delivered, _) = await PublishEmissionDataAsync(
+                    services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
+                DataValue value = delivered[1];
+                Assert.That(value.StatusCode,
+                    Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good));
+                if (!immediate)
+                {
+                    Assert.That(value.WrappedValue, Is.EqualTo(new Variant(501)));
+                }
             }
             finally
             {
                 release.TrySetResult(true);
-                try
+                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (commit is not null)
                 {
-                    // Cleanup gets its own bound so an expired test timeout cannot replace the original failure.
-                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                    await dispatch.WaitAsync(cleanup.Token).ConfigureAwait(false);
-                    if (commit is not null)
-                    {
-                        NodeManagerBatchResult result = await commit.WaitAsync(cleanup.Token).ConfigureAwait(false);
-                        Assert.That(result.CleanupFailure, Is.Null);
-                    }
-                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                    await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
-                catch (Exception cleanupFailure) when (primaryFailure is not null)
-                {
-                    TestContext.Out.WriteLine(
-                        $"Cleanup after the failure at stage '{stage}' also failed: {cleanupFailure}");
-                }
-            }
-
-            string Describe()
-            {
-                string values = string.Join(", ", observed.Select(entry => $"{entry.Key}={entry.Value.StatusCode}"));
-                return $"Stage '{stage}' did not complete within 20s. dispatch={dispatch.Status}, " +
-                    $"commit={commit?.Status.ToString() ?? "none"}, committed={prepared.IsCommitted}, " +
-                    $"observed[{values}].";
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
         }
 
@@ -447,10 +474,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements,
-                CancellationToken cancellationToken,
-                Dictionary<uint, DataValue>? observed = null)
+                CancellationToken cancellationToken)
         {
-            Dictionary<uint, DataValue> values = observed ?? [];
+            var values = new Dictionary<uint, DataValue>();
             while (values.Count < 3)
             {
                 RequestHeader header = m_requestHeader;
