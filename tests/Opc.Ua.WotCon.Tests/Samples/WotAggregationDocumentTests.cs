@@ -788,7 +788,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
                     .ConfigureAwait(false);
                 Assert.That(viaIndex.Success, Is.EqualTo(alone.Success), entry.Href);
-                Assert.That(viaIndex.Diagnostics.Count, Is.EqualTo(alone.Diagnostics.Count), entry.Href);
+                Assert.That(viaIndex.Diagnostics, Has.Count.EqualTo(alone.Diagnostics.Count), entry.Href);
             }
         }
 
