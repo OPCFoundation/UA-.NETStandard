@@ -1944,7 +1944,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            EndpointDescription current = CoreUtils.Clone(endpoint.Description);
+            EndpointDescription current = CoreUtils.Clone(endpoint.Description)!;
             ServiceResult? result;
             try
             {
