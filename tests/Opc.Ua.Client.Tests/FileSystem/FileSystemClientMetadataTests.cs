@@ -123,6 +123,54 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public void FileInfoCanBeCreatedOutsideTheLibrary()
+        {
+            System.Reflection.ConstructorInfo? constructor = typeof(UaFileInfo).GetConstructor(
+            [
+                typeof(FileSystemClient),
+                typeof(UaDirectoryInfo),
+                typeof(NodeId),
+                typeof(QualifiedName),
+                typeof(IReadOnlyList<QualifiedName>)
+            ]);
+
+            Assert.That(constructor, Is.Not.Null, "UaFileInfo must have a public constructor.");
+        }
+
+        [Test]
+        public async Task FileInfoCreatedForAKnownNodeIdRefreshesAndReadsAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var props = new FileProperties
+            {
+                Size = 4_096UL,
+                Writable = false,
+                UserWritable = false,
+                OpenCount = 1
+            };
+            props.Realize();
+            var fileId = new NodeId(8100u);
+            var name = new QualifiedName("known.bin");
+            harness.RegisterFile(harness.Root, name, fileId, props);
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            var file = new UaFileInfo(client, parent: null, fileId, name, [name]);
+            await file.RefreshAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(file.NodeId, Is.EqualTo(fileId));
+                Assert.That(file.FullPath, Is.EqualTo("/known.bin"));
+                Assert.That(file.Size, Is.EqualTo(4_096UL));
+                Assert.That(file.OpenCount, Is.EqualTo(1));
+                Assert.That(file.Proxy, Is.Not.Null);
+                Assert.That(
+                    () => new UaFileInfo(client, null, fileId, name, null!),
+                    Throws.ArgumentNullException);
+            });
+        }
+
+        [Test]
         public async Task RefreshAsyncPopulatesMandatoryPropertiesAsync()
         {
             var harness = FileSystemSessionHarness.Create();

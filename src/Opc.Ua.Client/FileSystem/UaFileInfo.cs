@@ -53,13 +53,34 @@ namespace Opc.Ua.Client.FileSystem
     /// </remarks>
     public sealed class UaFileInfo : UaFileSystemInfo
     {
-        internal UaFileInfo(
+        /// <summary>
+        /// Creates a handle to the <c>FileType</c> instance with the given
+        /// NodeId, for a file that is already known by its NodeId rather than
+        /// by a path below the <see cref="FileSystemClient"/> root.
+        /// </summary>
+        /// <param name="owner">The file system client whose session is used.</param>
+        /// <param name="parent">The directory holding the file, or <c>null</c>
+        /// when it is not known.</param>
+        /// <param name="nodeId">The NodeId of the <c>FileType</c> instance.</param>
+        /// <param name="browseName">The BrowseName of the file.</param>
+        /// <param name="segments">The path of the file relative to the root of
+        /// <paramref name="owner"/>; path based operations such as
+        /// <see cref="UaFileSystemInfo.MoveToAsync(string, System.Threading.CancellationToken)"/>
+        /// use it.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="owner"/>,
+        /// <paramref name="nodeId"/> or <paramref name="segments"/> is null.</exception>
+        public UaFileInfo(
             FileSystemClient owner,
             UaDirectoryInfo? parent,
             NodeId nodeId,
             QualifiedName browseName,
             IReadOnlyList<QualifiedName> segments)
-            : base(owner, parent, nodeId, browseName, segments)
+            : base(
+                owner,
+                parent,
+                nodeId,
+                browseName,
+                segments ?? throw new ArgumentNullException(nameof(segments)))
         {
             Proxy = new FileTypeClient(
                 owner.Session,
