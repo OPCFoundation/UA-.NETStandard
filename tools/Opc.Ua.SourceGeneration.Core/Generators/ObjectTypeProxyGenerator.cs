@@ -101,6 +101,97 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Returns true when a proxy class exists (or is emitted here) for
+        /// <paramref name="type"/>. This model's exclusions only decide that
+        /// for types of models generated with them: the target model, and
+        /// other inputs of this run. A type supplied by a referenced assembly
+        /// was emitted under that assembly's own exclusions, which its
+        /// dependency payload records by omitting the excluded types.
+        /// </summary>
+        internal bool HasProxy(ObjectTypeDesign type)
+        {
+            string? typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(typeUri) &&
+                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
+                m_context.ReferencedModels != null &&
+                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
+            {
+                Dependency.ModelDependencyV1? payload = reference.GetDependency();
+                if (payload == null)
+                {
+                    // No record of what the reference excluded: take the
+                    // type as emitted.
+                    return true;
+                }
+                string? name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
+                foreach (Dependency.DependencyNode node in payload.Nodes)
+                {
+                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
+                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return !m_context.ModelDesign.IsExcluded(type);
+        }
+
+        /// <summary>
+        /// Returns the C# namespace into which the proxy for
+        /// <paramref name="type"/> is (or would be) emitted. Internal
+        /// types use the configured output namespace; external types are
+        /// looked up via the standard UA → <c>Opc.Ua</c> default
+        /// and the user-supplied
+        /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
+        /// override; otherwise the model's namespace prefix is used as a
+        /// last resort.
+        /// </summary>
+        internal string ResolveProxyNamespaceForType(TypeDesign type)
+        {
+            string? typeUri = type.SymbolicName?.Namespace;
+            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
+
+            if (!string.IsNullOrEmpty(typeUri) &&
+                string.Equals(typeUri, targetUri, StringComparison.Ordinal))
+            {
+                return GetOutputNamespace();
+            }
+
+            if (!string.IsNullOrEmpty(typeUri))
+            {
+                IDictionary<string, string>? overrides =
+                    m_context.Options?.ObjectTypeProxyExternalNamespaces;
+                if (overrides != null &&
+                    overrides.TryGetValue(typeUri, out string? mapped) &&
+                    !string.IsNullOrWhiteSpace(mapped))
+                {
+                    return mapped;
+                }
+
+                if (string.Equals(typeUri, kStandardUaNamespaceUri, StringComparison.Ordinal))
+                {
+                    return kStandardUaProxyNamespace;
+                }
+
+                Namespace[] namespaces = m_context.ModelDesign.Namespaces;
+                if (namespaces != null)
+                {
+                    foreach (Namespace ns in namespaces)
+                    {
+                        if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
+                            !string.IsNullOrWhiteSpace(ns!.Prefix))
+                        {
+                            return ns.Prefix;
+                        }
+                    }
+                }
+            }
+
+            return GetOutputNamespace();
+        }
+
+        /// <summary>
         /// Selects every non-excluded <see cref="ObjectTypeDesign"/> in
         /// the model. A proxy class is emitted for each one regardless
         /// of whether it declares any methods so that the generated
@@ -223,97 +314,6 @@ namespace Opc.Ua.SourceGeneration
                 current = parent.BaseTypeNode;
             }
             return null;
-        }
-
-        /// <summary>
-        /// Returns true when a proxy class exists (or is emitted here) for
-        /// <paramref name="type"/>. This model's exclusions only decide that
-        /// for types of models generated with them: the target model, and
-        /// other inputs of this run. A type supplied by a referenced assembly
-        /// was emitted under that assembly's own exclusions, which its
-        /// dependency payload records by omitting the excluded types.
-        /// </summary>
-        private bool HasProxy(ObjectTypeDesign type)
-        {
-            string? typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
-            if (!string.IsNullOrEmpty(typeUri) &&
-                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
-                m_context.ReferencedModels != null &&
-                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
-            {
-                Dependency.ModelDependencyV1? payload = reference.GetDependency();
-                if (payload == null)
-                {
-                    // No record of what the reference excluded: take the
-                    // type as emitted.
-                    return true;
-                }
-                string? name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
-                foreach (Dependency.DependencyNode node in payload.Nodes)
-                {
-                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
-                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return !m_context.ModelDesign.IsExcluded(type);
-        }
-
-        /// <summary>
-        /// Returns the C# namespace into which the proxy for
-        /// <paramref name="type"/> is (or would be) emitted. Internal
-        /// types use the configured output namespace; external types are
-        /// looked up via the standard UA → <c>Opc.Ua</c> default
-        /// and the user-supplied
-        /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
-        /// override; otherwise the model's namespace prefix is used as a
-        /// last resort.
-        /// </summary>
-        private string ResolveProxyNamespaceForType(TypeDesign type)
-        {
-            string? typeUri = type.SymbolicName?.Namespace;
-            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
-
-            if (!string.IsNullOrEmpty(typeUri) &&
-                string.Equals(typeUri, targetUri, StringComparison.Ordinal))
-            {
-                return GetOutputNamespace();
-            }
-
-            if (!string.IsNullOrEmpty(typeUri))
-            {
-                IDictionary<string, string>? overrides =
-                    m_context.Options?.ObjectTypeProxyExternalNamespaces;
-                if (overrides != null &&
-                    overrides.TryGetValue(typeUri, out string? mapped) &&
-                    !string.IsNullOrWhiteSpace(mapped))
-                {
-                    return mapped;
-                }
-
-                if (string.Equals(typeUri, kStandardUaNamespaceUri, StringComparison.Ordinal))
-                {
-                    return kStandardUaProxyNamespace;
-                }
-
-                Namespace[] namespaces = m_context.ModelDesign.Namespaces;
-                if (namespaces != null)
-                {
-                    foreach (Namespace ns in namespaces)
-                    {
-                        if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
-                            !string.IsNullOrWhiteSpace(ns!.Prefix))
-                        {
-                            return ns.Prefix;
-                        }
-                    }
-                }
-            }
-
-            return GetOutputNamespace();
         }
 
         /// <summary>

@@ -68,6 +68,12 @@ certificate trust, and an external fingerprint-to-role mapping. Unknown peers ar
 automatically accepted. A fresh run starts after all ten authenticated process roles
 register and initialize.
 
+Every role must use the same effective simulation configuration and embedded sample model.
+Views reject a missing or mismatched coordinator configuration/model identity before membership
+commands or projection. Pass the same scenario to all ten views as well as the coordinator,
+and make external scenario files readable in every role. A mismatch reports `BadConfigurationError`;
+correct the view's inputs and restart it without resetting retained coordinator state.
+
 The coordinator journals commits and command outcomes before acknowledging them. Control-command
 outcomes have a fixed durable capacity; lease renewals retain only the latest durable heartbeat
 outcome per process and cannot consume that control budget. Older heartbeat retries are rejected

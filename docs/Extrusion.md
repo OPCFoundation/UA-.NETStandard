@@ -10,6 +10,19 @@ timer, random values, automatic counter increments, or material-flow simulator.
 Applications supply asynchronous authorities for commands and publish absolute
 committed observations.
 
+## Contents
+
+- [Packages and ownership](#packages-and-ownership)
+- [Standalone and composed hosting](#standalone-and-composed-hosting)
+- [Concrete devices and feature selection](#concrete-devices-and-feature-selection)
+- [Providers and committed state](#providers-and-committed-state)
+  - [Units and monitoring](#units-and-monitoring)
+- [Extrusion line jobs and production](#extrusion-line-jobs-and-production)
+- [Typed clients](#typed-clients)
+  - [Dataset/file workflow](#datasetfile-workflow)
+- [Supported parts](#supported-parts)
+  - [Filter profile discrepancy](#filter-profile-discrepancy)
+
 ## Packages and ownership
 
 One `Opc.Ua.Extrusion` model assembly owns all twelve parts' standard
@@ -281,7 +294,7 @@ await foreach (ExtrusionDeviceEntry device in client.DiscoverAsync(
 }
 
 Extruder_InterfaceTypeClient extruder = client.Extruder(extruderId);
-ExtrusionRead<bool> present = await extruder.IsPresentVariable().ReadAsync(ct);
+ClientRead<bool> present = await extruder.IsPresentVariable().ReadAsync(ct);
 await extruder.LineIdVariable().WriteAsync("Line-1", ct);
 
 JobGroupsTypeClient groups = await client.Line(lineId).JobsAsync(ct);
@@ -289,7 +302,7 @@ await foreach (JobGroupTypeClient group in groups.EnumerateJobGroupAsync(ct))
 {
     await foreach (JobTypeClient job in group.EnumerateJobAsync(ct))
     {
-        ExtrusionRead<JobStatusEnumeration> status = await job.StatusVariable().ReadAsync(ct);
+        ClientRead<JobStatusEnumeration> status = await job.StatusVariable().ReadAsync(ct);
     }
 }
 
@@ -306,9 +319,15 @@ accessors expose drives, monitored parameters, zones, materials, users, common
 maintenance and all remaining optional objects. Model-derived extensions supply
 **141 typed variable accessors and 17 typed placeholder enumerators** from the
 unchanged licensed declarations. Their codecs use exact native/generated types,
-not reflection or boxed-value conversion.
+not reflection or boxed-value conversion. The client project opts into
+`ModelSourceGeneratorClientAccessorsOnly`, so Roslyn emits these extensions during
+the build; no generated C# or Python generation step is checked in.
 
-`ReadAsync` returns `ExtrusionRead<T>` with the original `DataValue`; bad quality
+The reusable `ClientVariable<T>`, `ClientRead<T>` and client-model access helpers
+live in `Opc.Ua.Client`. See the [source generator options](../tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors)
+to enable the same extensions for another companion model.
+
+`ReadAsync` returns `ClientRead<T>` with the original `DataValue`; bad quality
 and source timestamps are not discarded. `ObserveAsync` uses the existing
 bounded streaming subscription. Disposing an observation removes its monitored
 item, not another caller's shared session.
@@ -338,34 +357,25 @@ frozen checks, per-session handles, bounded files, metadata exchange, component
 selection and commit semantics remain the common protocol. Binding preserves
 independently selected active/preparation optional members.
 
-## Feature and evidence matrix
+## Supported parts
 
-The machine-readable [member matrix](../tests/Opc.Ua.Extrusion.Tests/feature-matrix.json)
-contains **270 direct modeled members across all twelve parts**, with exact
-namespace, type, member, modelling rule and implementation/test mapping.
-Inherited common/base-UA members remain owned and tested by their respective
-packages. Regenerate/check the typed accessors and matrix with:
+Support refers to model and protocol functionality with the required providers,
+not a certification claim.
 
-```powershell
-python tests\Opc.Ua.Extrusion.Tests\generate-client-members.py --check
-```
-
-The following table records behavior, not a certification claim:
-
-| Part | Included behavior and selectable groups | Primary references | Runtime / automated evidence |
-| --- | --- | --- | --- |
-| 40084-1 | Real device identity/line/target/strand; Machinery state and operation mode; execution submachine; configuration, energy, maintenance, start, monitoring, production datasets; temperature zones; rolls, gaps, bending and peripheral devices. | [§6–9](https://reference.opcfoundation.org/specs/OPC-40084-1/v2.00/6) | `ExtrusionNodeMaterializer`, common bindings, `ExtrusionStateController`; model, snapshot and signed-tolerance tests. |
-| 40084-2 | Line identification/Components, MES configuration/message, users, configuration parameters, material list, all production parameters; group/job methods, defaults, strand/sequence rules and all five declared events. | [§6–9](https://reference.opcfoundation.org/specs/OPC-40084-2/v2.00/6) | `ExtrusionLineController`, `ExtrusionJobController`, common MES/datasets; protocol and typed TCP tests. |
-| 40084-3 | Barrel/screw identity, main/additional drives, throughput/specific output, users, barrel/screw/melt/vacuum zones, feeders/dosing mode and all hopper/material fields. | [§6–7](https://reference.opcfoundation.org/specs/OPC-40084-3/v2.00/6) | Typed constructor, declared feature projection, shared drive/parameter controls; constructor/matrix and typed TCP tests. |
-| 40084-4 | Drives, force, clamp feedback, authorized open/close requests and temperature zones. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-4/v2.00/6) | Typed constructor and command provider; authorization, target, cancellation and construction tests. |
-| 40084-5 | Mandatory melt-pressure container/drive, feed rate and optional temperature zones. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-5/v2.00/6) | Typed constructor and common controllers; both feature selections and real-client discovery. |
-| 40084-6 | Genuine filter, fineness/areas, waste/specific waste, drive, backflush pressure, hydraulic pressure, temperature/melt zones, repeated filter/screen packages, status/backflush/maintenance observations. | [§6–8](https://reference.opcfoundation.org/specs/OPC-40084-6/v2.00/6) | Typed filter and repeated package construction; absolute snapshot, typed write/units and enumeration tests. Disputed profile withheld. |
-| 40084-7 | Mandatory temperature zones, melt pressures and dimension adjustment. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-7/v2.00/6) | Exact die constructor, refined repeated names and common parameter controls; feature matrix tests. |
-| 40084-8 | Drive, closed/water-flow feedback, cutting gap, temperature/pressure zones, knife packages and die plates with absolute active times. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-8/v2.00/6) | Typed pelletizer constructor and generated observation graph; repeated-equipment/matrix tests. |
-| 40084-9 | Real mandatory cutting products, lengths/corrections/wall thickening, requested/actual/total outputs, reset, cutting program, manual/sample/waste controls and concrete cut events. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-9/v2.00/6) | `ExtrusionCutController`, command provider, generated types; cut replay and actual TCP event tests. |
-| 40084-10 | Z/X/Y/pipe-support positioning; calibration zones; total and per-zone water temperatures/flows, water/vacuum pumps, vacuum, level, air-shower pressure and additional measurement groups. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-10/v2.00/6) | Typed calibrator and repeated zones; common parameter/drive controls and full-member tests. |
-| 40084-11 | Actual HaulOff inheritance, inherited clamp/drives/force/zones, mould identity and extruder-enable observation. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-11/v2.00/6) | Typed corrugator constructor and HaulOff dependency; explicit inheritance assertion and TCP discovery. |
-| 40084-12 | Rolls/gaps, horizontal/vertical position, product force/tension, repeated coupling forces/tensions, roll bending and cleaning/infrared systems. | [§6](https://reference.opcfoundation.org/specs/OPC-40084-12/v2.00/6) | Typed calender constructor, general roll/gap types and common controls; repeated-equipment/matrix tests. |
+| Part | Name | Support |
+| --- | --- | --- |
+| 40084-1 | General types | Supported |
+| 40084-2 | Extrusion line | Supported |
+| 40084-3 | Extruder | Supported |
+| 40084-4 | Haul-off | Supported |
+| 40084-5 | Melt pump | Supported |
+| 40084-6 | Filter | Partial |
+| 40084-7 | Die | Supported |
+| 40084-8 | Pelletizer | Supported |
+| 40084-9 | Cutter | Supported |
+| 40084-10 | Calibrator | Supported |
+| 40084-11 | Corrugator | Supported |
+| 40084-12 | Calender | Supported |
 
 Hardware-specific closed-loop algorithms, physical clamp motion, filter
 backflushing, feeder/dosing behavior and cutter motion are implemented by the
@@ -385,24 +395,3 @@ not change wire types.
 
 No formal OPC Foundation certification is claimed. Loading a namespace, packing
 a NuGet package, static member coverage and passing tests are different evidence.
-
-## Validation
-
-The dedicated NUnit project contains deterministic construction, selection,
-identity/ownership, rollback, authorization, cancellation, absolute snapshot,
-state, job/cut and actual TCP ManagedSession/AMB/dataset tests.
-
-Validation commands (run from the repository root, one build lane at a time):
-
-```powershell
-dotnet test tests\Opc.Ua.Extrusion.Tests\Opc.Ua.Extrusion.Tests.csproj `
-    -f net10.0 -p:CustomTargetFrameworks=net10.0 -p:CustomTestTarget=net10.0 `
-    -m:1 -p:UseSharedCompilation=false
-dotnet test tests\Opc.Ua.Extrusion.Tests\Opc.Ua.Extrusion.Tests.csproj `
-    -f net48 -p:CustomTargetFrameworks=net48 -p:CustomTestTarget=net48 `
-    -m:1 -p:UseSharedCompilation=false
-```
-
-Execution evidence is not yet recorded for this new runtime project. Full
-framework-matrix and NativeAOT validation must be completed before claiming those
-gates passed; the model-foundation results alone are not runtime validation.

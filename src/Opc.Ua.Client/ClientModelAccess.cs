@@ -31,19 +31,18 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Client;
 
-namespace Opc.Ua.Extrusion.Client
+namespace Opc.Ua.Client
 {
     /// <summary>
     /// Resolves model-generated accessors through the existing managed browse infrastructure.
     /// </summary>
-    internal static class ExtrusionClientNodes
+    public static class ClientModelAccess
     {
         /// <summary>
         /// Resolves a namespace-URI-based child, including properties and AddIns.
         /// </summary>
-        internal static ValueTask<NodeId> ResolveAsync(
+        public static ValueTask<NodeId> ResolveAsync(
             ObjectTypeClient proxy,
             string namespaceUri,
             string browseName,
@@ -56,13 +55,25 @@ namespace Opc.Ua.Extrusion.Client
         /// <summary>
         /// Resolves properties of a variable through the same managed browse path.
         /// </summary>
-        internal static async ValueTask<NodeId> ResolveAsync(
+        public static async ValueTask<NodeId> ResolveAsync(
             ISession session,
             NodeId parent,
             string namespaceUri,
             string browseName,
             CancellationToken cancellationToken)
         {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (namespaceUri == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUri));
+            }
+            if (browseName == null)
+            {
+                throw new ArgumentNullException(nameof(browseName));
+            }
             int index = session.NamespaceUris.GetIndex(namespaceUri);
             if (index < 0)
             {
@@ -91,31 +102,41 @@ namespace Opc.Ua.Extrusion.Client
         /// Enumerates typed real placeholder instances, including conforming vendor subtypes.
         /// </summary>
         /// <typeparam name="TProxy">The generated client proxy for each concrete instance.</typeparam>
-        internal static async IAsyncEnumerable<TProxy> EnumerateAsync<TProxy>(
+        public static IAsyncEnumerable<TProxy> EnumerateAsync<TProxy>(
             ObjectTypeClient parent,
             ExpandedNodeId expectedType,
             Func<ISession, NodeId, ITelemetryContext, TProxy> create,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
             where TProxy : ObjectTypeClient
         {
-            ISession session = RequireSession(parent);
-            NodeId type = ExpandedNodeId.ToNodeId(expectedType, session.NamespaceUris);
-            if (type.IsNull)
+            if (create == null)
             {
-                yield break;
+                throw new ArgumentNullException(nameof(create));
             }
-            var seen = new HashSet<NodeId>();
-            ArrayOf<ReferenceDescription> references = await BrowseAsync(
-                session, parent.ObjectId, (uint)NodeClass.Object, cancellationToken).ConfigureAwait(false);
-            for (int index = 0; index < references.Count; index++)
+            ISession session = RequireSession(parent);
+            return EnumerateCoreAsync(cancellationToken);
+
+            async IAsyncEnumerable<TProxy> EnumerateCoreAsync(
+                [EnumeratorCancellation] CancellationToken ct)
             {
-                ReferenceDescription reference = references[index];
-                NodeId actualType = ExpandedNodeId.ToNodeId(reference.TypeDefinition, session.NamespaceUris);
-                NodeId node = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
-                if (!node.IsNull && !actualType.IsNull && seen.Add(node) &&
-                    await session.NodeCache.IsTypeOfAsync(actualType, type, cancellationToken).ConfigureAwait(false))
+                NodeId type = ExpandedNodeId.ToNodeId(expectedType, session.NamespaceUris);
+                if (type.IsNull)
                 {
-                    yield return create(session, node, parent.Telemetry);
+                    yield break;
+                }
+                var seen = new HashSet<NodeId>();
+                ArrayOf<ReferenceDescription> references = await BrowseAsync(
+                    session, parent.ObjectId, (uint)NodeClass.Object, ct).ConfigureAwait(false);
+                for (int index = 0; index < references.Count; index++)
+                {
+                    ReferenceDescription reference = references[index];
+                    NodeId actualType = ExpandedNodeId.ToNodeId(reference.TypeDefinition, session.NamespaceUris);
+                    NodeId node = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                    if (!node.IsNull && !actualType.IsNull && seen.Add(node) &&
+                        await session.NodeCache.IsTypeOfAsync(actualType, type, ct).ConfigureAwait(false))
+                    {
+                        yield return create(session, node, parent.Telemetry);
+                    }
                 }
             }
         }
@@ -123,12 +144,16 @@ namespace Opc.Ua.Extrusion.Client
         /// <summary>
         /// Uses ManagedBrowse so continuation-point lifetime remains owned by the existing client infrastructure.
         /// </summary>
-        internal static async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
+        public static async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
             ISession session,
             NodeId node,
             uint classes,
             CancellationToken cancellationToken)
         {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             (ArrayOf<ArrayOf<ReferenceDescription>> results, ArrayOf<ServiceResult> errors) =
                 await session.ManagedBrowseAsync(null, null, [node], 0, BrowseDirection.Forward,
                     Opc.Ua.ReferenceTypeIds.HierarchicalReferences, true, classes, cancellationToken)
@@ -148,14 +173,14 @@ namespace Opc.Ua.Extrusion.Client
         /// <summary>
         /// Requires a real session, rather than using reflection or a service-identity stand-in.
         /// </summary>
-        internal static ISession RequireSession(ObjectTypeClient proxy)
+        public static ISession RequireSession(ObjectTypeClient proxy)
         {
             if (proxy == null)
             {
                 throw new ArgumentNullException(nameof(proxy));
             }
             return proxy.Session as ISession ??
-                throw new ArgumentException("Extrusion workflows require an ISession or ManagedSession.",
+                throw new ArgumentException("Model client accessors require an ISession or ManagedSession.",
                     nameof(proxy));
         }
     }

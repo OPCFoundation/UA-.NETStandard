@@ -342,6 +342,54 @@ namespace Opc.Ua.GranulateDrying.Tests
         }
 
         /// <summary>
+        /// Mutating a structure returned to a local adapter cannot change the authoritative publication.
+        /// </summary>
+        [Test]
+        public async Task CommittedStructuredReadsDoNotExposeSnapshotPayloadsAsync()
+        {
+            var authority = new DryingAuthority();
+            GranulateDryingDevice device = await m_host.CreateAsync(
+                GranulateDryingTestHost.BasicOptions(Name()), authority).ConfigureAwait(false);
+            GranulateDryingCommit committed = authority.Next(DryingAuthority.Value(
+                GranulateDryingTarget.Device, "MachineConfiguration/TimeZoneOffset",
+                Variant.FromStructure(new TimeZoneDataType { Offset = 60, DaylightSavingInOffset = false }),
+                17, StatusCodes.UncertainLastUsableValue));
+            await device.PublishAsync(committed).ConfigureAwait(false);
+            GranulateDryingConfigurationClient configuration = m_host.Client.Configuration(
+                await m_host.Client.Device(device.NodeId).ConfigurationAsync().ConfigureAwait(false));
+
+            DataValue exported = device.ReadCommittedValue(
+                GranulateDryingTarget.Device, "MachineConfiguration/TimeZoneOffset");
+            Assert.That(exported.WrappedValue.TryGetStructure<TimeZoneDataType>(out TimeZoneDataType? editable),
+                Is.True);
+            editable!.Offset = 120;
+            editable.DaylightSavingInOffset = true;
+
+            DataValue retained = device.ReadCommittedValue(
+                GranulateDryingTarget.Device, "MachineConfiguration/TimeZoneOffset");
+            Assert.That(retained.WrappedValue.TryGetStructure<TimeZoneDataType>(out TimeZoneDataType? timezone),
+                Is.True);
+            GranulateDryingReading<TimeZoneDataType> observed = await configuration.TimeZoneOffset.ReadAsync()
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(timezone!.Offset, Is.EqualTo(60));
+                Assert.That(timezone.DaylightSavingInOffset, Is.False);
+                Assert.That(retained.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+                Assert.That(retained.SourceTimestamp, Is.EqualTo(DryingAuthority.Time(17)));
+                Assert.That(retained.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+                Assert.That(observed.IsPresent, Is.True);
+                Assert.That(observed.HasValue, Is.True);
+                Assert.That(observed.Value.Offset, Is.EqualTo(60));
+                Assert.That(observed.Value.DaylightSavingInOffset, Is.False);
+                Assert.That(observed.DataValue.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+                Assert.That(observed.DataValue.SourceTimestamp, Is.EqualTo(DryingAuthority.Time(17)));
+                Assert.That(device.Revision, Is.EqualTo(committed.Revision));
+            });
+        }
+
+        /// <summary>
         /// Tests energy-limit bounds before hardware access and exact language/mapping commits.
         /// </summary>
         [Test]

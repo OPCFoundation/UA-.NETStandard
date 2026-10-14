@@ -6,10 +6,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Extrusion.Client;
@@ -23,6 +25,26 @@ namespace Opc.Ua.Extrusion.Tests
     [TestFixture]
     public sealed class ExtrusionClientBoundaryTests
     {
+        /// <summary>
+        /// Build-time generation preserves the complete published variable and placeholder surface.
+        /// </summary>
+        [Test]
+        public void GeneratedAccessorsMatchThePublishedMemberInventory()
+        {
+            MethodInfo[] methods = typeof(ExtrusionClientMembers).GetMethods(
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(methods.Count(method => method.ReturnType.IsGenericType &&
+                    method.ReturnType.GetGenericTypeDefinition() == typeof(ClientVariable<>)), Is.EqualTo(141));
+                Assert.That(methods.Count(method => method.ReturnType.IsGenericType &&
+                    method.ReturnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)), Is.EqualTo(17));
+                Assert.That(methods.All(method => method.GetParameters().Length > 0 &&
+                    typeof(ObjectTypeClient).IsAssignableFrom(method.GetParameters()[0].ParameterType)), Is.True);
+            });
+        }
+
         [TestCase("Absent")]
         [TestCase("Foreign")]
         [TestCase("Unique")]
@@ -53,7 +75,7 @@ namespace Opc.Ua.Extrusion.Tests
                 };
                 peer.ExpectBrowse(ExtrusionClientPeer.DeviceId, 0, references);
             }
-            ExtrusionVariable<bool> member = peer.Client.Extruder(ExtrusionClientPeer.DeviceId).IsPresentVariable();
+            ClientVariable<bool> member = peer.Client.Extruder(ExtrusionClientPeer.DeviceId).IsPresentVariable();
             if (shape is "Repeated" or "Distinct")
             {
                 ExtrusionClientPeer.AssertFailure(async () =>
@@ -94,7 +116,7 @@ namespace Opc.Ua.Extrusion.Tests
                 };
             }
             peer.ExpectBrowseResults(ExtrusionClientPeer.DeviceId, 0, results);
-            ExtrusionVariable<string> member = peer.Client.Extruder(ExtrusionClientPeer.DeviceId).LineIdVariable();
+            ClientVariable<string> member = peer.Client.Extruder(ExtrusionClientPeer.DeviceId).LineIdVariable();
             if (count == 1 && status == StatusCodes.Good)
             {
                 Assert.That(await member.ResolveAsync(cancellation.Token).ConfigureAwait(false), Is.EqualTo(variable));
@@ -188,11 +210,11 @@ namespace Opc.Ua.Extrusion.Tests
                     _ => [sample]
                 });
             }
-            ExtrusionVariable<double> member =
+            ClientVariable<double> member =
                 peer.Client.Filter(ExtrusionClientPeer.FilterId).BackflushPressureVariable();
             if (shape is "Null" or "BadWrongType")
             {
-                ExtrusionRead<double> value = await member.ReadAsync(cancellation.Token).ConfigureAwait(false);
+                ClientRead<double> value = await member.ReadAsync(cancellation.Token).ConfigureAwait(false);
                 ExtrusionClientPeer.AssertReading(value, 0.0, false, quality);
                 Assert.That(value.DataValue.WrappedValue, Is.EqualTo(payload));
             }
@@ -333,7 +355,7 @@ namespace Opc.Ua.Extrusion.Tests
                 peer.ExpectRead(units, ExtrusionClientPeer.Sample(payload,
                     shape == "BadQuality" ? StatusCodes.BadOutOfService : StatusCodes.Good));
             }
-            ExtrusionVariable<double> member =
+            ClientVariable<double> member =
                 peer.Client.Filter(ExtrusionClientPeer.FilterId).BackflushPressureVariable();
             if (shape == "Good")
             {
@@ -479,7 +501,7 @@ namespace Opc.Ua.Extrusion.Tests
                 .Returns(ExtrusionClientPeer.Notifications(
                     samples.Select(sample => new DataValueChange(null, sample, null)).ToArray(),
                     () => produced++, () => disposed++, null, cancellation.Token));
-            await using (IAsyncEnumerator<ExtrusionRead<double>> iterator =
+            await using (IAsyncEnumerator<ClientRead<double>> iterator =
                 peer.Client.Filter(ExtrusionClientPeer.FilterId)
                 .BackflushPressureVariable().ObserveAsync(stream.Object, options, cancellation.Token)
                 .GetAsyncEnumerator(cancellation.Token))
@@ -555,7 +577,7 @@ namespace Opc.Ua.Extrusion.Tests
                         }, () => produced++, () => disposed++, ending == "Failure" ? failure : null,
                             cancellation.Token));
             }
-            await using (IAsyncEnumerator<ExtrusionRead<string>> iterator =
+            await using (IAsyncEnumerator<ClientRead<string>> iterator =
                 peer.Client.Extruder(ExtrusionClientPeer.DeviceId)
                 .LineIdVariable().ObserveAsync(ending == "NoStreaming" ? null : stream.Object,
                     cancellationToken: cancellation.Token).GetAsyncEnumerator(cancellation.Token))

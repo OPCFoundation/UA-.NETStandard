@@ -121,7 +121,8 @@ namespace Opc.Ua.Recycling
         public ArrayOf<RecyclingIdentityBinding> Identities { get; init; } = [];
 
         /// <summary>
-        /// Sole coordinator's independently authored synthetic configuration.
+        /// Effective synthetic configuration shared by the coordinator and every process view.
+        /// Views must match its complete configuration/model identity before participating.
         /// </summary>
         public RecyclingConfiguration Simulation { get; init; } = new();
 

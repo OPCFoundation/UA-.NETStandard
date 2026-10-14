@@ -210,6 +210,71 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(runtime.ScaleSystems, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// An upload finishing after its owner's shutdown must not acknowledge discarded content as committed.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task UploadCompletionRespectsOwnerShutdownAsync(bool composed, bool shutdown)
+        {
+            await using var fixture = new ComposedOwner();
+            await fixture.StartAsync(composed);
+            ScalesRuntime runtime = fixture.Runtime;
+            ScaleHandle scale = await runtime.CreateScaleAsync(
+                new QualifiedName("UploadRace", runtime.InstanceNamespaceIndex), ScaleKind.Recipe,
+                builder =>
+                {
+                    ScalesNodeManagerTests.FullScale(builder, "UploadRace");
+                    builder.WithRecipeFiles();
+                });
+            RecipeController recipes = scale.Recipes!;
+            RecipeState recipe = recipes.AddRecipe("Upload", new LocalizedText("Upload"));
+            FileState file = recipe.RecipeFile!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var resume = new ManualResetEventSlim(false);
+            recipes.RecipeFileHandler = (_, _) =>
+            {
+                entered.TrySetResult(true);
+                if (!resume.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("The upload callback was not released.");
+                }
+                return ServiceResult.Good;
+            };
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(file.Open!.OnCall!(
+                runtime.SystemContext, file.Open, file.NodeId, 6, ref handle)), Is.True);
+            ByteString payload = ByteString.From([1, 2, 3]);
+            Assert.That(ServiceResult.IsGood(file.Write!.OnCall!(
+                runtime.SystemContext, file.Write, file.NodeId, handle, payload)), Is.True);
+            Task<ServiceResult> closing = Task.Run(() => file.Close!.OnCall!(
+                runtime.SystemContext, file.Close, file.NodeId, handle));
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                if (shutdown)
+                {
+                    await fixture.Manager.DisposeAsync();
+                }
+                resume.Set();
+                ServiceResult result = await closing.WaitAsync(TimeSpan.FromSeconds(15));
+                Assert.That(result.StatusCode, Is.EqualTo(
+                    (StatusCode)(shutdown ? StatusCodes.BadShutdown : StatusCodes.Good)));
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                if (!shutdown)
+                {
+                    Assert.That(recipes.ReadRecipeFile(recipe), Is.EqualTo(payload));
+                }
+            }
+            finally
+            {
+                resume.Set();
+                await closing.WaitAsync(TimeSpan.FromSeconds(15));
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task DisposalDrainsAnInFlightConfigurationAsync(bool composed)

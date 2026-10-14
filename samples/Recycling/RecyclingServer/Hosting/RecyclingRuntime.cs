@@ -66,6 +66,9 @@ namespace Opc.Ua.Recycling
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_logger = telemetry.CreateLogger<RecyclingRuntime>();
+            m_configurationIdentity = new(() =>
+                RecyclingCoordinator.ConfigurationIdentityAsync(m_options.Simulation, CancellationToken.None)
+                    .AsTask());
         }
 
         /// <summary>
@@ -215,6 +218,7 @@ namespace Opc.Ua.Recycling
         /// Applies an already committed image to a process view without advancing material time.
         /// Restoring availability reapplies the same revision so adapters can restore native-node quality.
         /// This in-process projection seam does not create commits or expose a remote write operation.
+        /// Configuration/model mismatches fault the view without replacing its last compatible image.
         /// </summary>
         public async ValueTask ApplyProjectionAsync(
             CommittedSnapshot snapshot,
@@ -226,10 +230,21 @@ namespace Opc.Ua.Recycling
             {
                 throw new InvalidOperationException("Only a process view accepts externally committed projections.");
             }
-            Interlocked.Exchange(ref m_lastContactTicks, m_timeProvider.GetUtcNow().UtcTicks);
             await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                try
+                {
+                    await ValidateConfigurationIdentityAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception) when (
+                    exception.StatusCode == StatusCodes.BadConfigurationError)
+                {
+                    SetMembershipState(RecyclingMembershipState.Faulted, StatusCodes.BadConfigurationError);
+                    await MarkUnavailableCoreAsync(cancellationToken).ConfigureAwait(false);
+                    throw;
+                }
+                Interlocked.Exchange(ref m_lastContactTicks, m_timeProvider.GetUtcNow().UtcTicks);
                 ProjectionFrame? previous = Volatile.Read(ref m_projection);
                 if (previous != null && snapshot.Revision < previous.Snapshot.Revision)
                 {
@@ -257,6 +272,7 @@ namespace Opc.Ua.Recycling
         /// Attempts at most sixteen membership commands on the supplied authenticated connection.
         /// A contended round returns explicitly so the owner can pace another round without replacing the session.
         /// Real transport, authorization and non-revision protocol errors propagate unchanged.
+        /// The configuration/model identity must match before any membership command or initial projection.
         /// </summary>
         public async ValueTask<RecyclingMembershipState> RefreshMembershipAsync(
             IRecyclingMembershipClient client,
@@ -281,6 +297,7 @@ namespace Opc.Ua.Recycling
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     ConfirmConnected(client);
+                    await ValidateConfigurationIdentityAsync(snapshot, cancellationToken).ConfigureAwait(false);
                     string connectionId = client.ConnectionId;
                     ProcessParticipant? participant = snapshot.Participants.Span.ToArray()
                         .FirstOrDefault(item => item.Process == m_options.Process);
@@ -330,6 +347,7 @@ namespace Opc.Ua.Recycling
                         ConfirmConnected(client);
                         CommittedSnapshot latest = await client.ReadSnapshotAsync(cancellationToken)
                             .ConfigureAwait(false);
+                        await ValidateConfigurationIdentityAsync(latest, cancellationToken).ConfigureAwait(false);
                         if (latest.RunId == snapshot.RunId && latest.Revision == snapshot.Revision)
                         {
                             ProcessParticipant? current = latest.Participants.Span.ToArray()
@@ -453,8 +471,10 @@ namespace Opc.Ua.Recycling
                         Variant.Null, StatusCodes.BadDataEncodingUnsupported, DateTimeUtc.MinValue));
                 }
                 ProjectionFrame? frame = Volatile.Read(ref m_projection);
-                StatusCode status = frame == null
-                    ? StatusCodes.BadWaitingForInitialData
+                StatusCode status = m_options.Role == RecyclingHostRole.ProcessView &&
+                    MembershipStatusCode == StatusCodes.BadConfigurationError
+                    ? StatusCodes.BadConfigurationError
+                    : frame == null ? StatusCodes.BadWaitingForInitialData
                     : IsAvailable ? StatusCodes.Good
                     : m_options.Role == RecyclingHostRole.ProcessView && StatusCode.IsBad(MembershipStatusCode)
                         ? MembershipStatusCode
@@ -516,7 +536,9 @@ namespace Opc.Ua.Recycling
             if (frame == null || !IsAvailable)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNoCommunication, "No current coordinator snapshot is available.");
+                    MembershipStatusCode == StatusCodes.BadConfigurationError
+                        ? StatusCodes.BadConfigurationError : StatusCodes.BadNoCommunication,
+                    "No compatible current coordinator snapshot is available.");
             }
             return new ValueTask<ReadSnapshotMethodStateResult>(new ReadSnapshotMethodStateResult
             {
@@ -730,6 +752,24 @@ namespace Opc.Ua.Recycling
             Volatile.Write(ref m_membershipState, (int)state);
         }
 
+        /// <summary>
+        /// Checks the existing durable identity without accepting an incompatible image or resetting a prior fault.
+        /// </summary>
+        private async ValueTask ValidateConfigurationIdentityAsync(
+            CommittedSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            string expected = await m_configurationIdentity.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (MembershipStatusCode == StatusCodes.BadConfigurationError ||
+                !string.Equals(snapshot.ConfigurationId, expected, StringComparison.Ordinal))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "Coordinator configuration/sample model does not match this process view. " +
+                    "Use the same effective scenario configuration and compiled sample model, then restart the view.");
+            }
+        }
+
         private static void ConfirmConnected(IRecyclingMembershipClient client)
         {
             if (!client.IsConnected)
@@ -825,6 +865,7 @@ namespace Opc.Ua.Recycling
         private readonly TimeProvider m_timeProvider;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly Lazy<Task<string>> m_configurationIdentity;
         private readonly TaskCompletionSource m_ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly SemaphoreSlim m_projectionGate = new(1, 1);
         private readonly SemaphoreSlim m_membershipGate = new(1, 1);

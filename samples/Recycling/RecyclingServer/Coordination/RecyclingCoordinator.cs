@@ -342,6 +342,26 @@ namespace Opc.Ua.Recycling
             }
         }
 
+        /// <summary>
+        /// Hashes the effective simulation configuration and embedded sample model for both host roles.
+        /// </summary>
+        internal static async ValueTask<string> ConfigurationIdentityAsync(
+            RecyclingConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            byte[] config = JsonSerializer.SerializeToUtf8Bytes(
+                configuration, RecyclingJsonContext.Default.RecyclingConfiguration);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            hash.AppendData(config);
+            Stream model = typeof(RecyclingCoordinator).Assembly
+                .GetManifestResourceStream("Recycling.Model.xml")
+                ?? throw new InvalidOperationException("The compiled sample model identity resource is missing.");
+            await using var modelLifetime = model.ConfigureAwait(false);
+            byte[] modelHash = await SHA256.HashDataAsync(model, cancellationToken).ConfigureAwait(false);
+            hash.AppendData(modelHash);
+            return Convert.ToHexString(hash.GetHashAndReset());
+        }
+
         private async Task DisposeCoreAsync()
         {
             await m_writer.WaitAsync().ConfigureAwait(false);
@@ -652,23 +672,6 @@ namespace Opc.Ua.Recycling
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfService, "Persistence fault requires recovery.");
             }
-        }
-
-        private static async ValueTask<string> ConfigurationIdentityAsync(
-            RecyclingConfiguration configuration,
-            CancellationToken cancellationToken)
-        {
-            byte[] config = JsonSerializer.SerializeToUtf8Bytes(
-                configuration, RecyclingJsonContext.Default.RecyclingConfiguration);
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            hash.AppendData(config);
-            Stream model = typeof(RecyclingCoordinator).Assembly
-                .GetManifestResourceStream("Recycling.Model.xml")
-                ?? throw new InvalidOperationException("The compiled sample model identity resource is missing.");
-            await using var modelLifetime = model.ConfigureAwait(false);
-            byte[] modelHash = await SHA256.HashDataAsync(model, cancellationToken).ConfigureAwait(false);
-            hash.AppendData(modelHash);
-            return Convert.ToHexString(hash.GetHashAndReset());
         }
 
         private static void ValidateReceipts(ArrayOf<RecyclingCommandReceipt> receipts, int maximum)

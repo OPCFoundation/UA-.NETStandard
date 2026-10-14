@@ -317,6 +317,10 @@ namespace Opc.Ua.Extrusion.Server
                 Set(job.Node.ActualOutputRate!, Variant.From(snapshot.ActualOutputRate), snapshot.SourceTimestamp);
                 Set(job.Node.GoodProduct!, Variant.From(snapshot.GoodProduct), snapshot.SourceTimestamp);
                 job.LastCommit = snapshot;
+                if (!snapshot.FinishedLots.IsEmpty)
+                {
+                    job.LastFinishedLot = snapshot.FinishedLots[snapshot.FinishedLots.Count - 1];
+                }
                 RefreshActiveProductionQuality(snapshot.SourceTimestamp);
                 job.Node.ClearChangeMasks(m_runtime.SystemContext, true);
                 if (previousStatus != snapshot.Status)
@@ -843,8 +847,7 @@ namespace Opc.Ua.Extrusion.Server
         private static void ValidateCompletionFacts(JobEntry job, ExtrusionJobProductionSnapshot snapshot)
         {
             double previousOutput = job.LastCommit?.ActualOutput ?? 0;
-            ArrayOf<uint> previousLots = job.LastCommit?.FinishedLots ?? [];
-            uint previousLot = previousLots.IsEmpty ? 0 : previousLots[previousLots.Count - 1];
+            uint previousLot = job.LastFinishedLot;
             foreach (ExtrusionFinishedUnit unit in snapshot.FinishedUnits)
             {
                 if (unit.Unit <= previousOutput || unit.Unit > snapshot.ActualOutput)
@@ -1043,6 +1046,11 @@ namespace Opc.Ua.Extrusion.Server
             /// Gets or sets the idempotence receipt for absolute production.
             /// </summary>
             internal ExtrusionJobProductionSnapshot? LastCommit { get; set; }
+
+            /// <summary>
+            /// Gets or sets the highest accepted finished lot, retained across commits without lot events.
+            /// </summary>
+            internal uint LastFinishedLot { get; set; }
         }
 
         /// <summary>The hosting owner and model context.</summary>

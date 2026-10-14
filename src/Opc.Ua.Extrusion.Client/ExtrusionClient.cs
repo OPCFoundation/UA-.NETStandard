@@ -155,7 +155,7 @@ namespace Opc.Ua.Extrusion.Client
                         StatusCodes.BadEncodingLimitsExceeded,
                             "Extrusion discovery exceeded its configured node bound.");
                 }
-                ArrayOf<ReferenceDescription> references = await ExtrusionClientNodes.BrowseAsync(
+                ArrayOf<ReferenceDescription> references = await ClientModelAccess.BrowseAsync(
                     Session, pending.Dequeue(), (uint)NodeClass.Object, cancellationToken).ConfigureAwait(false);
                 for (int index = 0; index < references.Count; index++)
                 {

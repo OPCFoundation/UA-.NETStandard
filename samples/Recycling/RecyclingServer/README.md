@@ -300,6 +300,22 @@ register their own roles and acknowledge an initial committed snapshot. A proces
 start first: its endpoint is browseable, but its values report `BadWaitingForInitialData` or
 `BadNoCommunication` until synchronization succeeds.
 
+Every role must use the same effective `RecyclingConfiguration` and embedded sample model.
+Before sending membership commands or projecting a snapshot, a view compares its locally
+computed identity with the coordinator's existing `ConfigurationId`. This identity covers
+the complete configuration, including residence ticks, seconds per tick, source settings,
+fault schedules, lease duration and resource bounds, plus the embedded sample-model XML;
+matching only the scenario label is insufficient. Use the same sample build or container image
+for all roles. Host-specific endpoints, certificate stores and `--pace-ms` are not part of
+this simulation identity.
+
+A missing or mismatched identity faults the view with `BadConfigurationError`, including
+`ProcessView.State` and `ReadSnapshot` before any first image is available. The last compatible
+values and source timestamps are retained as unavailable; the rejected image does not renew
+contact freshness or acknowledge initialization. Automatic reconnect stops with an explicit
+diagnostic. Correct the view's configuration/build and restart it; do not reset or replace the
+retained coordinator state to bypass this check.
+
 The coordinator journals complete state plus accepted command receipts before acknowledging or
 publishing effects. Requests carry line/run/revision and a caller-owned request ID. Identical
 authenticated control-command retries return the original outcome, including after restart;
@@ -415,7 +431,7 @@ The ten independent view commands use the same executable. Each needs its own pr
 `--identity-store` and `--identity-subject`, plus the role mapping. For example:
 
 ```powershell
-dotnet run -f net10.0 --no-build -- --process collection --line-id line-1 --coordinator opc.tcp://localhost:62570/Recycling --identities .\roles.json --identity-store .\user-stores\collection --identity-subject CN=CollectionView
+dotnet run -f net10.0 --no-build -- --process collection --line-id line-1 --scenario healthy --coordinator opc.tcp://localhost:62570/Recycling --identities .\roles.json --identity-store .\user-stores\collection --identity-subject CN=CollectionView
 ```
 
 Repeat with each row below, supplying that role's store and subject. Defaults are independent
@@ -435,9 +451,13 @@ endpoints, not an all-process-in-one-server mode.
 | bagging | 62580 |
 
 Use `--endpoint` for an advertised address matching the application certificate's SANs.
-Use `--scenario <file.json>` for a bounded external synthetic configuration and `--pace-ms`
-for independent wall pacing. Do not embed private fixtures, keys, or deployment configuration
-in the source tree or image context.
+Pass the same `--scenario <name>` to the coordinator and **all ten views**; omitting the option
+defaults that individual process to `healthy`. For `--scenario <file.json>`, make the same
+effective configuration available to every role, including file defaults. Paths may differ,
+but every process must be able to read its scenario file. Containers need a read-only scenario
+file mount in every role, not just the coordinator; see the deployment guide.
+Use `--pace-ms` for independent wall pacing. Do not embed private fixtures, keys, or deployment
+configuration in the source tree or image context.
 
 ## Validation
 

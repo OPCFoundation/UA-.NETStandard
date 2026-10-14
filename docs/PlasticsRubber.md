@@ -5,6 +5,30 @@ not define a universal machine root. A concrete companion model, such as
 [Extrusion](Extrusion.md) or [Granulate drying](#granulate-drying-devices-opc-40082-6), composes
 these capabilities into its own equipment interface.
 
+## Contents
+
+- [Packages and model provenance](#packages-and-model-provenance)
+- [One owner, explicit providers](#one-owner-explicit-providers)
+- [Authority and observed state](#authority-and-observed-state)
+  - [Snapshot-owned settings](#snapshot-owned-settings)
+- [Material catalogues and diagnostics](#material-catalogues-and-diagnostics)
+- [Monitoring semantics](#monitoring-semantics)
+- [Typed clients](#typed-clients)
+- [Production dataset protocol](#production-dataset-protocol)
+  - [Server composition](#server-composition)
+  - [Options, state and lifecycle](#options-state-and-lifecycle)
+  - [Client operations](#client-operations)
+  - [Request events](#request-events)
+- [Granulate drying devices (OPC 40082-6)](#granulate-drying-devices-opc-40082-6)
+  - [Model provenance and conformance status](#model-provenance-and-conformance-status)
+  - [Hosting one address-space owner](#hosting-one-address-space-owner)
+  - [Selecting features and real placeholders](#selecting-features-and-real-placeholders)
+  - [Provider and commit contract](#provider-and-commit-contract)
+  - [Authorization and observers](#authorization-and-observers)
+  - [Errors, maintenance, and instructions](#errors-maintenance-and-instructions)
+  - [Typed client](#typed-client)
+  - [Granulate drying conformance units](#granulate-drying-conformance-units)
+
 ## Packages and model provenance
 
 `Opc.Ua.PlasticsRubber` owns the standard namespace

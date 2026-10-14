@@ -281,7 +281,7 @@ namespace Opc.Ua.Extrusion.Tests
             Assert.That(Session.Invocations.All(call => call.Method.Name.StartsWith("get_", StringComparison.Ordinal)),
                 Is.True);
 
-        internal static void AssertReading<T>(ExtrusionRead<T> reading, T expected, bool hasValue, StatusCode status)
+        internal static void AssertReading<T>(ClientRead<T> reading, T expected, bool hasValue, StatusCode status)
         {
             Assert.Multiple(() =>
             {

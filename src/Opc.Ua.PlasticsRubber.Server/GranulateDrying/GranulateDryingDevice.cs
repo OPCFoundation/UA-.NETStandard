@@ -164,7 +164,7 @@ namespace Opc.Ua.GranulateDrying.Server
         {
             ThrowIfDisposed();
             ValueBinding binding = RequiredValue(target, member);
-            return Volatile.Read(ref m_current).Values[binding.Node.NodeId];
+            return Volatile.Read(ref m_current).Values[binding.Node.NodeId].Copy();
         }
 
         /// <summary>

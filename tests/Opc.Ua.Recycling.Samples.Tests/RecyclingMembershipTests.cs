@@ -49,15 +49,18 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// Creates a borrowed authenticated connection and a deterministic committed-state peer.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
             m_clock = new TestClock();
             m_connectionId = "original-session";
             m_connected = true;
             m_conflictsRemaining = 0;
             m_commands.Clear();
-            m_snapshot = new RecyclingEngine(new RecyclingConfiguration { PlannedSourceBatches = 0 })
-                .CreateRun("membership-run") with
+            m_telemetry = (DefaultTelemetry)DefaultTelemetry.Create(static logging => logging.ClearProviders());
+            var configuration = new RecyclingConfiguration { PlannedSourceBatches = 0 };
+            m_snapshot = await CoordinatorTests.CreateInitialSnapshotAsync(configuration, m_clock, m_telemetry)
+                .ConfigureAwait(false);
+            m_snapshot = m_snapshot with
             {
                 Lifecycle = RunLifecycle.Running,
                 Revision = 1,
@@ -82,10 +85,14 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .Returns(ValueTask.CompletedTask);
             adapter.Setup(view => view.MarkUnavailableAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                 .Returns(ValueTask.CompletedTask);
-            m_telemetry = (DefaultTelemetry)DefaultTelemetry.Create(static logging => logging.ClearProviders());
             m_services = new ServiceCollection().BuildServiceProvider();
             m_runtime = new RecyclingRuntime(
-                new RecyclingHostOptions { Role = RecyclingHostRole.ProcessView, LineId = "membership-line" },
+                new RecyclingHostOptions
+                {
+                    Role = RecyclingHostRole.ProcessView,
+                    LineId = "membership-line",
+                    Simulation = configuration
+                },
                 new RecyclingAuthorization([]), adapter.Object, Mock.Of<IRecyclingUserCommandForwarder>(),
                 m_services, m_clock, m_telemetry);
         }

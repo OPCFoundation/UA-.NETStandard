@@ -330,6 +330,65 @@ namespace Opc.Ua.Extrusion.Tests
         }
 
         /// <summary>
+        /// Empty event batches retain finished-lot history, and a rejected duplicate leaves its revision reusable.
+        /// </summary>
+        [Test]
+        public async Task FinishedLotReplayAcrossEmptyCommitsDoesNotConsumeRevisionAsync()
+        {
+            var line = await CreateJobLineAsync("finished-lot-replay").ConfigureAwait(false);
+            ExtrusionJobController jobs = line.Jobs!;
+            await jobs.AddGroupAsync(m_fixture.Runtime.SystemContext, Group("group")).ConfigureAwait(false);
+            JobState job = await jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "group", Job("job"))
+                .ConfigureAwait(false);
+            var events = new List<LotFinishedEventState>();
+            jobs.Node.EventReported += (_, _, notification) =>
+            {
+                if (notification is LotFinishedEventState finished)
+                {
+                    events.Add(finished);
+                }
+            };
+            var first = new ExtrusionJobProductionSnapshot(
+                7, "group", "job", JobStatusEnumeration.JOB_IN_PRODUCTION, 2,
+                2, 2, 0, 0, 120, true, ExtrusionFixture.Timestamp, [], [1]);
+            await jobs.ApplyProductionAsync(first).ConfigureAwait(false);
+            await jobs.ApplyProductionAsync(first with { Revision = 8, FinishedLots = [] }).ConfigureAwait(false);
+            ExtrusionJobProductionSnapshot duplicate = first with { Revision = 9 };
+
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await jobs.ApplyProductionAsync(duplicate).ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(events, Has.Count.EqualTo(1));
+                Assert.That(events[0].Lot!.Value, Is.EqualTo(1u));
+                Assert.That(events[0].SourceNode!.Value, Is.EqualTo(job.NodeId));
+                Assert.That(job.ActualOutput!.Value, Is.EqualTo(2));
+                Assert.That(job.ActualLot!.Value, Is.EqualTo(2u));
+                Assert.That(job.ActualOutput.Timestamp, Is.EqualTo(ExtrusionFixture.Timestamp));
+            });
+
+            ExtrusionJobProductionSnapshot next = duplicate with
+            {
+                ActualLot = 3,
+                ActualOutput = 4,
+                ActualGoodOutput = 4,
+                FinishedLots = [2]
+            };
+            await jobs.ApplyProductionAsync(next).ConfigureAwait(false);
+            await jobs.ApplyProductionAsync(next).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(events.Select(notification => notification.Lot!.Value),
+                    Is.EqualTo(new uint[] { 1, 2 }));
+                Assert.That(job.ActualOutput!.Value, Is.EqualTo(4));
+                Assert.That(job.ActualGoodOutput!.Value, Is.EqualTo(4));
+                Assert.That(job.ActualLot!.Value, Is.EqualTo(3u));
+            });
+        }
+
+        /// <summary>
         /// Status commands update the line quality constraint without waiting for another production observation.
         /// </summary>
         [Test]

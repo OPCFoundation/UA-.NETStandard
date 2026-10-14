@@ -32,13 +32,12 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using StreamingMonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
-namespace Opc.Ua.Extrusion.Client
+namespace Opc.Ua.Client
 {
     /// <summary>
     /// A typed observation that retains the original quality and both timestamps.
@@ -47,7 +46,7 @@ namespace Opc.Ua.Extrusion.Client
     /// <param name="Value">The generated-codec-decoded value; inspect HasValue before using it.</param>
     /// <param name="HasValue">Whether a non-null wire value could be decoded.</param>
     /// <param name="DataValue">The unmodified value, quality and source/server timestamps.</param>
-    public readonly record struct ExtrusionRead<T>(T Value, bool HasValue, DataValue DataValue);
+    public readonly record struct ClientRead<T>(T Value, bool HasValue, DataValue DataValue);
 
     /// <summary>
     /// Typed variable operations attached to an existing generated ObjectType proxy.
@@ -58,12 +57,12 @@ namespace Opc.Ua.Extrusion.Client
     /// safety and subscriptions. Optional absence is reported as BadNotFound, not a fabricated default.
     /// </remarks>
     /// <typeparam name="T">The exact generated/native UA value representation.</typeparam>
-    public sealed class ExtrusionVariable<T>
+    public sealed class ClientVariable<T>
     {
         /// <summary>
         /// Creates a model-derived variable view.
         /// </summary>
-        internal ExtrusionVariable(
+        public ClientVariable(
             ObjectTypeClient owner,
             string namespaceUri,
             string browseName,
@@ -72,11 +71,11 @@ namespace Opc.Ua.Extrusion.Client
             Func<T, Variant> encode)
         {
             m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
-            m_namespaceUri = namespaceUri;
-            m_browseName = browseName;
+            m_namespaceUri = namespaceUri ?? throw new ArgumentNullException(nameof(namespaceUri));
+            m_browseName = browseName ?? throw new ArgumentNullException(nameof(browseName));
             Writable = writable;
-            m_decode = decode;
-            m_encode = encode;
+            m_decode = decode ?? throw new ArgumentNullException(nameof(decode));
+            m_encode = encode ?? throw new ArgumentNullException(nameof(encode));
         }
 
         /// <summary>
@@ -89,13 +88,13 @@ namespace Opc.Ua.Extrusion.Client
         /// </summary>
         public ValueTask<NodeId> ResolveAsync(CancellationToken cancellationToken = default)
         {
-            return ExtrusionClientNodes.ResolveAsync(m_owner, m_namespaceUri, m_browseName, cancellationToken);
+            return ClientModelAccess.ResolveAsync(m_owner, m_namespaceUri, m_browseName, cancellationToken);
         }
 
         /// <summary>
         /// Reads the value without throwing away bad quality or the authoritative source timestamp.
         /// </summary>
-        public async ValueTask<ExtrusionRead<T>> ReadAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<ClientRead<T>> ReadAsync(CancellationToken cancellationToken = default)
         {
             NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> _) = await m_owner.Session
@@ -144,8 +143,8 @@ namespace Opc.Ua.Extrusion.Client
         public async ValueTask<EUInformation> ReadEngineeringUnitsAsync(CancellationToken cancellationToken = default)
         {
             NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
-            ISession session = ExtrusionClientNodes.RequireSession(m_owner);
-            NodeId units = await ExtrusionClientNodes.ResolveAsync(session, node,
+            ISession session = ClientModelAccess.RequireSession(m_owner);
+            NodeId units = await ClientModelAccess.ResolveAsync(session, node,
                 Opc.Ua.Namespaces.OpcUa, Opc.Ua.BrowseNames.EngineeringUnits, cancellationToken).ConfigureAwait(false);
             if (units.IsNull)
             {
@@ -169,9 +168,9 @@ namespace Opc.Ua.Extrusion.Client
         /// Observes typed values through the existing bounded streaming subscription.
         /// Disposing the enumerator removes its monitored item, not the shared session.
         /// </summary>
-        public async IAsyncEnumerable<ExtrusionRead<T>> ObserveAsync(
+        public async IAsyncEnumerable<ClientRead<T>> ObserveAsync(
             IStreamingSubscription? streaming = null,
-            MonitoredItemOptions? options = null,
+            StreamingMonitoredItemOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
@@ -188,21 +187,21 @@ namespace Opc.Ua.Extrusion.Client
         /// <summary>
         /// Applies the statically generated datatype decoder without reflecting over values.
         /// </summary>
-        private ExtrusionRead<T> Decode(in DataValue value)
+        private ClientRead<T> Decode(in DataValue value)
         {
             if (value.WrappedValue.IsNull)
             {
-                return new ExtrusionRead<T>(default!, false, value);
+                return new ClientRead<T>(default!, false, value);
             }
             try
             {
-                return new ExtrusionRead<T>(
+                return new ClientRead<T>(
                     m_decode(value.WrappedValue, m_owner.Session.MessageContext), true, value);
             }
             catch (ServiceResultException exception) when (
                 StatusCode.IsBad(value.StatusCode) && exception.StatusCode == StatusCodes.BadTypeMismatch)
             {
-                return new ExtrusionRead<T>(default!, false, value);
+                return new ClientRead<T>(default!, false, value);
             }
         }
 

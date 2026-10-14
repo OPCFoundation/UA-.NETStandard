@@ -9,6 +9,30 @@ The repository does not publish a prebuilt image for these examples. Build your 
 All private scenarios, certificate stores, user keys, and runtime state stay outside the
 repository and the container build context.
 
+## Shared simulation configuration
+
+All eleven roles must use the same effective simulation configuration and embedded sample
+model. The checked-in Compose and Kubernetes commands omit `--scenario` for every role, so
+all use `healthy`; the shared image also supplies the same compiled sample model.
+
+To select another named scenario, add the same `--scenario <name>` to the coordinator and all
+ten process-view commands/argument lists. The option is local to each executable; configuring
+only the coordinator does not propagate it to the views.
+
+For an external scenario JSON file, supply identical effective contents to every role and
+add `--scenario <container-path>` to each command. Mount the file read-only into each Compose
+service and each Kubernetes workload using your deployment's configuration provisioning.
+The existing identity-mapping mounts do not automatically supply a scenario file. Keep scenario
+files out of the image context and keep existing data mounts and persistent claims intact.
+
+Views verify the complete configuration/model hash before membership commands or projection.
+A mismatch or missing identity produces `BadConfigurationError`, leaves the endpoint available
+for diagnosis, and stops automatic reconnect. Correct the view's scenario/build and restart
+it; do not delete journals, reset the run, or replace retained volumes to bypass the refusal.
+Matching scenario names alone is insufficient: residence, tick duration, leases, limits and
+all other effective simulation settings must also match. Role-specific certificates/endpoints
+and wall-clock pacing may remain independent.
+
 ## Provision first
 
 Use the stack's [certificate manager](../../../../docs/CertificateManager.md) and

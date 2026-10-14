@@ -568,6 +568,32 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(stopped.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
         }
 
+        /// <summary>
+        /// Obtains a genuine configuration/model identity without duplicating the coordinator's hashing contract.
+        /// </summary>
+        internal static async ValueTask<CommittedSnapshot> CreateInitialSnapshotAsync(
+            RecyclingConfiguration configuration,
+            TimeProvider timeProvider,
+            ITelemetryContext telemetry)
+        {
+            string root = Path.Combine(TestContext.CurrentContext.TestDirectory, "r",
+                Guid.NewGuid().ToString("N")[..8]);
+            try
+            {
+                await using RecyclingCoordinator coordinator = await RecyclingCoordinator.OpenAsync(
+                    configuration, new PhysicalFileSystemProvider(root), "snapshot-line", timeProvider, telemetry)
+                    .ConfigureAwait(false);
+                return coordinator.Current;
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
         private ValueTask<RecyclingCoordinator> OpenAsync(RecyclingConfiguration? configuration = null)
         {
             return RecyclingCoordinator.OpenAsync(

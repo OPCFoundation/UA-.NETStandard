@@ -200,8 +200,8 @@ namespace Opc.Ua.Extrusion.Tests
                     Assert.That(found, Has.Count.EqualTo(11));
                     Assert.That(asset!.NodeId, Is.EqualTo(extruder!.NodeId));
                     var proxy = client.Extruder(extruder.NodeId);
-                    ExtrusionRead<bool> present = await proxy.IsPresentVariable().ReadAsync(ct).ConfigureAwait(false);
-                    ExtrusionRead<string> barrel = await proxy.BarrelIdVariable().ReadAsync(ct).ConfigureAwait(false);
+                    ClientRead<bool> present = await proxy.IsPresentVariable().ReadAsync(ct).ConfigureAwait(false);
+                    ClientRead<string> barrel = await proxy.BarrelIdVariable().ReadAsync(ct).ConfigureAwait(false);
                     Assert.Multiple(() =>
                     {
                         Assert.That(present.HasValue && present.Value, Is.True);
@@ -209,7 +209,7 @@ namespace Opc.Ua.Extrusion.Tests
                         Assert.That(barrel.Value, Is.EqualTo("barrel-A"));
                     });
                     await proxy.LineIdVariable().WriteAsync("updated-line", ct).ConfigureAwait(false);
-                    ExtrusionRead<string> changed = await proxy.LineIdVariable().ReadAsync(ct).ConfigureAwait(false);
+                    ClientRead<string> changed = await proxy.LineIdVariable().ReadAsync(ct).ConfigureAwait(false);
                     Assert.That(changed.Value, Is.EqualTo("updated-line"));
                     Assert.That(changed.DataValue.SourceTimestamp, Is.EqualTo(ExtrusionFixture.Timestamp));
                     var itemState = await proxy.ItemStateAsync(ct).ConfigureAwait(false);

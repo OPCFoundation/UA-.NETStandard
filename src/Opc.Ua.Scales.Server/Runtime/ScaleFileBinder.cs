@@ -144,11 +144,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return;
                 }
-                entry.Content.SetLength(0);
-                entry.Content.Write(content, 0, content.Length);
-                CloseHandles(entry);
-                Set(file.OpenCount, (ushort)0);
-                RefreshSize(entry);
+                ReplaceContent(entry, content);
             }
         }
 
@@ -172,6 +168,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 m_files.Clear();
             }
+        }
+
+        /// <summary>
+        /// Replaces one entry while its caller retains exclusive ownership of the file table.
+        /// </summary>
+        private static void ReplaceContent(Entry entry, byte[] content)
+        {
+            entry.Content.SetLength(0);
+            entry.Content.Write(content, 0, content.Length);
+            CloseHandles(entry);
+            Set(entry.File.OpenCount, (ushort)0);
+            RefreshSize(entry);
         }
 
         /// <summary>
@@ -261,7 +269,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ServiceResult result = entry.Uploaded!(uploaded);
                 if (ServiceResult.IsGood(result))
                 {
-                    Replace(file, uploaded);
+                    lock (m_lock)
+                    {
+                        if (m_disposed)
+                        {
+                            return StatusCodes.BadShutdown;
+                        }
+                        if (!m_files.TryGetValue(file, out Entry? current))
+                        {
+                            return StatusCodes.BadNodeIdUnknown;
+                        }
+                        ReplaceContent(current, uploaded);
+                    }
                 }
                 return result;
             }

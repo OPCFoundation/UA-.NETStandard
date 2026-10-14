@@ -144,7 +144,11 @@ namespace Opc.Ua.Recycling.Samples.Tests
         public async Task MissedContactMarksEquipmentUnavailableWithoutWaitingForTransportFailure()
         {
             TimeProvider clock = ControlledClock(out Action<TimeSpan> advance, out Task timerCreated);
-            CommittedSnapshot snapshot = new RecyclingEngine(new RecyclingConfiguration()).CreateRun("timeout") with
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
+                static logging => logging.ClearProviders());
+            CommittedSnapshot snapshot = await CoordinatorTests.CreateInitialSnapshotAsync(
+                new RecyclingConfiguration(), clock, telemetry).ConfigureAwait(false);
+            snapshot = snapshot with
             {
                 Revision = 7,
                 SourceTimestampUtc = clock.GetUtcNow().UtcDateTime
@@ -158,8 +162,6 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .Returns(ValueTask.CompletedTask);
             var connection = new TaskCompletionSource<ManagedSession>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
-                static logging => logging.ClearProviders());
             using ServiceProvider services = new ServiceCollection()
                 .AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(ct => connection.Task.WaitAsync(ct))
                 .BuildServiceProvider();
@@ -201,8 +203,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
         {
             var clock = new TestClock();
             DateTime sourceTimestamp = clock.GetUtcNow().UtcDateTime;
-            var engine = new RecyclingEngine(new RecyclingConfiguration { PlannedSourceBatches = 1 });
-            CommittedSnapshot snapshot = engine.CreateRun("projection-run") with
+            var configuration = new RecyclingConfiguration { PlannedSourceBatches = 1 };
+            var engine = new RecyclingEngine(configuration);
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
+                static logging => logging.ClearProviders());
+            CommittedSnapshot snapshot = await CoordinatorTests.CreateInitialSnapshotAsync(
+                configuration, clock, telemetry).ConfigureAwait(false);
+            snapshot = snapshot with
             {
                 Lifecycle = RunLifecycle.Running,
                 Revision = 7
@@ -239,11 +246,9 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     nativeSourceTimestamp = timestamp;
                 })
                 .Returns(ValueTask.CompletedTask);
-            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
-                static logging => logging.ClearProviders());
             using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
             await using var runtime = new RecyclingRuntime(
-                new RecyclingHostOptions { Role = RecyclingHostRole.ProcessView },
+                new RecyclingHostOptions { Role = RecyclingHostRole.ProcessView, Simulation = configuration },
                 new RecyclingAuthorization([]),
                 adapter.Object,
                 Mock.Of<IRecyclingUserCommandForwarder>(),
@@ -275,6 +280,278 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(applied, Has.Count.EqualTo(2), "Ordinary duplicate delivery is still coalesced.");
             adapter.Verify(
                 view => view.MarkUnavailableAsync(sourceTimestamp, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A view refuses incompatible or missing configuration identity before registering or projecting state.
+        /// </summary>
+        [TestCase(8, 30, false)]
+        [TestCase(4, 60, false)]
+        [TestCase(4, 30, true)]
+        public async Task MembershipRejectsConfigurationMismatchBeforeCommandsOrProjection(
+            int residenceTicks,
+            int tickSeconds,
+            bool omitConfigurationId)
+        {
+            string root = Path.Combine(TestContext.CurrentContext.TestDirectory, "r",
+                Guid.NewGuid().ToString("N")[..8]);
+            var clock = new TestClock();
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
+                static logging => logging.ClearProviders());
+            using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+            try
+            {
+                await using RecyclingCoordinator coordinator = await RecyclingCoordinator.OpenAsync(
+                    DryingConfiguration(residenceTicks, tickSeconds), new PhysicalFileSystemProvider(root),
+                    "runtime-line", clock, telemetry).ConfigureAwait(false);
+                CommittedSnapshot before = coordinator.Current;
+                var principal = new RecyclingPrincipal(
+                    "drying-view", RecyclingAccess.ProcessView, RecyclingProcess.Drying, "drying-session");
+                Mock<IRecyclingMembershipClient> client = MembershipClient(
+                    coordinator, principal, omitConfigurationId);
+                var adapter = new Mock<IRecyclingProcessViewAdapter>(MockBehavior.Strict);
+                adapter.Setup(value => value.ApplyAsync(
+                        It.IsAny<CommittedSnapshot>(), It.IsAny<CancellationToken>()))
+                    .Returns(ValueTask.CompletedTask);
+                adapter.Setup(value => value.MarkUnavailableAsync(
+                        It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                    .Returns(ValueTask.CompletedTask);
+                await using var runtime = new RecyclingRuntime(
+                    new RecyclingHostOptions
+                    {
+                        Role = RecyclingHostRole.ProcessView,
+                        Process = RecyclingProcess.Drying,
+                        LineId = coordinator.LineId,
+                        Simulation = new RecyclingConfiguration()
+                    },
+                    new RecyclingAuthorization([]), adapter.Object, Mock.Of<IRecyclingUserCommandForwarder>(),
+                    services, clock, telemetry);
+                await runtime.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
+                    runtime.RefreshMembershipAsync(client.Object).AsTask())!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                    Assert.That(runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.Faulted));
+                    Assert.That(runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                    Assert.That(runtime.IsAvailable, Is.False);
+                    Assert.That(runtime.Latest, Is.Null);
+                    Assert.That(coordinator.Current, Is.SameAs(before));
+                });
+                client.Verify(value => value.ExecuteAsync(
+                    It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+                adapter.Verify(value => value.ApplyAsync(
+                    It.IsAny<CommittedSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Matching nondefault configuration permits registration, initial projection and acknowledgement in order.
+        /// </summary>
+        [Test]
+        public async Task MembershipInitializesMatchingConfigurationAfterProjection()
+        {
+            string root = Path.Combine(TestContext.CurrentContext.TestDirectory, "r",
+                Guid.NewGuid().ToString("N")[..8]);
+            RecyclingConfiguration configuration = DryingConfiguration(8, 60);
+            var clock = new TestClock();
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
+                static logging => logging.ClearProviders());
+            using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+            try
+            {
+                await using RecyclingCoordinator coordinator = await RecyclingCoordinator.OpenAsync(
+                    configuration, new PhysicalFileSystemProvider(root), "runtime-line", clock, telemetry)
+                    .ConfigureAwait(false);
+                var principal = new RecyclingPrincipal(
+                    "drying-view", RecyclingAccess.ProcessView, RecyclingProcess.Drying, "drying-session");
+                var sequence = new List<string>();
+                Mock<IRecyclingMembershipClient> client = MembershipClient(
+                    coordinator, principal, omitConfigurationId: false);
+                client.Setup(value => value.ExecuteAsync(
+                        It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
+                    .Callback<RecyclingCommand, CancellationToken>((command, _) =>
+                        sequence.Add(command.Kind.ToString()))
+                    .Returns((RecyclingCommand command, CancellationToken ct) =>
+                        coordinator.ExecuteAsync(principal, command, ct));
+                var applied = new List<CommittedSnapshot>();
+                var adapter = new Mock<IRecyclingProcessViewAdapter>(MockBehavior.Strict);
+                adapter.Setup(value => value.ApplyAsync(
+                        It.IsAny<CommittedSnapshot>(), It.IsAny<CancellationToken>()))
+                    .Callback<CommittedSnapshot, CancellationToken>((snapshot, _) =>
+                    {
+                        sequence.Add("Apply");
+                        applied.Add(snapshot);
+                    })
+                    .Returns(ValueTask.CompletedTask);
+                adapter.Setup(value => value.MarkUnavailableAsync(
+                        It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                    .Returns(ValueTask.CompletedTask);
+                await using var runtime = new RecyclingRuntime(
+                    new RecyclingHostOptions
+                    {
+                        Role = RecyclingHostRole.ProcessView,
+                        Process = RecyclingProcess.Drying,
+                        LineId = coordinator.LineId,
+                        Simulation = configuration
+                    },
+                    new RecyclingAuthorization([]), adapter.Object, Mock.Of<IRecyclingUserCommandForwarder>(),
+                    services, clock, telemetry);
+                await runtime.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+                RecyclingMembershipState result = await runtime.RefreshMembershipAsync(client.Object)
+                    .ConfigureAwait(false);
+
+                string[] expected = ["Register", "Apply", "Initialize"];
+                Assert.That(sequence, Is.EqualTo(expected));
+                Assert.That(applied, Has.Count.EqualTo(1));
+                Assert.That(coordinator.Current.Participants.Count, Is.EqualTo(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(RecyclingMembershipState.Ready));
+                    Assert.That(runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(applied[0].Participants[0].Initialized, Is.False);
+                    Assert.That(applied[0].ConfigurationId, Is.EqualTo(coordinator.Current.ConfigurationId));
+                    Assert.That(runtime.Latest, Is.SameAs(applied[0]));
+                    Assert.That(coordinator.Current.Participants[0].Initialized, Is.True);
+                    Assert.That(coordinator.Current.Participants[0].Process, Is.EqualTo(RecyclingProcess.Drying));
+                    Assert.That(coordinator.Current.Participants[0].ConnectionId, Is.EqualTo(principal.ConnectionId));
+                    Assert.That(coordinator.Current.Tick, Is.Zero);
+                    Assert.That(coordinator.Current.Lifecycle, Is.EqualTo(RunLifecycle.WaitingForParticipants));
+                });
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A newer incompatible image cannot replace already published material values or their source time.
+        /// </summary>
+        [Test]
+        public async Task ProjectionRejectsConfigurationMismatchAndRetainsLastCommittedImage()
+        {
+            string root = Path.Combine(TestContext.CurrentContext.TestDirectory, "r",
+                Guid.NewGuid().ToString("N")[..8]);
+            var configuration = new RecyclingConfiguration();
+            var clock = new TestClock();
+            using var telemetry = (DefaultTelemetry)DefaultTelemetry.Create(
+                static logging => logging.ClearProviders());
+            using ServiceProvider services = new ServiceCollection().BuildServiceProvider();
+            try
+            {
+                await using RecyclingCoordinator coordinator = await RecyclingCoordinator.OpenAsync(
+                    configuration, new PhysicalFileSystemProvider(Path.Combine(root, "matching")),
+                    "runtime-line", clock, telemetry).ConfigureAwait(false);
+                await CoordinatorTests.InitializeAllAsync(coordinator).ConfigureAwait(false);
+                CommittedSnapshot committed = await coordinator.TickAsync().ConfigureAwait(false);
+                var applied = new List<CommittedSnapshot>();
+                var adapter = new Mock<IRecyclingProcessViewAdapter>(MockBehavior.Strict);
+                adapter.Setup(value => value.ApplyAsync(
+                        It.IsAny<CommittedSnapshot>(), It.IsAny<CancellationToken>()))
+                    .Callback<CommittedSnapshot, CancellationToken>((snapshot, _) => applied.Add(snapshot))
+                    .Returns(ValueTask.CompletedTask);
+                adapter.Setup(value => value.MarkUnavailableAsync(
+                        It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                    .Returns(ValueTask.CompletedTask);
+                await using var runtime = new RecyclingRuntime(
+                    new RecyclingHostOptions
+                    {
+                        Role = RecyclingHostRole.ProcessView,
+                        Process = RecyclingProcess.Drying,
+                        LineId = coordinator.LineId,
+                        Simulation = configuration
+                    },
+                    new RecyclingAuthorization([]), adapter.Object, Mock.Of<IRecyclingUserCommandForwarder>(),
+                    services, clock, telemetry);
+                await runtime.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                await runtime.ApplyProjectionAsync(committed, available: true).ConfigureAwait(false);
+
+                await using RecyclingCoordinator replacement = await RecyclingCoordinator.OpenAsync(
+                    configuration with { TickSeconds = 60 },
+                    new PhysicalFileSystemProvider(Path.Combine(root, "mismatched")),
+                    coordinator.LineId, clock, telemetry).ConfigureAwait(false);
+                await CoordinatorTests.InitializeAllAsync(replacement).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(1));
+                await replacement.TickAsync().ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(1));
+                CommittedSnapshot incompatible = await replacement.TickAsync().ConfigureAwait(false);
+                Assert.That(incompatible.Revision, Is.GreaterThan(committed.Revision));
+                Assert.That(incompatible.SourceTimestampUtc, Is.GreaterThan(committed.SourceTimestampUtc));
+                Assert.That(incompatible.ConfigurationId, Is.Not.EqualTo(committed.ConfigurationId));
+
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
+                    runtime.ApplyProjectionAsync(incompatible, available: true).AsTask())!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                    Assert.That(runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.Faulted));
+                    Assert.That(runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                    Assert.That(runtime.Latest, Is.SameAs(committed));
+                    Assert.That(applied, Has.Count.EqualTo(1));
+                    Assert.That(applied[0], Is.SameAs(committed));
+                    Assert.That(applied[0].SourceBatches, Is.EqualTo(1));
+                    Assert.That(applied[0].SourceMass.Total, Is.EqualTo(5_250_000));
+                    Assert.That(applied[0].LogicalSeconds, Is.EqualTo(30));
+                });
+                adapter.Verify(value => value.ApplyAsync(
+                    It.IsAny<CommittedSnapshot>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Changes physical residence or tick duration without changing the public scenario label.
+        /// </summary>
+        private static RecyclingConfiguration DryingConfiguration(int residenceTicks, int tickSeconds)
+        {
+            var configuration = new RecyclingConfiguration { TickSeconds = tickSeconds };
+            StageRecipe[] stages = configuration.Stages.Span.ToArray();
+            stages[14] = stages[14] with { ResidenceTicks = residenceTicks };
+            return configuration with { Stages = stages.ToArrayOf() };
+        }
+
+        /// <summary>
+        /// Uses real coordinator commits and identities through the existing authenticated-client seam.
+        /// </summary>
+        private static Mock<IRecyclingMembershipClient> MembershipClient(
+            RecyclingCoordinator coordinator,
+            RecyclingPrincipal principal,
+            bool omitConfigurationId)
+        {
+            var client = new Mock<IRecyclingMembershipClient>(MockBehavior.Strict);
+            client.SetupGet(static value => value.ConnectionId).Returns(principal.ConnectionId);
+            client.SetupGet(static value => value.IsConnected).Returns(true);
+            client.SetupGet(static value => value.CertificateSha256).Returns(string.Empty);
+            client.Setup(value => value.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<CommittedSnapshot>(omitConfigurationId
+                    ? coordinator.Current with { ConfigurationId = string.Empty }
+                    : coordinator.Current));
+            client.Setup(value => value.ExecuteAsync(
+                    It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((RecyclingCommand command, CancellationToken ct) =>
+                    coordinator.ExecuteAsync(principal, command, ct));
+            return client;
         }
 
         /// <summary>

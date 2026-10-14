@@ -4,8 +4,10 @@ Typed clients for OPC 40084 parts 1–12, version 2.00, on the application's
 existing session or `ManagedSession`.
 
 All twelve wire models are supplied by the single `Opc.Ua.Extrusion` model
-package. Client entrypoints and generated accessors are organized in per-part
-source folders without changing their public namespaces.
+package. Client entrypoints are organized in per-part source folders without
+changing their public namespaces. The client project opts into Roslyn
+`ModelSourceGeneratorClientAccessorsOnly` generation for every part; generated
+accessors are build output, not checked-in C# or Python output.
 
 ```csharp
 services.AddOpcUa().AddClient(clientOptions).AddExtrusionClient();
@@ -19,7 +21,8 @@ await extruder.LineIdVariable().WriteAsync("Line-1", ct);
 
 The facade returns each device's actual generated proxy, not an interchangeable
 extruder interface. Model-derived extensions add 141 typed variable accessors
-and 17 typed repeated-child enumerators with statically selected codecs.
+and 17 typed repeated-child enumerators with statically selected codecs, backed
+by the reusable `ClientVariable<T>` and `ClientRead<T>` in `Opc.Ua.Client`.
 Reads retain the native `DataValue`, including bad quality and source/server
 timestamps. No reflected or boxed-value conversion is required.
 

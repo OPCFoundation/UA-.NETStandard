@@ -74,7 +74,7 @@ namespace Opc.Ua.Extrusion.Client
             }
             var blocks = await device.GetMachineryBuildingBlocksAsync(device.Telemetry, cancellationToken)
                 .ConfigureAwait(false) ?? throw Missing("MachineryBuildingBlocks");
-            NodeId node = await ExtrusionClientNodes.ResolveAsync(
+            NodeId node = await ClientModelAccess.ResolveAsync(
                 blocks, Machinery.Namespaces.Machinery, Machinery.BrowseNames.MachineryItemState, cancellationToken)
                 .ConfigureAwait(false);
             return !node.IsNull
@@ -95,7 +95,7 @@ namespace Opc.Ua.Extrusion.Client
             }
             var blocks = await device.GetMachineryBuildingBlocksAsync(device.Telemetry, cancellationToken)
                 .ConfigureAwait(false) ?? throw Missing("MachineryBuildingBlocks");
-            NodeId node = await ExtrusionClientNodes.ResolveAsync(
+            NodeId node = await ClientModelAccess.ResolveAsync(
                 blocks, Machinery.Namespaces.Machinery, Machinery.BrowseNames.MachineryOperationMode, cancellationToken)
                 .ConfigureAwait(false);
             return !node.IsNull
@@ -118,7 +118,7 @@ namespace Opc.Ua.Extrusion.Client
                 device.Telemetry, cancellationToken).ConfigureAwait(false)
                     ?? throw Missing("ProductionDatasetManagement");
             return new ProductionDatasetClient(
-                ExtrusionClientNodes.RequireSession(device), management.ObjectId);
+                ClientModelAccess.RequireSession(device), management.ObjectId);
         }
 
         /// <summary>
