@@ -598,7 +598,47 @@ namespace Opc.Ua.WotCon.Tests.Samples
             WotConversionResult<UANodeSet> withContextConflict = await WotNodeSetConverter
                 .ToNodeSetResultAsync(wrong, options, new ContextResolver(contexts)).ConfigureAwait(false);
 
+            // Same namespace table, different model (publication date): its
+            // symmetric/forward references must not bless this model's claim.
+            const string publication = "\"publicationDate\": \"2025-11-15T00:00:00Z\"";
+            var foreign = new WotNodeSetConverter.ArchiveContextIndex(options);
+            WotDocument? foreignSibling = null;
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                string siblingText = File.ReadAllText(path);
+                WotDocument parsed = WotDocument.Parse(Encoding.UTF8.GetBytes(siblingText.Replace(
+                    publication, "\"publicationDate\": \"2024-01-01T00:00:00Z\"", StringComparison.Ordinal)), options);
+                foreign.Add(parsed);
+                if (path.EndsWith("opc-ua-di-networktype.json", StringComparison.Ordinal))
+                {
+                    foreignSibling = parsed;
+                }
+                else
+                {
+                    parsed.Dispose();
+                }
+            }
+            using WotDocument? foreignNetworkType = foreignSibling;
+
+            var duplicated = new WotNodeSetConverter.ArchiveContextIndex(options);
+            duplicated.Add(document);
+            duplicated.Add(document);
+
+            var incomplete = new WotNodeSetConverter.ArchiveContextIndex(options);
+            incomplete.Add(document);
+            incomplete.MarkIncomplete("test bound");
+
             using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(foreignNetworkType, Is.Not.Null);
+            Assert.That(foreign.Find(foreignNetworkType!), Is.Not.Null, "The foreign model must restore on its own.");
+            Assert.That(
+                (await WotNodeSetConverter.ToNodeSetResultAsync(
+                    document, options, new ContextResolver(foreign)).ConfigureAwait(false))
+                    .Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A foreign model sharing the namespace table must not validate this claim.");
+            Assert.That(() => duplicated.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => incomplete.Find(document), Throws.InvalidOperationException);
             Assert.That(
                 alone.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
                 Is.True,

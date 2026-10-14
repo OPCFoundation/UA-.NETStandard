@@ -211,7 +211,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
                 var resolver = new SnapshotThingResolver(
-                    snapshot, contents, GetArchiveContexts(snapshot, contents));
+                    snapshot, contents, GetArchiveContexts(snapshot, contents, cancellationToken));
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
@@ -333,13 +333,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <remarks>
         /// A document of a partitioned model states references whose
         /// authoritative facts live in sibling partitions, so the converter
-        /// validates it against the preserved nodes of the documents that share
-        /// its namespace table. Documents of other models never contribute. The
-        /// document count and byte total are bounded like the sibling index.
+        /// validates it against the preserved nodes of the documents of its own
+        /// model. The document count and byte total are bounded like the sibling
+        /// index, and every document read is charged, malformed or not. Exhausting
+        /// a bound marks the index incomplete, so a document that needs context
+        /// fails with an explicit message rather than validating against an
+        /// arbitrary subset. A malformed sibling is omitted; its own conversion
+        /// reports the failure.
         /// </remarks>
         private WotNodeSetConverter.ArchiveContextIndex GetArchiveContexts(
             WotRegistrySnapshot snapshot,
-            IReadOnlyDictionary<string, ByteString> contents)
+            IReadOnlyDictionary<string, ByteString> contents,
+            CancellationToken cancellationToken)
         {
             lock (m_resolverLock)
             {
@@ -348,17 +353,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return m_archiveContexts;
                 }
                 var index = new WotNodeSetConverter.ArchiveContextIndex(m_options);
+                int maxDocuments = m_options.MaxResolverDocuments;
                 long maxBytes = m_options.MaxResolverTotalBytes;
+                int read = 0;
                 long total = 0;
                 foreach (WotResource resource in snapshot.AllResources())
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     WotResourceVersion? version = resource.DefaultVersion;
-                    if (version is null ||
-                        !contents.TryGetValue(version.DigestHex, out ByteString content) ||
-                        total + content.Length > maxBytes)
+                    if (version is null || !contents.TryGetValue(version.DigestHex, out ByteString content))
                     {
                         continue;
                     }
+                    if (read >= maxDocuments || total + content.Length > maxBytes)
+                    {
+                        index.MarkIncomplete(
+                            "the registry exceeds the resolver document or byte limit " +
+                            $"({maxDocuments} documents, {maxBytes} bytes).");
+                        break;
+                    }
+                    read++;
+                    total += content.Length;
                     try
                     {
                         using var sibling = WotDocument.Parse(content.Span.ToArray(), m_options);
@@ -366,17 +381,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
                     {
-                        // A malformed sibling contributes no context; its own conversion reports the failure.
                         continue;
                     }
-                    total += content.Length;
                 }
                 m_archiveSnapshot = snapshot;
                 m_archiveContexts = index;
                 return index;
             }
         }
-
         private readonly WotNodeSetConverterOptions m_options;
         private WotRegistrySnapshot? m_archiveSnapshot;
         private WotNodeSetConverter.ArchiveContextIndex? m_archiveContexts;
