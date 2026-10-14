@@ -855,7 +855,7 @@ namespace Opc.Ua.Wot
                 QualifyProjectionSecurity(target);
             }
             CarryAnchor(target, source.Document);
-            CarryProvenance(target, source, definition, pointer, diagnostics);
+            StampProvenance(target, source, definition, pointer, diagnostics);
             selection.Add(
                 reference.AffordanceKind, reference.Name, target, source,
                 UnescapeAffordanceName(pointer[prefix.Length..]), definition, enumerated: true);
@@ -931,7 +931,7 @@ namespace Opc.Ua.Wot
                     target.Remove("security");
                 }
                 CarryAnchor(target, source.Document);
-                CarryProvenance(target, source, definition, pointer, diagnostics);
+                StampProvenance(target, source, definition, pointer, diagnostics);
                 selection.Add(kind, viewName, target, source, name, definition);
             }
         }
@@ -1034,30 +1034,27 @@ namespace Opc.Ua.Wot
                 value.Remove("security");
             }
             CarryAnchor(value, source.Document);
-            CarryProvenance(value, source, definition, pointer, diagnostics);
+            StampProvenance(value, source, definition, pointer, diagnostics);
             return selection.Add(kind, outputName, value, source, name, definition, supporting: true);
         }
 
-        private static void CarryProvenance(
+        private static void StampProvenance(
             JsonObject value,
             ResolvedSource source,
             JsonElement definition,
             string pointer,
             List<WotDiagnostic> diagnostics)
         {
-            if (!definition.TryGetProperty("uav:resolvedFrom", out JsonElement provenance))
-            {
-                value["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
-                return;
-            }
-            if (provenance.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(provenance.GetString()))
+            if (definition.TryGetProperty("uav:resolvedFrom", out JsonElement provenance) &&
+                (provenance.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(provenance.GetString())))
             {
                 AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
-                    "Carried uav:resolvedFrom provenance must be a non-empty reference.",
+                    "A selected affordance's uav:resolvedFrom must be a non-empty reference.",
                     source.DocumentHref + "#" + pointer);
                 return;
             }
-            value["uav:resolvedFrom"] = ResolveHref(source.DocumentHref, provenance.GetString()!);
+            // WoT Binding Section 12: the reference the selection was made by, not the ultimate origin.
+            value["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
         }
 
         private static string UnescapeAffordanceName(string token)

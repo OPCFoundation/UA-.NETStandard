@@ -1154,7 +1154,12 @@ Two omission causes are distinguished, because they have different remedies.
 Binding* §12, "the reference the selection was made by" — the immediate
 selection, not the ultimate origin. A projection that selects from another
 projection therefore names an intermediate document, and an intermediate
-materializes a View rather than Nodes. Resolution follows the chain depth-first
+materializes a View rather than Nodes. The conversion records exactly that
+immediate reference: a `uav:resolvedFrom` the selected source already carries is
+validated (it must be a non-empty string, otherwise `ProjectionSourceUnresolved`
+is reported) but is not propagated as the new
+selection's provenance, so the ultimate origin stays reachable by walking the
+intermediate's own metadata. Resolution follows the chain depth-first
 to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
 requires; only when no document in the chain materialized the affordance is the
 member omitted, and the omission names the deepest source the walk reached.

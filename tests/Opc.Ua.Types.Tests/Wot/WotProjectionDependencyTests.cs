@@ -203,12 +203,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that carried dependencies retain original provenance at its document origin.
+        /// Verifies that selected and supporting dependencies name the immediate selection
+        /// rather than the origin a projection source already recorded for them.
         /// </summary>
         /// <param name="selected">The selected flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CarriedDependenciesRetainOriginalProvenanceAtItsDocumentOrigin(bool selected)
+        public async Task SelectedAndSupportingDependenciesNameTheImmediateSelection(bool selected)
         {
             JsonObject source = Source("rpm");
             source["properties"]!["Unit"]!["uav:resolvedFrom"] = "./original.td.json#/properties/unit";
@@ -225,7 +226,34 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string name = selected ? "selectedUnit" : "Unit";
             Assert.That(view.Required().Properties[name].GetProperty("uav:resolvedFrom").GetString(),
-                Is.EqualTo("https://origin.test/original.td.json#/properties/unit"));
+                Is.EqualTo("https://origin.test/source.td.json#/properties/Unit"));
+        }
+
+        /// <summary>
+        /// Verifies that a projection selecting from another projection names the intermediate
+        /// document while the intermediate's own provenance stays reachable for chain resolution.
+        /// </summary>
+        [Test]
+        public async Task ProjectionOfProjectionNamesTheIntermediateSelection()
+        {
+            JsonObject intermediate = Source("rpm");
+            intermediate["properties"]!["Value"]!["uav:resolvedFrom"] = "./original.td.json#/properties/Value";
+            intermediate["properties"]!["Unit"]!["uav:resolvedFrom"] = "./original.td.json#/properties/Unit";
+            JsonObject plan = Plan();
+            plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
+            string original = intermediate.ToJsonString();
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(plan, intermediate).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.Required().Properties["speed"].GetProperty("uav:resolvedFrom").GetString(),
+                Is.EqualTo("https://origin.test/source.td.json#/properties/Value"));
+            Assert.That(view.Properties["Unit"].GetProperty("uav:resolvedFrom").GetString(),
+                Is.EqualTo("https://origin.test/source.td.json#/properties/Unit"));
+            Assert.That(intermediate.ToJsonString(), Is.EqualTo(original));
+            Assert.That(intermediate["properties"]!["Value"]!["uav:resolvedFrom"]!.GetValue<string>(),
+                Is.EqualTo("./original.td.json#/properties/Value"));
         }
 
         /// <summary>
