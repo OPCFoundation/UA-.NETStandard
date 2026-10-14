@@ -762,8 +762,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             UANodeSet modelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
             UANodeSet unmodelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
             unmodelled.Models = null;
-            using WotDocumentSet modelledSet = ExportSet(modelled, options);
-            using WotDocumentSet unmodelledSet = ExportSet(unmodelled, options);
+            using WotDocumentSet modelledSet = await ExportSetAsync(modelled, options).ConfigureAwait(false);
+            using WotDocumentSet unmodelledSet = await ExportSetAsync(unmodelled, options).ConfigureAwait(false);
             var withModel = new WotNodeSetConverter.ArchiveContextIndex(options);
             var withoutModel = new WotNodeSetConverter.ArchiveContextIndex(options);
             var empty = new WotNodeSetConverter.ArchiveContextIndex(options);
@@ -813,10 +813,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return [.. result.Diagnostics.Select(d =>
                 $"{d.Severity}|{d.Code}|{d.Location?.JsonPointer}|{d.Location?.NodeId}|{d.Message}")];
         }
-        private static WotDocumentSet ExportSet(UANodeSet source, WotNodeSetConverterOptions options)
+        private static async Task<WotDocumentSet> ExportSetAsync(UANodeSet source, WotNodeSetConverterOptions options)
         {
-            WotConversionResult<WotDocumentSet> result = WotNodeSetConverter.FromNodeSetDocuments(
-                source, "opc-ua-di", "OPC UA Device Integration", options);
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+                source, "opc-ua-di", "OPC UA Device Integration", options).ConfigureAwait(false);
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
             return result.Value!;
         }
