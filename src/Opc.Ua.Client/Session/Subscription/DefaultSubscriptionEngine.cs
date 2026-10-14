@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
     /// publish pipeline as a drop-in replacement for the
     /// classic fire-and-forget engine.
     /// </summary>
-    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine
+    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine, IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the
@@ -183,6 +183,16 @@ namespace Opc.Ua.Client
                     .AsTask()
                     .GetAwaiter()
                     .GetResult();
+                m_disposed = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (!m_disposed)
+            {
+                await m_manager.DisposeAsync().ConfigureAwait(false);
                 m_disposed = true;
             }
         }
