@@ -353,8 +353,14 @@ class MyInvalidatingCache : INodeCache
 
 ## NodeVersion correlation
 
-OPC UA Part 5 §9.32.2 ties `ModelChangeEvent` emission to the
+OPC UA Part 3 §9.32.2 ties `ModelChangeEvent` emission to the
 `NodeVersion` property:
+
+Automatic deletion captures a node's `NodeVersion` eligibility before removing
+it from the address space. A removed local node must not bypass this check as an
+unresolved external node. Unversioned session diagnostics therefore do not emit
+`NodeDeleted` events on session closure; versioned nodes and the explicit
+`RequireNodeVersionForModelChange = false` compatibility mode retain their events.
 
 > "Every time a `ModelChangeEvent` is issued for a Node, its
 > `NodeVersion` shall be changed, and every time the `NodeVersion` is
