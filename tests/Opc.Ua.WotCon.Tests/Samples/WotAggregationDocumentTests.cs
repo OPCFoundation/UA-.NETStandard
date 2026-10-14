@@ -1450,7 +1450,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 using WotDocument membersView = membersResult.Value!;
                 foreach (JsonProperty entry in membersView.RootElement.GetProperty("properties").EnumerateObject())
                 {
-                    membersNameById[entry.Value.GetProperty("uav:id").GetString()!] = entry.Name;
+                    string entryId = entry.Value.GetProperty("uav:id").GetString()!;
+                    Assert.That(membersNameById.TryAdd(entryId, entry.Name), Is.True,
+                        "duplicate members-view identity " + entryId);
                 }
             }
 
@@ -1468,12 +1470,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             foreach ((string supportId, Affordance supportDeclaration) in expectedSupport)
             {
-                JsonProperty support = map.EnumerateObject().FirstOrDefault(entry =>
-                    entry.Value.TryGetProperty("uav:id", out JsonElement id) && id.GetString() == supportId);
-                if (support.Value.ValueKind != JsonValueKind.Object)
+                JsonProperty[] carried = map.EnumerateObject().Where(entry =>
+                    entry.Value.TryGetProperty("uav:id", out JsonElement id) && id.GetString() == supportId)
+                    .ToArray();
+                Assert.That(carried, Has.Length.EqualTo(1), fileName + " carried " + supportId);
+                if (carried.Length != 1)
                 {
                     continue;
                 }
+                JsonProperty support = carried[0];
                 string supportReference = fileName == $"{pumpName}.Members.td.json"
                     ? supportDeclaration.ResourceId + "#" + supportDeclaration.Pointer
                     : membersNameById.TryGetValue(supportId, out string? membersName)
@@ -1492,8 +1497,19 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(supportDeclaration.Value.GetProperty("uav:browseName").GetString()),
                     support.Name);
                 Assert.That(
-                    support.Value.GetProperty("uav:engineeringUnits").GetRawText(),
-                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:engineeringUnits").GetRawText()),
+                    support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
+                        ? carriedUnits.GetRawText()
+                        : null,
+                    Is.EqualTo(supportDeclaration.Value.TryGetProperty(
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? declaredUnits.GetRawText() : null),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("type").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:componentOf").GetRawText(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:componentOf").GetRawText()),
                     support.Name);
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
