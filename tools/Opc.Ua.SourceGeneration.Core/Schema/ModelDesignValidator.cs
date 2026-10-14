@@ -5267,6 +5267,18 @@ namespace Opc.Ua.Schema.Model
             VariableTypeDesign mergedType,
             VariableTypeDesign variableType)
         {
+            // A NodeSet2 VariableType without a Value has a null Value: it does
+            // not take over the Value of its supertype, and neither do the
+            // instances created from it.
+            mergedType.NodeSetValueIsNull = variableType.NodeSetValueIsNull;
+            if (variableType.NodeSetValueIsNull &&
+                variableType.DecodedValue == null &&
+                variableType.DefaultValue == null)
+            {
+                mergedType.DecodedValue = null;
+                mergedType.DecodedValueNamespaceUris = null;
+                mergedType.DefaultValue = null;
+            }
             if (variableType.DecodedValue != null)
             {
                 mergedType.DecodedValue = variableType.DecodedValue;
@@ -5469,6 +5481,7 @@ namespace Opc.Ua.Schema.Model
                 MinimumSamplingIntervalSpecified = type.MinimumSamplingIntervalSpecified,
                 Historizing = type.Historizing,
                 HistorizingSpecified = type.HistorizingSpecified,
+                NodeSetValueIsNull = type.NodeSetValueIsNull,
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
@@ -7279,6 +7292,7 @@ namespace Opc.Ua.Schema.Model
                     c.MinimumSamplingIntervalSpecified;
                 variable.Historizing = c.Historizing;
                 variable.HistorizingSpecified = c.HistorizingSpecified;
+                variable.NodeSetValueIsNull = c.NodeSetValueIsNull;
                 if (c.DefaultValueXml != null)
                 {
                     variable.DefaultValue = ParseDependencyDefaultValue(

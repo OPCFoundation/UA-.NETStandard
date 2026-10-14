@@ -36,6 +36,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.SourceGeneration;
+using Opc.Ua.SourceGeneration.Dependency;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Schema.Model.Tests
@@ -88,6 +89,75 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 Assert.That(body, Does.Contain(NullValue));
                 Assert.That(body, Does.Not.Contain("(double)0"));
+            });
+        }
+
+        [Test]
+        public void InstanceOfVariableTypeWithoutValueIsNull()
+        {
+            string body = ExtractMethodBody(GenerateDeviceSetPump(), "CreateInstanceOfFlowVariableType");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(body, Does.Contain(NullValue));
+                Assert.That(body, Does.Not.Contain("(double)0"));
+            });
+        }
+
+        [Test]
+        public void SubtypeWithoutValueDoesNotInheritTheValueOfItsSupertype()
+        {
+            string generated = GenerateDeviceSetPump();
+            string supertype = ExtractMethodBody(generated, "CreateInstanceOfRatedFlowVariableType");
+            string subtype = ExtractMethodBody(generated, "CreateInstanceOfUnratedFlowVariableType");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(supertype, Does.Contain("42.5"), "the supertype keeps its declared Value");
+                Assert.That(subtype, Does.Contain(NullValue));
+                Assert.That(subtype, Does.Not.Contain("42.5"));
+                Assert.That(subtype, Does.Not.Contain("(double)0"));
+            });
+        }
+
+        [Test]
+        public void DependencyPayloadCarriesTheAbsentValue()
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "http://test.org/UA/ValueAbsent/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "PumpType",
+                SymbolicNamespace = "http://test.org/UA/ValueAbsent/",
+                ClassName = "PumpType",
+                Kind = DependencyNodeKind.ObjectType,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "RatedFlow",
+                        SymbolicName = "RatedFlow",
+                        InstanceKind = 3,
+                        NodeSetValueIsNull = true
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "SerialNumber",
+                        SymbolicName = "SerialNumber",
+                        InstanceKind = 3,
+                        DefaultValueXml = "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">SN</String>"
+                    }
+                ]
+            });
+
+            ModelDependencyV1? decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            IReadOnlyList<DependencyChild> children = decoded!.Nodes.Single().Children;
+            Assert.Multiple(() =>
+            {
+                Assert.That(children[0].NodeSetValueIsNull, Is.True);
+                Assert.That(children[1].NodeSetValueIsNull, Is.False);
+                Assert.That(children[1].DefaultValueXml, Does.Contain("SN"));
             });
         }
 
@@ -147,6 +217,21 @@ namespace Opc.Ua.Schema.Model.Tests
                     <DisplayName>FlowVariableType</DisplayName>
                     <References>
                         <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+                    </References>
+                </UAVariableType>
+                <UAVariableType NodeId="ns=1;i=2001" BrowseName="1:RatedFlowVariableType" DataType="Double">
+                    <DisplayName>RatedFlowVariableType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+                    </References>
+                    <Value>
+                        <Double xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">42.5</Double>
+                    </Value>
+                </UAVariableType>
+                <UAVariableType NodeId="ns=1;i=2002" BrowseName="1:UnratedFlowVariableType" DataType="Double">
+                    <DisplayName>UnratedFlowVariableType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=2001</Reference>
                     </References>
                 </UAVariableType>
             </UANodeSet>
