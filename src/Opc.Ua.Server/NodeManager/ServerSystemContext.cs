@@ -87,12 +87,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="ServerSystemContext"/> class
+        /// with the values of another context.
+        /// </summary>
+        /// <param name="source">The context to copy.</param>
+        protected ServerSystemContext(ServerSystemContext source)
+            : base(source)
+        {
+            Server = source.Server;
+        }
+
+        /// <summary>
         /// The <see cref="IServerInternal"/> backing this system context.
         /// Provides access to server-wide services (AggregateManager,
         /// SessionManager, audit reporting, etc.) needed by infrastructure
         /// components such as the historian dispatcher.
         /// </summary>
         public IServerInternal Server { get; }
+
+        /// <summary>
+        /// The node manager context this per-request copy was made from, set by
+        /// <see cref="OperationContext.GetSystemContext"/> to recognise its cached copy.
+        /// Copies do not inherit it.
+        /// </summary>
+        internal ServerSystemContext? CopiedFrom { get; set; }
 
         /// <summary>
         /// The operation context associated with system context.
@@ -115,7 +133,7 @@ namespace Opc.Ua.Server
         /// <returns>A copy of the system context.</returns>
         public ServerSystemContext Copy()
         {
-            return (ServerSystemContext)MemberwiseClone();
+            return Clone();
         }
 
         /// <summary>
@@ -127,7 +145,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(OperationContext context)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             if (context != null)
             {
@@ -146,7 +164,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ISession session)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             copy.OperationContext = null!;
 
@@ -175,7 +193,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ServerSystemContext context)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             if (context != null)
             {
@@ -191,6 +209,22 @@ namespace Opc.Ua.Server
             }
 
             return copy;
+        }
+
+        /// <summary>
+        /// Copies this context. A plain <see cref="ServerSystemContext"/> is copied with
+        /// its copy constructor, which is cheaper than <see cref="object.MemberwiseClone"/>
+        /// on the per-request path. A derived context is cloned so that the copy keeps its
+        /// type and fields.
+        /// </summary>
+        private ServerSystemContext Clone()
+        {
+            if (GetType() == typeof(ServerSystemContext))
+            {
+                return new ServerSystemContext(this);
+            }
+
+            return (ServerSystemContext)MemberwiseClone();
         }
     }
 }

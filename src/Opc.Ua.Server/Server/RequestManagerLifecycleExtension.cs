@@ -106,9 +106,9 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">The request is no longer active.</exception>
         internal void EnterWaiterLocked(
             uint requestId,
-            IReadOnlyDictionary<uint, OperationContext> requests)
+            RequestTable<OperationContext> requests)
         {
-            if (!requests.ContainsKey(requestId))
+            if (!requests.GetEntries().Exists(request => request.RequestId == requestId))
             {
                 throw new InvalidOperationException(
                     "The lifecycle waiter request is no longer active.");
