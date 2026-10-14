@@ -121,6 +121,25 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Verifies that target specific evidence names only declared runnable frameworks.
+        /// Runtime evidence owned by the runtime change is declared under the planned block until it lands.
+        /// </summary>
+        [Test]
+        public void TargetSpecificEvidenceNamesOnlyDeclaredRunnableFrameworks()
+        {
+            Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
+            string[] scoped = WotSpecRequirementLedger.Load(assembly)
+                .SelectMany(requirement => requirement.Tests).Distinct()
+                .Where(test => WotSpecRequirementLedger.ReadTargetFrameworks(assembly, test).Count != 0)
+                .ToArray();
+            Assert.That(scoped, Is.EqualTo(s_targetSpecificTests));
+            foreach (string test in scoped)
+            {
+                Assert.That(WotSpecRequirementLedger.ReadTargetFrameworks(assembly, test),
+                    Is.EqualTo(s_modernFrameworks));
+            }
+        }
+        /// <summary>
         /// The ledger covers exactly the requirements the specification marked
         /// pending, so an entry cannot be quietly dropped and the count cannot
         /// drift from what the specification publishes.
@@ -478,6 +497,8 @@ namespace Opc.Ua.Types.Tests.Wot
             "Opc.Ua.WotCon.Bindings.Tests",
             "Opc.Ua.Server.Tests"
         ];
+        private static readonly string[] s_targetSpecificTests = [];
+        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
 
         /// <summary>
         /// The requirements this stack does not yet prove, in ascending order.
