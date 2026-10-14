@@ -45,6 +45,48 @@ namespace Opc.Ua.Recycling.Samples.Tests
     public sealed partial class CompanionProcessViewTests
     {
         /// <summary>
+        /// Requested electrical demand is not running pump feedback while the thermal interlock blocks production.
+        /// </summary>
+        [Test]
+        public async Task HotWashPumpsStopWhenCommittedThermalSupplyIsUnavailable()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            CancellationToken ct = timeout.Token;
+            await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(ct,
+                new RecyclingConfiguration { ThermalSupplyWatts = 0 }).ConfigureAwait(false);
+            (_, ManagedSession session, NodeId view, NodeId stage) = await StartTelemetryViewAsync(
+                environment, RecyclingProcess.Washing, "hot-wash", ct).ConfigureAwait(false);
+            await environment.InitializeRolesAsync(ct).ConfigureAwait(false);
+            CommittedSnapshot snapshot;
+            do
+            {
+                snapshot = await AdvanceTelemetryAsync(
+                    environment, session, view, environment.Coordinator.Current.Tick + 1, ct).ConfigureAwait(false);
+                Assert.That(snapshot.Tick, Is.LessThan(60));
+            }
+            while (snapshot.Stages[10].State != EquipmentState.ThermalConstraint);
+            Assert.That(snapshot.Stages[10].ElectricalDemandWatts, Is.GreaterThan(0));
+            Assert.That(snapshot.Stages[10].ElectricalJoules, Is.Zero);
+            NodeId equipment = await ChildAsync(session, stage, "Equipment", RecyclingModelMapping.NamespaceUri, ct)
+                .ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> pumps = await ChildrenAsync(session, equipment, ct).ConfigureAwait(false);
+            Assert.That(pumps.Count, Is.EqualTo(2));
+            foreach (ReferenceDescription pump in pumps.Span.ToArray())
+            {
+                NodeId pumpId = ExpandedNodeId.ToNodeId(pump.NodeId, session.NamespaceUris);
+                NodeId operational = await ChildAsync(session, pumpId, "Operational", Di.Namespaces.OpcUaDi, ct)
+                    .ConfigureAwait(false);
+                NodeId actuation = await ChildAsync(
+                    session, operational, "PumpActuation", Pumps.Namespaces.Pumps, ct).ConfigureAwait(false);
+                DataValue status = await ReadChildAsync(
+                    session, actuation, "Status", Pumps.Namespaces.Pumps, ct).ConfigureAwait(false);
+                Assert.That(status.WrappedValue.TryGetValue(out bool running), Is.True);
+                Assert.That(running, Is.False);
+                Assert.That(status.SourceTimestamp.ToDateTime(), Is.EqualTo(snapshot.SourceTimestampUtc));
+            }
+        }
+
+        /// <summary>
         /// Zone changes are real committed provenance; mixed inventory preserves both source zones over recovery.
         /// </summary>
         [Test]

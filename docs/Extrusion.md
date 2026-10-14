@@ -199,6 +199,8 @@ The item state, operation mode and execution substate remain distinct. When the
 item is not `Executing`, the execution submachine's `CurrentState` and
 `LastTransition` report `BadStateNotActive`
 ([OPC 40084-1 §6.3](https://reference.opcfoundation.org/specs/OPC-40084-1/v2.00/6.3)).
+Repeated observations of the same state preserve the last transition and its
+committed transition time.
 The core Part 16 dispatcher supplies state projection; no alternative state
 model is substituted.
 
@@ -241,6 +243,9 @@ sensitivity, suppression, controlled setpoints/ramps and PID tuning.
 - A bad active strand prevents the line from claiming good product. True-to-false
   quality changes create real common `MessageCondition` alarms using the core
   condition lifecycle, without falsely stopping the machine.
+
+Status commands update that active-job quality constraint immediately; interrupting
+or finishing the last bad active job allows a later committed good-quality observation.
 
 The wire `AddJob` argument is named `ProductName`; the corresponding job
 variable is `ProductId`. The generated wire spelling is retained. These are not

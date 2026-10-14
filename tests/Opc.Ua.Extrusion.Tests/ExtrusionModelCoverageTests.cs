@@ -341,6 +341,60 @@ namespace Opc.Ua.Extrusion.Tests
         }
 
         /// <summary>
+        /// Observing the same operating state does not invent a transition or move its committed time.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RepeatedOperatingStatesPreserveLastTransitionTimeAsync(bool rejectInterveningSnapshot)
+        {
+            var device = await m_fixture.Runtime.CreateExtruderAsync(
+                ExtrusionFixture.Options("transition-time-" + rejectInterveningSnapshot, all: true), node =>
+                {
+                    var machine = (FiniteStateMachineState)ExtrusionNodeAccess.Find(
+                        m_fixture.Runtime.SystemContext, node, "MachineryBuildingBlocks/MachineryItemState")!;
+                    machine.AddLastTransition(m_fixture.Runtime.SystemContext);
+                    machine.LastTransition!.AddTransitionTime(m_fixture.Runtime.SystemContext);
+                }).ConfigureAwait(false);
+            var initial = new ExtrusionOperatingSnapshot(1,
+                MachineryItemStateValue.NotExecuting, MachineryOperationModeValue.None,
+                ExtrusionExecutingState.ReadyToRun, ExtrusionFixture.Timestamp);
+            await device.State.ApplyAsync(initial).ConfigureAwait(false);
+            DateTimeUtc transitionTime = (DateTimeUtc)ExtrusionFixture.Timestamp.ToDateTime().AddSeconds(1);
+            var executing = initial with
+            {
+                Revision = 2,
+                ItemState = MachineryItemStateValue.Executing,
+                OperationMode = MachineryOperationModeValue.Processing,
+                ExecutingState = ExtrusionExecutingState.ControlledRun,
+                SourceTimestamp = transitionTime
+            };
+            await device.State.ApplyAsync(executing).ConfigureAwait(false);
+            const string path = "MachineryBuildingBlocks/MachineryItemState/LastTransition";
+            var transition = (BaseVariableState)device.Find(path);
+            var time = (BaseVariableState)device.Find(path + "/TransitionTime");
+            Variant previousTransition = transition.WrappedValue;
+            Assert.That(time.WrappedValue.TryGetValue(out DateTimeUtc committed), Is.True);
+            Assert.That(committed, Is.EqualTo(transitionTime));
+            if (rejectInterveningSnapshot)
+            {
+                Assert.ThrowsAsync<ServiceResultException>(() => device.State.ApplyAsync(initial with
+                {
+                    SourceTimestamp = (DateTimeUtc)transitionTime.ToDateTime().AddSeconds(5)
+                }).AsTask());
+            }
+
+            await device.State.ApplyAsync(executing with
+            {
+                Revision = 3,
+                SourceTimestamp = (DateTimeUtc)transitionTime.ToDateTime().AddSeconds(10)
+            }).ConfigureAwait(false);
+
+            Assert.That(transition.WrappedValue, Is.EqualTo(previousTransition));
+            Assert.That(time.WrappedValue.TryGetValue(out DateTimeUtc repeated), Is.True);
+            Assert.That(repeated, Is.EqualTo(transitionTime));
+        }
+
+        /// <summary>
         /// Compares selected root members against the independent generated member evidence.
         /// </summary>
         private void AssertDirectMemberMatrix(ExtrusionDeviceState node)

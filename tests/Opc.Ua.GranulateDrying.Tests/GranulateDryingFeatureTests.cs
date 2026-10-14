@@ -377,6 +377,56 @@ namespace Opc.Ua.GranulateDrying.Tests
         }
 
         /// <summary>
+        /// Common setting adapters preserve the actual standard member path at every authorization check.
+        /// </summary>
+        [TestCase(MonitoredParameterSetting.Minimum, "MinValue")]
+        [TestCase(MonitoredParameterSetting.Maximum, "MaxValue")]
+        public async Task CommonSettingAuthorizationUsesTheDeclaredMemberAsync(
+            MonitoredParameterSetting setting,
+            string member)
+        {
+            GranulateDryingTarget target = GranulateDryingTarget.Bin(1);
+            string path = "Temperature/" + member;
+            GranulateDryingDeviceOptions options = GranulateDryingTestHost.BasicOptions(Name()) with
+            {
+                Bins = [new GranulateDryingBinOptions { OptionalMembers = [path] }]
+            };
+            var authority = new DryingAuthority();
+            var policy = new Mock<IGranulateDryingAuthorization>(MockBehavior.Strict);
+            policy.Setup(value => value.CanControl(It.IsAny<ISystemContext>())).Returns(true);
+            policy.Setup(value => value.AuthorizeAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<GranulateDryingCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((ISystemContext _, GranulateDryingCommand command, CancellationToken _) =>
+                    new ValueTask<StatusCode>(command.Target == target && command.Member == path
+                        ? StatusCodes.Good : StatusCodes.BadUserAccessDenied));
+            var parameters = new Mock<IMonitoredParameterProvider>(MockBehavior.Strict);
+            parameters.Setup(value => value.WriteSettingAsync(
+                    It.IsAny<PlasticsRubberRequestContext>(), setting, 5.0, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    authority.Next(DryingAuthority.Value(target, path, Variant.From(5.0), 7));
+                    return ValueTask.CompletedTask;
+                });
+            GranulateDryingDevice device = await m_host.Runtime.CreateDeviceAsync(
+                options, authority.Provider, policy.Object,
+                new GranulateDryingCommonProviders { Parameters = parameters.Object }).ConfigureAwait(false);
+            GranulateDryingBinClient bin = (await m_host.Client.Device(device.NodeId).BinsAsync()
+                .ConfigureAwait(false))[0];
+            GranulateDryingParameterClient parameter = m_host.Client.Parameter(
+                (await bin.TemperatureParametersAsync().ConfigureAwait(false))!);
+            GranulateDryingVariable<double> variable = setting == MonitoredParameterSetting.Minimum
+                ? parameter.MinValue : parameter.MaxValue;
+
+            await variable.WriteAsync(5).ConfigureAwait(false);
+
+            GranulateDryingReading<double> actual = await variable.ReadAsync().ConfigureAwait(false);
+            Assert.That(actual.Value, Is.EqualTo(5));
+            Assert.That(actual.DataValue.SourceTimestamp, Is.EqualTo(DryingAuthority.Time(7)));
+            parameters.Verify(value => value.WriteSettingAsync(
+                It.IsAny<PlasticsRubberRequestContext>(), setting, 5.0, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// Device page reads and clock changes reuse the common provider without changing the host clock.
         /// </summary>
         [Test]

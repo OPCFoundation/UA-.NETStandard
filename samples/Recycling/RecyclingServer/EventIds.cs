@@ -48,5 +48,8 @@ namespace Opc.Ua.Recycling
 
         /// <summary>Explicit, non-retriable membership authorization/protocol failure.</summary>
         internal const int MembershipRejected = 5;
+
+        /// <summary>Transient writer admission rejection while pacing the coordinator.</summary>
+        internal const int CoordinatorTickDeferred = 6;
     }
 }

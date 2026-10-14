@@ -433,7 +433,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     Assert.That(status.WrappedValue.TryGetValue(out bool running), Is.True);
                     Assert.That(running, Is.EqualTo(stage.ElectricalDemandWatts > 0 &&
                         stage.State is not (EquipmentState.ElectricalConstraint or EquipmentState.Unavailable or
-                            EquipmentState.Stopped)));
+                            EquipmentState.Stopped or EquipmentState.ThermalConstraint)));
                     Assert.That(status.SourceTimestamp.ToDateTime(), Is.EqualTo(snapshot.SourceTimestampUtc));
                 }
             }

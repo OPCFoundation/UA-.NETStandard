@@ -242,6 +242,8 @@ Observers can remain connected and read/subscribe while one authorized session c
 `IGranulateDryingAuthorization.CanControl` is a nonblocking local ACL check used for
 `UserAccessLevel` and `UserExecutable`. `AuthorizeAsync` revalidates every mutation using the
 original UA context. HMI `UserRole`, `UserLevel`, card IDs, or login names never grant UA rights.
+Common parameter mutations use their actual standard paths, such as `Temperature/MinValue`,
+in every authorization check, not the provider enum's setting names.
 
 The first successful authorized mutation claims the device's control lease. A second controller
 is denied while that lease exists. Closing the owning session, explicitly releasing its lease,

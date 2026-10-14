@@ -398,15 +398,23 @@ namespace Opc.Ua.Recycling
             await AddressSpaceReady.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (m_options.Role == RecyclingHostRole.Coordinator)
+                using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task first = m_options.Role == RecyclingHostRole.Coordinator
+                    ? ObserveCoordinatorAsync(lifetime.Token)
+                    : ConnectViewAsync(lifetime.Token);
+                Task second = m_options.Role == RecyclingHostRole.Coordinator
+                    ? PaceCoordinatorAsync(lifetime.Token)
+                    : MonitorViewAvailabilityAsync(lifetime.Token);
+                Task completed = await Task.WhenAny(first, second).ConfigureAwait(false);
+                await lifetime.CancelAsync().ConfigureAwait(false);
+                try
                 {
-                    await Task.WhenAll(
-                        ObserveCoordinatorAsync(cancellationToken),
-                        PaceCoordinatorAsync(cancellationToken)).ConfigureAwait(false);
+                    await Task.WhenAll(first, second).ConfigureAwait(false);
                 }
-                else
+                catch (OperationCanceledException) when (
+                    completed.IsCompletedSuccessfully && !first.IsFaulted && !second.IsFaulted)
                 {
-                    await ConnectViewAsync(cancellationToken).ConfigureAwait(false);
+                    // A normally completed worker stops its companion, but faults still reach the host.
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -538,11 +546,45 @@ namespace Opc.Ua.Recycling
                     {
                         await Coordinator.TickAsync(cancellationToken).ConfigureAwait(false);
                     }
+                    catch (ServiceResultException exception) when (
+                        exception.StatusCode == StatusCodes.BadTooManyOperations && Coordinator.IsHealthy)
+                    {
+                        m_logger.CoordinatorTickDeferred();
+                    }
                     catch (Exception) when (!Coordinator.IsHealthy)
                     {
                         await SetProjectionAsync(Coordinator.Current, available: false, cancellationToken)
                             .ConfigureAwait(false);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invalidates equipment independently of potentially blocked coordinator calls and subscriptions.
+        /// </summary>
+        private async Task MonitorViewAvailabilityAsync(CancellationToken cancellationToken)
+        {
+            using var timer = new PeriodicTimer(m_options.ViewPollPeriod, m_timeProvider);
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (Volatile.Read(ref m_projection)?.Available == true &&
+                        (Volatile.Read(ref m_activeSession)?.Connected == false ||
+                            m_timeProvider.GetUtcNow().UtcTicks - Interlocked.Read(ref m_lastContactTicks) >=
+                                m_options.ViewPollPeriod.Ticks * 3))
+                    {
+                        m_logger.ViewUnavailable(new ServiceResultException(
+                            StatusCodes.BadNoCommunication, "Coordinator contact is unavailable."),
+                            m_options.Process);
+                        await MarkUnavailableCoreAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_projectionGate.Release();
                 }
             }
         }
@@ -724,19 +766,27 @@ namespace Opc.Ua.Recycling
             await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                ProjectionFrame? frame = Volatile.Read(ref m_projection);
-                if (frame != null)
-                {
-                    Volatile.Write(ref m_projection, frame with { Available = false });
-                    await NotifyProjectionAsync(cancellationToken).ConfigureAwait(false);
-                }
-                await m_adapter.MarkUnavailableAsync(
-                    frame?.Snapshot.SourceTimestampUtc ?? DateTime.UnixEpoch, cancellationToken).ConfigureAwait(false);
+                await MarkUnavailableCoreAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_projectionGate.Release();
             }
+        }
+
+        /// <summary>
+        /// Publishes unavailability while projection updates are serialized by the caller.
+        /// </summary>
+        private async ValueTask MarkUnavailableCoreAsync(CancellationToken cancellationToken)
+        {
+            ProjectionFrame? frame = Volatile.Read(ref m_projection);
+            if (frame != null)
+            {
+                Volatile.Write(ref m_projection, frame with { Available = false });
+                await NotifyProjectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            await m_adapter.MarkUnavailableAsync(
+                frame?.Snapshot.SourceTimestampUtc ?? DateTime.UnixEpoch, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask SetProjectionAsync(
@@ -796,6 +846,12 @@ namespace Opc.Ua.Recycling
     /// </summary>
     internal static partial class RecyclingRuntimeLog
     {
+        [LoggerMessage(
+            EventId = RecyclingServerEventIds.CoordinatorTickDeferred,
+            Level = LogLevel.Warning,
+            Message = "Recycling coordinator tick deferred because the writer queue is full; retrying next interval.")]
+        internal static partial void CoordinatorTickDeferred(this ILogger logger);
+
         [LoggerMessage(
             EventId = RecyclingServerEventIds.ViewUnavailable,
             Level = LogLevel.Warning,

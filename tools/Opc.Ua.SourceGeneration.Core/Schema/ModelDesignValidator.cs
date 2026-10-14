@@ -1811,6 +1811,7 @@ namespace Opc.Ua.Schema.Model
                 model.IsSourceNodeSet = true;
 
                 ExcludeNodes(model); // not consistent with model design, todo: consider removing
+                var assignedNodeIds = new HashSet<NodeId>(settings.NodesById.Keys);
 
                 foreach (NodeDesign node in model.Items)
                 {
@@ -1825,7 +1826,16 @@ namespace Opc.Ua.Schema.Model
                         {
                             // Keep a generated identity for inherited children, not the dependency's published ID.
                             // An explicit string also preserves identifier constants for predefined instances.
-                            inheritedChild.SetIdentifier(inheritedChild.SymbolicId.Name);
+                            string identifier = inheritedChild.SymbolicId.Name;
+                            ushort namespaceIndex = settings.NamespaceUris.GetIndexOrAppend(
+                                inheritedChild.SymbolicId.Namespace);
+                            uint suffix = 0;
+                            while (!assignedNodeIds.Add(new NodeId(identifier, namespaceIndex)))
+                            {
+                                identifier = inheritedChild.SymbolicId.Name + "_" +
+                                    (++suffix).ToString(CultureInfo.InvariantCulture);
+                            }
+                            inheritedChild.SetIdentifier(identifier);
                         }
                         if (ii.Value.Instance is InstanceDesign instance &&
                             instance.NumericId <= 0 &&

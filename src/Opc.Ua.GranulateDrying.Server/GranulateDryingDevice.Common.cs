@@ -375,7 +375,15 @@ namespace Opc.Ua.GranulateDrying.Server
                 double value,
                 CancellationToken cancellationToken = default)
             {
-                return m_owner.ExecuteCommonAsync(context, setting.ToString(),
+                string member = setting switch
+                {
+                    MonitoredParameterSetting.Minimum => PlasticsRubber.BrowseNames.MinValue,
+                    MonitoredParameterSetting.Maximum => PlasticsRubber.BrowseNames.MaxValue,
+                    MonitoredParameterSetting.RampUp => PlasticsRubber.BrowseNames.SetRampUp,
+                    MonitoredParameterSetting.RampDown => PlasticsRubber.BrowseNames.SetRampDown,
+                    _ => setting.ToString()
+                };
+                return m_owner.ExecuteCommonAsync(context, member,
                     ct => Provider.WriteSettingAsync(context, setting, value, ct), cancellationToken);
             }
 

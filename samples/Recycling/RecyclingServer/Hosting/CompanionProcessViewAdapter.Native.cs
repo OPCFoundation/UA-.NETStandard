@@ -349,9 +349,7 @@ namespace Opc.Ua.Recycling
             double tickSeconds = snapshot.Tick > 0 ? (double)snapshot.LogicalSeconds / snapshot.Tick :
                 m_options.Simulation.TickSeconds;
             double remaining = oldest?.ResidenceRemaining ?? recipe.ResidenceTicks;
-            bool powered = stage.ElectricalDemandWatts > 0 && stage.State is not (
-                EquipmentState.Unavailable or EquipmentState.Stopped or EquipmentState.ElectricalConstraint or
-                EquipmentState.ThermalConstraint);
+            bool powered = IsPowered(stage);
             double progress = oldest == null ? 0 : Math.Clamp(1 - (remaining / recipe.ResidenceTicks), 0, 1);
             double temperature = powered
                 ? m_defaults.AmbientTemperatureC +

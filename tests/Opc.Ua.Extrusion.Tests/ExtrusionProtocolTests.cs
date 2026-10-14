@@ -330,6 +330,46 @@ namespace Opc.Ua.Extrusion.Tests
         }
 
         /// <summary>
+        /// Status commands update the line quality constraint without waiting for another production observation.
+        /// </summary>
+        [Test]
+        public async Task JobStatusCommandsRefreshTheActiveQualityConstraintAsync()
+        {
+            var line = await CreateJobLineAsync("job-quality-status").ConfigureAwait(false);
+            ExtrusionJobController jobs = line.Jobs!;
+            await jobs.AddGroupAsync(m_fixture.Runtime.SystemContext, Group("quality")).ConfigureAwait(false);
+            await jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "quality", Job("job")).ConfigureAwait(false);
+            await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext, ExtrusionJobOperation.StartGroup, "quality")
+                .ConfigureAwait(false);
+            await jobs.ApplyProductionAsync(new ExtrusionJobProductionSnapshot(
+                1, "quality", "job", JobStatusEnumeration.JOB_IN_PRODUCTION, 0,
+                0, 0, 0, 0, 0, false, ExtrusionFixture.Timestamp, [], [])).ConfigureAwait(false);
+            NodeId quality = line.Node.ProductionParameters!.GoodProduct!.NodeId;
+            var good = new ExtrusionSnapshot(10,
+                [new ExtrusionValue(quality, new DataValue(Variant.From(true), StatusCodes.Good,
+                    ExtrusionFixture.Timestamp))]);
+            Assert.ThrowsAsync<ServiceResultException>(() => line.ApplySnapshotAsync(good).AsTask());
+
+            await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
+                ExtrusionJobOperation.InterruptJob, "quality", "job").ConfigureAwait(false);
+            await line.ApplySnapshotAsync(good).ConfigureAwait(false);
+            Assert.That(line.Node.ProductionParameters.GoodProduct.Value, Is.True);
+
+            await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
+                ExtrusionJobOperation.StartJob, "quality", "job").ConfigureAwait(false);
+            Assert.That(line.Node.ProductionParameters.GoodProduct.Value, Is.False);
+            Assert.ThrowsAsync<ServiceResultException>(() =>
+                line.ApplySnapshotAsync(good with { Revision = 11 }).AsTask());
+
+            await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
+                ExtrusionJobOperation.FinishJob, "quality", "job").ConfigureAwait(false);
+            await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
+                ExtrusionJobOperation.RemoveJob, "quality", "job").ConfigureAwait(false);
+            await line.ApplySnapshotAsync(good with { Revision = 11 }).ConfigureAwait(false);
+            Assert.That(line.Node.ProductionParameters.GoodProduct.Value, Is.True);
+        }
+
+        /// <summary>
         /// Manual-cut acceptance alone never changes counts; physical cut commits drive the actual CutEvent.
         /// </summary>
         [Test]

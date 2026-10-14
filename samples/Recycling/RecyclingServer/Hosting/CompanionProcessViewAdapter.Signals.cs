@@ -102,9 +102,7 @@ namespace Opc.Ua.Recycling
             bool outputExists = output.Total > 0;
             bool dryOutputExists = output.Dry > 0;
             bool running = stage.State == EquipmentState.Executing;
-            bool powered = stage.ElectricalDemandWatts > 0 &&
-                stage.State is not (EquipmentState.ElectricalConstraint or EquipmentState.Unavailable or
-                    EquipmentState.Stopped);
+            bool powered = IsPowered(stage);
             double motorLoad = powered ? m_defaults.RunningMotorLoadPct : 0;
             double contamination = Fraction(
                 output.ColoredPolymer + output.DensePolymer + output.Labels + output.Dirt, output.Dry);
@@ -242,6 +240,13 @@ namespace Opc.Ua.Recycling
                 EquipmentState.Unavailable or EquipmentState.Stopped)
                 ? heated
                 : m_defaults.AmbientTemperatureC;
+        }
+
+        private static bool IsPowered(StageSnapshot stage)
+        {
+            return stage.ElectricalDemandWatts > 0 && stage.State is not (
+                EquipmentState.ElectricalConstraint or EquipmentState.ThermalConstraint or
+                EquipmentState.Unavailable or EquipmentState.Stopped);
         }
 
         private static double Rate(double amount, CommittedSnapshot snapshot)

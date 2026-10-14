@@ -222,8 +222,7 @@ namespace Opc.Ua.Recycling
             CommittedSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            bool powered = stage.ElectricalDemandWatts > 0 && stage.State is not (
-                EquipmentState.ElectricalConstraint or EquipmentState.Unavailable or EquipmentState.Stopped);
+            bool powered = IsPowered(stage);
             foreach ((BaseVariableState running, BaseVariableState temperature) in binding.Pumps)
             {
                 Set(running, Variant.From(powered));

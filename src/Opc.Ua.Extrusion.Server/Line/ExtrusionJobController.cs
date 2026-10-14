@@ -248,6 +248,7 @@ namespace Opc.Ua.Extrusion.Server
                     {
                         m_groups.Remove(groupId);
                     }
+                    RefreshActiveProductionQuality(DateTimeUtc.Now);
                     UpdateVersion(Node.NodeVersion!);
                     await m_events.ModelChangedAsync(group.Node, false).ConfigureAwait(false);
                 }
@@ -256,6 +257,7 @@ namespace Opc.Ua.Extrusion.Server
                     await m_runtime.RemoveAsync(job!.Node).ConfigureAwait(false);
                     m_binding.UnbindVariables(job.Node);
                     group.Jobs.Remove(job.Definition.Id);
+                    RefreshActiveProductionQuality(DateTimeUtc.Now);
                     UpdateVersion(group.Node.NodeVersion!);
                     await m_events.ModelChangedAsync(job.Node, false).ConfigureAwait(false);
                 }
@@ -315,6 +317,7 @@ namespace Opc.Ua.Extrusion.Server
                 Set(job.Node.ActualOutputRate!, Variant.From(snapshot.ActualOutputRate), snapshot.SourceTimestamp);
                 Set(job.Node.GoodProduct!, Variant.From(snapshot.GoodProduct), snapshot.SourceTimestamp);
                 job.LastCommit = snapshot;
+                RefreshActiveProductionQuality(snapshot.SourceTimestamp);
                 job.Node.ClearChangeMasks(m_runtime.SystemContext, true);
                 if (previousStatus != snapshot.Status)
                 {
@@ -325,14 +328,6 @@ namespace Opc.Ua.Extrusion.Server
                 {
                     await m_binding.ReportProductQualityAsync(job.Node, snapshot.GoodProduct, snapshot.SourceTimestamp)
                         .ConfigureAwait(false);
-                }
-                bool anyBad = m_groups.Values.SelectMany(entry => entry.Jobs.Values)
-                    .Any(entry => IsActive(entry.Node.Status!.Value) && !entry.Node.GoodProduct!.Value);
-                Volatile.Write(ref m_badActiveProduction, anyBad);
-                if (anyBad && m_line.ProductionParameters?.GoodProduct != null)
-                {
-                    Set(m_line.ProductionParameters.GoodProduct, Variant.From(false), snapshot.SourceTimestamp);
-                    m_line.ProductionParameters.ClearChangeMasks(m_runtime.SystemContext, true);
                 }
                 for (int index = 0; index < snapshot.FinishedUnits.Count; index++)
                 {
@@ -567,10 +562,26 @@ namespace Opc.Ua.Extrusion.Server
         {
             JobStatusEnumeration previous = job.Node.Status!.Value;
             Set(job.Node.Status, Variant.From(status), timestamp);
+            RefreshActiveProductionQuality(timestamp);
             job.Node.ClearChangeMasks(m_runtime.SystemContext, true);
             if (previous != status)
             {
                 await EmitJobStatusAsync(group, job, previous, status, timestamp).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Recomputes the quality veto after committed job status, value or topology changes.
+        /// </summary>
+        private void RefreshActiveProductionQuality(DateTimeUtc timestamp)
+        {
+            bool anyBad = m_groups.Values.SelectMany(entry => entry.Jobs.Values)
+                .Any(entry => IsActive(entry.Node.Status!.Value) && !entry.Node.GoodProduct!.Value);
+            Volatile.Write(ref m_badActiveProduction, anyBad);
+            if (anyBad && m_line.ProductionParameters?.GoodProduct != null)
+            {
+                Set(m_line.ProductionParameters.GoodProduct, Variant.From(false), timestamp);
+                m_line.ProductionParameters.ClearChangeMasks(m_runtime.SystemContext, true);
             }
         }
 

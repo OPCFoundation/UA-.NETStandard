@@ -235,16 +235,18 @@ namespace Opc.Ua.Extrusion.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, "The state '{0}' is not declared.", name);
             }
+            bool transitioned = false;
             if (active)
             {
                 projection.Dispatcher.ApplyState(projection.Staged, state.Id, m_runtime.SystemContext);
                 string transitionName = "From" + projection.Previous + "To" + name;
                 FiniteStateMachineEntry transition = projection.Transitions
                     .Find(entry => entry.Name == transitionName);
-                if (projection.Previous != null && transition.Id != 0)
+                if (projection.Previous != null && projection.Previous != name && transition.Id != 0)
                 {
                     projection.Dispatcher.ApplyTransition(
                         projection.Staged, transition.Id, m_runtime.SystemContext);
+                    transitioned = true;
                 }
             }
             foreach ((string path, BaseInstanceState node) in
@@ -261,8 +263,10 @@ namespace Opc.Ua.Extrusion.Server
                 {
                     continue;
                 }
-                Variant value = path.EndsWith("TransitionTime", StringComparison.Ordinal)
-                    ? Variant.From(timestamp) : staged.WrappedValue;
+                Variant value = !transitioned && path.StartsWith("LastTransition", StringComparison.Ordinal)
+                    ? variable.WrappedValue
+                    : path.EndsWith("TransitionTime", StringComparison.Ordinal)
+                        ? Variant.From(timestamp) : staged.WrappedValue;
                 values.Add(new ExtrusionValue(variable.NodeId, new DataValue(
                     value, active ? StatusCodes.Good : StatusCodes.BadStateNotActive, timestamp)));
             }

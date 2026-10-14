@@ -599,7 +599,10 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 "view-" + process, RecyclingAccess.ProcessView, process, "session-" + process);
         }
 
-        private static async Task InitializeAllAsync(RecyclingCoordinator coordinator)
+        /// <summary>
+        /// Registers and initializes all ten fixture-owned process identities.
+        /// </summary>
+        internal static async Task InitializeAllAsync(RecyclingCoordinator coordinator)
         {
             foreach (RecyclingProcess process in Enum.GetValues<RecyclingProcess>())
             {
@@ -619,7 +622,10 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-        private static Mock<IFileSystemProvider> ForwardingFileSystem(PhysicalFileSystemProvider inner)
+        /// <summary>
+        /// Forwards persistence operations while permitting deterministic interruption of one call.
+        /// </summary>
+        internal static Mock<IFileSystemProvider> ForwardingFileSystem(PhysicalFileSystemProvider inner)
         {
             var mock = new Mock<IFileSystemProvider>(MockBehavior.Strict);
             mock.SetupGet(static provider => provider.MountName).Returns(inner.MountName);

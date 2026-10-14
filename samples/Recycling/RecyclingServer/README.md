@@ -348,7 +348,8 @@ and discards that run's production image; do not use reset as recovery or retent
 Leases use injected wall time, independently of material time. A missed view's flow is blocked
 when its journaled lease expires (30 seconds by default); orderly explicit `Disconnect` blocks it
 on the next coordinator evaluation. The view also marks readings unavailable after loss of
-connection or three missed polling intervals. Last source timestamps are retained, including
+connection or three missed polling intervals, independently of pending coordinator calls.
+Last source timestamps are retained, including
 while paused and on resynchronization. Absolute projections never repeat transfers.
 Membership revision contention is not transport failure: bounded rounds of at most 16 attempts
 are paced on the **same authenticated session**, with unavailable status while renewal is pending.
@@ -361,7 +362,9 @@ Default bounds: 256 active parcels, 4096 retained executions/packages/sinks/hold
 10 ticks per administrative step. Bounds are configurable within hard ceilings. Current-value
 delivery coalesces to one complete image; durable genealogy and receipts are never silently
 evicted. Exhausted material retention enters `ResourceLimited`; a full command ledger/queue
-returns an explicit error. This finite demonstration does not implement production archival or
+returns an explicit error. Automatic pacing retries a tick rejected by a full writer queue
+on the next interval; it does not stop the clock or fabricate a missed material tick.
+This finite demonstration does not implement production archival or
 unlimited operation. Persistence frames are capped at 64 MiB; UA messages are separately capped
 at 16 MiB, so a deliberately enlarged configuration may need a stricter operational profile.
 

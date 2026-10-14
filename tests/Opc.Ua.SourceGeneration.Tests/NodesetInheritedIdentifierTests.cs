@@ -58,8 +58,16 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("g=09087e75-8e5e-499b-954f-f2a9603db28a", true)]
         [TestCase("b=AQIDBA==", false)]
         [TestCase("b=AQIDBA==", true)]
-        public void InheritedChildrenDoNotBorrowPublishedIdentifiers(string identifier, bool derivedFirst)
+        [TestCase("s=base-value", false, "s=DerivedDeviceType_InheritedValue")]
+        [TestCase("s=base-value", true, "s=DerivedDeviceType_InheritedValue")]
+        [TestCase("s=base-value", false, "s=InstalledDevice_InheritedValue")]
+        [TestCase("s=base-value", true, "s=InstalledDevice_InheritedValue")]
+        public void InheritedChildrenDoNotBorrowPublishedIdentifiers(
+            string identifier,
+            bool derivedFirst,
+            string? ownIdentifier = null)
         {
+            ownIdentifier ??= identifier;
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp13)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(kProbe, new CSharpParseOptions(LanguageVersion.CSharp13)));
@@ -81,7 +89,7 @@ namespace Opc.Ua.SourceGeneration
             AdditionalText baseModel = EmbeddedText.Create("IdentifierBase.NodeSet2.xml",
                 kBaseModel.Replace("__Id__", identifier, StringComparison.Ordinal));
             AdditionalText derivedModel = EmbeddedText.Create("IdentifierDerived.NodeSet2.xml",
-                kDerivedModel.Replace("__Id__", identifier, StringComparison.Ordinal));
+                kDerivedModel.Replace("__Id__", ownIdentifier, StringComparison.Ordinal));
             GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
                 .WithUpdatedParseOptions(new CSharpParseOptions(LanguageVersion.CSharp13))
                 .WithUpdatedAnalyzerConfigOptions(options)
@@ -95,7 +103,7 @@ namespace Opc.Ua.SourceGeneration
             Assembly assembly = Assembly.Load(stream.ToArray());
             MethodInfo probe = assembly.GetType("IdentifierProbe")!.GetMethod("Run")!;
 
-            string result = (string)probe.Invoke(null, [identifier])!;
+            string result = (string)probe.Invoke(null, [identifier, ownIdentifier])!;
 
             Assert.That(result, Is.Empty);
         }
@@ -110,7 +118,7 @@ namespace Opc.Ua.SourceGeneration
 
             public static class IdentifierProbe
             {
-                public static string Run(string identifier)
+                public static string Run(string identifier, string ownIdentifier)
                 {
                     var context = new SystemContext(null);
                     context.NamespaceUris = new NamespaceTable();
@@ -133,14 +141,15 @@ namespace Opc.Ua.SourceGeneration
                         return "A required declaration is missing.";
                     }
                     if (original.NodeId != NodeId.Parse("ns=" + baseIndex + ";" + identifier) ||
-                        own.NodeId != NodeId.Parse("ns=" + derivedIndex + ";" + identifier) ||
+                        own.NodeId != NodeId.Parse("ns=" + derivedIndex + ";" + ownIdentifier) ||
                         overridden.NodeId != new NodeId(6101, derivedIndex))
                     {
                         return "A published identifier changed: " +
                             original.NodeId + "/" + own.NodeId + "/" + overridden.NodeId;
                     }
                     if (inherited.NodeId.IsNull || inherited.NodeId.NamespaceIndex != derivedIndex ||
-                        inherited.NodeId == own.NodeId || inherited.NodeId == overridden.NodeId)
+                        inherited.NodeId == own.NodeId || inherited.NodeId == overridden.NodeId ||
+                        inherited.NodeId == new NodeId("DerivedDeviceType_InheritedValue_1", derivedIndex))
                     {
                         return "Inherited declaration borrowed a published identifier: " + inherited.NodeId;
                     }
@@ -151,7 +160,8 @@ namespace Opc.Ua.SourceGeneration
                             Opc.Ua.IdentifierDerived.Variables.InstalledDevice_InheritedValue, derivedIndex) ||
                         installedValue.NodeId == inherited.NodeId ||
                         installedValue.NodeId == own.NodeId ||
-                        installedValue.NodeId == overridden.NodeId)
+                        installedValue.NodeId == overridden.NodeId ||
+                        installedValue.NodeId == new NodeId("InstalledDevice_InheritedValue_1", derivedIndex))
                     {
                         return "The predefined instance lost its distinct generated identifier.";
                     }
@@ -240,6 +250,16 @@ namespace Opc.Ua.SourceGeneration
                 <References>
                   <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
                   <Reference ReferenceType="i=40">ns=1;i=1001</Reference>
+                </References>
+              </UAObject>
+              <UAObject NodeId="ns=1;s=DerivedDeviceType_InheritedValue_1" BrowseName="1:ReservedTypeSuffix">
+                <References>
+                  <Reference ReferenceType="i=40">i=58</Reference>
+                </References>
+              </UAObject>
+              <UAObject NodeId="ns=1;s=InstalledDevice_InheritedValue_1" BrowseName="1:ReservedInstanceSuffix">
+                <References>
+                  <Reference ReferenceType="i=40">i=58</Reference>
                 </References>
               </UAObject>
             </UANodeSet>
