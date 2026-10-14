@@ -236,9 +236,9 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 root["links"] = new JsonArray(new JsonObject
                 {
-                    ["rel"] = "ua:HasComponent",
+                    ["rel"] = "ua:Organizes",
                     ["href"] = link,
-                    ["uav:refId"] = "i=47"
+                    ["uav:refId"] = "i=35"
                 });
             }
             if (schema is not null)
