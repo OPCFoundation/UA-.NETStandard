@@ -412,6 +412,66 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets exposes the DataSetFolderType methods")]
+        public async Task PublishedDataSetsInstanceMethodsAreBound()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.AddPublishedDataItemsMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.AddPublishedEventsMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.AddPublishedDataItemsTemplateMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.RemovePublishedDataSetMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.AddDataSetFolderMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.RemoveDataSetFolderMethod.OnCallMethod, Is.Not.Null);
+                Assert.That(harness.PlaceholderAddPublishedDataItemsMethod.OnCallMethod, Is.Null);
+                Assert.That(harness.PlaceholderAddDataSetFolderMethod.OnCallMethod, Is.Null);
+            });
+        }
+
+        [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishedDataSets.AddPublishedDataItems adds a PublishedDataSet below it")]
+        public async Task PublishedDataSetsAddPublishedDataItemsMaterializesTheDataSetBelowIt()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            MethodState add = harness.AddPublishedDataItemsMethod;
+            var outputs = new List<Variant>();
+            var variable = new PublishedVariableDataType
+            {
+                PublishedVariable = new NodeId(Variables.Server_ServerStatus_CurrentTime),
+                AttributeId = Attributes.Value
+            };
+
+            ServiceResult result = add.OnCallMethod!(
+                harness.Context,
+                add,
+                BuildArray(
+                    Variant.From("pds-method"),
+                    Variant.From(new ArrayOf<string>(["CurrentTime"])),
+                    Variant.From(Array.Empty<DataSetFieldFlags>()),
+                    Variant.FromStructure(new ArrayOf<PublishedVariableDataType>([variable]))),
+                outputs);
+
+            BaseObjectState dataSetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId(
+                    "pubsub:published-data-set:pds-method",
+                    harness.Manager.AddressSpaceNamespaceIndex));
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+                Assert.That(dataSetNode, Is.Not.Null);
+                Assert.That(
+                    dataSetNode?.Parent?.NodeId,
+                    Is.EqualTo(ObjectIds.PublishSubscribe_PublishedDataSets));
+            });
+        }
+
+        [Test]
         [TestSpec("9.1.3.7", Summary = "PubSubConfigurationType exposes FileType-style import/export")]
         public async Task PubSubConfigurationFileMethods_ReadAndCloseAndUpdateConfiguration()
         {
@@ -604,8 +664,14 @@ namespace Opc.Ua.PubSub.Server.Tests
                 RemoveSecurityGroupMethod = NewMethod(15447);
                 AddPushTargetMethod = NewMethod(25441);
                 RemovePushTargetMethod = NewMethod(25444);
-                AddDataSetFolderMethod = NewMethod(16884);
-                RemoveDataSetFolderMethod = NewMethod(16923);
+                AddDataSetFolderMethod = NewMethod(17398);
+                RemoveDataSetFolderMethod = NewMethod(17403);
+                AddPublishedDataItemsMethod = NewMethod(17372);
+                AddPublishedEventsMethod = NewMethod(17375);
+                AddPublishedDataItemsTemplateMethod = NewMethod(17378);
+                RemovePublishedDataSetMethod = NewMethod(17384);
+                PlaceholderAddPublishedDataItemsMethod = NewMethod(14479);
+                PlaceholderAddDataSetFolderMethod = NewMethod(16884);
                 StatusVariable = new BaseDataVariableState(null)
                 {
                     NodeId = new NodeId(17406u),
@@ -649,8 +715,28 @@ namespace Opc.Ua.PubSub.Server.Tests
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(15447u))).Returns(RemoveSecurityGroupMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25441u))).Returns(AddPushTargetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(25444u))).Returns(RemovePushTargetMethod);
-                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(16884u))).Returns(AddDataSetFolderMethod);
-                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(new NodeId(16923u))).Returns(RemoveDataSetFolderMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_AddDataSetFolder)).Returns(AddDataSetFolderMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_RemoveDataSetFolder)).Returns(RemoveDataSetFolderMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedDataItems))
+                    .Returns(AddPublishedDataItemsMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedEvents))
+                    .Returns(AddPublishedEventsMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_AddPublishedDataItemsTemplate))
+                    .Returns(AddPublishedDataItemsTemplateMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.PublishSubscribe_PublishedDataSets_RemovePublishedDataSet))
+                    .Returns(RemovePublishedDataSetMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.DataSetFolderType_DataSetFolderName_Placeholder_AddPublishedDataItems))
+                    .Returns(PlaceholderAddPublishedDataItemsMethod);
+                diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
+                        MethodIds.DataSetFolderType_DataSetFolderName_Placeholder_AddDataSetFolder))
+                    .Returns(PlaceholderAddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(It.IsAny<NodeId>()))
                     .Returns((NodeId id) => id == new NodeId(17406u) ? StatusVariable : null!);
@@ -713,6 +799,12 @@ namespace Opc.Ua.PubSub.Server.Tests
             public MethodState RemovePushTargetMethod { get; }
             public MethodState AddDataSetFolderMethod { get; }
             public MethodState RemoveDataSetFolderMethod { get; }
+            public MethodState AddPublishedDataItemsMethod { get; }
+            public MethodState AddPublishedEventsMethod { get; }
+            public MethodState AddPublishedDataItemsTemplateMethod { get; }
+            public MethodState RemovePublishedDataSetMethod { get; }
+            public MethodState PlaceholderAddPublishedDataItemsMethod { get; }
+            public MethodState PlaceholderAddDataSetFolderMethod { get; }
             public BaseDataVariableState StatusVariable { get; }
             public BaseObjectState PublishSubscribeObject { get; }
             public BaseObjectState PublishedDataSetsObject { get; }
