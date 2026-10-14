@@ -161,9 +161,9 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task LocalOnlyAndNullResolverEntryPointsAgreeAsync(bool multiple)
         {
             ArrayOf<WotDocumentSetEntry> entries = multiple
-                ? [new WotDocumentSetEntry("root", Document("Root", link: "external")),
-                    new WotDocumentSetEntry("other", Document("Other"))]
-                : [new WotDocumentSetEntry("root", Document("Root", link: "external"))];
+                ? [new WotDocumentSetEntry("root", Document("Root", link: "child")),
+                    new WotDocumentSetEntry("child", Document("Child"))]
+                : [new WotDocumentSetEntry("root", Document("Root"))];
             using var set = new WotDocumentSet("root", entries);
 
             WotConversionResult<UANodeSet> local = await WotNodeSetConverter.ToNodeSetAsync(set)
@@ -172,9 +172,32 @@ namespace Opc.Ua.Types.Tests.Wot
                 set, NullWotResolver.Instance, new WotExternalSchemaResolver()).ConfigureAwait(false);
 
             Assert.That(explicitNull.Success, Is.EqualTo(local.Success), Describe(explicitNull));
+            Assert.That(local.Success, Is.True, Describe(local));
             Assert.That(
                 explicitNull.Diagnostics.Select(diagnostic => diagnostic.Code),
                 Is.EqualTo(local.Diagnostics.Select(diagnostic => diagnostic.Code)));
+            Assert.That(Summarize(explicitNull), Is.EqualTo(Summarize(local)));
+            Assert.That(Summarize(local), Is.Not.Empty);
+            if (multiple)
+            {
+                Assert.That(Summarize(local).Any(line => line.Contains("ns=1;s=Child", StringComparison.Ordinal)),
+                    Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Lists every converted node with its identity and ordered references for output equality checks.
+        /// </summary>
+        private static string[] Summarize(WotConversionResult<UANodeSet> result)
+        {
+            if (result.Value?.Items is null)
+            {
+                return [];
+            }
+            return [.. result.Value.Items.Select(node =>
+                node.NodeId + "|" + node.BrowseName + "|" + string.Join(
+                    ",", (node.References ?? []).Select(reference =>
+                        reference.ReferenceType + (reference.IsForward ? ">" : "<") + reference.Value)))];
         }
 
         /// <summary>
