@@ -79,7 +79,151 @@ namespace Opc.Ua.Server.Tests
                         field.GetValue(copy),
                         Is.EqualTo(expected),
                         $"{type.Name}.{field.Name} is not copied.");
+
+                    // the values shared with the template must all be set as well.
+                    if (field.Name == "m_values")
+                    {
+                        AssertEveryValueIsSet(expected!);
+                    }
                 }
+            }
+        }
+
+        /// <summary>
+        /// A copy for a request shares the template's values instead of copying each of
+        /// them, so it is a small object.
+        /// </summary>
+        [Test]
+        public void CopyForOperationIsSmall()
+        {
+            ServerSystemContext template = CreatePopulatedContext();
+            var operation = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+
+            // warm up the copy path.
+            template.Copy(operation);
+
+#if NET5_0_OR_GREATER
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            ServerSystemContext copy = template.Copy(operation);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(copy.OperationContext, Is.SameAs(operation));
+            Assert.That(allocated, Is.LessThanOrEqualTo(64), "a request's copy holds four references");
+#else
+            Assert.That(template.Copy(operation).OperationContext, Is.SameAs(operation));
+#endif
+        }
+
+        /// <summary>
+        /// A value changed on a copy stays on the copy, and a value changed on the template
+        /// after the copy was made does not reach the copy: copies behave as snapshots.
+        /// </summary>
+        [Test]
+        public void SharedValuesChangeOnlyWhereTheyAreSet()
+        {
+            ServerSystemContext template = CreatePopulatedContext();
+            INodeIdFactory templateFactory = template.NodeIdFactory;
+            object templateHandle = template.SystemHandle!;
+            var operation = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+
+            ServerSystemContext first = template.Copy(operation);
+            ServerSystemContext second = template.Copy(operation);
+
+            INodeIdFactory copyFactory = new Mock<INodeIdFactory>().Object;
+            first.NodeIdFactory = copyFactory;
+            Assert.That(first.NodeIdFactory, Is.SameAs(copyFactory));
+            Assert.That(second.NodeIdFactory, Is.SameAs(templateFactory));
+            Assert.That(template.NodeIdFactory, Is.SameAs(templateFactory));
+
+            // the copy keeps every other value it shared.
+            Assert.That(first.SystemHandle, Is.SameAs(templateHandle));
+            Assert.That(first.TypeTable, Is.SameAs(template.TypeTable));
+
+            var newHandle = new object();
+            template.SystemHandle = newHandle;
+            Assert.That(template.SystemHandle, Is.SameAs(newHandle));
+            Assert.That(first.SystemHandle, Is.SameAs(templateHandle));
+            Assert.That(second.SystemHandle, Is.SameAs(templateHandle));
+
+            // a copy made now sees the template's new value.
+            Assert.That(template.Copy(operation).SystemHandle, Is.SameAs(newHandle));
+        }
+
+        /// <summary>
+        /// A copy for a session sets the session's values on the copy only.
+        /// </summary>
+        [Test]
+        public void CopyForSessionSetsSessionValuesOnTheCopyOnly()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            var template = new ServerSystemContext(server.Object) { SessionId = new NodeId(7) };
+            var identity = new Mock<IUserIdentity>().Object;
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.Id).Returns(new NodeId(99));
+            session.SetupGet(s => s.Identity).Returns(identity);
+            session.SetupGet(s => s.PreferredLocales).Returns(["de-DE"]);
+
+            ServerSystemContext copy = template.Copy(session.Object);
+
+            Assert.That(copy.SessionId, Is.EqualTo(new NodeId(99)));
+            Assert.That(copy.UserIdentity, Is.SameAs(identity));
+            Assert.That(copy.PreferredLocales.Count, Is.EqualTo(1));
+            Assert.That(copy.PreferredLocales[0], Is.EqualTo("de-DE"));
+            Assert.That(template.SessionId, Is.EqualTo(new NodeId(7)));
+            Assert.That(template.UserIdentity, Is.Null);
+            Assert.That(template.PreferredLocales.IsNull || template.PreferredLocales.Count == 0, Is.True);
+        }
+
+        /// <summary>
+        /// A derived context, copied member-wise, is isolated from its template in both
+        /// directions as well.
+        /// </summary>
+        [Test]
+        public void CopyOfDerivedContextIsIsolatedFromItsTemplate()
+        {
+            var template = new DerivedContext(CreateServer().Object) { Extra = "extra" };
+            NamespaceTable namespaces = template.NamespaceUris;
+
+            var copy = (DerivedContext)template.Copy();
+            copy.NamespaceUris = new NamespaceTable();
+            Assert.That(template.NamespaceUris, Is.SameAs(namespaces));
+
+            object handle = new();
+            template.SystemHandle = handle;
+            Assert.That(copy.SystemHandle, Is.Null);
+            Assert.That(copy.Extra, Is.EqualTo("extra"));
+        }
+
+        /// <summary>
+        /// Copies of copies keep sharing; changing the innermost one changes nothing else.
+        /// </summary>
+        [Test]
+        public void CopyOfCopyIsIsolated()
+        {
+            ServerSystemContext template = CreatePopulatedContext();
+            ServerSystemContext copy = template.Copy();
+            ServerSystemContext copyOfCopy = copy.Copy();
+
+            copyOfCopy.AuditEntryId = "inner";
+            Assert.That(copy.AuditEntryId, Is.Not.EqualTo("inner"));
+            Assert.That(template.AuditEntryId, Is.Not.EqualTo("inner"));
+        }
+
+        private static void AssertEveryValueIsSet(object values)
+        {
+            foreach (FieldInfo field in values.GetType().GetFields(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                // the owner of shared values is cleared by copying.
+                if (field.Name.StartsWith("<Owner>", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Assert.That(
+                    field.GetValue(values),
+                    Is.Not.Null.And.Not.EqualTo(DefaultOf(field.FieldType)),
+                    $"Give the shared value {field.Name} a non-default value in this test.");
             }
         }
 

@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
                 return new ServerSystemContext(this);
             }
 
-            return (ServerSystemContext)MemberwiseClone();
+            return (ServerSystemContext)MemberwiseCloneSharingValues();
         }
     }
 }

@@ -59,8 +59,7 @@ namespace Opc.Ua
         /// </summary>
         public SessionSystemContext(ITelemetryContext telemetry)
         {
-            Telemetry = telemetry;
-            NodeStateFactory = new NodeStateFactory();
+            m_values = new SharedValues(telemetry, this);
         }
 
         /// <summary>
@@ -70,8 +69,7 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public SessionSystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
-            Telemetry = telemetry;
-            NodeStateFactory = new NodeStateFactory();
+            m_values = new SharedValues(telemetry, this);
             OperationContext = context;
         }
 
@@ -83,6 +81,12 @@ namespace Opc.Ua
         /// Copying with a constructor allocates through the JIT's allocation fast path.
         /// <see cref="object.MemberwiseClone"/> allocates through a runtime call, which
         /// costs more on the per-request path of a server.
+        /// <para>
+        /// The copy shares the values of the source (namespace and server tables, type
+        /// table, factories, handle, session values) until either of them changes one: a
+        /// server copies its node managers' contexts for every request, and the copy then
+        /// only holds its operation context and a reference to the shared values.
+        /// </para>
         /// </remarks>
         /// <param name="source">The context to copy.</param>
         /// <exception cref="ArgumentNullException"><paramref name="source"/> is <c>null</c>.</exception>
@@ -93,29 +97,22 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(source));
             }
 
-            Telemetry = source.Telemetry;
-            SystemHandle = source.SystemHandle;
-            NamespaceUris = source.NamespaceUris;
-            ServerUris = source.ServerUris;
-            TypeTable = source.TypeTable;
-            EncodeableFactory = source.EncodeableFactory;
-            NodeStateFactory = source.NodeStateFactory;
-            NodeIdFactory = source.NodeIdFactory;
+            m_values = source.Share();
             OperationContext = source.OperationContext;
-            m_sessionId = source.m_sessionId;
-            m_preferredLocales = source.m_preferredLocales;
-            m_auditEntryId = source.m_auditEntryId;
-            m_userIdentity = source.m_userIdentity;
         }
 
         /// <inheritdoc/>
-        public ITelemetryContext Telemetry { get; }
+        public ITelemetryContext Telemetry => m_values.Telemetry;
 
         /// <summary>
         /// An application defined handle for the system.
         /// </summary>
         /// <value>The system handle.</value>
-        public object? SystemHandle { get; set; }
+        public object? SystemHandle
+        {
+            get => m_values.SystemHandle;
+            set => Writable().SystemHandle = value;
+        }
 
         /// <inheritdoc/>
         public string? UserId => UserIdentity?.DisplayName;
@@ -133,9 +130,9 @@ namespace Opc.Ua
                     return session.SessionId;
                 }
 
-                return m_sessionId;
+                return m_values.SessionId;
             }
-            set => m_sessionId = value;
+            set => Writable().SessionId = value;
         }
 
         /// <summary>
@@ -151,9 +148,9 @@ namespace Opc.Ua
                     return session.UserIdentity;
                 }
 
-                return m_userIdentity;
+                return m_values.UserIdentity;
             }
-            set => m_userIdentity = value;
+            set => Writable().UserIdentity = value;
         }
 
         /// <summary>
@@ -169,9 +166,9 @@ namespace Opc.Ua
                     return OperationContext.PreferredLocales;
                 }
 
-                return m_preferredLocales;
+                return m_values.PreferredLocales;
             }
-            set => m_preferredLocales = value;
+            set => Writable().PreferredLocales = value;
         }
 
         /// <summary>
@@ -187,46 +184,70 @@ namespace Opc.Ua
                     return OperationContext.AuditEntryId;
                 }
 
-                return m_auditEntryId;
+                return m_values.AuditEntryId;
             }
-            set => m_auditEntryId = value;
+            set => Writable().AuditEntryId = value;
         }
 
         /// <summary>
         /// The table of namespace uris to use when accessing the system.
         /// </summary>
         /// <value>The namespace URIs.</value>
-        public NamespaceTable NamespaceUris { get; set; } = null!;
+        public NamespaceTable NamespaceUris
+        {
+            get => m_values.NamespaceUris;
+            set => Writable().NamespaceUris = value;
+        }
 
         /// <summary>
         /// The table of server uris to use when accessing the system.
         /// </summary>
         /// <value>The server URIs.</value>
-        public StringTable ServerUris { get; set; } = null!;
+        public StringTable ServerUris
+        {
+            get => m_values.ServerUris;
+            set => Writable().ServerUris = value;
+        }
 
         /// <summary>
         /// A table containing the types that are to be used when accessing the system.
         /// </summary>
         /// <value>The type table.</value>
-        public ITypeTable TypeTable { get; set; } = null!;
+        public ITypeTable TypeTable
+        {
+            get => m_values.TypeTable;
+            set => Writable().TypeTable = value;
+        }
 
         /// <summary>
         /// A factory that can be used to create encodeable types.
         /// </summary>
         /// <value>The encodeable factory.</value>
-        public IEncodeableFactory EncodeableFactory { get; set; } = null!;
+        public IEncodeableFactory EncodeableFactory
+        {
+            get => m_values.EncodeableFactory;
+            set => Writable().EncodeableFactory = value;
+        }
 
         /// <summary>
         /// A factory that can be used to create node instances.
         /// </summary>
         /// <value>The node state factory.</value>
-        public NodeStateFactory NodeStateFactory { get; set; }
+        public NodeStateFactory NodeStateFactory
+        {
+            get => m_values.NodeStateFactory;
+            set => Writable().NodeStateFactory = value;
+        }
 
         /// <summary>
         /// A factory that can be used to create node ids.
         /// </summary>
         /// <value>The node identifiers factory.</value>
-        public INodeIdFactory NodeIdFactory { get; set; } = null!;
+        public INodeIdFactory NodeIdFactory
+        {
+            get => m_values.NodeIdFactory;
+            set => Writable().NodeIdFactory = value;
+        }
 
         /// <summary>
         /// The operation context associated with the system context.
@@ -243,7 +264,7 @@ namespace Opc.Ua
         /// </returns>
         public ISystemContext Copy(IOperationContext context)
         {
-            var copy = (SessionSystemContext)MemberwiseClone();
+            var copy = (SessionSystemContext)MemberwiseCloneSharingValues();
 
             if (context != null)
             {
@@ -344,9 +365,94 @@ namespace Opc.Ua
         NodeId ISessionOperationContext.SessionId => SessionId ?? NodeId.Null;
         IUserIdentity ISessionOperationContext.UserIdentity => UserIdentity!;
 
-        private NodeId? m_sessionId;
-        private ArrayOf<string> m_preferredLocales;
-        private string? m_auditEntryId;
-        private IUserIdentity? m_userIdentity;
+        /// <summary>
+        /// Returns a member-wise copy of the context whose values are shared with this
+        /// one until either changes one.
+        /// </summary>
+        /// <remarks>
+        /// Use it instead of <see cref="object.MemberwiseClone"/> in derived types: a
+        /// plain member-wise copy shares the values too, but this context would keep
+        /// changing them in place, so the copy would see later changes of this one.
+        /// </remarks>
+        protected object MemberwiseCloneSharingValues()
+        {
+            Share();
+            return MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Marks the values as shared, so that neither this context nor a copy changes
+        /// them in place, and returns them.
+        /// </summary>
+        private SharedValues Share()
+        {
+            SharedValues values = m_values;
+
+            // written once; after that, copying for a request writes nothing to the
+            // template, which every request of a node manager reads.
+            if (values.Owner != null)
+            {
+                values.Owner = null;
+            }
+
+            return values;
+        }
+
+        /// <summary>
+        /// Returns values that this context may change: its own, or a copy of shared ones.
+        /// </summary>
+        private SharedValues Writable()
+        {
+            SharedValues values = m_values;
+            if (!ReferenceEquals(values.Owner, this))
+            {
+                values = values.CopyFor(this);
+                m_values = values;
+            }
+
+            return values;
+        }
+
+        /// <summary>
+        /// The values a context copies from its template, held apart from the context so
+        /// that a copy shares them instead of copying each one.
+        /// </summary>
+        private sealed class SharedValues
+        {
+            public SharedValues(ITelemetryContext telemetry, SessionSystemContext owner)
+            {
+                Telemetry = telemetry;
+                NodeStateFactory = new NodeStateFactory();
+                Owner = owner;
+            }
+
+            /// <summary>
+            /// The only context that changes the values in place, or <c>null</c> once
+            /// they are shared.
+            /// </summary>
+            public SessionSystemContext? Owner { get; set; }
+
+            public ITelemetryContext Telemetry { get; }
+            public object? SystemHandle { get; set; }
+            public NamespaceTable NamespaceUris { get; set; } = null!;
+            public StringTable ServerUris { get; set; } = null!;
+            public ITypeTable TypeTable { get; set; } = null!;
+            public IEncodeableFactory EncodeableFactory { get; set; } = null!;
+            public NodeStateFactory NodeStateFactory { get; set; }
+            public INodeIdFactory NodeIdFactory { get; set; } = null!;
+            public NodeId? SessionId { get; set; }
+            public ArrayOf<string> PreferredLocales { get; set; }
+            public string? AuditEntryId { get; set; }
+            public IUserIdentity? UserIdentity { get; set; }
+
+            public SharedValues CopyFor(SessionSystemContext owner)
+            {
+                var copy = (SharedValues)MemberwiseClone();
+                copy.Owner = owner;
+                return copy;
+            }
+        }
+
+        private SharedValues m_values;
     }
 }
