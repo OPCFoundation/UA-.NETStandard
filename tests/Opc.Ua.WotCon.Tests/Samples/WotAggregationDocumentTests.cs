@@ -1498,18 +1498,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     support.Name);
                 Assert.That(
                     support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
-                        ? carriedUnits.GetRawText()
+                        ? CompactJson(carriedUnits)
                         : null,
                     Is.EqualTo(supportDeclaration.Value.TryGetProperty(
-                        "uav:engineeringUnits", out JsonElement declaredUnits) ? declaredUnits.GetRawText() : null),
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? CompactJson(declaredUnits) : null),
                     support.Name);
                 Assert.That(
                     support.Value.GetProperty("type").GetString(),
                     Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
                     support.Name);
                 Assert.That(
-                    support.Value.GetProperty("uav:componentOf").GetRawText(),
-                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:componentOf").GetRawText()),
+                    CompactJson(support.Value.GetProperty("uav:componentOf")),
+                    Is.EqualTo(CompactJson(supportDeclaration.Value.GetProperty("uav:componentOf"))),
                     support.Name);
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
@@ -1565,8 +1565,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
-                        Assert.That(member.Value.GetProperty("const").GetRawText(),
-                            Is.EqualTo(constant.GetRawText()), member.Name);
+                        Assert.That(CompactJson(member.Value.GetProperty("const")),
+                            Is.EqualTo(CompactJson(constant)), member.Name);
                     }
                 }
                 else
@@ -1749,6 +1749,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     }
                 }
             }
+        }
+
+        private static string CompactJson(JsonElement element)
+        {
+            return JsonSerializer.Serialize(element);
         }
 
         private static Affordance FindAffordance(
