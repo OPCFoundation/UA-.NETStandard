@@ -56,11 +56,18 @@ namespace Opc.Ua.GMS.Client
         /// </summary>
         public void Validate()
         {
-            if (MaximumElements is < 1 or > 4096 || MaximumReferences is < 1 or > 100000 ||
-                MaximumPayloadBytes is < 1 or > 1024 * 1024)
+            const string message = "GMS reads require finite positive element, reference and payload limits.";
+            if (MaximumElements is < 1 or > 4096)
             {
-                throw new ArgumentOutOfRangeException(nameof(MaximumElements),
-                    "GMS reads require finite positive element, reference and payload limits.");
+                throw new ArgumentOutOfRangeException(nameof(MaximumElements), message);
+            }
+            if (MaximumReferences is < 1 or > 100000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumReferences), message);
+            }
+            if (MaximumPayloadBytes is < 1 or > 1024 * 1024)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumPayloadBytes), message);
             }
         }
     }

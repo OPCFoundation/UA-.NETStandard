@@ -131,5 +131,60 @@ namespace Opc.Ua.GMS.Tests
             sensor.ToolLife = null;
             Assert.Throws<ServiceResultException>(() => sensor.AddQualified(context));
         }
+
+        /// <summary>
+        /// Each rejected boundary identifies the option the caller must correct.
+        /// </summary>
+        [TestCase(0, 1, 1, nameof(GmsClientOptions.MaximumElements))]
+        [TestCase(4097, 1, 1, nameof(GmsClientOptions.MaximumElements))]
+        [TestCase(1, 0, 1, nameof(GmsClientOptions.MaximumReferences))]
+        [TestCase(1, 100001, 1, nameof(GmsClientOptions.MaximumReferences))]
+        [TestCase(1, 1, 0, nameof(GmsClientOptions.MaximumPayloadBytes))]
+        [TestCase(1, 1, 1048577, nameof(GmsClientOptions.MaximumPayloadBytes))]
+        public void ClientReportsTheInvalidReadBoundParameter(
+            int elements,
+            int references,
+            int payload,
+            string expectedParameter)
+        {
+            var options = new GmsClientOptions
+            {
+                MaximumElements = elements,
+                MaximumReferences = references,
+                MaximumPayloadBytes = payload
+            };
+
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(options.Validate)!;
+
+            Assert.That(error.ParamName, Is.EqualTo(expectedParameter));
+        }
+
+        /// <summary>
+        /// Both inclusive boundaries remain valid independently for all three read limits.
+        /// </summary>
+        [Test]
+        public void ClientAcceptsInclusiveReadBoundaries(
+            [Values(1, 4096)] int elements,
+            [Values(1, 100000)] int references,
+            [Values(1, 1048576)] int payload)
+        {
+            var options = new GmsClientOptions
+            {
+                MaximumElements = elements,
+                MaximumReferences = references,
+                MaximumPayloadBytes = payload
+            };
+
+            Assert.That(options.Validate, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Default client limits require no caller adjustment.
+        /// </summary>
+        [Test]
+        public void ClientAcceptsDefaultReadBounds()
+        {
+            Assert.That(new GmsClientOptions().Validate, Throws.Nothing);
+        }
     }
 }
