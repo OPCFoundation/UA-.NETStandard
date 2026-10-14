@@ -469,6 +469,198 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task BindingLivenessFollowsLookupThroughReactivationTransferAndCloseAsync()
+        {
+            OperationContext oldChannel = CreateContext("old");
+            OperationContext newChannel = CreateContext("new");
+            CreateSessionResult created = await CreateAsync(oldChannel).ConfigureAwait(false);
+            await ActivateAsync(created, oldChannel).ConfigureAwait(false);
+            SessionBindingContext first = GetBinding(created, oldChannel);
+            AssertLive(first, created, oldChannel, expected: true);
+
+            await ActivateAsync(created, oldChannel).ConfigureAwait(false);
+            SessionBindingContext second = GetBinding(created, oldChannel);
+            AssertLive(first, created, oldChannel, expected: false);
+            AssertLive(second, created, oldChannel, expected: true);
+
+            await ActivateAsync(created, newChannel).ConfigureAwait(false);
+            SessionBindingContext transferred = GetBinding(created, newChannel);
+            AssertLive(second, created, oldChannel, expected: false);
+            AssertLive(transferred, created, newChannel, expected: true);
+
+            await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+            AssertLive(transferred, created, newChannel, expected: false);
+        }
+
+        [Test]
+        public async Task BindingLivenessEndsWhenIdentityChangesAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateUserAsync("alice").ConfigureAwait(false);
+            SessionBindingContext alice = GetBinding(created, channel);
+            AssertLive(alice, created, channel, expected: true);
+            await ActivateUserAsync("bob").ConfigureAwait(false);
+            SessionBindingContext bob = GetBinding(created, channel);
+
+            AssertLive(alice, created, channel, expected: false);
+            AssertLive(bob, created, channel, expected: true);
+            await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+
+            async Task ActivateUserAsync(string userName)
+            {
+                await m_manager.ActivateSessionAsync(
+                    channel, created.AuthenticationToken, null,
+                    new ExtensionObject(new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = userName,
+                        Password = ByteString.From([1])
+                    }),
+                    null, []).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task BindingLivenessEndsWhenSessionExpiresBeforeTheMonitorClosesItAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext binding = GetBinding(created, channel);
+            m_clock.Advance(TimeSpan.FromMilliseconds(59_000));
+            AssertLive(binding, created, channel, expected: true);
+            m_clock.Advance(TimeSpan.FromMilliseconds(1_001));
+
+            AssertLive(binding, created, channel, expected: false);
+        }
+
+        [Test]
+        public async Task BindingLivenessEndsWhileActivationCommitsAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext original = GetBinding(created, channel);
+            bool? liveDuringCommit = null;
+            m_manager.OnNextSessionActivated = () =>
+                liveDuringCommit = original.Liveness!.IsCurrent(channel.ChannelContext!);
+
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+
+            Assert.That(liveDuringCommit, Is.False);
+            AssertLive(original, created, channel, expected: false);
+        }
+
+        [Test]
+        public async Task BindingLivenessEndsWhenSessionStartsClosingAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext binding = GetBinding(created, channel);
+            Assert.That(((Server.Session)created.Session).MarkClosing(), Is.True);
+
+            AssertLive(binding, created, channel, expected: false);
+            await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task BindingLivenessEndsAtShutdownAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext binding = GetBinding(created, channel);
+
+            await m_manager.ShutdownAsync().ConfigureAwait(false);
+
+            AssertLive(binding, created, channel, expected: false);
+        }
+
+        /// <summary>
+        /// A binding the liveness check confirms must still be the committed one: never one
+        /// older than an activation that already completed, and none once the close completed.
+        /// </summary>
+        [Test]
+        public async Task BindingLivenessRacingTransfersAndCloseNeverConfirmsReplacedBindingAsync()
+        {
+            const int kTransfers = 1000;
+            const int kReaders = 4;
+            OperationContext[] channels = [CreateContext("a"), CreateContext("b")];
+            CreateSessionResult created = await CreateAsync(channels[0]).ConfigureAwait(false);
+            await ActivateAsync(created, channels[0]).ConfigureAwait(false);
+            long completed = 1;
+            int closed = 0;
+            int checks = 0;
+            int confirmed = 0;
+            var errors = new ConcurrentQueue<string>();
+            using var stop = new CancellationTokenSource();
+
+            var readers = new Task[kReaders];
+            for (int r = 0; r < kReaders; r++)
+            {
+                int reader = r;
+                readers[r] = Task.Run(() =>
+                {
+                    int attempt = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        OperationContext channel = channels[(reader + attempt++) & 1];
+                        if (!m_manager.TryGetSessionContext(
+                            created.AuthenticationToken, channel.ChannelContext!, out SessionBindingContext? binding))
+                        {
+                            Interlocked.Increment(ref checks);
+                            continue;
+                        }
+                        // keep checking the binding the request would have been classified with
+                        for (int ii = 0; ii < 16; ii++)
+                        {
+                            bool closedBefore = Volatile.Read(ref closed) != 0;
+                            long floor = Volatile.Read(ref completed);
+                            bool live = binding.Liveness!.IsCurrent(channel.ChannelContext!);
+                            Interlocked.Increment(ref checks);
+                            if (!live)
+                            {
+                                break;
+                            }
+                            Interlocked.Increment(ref confirmed);
+                            if (closedBefore || binding.ActivationSequence < floor)
+                            {
+                                errors.Enqueue(
+                                    $"closed={closedBefore} seq={binding.ActivationSequence} floor={floor}");
+                            }
+                        }
+                    }
+                });
+            }
+
+            try
+            {
+                for (int i = 1; i <= kTransfers; i++)
+                {
+                    await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
+                    Volatile.Write(ref completed, i + 1);
+                }
+                await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+                Volatile.Write(ref closed, 1);
+                int target = Volatile.Read(ref checks) + (kReaders * 1000);
+                while (Volatile.Read(ref checks) < target && errors.IsEmpty)
+                {
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+            }
+            await Task.WhenAll(readers).ConfigureAwait(false);
+
+            Assert.That(errors, Is.Empty, string.Join(Environment.NewLine, errors));
+            Assert.That(confirmed, Is.GreaterThan(0));
+        }
+
+        [Test]
         public async Task ExpiredSessionLosesClassificationAndTimeoutRemovesMembershipAsync()
         {
             OperationContext channel = CreateContext("one");
@@ -731,6 +923,24 @@ namespace Opc.Ua.Server.Tests
                 created.AuthenticationToken, channel.ChannelContext!, out SessionBindingContext? binding), Is.True);
             Assert.That(binding, Is.Not.Null);
             return binding!;
+        }
+
+        /// <summary>
+        /// Checks the liveness of a binding that was returned for the channel, and that it
+        /// agrees with a fresh lookup.
+        /// </summary>
+        private void AssertLive(
+            SessionBindingContext binding,
+            CreateSessionResult created,
+            OperationContext channel,
+            bool expected)
+        {
+            Assert.That(binding.Liveness, Is.Not.Null);
+            Assert.That(binding.Liveness!.IsCurrent(channel.ChannelContext!), Is.EqualTo(expected));
+            bool current = m_manager.TryGetSessionContext(
+                created.AuthenticationToken, channel.ChannelContext!, out SessionBindingContext? found) &&
+                ReferenceEquals(found, binding);
+            Assert.That(current, Is.EqualTo(expected), "The lookup disagrees with the liveness check.");
         }
 
         private void AssertNoBinding(NodeId token, OperationContext channel)

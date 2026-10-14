@@ -356,6 +356,126 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void AdmissionEvidenceConfirmsOnlyAnUnchangedBindingAndChannel()
+        {
+            var bindings = new TestBindings();
+            var token = new NodeId(1);
+            var liveness = new TestLiveness();
+            SessionBindingContext binding = Binding(1, "user-a");
+            binding.Liveness = liveness;
+            bindings.Bindings.Add(token, binding);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext channel = Channel("channel", certificate);
+
+            ResourceIsolationOwner owner = evidenceProvider.Classify(channel, token, false, false, out object? evidence);
+            Assert.That(owner, Is.SameAs(provider.Classify(channel, token)));
+            Assert.That(evidence, Is.Not.Null);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            Assert.That(liveness.Checks, Is.EqualTo(1));
+
+            // Every trigger the liveness check reports (close, expiry, re-activation, transfer,
+            // shutdown) ends the evidence; the full revalidation then decides the status.
+            liveness.Current = false;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+            bindings.Bindings.Clear();
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+
+            // Changed channel evidence ends it without consulting the session.
+            liveness.Current = true;
+            bindings.Bindings.Add(token, binding);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            int checks = liveness.Checks;
+            certificate[0] = 9;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+            Assert.That(liveness.Checks, Is.EqualTo(checks));
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+        }
+
+        [Test]
+        public void AdmissionEvidenceWithoutSessionTokenDependsOnTheChannelOnly()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext channel = Channel("channel", certificate);
+
+            _ = evidenceProvider.Classify(channel, default, true, false, out object? evidence);
+            Assert.That(evidence, Is.Not.Null);
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
+            certificate[0] = 9;
+            Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.False);
+        }
+
+        [Test]
+        public void AdmissionEvidenceIsWithheldWhenItCannotBeConfirmedCheaply()
+        {
+            var bindings = new TestBindings();
+            bindings.Bindings.Add(new NodeId(1), Binding(1, "user-a"));
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", [1, 2, 3]);
+
+            // A binding issued without a liveness check.
+            _ = evidenceProvider.Classify(channel, new NodeId(1), false, false, out object? evidence);
+            Assert.That(evidence, Is.Null);
+            // A token without a binding: an activation can bind it while the request waits.
+            _ = evidenceProvider.Classify(channel, new NodeId(2), false, false, out evidence);
+            Assert.That(evidence, Is.Null);
+
+            // A classifier may map the same inputs differently at any time.
+            var classifier = new Mock<IResourceIsolationClassifier>();
+            using DefaultServerResourceIsolationProvider classified = CreateProvider(Options(), classifier.Object);
+            _ = ((IResourceIsolationAdmissionEvidence)classified).Classify(
+                channel, default, false, false, out evidence);
+            Assert.That(evidence, Is.Null);
+        }
+
+        [Test]
+        public void AdmissionEvidenceIsNotConfirmedByADisposedProvider()
+        {
+            DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", [1, 2, 3]);
+            _ = evidenceProvider.Classify(channel, default, false, false, out object? evidence);
+            provider.Dispose();
+
+            Assert.That(() => evidenceProvider.IsAdmissionCurrent(evidence!, channel),
+                Throws.TypeOf<ObjectDisposedException>());
+        }
+
+#if NET8_0_OR_GREATER
+        [Test]
+        public void AdmissionEvidenceCheckDoesNotAllocate()
+        {
+            var bindings = new TestBindings();
+            var token = new NodeId(1);
+            SessionBindingContext binding = Binding(1, "user-a");
+            binding.Liveness = new TestLiveness();
+            bindings.Bindings.Add(token, binding);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
+            SecureChannelContext channel = Channel("channel", new byte[1500]);
+            _ = evidenceProvider.Classify(channel, token, false, false, out object? evidence);
+            _ = evidenceProvider.IsAdmissionCurrent(evidence!, channel);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool current = true;
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                current &= evidenceProvider.IsAdmissionCurrent(evidence!, channel);
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(current, Is.True);
+            Assert.That(allocated, Is.Zero);
+        }
+#endif
+
+        [Test]
         public void SessionDerivedKeysAreCachedPerActivationNotChannelOrSequence()
         {
             var bindings = new TestBindings();
@@ -1921,6 +2041,19 @@ namespace Opc.Ua.Server.Tests
                 }
                 context = null;
                 return false;
+            }
+        }
+
+        private sealed class TestLiveness : ISessionBindingLiveness
+        {
+            public bool Current { get; set; } = true;
+
+            public int Checks { get; private set; }
+
+            public bool IsCurrent(SecureChannelContext channelContext)
+            {
+                Checks++;
+                return Current;
             }
         }
 

@@ -1011,6 +1011,91 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// Current admission evidence confirms the classification at dequeue and again before
+        /// execution without the full revalidation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CurrentAdmissionEvidenceReplacesFullRevalidationAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling, IssueEvidence = true };
+            NodeId token = provider.AddOwner("A");
+            using var server = new QueueServer(provider, workers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var request = new TestRequest(token);
+            server.Enqueue(request);
+            await request.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            request.Release();
+            await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(request.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(provider.EvidenceChecks, Is.EqualTo(2), "dequeue and execution");
+            Assert.That(provider.FullRevalidations, Is.Zero);
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Evidence that no longer holds at dequeue falls back to the full revalidation, which
+        /// decides the status.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StaleAdmissionEvidenceAtDequeueUsesFullRevalidationStatusAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling, IssueEvidence = true };
+            NodeId token = provider.AddOwner("A");
+            provider.EvidenceCheck = _ =>
+            {
+                provider.RemoveBinding(token);
+                return false;
+            };
+            using var server = new QueueServer(provider, workers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var request = new TestRequest(token);
+            server.Enqueue(request);
+            await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(request.Status, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(request.Started.Task.IsCompleted, Is.False);
+            Assert.That(provider.FullRevalidations, Is.EqualTo(1));
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A change between dequeue and execution is still caught by the check before execution.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StaleAdmissionEvidenceBeforeExecutionUsesFullRevalidationStatusAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling, IssueEvidence = true };
+            NodeId token = provider.AddOwner("A");
+            provider.EvidenceCheck = check =>
+            {
+                if (check == 1)
+                {
+                    return true;
+                }
+                provider.ReplaceBinding(token, "channel");
+                return false;
+            };
+            using var server = new QueueServer(provider, workers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var request = new TestRequest(token);
+            server.Enqueue(request);
+            await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(request.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(request.Started.Task.IsCompleted, Is.False);
+            Assert.That(provider.EvidenceChecks, Is.EqualTo(2));
+            Assert.That(provider.FullRevalidations, Is.EqualTo(1));
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task ProviderFailureFaultsOnlyThatRequestAndKeepsTheWorkerAliveAsync(bool useFairScheduling)
@@ -1984,7 +2069,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// Provides deterministic owner limits and admission-race hooks for queue regressions.
         /// </summary>
-        private sealed class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider
+        private sealed class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
+            IResourceIsolationAdmissionEvidence
         {
             public TestProvider(
                 long executionCapacity = 100,
@@ -2117,6 +2203,40 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             /// <summary>
+            /// Returns admission evidence with each classification; off by default.
+            /// </summary>
+            public bool IssueEvidence { get; set; }
+
+            /// <summary>
+            /// Decides each evidence check; the argument counts the checks from one.
+            /// </summary>
+            public Func<int, bool> EvidenceCheck { get; set; } = _ => true;
+
+            public int EvidenceChecks => Volatile.Read(ref m_evidenceChecks);
+
+            public int FullRevalidations => Volatile.Read(ref m_fullRevalidations);
+
+            ResourceIsolationOwner IResourceIsolationAdmissionEvidence.Classify(
+                SecureChannelContext channelContext,
+                NodeId authenticationToken,
+                bool sessionEstablishment,
+                bool controlRequest,
+                out object? evidence)
+            {
+                ResourceIsolationOwner owner = Classify(
+                    channelContext, authenticationToken, sessionEstablishment, controlRequest);
+                evidence = IssueEvidence ? owner : null;
+                return owner;
+            }
+
+            bool IResourceIsolationAdmissionEvidence.IsAdmissionCurrent(
+                object evidence,
+                SecureChannelContext channelContext)
+            {
+                return EvidenceCheck(Interlocked.Increment(ref m_evidenceChecks));
+            }
+
+            /// <summary>
             /// Distinguishes same-channel replacement from a missing or transferred binding.
             /// </summary>
             public StatusCode GetRevalidationStatus(
@@ -2126,6 +2246,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 bool sessionEstablishment = false,
                 bool controlRequest = false)
             {
+                Interlocked.Increment(ref m_fullRevalidations);
                 if (IsCurrent(owner, channelContext, authenticationToken, sessionEstablishment, controlRequest))
                 {
                     return StatusCodes.Good;
@@ -2255,6 +2376,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private readonly Dictionary<NodeId, (ResourceIsolationOwner Owner, string Channel)> m_bindings = [];
             private readonly Dictionary<(string Owner, ResourceIsolationStage Stage), long> m_ownerUsed = [];
             private long m_sharedCostUsed;
+            private int m_evidenceChecks;
+            private int m_fullRevalidations;
         }
     }
 }
