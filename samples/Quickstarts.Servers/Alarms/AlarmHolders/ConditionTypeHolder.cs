@@ -282,13 +282,21 @@ namespace Alarms
 
             if (enabling != alarm.EnabledState!.Id!.Value)
             {
-                alarm.SetEnableState(SystemContext, enabling);
                 alarm.Message!.Value = enabling ?
                     LocalizedText.From("Enabling") :
                     LocalizedText.From("Disabling alarm " + MapName);
 
-                // if disabled, it will not fire
-                ReportEvent();
+                // This runs before ConditionState.OnEnableCalled/OnDisableCalled change the EnabledState.
+                // A condition with AutoReportStateChanges reports that change itself; reporting here as well
+                // sent two Event Notifications for one Enable (Part 9 5.5.2: a change of EnabledState causes
+                // one ConditionType Event Notification).
+                if (!alarm.AutoReportStateChanges)
+                {
+                    alarm.SetEnableState(SystemContext, enabling);
+
+                    // if disabled, it will not fire
+                    ReportEvent();
+                }
             }
             else if (enabling)
             {
