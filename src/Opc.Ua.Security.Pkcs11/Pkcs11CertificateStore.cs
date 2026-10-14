@@ -297,9 +297,9 @@ namespace Opc.Ua.Security.Pkcs11
         {
             Pkcs11Token token = GetToken();
             byte[] encoded = certificate.RawData;
-            IReadOnlyList<KeyValuePair<byte[], byte[]>> onToken = token.FindCertificatesWithIds();
+            IReadOnlyList<KeyValuePair<byte[], byte[]?>> onToken = token.FindCertificatesWithIds();
 
-            foreach (KeyValuePair<byte[], byte[]> entry in onToken)
+            foreach (KeyValuePair<byte[], byte[]?> entry in onToken)
             {
                 if (entry.Key.AsSpan().SequenceEqual(encoded))
                 {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Security.Pkcs11
         private byte[] SelectObjectId(
             Pkcs11Token token,
             Certificate certificate,
-            IReadOnlyList<KeyValuePair<byte[], byte[]>> onToken)
+            IReadOnlyList<KeyValuePair<byte[], byte[]?>> onToken)
         {
             if (m_options != null && !m_options.ObjectId.IsNull && m_options.ObjectId.Length > 0)
             {
@@ -338,18 +338,18 @@ namespace Opc.Ua.Security.Pkcs11
 
             byte[] publicKey = certificate.PublicKey.EncodedKeyValue.RawData;
 
-            foreach (KeyValuePair<byte[], byte[]> entry in onToken)
+            foreach (KeyValuePair<byte[], byte[]?> entry in onToken)
             {
-                if (entry.Value.Length == 0)
+                if (entry.Value is not { Length: > 0 } candidateId)
                 {
                     continue;
                 }
 
                 using Certificate candidate = Certificate.FromRawData(entry.Key);
 
-                if (candidate.PublicKey.EncodedKeyValue.RawData.AsSpan().SequenceEqual(publicKey))
+                if (HasSamePublicKey(candidate, certificate))
                 {
-                    return entry.Value;
+                    return candidateId;
                 }
             }
 
@@ -370,16 +370,40 @@ namespace Opc.Ua.Security.Pkcs11
 #pragma warning restore CA5350
         }
 
+        /// <summary>
+        /// Whether two certificates carry the same public key: the key
+        /// algorithm, its encoded parameters (for an EC key the curve) and the
+        /// encoded key value must all be equal.
+        /// </summary>
+        private static bool HasSamePublicKey(Certificate a, Certificate b)
+        {
+            return string.Equals(a.PublicKey.Oid.Value, b.PublicKey.Oid.Value, StringComparison.Ordinal) &&
+                a.PublicKey.EncodedParameters.RawData.AsSpan()
+                    .SequenceEqual(b.PublicKey.EncodedParameters.RawData) &&
+                a.PublicKey.EncodedKeyValue.RawData.AsSpan()
+                    .SequenceEqual(b.PublicKey.EncodedKeyValue.RawData);
+        }
+
+        /// <summary>
+        /// Finds the CKA_ID of the key on the token the certificate belongs
+        /// to: an RSA key with the same modulus and public exponent, or an EC
+        /// key with the same point on the same curve.
+        /// </summary>
         private static byte[]? FindKeyId(Pkcs11Token token, Certificate certificate)
         {
             using (RSA? rsa = certificate.GetRSAPublicKey())
             {
                 if (rsa != null)
                 {
-                    byte[] modulus = rsa.ExportParameters(false).Modulus!;
+                    RSAParameters rsaParameters = rsa.ExportParameters(false);
+                    (CKA, byte[])[] rsaMatch =
+                    [
+                        (CKA.CKA_MODULUS, rsaParameters.Modulus!),
+                        (CKA.CKA_PUBLIC_EXPONENT, rsaParameters.Exponent!)
+                    ];
 
-                    return token.FindKeyId(CKO.CKO_PRIVATE_KEY, CKK.CKK_RSA, CKA.CKA_MODULUS, modulus) ??
-                        token.FindKeyId(CKO.CKO_PUBLIC_KEY, CKK.CKK_RSA, CKA.CKA_MODULUS, modulus);
+                    return token.FindKeyId(CKO.CKO_PRIVATE_KEY, CKK.CKK_RSA, rsaMatch) ??
+                        token.FindKeyId(CKO.CKO_PUBLIC_KEY, CKK.CKK_RSA, rsaMatch);
                 }
             }
 
@@ -396,10 +420,22 @@ namespace Opc.Ua.Security.Pkcs11
             parameters.Q.X.CopyTo(point, 1);
             parameters.Q.Y.CopyTo(point, 1 + parameters.Q.X.Length);
 
+            // CKA_EC_PARAMS holds the DER encoded curve, the same encoding as
+            // the parameters of the certificate's public key.
+            byte[] curve = certificate.PublicKey.EncodedParameters.RawData;
+
             // CKA_EC_POINT holds the DER encoded OCTET STRING; some modules
             // store the bare point instead.
-            return token.FindKeyId(CKO.CKO_PUBLIC_KEY, CKK.CKK_EC, CKA.CKA_EC_POINT, EncodeOctetString(point)) ??
-                token.FindKeyId(CKO.CKO_PUBLIC_KEY, CKK.CKK_EC, CKA.CKA_EC_POINT, point);
+            return token.FindKeyId(
+                    CKO.CKO_PUBLIC_KEY,
+                    CKK.CKK_EC,
+                    (CKA.CKA_EC_POINT, EncodeOctetString(point)),
+                    (CKA.CKA_EC_PARAMS, curve)) ??
+                token.FindKeyId(
+                    CKO.CKO_PUBLIC_KEY,
+                    CKK.CKK_EC,
+                    (CKA.CKA_EC_POINT, point),
+                    (CKA.CKA_EC_PARAMS, curve));
         }
 
         /// <summary>
@@ -502,13 +538,17 @@ namespace Opc.Ua.Security.Pkcs11
 
             Pkcs11Token token = GetToken();
 
-            foreach (KeyValuePair<byte[], byte[]> entry in token.FindCertificatesWithIds())
+            foreach (KeyValuePair<byte[], byte[]?> entry in token.FindCertificatesWithIds())
             {
                 Certificate candidate = Certificate.FromRawData(entry.Key);
 
                 try
                 {
-                    if (!Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
+                    // A certificate whose CKA_ID cannot be read cannot be linked
+                    // to its key; an empty id would select a key by the options
+                    // alone, which may belong to another certificate.
+                    if (entry.Value == null ||
+                        !Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
                     {
                         continue;
                     }

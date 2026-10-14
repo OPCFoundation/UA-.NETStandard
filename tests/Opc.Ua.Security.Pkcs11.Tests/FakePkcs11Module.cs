@@ -332,7 +332,15 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             {
                 var value = new Mock<IObjectAttribute>();
 
-                if (attribute == (ulong)CKA.CKA_VALUE)
+                if (UnreadableAttributes.Contains(attribute))
+                {
+                    // As Pkcs11Interop: the value of an attribute the token
+                    // reports as unreadable cannot be retrieved.
+                    value.SetupGet(a => a.CannotBeRead).Returns(true);
+                    value.Setup(a => a.GetValueAsByteArray())
+                        .Throws(new InvalidOperationException("The attribute cannot be read."));
+                }
+                else if (attribute == (ulong)CKA.CKA_VALUE)
                 {
                     value.Setup(a => a.GetValueAsByteArray()).Returns(target.Value);
                 }
@@ -343,6 +351,22 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 else if (attribute == (ulong)CKA.CKA_LABEL)
                 {
                     value.Setup(a => a.GetValueAsString()).Returns(target.Label);
+                }
+                else if (attribute == (ulong)CKA.CKA_MODULUS)
+                {
+                    value.Setup(a => a.GetValueAsByteArray()).Returns(target.Modulus ?? []);
+                }
+                else if (attribute == (ulong)CKA.CKA_PUBLIC_EXPONENT)
+                {
+                    value.Setup(a => a.GetValueAsByteArray()).Returns(target.PublicExponent ?? []);
+                }
+                else if (attribute == (ulong)CKA.CKA_EC_POINT)
+                {
+                    value.Setup(a => a.GetValueAsByteArray()).Returns(target.EcPoint ?? []);
+                }
+                else if (attribute == (ulong)CKA.CKA_EC_PARAMS)
+                {
+                    value.Setup(a => a.GetValueAsByteArray()).Returns(target.EcParams ?? []);
                 }
                 else
                 {
@@ -500,7 +524,11 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         {
             public byte[]? Modulus { get; init; }
 
+            public byte[]? PublicExponent { get; init; }
+
             public byte[]? EcPoint { get; init; }
+
+            public byte[]? EcParams { get; init; }
 
             public Dictionary<ulong, byte[]> Extra { get; init; } = [];
         }
@@ -550,13 +578,19 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             RSAParameters rsa = m_rsaKey.ExportParameters(false);
             ECParameters ecc = m_eccKey.ExportParameters(false);
             byte[] point = [0x04, .. ecc.Q.X!, .. ecc.Q.Y!];
+            byte[] curve;
+            using (Certificate eccCertificate = Certificate.FromRawData(EccCertificate))
+            {
+                curve = eccCertificate.PublicKey.EncodedParameters.RawData;
+            }
 
             m_objects.Add(new FakeObject(
                 Handle(1), (ulong)CKO.CKO_CERTIFICATE, 0, RsaId, "rsa", RsaCertificate));
             m_objects.Add(new FakeObject(
                 Handle(2), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, RsaId, "rsa", [])
             {
-                Modulus = rsa.Modulus
+                Modulus = rsa.Modulus,
+                PublicExponent = rsa.Exponent
             });
             m_objects.Add(new FakeObject(
                 Handle(3), (ulong)CKO.CKO_CERTIFICATE, 0, EccId, "ecc", EccCertificate));
@@ -566,7 +600,8 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 Handle(5), (ulong)CKO.CKO_PUBLIC_KEY, (ulong)CKK.CKK_EC, EccId, "ecc", [])
             {
                 // CKA_EC_POINT is the DER encoding of the ECPoint OCTET STRING.
-                EcPoint = [0x04, (byte)point.Length, .. point]
+                EcPoint = [0x04, (byte)point.Length, .. point],
+                EcParams = curve
             });
             m_nextHandle = 6;
         }
@@ -579,6 +614,24 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         public int CountObjects(CKO objectClass)
         {
             return m_objects.Count(o => o.ObjectClass == (ulong)objectClass);
+        }
+
+        /// <summary>
+        /// Attributes the token reports as unreadable (CKR_ATTRIBUTE_TYPE_INVALID
+        /// or CKR_ATTRIBUTE_SENSITIVE) on every object.
+        /// </summary>
+        public HashSet<ulong> UnreadableAttributes { get; } = [];
+
+        /// <summary>
+        /// Replaces the curve (CKA_EC_PARAMS) of the EC public key object, so
+        /// that the token holds the same point on another curve.
+        /// </summary>
+        /// <param name="ecParams">The DER encoded curve.</param>
+        public void SetEccPublicKeyCurve(byte[] ecParams)
+        {
+            int index = m_objects.FindIndex(o =>
+                o.ObjectClass == (ulong)CKO.CKO_PUBLIC_KEY && o.KeyType == (ulong)CKK.CKK_EC);
+            m_objects[index] = m_objects[index] with { EcParams = ecParams };
         }
 
         /// <summary>
@@ -636,6 +689,34 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             var request = new CertificateRequest(subject, m_eccKey, HashAlgorithmName.SHA256);
             using X509Certificate2 certificate = request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(2));
+            return certificate.RawData;
+        }
+
+        /// <summary>
+        /// Issues a certificate whose RSA public key has the modulus of the RSA
+        /// key the token holds but another public exponent, so it does not
+        /// belong to that key.
+        /// </summary>
+        /// <param name="subject">The subject of the new certificate.</param>
+        /// <returns>The DER encoded certificate.</returns>
+        public byte[] IssueRsaCertificateWithForeignExponent(string subject)
+        {
+            RSAParameters parameters = m_rsaKey.ExportParameters(false);
+            using var publicKey = RSA.Create();
+            publicKey.ImportParameters(new RSAParameters
+            {
+                Modulus = parameters.Modulus,
+                Exponent = [0x03]
+            });
+            using var issuerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var request = new CertificateRequest(
+                subject, publicKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using X509Certificate2 certificate = request.Create(
+                new X500DistinguishedName("CN=ForeignExponentIssuer"),
+                X509SignatureGenerator.CreateForECDsa(issuerKey),
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddYears(2),
+                [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
             return certificate.RawData;
         }
 
