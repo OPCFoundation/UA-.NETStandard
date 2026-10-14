@@ -328,7 +328,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 WotConversionResult<WotDocument> assetResult = await resolver
                     .ResolveAsync(asset).ConfigureAwait(false);
 
-                Assert.That(assetResult.Success, Is.True, pumpName);
+                Assert.That(
+                    assetResult.Success,
+                    Is.True,
+                    pumpName + Environment.NewLine + string.Join(
+                        Environment.NewLine,
+                        (assetResult.Diagnostics.ToArray() ?? Array.Empty<WotDiagnostic>()).Select(d => d.ToString())));
                 using WotDocument assetView = assetResult.Value!;
                 JsonElement root = assetView.RootElement;
                 Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
