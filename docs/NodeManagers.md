@@ -480,6 +480,8 @@ await manager.DeleteNodeAsync(manager.SystemContext, job.NodeId, cancellationTok
 
 Completion means final Value notifications entered **responses to real Publish
 requests**, not merely a queue, transport delivery or client acknowledgment.
+Only the terminal queue entry counts; an earlier equal-valued notification
+cannot satisfy the barrier.
 The barrier makes permission-checked final reads, preserves index ranges and
 protects pending terminal samples from overwrite. Ordinary refreshes should
 continue using `ClearChangeMasksAsync` without waiting for Publish requests.

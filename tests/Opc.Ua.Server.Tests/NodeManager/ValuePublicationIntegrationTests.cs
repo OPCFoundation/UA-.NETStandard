@@ -238,6 +238,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Publishing an older equal value cannot authorize removal before the intervening value and final entry.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        [CancelAfter(60_000)]
+        public async Task OlderEqualResponseDoesNotPermitNodeRemoval(
+            bool discardOldest,
+            CancellationToken cancellationToken)
+        {
+            uint subscriptionId = await SubscribeAsync(
+                3, cancellationToken, discardOldest: discardOldest).ConfigureAwait(false);
+            await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false);
+            MonitoredItem item = m_manager.GetItem(m_monitoredItemIds[subscriptionId]);
+            DateTime timestamp = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var finalValue = new DataValue(Variant.From(42), StatusCodes.Good, timestamp, timestamp);
+            var intermediateValue = new DataValue(Variant.From(11), StatusCodes.Good, timestamp, timestamp);
+            item.QueueValue(finalValue, ServiceResult.Good);
+            item.QueueValue(intermediateValue, ServiceResult.Good);
+            Task observation = item.WaitForValuePublicationAsync(
+                item.Session, finalValue, TimeSpan.FromSeconds(10), cancellationToken).AsTask();
+
+            Assert.That(await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false),
+                Is.EqualTo(finalValue));
+            Assert.ThrowsAsync<TimeoutException>(async () =>
+                await observation.WaitAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false));
+            Assert.That(m_manager.FindPredefinedNode<NodeState>(m_manager.Job.NodeId), Is.SameAs(m_manager.Job));
+            Assert.That(await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false),
+                Is.EqualTo(intermediateValue));
+            Assert.That(observation.IsCompleted, Is.False);
+            Assert.That(await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false),
+                Is.EqualTo(finalValue));
+            await observation.ConfigureAwait(false);
+
+            Assert.That(await m_manager.DeleteNodeAsync(
+                m_manager.SystemContext, m_manager.Job.NodeId, cancellationToken).ConfigureAwait(false), Is.True);
+            DataValue deleted = await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false);
+            Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        /// <summary>
         /// The bounded monitored queue retains the final sample under both overflow policies.
         /// </summary>
         [TestCase(true, 11)]

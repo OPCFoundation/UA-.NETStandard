@@ -112,8 +112,6 @@ namespace Opc.Ua.Server
             m_discardedValueHandler = discardedValueHandler!;
             m_monitoredItemId = monitoredItemId;
             m_discardOldest = false;
-            m_overflow = default;
-            m_overflowPending = false;
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
         }
@@ -146,8 +144,6 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
-            m_overflow = default;
-            m_overflowPending = false;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             SetSamplingInterval(samplingInterval);
         }
@@ -196,11 +192,10 @@ namespace Opc.Ua.Server
 
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
 
-            m_overflow = default;
-            m_overflowPending = false;
+            m_overflowIndex = -1;
             m_required = default;
             m_requiredError = null;
-            m_requiredPending = false;
+            m_requiredIndex = -1;
 
             // requeue the data.
             if (existingValues != null)
@@ -277,7 +272,7 @@ namespace Opc.Ua.Server
                 if (now < m_nextSampleTime)
                 {
                     if (!m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue) ||
-                        IsRequiredMarker(overwrittenValue))
+                        m_requiredIndex == m_dataValueQueue.ItemsInQueue - 1)
                     {
                         // The missing-node marker has to reach the Client, so it is never
                         // replaced. The sample arrived too soon to be queued in its own right,
@@ -293,15 +288,14 @@ namespace Opc.Ua.Server
                         m_nextSampleTime);
 
                     DataValue replacement = value;
-                    bool overwritesOverflow = m_overflowPending && m_overflow == overwrittenValue;
+                    bool overwritesOverflow = m_overflowIndex == m_dataValueQueue.ItemsInQueue - 1;
                     if (overwritesOverflow || overwrittenValue.StatusCode.Overflow)
                     {
                         SetOverflowBit(ref replacement, ref error);
                     }
                     if (overwritesOverflow)
                     {
-                        m_overflow = default;
-                        m_overflowPending = false;
+                        m_overflowIndex = -1;
                     }
                     // a value replaced because the next sampling interval has not elapsed
                     // is sampling, not a queue overflow: it is not counted as a discard
@@ -350,7 +344,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether a required missing-node marker is pending.
         /// </summary>
-        internal bool HasRequiredValues => m_requiredPending;
+        internal bool HasRequiredValues => m_requiredIndex >= 0;
 
         /// <summary>
         /// Deques the last item
@@ -384,11 +378,11 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void ReleaseRequiredValue(in DataValue value)
         {
-            if (IsRequiredMarker(value))
+            if (HasRequiredValues && AreEquivalentRequiredValues(m_required, value))
             {
                 m_required = default;
                 m_requiredError = null;
-                m_requiredPending = false;
+                m_requiredIndex = -1;
             }
         }
 
@@ -399,12 +393,14 @@ namespace Opc.Ua.Server
             bool noEventLog,
             bool retryOnEmpty)
         {
+            bool requiredAtHead = m_requiredIndex == 0;
+            bool overflowAtHead = m_overflowIndex == 0;
             bool dequeued = retryOnEmpty
                 ? DequeueWithRetry(out value, out error)
-                : m_dataValueQueue.Dequeue(out value, out error);
+                : TryDequeue(out value, out error);
             if (dequeued)
             {
-                wasRequired = IsRequiredMarker(value);
+                wasRequired = requiredAtHead;
                 if (wasRequired)
                 {
                     if (m_required.StatusCode.Overflow &&
@@ -415,14 +411,11 @@ namespace Opc.Ua.Server
                     }
                     m_required = default;
                     m_requiredError = null;
-                    m_requiredPending = false;
                 }
 
-                if (m_overflowPending && m_overflow == value)
+                if (overflowAtHead)
                 {
                     SetOverflowBit(ref value, ref error);
-                    m_overflow = default;
-                    m_overflowPending = false;
                 }
 
                 if (!noEventLog)
@@ -460,7 +453,8 @@ namespace Opc.Ua.Server
 
             // check if the latest value has initial dummy data
             if (m_dataValueQueue.TryPeekLastValue(out DataValue lastValue) &&
-                lastValue.StatusCode == StatusCodes.BadWaitingForInitialData)
+                lastValue.StatusCode == StatusCodes.BadWaitingForInitialData &&
+                m_requiredIndex != m_dataValueQueue.ItemsInQueue - 1)
             {
                 // overwrite the last value
                 m_dataValueQueue.OverwriteLastValue(value, error);
@@ -473,11 +467,11 @@ namespace Opc.Ua.Server
             {
                 if (!m_discardOldest)
                 {
-                    if (IsRequiredMarker(lastValue))
+                    if (m_requiredIndex == m_dataValueQueue.ItemsInQueue - 1)
                     {
                         // The missing-node marker has to reach the Client, so the incoming value
                         // is discarded instead of the marker, and the marker reports the loss.
-                        DiscardIncomingValue(value, lastValue);
+                        DiscardIncomingValue(value, m_requiredIndex);
                         return true;
                     }
 
@@ -494,12 +488,11 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                if (m_dataValueQueue.TryPeekOldestValue(out DataValue peekedOldest) &&
-                    IsRequiredMarker(peekedOldest))
+                if (m_requiredIndex == 0)
                 {
                     // The missing-node marker has to reach the Client, so the incoming value is
                     // discarded instead of the marker, and the marker reports the loss.
-                    DiscardIncomingValue(value, peekedOldest);
+                    DiscardIncomingValue(value, m_requiredIndex);
                     return true;
                 }
 
@@ -518,10 +511,9 @@ namespace Opc.Ua.Server
                 }
 
                 // the value that is now the oldest reports the loss.
-                if (m_dataValueQueue.TryPeekOldestValue(out DataValue oldestValue))
+                if (m_dataValueQueue.ItemsInQueue > 0)
                 {
-                    m_overflow = oldestValue;
-                    m_overflowPending = true;
+                    m_overflowIndex = 0;
                 }
 
                 m_dataValueQueue.Enqueue(value, error);
@@ -558,7 +550,7 @@ namespace Opc.Ua.Server
             ServiceResult error,
             bool replaceExisting)
         {
-            if (m_requiredPending)
+            if (HasRequiredValues)
             {
                 if (m_required.StatusCode == value.StatusCode ||
                     !replaceExisting)
@@ -572,7 +564,7 @@ namespace Opc.Ua.Server
             Enqueue(value, error);
             m_required = value;
             m_requiredError = error;
-            m_requiredPending = true;
+            m_requiredIndex = m_dataValueQueue.ItemsInQueue - 1;
         }
 
         private void ReplaceRequired(
@@ -611,17 +603,7 @@ namespace Opc.Ua.Server
             Enqueue(value, error);
             m_required = value;
             m_requiredError = error;
-            m_requiredPending = true;
-        }
-
-        /// <summary>
-        /// Gets whether the queued value is the pending missing-node marker.
-        /// </summary>
-        /// <param name="value">The queued value.</param>
-        private bool IsRequiredMarker(in DataValue value)
-        {
-            return m_requiredPending &&
-                AreEquivalentRequiredValues(m_required, value);
+            m_requiredIndex = m_dataValueQueue.ItemsInQueue - 1;
         }
 
         private static bool AreEquivalentRequiredValues(
@@ -637,13 +619,32 @@ namespace Opc.Ua.Server
         /// and lets the marker report the loss instead.
         /// </summary>
         /// <param name="value">The value that is not queued.</param>
-        /// <param name="marker">The marker that keeps its place.</param>
-        private void DiscardIncomingValue(DataValue value, DataValue marker)
+        /// <param name="markerIndex">The marker's unchanged position after dropping the incoming value.</param>
+        private void DiscardIncomingValue(DataValue value, int markerIndex)
         {
             m_discardedValueHandler?.Invoke();
             ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);
-            m_overflow = marker;
-            m_overflowPending = true;
+            m_overflowIndex = markerIndex;
+        }
+
+        /// <summary>
+        /// Advances transient entry positions only after a successful FIFO removal.
+        /// </summary>
+        private bool TryDequeue(out DataValue value, out ServiceResult error)
+        {
+            if (!m_dataValueQueue.Dequeue(out value, out error))
+            {
+                return false;
+            }
+            if (m_requiredIndex >= 0)
+            {
+                m_requiredIndex--;
+            }
+            if (m_overflowIndex >= 0)
+            {
+                m_overflowIndex--;
+            }
+            return true;
         }
 
         /// <summary>
@@ -659,7 +660,7 @@ namespace Opc.Ua.Server
             var spinWait = new SpinWait();
             for (int attempt = 0; attempt <= kMaxDrainAttempts; attempt++)
             {
-                if (m_dataValueQueue.Dequeue(out value, out error))
+                if (TryDequeue(out value, out error))
                 {
                     return true;
                 }
@@ -731,11 +732,14 @@ namespace Opc.Ua.Server
         private long m_nextSampleTime;
         private long m_samplingInterval;
         private readonly Action m_discardedValueHandler;
-        private DataValue m_overflow;
-        private bool m_overflowPending;
+
+        /// <summary>The FIFO position carrying pending overflow, or -1 when none is pending.</summary>
+        private int m_overflowIndex = -1;
         private DataValue m_required;
         private ServiceResult? m_requiredError;
-        private bool m_requiredPending;
+
+        /// <summary>The exact required entry's FIFO position, or -1 when no entry is protected.</summary>
+        private int m_requiredIndex = -1;
     }
 
     /// <summary>
