@@ -95,8 +95,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             m_pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(WotRegistryLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                "wrl",
+                Guid.NewGuid().ToString("N").Substring(0, 12));
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {

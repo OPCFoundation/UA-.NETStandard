@@ -90,7 +90,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
         {
             string root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
-                nameof(PreparedWotTestRuntime), Guid.NewGuid().ToString("N"));
+                "pwr", Guid.NewGuid().ToString("N").Substring(0, 12));
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
@@ -111,7 +111,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotProjectionCompatibilityMode compatibilityMode = WotProjectionCompatibilityMode.None)
         {
             var storage = new PreparedWotTestStorage(
-                Path.Combine(m_root, Guid.NewGuid().ToString("N")), m_forceLeasedContent);
+                Path.Combine(m_root, Guid.NewGuid().ToString("N").Substring(0, 12)), m_forceLeasedContent);
             m_storages.Add(storage);
             FileWotRegistryStore store = storage.OpenStore();
             Assert.That(store.SupportsPreparedCommits, Is.True);
