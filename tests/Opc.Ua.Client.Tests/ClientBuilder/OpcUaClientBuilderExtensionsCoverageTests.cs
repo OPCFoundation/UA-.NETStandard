@@ -350,6 +350,50 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(captured.IdentityProvider, Is.SameAs(provider));
         }
 
+        [Test]
+        public async Task ApplyManagedSessionOptionsRediscoveredEndpointValidatorFromSessionOptionsAsync()
+        {
+            RediscoveredEndpointValidator validator = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            RediscoveredEndpointValidator registered = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+            {
+                services.AddOpcUa().AddClient(opts =>
+                {
+                    opts.Configuration = CreateConfig();
+                    opts.Session = new ManagedSessionOptions
+                    {
+                        ValidateRediscoveredEndpoint = validator
+                    };
+                });
+                services.AddSingleton(registered);
+            }).ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.SameAs(validator));
+        }
+
+        [Test]
+        public async Task ApplyManagedSessionOptionsRediscoveredEndpointValidatorFromServicesAsync()
+        {
+            RediscoveredEndpointValidator registered = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+            {
+                services.AddOpcUa().AddClient(opts => opts.Configuration = CreateConfig());
+                services.AddSingleton(registered);
+            }).ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.SameAs(registered));
+        }
+
+        [Test]
+        public async Task ApplyManagedSessionOptionsWithoutRediscoveredEndpointValidatorAsync()
+        {
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
+                services.AddOpcUa().AddClient(opts => opts.Configuration = CreateConfig()))
+                .ConfigureAwait(false);
+
+            Assert.That(captured.ValidateRediscoveredEndpoint, Is.Null);
+        }
+
         private static Task<ManagedSessionOptions> CaptureAppliedSessionOptionsAsync(
             Action<ServiceCollection> configureServices)
         {

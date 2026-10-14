@@ -126,6 +126,19 @@ namespace Opc.Ua.Client
         public int? ConnectRateLimiterMaxConcurrency { get; init; }
 
         /// <summary>
+        /// Optional validator for the endpoint a reconnect rediscovers from
+        /// the server's discovery endpoint. It is installed on the
+        /// <see cref="ManagedSession"/> before the session connects, so that
+        /// every reconnect is covered; see
+        /// <see cref="ManagedSession.ValidateRediscoveredEndpoint"/>. When not
+        /// set, the dependency-injection path uses a
+        /// <see cref="RediscoveredEndpointValidator"/> registered in the
+        /// service collection. Default: <c>null</c> (the rediscovered endpoint
+        /// is used as it is).
+        /// </summary>
+        public RediscoveredEndpointValidator? ValidateRediscoveredEndpoint { get; init; }
+
+        /// <summary>
         /// When set, server-side redundancy failover is enabled using a
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to

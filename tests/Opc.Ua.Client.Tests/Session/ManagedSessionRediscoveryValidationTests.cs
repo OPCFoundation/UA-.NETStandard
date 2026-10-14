@@ -31,6 +31,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client.Tests.Stack.Client.Fakes;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -128,6 +130,184 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(endpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+        }
+
+        [Test]
+        public void UncertainResultKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    _ => DowngradeAsync(endpoint),
+                    (_, _, _) => new ValueTask<ServiceResult>(
+                        new ServiceResult(StatusCodes.UncertainNoCommunicationLastUsableValue)),
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public void NullResultKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    _ => DowngradeAsync(endpoint),
+                    (_, _, _) => new ValueTask<ServiceResult>((ServiceResult)null!),
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public void ThrowingValidatorKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            System.InvalidOperationException exception = Assert.ThrowsAsync<System.InvalidOperationException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    _ => DowngradeAsync(endpoint),
+                    (_, _, _) => throw new System.InvalidOperationException("validator failed"),
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.Message, Is.EqualTo("validator failed"));
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public void CancelledValidatorKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            using var cancellation = new CancellationTokenSource();
+
+            Assert.CatchAsync<System.OperationCanceledException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    _ => DowngradeAsync(endpoint),
+                    async (_, _, ct) =>
+                    {
+                        await cancellation.CancelAsync().ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
+                        return ServiceResult.Good;
+                    },
+                    cancellation.Token));
+
+            AssertEndpointInUseKept(endpoint);
+        }
+
+        [Test]
+        public void ValidatorThatIgnoresCancellationKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            using var cancellation = new CancellationTokenSource();
+
+            Assert.CatchAsync<System.OperationCanceledException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    _ => DowngradeAsync(endpoint),
+                    async (_, _, _) =>
+                    {
+                        await cancellation.CancelAsync().ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    },
+                    cancellation.Token));
+
+            AssertEndpointInUseKept(endpoint);
+        }
+
+        [Test]
+        public void FailedRefreshKeepsTheEndpointInUseWithoutCallingTheValidator()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            int calls = 0;
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    async _ =>
+                    {
+                        await DowngradeAsync(endpoint).ConfigureAwait(false);
+                        throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                    },
+                    (_, _, _) =>
+                    {
+                        calls++;
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    },
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(calls, Is.Zero);
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public void BuilderPutsTheValidatorIntoTheSessionOptions()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            RediscoveredEndpointValidator validator = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            var builder = new ManagedSessionBuilder(
+                new ApplicationConfiguration(telemetry) { ApplicationName = "rediscovery" },
+                telemetry);
+
+            ManagedSessionOptions options = builder.WithRediscoveredEndpointValidator(validator).Build();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.ValidateRediscoveredEndpoint, Is.SameAs(validator));
+                Assert.That(
+                    () => builder.WithRediscoveredEndpointValidator(null!),
+                    Throws.ArgumentNullException);
+            });
+        }
+
+        [Test]
+        public async Task CreateAsyncInstallsTheValidatorFromTheSessionOptionsAsync()
+        {
+            RediscoveredEndpointValidator validator = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            await using var channels = new SessionChannelHarness();
+            await using global::Opc.Ua.Client.ManagedSession session =
+                await global::Opc.Ua.Client.ManagedSession.CreateAsync(
+                    new ManagedSessionOptions
+                    {
+                        Endpoint = SessionChannelHarness.CreateEndpoint(),
+                        ValidateRediscoveredEndpoint = validator
+                    },
+                    channels.Configuration,
+                    new DefaultSessionFactory(channels.Telemetry),
+                    telemetry: channels.Telemetry,
+                    channelManager: channels.Manager,
+                    updateBeforeConnect: false).WaitAsync(System.TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(session.ValidateRediscoveredEndpoint, Is.SameAs(validator));
+        }
+
+        private static void AssertEndpointInUseKept(ConfiguredEndpoint endpoint)
+        {
+            Assert.That(
+                endpoint.Description.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(
+                endpoint.Description.SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.Basic256Sha256));
         }
 
         private static ConfiguredEndpoint CreateEndpoint()

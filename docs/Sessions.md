@@ -44,6 +44,7 @@ Everything below explains how these pieces fit together.
   - [`ManagedSessionFactory`](#managedsessionfactory)
   - [`ManagedSessionBuilder`](#managedsessionbuilder)
   - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
   - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
@@ -425,6 +426,70 @@ is consumed by the initial connection attempt only. Supplying that connection
 without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
+
+### Validating a rediscovered endpoint
+
+When a reconnect is rejected with a status that requires the endpoint to be
+refreshed (for example `BadCertificateInvalid` after the server replaced its
+certificate), `ManagedSession` reads the endpoint again from the server's
+discovery endpoint and recreates the session against it. Discovery runs before
+the new secure channel exists, so an application that must not silently accept
+a weaker endpoint registers a `RediscoveredEndpointValidator`. It receives the
+endpoint in use and the rediscovered one, and returns `ServiceResult.Good` to
+accept the rediscovered endpoint.
+
+The check is fail-closed: any result that is not Good, an exception or a
+cancellation restores the endpoint in use and fails the reconnect attempt,
+which the reconnect policy then retries. A Bad result is reported as it is;
+an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
+
+```csharp
+RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
+{
+    if (rediscovered.SecurityMode < current.SecurityMode)
+    {
+        return new ValueTask<ServiceResult>(
+            new ServiceResult(StatusCodes.BadSecurityModeRejected));
+    }
+    if (rediscovered.SecurityPolicyUri != current.SecurityPolicyUri)
+    {
+        return new ValueTask<ServiceResult>(
+            new ServiceResult(StatusCodes.BadSecurityPolicyRejected));
+    }
+    if (!rediscovered.ServerCertificate.IsEmpty &&
+        rediscovered.ServerCertificate != current.ServerCertificate)
+    {
+        // A renewed server certificate is still validated by the certificate
+        // validator when the channel opens; reject here only when the
+        // application pins the certificate.
+        return new ValueTask<ServiceResult>(
+            new ServiceResult(StatusCodes.BadCertificateInvalid));
+    }
+    return new ValueTask<ServiceResult>(ServiceResult.Good);
+};
+
+// Fluent API: installed before the session connects.
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithRediscoveredEndpointValidator(keepSecurity)
+    .ConnectAsync(ct);
+
+// Options snapshot passed to ManagedSession.CreateAsync.
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    ValidateRediscoveredEndpoint = keepSecurity
+};
+
+// Dependency injection: a registered validator is applied to every managed
+// session that IManagedSessionFactory connects, unless the session options
+// carry their own.
+services.AddSingleton(keepSecurity);
+```
+
+Setting `ManagedSession.ValidateRediscoveredEndpoint` on a connected session
+also works, but only covers reconnects that start afterwards; prefer one of
+the paths above.
 
 ### Generation-bound client requests
 

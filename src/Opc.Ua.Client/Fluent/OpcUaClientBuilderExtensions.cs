@@ -1398,6 +1398,14 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithConnectRateLimiter(connectGate);
             }
+
+            RediscoveredEndpointValidator? endpointValidator =
+                sessionOptions.ValidateRediscoveredEndpoint ??
+                sp.GetService<RediscoveredEndpointValidator>();
+            if (endpointValidator != null)
+            {
+                builder.WithRediscoveredEndpointValidator(endpointValidator);
+            }
         }
 
         private static IClientIdentityProvider? ResolveIdentityProvider(IServiceProvider sp)
