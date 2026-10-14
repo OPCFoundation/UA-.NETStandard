@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
@@ -223,9 +224,13 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// </summary>
         /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="assetId">The asset identifier.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> when called outside a server request.
+        /// </param>
         public async ValueTask<ServiceResult> DeleteAssetAsync(
             NodeId assetId,
-            CancellationToken ct)
+            CancellationToken ct,
+            IOperationContext? callerContext = null)
         {
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             AssetEntry? entry;
@@ -248,7 +253,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     else
                     {
                         await PersistDeletionIntentAsync(entry, ct).ConfigureAwait(false);
-                        decision = await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
+                        decision = await RemoveFromRegistryAsync(entry, callerContext, ct).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException)
@@ -1632,7 +1637,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private async ValueTask<ServiceResult> RemoveFromRegistryAsync(AssetEntry entry, CancellationToken ct)
+        private async ValueTask<ServiceResult> RemoveFromRegistryAsync(
+            AssetEntry entry,
+            IOperationContext? callerContext,
+            CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             AssetRegistryMirror? mirror = entry.RegistryMirror;
@@ -1652,10 +1660,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                     return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
                         "The backing deletion was confirmed by registry recovery; local cleanup will complete.");
                 }
-                WotRegistryMutationResult result = await mirror.Registry.DeleteResourceAsync(
-                    mirror.GroupId,
-                    mirror.ResourceId,
-                    cancellationToken: ct).ConfigureAwait(false);
+                WotRegistryMutationResult result = mirror.Registry is WotRegistryService contextual
+                    ? await contextual.DeleteResourceAsync(
+                        mirror.GroupId, mirror.ResourceId, null, callerContext, ct).ConfigureAwait(false)
+                    : await mirror.Registry.DeleteResourceAsync(
+                        mirror.GroupId,
+                        mirror.ResourceId,
+                        cancellationToken: ct).ConfigureAwait(false);
                 if (result.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning or WoTOutcomeEnum.Unchanged))
                 {
                     m_logger.RegistryBridgeDeleteRejected(entry.Name, result.Outcome, result.Message);

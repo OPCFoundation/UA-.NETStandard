@@ -615,7 +615,7 @@ namespace Opc.Ua.WotCon.Server
         {
             EnforceManagementAccess(context, "DeleteAsset");
             ServiceResult status = await m_registry
-                .DeleteAssetAsync(assetId, cancellationToken).ConfigureAwait(false);
+                .DeleteAssetAsync(assetId, cancellationToken, context.OperationContext).ConfigureAwait(false);
             return new DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult { ServiceResult = status };
         }
 
