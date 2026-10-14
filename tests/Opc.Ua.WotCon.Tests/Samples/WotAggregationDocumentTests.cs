@@ -624,6 +624,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
             duplicated.Add(document);
             duplicated.Add(document);
 
+            // The same identity spelled differently is one identity, not two witnesses.
+            var respelled = new WotNodeSetConverter.ArchiveContextIndex(options);
+            respelled.Add(document);
+            using WotDocument variant = WotDocument.Parse(Encoding.UTF8.GetBytes(text.Replace(
+                "nsu=http://opcfoundation.org/UA/DI/;i=", "ns=1;i=", StringComparison.Ordinal)), options);
+            respelled.Add(variant);
+
             var incomplete = new WotNodeSetConverter.ArchiveContextIndex(options);
             incomplete.Add(document);
             incomplete.MarkIncomplete("test bound");
@@ -638,6 +645,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.True,
                 "A foreign model sharing the namespace table must not validate this claim.");
             Assert.That(() => duplicated.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => respelled.Find(document), Throws.InvalidOperationException);
             Assert.That(() => incomplete.Find(document), Throws.InvalidOperationException);
             Assert.That(
                 alone.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),

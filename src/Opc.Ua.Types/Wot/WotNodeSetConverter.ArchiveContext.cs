@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -67,8 +68,12 @@ namespace Opc.Ua.Wot
         /// <remarks>
         /// A group is keyed by the model table (URI, version, publication date)
         /// together with the namespace table, never by the namespace table
-        /// alone: unrelated or conflicting exports can share a table. A group
-        /// whose partitions declare the same NodeId twice has conflicting
+        /// alone: unrelated or conflicting exports can share a table. An archive
+        /// that declares no model has no authoritative identity and neither
+        /// contributes to nor receives a context. Partitions of a group must agree
+        /// on the server URIs and on every alias they share, and their aliases are
+        /// merged into the context. A group whose partitions declare the same
+        /// NodeId twice (in any equivalent spelling) has conflicting
         /// native identities, and no sibling may override another, so asking
         /// for its context fails. The index is safe for concurrent use. A
         /// returned context is a completed snapshot that the index never
@@ -102,6 +107,10 @@ namespace Opc.Ua.Wot
                 {
                     return;
                 }
+                if (part.Models is not { Length: > 0 })
+                {
+                    return;
+                }
                 string key = ModelKey(part);
                 lock (m_lock)
                 {
@@ -110,9 +119,10 @@ namespace Opc.Ua.Wot
                         group = new Group(part);
                         m_groups.Add(key, group);
                     }
+                    group.Merge(part);
                     foreach (UANode node in part.Items ?? [])
                     {
-                        if (!group.NodeIds.Add(node.NodeId ?? string.Empty))
+                        if (!group.NodeIds.Add(Canonical(node.NodeId)))
                         {
                             group.Conflicted = true;
                         }
@@ -159,7 +169,7 @@ namespace Opc.Ua.Wot
                 {
                     throw new ArgumentNullException(nameof(document));
                 }
-                if (RestoreArchivePart(document, m_options) is not { } part)
+                if (RestoreArchivePart(document, m_options) is not { } part || part.Models is not { Length: > 0 })
                 {
                     return null;
                 }
@@ -182,11 +192,22 @@ namespace Opc.Ua.Wot
                     if (group.Context is null)
                     {
                         UANodeSet context = CopyDocumentSetHeader(group.Header);
+                        context.Aliases =
+                        [
+                            .. group.Aliases.Select(a => new NodeIdAlias { Alias = a.Key, Value = a.Value })
+                        ];
                         context.Items = [.. group.Items];
                         group.Context = context;
                     }
                     return group.Context;
                 }
+            }
+
+            private static string Canonical(string? nodeId)
+            {
+                return NodeId.TryParse(nodeId ?? string.Empty, out NodeId identity)
+                    ? identity.ToString()
+                    : nodeId ?? string.Empty;
             }
 
             private static string ModelKey(UANodeSet part)
@@ -229,11 +250,34 @@ namespace Opc.Ua.Wot
 
                 public UANodeSet Header { get; }
 
+                public Dictionary<string, string> Aliases { get; } = new(StringComparer.Ordinal);
+
                 public List<UANode> Items { get; } = [];
 
                 public HashSet<string> NodeIds { get; } = new(StringComparer.Ordinal);
 
                 public bool Conflicted { get; set; }
+
+                public void Merge(UANodeSet part)
+                {
+                    if (!(part.ServerUris ?? []).SequenceEqual(Header.ServerUris ?? [], StringComparer.Ordinal))
+                    {
+                        Conflicted = true;
+                    }
+                    foreach (NodeIdAlias alias in part.Aliases ?? [])
+                    {
+                        string name = alias.Alias ?? string.Empty;
+                        string value = alias.Value ?? string.Empty;
+                        if (!Aliases.TryGetValue(name, out string? existing))
+                        {
+                            Aliases.Add(name, value);
+                        }
+                        else if (!string.Equals(Canonical(existing), Canonical(value), StringComparison.Ordinal))
+                        {
+                            Conflicted = true;
+                        }
+                    }
+                }
 
                 public UANodeSet? Context { get; set; }
             }
