@@ -167,6 +167,9 @@ namespace Quickstarts.Servers
                     File.Delete(filePath);
                     return new RestoreSubscriptionResult(true, result);
                 }
+
+                // Nothing was stored: a successful restore of no subscriptions.
+                return new RestoreSubscriptionResult(true, []);
             }
             catch (Exception ex)
             {

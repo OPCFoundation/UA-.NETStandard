@@ -116,6 +116,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Whether <see cref="RestoreSubscriptionsAsync"/> continues when the
+        /// durable subscriptions cannot be restored. The default is
+        /// <c>false</c>: a subscription store that throws or reports a failed
+        /// restore, or a stored subscription that cannot be recreated, fails
+        /// the restore (and with it the startup). When <c>true</c> the failure
+        /// is only logged and the subscriptions concerned are lost.
+        /// </summary>
+        public bool ContinueOnRestoreFailure { get; set; }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -417,7 +427,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore durable subscriptions after a server restart
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <remarks>
+        /// A subscription store that throws or reports a failed restore, and a
+        /// stored subscription that cannot be recreated, fail the restore
+        /// unless <see cref="ContinueOnRestoreFailure"/> is set. When a stored
+        /// subscription fails, the store is not told that the restore completed,
+        /// so it keeps what it holds.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">The server is already running.</exception>
+        /// <exception cref="ServiceResultException">The subscription store failed.</exception>
+        /// <exception cref="AggregateException">One or more stored subscriptions could not
+        /// be restored; the inner exceptions carry the reasons.</exception>
         public virtual async ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             if (m_server.IsRunning)
@@ -440,20 +460,38 @@ namespace Opc.Ua.Server
                     .RestoreSubscriptionsAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
             {
                 m_logger.FailedToRestoreSubscriptions(ex);
-                return;
+                if (ContinueOnRestoreFailure)
+                {
+                    return;
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The durable subscriptions could not be read from the subscription store.",
+                    ex);
             }
 
-            if (!restoreResult.Success ||
-                restoreResult.Subscriptions == null ||
+            if (restoreResult == null || !restoreResult.Success)
+            {
+                if (ContinueOnRestoreFailure)
+                {
+                    return;
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The subscription store reported that the durable subscriptions could not be restored.");
+            }
+
+            if (restoreResult.Subscriptions == null ||
                 !restoreResult.Subscriptions.Any())
             {
                 return;
             }
 
             var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
+            List<Exception>? failures = null;
 
             foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
             {
@@ -464,9 +502,10 @@ namespace Opc.Ua.Server
                     subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
                 {
                     m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
+                    (failures ??= []).Add(ex);
                     continue;
                 }
 
@@ -475,6 +514,13 @@ namespace Opc.Ua.Server
             }
 
             m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
+
+            if (failures != null && !ContinueOnRestoreFailure)
+            {
+                throw new AggregateException(
+                    $"{failures.Count} of the stored durable subscriptions could not be restored.",
+                    failures);
+            }
 
             await m_subscriptionStore
                 .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
