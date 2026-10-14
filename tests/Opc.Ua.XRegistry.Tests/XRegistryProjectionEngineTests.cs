@@ -467,6 +467,7 @@ namespace Opc.Ua.XRegistry.Tests
             closing = true;
             await harness.Engine.DiscardSessionAsync(sessionId, CancellationToken.None)
                 .ConfigureAwait(false);
+            Assert.That(strategy.File.Discards, Is.EqualTo(new[] { sessionId }));
             Assert.That(create.IsCompleted, Is.False);
             strategy.File.Release();
             ServiceResult result = await create.ConfigureAwait(false);
@@ -3173,7 +3174,8 @@ namespace Opc.Ua.XRegistry.Tests
         private sealed class AsyncContentlessResourceFile :
             IXRegistryProjectedResourceFile,
             IXRegistryAsyncProjectedContentlessResourceFile,
-            IXRegistryProjectedResourceFileHandleForwarder
+            IXRegistryProjectedResourceFileHandleForwarder,
+            IXRegistryProjectedResourceSessionDiscard
         {
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -3185,6 +3187,14 @@ namespace Opc.Ua.XRegistry.Tests
             public Task Entered => m_entered.Task;
 
             public List<(uint Handle, CancellationToken Token)> Closes { get; } = [];
+
+            public List<NodeId> Discards { get; } = [];
+
+            public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+            {
+                Discards.Add(sessionId);
+                return default;
+            }
 
             public void Release()
             {
