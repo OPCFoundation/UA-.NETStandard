@@ -46,7 +46,7 @@ using Opc.Ua.GranulateDrying;
 namespace Opc.Ua.PlasticsRubber.Tests
 {
     /// <summary>
-    /// Explicit compiled registrations for the fourteen model-producing assemblies.
+    /// Explicit compiled registrations for the fourteen models in three producing assemblies.
     /// </summary>
     internal static class CompanionModels
     {
@@ -159,7 +159,7 @@ namespace Opc.Ua.PlasticsRubber.Tests
         /// Initializes one model contract without reflective activation.
         /// </summary>
         internal CompanionModel(
-            string project,
+            string clrNamespace,
             string uri,
             string name,
             int nodeCount,
@@ -167,7 +167,7 @@ namespace Opc.Ua.PlasticsRubber.Tests
             Action<NodeStateCollection, ISystemContext> load,
             Action<IEncodeableFactoryBuilder>? register)
         {
-            Project = project;
+            ClrNamespace = clrNamespace;
             Uri = uri;
             Name = name;
             NodeCount = nodeCount;
@@ -177,9 +177,9 @@ namespace Opc.Ua.PlasticsRubber.Tests
         }
 
         /// <summary>
-        /// Gets the project and CLR namespace.
+        /// Gets the generated CLR namespace, independently of its producing assembly.
         /// </summary>
-        internal string Project { get; }
+        internal string ClrNamespace { get; }
 
         /// <summary>
         /// Gets the wire model URI.

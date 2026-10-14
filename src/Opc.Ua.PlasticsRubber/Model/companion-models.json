@@ -60,7 +60,8 @@
         "UAObjectType": 69,
         "UAVariable": 722
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Model"
     },
     {
       "project": "Opc.Ua.Extrusion",
@@ -313,10 +314,11 @@
           "identifier": 7121,
           "nodeClass": "Variable"
         }
-      ]
+      ],
+      "modelDirectory": "GeneralTypes/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Line",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-2",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/ExtrusionLine/",
       "version": "2.00",
@@ -369,8 +371,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UADataType": 1,
@@ -379,10 +380,11 @@
         "UAObjectType": 10,
         "UAVariable": 211
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Line/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Extruder",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-3",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Extruder/",
       "version": "2.00",
@@ -435,8 +437,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UADataType": 1,
@@ -445,10 +446,11 @@
         "UAObjectType": 4,
         "UAVariable": 502
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Extruder/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.HaulOff",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-4",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/HaulOff/",
       "version": "2.00",
@@ -501,8 +503,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 6,
@@ -510,10 +511,11 @@
         "UAObjectType": 1,
         "UAVariable": 60
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "HaulOff/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.MeltPump",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-5",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/MeltPump/",
       "version": "2.00",
@@ -566,8 +568,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 8,
@@ -575,10 +576,11 @@
         "UAObjectType": 1,
         "UAVariable": 119
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "MeltPump/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Filter",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-6",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Filter/",
       "version": "2.00",
@@ -631,8 +633,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UADataType": 1,
@@ -641,10 +642,11 @@
         "UAObjectType": 3,
         "UAVariable": 284
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Filter/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Die",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-7",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Die/",
       "version": "2.00",
@@ -697,8 +699,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 3,
@@ -706,10 +707,11 @@
         "UAObjectType": 1,
         "UAVariable": 23
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Die/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Pelletizer",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-8",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Pelletizer/",
       "version": "2.00",
@@ -762,8 +764,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 8,
@@ -771,10 +772,11 @@
         "UAObjectType": 3,
         "UAVariable": 131
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Pelletizer/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Cutter",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-9",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Cutter/",
       "version": "2.00",
@@ -827,8 +829,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UADataType": 1,
@@ -837,10 +838,11 @@
         "UAObjectType": 4,
         "UAVariable": 97
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Cutter/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Calibrator",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-10",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calibrator/",
       "version": "2.00",
@@ -893,8 +895,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 114,
@@ -902,10 +903,11 @@
         "UAObjectType": 3,
         "UAVariable": 1126
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Calibrator/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Corrugator",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-11",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Corrugator/",
       "version": "2.00",
@@ -963,19 +965,18 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion",
-        "Opc.Ua.Extrusion.HaulOff"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAObject": 1,
         "UAObjectType": 1,
         "UAVariable": 9
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Corrugator/Model"
     },
     {
-      "project": "Opc.Ua.Extrusion.Calender",
+      "project": "Opc.Ua.Extrusion",
       "specification": "OPC 40084-12",
       "modelUri": "http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calender/",
       "version": "2.00",
@@ -1028,8 +1029,7 @@
         "Opc.Ua.Core",
         "Opc.Ua.Di",
         "Opc.Ua.Machinery",
-        "Opc.Ua.PlasticsRubber",
-        "Opc.Ua.Extrusion"
+        "Opc.Ua.PlasticsRubber"
       ],
       "nodeCounts": {
         "UAMethod": 5,
@@ -1037,7 +1037,8 @@
         "UAObjectType": 3,
         "UAVariable": 191
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Calender/Model"
     },
     {
       "project": "Opc.Ua.GranulateDrying",
@@ -1099,7 +1100,8 @@
         "UAObjectType": 11,
         "UAVariable": 4029
       },
-      "upstreamIdentifierDiscrepancies": []
+      "upstreamIdentifierDiscrepancies": [],
+      "modelDirectory": "Model"
     }
   ]
 }

@@ -59,7 +59,7 @@ namespace Opc.Ua.Extrusion.Client
     /// <summary>
     /// Typed composition workflows over the generated extrusion proxies.
     /// </summary>
-    public static class ExtrusionClientWorkflows
+    public static partial class ExtrusionClientWorkflows
     {
         /// <summary>
         /// Opens the actual extrusion-specific Machinery item state, including its execution submachine.
@@ -135,21 +135,6 @@ namespace Opc.Ua.Extrusion.Client
             MaintenanceTypeClient maintenance = await device.GetMaintenanceAsync(
                 device.Telemetry, cancellationToken).ConfigureAwait(false) ?? throw Missing("Maintenance");
             await maintenance.ResetAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Opens the exact OPC 40084-2 group/job methods, not a Machinery or ISA-95 replacement.
-        /// </summary>
-        public static async ValueTask<JobGroupsTypeClient> JobsAsync(
-            this ExtrusionLine_InterfaceTypeClient line,
-            CancellationToken cancellationToken = default)
-        {
-            if (line == null)
-            {
-                throw new ArgumentNullException(nameof(line));
-            }
-            return await line.GetJobGroupsAsync(line.Telemetry, cancellationToken).ConfigureAwait(false)
-                ?? throw Missing("JobGroups");
         }
 
         /// <summary>

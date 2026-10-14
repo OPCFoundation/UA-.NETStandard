@@ -4,7 +4,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Extrusion</PackageId>
     <RootNamespace>Opc.Ua.Extrusion</RootNamespace>
-    <Description>OPC 40084-1 model foundations: typed states, data types, client proxies and compiled model loading.</Description>
+    <Description>OPC 40084 parts 1 through 12 model foundations: typed states, data types, client proxies and compiled model loading.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -24,15 +24,136 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Remove="Model\Opc.Ua.Extrusion.NodeSet2.xml" />
-    <None Remove="Model\Opc.Ua.Extrusion.NodeIds.csv" />
-    <AdditionalFiles Include="Model\Opc.Ua.Extrusion.NodeSet2.xml">
+    <None Remove="GeneralTypes\Model\Opc.Ua.Extrusion.NodeSet2.xml" />
+    <None Remove="GeneralTypes\Model\Opc.Ua.Extrusion.NodeIds.csv" />
+    <AdditionalFiles Include="GeneralTypes\Model\Opc.Ua.Extrusion.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>Extrusion</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion</ModelSourceGeneratorPrefix>
       <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
     </AdditionalFiles>
-    <AdditionalFiles Include="Model\Opc.Ua.Extrusion.NodeIds.csv" />
+    <AdditionalFiles Include="GeneralTypes\Model\Opc.Ua.Extrusion.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Line\Model\Opc.Ua.Extrusion.Line.NodeSet2.xml" />
+    <None Remove="Line\Model\Opc.Ua.Extrusion.Line.NodeIds.csv" />
+    <AdditionalFiles Include="Line\Model\Opc.Ua.Extrusion.Line.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/ExtrusionLine/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionLine</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Line</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Line.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Line\Model\Opc.Ua.Extrusion.Line.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Extruder\Model\Opc.Ua.Extrusion.Extruder.NodeSet2.xml" />
+    <None Remove="Extruder\Model\Opc.Ua.Extrusion.Extruder.NodeIds.csv" />
+    <AdditionalFiles Include="Extruder\Model\Opc.Ua.Extrusion.Extruder.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Extruder/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionExtruder</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Extruder</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Extruder.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Extruder\Model\Opc.Ua.Extrusion.Extruder.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="HaulOff\Model\Opc.Ua.Extrusion.HaulOff.NodeSet2.xml" />
+    <None Remove="HaulOff\Model\Opc.Ua.Extrusion.HaulOff.NodeIds.csv" />
+    <AdditionalFiles Include="HaulOff\Model\Opc.Ua.Extrusion.HaulOff.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/HaulOff/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionHaulOff</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.HaulOff</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.HaulOff.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="HaulOff\Model\Opc.Ua.Extrusion.HaulOff.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="MeltPump\Model\Opc.Ua.Extrusion.MeltPump.NodeSet2.xml" />
+    <None Remove="MeltPump\Model\Opc.Ua.Extrusion.MeltPump.NodeIds.csv" />
+    <AdditionalFiles Include="MeltPump\Model\Opc.Ua.Extrusion.MeltPump.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/MeltPump/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionMeltPump</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.MeltPump</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.MeltPump.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="MeltPump\Model\Opc.Ua.Extrusion.MeltPump.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Filter\Model\Opc.Ua.Extrusion.Filter.NodeSet2.xml" />
+    <None Remove="Filter\Model\Opc.Ua.Extrusion.Filter.NodeIds.csv" />
+    <AdditionalFiles Include="Filter\Model\Opc.Ua.Extrusion.Filter.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Filter/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionFilter</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Filter</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Filter.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Filter\Model\Opc.Ua.Extrusion.Filter.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Die\Model\Opc.Ua.Extrusion.Die.NodeSet2.xml" />
+    <None Remove="Die\Model\Opc.Ua.Extrusion.Die.NodeIds.csv" />
+    <AdditionalFiles Include="Die\Model\Opc.Ua.Extrusion.Die.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Die/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionDie</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Die</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Die.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Die\Model\Opc.Ua.Extrusion.Die.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Pelletizer\Model\Opc.Ua.Extrusion.Pelletizer.NodeSet2.xml" />
+    <None Remove="Pelletizer\Model\Opc.Ua.Extrusion.Pelletizer.NodeIds.csv" />
+    <AdditionalFiles Include="Pelletizer\Model\Opc.Ua.Extrusion.Pelletizer.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Pelletizer/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionPelletizer</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Pelletizer</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Pelletizer.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Pelletizer\Model\Opc.Ua.Extrusion.Pelletizer.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Cutter\Model\Opc.Ua.Extrusion.Cutter.NodeSet2.xml" />
+    <None Remove="Cutter\Model\Opc.Ua.Extrusion.Cutter.NodeIds.csv" />
+    <AdditionalFiles Include="Cutter\Model\Opc.Ua.Extrusion.Cutter.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Cutter/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionCutter</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Cutter</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Cutter.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Cutter\Model\Opc.Ua.Extrusion.Cutter.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Calibrator\Model\Opc.Ua.Extrusion.Calibrator.NodeSet2.xml" />
+    <None Remove="Calibrator\Model\Opc.Ua.Extrusion.Calibrator.NodeIds.csv" />
+    <AdditionalFiles Include="Calibrator\Model\Opc.Ua.Extrusion.Calibrator.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calibrator/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionCalibrator</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Calibrator</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Calibrator.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Calibrator\Model\Opc.Ua.Extrusion.Calibrator.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Corrugator\Model\Opc.Ua.Extrusion.Corrugator.NodeSet2.xml" />
+    <None Remove="Corrugator\Model\Opc.Ua.Extrusion.Corrugator.NodeIds.csv" />
+    <AdditionalFiles Include="Corrugator\Model\Opc.Ua.Extrusion.Corrugator.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Corrugator/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionCorrugator</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Corrugator</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Corrugator.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Corrugator\Model\Opc.Ua.Extrusion.Corrugator.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Calender\Model\Opc.Ua.Extrusion.Calender.NodeSet2.xml" />
+    <None Remove="Calender\Model\Opc.Ua.Extrusion.Calender.NodeIds.csv" />
+    <AdditionalFiles Include="Calender\Model\Opc.Ua.Extrusion.Calender.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/Calender/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ExtrusionCalender</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Extrusion.Calender</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Extrusion.Calender.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Calender\Model\Opc.Ua.Extrusion.Calender.NodeIds.csv" />
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>

@@ -12,16 +12,23 @@ committed observations.
 
 ## Packages and ownership
 
-The twelve model assemblies remain the only owners of their standard
+One `Opc.Ua.Extrusion` model assembly owns all twelve parts' standard
 namespaces, identifiers, generated states, structures, method proxies and event
-records. The runtime packages consume those models:
+records. The family consists of exactly three extrusion packages:
 
 | Package | Responsibility |
 | --- | --- |
-| `Opc.Ua.Extrusion` and its eleven device model packages | Unmodified MIT-licensed OPC 40084 v2 models and generated interfaces. |
+| `Opc.Ua.Extrusion` | All twelve unmodified MIT-licensed OPC 40084 v2 models and generated interfaces. |
 | `Opc.Ua.PlasticsRubber.Server` / `.Client` | Shared OPC 40083 start/stop, monitoring/control, maintenance, configuration, MES, production-dataset and file behavior. |
 | `Opc.Ua.Extrusion.Server` | Concrete instance construction, exact optional-feature selection, instance identity, extrusion state projection, line jobs, cutter completion and events. |
 | `Opc.Ua.Extrusion.Client` | Discovery, generated device proxies, model-derived typed variable accessors, placeholder enumeration, common workflows and generated event decoding. |
+
+Source is organized by specification part: `GeneralTypes`, `Line`, `Extruder`,
+`HaulOff`, `MeltPump`, `Filter`, `Die`, `Pelletizer`, `Cutter`, `Calibrator`,
+`Corrugator` and `Calender`. Model inputs, generated client accessors and
+part-specific runtime entrypoints use those folders. CLR namespaces and
+per-part compiled loaders remain distinct; consumers reference the three
+family packages, not per-device packages.
 
 The common model's provenance is distinct: it is an independently authored
 1.03-compatible interface on the licensed 1.02 basis, **not** a redistributed

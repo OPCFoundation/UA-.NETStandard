@@ -137,9 +137,11 @@ def validate_assets():
     assert len({model["modelUri"] for model in manifest["models"]}) == 14
     derive = runpy.run_path(str(ROOT / "tools" / "nodesets" / "derive-identifier-table.py"))
     for model in manifest["models"]:
-        directory = ROOT / "src" / model["project"] / "Model"
-        xml = directory / (model["project"] + ".NodeSet2.xml")
-        guard = directory / (model["project"] + ".NodeIds.csv")
+        project_directory = ROOT / "src" / model["project"]
+        directory = project_directory / model["modelDirectory"]
+        prefix = model["clrNamespace"]
+        xml = directory / (prefix + ".NodeSet2.xml")
+        guard = directory / (prefix + ".NodeIds.csv")
         assert hashlib.sha256(xml.read_bytes()).hexdigest() == model["nodeSet"]["sha256"], model["project"]
         assert hashlib.sha256(guard.read_bytes()).hexdigest() == model["identifierGuard"]["sha256"], model["project"]
         imported = derive["NodeSet"](xml)
@@ -159,14 +161,24 @@ def validate_assets():
         assert declared.get("PublicationDate") == model["publicationDate"]
         assert [dict(child.attrib) for child in declared] == model["requiredModels"]
         assert sum(model["nodeCounts"].values()) == len(imported.nodes)
-        project = ET.parse(directory.parent / (model["project"] + ".csproj")).getroot()
+        project = ET.parse(project_directory / (model["project"] + ".csproj")).getroot()
+        inputs = [
+            item for item in project.findall("ItemGroup/AdditionalFiles")
+            if item.findtext("ModelSourceGeneratorModelUri") == model["modelUri"]
+        ]
+        assert len(inputs) == 1, model["modelUri"]
+        source = inputs[0]
+        assert project_directory.joinpath(*source.get("Include").split("\\")) == xml
+        assert source.findtext("ModelSourceGeneratorPrefix") == prefix
+        assert source.findtext("ModelSourceGeneratorName") == model["modelName"]
+        assert source.findtext("ModelSourceGeneratorIdentifierFile") == guard.name
         notices = [
             item for item in project.findall("ItemGroup/None")
             if item.get("PackagePath") == "licenses\\CompanionModels.NOTICE.txt"
         ]
         assert len(notices) == 1 and notices[0].get("Pack") == "true", model["project"]
         notice_path = notices[0].get("Include", notices[0].get("Update"))
-        assert directory.parent.joinpath(*notice_path.split("\\")).is_file(), model["project"]
+        assert project_directory.joinpath(*notice_path.split("\\")).is_file(), model["project"]
         references = {
             ref.get("Include").split("\\")[-1].removesuffix(".csproj")
             for ref in project.findall("ItemGroup/ProjectReference")
@@ -174,13 +186,13 @@ def validate_assets():
         assert set(model["projectDependencies"]).issubset(references)
         upstream = model["upstreamIdentifiers"]
         if upstream is not None:
-            data = (directory / (model["project"] + ".Upstream.NodeIds.csv")).read_bytes()
+            data = (directory / (prefix + ".Upstream.NodeIds.csv")).read_bytes()
             assert hashlib.sha256(data).hexdigest() == upstream["sha256"]
             published = set()
             actual = {int(row[1]): row for row in expected}
             exceptions = []
             for symbolic, numeric, node_class in derive["read_upstream"](
-                    directory / (model["project"] + ".Upstream.NodeIds.csv")):
+                    directory / (prefix + ".Upstream.NodeIds.csv")):
                 published.add(numeric)
                 if numeric not in actual:
                     exceptions.append({
@@ -199,7 +211,7 @@ def validate_assets():
         else:
             basis = model["nodeSet"]["basis"]
             assert hashlib.sha256((MODEL / basis["localPath"]).read_bytes()).hexdigest() == basis["sha256"]
-        print(f"PASS {model['project']}: {len(imported.nodes)} nodes and complete identifier guard")
+        print(f"PASS {prefix}: {len(imported.nodes)} nodes and complete identifier guard")
 
 
 def validate_detector(root):

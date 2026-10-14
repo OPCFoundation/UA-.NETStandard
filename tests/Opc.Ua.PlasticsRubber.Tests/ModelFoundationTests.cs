@@ -72,7 +72,7 @@ namespace Opc.Ua.PlasticsRubber.Tests
             foreach (CompanionModel model in CompanionModels.All.ToArray() ?? [])
             {
                 string path = Path.Combine(
-                    TestContext.CurrentContext.TestDirectory, "Model", model.Project + ".NodeSet2.xml");
+                    TestContext.CurrentContext.TestDirectory, "Model", model.ClrNamespace + ".NodeSet2.xml");
                 using var stream = new FileStream(
                     path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
                 using var reader = new StreamReader(stream);
@@ -91,14 +91,15 @@ namespace Opc.Ua.PlasticsRubber.Tests
             XElement declared = GetRoot(name).Element(s_ns + "Models")!.Element(s_ns + "Model")!;
             ModelDependencyAttribute[] metadata =
                 [.. model.Assembly.GetCustomAttributes<ModelDependencyAttribute>()];
-            ModelDependencyAttribute[] producers = [.. metadata.Where(item => item.Payload != null)];
+            ModelDependencyAttribute[] producers =
+                [.. metadata.Where(item => item.Payload != null && item.ModelUri == model.Uri)];
 
             Assert.That(producers, Has.Length.EqualTo(1));
             ModelDependencyAttribute own = producers[0];
             Assert.Multiple(() =>
             {
                 Assert.That(own.ModelUri, Is.EqualTo(model.Uri));
-                Assert.That(own.Prefix, Is.EqualTo(model.Project));
+                Assert.That(own.Prefix, Is.EqualTo(model.ClrNamespace));
                 Assert.That(own.Name, Is.EqualTo(model.Name));
                 Assert.That(own.Version, Is.EqualTo((string?)declared.Attribute("Version")));
                 Assert.That(
@@ -225,7 +226,7 @@ namespace Opc.Ua.PlasticsRubber.Tests
             {
                 string browseName = (string)type.Attribute("BrowseName")!;
                 string localName = browseName[(browseName.AsSpan().IndexOf(':') + 1)..];
-                Type? client = model.Assembly.GetType(model.Project + "." + localName + "Client");
+                Type? client = model.Assembly.GetType(model.ClrNamespace + "." + localName + "Client");
                 Assert.That(client, Is.Not.Null, browseName);
                 Assert.That(
                     client!.GetConstructor([typeof(ISessionClient), typeof(NodeId), typeof(ITelemetryContext)]),
@@ -298,14 +299,38 @@ namespace Opc.Ua.PlasticsRubber.Tests
                     nodes.Values.Count(node => node.NodeId.NamespaceIndex == index &&
                         node.NodeId.IdType == IdType.Numeric),
                     Is.EqualTo(model.NodeCount),
-                    model.Project);
+                    model.ClrNamespace);
             }
 
             ModelDependencyAttribute[] declarations = [.. (CompanionModels.All.ToArray() ?? [])
-                .SelectMany(model => model.Assembly.GetCustomAttributes<ModelDependencyAttribute>())
+                .Select(model => model.Assembly)
+                .Distinct()
+                .SelectMany(assembly => assembly.GetCustomAttributes<ModelDependencyAttribute>())
                 .Where(item => item.Payload != null)];
             Assert.That(declarations.Select(item => item.ModelUri), Is.Unique);
             Assert.That(declarations, Has.Length.EqualTo(14));
+        }
+
+        /// <summary>
+        /// All twelve extrusion parts have one producer without losing any model payload.
+        /// </summary>
+        [Test]
+        public void AllExtrusionPartsShareOneProducingAssembly()
+        {
+            CompanionModel[] models = [.. (CompanionModels.All.ToArray() ?? [])
+                .Where(model => model.Name.StartsWith("Extrusion", StringComparison.Ordinal))];
+            Assembly assembly = typeof(Extrusion.ExtrusionDeviceState).Assembly;
+            ModelDependencyAttribute[] producers = [.. assembly.GetCustomAttributes<ModelDependencyAttribute>()
+                .Where(item => item.Payload != null)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(models, Has.Length.EqualTo(12));
+                Assert.That(models.Select(model => model.Assembly), Is.All.SameAs(assembly));
+                Assert.That(assembly.GetName().Name, Is.EqualTo("Opc.Ua.Extrusion"));
+                Assert.That(producers.Select(item => item.ModelUri),
+                    Is.EquivalentTo(models.Select(model => model.Uri)));
+            });
         }
 
         /// <summary>

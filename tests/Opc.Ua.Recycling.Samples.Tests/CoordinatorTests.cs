@@ -453,7 +453,10 @@ namespace Opc.Ua.Recycling.Samples.Tests
         {
             await using (RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false))
             {
-                Assert.ThrowsAsync<IOException>(() => OpenAsync().AsTask());
+                Assert.ThrowsAsync<IOException>(async () =>
+                {
+                    await using RecyclingCoordinator unexpected = await OpenAsync().ConfigureAwait(false);
+                });
                 Assert.That(coordinator.Current.Tick, Is.Zero);
             }
             Assert.ThrowsAsync<InvalidDataException>(() =>

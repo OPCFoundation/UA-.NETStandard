@@ -330,7 +330,8 @@ startup. They never create an empty replacement run. A persistence failure stops
 and publishes unavailable status; recover by reopening the coordinator.
 
 The default physical provider supplies exclusive writer streams; a held `writer.lock` stream
-prevents a second local writer. Injected providers must preserve exclusive write handles,
+prevents a second local writer on Windows, Linux and macOS. This exclusivity lasts until the
+owning stream is disposed. Injected providers must preserve exclusive write handles,
 durable flushing, and atomic same-directory rename. This is **single-writer process-crash
 recovery**, not HA/consensus or a guarantee against filesystem/controller power-loss behavior.
 Do not share a state root among active replicas.

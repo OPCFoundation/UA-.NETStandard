@@ -84,6 +84,23 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(actual, Is.EquivalentTo(expected));
         }
 
+        /// <summary>
+        /// Each plastics/rubber family ships exactly its model, client and server packages.
+        /// </summary>
+        [TestCase("Extrusion")]
+        [TestCase("GranulateDrying")]
+        [TestCase("PlasticsRubber")]
+        public async Task ExpectedPackageInventoryIncludesOnlyModelClientAndServerAsync(string family)
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string prefix = "OPCFoundation.NetStandard.Opc.Ua." + family;
+            string[] actual = [.. lines.Select(line => line.Trim())
+                .Where(id => id == prefix || id.StartsWith(prefix + ".", StringComparison.Ordinal))];
+
+            Assert.That(actual, Is.EquivalentTo(new[] { prefix, prefix + ".Client", prefix + ".Server" }));
+        }
+
         [Test]
         public async Task AcceptsAUniformPreviewPackageSetAsync()
         {

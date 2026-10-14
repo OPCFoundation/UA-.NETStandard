@@ -3,6 +3,10 @@
 Typed clients for OPC 40084 parts 1–12, version 2.00, on the application's
 existing session or `ManagedSession`.
 
+All twelve wire models are supplied by the single `Opc.Ua.Extrusion` model
+package. Client entrypoints and generated accessors are organized in per-part
+source folders without changing their public namespaces.
+
 ```csharp
 services.AddOpcUa().AddClient(clientOptions).AddExtrusionClient();
 ExtrusionClient client = await services

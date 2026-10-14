@@ -1,60 +1,57 @@
 # Opc.Ua.Extrusion
 
-Information-model foundations based on OPC 40084-1: source-generated typed
-node states, data types, standard identifiers, client proxies, encodeable factory
-registration, and the `AddOpcUaExtrusion` compiled loader.
+All twelve **OPC 40084 version 2.00** information models in one package:
+source-generated typed node states, data types, identifiers, client proxies,
+factory registrations and compiled model loaders.
 
-## Model identity
+| Part | Source folder | CLR namespace |
+| --- | --- | --- |
+| 40084-1 | `GeneralTypes` | `Opc.Ua.Extrusion` |
+| 40084-2 | `Line` | `Opc.Ua.Extrusion.Line` |
+| 40084-3 | `Extruder` | `Opc.Ua.Extrusion.Extruder` |
+| 40084-4 | `HaulOff` | `Opc.Ua.Extrusion.HaulOff` |
+| 40084-5 | `MeltPump` | `Opc.Ua.Extrusion.MeltPump` |
+| 40084-6 | `Filter` | `Opc.Ua.Extrusion.Filter` |
+| 40084-7 | `Die` | `Opc.Ua.Extrusion.Die` |
+| 40084-8 | `Pelletizer` | `Opc.Ua.Extrusion.Pelletizer` |
+| 40084-9 | `Cutter` | `Opc.Ua.Extrusion.Cutter` |
+| 40084-10 | `Calibrator` | `Opc.Ua.Extrusion.Calibrator` |
+| 40084-11 | `Corrugator` | `Opc.Ua.Extrusion.Corrugator` |
+| 40084-12 | `Calender` | `Opc.Ua.Extrusion.Calender` |
 
-- Wire model URI: `http://opcfoundation.org/UA/PlasticsRubber/Extrusion_v2/GeneralTypes/`
-- Model version: `2.00`
-- Model publication: `2022-05-01T00:00:00Z`
-- CLR namespace: `Opc.Ua.Extrusion`
-- Generator name/prefix: `Extrusion` / `Opc.Ua.Extrusion`
+There are no separate per-device model packages. Each wire model URI has one
+producer, this assembly; each part retains its own namespace, model identity,
+compiled loader and factory registrations. Existing Core, DI, Machinery and
+plastics/rubber dependencies are reused rather than regenerated.
 
-Each wire model URI has exactly one producing assembly. Existing Core, DI,
-Machinery and IA model producers are reused, never regenerated in this package.
-The model version is independent of the NuGet package version.
+## Server and client use
 
-## Loading
+Use `Opc.Ua.Extrusion.Server` for provider-backed device behavior and
+`Opc.Ua.Extrusion.Client` for managed-session discovery, typed workflows and
+events. The three extrusion packages cover the complete family.
 
-```csharp
-using Opc.Ua.Extrusion;
-
-context.NamespaceUris.GetIndexOrAppend(Namespaces.Extrusion);
-nodes.AddOpcUaExtrusion(context);
-messageContext.Factory.Builder.AddOpcUaExtrusion().Commit();
-```
-
-`nodes` is a `NodeStateCollection`, `context` is the hosting `ISystemContext`, and
-`messageContext` is a `ServiceMessageContext`. Load dependency models first using
-their existing compiled loaders and register their data types explicitly as well.
-This package's factory extension registers only its own data types.
-Loading model declarations alone does not implement device behavior.
-Server/client runtimes are separate work; no runtime behavior or certification
-is claimed here.
+The server's `ExtrusionModelProvider` loads the models in dependency order.
+Direct users can call the per-part compiled loaders, including
+`AddOpcUaExtrusion`, `AddOpcUaExtrusionLine` and `AddOpcUaExtrusionExtruder`.
+Load dependencies and register their data types first. Model loading alone
+does not implement device behavior.
 
 ## Provenance
 
-- [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.GeneralTypes.NodeSet2.xml)
-- Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
-- SHA-256: `20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6`
+The twelve NodeSets and upstream identifier tables remain byte-for-byte copies
+of their individually MIT-licensed publications at UA-Nodeset revision
+`96a08945425d0295edb3607d2a38f6841ef44046`. Each source folder includes its
+model-specific provenance and loading instructions. The package contains
+`licenses/CompanionModels.NOTICE.txt`; hashes, identifier discrepancies and
+dependency headers are recorded in
+`src/Opc.Ua.PlasticsRubber/Model/companion-models.json`.
 
-The NodeSet is the byte-for-byte upstream publication with its individual MIT
-notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;
-`tools\nodesets\derive-identifier-table.py` derives the generator-compatible
-identifier guard without changing node identifiers.
-Where the published table and XML differ, the guard covers the XML nodes only.
-Every missing or surplus table row is recorded in the provenance manifest; no
-node or identifier is fabricated to reconcile the publications.
-
-The shared common model is the independently maintained implementation in
-`Opc.Ua.PlasticsRubber`, based on the MIT v1.02 model and authored v1.03 interface
-changes. It is not a redistributed official v1.03 NodeSet. Full source hashes and
-dependency headers are recorded in that package's `Model\companion-models.json`.
+The shared common model is the independently authored 1.03-compatible
+implementation on the MIT-licensed 1.02 basis in `Opc.Ua.PlasticsRubber`, not a
+redistributed official 1.03 NodeSet. No formal certification is claimed.
 
 ## Platforms
 
-This package follows the stack's library target-framework matrix. Generated
-registration and compiled loaders do not require reflection-based XML loading
-and are intended for NativeAOT applications.
+The package follows the stack's library target-framework matrix. Generated
+registrations and compiled loaders do not require reflection-based XML loading
+and support NativeAOT applications.

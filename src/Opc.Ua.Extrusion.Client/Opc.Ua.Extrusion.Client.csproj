@@ -17,17 +17,6 @@
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.PlasticsRubber.Client\Opc.Ua.PlasticsRubber.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Line\Opc.Ua.Extrusion.Line.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Extruder\Opc.Ua.Extrusion.Extruder.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.HaulOff\Opc.Ua.Extrusion.HaulOff.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.MeltPump\Opc.Ua.Extrusion.MeltPump.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Filter\Opc.Ua.Extrusion.Filter.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Die\Opc.Ua.Extrusion.Die.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Pelletizer\Opc.Ua.Extrusion.Pelletizer.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Cutter\Opc.Ua.Extrusion.Cutter.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Calibrator\Opc.Ua.Extrusion.Calibrator.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Corrugator\Opc.Ua.Extrusion.Corrugator.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Extrusion.Calender\Opc.Ua.Extrusion.Calender.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

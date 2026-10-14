@@ -2,6 +2,10 @@
 
 Reusable server behavior for OPC 40084 parts 1–12, version 2.00.
 
+All twelve wire models are supplied by the single `Opc.Ua.Extrusion` model
+package. Device constructors and part-specific controllers live in per-part
+source folders; the shared runtime still owns the complete family.
+
 - Creates the actual generated Line, Extruder, HaulOff, MeltPump, Filter, Die,
   Pelletizer, Cutter, Calibrator, Corrugator and Calender types.
 - Selects optional features and real repeated equipment from the unchanged model

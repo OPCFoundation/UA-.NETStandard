@@ -58,10 +58,11 @@ src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
 # TODO: revisit the whitespace exception if upstream republishes these inputs without it.
 src/Opc.Ua.PlasticsRubber/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
 src/Opc.Ua.PlasticsRubber/Model/Basis/*.NodeSet2.xml -text whitespace=-blank-at-eol
-src/Opc.Ua.Extrusion*/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
-src/Opc.Ua.Extrusion*/Model/*.Upstream.NodeIds.csv -text
+src/Opc.Ua.PlasticsRubber/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeIds.csv -text whitespace=cr-at-eol
 src/Opc.Ua.GranulateDrying/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
-src/Opc.Ua.GranulateDrying/Model/*.Upstream.NodeIds.csv -text
+src/Opc.Ua.GranulateDrying/Model/*.NodeIds.csv -text whitespace=cr-at-eol
 
 # Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
 # fork messages are exact byte sequences, not documents. Line-ending translation
