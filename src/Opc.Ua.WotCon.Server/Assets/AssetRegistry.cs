@@ -1660,13 +1660,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                     return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
                         "The backing deletion was confirmed by registry recovery; local cleanup will complete.");
                 }
-                WotRegistryMutationResult result = mirror.Registry is WotRegistryService contextual
-                    ? await contextual.DeleteResourceAsync(
-                        mirror.GroupId, mirror.ResourceId, null, callerContext, ct).ConfigureAwait(false)
-                    : await mirror.Registry.DeleteResourceAsync(
-                        mirror.GroupId,
-                        mirror.ResourceId,
-                        cancellationToken: ct).ConfigureAwait(false);
+                WotRegistryMutationResult result = await mirror.Registry.DeleteResourceAsync(
+                    mirror.GroupId, mirror.ResourceId, null, callerContext, ct).ConfigureAwait(false);
                 if (result.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning or WoTOutcomeEnum.Unchanged))
                 {
                     m_logger.RegistryBridgeDeleteRejected(entry.Name, result.Outcome, result.Message);

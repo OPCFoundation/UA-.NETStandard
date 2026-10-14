@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -297,13 +298,15 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="groupId">The group ID.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
+            /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
                 string groupId,
-                long? expectedEpoch = null,
-                CancellationToken cancellationToken = default)
+                long? expectedEpoch,
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
-                return m_inner.DeleteGroupAsync(groupId, expectedEpoch, cancellationToken);
+                return m_inner.DeleteGroupAsync(groupId, expectedEpoch, callerContext, cancellationToken);
             }
 
             /// <summary>
@@ -410,17 +413,20 @@ namespace Opc.Ua.WotCon.Tests
             /// <param name="groupId">The group ID.</param>
             /// <param name="resourceId">The resource ID.</param>
             /// <param name="expectedEpoch">The expected epoch.</param>
+            /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
                 string groupId,
                 string resourceId,
-                long? expectedEpoch = null,
-                CancellationToken cancellationToken = default)
+                long? expectedEpoch,
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
                 return m_inner.DeleteResourceAsync(
                                 groupId,
                                 resourceId,
                                 expectedEpoch,
+                                callerContext,
                                 cancellationToken);
             }
 
@@ -455,18 +461,21 @@ namespace Opc.Ua.WotCon.Tests
             /// <param name="expectedEpoch">The expected epoch.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             /// <param name="enabled">The enabled flag supplied by the caller.</param>
+            /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
             public ValueTask<WotRegistryMutationResult> SetEnabledAsync(
                 string groupId,
                 string resourceId,
                 bool enabled,
-                long? expectedEpoch = null,
-                CancellationToken cancellationToken = default)
+                long? expectedEpoch,
+                IOperationContext? callerContext,
+                CancellationToken cancellationToken)
             {
                 return m_inner.SetEnabledAsync(
                                 groupId,
                                 resourceId,
                                 enabled,
                                 expectedEpoch,
+                                callerContext,
                                 cancellationToken);
             }
 

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -168,6 +168,140 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(Phases("begin"), Is.Not.Empty);
             Assert.That(Phases("begin"), Has.All.SameAs(context));
+        }
+
+        /// <summary>
+        /// Registry disable from a request hands the request context to the capture admission.
+        /// </summary>
+        [Test]
+        public async Task RegistrySetEnabledFalsePassesTheRequestContextToCaptureAdmissionAsync()
+        {
+            var context = new Mock<IOperationContext>().Object;
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.SetEnabledAsync(
+                WotRegistryGroups.ThingModels, "tm-a", false, null, context, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.SameAs(context));
+        }
+
+        /// <summary>
+        /// Registry disable from outside a request admits with no context.
+        /// </summary>
+        [Test]
+        public async Task RegistrySetEnabledFalseWithoutRequestContextAdmitsWithNullAsync()
+        {
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.SetEnabledAsync(WotRegistryGroups.ThingModels, "tm-a", false).ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.Null);
+        }
+
+        /// <summary>
+        /// A group delete from a request hands the request context to the capture admission.
+        /// </summary>
+        [Test]
+        public async Task DeleteGroupPassesTheRequestContextToCaptureAdmissionAsync()
+        {
+            var context = new Mock<IOperationContext>().Object;
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteGroupAsync(WotRegistryGroups.ThingModels, null, context, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.SameAs(context));
+        }
+
+        /// <summary>
+        /// A group delete from outside a request admits with no context.
+        /// </summary>
+        [Test]
+        public async Task DeleteGroupWithoutRequestContextAdmitsWithNullAsync()
+        {
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteGroupAsync(WotRegistryGroups.ThingModels).ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.Null);
+        }
+
+        /// <summary>
+        /// A Version delete from a request hands the request context to the capture admission.
+        /// </summary>
+        [Test]
+        public async Task DeleteVersionPassesTheRequestContextToCaptureAdmissionAsync()
+        {
+            var context = new Mock<IOperationContext>().Object;
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteVersionAsync(
+                WotRegistryGroups.ThingModels, "tm-a", "v1", null, context, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.SameAs(context));
+        }
+
+        /// <summary>
+        /// A Version delete from outside a request admits with no context.
+        /// </summary>
+        [Test]
+        public async Task DeleteVersionWithoutRequestContextAdmitsWithNullAsync()
+        {
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteVersionAsync(WotRegistryGroups.ThingModels, "tm-a", "v1").ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.Null);
+        }
+
+        /// <summary>
+        /// A projected-entity delete of the logical resource or of one Version hands the request context
+        /// to the capture admission.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DeleteProjectedEntityPassesTheRequestContextToCaptureAdmissionAsync(bool logical)
+        {
+            var context = new Mock<IOperationContext>().Object;
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteProjectedEntityAsync(
+                WotRegistryGroups.ThingModels, "tm-a", "v1", logical, null, context, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.SameAs(context));
+        }
+
+        /// <summary>
+        /// A projected-entity delete from outside a request admits with no context.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DeleteProjectedEntityWithoutRequestContextAdmitsWithNullAsync(bool logical)
+        {
+            await LoadTmAsync().ConfigureAwait(false);
+
+            await m_registry.DeleteProjectedEntityAsync(WotRegistryGroups.ThingModels, "tm-a", "v1", logical)
+                .ConfigureAwait(false);
+
+            Assert.That(Phases("begin"), Is.Not.Empty);
+            Assert.That(Phases("begin"), Has.All.Null);
+        }
+
+        private async Task LoadTmAsync()
+        {
+            await RegisterTmAsync("tm-a").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            ClearObserved();
         }
 
         private IReadOnlyList<IOperationContext?> Phases(string phase)

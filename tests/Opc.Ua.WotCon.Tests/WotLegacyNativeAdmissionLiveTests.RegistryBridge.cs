@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -132,12 +133,15 @@ namespace Opc.Ua.WotCon.Tests
                     registry.UpsertResourceAsync(request, token));
             bool refuse = true;
             bridge.Setup(value => value.DeleteResourceAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
-                .Returns((string group, string resource, long? epoch, CancellationToken token) =>
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    string group, string resource, long? epoch, IOperationContext? callerContext,
+                    CancellationToken token) =>
                 {
                     if (!refuse)
                     {
-                        return registry.DeleteResourceAsync(group, resource, epoch, token);
+                        return registry.DeleteResourceAsync(group, resource, epoch, callerContext, token);
                     }
                     if (exception)
                     {
@@ -175,7 +179,8 @@ namespace Opc.Ua.WotCon.Tests
             await fixture.Client.DeleteAssetAsync(asset.AssetId);
 
             bridge.Verify(value => value.DeleteResourceAsync(
-                assigned.GroupId, assigned.ResourceId, null, It.IsAny<CancellationToken>()), Times.Exactly(2));
+                assigned.GroupId, assigned.ResourceId, null,
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
             Assert.That(registry.Current.AllResources(), Is.Empty);
             ReadResponse removed = await fixture.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
                 [new ReadValueId { NodeId = asset.AssetId, AttributeId = Attributes.NodeClass }], default);

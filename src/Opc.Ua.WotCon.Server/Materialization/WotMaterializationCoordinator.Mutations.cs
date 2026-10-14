@@ -75,7 +75,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             _ = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
             if (enabled)
             {
-                return await m_registry.SetEnabledAsync(groupId, resourceId, true, expectedEpoch, cancellationToken)
+                return await m_registry.SetEnabledAsync(
+                    groupId, resourceId, true, expectedEpoch, callerContext, cancellationToken)
                     .ConfigureAwait(false);
             }
             WotDeleteOutcome outcome = await ApplyResourceLifecycleAsync(
@@ -95,11 +96,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="versionId">The version ID.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
         internal async ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
-            string groupId, string resourceId, string versionId, long? expectedEpoch, CancellationToken cancellationToken)
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch,
+            CancellationToken cancellationToken,
+            IOperationContext? callerContext = null)
         {
             WotDeleteOutcome outcome = await ApplyResourceLifecycleAsync(
-                groupId, resourceId, true, DeletePolicy, expectedEpoch, "DeleteVersion", cancellationToken, versionId)
+                groupId, resourceId, true, DeletePolicy, expectedEpoch, "DeleteVersion", cancellationToken, versionId,
+                callerContext: callerContext)
                 .ConfigureAwait(false);
             return new WotRegistryMutationResult(outcome.Delete.Outcome,
                 m_registry.Current.FindResource(groupId, resourceId), outcome.Delete.Generation, [], outcome.Delete.Message);
@@ -111,12 +119,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="groupId">The group ID.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
         internal async ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
-            string groupId, long? expectedEpoch, CancellationToken cancellationToken)
+            string groupId,
+            long? expectedEpoch,
+            CancellationToken cancellationToken,
+            IOperationContext? callerContext = null)
         {
             WotDeleteOutcome outcome = await ApplyResourceLifecycleAsync(
                 groupId, string.Empty, true, DeletePolicy, expectedEpoch, "DeleteGroup", cancellationToken,
-                deleteGroup: true).ConfigureAwait(false);
+                deleteGroup: true, callerContext: callerContext).ConfigureAwait(false);
             return new WotRegistryMutationResult(
                 outcome.Delete.Outcome, null, outcome.Delete.Generation, [], outcome.Delete.Message);
         }

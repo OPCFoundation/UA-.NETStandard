@@ -366,11 +366,14 @@ namespace Opc.Ua.WotCon.Tests
             Mock<IWotAssetProvider> provider = TrackProvider(harness);
             AssetEntry entry = await CreatePopulatedAssetAsync(harness).ConfigureAwait(false);
             bridge.Setup(value => value.DeleteResourceAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
-                .Returns(async (string groupId, string resourceId, long? epoch, CancellationToken token) =>
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    string groupId, string resourceId, long? epoch, IOperationContext? callerContext,
+                    CancellationToken token) =>
                 {
                     WotRegistryMutationResult deleted = await registry.DeleteResourceAsync(
-                        groupId, resourceId, epoch, token).ConfigureAwait(false);
+                        groupId, resourceId, epoch, callerContext, token).ConfigureAwait(false);
                     return new WotRegistryMutationResult(
                         WoTOutcomeEnum.Warning, deleted.Resource, deleted.Generation, [], "Committed with a warning.");
                 });
@@ -685,7 +688,8 @@ namespace Opc.Ua.WotCon.Tests
             BaseDataVariableState property = entry.Properties.Single().Value.Variable;
             byte[] persisted = File.ReadAllBytes(Path.Combine(m_tempFolder, "Pump01.jsonld"));
             bridge.Setup(value => value.DeleteResourceAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<WotRegistryMutationResult>(new WotRegistryMutationResult(
                     outcome, null, registry.Current.Generation, [], "The backing delete was refused.")
                 {
@@ -703,12 +707,16 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(entry.Properties.Single().Value.Variable, Is.SameAs(property));
             Assert.That(registry.Current.AllResources().Single(), Is.SameAs(assigned));
             bridge.Verify(value => value.DeleteResourceAsync(
-                assigned.GroupId, assigned.ResourceId, null, It.IsAny<CancellationToken>()), Times.Once);
+                assigned.GroupId, assigned.ResourceId, null,
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()), Times.Once);
 
             bridge.Setup(value => value.DeleteResourceAsync(
-                assigned.GroupId, assigned.ResourceId, It.IsAny<long?>(), It.IsAny<CancellationToken>()))
-                .Returns((string group, string resource, long? epoch, CancellationToken token) =>
-                    registry.DeleteResourceAsync(group, resource, epoch, token));
+                assigned.GroupId, assigned.ResourceId, It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    string group, string resource, long? epoch, IOperationContext? callerContext,
+                    CancellationToken token) =>
+                    registry.DeleteResourceAsync(group, resource, epoch, callerContext, token));
             ServiceResult retried = await harness.Registry.DeleteAssetAsync(entry.Asset.NodeId, CancellationToken.None)
                 .ConfigureAwait(false);
             AssertDeletedAsset(harness, entry, provider, registry, retried);
@@ -797,11 +805,15 @@ namespace Opc.Ua.WotCon.Tests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<long?>(),
+                    It.IsAny<IOperationContext?>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<string, string, long?, CancellationToken>((groupId, resourceId, _, _) =>
+                .Callback<string, string, long?, IOperationContext?, CancellationToken>(
+                    (groupId, resourceId, _, _, _) =>
                     deletes?.Add((groupId, resourceId)))
-                .Returns((string groupId, string resourceId, long? expectedEpoch, CancellationToken ct) =>
-                    registry.DeleteResourceAsync(groupId, resourceId, expectedEpoch, ct));
+                .Returns((
+                    string groupId, string resourceId, long? expectedEpoch, IOperationContext? callerContext,
+                    CancellationToken ct) =>
+                    registry.DeleteResourceAsync(groupId, resourceId, expectedEpoch, callerContext, ct));
             return bridge;
         }
 
