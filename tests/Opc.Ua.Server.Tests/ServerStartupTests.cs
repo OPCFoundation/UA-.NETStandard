@@ -119,10 +119,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// The server only tracks a listener once it opened, so a listener
         /// that fails to open has no other owner: the server disposes it
-        /// before it rethrows the error.
+        /// before it rethrows the error. A dispose that fails as well is
+        /// logged and does not replace the open error.
         /// </summary>
-        [Test]
-        public async Task CreateServiceHostEndpointDisposesListenerThatFailedToOpenAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateServiceHostEndpointDisposesListenerThatFailedToOpenAsync(bool disposeFails)
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
@@ -137,6 +139,13 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<ITransportListenerCallback>(),
                         It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask(Task.FromException(bindError)));
+                if (disposeFails)
+                {
+                    listener
+                        .Setup(value => value.DisposeAsync())
+                        .Returns(new ValueTask(Task.FromException(
+                            new InvalidOperationException("Dispose failed."))));
+                }
 
                 IOException thrown = Assert.ThrowsAsync<IOException>(async () =>
                     await server.CreateServiceHostEndpointAsync(

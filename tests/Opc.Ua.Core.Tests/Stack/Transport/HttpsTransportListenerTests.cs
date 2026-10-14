@@ -40,6 +40,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 #endif
 
@@ -867,11 +868,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// When the cleanup after a failed start fails too, here because the
+        /// host throws on dispose, the pinned TLS certificate is still released
+        /// and both errors are reported.
+        /// </summary>
+        [Test]
+        public async Task FailedStartWithFailingCleanupStillReleasesPinnedTlsCertificateAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=Https Failed Cleanup").CreateForRSA();
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var startError = new InvalidOperationException("No TLS certificate.");
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Throws(startError);
+            var cleanupError = new InvalidOperationException("Host dispose failed.");
+            var host = new Mock<IHost>();
+            host.Setup(value => value.Dispose()).Throws(cleanupError);
+            SetPrivateField(listener, "m_serverCertProvider", registry.Object);
+            SetPrivateField(listener, "m_host", host.Object);
+            SetPrivateField(listener, "m_pinnedServerCert", tlsCertificate.AddRef());
+
+            AggregateException error = Assert.ThrowsAsync<AggregateException>(
+                async () => await listener.StartAsync().ConfigureAwait(false));
+
+            Assert.That(error.InnerExceptions, Is.EqualTo(new Exception[] { startError, cleanupError }));
+            Assert.That(GetPrivateField(listener, "m_pinnedServerCert"), Is.Null);
+        }
+
         private static object? GetPrivateField(HttpsTransportListener listener, string name)
         {
             return typeof(HttpsTransportListener)
                 .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
                 .GetValue(listener);
+        }
+
+        private static void SetPrivateField(HttpsTransportListener listener, string name, object value)
+        {
+            typeof(HttpsTransportListener)
+                .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(listener, value);
         }
 
         private static X509Certificate2 CreateTlsTestCertificate(string subject)

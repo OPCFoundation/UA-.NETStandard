@@ -425,9 +425,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            await DisposeAsyncCore().ConfigureAwait(false);
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            try
+            {
+                await DisposeAsyncCore().ConfigureAwait(false);
+            }
+            finally
+            {
+                // Release the pinned TLS certificate even when shutting
+                // down the host or the shared-host lease failed.
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
         }
 
         /// <summary>
