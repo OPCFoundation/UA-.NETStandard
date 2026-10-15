@@ -1010,6 +1010,51 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// CTT Interoperability CreateSession with SecurityPolicy Basic128Rsa15: the client
+        /// checks the length of the session serverNonce (OPC 10000-4 5.7.2.2: "between 32
+        /// and 128 bytes inclusive. The Client shall check the length."). With a Sign-only
+        /// channel and a UserName token the client rejects a short nonce with
+        /// Bad_NonceInvalid, so this connect fails when the server returns 16 bytes.
+        /// </summary>
+        [Test]
+        [Order(259)]
+        public async Task ConnectBasic128Rsa15SignWithUserNameAcceptsServerNonceAsync()
+        {
+            EndpointDescriptionCollection endpoints = Endpoints ??
+                await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            EndpointDescription signEndpoint = endpoints.FirstOrDefault(e =>
+                e.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15 &&
+                e.SecurityMode == MessageSecurityMode.Sign &&
+                e.EndpointUrl.StartsWith(ServerUrl.Scheme, StringComparison.Ordinal));
+            if (signEndpoint == null ||
+                !ClientFixture.Config.SecurityConfiguration.SupportedSecurityPolicies
+                    .Contains(SecurityPolicies.Basic128Rsa15))
+            {
+                NUnit.Framework.Assert.Ignore("No Basic128Rsa15 Sign endpoint available.");
+            }
+
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            endpointConfiguration.OperationTimeout = ClientFixture.OperationTimeout;
+            var endpoint = new ConfiguredEndpoint(null, signEndpoint, endpointConfiguration);
+            var userIdentity = new UserIdentity("user1", "password"u8);
+
+            ISession session = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.IsTrue(session.Connected);
+                DataValue state = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State)
+                    .ConfigureAwait(false);
+                Assert.IsTrue(StatusCode.IsGood(state.StatusCode));
+            }
+            finally
+            {
+                await session.CloseAsync(5_000, true).ConfigureAwait(false);
+                session.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Open a session on a channel using a usertokenpolicy from another endpoint, then reconnect (activate)
         /// </summary>
         [Test]

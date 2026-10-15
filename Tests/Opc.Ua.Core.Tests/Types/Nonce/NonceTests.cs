@@ -69,6 +69,21 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         }
 
         /// <summary>
+        /// The SecureChannel nonce length of Basic128Rsa15 stays 16 bytes. OPC 10000-4
+        /// 5.6.2.2 requires OpenSecureChannel nonces to have "a length equal to the
+        /// SecureChannelNonceLength defined for the SecurityPolicy"; the 32 byte minimum
+        /// of OPC 10000-4 5.7.2.2 applies to the separate session nonce only.
+        /// </summary>
+        [Test]
+        public void SecureChannelNonceLengthOfBasic128Rsa15IsSixteenBytes()
+        {
+            Assert.AreEqual(16u, Ua.Nonce.GetNonceLength(SecurityPolicies.Basic128Rsa15));
+
+            var nonce = Ua.Nonce.CreateNonce(SecurityPolicies.Basic128Rsa15);
+            Assert.AreEqual(16, nonce.Data.Length);
+        }
+
+        /// <summary>
         /// Test the CreateEccNonce - securitypolicy and nonceData
         /// </summary>
         [Theory]
