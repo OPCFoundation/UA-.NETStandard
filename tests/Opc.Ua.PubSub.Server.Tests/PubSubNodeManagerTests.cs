@@ -462,6 +462,109 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets instance methods are registered and callable")]
+        public async Task CreateAddressSpaceAsync_GeneratedPublishedDataSetsRegistersBrowseableMethodsAndArguments()
+        {
+            using var harness = new Harness(materializePublishedDataSets: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            var publishSubscribe = (PublishSubscribeState)harness.PublishSubscribeObject;
+            DataSetFolderState publishedDataSets = publishSubscribe.PublishedDataSets!;
+            var expectedMethods = new (uint MethodId, uint InputArgumentsId, uint? OutputArgumentsId)[]
+            {
+                (PublishedDataSetsNodeIds.AddPublishedDataItems,
+                    PublishedDataSetsNodeIds.AddPublishedDataItemsInputArguments,
+                    PublishedDataSetsNodeIds.AddPublishedDataItemsOutputArguments),
+                (PublishedDataSetsNodeIds.AddPublishedEvents,
+                    PublishedDataSetsNodeIds.AddPublishedEventsInputArguments,
+                    PublishedDataSetsNodeIds.AddPublishedEventsOutputArguments),
+                (PublishedDataSetsNodeIds.AddPublishedDataItemsTemplate,
+                    PublishedDataSetsNodeIds.AddPublishedDataItemsTemplateInputArguments,
+                    PublishedDataSetsNodeIds.AddPublishedDataItemsTemplateOutputArguments),
+                (PublishedDataSetsNodeIds.RemovePublishedDataSet,
+                    PublishedDataSetsNodeIds.RemovePublishedDataSetInputArguments,
+                    null),
+                (PublishedDataSetsNodeIds.AddDataSetFolder,
+                    PublishedDataSetsNodeIds.AddDataSetFolderInputArguments,
+                    PublishedDataSetsNodeIds.AddDataSetFolderOutputArguments),
+                (PublishedDataSetsNodeIds.RemoveDataSetFolder,
+                    PublishedDataSetsNodeIds.RemoveDataSetFolderInputArguments,
+                    null)
+            };
+
+            foreach ((uint methodId, uint inputArgumentsId, uint? outputArgumentsId) in expectedMethods)
+            {
+                MethodState method = harness.FindRegisteredNode<MethodState>(new NodeId(methodId))!;
+                BaseVariableState inputArguments = harness.FindRegisteredNode<BaseVariableState>(
+                    new NodeId(inputArgumentsId))!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(method, Is.Not.Null);
+                    Assert.That(method.Parent, Is.SameAs(publishedDataSets));
+                    Assert.That(inputArguments, Is.SameAs(method.InputArguments));
+                    Assert.That(
+                        method.FindChild(harness.Context, QualifiedName.From(BrowseNames.InputArguments)),
+                        Is.SameAs(inputArguments));
+                });
+
+                if (outputArgumentsId is uint outputId)
+                {
+                    BaseVariableState outputArguments = harness.FindRegisteredNode<BaseVariableState>(
+                        new NodeId(outputId))!;
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(outputArguments, Is.SameAs(method.OutputArguments));
+                        Assert.That(
+                            method.FindChild(harness.Context, QualifiedName.From(BrowseNames.OutputArguments)),
+                            Is.SameAs(outputArguments));
+                    });
+                }
+            }
+
+            MethodState addPublishedEvents = harness.FindRegisteredNode<MethodState>(
+                new NodeId(PublishedDataSetsNodeIds.AddPublishedEvents))!;
+            var selectedField = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = new ArrayOf<QualifiedName>(new[] { new QualifiedName(BrowseNames.EventId) }),
+                AttributeId = Attributes.Value
+            };
+            var outputs = new List<Variant>();
+            var argumentErrors = new List<ServiceResult>();
+
+            ServiceResult result = addPublishedEvents.Call(
+                harness.Context,
+                ObjectIds.PublishSubscribe_PublishedDataSets,
+                BuildArray(
+                    Variant.From("pds-events"),
+                    Variant.From(ObjectIds.Server),
+                    Variant.From(new ArrayOf<string>(s_eventIdAlias)),
+                    Variant.From(Array.Empty<DataSetFieldFlags>()),
+                    Variant.FromStructure(new ArrayOf<SimpleAttributeOperand>(new[] { selectedField })),
+                    Variant.From(new ExtensionObject(new ContentFilter()))),
+                argumentErrors,
+                outputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+                Assert.That(argumentErrors, Is.All.Matches<ServiceResult>(ServiceResult.IsGood));
+                Assert.That(addPublishedEvents.OutputArguments!.Value, Has.Count.EqualTo(2));
+                Assert.That(addPublishedEvents.OutputArguments.Value![0].Name, Is.EqualTo("ConfigurationVersion"));
+                Assert.That(addPublishedEvents.OutputArguments.Value[1].Name, Is.EqualTo("DataSetNodeId"));
+                Assert.That(outputs, Has.Count.EqualTo(2));
+                Assert.That(outputs[0].TryGetValue(out ExtensionObject configurationVersion), Is.True);
+                Assert.That(
+                    configurationVersion.TryGetValue(out ConfigurationVersionDataType? _),
+                    Is.True);
+                Assert.That(outputs[1].TryGetValue(out NodeId dataSetNodeId), Is.True);
+                Assert.That(dataSetNodeId.IsNull, Is.False);
+            });
+        }
+
+        [Test]
         public void PublishedDataSetsMethodThatWasNotCreatedIsAConfigurationError()
         {
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -769,7 +872,8 @@ namespace Opc.Ua.PubSub.Server.Tests
             public Harness(
                 Action<PubSubServerOptions>? configure = null,
                 bool includeSks = false,
-                PushSecurityKeyProvider? pushProvider = null)
+                PushSecurityKeyProvider? pushProvider = null,
+                bool materializePublishedDataSets = false)
             {
                 MockServer = new Mock<IServerInternal>();
                 NamespaceTable = new NamespaceTable();
@@ -777,7 +881,17 @@ namespace Opc.Ua.PubSub.Server.Tests
                 MockServer.Setup(s => s.NamespaceUris).Returns(NamespaceTable);
                 MockServer.Setup(s => s.ServerUris).Returns(new StringTable());
                 MockServer.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
-                MockServer.Setup(s => s.TypeTree).Returns(new TypeTable(NamespaceTable));
+                var typeTree = new TypeTable(NamespaceTable);
+                if (materializePublishedDataSets)
+                {
+                    typeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+                    typeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
+                    typeTree.AddSubtype(DataTypeIds.Enumeration, DataTypeIds.BaseDataType);
+                    typeTree.AddSubtype(new NodeId(15904u), DataTypeIds.Enumeration);
+                    typeTree.AddSubtype(new NodeId(601u), DataTypeIds.Structure);
+                    typeTree.AddSubtype(new NodeId(586u), DataTypeIds.Structure);
+                }
+                MockServer.Setup(s => s.TypeTree).Returns(typeTree);
 
                 var mockMaster = new Mock<IMasterNodeManager>();
                 var mockConfig = new Mock<IConfigurationNodeManager>();
@@ -832,6 +946,26 @@ namespace Opc.Ua.PubSub.Server.Tests
                     NodeId = ObjectIds.PublishSubscribe,
                     BrowseName = new QualifiedName("PublishSubscribe")
                 };
+                if (materializePublishedDataSets)
+                {
+                    var publishSubscribe = new PublishSubscribeState(null)
+                    {
+                        NodeId = ObjectIds.PublishSubscribe,
+                        BrowseName = new QualifiedName("PublishSubscribe")
+                    };
+                    publishSubscribe.CreateOrReplacePublishedDataSets(
+                        Context,
+                        new DataSetFolderState(publishSubscribe)
+                        {
+                            NodeId = ObjectIds.PublishSubscribe_PublishedDataSets,
+                            BrowseName = new QualifiedName("PublishedDataSets")
+                        },
+                        assignInstanceNodeIds: false);
+                    publishSubscribe.AddPubSubConfiguration(
+                        Context,
+                        new NodeId("pubsub:configuration", 1));
+                    PublishSubscribeObject = publishSubscribe;
+                }
                 PublishedDataSetsObject = new BaseObjectState(PublishSubscribeObject)
                 {
                     NodeId = ObjectIds.PublishSubscribe_PublishedDataSets,
@@ -901,6 +1035,18 @@ namespace Opc.Ua.PubSub.Server.Tests
                     .Returns(SecurityGroupsObject);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseObjectState>(new NodeId(25440u)))
                     .Returns(KeyPushTargetsObject);
+                if (materializePublishedDataSets)
+                {
+                    RegisterNode(EnableMethod);
+                    RegisterNode(DisableMethod);
+                    RegisterNode(SetSecurityKeysMethod);
+                    RegisterNode(AddConnectionMethod);
+                    RegisterNode(RemoveConnectionMethod);
+                    diagnosticsNm.Setup(m => m.AddNode(It.IsAny<NodeState>()))
+                        .Callback<NodeState>(RegisterNode);
+                    diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(It.IsAny<NodeId>()))
+                        .Returns((NodeId nodeId) => FindRegisteredNode<MethodState>(nodeId)!);
+                }
                 MockServer.Setup(s => s.DiagnosticsNodeManager).Returns(diagnosticsNm.Object);
 
                 Application = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
@@ -963,6 +1109,11 @@ namespace Opc.Ua.PubSub.Server.Tests
             public BaseObjectState KeyPushTargetsObject { get; }
             public ServerSystemContext Context { get; }
 
+            public T? FindRegisteredNode<T>(NodeId nodeId) where T : NodeState
+            {
+                return m_registeredNodes.TryGetValue(nodeId, out NodeState? node) ? node as T : null;
+            }
+
             public void Dispose()
             {
                 Manager.Dispose();
@@ -980,7 +1131,19 @@ namespace Opc.Ua.PubSub.Server.Tests
                 };
             }
 
+            private void RegisterNode(NodeState node)
+            {
+                m_registeredNodes[node.NodeId] = node;
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    RegisterNode(child);
+                }
+            }
+
             private readonly MonitoredItemQueueFactory m_queueFactory;
+            private readonly Dictionary<NodeId, NodeState> m_registeredNodes = new();
 
             private sealed class StubTransportFactory : IPubSubTransportFactory
             {
