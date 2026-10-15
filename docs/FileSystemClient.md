@@ -333,6 +333,31 @@ or dispose the wrapper rather than closing the handle separately. Cleanup
 after a closed session uses the normal `BadSecureChannelClosed` protocol
 failure instead of dereferencing a missing channel.
 
+For a bounded generated-file download, `CopyToAsync` accepts a caller-owned
+writable stream and a non-negative byte limit:
+
+```csharp
+var temp = new TemporaryFileTransferClient(managedSession, transferObject);
+long copied = await temp.CopyToAsync(
+    generateOptions: default, destination, maxBytes: 64 * 1024 * 1024, ct);
+```
+
+With a `ManagedSession`, this operation captures one `SessionRequestContext`
+for generation, readiness polling, copying and cleanup. Recovery invalidates
+the operation instead of sending the old handle to a replacement session.
+An already-dispatched generation response is retained even if the caller
+cancels before it returns. A valid returned file node and handle are retained
+for cleanup before non-Good statuses or malformed response metadata are rejected.
+Close calls the standard `FileType.Close` declaration directly, without method
+discovery, using an independent five-second deadline. Transfer and cleanup
+failures are both reported when both occur.
+
+The destination remains open and may contain partial data on failure. An
+ordinary or custom session remains caller-owned; prevent its replacement during
+the transfer. The operation allows at most 1024 file reads of at most 64 KiB
+(or a smaller configured chunk size), including the end-of-file probe, and at
+most 64 generation-state reads.
+
 ## Generation-bound transfers
 
 Use [`SessionRequestContext`](Sessions.md#generation-bound-client-requests) when

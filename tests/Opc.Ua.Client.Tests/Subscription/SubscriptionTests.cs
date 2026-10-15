@@ -2116,6 +2116,55 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// An initiated transfer has its own confirmation callback; a failed handle rebind must not claim success.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InitiatedTransferReportsOnlySuccessfulHandleRebindAsync(bool succeeds)
+        {
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            m_mockMonitoredItemServices.Setup(service => service.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<uint>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results =
+                    [
+                        new MonitoredItemCreateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            MonitoredItemId = 9,
+                            RevisedSamplingInterval = 1000,
+                            RevisedQueueSize = 17
+                        }
+                    ]
+                });
+            var subscription = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (subscription.ConfigureAwait(false))
+            {
+                Assert.That(subscription.MonitoredItems.TryAdd("known",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem? item), Is.True);
+                Assert.That(item!.Created, Is.True);
+                SetupGetMonitoredItemsResult(succeeds ? StatusCodes.BadMethodInvalid : StatusCodes.BadTimeout);
+                subscription.ResetPublishStateForTest();
+
+                bool transferred = await subscription.TryCompleteTransferAsync([], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(transferred, Is.EqualTo(succeeds));
+                Assert.That(subscription.LastPublishState & PublishState.Transferred,
+                    Is.EqualTo(succeeds ? PublishState.Transferred : PublishState.None));
+                m_mockNotificationDataHandler.Verify(handler => handler.OnSubscriptionStateChangedAsync(
+                    subscription, It.IsAny<SubscriptionState>(),
+                    It.Is<PublishState>(state => (state & PublishState.Transferred) != 0)),
+                    succeeds ? Times.Once() : Times.Never());
+            }
+        }
+
+        /// <summary>
         /// An unusable GetMonitoredItems answer is treated like a server that
         /// does not provide the optional method: the server ids the client
         /// knows complete the transfer.

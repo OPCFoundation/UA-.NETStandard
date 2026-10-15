@@ -1444,6 +1444,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a batteries-included reference-style demo server.
         /// </summary>
+        /// <remarks>
+        /// Uses configured role options while preserving an explicitly registered role manager.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddReferenceServer(
             this IOpcUaBuilder builder,
@@ -1463,7 +1466,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.IncludeUnsecurePolicyNone = false;
                 configure?.Invoke(options);
             });
-            serverBuilder.AddRoleManager<RoleManager>();
+            serverBuilder.ConfigureRoles(static _ => { });
             return RegisterFluentNodeManager(
                 serverBuilder,
                 "http://opcfoundation.org/UA/ReferenceServer",
@@ -1474,6 +1477,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a hardened hosted server preset with secure policies, identity authenticators and roles.
         /// </summary>
+        /// <remarks>
+        /// Uses configured role options while preserving an explicitly registered role manager.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddSecureServer(
             this IOpcUaBuilder builder,
@@ -1500,7 +1506,7 @@ namespace Microsoft.Extensions.DependencyInjection
             serverBuilder.Services.TryAddSingleton<IUserDatabase, LinqUserDatabase>();
             serverBuilder.Services.TryAddSingleton<IUserManagement, UserManagement>();
             return serverBuilder
-                .AddRoleManager<RoleManager>()
+                .ConfigureRoles(static _ => { })
                 .AddDefaultIdentityAuthenticators(options =>
                 {
                     options.EnableAnonymous = false;
