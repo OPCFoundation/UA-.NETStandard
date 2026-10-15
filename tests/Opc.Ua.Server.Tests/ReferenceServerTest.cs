@@ -327,6 +327,43 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A response carries an empty string table when the request asked for no
+        /// diagnostics, the diagnostic strings when it did, and an empty one again for the
+        /// next request without diagnostics.
+        /// </summary>
+        [Test]
+        public async Task ResponseStringTableHoldsOnlyTheRequestsDiagnosticsAsync()
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = new NodeId("Scalar_Simulation_Int32", 2), AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = new NodeId("DoesNotExist", 2), AttributeId = Attributes.Value }
+            ];
+
+            var plain = (RequestHeader)m_requestHeader.Clone();
+            plain.ReturnDiagnostics = (uint)DiagnosticsMasks.None;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+
+            var diagnostics = (RequestHeader)m_requestHeader.Clone();
+            diagnostics.ReturnDiagnostics = (uint)DiagnosticsMasks.All;
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, diagnostics, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.GreaterThan(0));
+
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+        }
+
+        /// <summary>
         /// Read all nodes.
         /// </summary>
         [Test]

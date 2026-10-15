@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -66,7 +67,6 @@ namespace Opc.Ua.Server
             UserIdentity = identity!;
             PreferredLocales = Array.Empty<string>();
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -108,7 +108,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -137,7 +136,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -176,7 +174,6 @@ namespace Opc.Ua.Server
             }
 
             DiagnosticsMask = DiagnosticsMasks.SymbolicId;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -320,7 +317,26 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This object is thread safe.
         /// </remarks>
-        public StringTable StringTable { get; }
+        public StringTable StringTable
+        {
+            get
+            {
+                StringTable? table = Volatile.Read(ref m_stringTable);
+                if (table != null)
+                {
+                    return table;
+                }
+
+                // created on first use: most requests write no diagnostic strings.
+                table = new StringTable();
+                return Interlocked.CompareExchange(ref m_stringTable, table, null) ?? table;
+            }
+        }
+
+        /// <summary>
+        /// The string table if anything asked for it, else <c>null</c>.
+        /// </summary>
+        internal StringTable? CreatedStringTable => Volatile.Read(ref m_stringTable);
 
         /// <summary>
         /// When the request times out.
@@ -553,6 +569,7 @@ namespace Opc.Ua.Server
             m_defaultPermissions = updated;
         }
 
+        private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;

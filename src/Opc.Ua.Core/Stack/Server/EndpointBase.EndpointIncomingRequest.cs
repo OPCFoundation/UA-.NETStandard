@@ -52,7 +52,15 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>,
+        /// <remarks>
+        /// A class: the request is scheduled as an <see cref="IEndpointIncomingRequest"/> and
+        /// <see cref="CallAsync"/> keeps it across awaits, so as a struct it was boxed and
+        /// then copied, with write barriers, into the box and into the state machine of
+        /// every request.
+        /// </remarks>
+        protected sealed class EndpointIncomingRequest :
+            IParkableIncomingRequest,
+            IEquatable<EndpointIncomingRequest>,
             ILinksScheduledCancellation
         {
             /// <summary>
@@ -81,7 +89,7 @@ namespace Opc.Ua
             public IServiceRequest Request { get; }
 
             /// <inheritdoc/>
-            readonly RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
+            RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -103,7 +111,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public readonly async ValueTask CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 // one token source per request for the caller, the transport and the timeout hint
                 int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
@@ -172,7 +180,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public readonly void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 if (ServiceResult.IsBad(error))
                 {
@@ -185,41 +193,38 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public override readonly bool Equals(object? obj)
+            public override bool Equals(object? obj)
             {
-                if (obj is EndpointIncomingRequest other)
-                {
-                    return Request.RequestHeader.Equals(other.Request.RequestHeader);
-                }
-                return false;
+                return Equals(obj as EndpointIncomingRequest);
             }
 
             /// <inheritdoc/>
-            public override readonly int GetHashCode()
+            public override int GetHashCode()
             {
                 return Request.RequestHeader.GetHashCode();
             }
 
             /// <inheritdoc/>
-            public static bool operator ==(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            public static bool operator ==(EndpointIncomingRequest? left, EndpointIncomingRequest? right)
             {
-                return left.Equals(right);
+                return left is null ? right is null : left.Equals(right);
             }
 
             /// <inheritdoc/>
-            public static bool operator !=(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            public static bool operator !=(EndpointIncomingRequest? left, EndpointIncomingRequest? right)
             {
                 return !(left == right);
             }
 
             /// <inheritdoc/>
-            public readonly bool Equals(EndpointIncomingRequest other)
+            public bool Equals(EndpointIncomingRequest? other)
             {
-                return Request.RequestHeader.Equals(other.Request.RequestHeader);
+                return other is not null &&
+                    Request.RequestHeader.Equals(other.Request.RequestHeader);
             }
 
             /// <inheritdoc/>
-            readonly CancellationToken ILinksScheduledCancellation.ScheduledCancellationToken =>
+            CancellationToken ILinksScheduledCancellation.ScheduledCancellationToken =>
                 m_transportCancellationToken;
 
             private readonly EndpointBase m_endpoint;
