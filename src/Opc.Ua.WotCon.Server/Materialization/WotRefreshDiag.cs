@@ -117,6 +117,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
+        /// Starts the aggregate part timing of one closure of this refresh.
+        /// </summary>
+        public WotClosureDiag BeginClosure()
+        {
+            return new WotClosureDiag(m_logger, m_id, m_kind);
+        }
+
+        /// <summary>
         /// Emits the single summary line.
         /// </summary>
         public void Finish(bool cancellationRequested)
@@ -176,6 +184,216 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// [DEBUG-G10-RF1] Temporary diagnostics-only aggregate part timing for one closure.
+    /// Parts are disjoint raw-tick accumulators converted to milliseconds once at the end;
+    /// time not inside any part is reported as unattributed. Numeric values only.
+    /// </summary>
+    internal sealed class WotClosureDiag
+    {
+        /// <summary>
+        /// Creates the closure collector.
+        /// </summary>
+        public WotClosureDiag(ILogger? logger, int refreshId, int kind)
+        {
+            m_logger = logger;
+            m_id = refreshId;
+            m_kind = kind;
+            m_entry = Stopwatch.GetTimestamp();
+        }
+
+        /// <summary>
+        /// Reads the timestamp, or zero when diagnostics are disabled.
+        /// </summary>
+        public static long Now(WotClosureDiag? diag)
+        {
+            return diag is null ? 0 : Stopwatch.GetTimestamp();
+        }
+
+        /// <summary>
+        /// Adds the ticks elapsed since the start timestamp to a part.
+        /// </summary>
+        public static void Add(WotClosureDiag? diag, int part, long start)
+        {
+            if (diag is not null)
+            {
+                diag.m_ticks[part] += Stopwatch.GetTimestamp() - start;
+            }
+        }
+
+        /// <summary>
+        /// Records the member loop boundaries and counts.
+        /// </summary>
+        public static void LoopStart(WotClosureDiag? diag, int members)
+        {
+            if (diag is not null)
+            {
+                diag.m_members = members;
+                diag.m_loopStart = Stopwatch.GetTimestamp();
+            }
+        }
+
+        /// <summary>
+        /// Records the normal end of the member loop.
+        /// </summary>
+        public static void LoopEnd(
+            WotClosureDiag? diag,
+            int converted,
+            int projections,
+            int plans)
+        {
+            if (diag is not null)
+            {
+                diag.m_loopEnd = Stopwatch.GetTimestamp();
+                diag.m_converted = converted;
+                diag.m_projections = projections;
+                diag.m_plans = plans;
+            }
+        }
+
+        /// <summary>
+        /// Records the number of coalesced sources.
+        /// </summary>
+        public static void Sources(WotClosureDiag? diag, int sources)
+        {
+            if (diag is not null)
+            {
+                diag.m_sources = sources;
+            }
+        }
+
+        /// <summary>
+        /// Marks the closure as returning normally.
+        /// </summary>
+        public void Done()
+        {
+            m_completed = true;
+        }
+
+        /// <summary>
+        /// Emits the single parts-summary line.
+        /// </summary>
+        public void Finish(bool cancellationRequested)
+        {
+            long end = Stopwatch.GetTimestamp();
+            long total = end - m_entry;
+            long parts = 0;
+            for (int i = 0; i < m_ticks.Length; i++)
+            {
+                parts += m_ticks[i];
+            }
+            bool looped = m_loopEnd != 0;
+            long loopTicks = looped ? m_loopEnd - m_loopStart : 0;
+            long loopParts = m_ticks[Read] + m_ticks[Parse] + m_ticks[Convert] + m_ticks[Contrib] +
+                m_ticks[DeclAdd] + m_ticks[PlanReq];
+            string outcome = m_completed ? "completed" : cancellationRequested ? "cancelled" : "faulted";
+            m_logger?.ClosureParts(
+                m_id,
+                m_kind,
+                outcome,
+                m_members,
+                m_converted,
+                m_projections,
+                m_sources,
+                m_plans,
+                Ms(m_ticks[Read]),
+                Ms(m_ticks[Parse]),
+                Ms(m_ticks[Convert]),
+                Ms(m_ticks[Contrib]),
+                Ms(m_ticks[DeclAdd]),
+                Ms(m_ticks[PlanReq]),
+                looped ? Ms(loopTicks) : -1,
+                looped ? Ms(loopTicks - loopParts) : -1,
+                Ms(m_ticks[Coalesce]),
+                Ms(m_ticks[Resolve]),
+                Ms(m_ticks[Prepare]),
+                Ms(m_ticks[HostAdd]),
+                Ms(m_ticks[Views]),
+                Ms(m_ticks[Deactivate]),
+                Ms(total - parts),
+                Ms(total));
+        }
+
+        private static long Ms(long ticks)
+        {
+            return ticks * 1000 / Stopwatch.Frequency;
+        }
+
+        /// <summary>
+        /// Part index of reading the member content.
+        /// </summary>
+        public const int Read = 0;
+
+        /// <summary>
+        /// Part index of the projection-document check (full parse).
+        /// </summary>
+        public const int Parse = 1;
+
+        /// <summary>
+        /// Part index of the document conversion.
+        /// </summary>
+        public const int Convert = 2;
+
+        /// <summary>
+        /// Part index of the NodeSet contributors.
+        /// </summary>
+        public const int Contrib = 3;
+
+        /// <summary>
+        /// Part index of adding the NodeSet to the declaration context.
+        /// </summary>
+        public const int DeclAdd = 4;
+
+        /// <summary>
+        /// Part index of building the binding plan request.
+        /// </summary>
+        public const int PlanReq = 5;
+
+        /// <summary>
+        /// Part index of coalescing the projection sources.
+        /// </summary>
+        public const int Coalesce = 6;
+
+        /// <summary>
+        /// Part index of resolving dependency models.
+        /// </summary>
+        public const int Resolve = 7;
+
+        /// <summary>
+        /// Part index of the declaration check and binding plan preparation.
+        /// </summary>
+        public const int Prepare = 8;
+
+        /// <summary>
+        /// Part index of the host add or reload.
+        /// </summary>
+        public const int HostAdd = 9;
+
+        /// <summary>
+        /// Part index of the projection view materialization.
+        /// </summary>
+        public const int Views = 10;
+
+        /// <summary>
+        /// Part index of deactivating the previous plans and views.
+        /// </summary>
+        public const int Deactivate = 11;
+
+        private readonly ILogger? m_logger;
+        private readonly int m_id;
+        private readonly int m_kind;
+        private readonly long m_entry;
+        private readonly long[] m_ticks = new long[12];
+        private long m_loopStart;
+        private long m_loopEnd;
+        private int m_members;
+        private int m_converted;
+        private int m_projections;
+        private int m_sources;
+        private int m_plans;
+        private bool m_completed;
+    }
+
+    /// <summary>
     /// [DEBUG-G10-RF1] Holds temporary source-generated refresh timing log messages.
     /// </summary>
     internal static partial class WotRefreshDiagLog
@@ -209,5 +427,43 @@ namespace Opc.Ua.WotCon.Server.Materialization
             int enabled,
             int closures,
             int results);
+
+        /// <summary>
+        /// Logs the aggregate part timing of one closure.
+        /// </summary>
+        [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 2, Level = LogLevel.Warning,
+            Message = "[DEBUG-G10-RF1] closure parts id={RefreshId} kind={Kind} outcome={Outcome} " +
+                "members={Members} converted={Converted} projections={Projections} sources={Sources} " +
+                "plans={Plans} readMs={ReadMs} parseMs={ParseMs} convertMs={ConvertMs} " +
+                "contribMs={ContribMs} declAddMs={DeclAddMs} planReqMs={PlanReqMs} memberLoopMs={MemberLoopMs} " +
+                "loopResidualMs={LoopResidualMs} coalesceMs={CoalesceMs} resolveMs={ResolveMs} " +
+                "prepareMs={PrepareMs} hostAddMs={HostAddMs} viewsMs={ViewsMs} deactivateMs={DeactivateMs} " +
+                "unattributedMs={UnattributedMs} closureMs={ClosureMs}")]
+        public static partial void ClosureParts(
+            this ILogger logger,
+            int refreshId,
+            int kind,
+            string outcome,
+            int members,
+            int converted,
+            int projections,
+            int sources,
+            int plans,
+            long readMs,
+            long parseMs,
+            long convertMs,
+            long contribMs,
+            long declAddMs,
+            long planReqMs,
+            long memberLoopMs,
+            long loopResidualMs,
+            long coalesceMs,
+            long resolveMs,
+            long prepareMs,
+            long hostAddMs,
+            long viewsMs,
+            long deactivateMs,
+            long unattributedMs,
+            long closureMs);
     }
 }
