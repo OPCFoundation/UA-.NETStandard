@@ -367,6 +367,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"connected {sessions.Length} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
+            if (TryGetArg("publish-requests", out string? publishRequests))
+            {
+                // outstanding Publish requests per session (the client default adapts to the subscriptions)
+                int count = int.Parse(publishRequests!, CultureInfo.InvariantCulture);
+                foreach (ISession session in sessions)
+                {
+                    session.MaxPublishRequestCount = Math.Max(session.MaxPublishRequestCount, count);
+                    session.MinPublishRequestCount = count;
+                }
+            }
 
             Workload workload = scenario == "counters"
                 ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
@@ -1060,7 +1070,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
-                        QueueSize = 1
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
                     };
                     if (m_itemCallback)
                     {
@@ -1134,7 +1144,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = TimeSpan.Zero,
-                        QueueSize = 1
+                        QueueSize = (uint)Program.ArgInt("queue-size", 1)
                     },
                     out _))
                 {
