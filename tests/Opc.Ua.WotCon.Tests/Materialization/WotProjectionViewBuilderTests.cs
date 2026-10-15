@@ -524,7 +524,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(resolved.Success, Is.True);
             WotDocument view = resolved.Value!;
-            Assert.That(view.Properties.Count, Is.EqualTo(2));
+            Assert.That(view.Properties, Has.Count.EqualTo(2));
             Assert.That(view.Properties.ContainsKey("Level"), Is.True);
             Assert.That(view.Properties.ContainsKey("levelUnit"), Is.True);
             Assert.That(
