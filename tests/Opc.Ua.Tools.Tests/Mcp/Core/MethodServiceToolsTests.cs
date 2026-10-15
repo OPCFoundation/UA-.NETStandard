@@ -55,6 +55,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(true, "[{\"uaType\":6,\"Value\":42}]")]
         [TestCase(false, "[{\"UaType\":null,\"Value\":42}]")]
         [TestCase(true, "[{\"UaType\":null,\"Value\":42}]")]
+        [TestCase(false, "[{\"UaType\":24,\"Value\":[{\"Value\":42}]}]")]
+        [TestCase(true, "[{\"UaType\":24,\"Value\":[{\"Value\":42}]}]")]
+        [TestCase(false, "[{\"UaType\":23,\"Value\":{\"Value\":42}}]")]
+        [TestCase(true, "[{\"UaType\":23,\"Value\":{\"Value\":42}}]")]
         public async Task CallToolsRejectMissingTypesBeforeDispatchAsync(bool convenience, string arguments)
         {
             await using McpGenericGenerationTestContext fixture =

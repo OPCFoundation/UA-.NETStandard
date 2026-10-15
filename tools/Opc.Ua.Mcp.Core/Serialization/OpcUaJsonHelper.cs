@@ -392,16 +392,53 @@ namespace Opc.Ua.Mcp.Serialization
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                     "Typed method arguments must be a UA JSON Variant array of at most 1024 items.");
             }
-            foreach (JsonNode? argument in array)
+            ValidateTypedArgumentEnvelopes(array);
+            using var decoder = new JsonDecoder(new JsonObject { ["Arguments"] = array }.ToJsonString(), context);
+            return decoder.ReadVariantArray("Arguments");
+        }
+
+        /// <summary>
+        /// Validates typed Variant and DataValue envelopes without interpreting structure fields as envelopes.
+        /// </summary>
+        private static void ValidateTypedArgumentEnvelopes(JsonArray arguments)
+        {
+            var pending = new Stack<JsonNode?>();
+            foreach (JsonNode? argument in arguments)
             {
-                if (argument is JsonObject envelope && envelope["Value"] != null && envelope["UaType"] == null)
+                pending.Push(argument);
+            }
+
+            while (pending.Count > 0)
+            {
+                if (pending.Pop() is not JsonObject envelope)
+                {
+                    continue;
+                }
+
+                JsonNode? value = envelope["Value"];
+                if (value != null && envelope["UaType"] == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError,
                         "A non-null typed method argument Value requires an explicit UaType.");
                 }
+
+                if (envelope["UaType"] is JsonValue uaType &&
+                    uaType.TryGetValue(out byte builtInType) &&
+                    builtInType is (byte)BuiltInType.Variant or (byte)BuiltInType.DataValue)
+                {
+                    if (value is JsonArray values)
+                    {
+                        foreach (JsonNode? item in values)
+                        {
+                            pending.Push(item);
+                        }
+                    }
+                    else if (value != null)
+                    {
+                        pending.Push(value);
+                    }
+                }
             }
-            using var decoder = new JsonDecoder(new JsonObject { ["Arguments"] = array }.ToJsonString(), context);
-            return decoder.ReadVariantArray("Arguments");
         }
 
         private static object? VariantArrayToObject(Variant variant)
