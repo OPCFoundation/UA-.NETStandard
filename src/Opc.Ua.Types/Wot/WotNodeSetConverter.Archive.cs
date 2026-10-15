@@ -53,13 +53,18 @@ namespace Opc.Ua.Wot
         /// identity and the definition states the same identity. A
         /// <c>null</c> map accepts nothing.
         /// </param>
+        /// <param name="missingWitnesses">
+        /// Receives the names of the events whose node is absent and whose identity the archived root
+        /// generates, so a caller can resolve exactly those definitions.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             UANodeSet? archiveContext = null,
-            IReadOnlyDictionary<string, string>? carrierEventIds = null)
+            IReadOnlyDictionary<string, string>? carrierEventIds = null,
+            List<string>? missingWitnesses = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -95,7 +100,8 @@ namespace Opc.Ua.Wot
 
             var witnessed = new Dictionary<string, string>(StringComparer.Ordinal);
             Dictionary<string, UANode?> resolved = ResolvePreservedAffordances(
-                document, index, identities, aliases, diagnostics, root, carrierEventIds, witnessed);
+                document, index, identities, aliases, diagnostics, root, carrierEventIds, witnessed,
+                missingWitnesses);
             bool needsProjection = RequiresPreservedReadableProjection(document.RootElement);
             var projectedNodes = new HashSet<string>(StringComparer.Ordinal);
             if (root.NodeId is not null && document.RootElement.TryGetProperty(DataMember, out _))
@@ -153,7 +159,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             UANode? root = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
-            Dictionary<string, string>? witnessed = null)
+            Dictionary<string, string>? witnessed = null,
+            List<string>? missingWitnesses = null)
         {
             var resolved = new Dictionary<string, UANode?>(StringComparer.Ordinal);
             Resolve(document.Properties, "properties");
@@ -168,10 +175,9 @@ namespace Opc.Ua.Wot
                     string pointer = "/" + collection + "/" + EscapeJsonPointerToken(affordance.Key);
                     if (collection == "events" &&
                         root is not null &&
-                        carrierEventIds is not null &&
                         TryWitnessArchivedEvent(
                             document, affordance.Value, affordance.Key, root, index, identities, aliases,
-                            carrierEventIds, pointer, diagnostics, out string? witnessedId))
+                            carrierEventIds, missingWitnesses, pointer, diagnostics, out string? witnessedId))
                     {
                         resolved.Add(pointer, null);
                         if (witnessedId is not null)
@@ -199,7 +205,13 @@ namespace Opc.Ua.Wot
         /// <param name="index">The archived fact index.</param>
         /// <param name="identities">Scratch namespace table for identity normalization.</param>
         /// <param name="aliases">The alias resolver.</param>
-        /// <param name="carrierEventIds">The validated EventType identity of each resolved definition.</param>
+        /// <param name="carrierEventIds">
+        /// The validated EventType identity of each resolved definition, or <c>null</c> before any was resolved.
+        /// </param>
+        /// <param name="missingWitnesses">
+        /// Collects the events whose node is absent from the index and whose identity the archived root generates,
+        /// when <paramref name="carrierEventIds"/> is <c>null</c>.
+        /// </param>
         /// <param name="pointer">The affordance pointer.</param>
         /// <param name="diagnostics">Receives the conflict when the definition states another identity.</param>
         /// <param name="witnessedId">The accepted identity, or <c>null</c> when a conflict was reported.</param>
@@ -215,25 +227,43 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode?> index,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
-            IReadOnlyDictionary<string, string> carrierEventIds,
+            IReadOnlyDictionary<string, string>? carrierEventIds,
+            List<string>? missingWitnesses,
             string pointer,
             List<WotDiagnostic> diagnostics,
             out string? witnessedId)
         {
             witnessedId = null;
             string? id = GetElementString(authored, "uav:id");
-            if (id is null || !carrierEventIds.TryGetValue(key, out string? carrierId))
+            if (id is null || (carrierEventIds is null && missingWitnesses is null))
             {
                 return false;
             }
             var scratch = new List<WotDiagnostic>();
             string normalizedId = NormalizeArchivedIdentity(document, id, identities, aliases, scratch, authored);
-            if ((index.TryGetValue("id:" + normalizedId, out UANode? present) && present is not null) ||
+            if (HasErrors(scratch) ||
+                index.ContainsKey("id:" + normalizedId) ||
                 !GeneratesArchivedEvent(root, index, aliases, normalizedId))
             {
                 return false;
             }
-            string normalizedCarrier = NormalizeArchivedIdentity(document, carrierId, identities, aliases, scratch);
+            if (carrierEventIds is null)
+            {
+                missingWitnesses?.Add(key);
+                return false;
+            }
+            if (!carrierEventIds.TryGetValue(key, out string? carrierId))
+            {
+                return false;
+            }
+            var carrierScratch = new List<WotDiagnostic>();
+            string normalizedCarrier = NormalizeArchivedIdentity(
+                document, carrierId, identities, aliases, carrierScratch);
+            if (HasErrors(carrierScratch))
+            {
+                diagnostics.AddRange(carrierScratch);
+                return true;
+            }
             if (normalizedCarrier == normalizedId)
             {
                 witnessedId = normalizedId;

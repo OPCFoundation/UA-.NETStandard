@@ -369,12 +369,12 @@ namespace Opc.Ua.Wot
         /// The reference is followed with the same bounded resolution as
         /// <see cref="ResolveAsync"/>. An affordance whose definition does not
         /// resolve to a valid EventType definition has no entry, so a caller
-        /// treats its identity as unproven.
+        /// treats its identity as unproven. Every resolution diagnostic is reported.
         /// </remarks>
         /// <param name="document">The document that owns the affordances.</param>
         /// <param name="affordanceNames">The event affordance names to resolve.</param>
         /// <param name="resolutionContext">The resolution context that bounds the work.</param>
-        /// <param name="diagnostics">Receives the resolution diagnostics when a name stays unresolved.</param>
+        /// <param name="diagnostics">Receives the resolution diagnostics.</param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>The validated TypeDefinitionId of each resolved affordance.</returns>
         internal async System.Threading.Tasks.ValueTask<Dictionary<string, string>> ResolveEventTypeIdsAsync(
@@ -390,7 +390,6 @@ namespace Opc.Ua.Wot
                 new WotResolutionContext(m_options.ToResolverOptions()));
             await BuildDefinitionIndexAsync(document, scope, cancellationToken)
                 .ConfigureAwait(false);
-            bool unresolved = false;
             foreach (string name in affordanceNames)
             {
                 if (!document.Events.TryGetValue(name, out JsonElement affordance) ||
@@ -398,7 +397,6 @@ namespace Opc.Ua.Wot
                         WotEventSelectClauses.TypeDefinitionReferenceTerm, out JsonElement reference) ||
                     reference.ValueKind != JsonValueKind.String)
                 {
-                    unresolved = true;
                     continue;
                 }
                 EventTypeDefinition? definition = await ResolveDefinitionAsync(
@@ -411,15 +409,11 @@ namespace Opc.Ua.Wot
                     .ConfigureAwait(false);
                 if (definition is null)
                 {
-                    unresolved = true;
                     continue;
                 }
                 identities[name] = definition.TypeDefinitionId;
             }
-            if (unresolved)
-            {
-                diagnostics.AddRange(scope.Diagnostics);
-            }
+            diagnostics.AddRange(scope.Diagnostics);
             return identities;
         }
 

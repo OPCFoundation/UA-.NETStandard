@@ -387,7 +387,9 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false);
             }
 
-            UANodeSet? ToNodeSet(IReadOnlyDictionary<string, string>? carrierEventIds)
+            UANodeSet? ToNodeSet(
+                IReadOnlyDictionary<string, string>? carrierEventIds,
+                List<string>? missingWitnesses)
             {
                 return ToNodeSetCore(
                     document,
@@ -409,52 +411,35 @@ namespace Opc.Ua.Wot
                     dataTypeOwners,
                     dataTypeNames,
                     documentSet,
-                    carrierEventIds);
+                    carrierEventIds,
+                    missingWitnesses);
             }
 
             int firstPassStart = diagnostics.Count;
-            UANodeSet? nodeSet = ToNodeSet(null);
-            if (thingResolver is not null &&
+            var missing = new List<string>();
+            UANodeSet? nodeSet = ToNodeSet(null, missing);
+            if (missing.Count > 0 &&
+                thingResolver is not null &&
                 documentSet?.DeferPreservedFactValidation != true &&
                 TakesRestorePath(document))
             {
-                var missing = new List<string>();
-                for (int ii = firstPassStart; ii < diagnostics.Count; ii++)
+                // An event whose Node is absent from the restored NodeSet and the
+                // provided archive context may be a legitimate readable carrier. Its
+                // identity is read from the EventType definition it references
+                // and the restore is validated again with it. Every resolution
+                // diagnostic is kept, so an invalid definition is never hidden.
+                var carrierDiagnostics = new List<WotDiagnostic>();
+                Dictionary<string, string> carrierEventIds = await new WotEventSelectionResolver(
+                        thingResolver, nodeResolver, options)
+                    .ResolveEventTypeIdsAsync(
+                        document, missing, resolutionContext, carrierDiagnostics, cancellationToken)
+                    .ConfigureAwait(false);
+                if (carrierEventIds.Count > 0)
                 {
-                    WotDiagnostic conflict = diagnostics[ii];
-                    if (conflict.Code != WotDiagnosticCode.NativeProjectionConflict ||
-                        conflict.Location?.JsonPointer is not { } conflictPointer)
-                    {
-                        continue;
-                    }
-                    foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
-                    {
-                        string identityPointer =
-                            "/events/" + EscapeJsonPointerToken(eventAffordance.Key) + "/uav:id";
-                        if (conflictPointer == identityPointer && !missing.Contains(eventAffordance.Key))
-                        {
-                            missing.Add(eventAffordance.Key);
-                        }
-                    }
+                    diagnostics.RemoveRange(firstPassStart, diagnostics.Count - firstPassStart);
+                    nodeSet = ToNodeSet(carrierEventIds, null);
                 }
-                if (missing.Count > 0)
-                {
-                    // An event whose Node is absent from the restored NodeSet and the
-                    // provided archive context may be a legitimate readable carrier. Its
-                    // identity is read from the EventType definition it references
-                    // and the restore is validated again with it.
-                    var carrierDiagnostics = new List<WotDiagnostic>();
-                    Dictionary<string, string> carrierEventIds = await new WotEventSelectionResolver(
-                            thingResolver, nodeResolver, options)
-                        .ResolveEventTypeIdsAsync(
-                            document, missing, resolutionContext, carrierDiagnostics, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (carrierEventIds.Count > 0)
-                    {
-                        diagnostics.RemoveRange(firstPassStart, diagnostics.Count - firstPassStart);
-                        nodeSet = ToNodeSet(carrierEventIds);
-                    }
-                }
+                diagnostics.AddRange(carrierDiagnostics);
             }
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
@@ -1189,7 +1174,8 @@ namespace Opc.Ua.Wot
             ArrayOf<WotDocument> dataTypeOwners = default,
             Dictionary<(string NamespaceUri, string Name), string?>? dataTypeNames = null,
             DocumentSetThingResolver? documentSet = null,
-            IReadOnlyDictionary<string, string>? carrierEventIds = null)
+            IReadOnlyDictionary<string, string>? carrierEventIds = null,
+            List<string>? missingWitnesses = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -1238,7 +1224,8 @@ namespace Opc.Ua.Wot
                 if (documentSet?.DeferPreservedFactValidation != true)
                 {
                     ValidatePreservedReadableFacts(
-                        document, restored, options, diagnostics, archiveContext, carrierEventIds);
+                        document, restored, options, diagnostics, archiveContext, carrierEventIds,
+                        missingWitnesses);
                 }
                 ApplyIdentifierLeniency(diagnostics, options);
                 if (HasErrors(diagnostics))
@@ -1263,7 +1250,8 @@ namespace Opc.Ua.Wot
                         ValidateRestoredConditions(
                             document, archiveContext ?? restored, diagnostics, carrierEventIds);
                         ValidatePreservedReadableFacts(
-                            document, restored, options, diagnostics, archiveContext, carrierEventIds);
+                            document, restored, options, diagnostics, archiveContext, carrierEventIds,
+                            missingWitnesses);
                     }
                     ApplyIdentifierLeniency(diagnostics, options);
                     if (!HasErrors(diagnostics))

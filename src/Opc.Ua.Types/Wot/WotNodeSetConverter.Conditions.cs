@@ -865,11 +865,9 @@ namespace Opc.Ua.Wot
                 if (authoredId is not null &&
                     carrierEventIds is not null &&
                     carrierEventIds.ContainsKey(entry.Key) &&
-                    !(index.TryGetValue(
-                            "id:" + NormalizeArchivedIdentity(
-                                document, authoredId, identities, aliases, new List<WotDiagnostic>(), affordance),
-                            out UANode? present) &&
-                        present is not null))
+                    !index.ContainsKey(
+                        "id:" + NormalizeArchivedIdentity(
+                            document, authoredId, identities, aliases, new List<WotDiagnostic>(), affordance)))
                 {
                     // The event node is absent; the preserved readable fact validation
                     // accepts it only when the archived root generates the event and
