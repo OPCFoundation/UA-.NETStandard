@@ -114,9 +114,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
             }
 
-            var rfDiag = new WotRefreshDiag(DiagLogger, m_mutex.CurrentCount); // [DEBUG-G10-RF1]
+            WotRefreshDiag? rfDiag = null; // [DEBUG-G10-RF1]
             try
             {
+                int rfKind = request.RequestId switch { "auto" => 1, "startup" => 2, _ => 0 }; // [DEBUG-G10-RF1]
+                rfDiag = new WotRefreshDiag(DiagLogger, m_mutex.CurrentCount, rfKind); // [DEBUG-G10-RF1]
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
                 rfDiag.Acquired(); // [DEBUG-G10-RF1]
                 try
@@ -158,9 +160,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         (version, token) => ReadCachedContentAsync(contentCache, version, token),
                         m_converterOptions.MaxNodeCount);
                     declarationContext.AddAvailableNativePartitions(contentCache, m_converterOptions, cancellationToken);
-                                        rfDiag.Native(); // [DEBUG-G10-RF1]
+                    rfDiag.Native(); // [DEBUG-G10-RF1]
 
-                                        uint newGeneration = m_generation + 1;
+                    uint newGeneration = m_generation + 1;
                     ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
                         ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
                     var projections = new List<WotResourceProjection>();
@@ -272,8 +274,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             finally
             {
-                rfDiag.Finish(cancellationToken.IsCancellationRequested); // [DEBUG-G10-RF1]
-                EndOperation();
+                try // [DEBUG-G10-RF1]
+                {
+                    rfDiag?.Finish(cancellationToken.IsCancellationRequested); // [DEBUG-G10-RF1]
+                }
+                finally // [DEBUG-G10-RF1]
+                {
+                    EndOperation();
+                }
             }
         }
 
@@ -438,11 +446,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public bool StrictBindings { get; set; }
 
         /// <summary>
-        /// [DEBUG-G10-RF1] Temporary diagnostics logger for refresh timing.
-        /// </summary>
-        internal Microsoft.Extensions.Logging.ILogger? DiagLogger { get; set; }
-
-        /// <summary>
         /// Gets or sets how previous projection generations are retired after a
         /// successful version switch.
         /// </summary>
@@ -486,6 +489,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 converter.AddressSpace = addressSpace;
             }
         }
+
+        /// <summary>
+        /// [DEBUG-G10-RF1] Temporary diagnostics logger for refresh timing.
+        /// </summary>
+        internal Microsoft.Extensions.Logging.ILogger? DiagLogger { get; set; }
 
         /// <summary>
         /// Releases the mutex used to serialise refreshes.

@@ -43,15 +43,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Starts timing a refresh and emits the queue marker when the mutex is already held.
         /// </summary>
-        public WotRefreshDiag(ILogger? logger, int mutexAvailable)
+        public WotRefreshDiag(ILogger? logger, int mutexAvailable, int kind)
         {
             m_logger = logger;
+            m_kind = kind;
             m_id = Interlocked.Increment(ref s_nextId);
             m_entry = Stopwatch.GetTimestamp();
             m_waiting = Interlocked.Increment(ref s_waiting);
             if (mutexAvailable == 0)
             {
-                m_logger?.RefreshQueued(m_id, m_waiting);
+                m_logger?.RefreshQueued(m_id, m_kind, m_waiting);
             }
         }
 
@@ -135,6 +136,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             long built = m_built == 0 ? 0 : Ms(acquired, m_built);
             m_logger?.RefreshSummary(
                 m_id,
+                m_kind,
                 outcome,
                 Ms(m_entry, acquired),
                 built,
@@ -158,6 +160,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly ILogger? m_logger;
         private readonly int m_id;
+        private readonly int m_kind;
         private readonly int m_waiting;
         private readonly long m_entry;
         private long m_acquired;
@@ -181,19 +184,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Logs that a refresh is queued behind another coordinator operation.
         /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 0, Level = LogLevel.Information,
-            Message = "[DEBUG-G10-RF1] refresh queued id={RefreshId} waiting={Waiting}")]
-        public static partial void RefreshQueued(this ILogger logger, int refreshId, int waiting);
+            Message = "[DEBUG-G10-RF1] refresh queued id={RefreshId} kind={Kind} waiting={Waiting}")]
+        public static partial void RefreshQueued(this ILogger logger, int refreshId, int kind, int waiting);
 
         /// <summary>
         /// Logs the aggregate timing of one refresh.
         /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 1, Level = LogLevel.Information,
-            Message = "[DEBUG-G10-RF1] refresh id={RefreshId} outcome={Outcome} waitMs={WaitMs} " +
+            Message = "[DEBUG-G10-RF1] refresh id={RefreshId} kind={Kind} outcome={Outcome} waitMs={WaitMs} " +
                 "buildMs={BuildMs} nativeMs={NativeMs} retireMs={RetireMs} loopMs={LoopMs} " +
                 "applyMs={ApplyMs} totalMs={TotalMs} enabled={Enabled} closures={Closures} results={Results}")]
         public static partial void RefreshSummary(
             this ILogger logger,
             int refreshId,
+            int kind,
             string outcome,
             long waitMs,
             long buildMs,
