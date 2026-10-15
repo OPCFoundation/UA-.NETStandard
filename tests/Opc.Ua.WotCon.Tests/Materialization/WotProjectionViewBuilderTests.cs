@@ -57,6 +57,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static readonly NodeId s_betaNode = new("SourceA/Beta", 5);
         private static readonly NodeId s_gammaNode = new("SourceB/Gamma", 5);
         private static readonly NodeId s_deltaNode = new("SourceC/Delta", 5);
+        private static readonly NodeId s_levelNode = new("SourceU/Level", 5);
+        private static readonly NodeId s_levelUnitNode = new("SourceU/Level.EngineeringUnits", 5);
 
         [Test]
         public async Task ViewOrganizesTheSourceNodesAndDefinesNoAffordanceNode()
@@ -488,6 +490,57 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return namespaces;
         }
 
+        [Test]
+        public async Task ExplicitSelectionOfAValueOrganizesOnlyItAndNotItsUnitDependency()
+        {
+            WotProjectionViewBuilder builder = Builder(UnitIndex(), ("urn:sourceU", SourceWithUnit));
+
+            WotViewProjectionResult result = await Build(builder, SelectValueOnlyProjection);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Plan!.OrganizedNodeIds.ToArray(),
+                Is.EquivalentTo(new[] { s_levelNode }),
+                "A projection selects and a View organizes only the selected Nodes; the " +
+                "unit Property the value depends on is structural support, not a member.");
+            Assert.That(result.Plan.Omissions.Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task ExplicitSelectionOfAValueAndItsUnitOrganizesBoth()
+        {
+            WotProjectionViewBuilder builder = Builder(UnitIndex(), ("urn:sourceU", SourceWithUnit));
+
+            WotViewProjectionResult result = await Build(builder, SelectValueAndUnitProjection);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Plan!.OrganizedNodeIds.ToArray(),
+                Is.EquivalentTo(new[] { s_levelNode, s_levelUnitNode }),
+                "A unit Property the projection selects explicitly is a member even though " +
+                "another selected Property also depends on it.");
+        }
+
+        [Test]
+        public async Task SelectingAllOfASourceOrganizesTheValueAndItsUnit()
+        {
+            WotProjectionViewBuilder builder = Builder(UnitIndex(), ("urn:sourceU", SourceWithUnit));
+
+            WotViewProjectionResult result = await Build(builder, SelectAllUnitProjection);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Plan!.OrganizedNodeIds.ToArray(),
+                Is.EquivalentTo(new[] { s_levelNode, s_levelUnitNode }),
+                "Bulk selection selects every source Property, units included.");
+        }
+
+        private static MapNodeIndex UnitIndex()
+        {
+            return new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceU#level"] = s_levelNode,
+                ["urn:sourceU#levelUnit"] = s_levelUnitNode
+            });
+        }
+
         private static WotProjectionViewBuilder Builder(
             IWotMaterializedNodeIndex index,
             params (string Href, string Json)[] documents)
@@ -674,6 +727,115 @@ namespace Opc.Ua.WotCon.Tests.Materialization
               "forms": [{ "href": "/?id=nsu=urn:sourceC;s=Delta", "op": ["readproperty"] }]
             }
           }
+        }
+        """;
+
+        private const string SourceWithUnit = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": "uav:object",
+          "id": "urn:sourceU",
+          "title": "Source U",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "base": "opc.tcp://demo:4840",
+          "properties": {
+            "level": {
+              "@type": "uav:variable",
+              "title": "Level",
+              "uav:browseName": "s:Level",
+              "type": "number",
+              "uav:unitProperty": "/properties/levelUnit",
+              "forms": [{ "href": "/?id=nsu=urn:sourceU;s=Level", "op": ["readproperty"] }]
+            },
+            "levelUnit": {
+              "@type": "uav:variable",
+              "title": "Level unit",
+              "uav:browseName": "s:EngineeringUnits",
+              "type": "string",
+              "forms": [{ "href": "/?id=nsu=urn:sourceU;s=Level.EngineeringUnits", "op": ["readproperty"] }]
+            }
+          }
+        }
+        """;
+
+        private const string SelectValueOnlyProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:valueonly",
+          "title": "Value only view",
+          "uav:scenario": "http://example.com/scenario/ValueOnly",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "properties": {
+            "Level": { "tm:ref": "urn:sourceU#/properties/level" }
+          },
+          "uav:projects": [
+            {
+              "uav:sourceName": "u",
+              "href": "urn:sourceU",
+              "type": "application/td+json",
+              "uav:routing": "source"
+            }
+          ]
+        }
+        """;
+
+        private const string SelectValueAndUnitProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:valueandunit",
+          "title": "Value and unit view",
+          "uav:scenario": "http://example.com/scenario/ValueAndUnit",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "properties": {
+            "Level": { "tm:ref": "urn:sourceU#/properties/level" },
+            "LevelUnit": { "tm:ref": "urn:sourceU#/properties/levelUnit" }
+          },
+          "uav:projects": [
+            {
+              "uav:sourceName": "u",
+              "href": "urn:sourceU",
+              "type": "application/td+json",
+              "uav:routing": "source"
+            }
+          ]
+        }
+        """;
+
+        private const string SelectAllUnitProjection = """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:allunit",
+          "title": "All view",
+          "uav:scenario": "http://example.com/scenario/AllUnit",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "u",
+              "href": "urn:sourceU",
+              "type": "application/td+json",
+              "uav:routing": "source",
+              "uav:selectAll": true
+            }
+          ]
         }
         """;
 
