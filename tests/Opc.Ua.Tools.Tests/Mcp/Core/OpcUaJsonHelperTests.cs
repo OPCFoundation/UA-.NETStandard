@@ -249,6 +249,67 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(OpcUaJsonHelper.VariantToObject(default), Is.Null);
         }
 
+        /// <summary>
+        /// Generic reads preserve structured fields rather than returning only a CLR type name.
+        /// </summary>
+        [Test]
+        public void StructuredValuesRetainTheirFields()
+        {
+            var argument = new Argument
+            {
+                Name = "Command",
+                DataType = DataTypeIds.String,
+                ValueRank = ValueRanks.Scalar
+            };
+            string text = OpcUaJsonHelper.Serialize(OpcUaJsonHelper.VariantToObject(Variant.FromStructure(argument)));
+            using JsonDocument document = JsonDocument.Parse(text);
+
+            Assert.That(document.RootElement.GetProperty("body").ValueKind, Is.EqualTo(JsonValueKind.Object));
+            Assert.That(document.RootElement.GetProperty("body").GetProperty("Name").GetString(),
+                Is.EqualTo("Command"));
+            Assert.That(document.RootElement.GetProperty("body").GetProperty("ValueRank").GetInt32(),
+                Is.EqualTo(ValueRanks.Scalar));
+        }
+
+        /// <summary>
+        /// Explicit UA JSON inputs round-trip native scalar and structure types instead of becoming strings.
+        /// </summary>
+        [Test]
+        public void TypedCallArgumentsPreserveTypesAndLegacyStrings()
+        {
+            IServiceMessageContext context = ServiceMessageContext.Create(null!);
+            ArrayOf<Variant> expected =
+            [
+                Variant.From(0L), Variant.From(false),
+                Variant.FromStructure(new Argument { Name = "Input", DataType = DataTypeIds.UInt32 })
+            ];
+            using var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            encoder.WriteVariantArray("Arguments", expected);
+            using JsonDocument document = JsonDocument.Parse(encoder.CloseAndReturnText());
+            ArrayOf<Variant> decoded = OpcUaJsonHelper.ParseCallArguments(
+                null, document.RootElement.GetProperty("Arguments").GetRawText(), context);
+
+            Assert.That(decoded, Is.EqualTo(expected));
+            ArrayOf<Variant> legacy = OpcUaJsonHelper.ParseCallArguments(["42", "false"], null, context);
+            Assert.That(legacy[0].TryGetValue(out string text), Is.True);
+            Assert.That(text, Is.EqualTo("42"));
+            Assert.That(legacy[1].TryGetValue(out string booleanText), Is.True);
+            Assert.That(booleanText, Is.EqualTo("false"));
+        }
+
+        /// <summary>
+        /// Malformed or ambiguous typed input is refused before a method is dispatched.
+        /// </summary>
+        [TestCase("{}", false)]
+        [TestCase("null", false)]
+        [TestCase("[", false)]
+        [TestCase("[]", true)]
+        public void TypedCallArgumentsRejectInvalidShapeOrConflictingInputs(string json, bool legacy)
+        {
+            Assert.Throws<ServiceResultException>(() => OpcUaJsonHelper.ParseCallArguments(
+                legacy ? ["text"] : null, json, ServiceMessageContext.Create(null!)));
+        }
+
         [Test]
         public void VariantToObjectReturnsBooleanAsIs()
         {

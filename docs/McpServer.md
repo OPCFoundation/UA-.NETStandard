@@ -31,6 +31,8 @@ to the owning package's `NugetREADME.md`, linked from each catalogue below.
   - [Option 3: Run from source](#option-3-run-from-source)
   - [Option 4: Install from local build](#option-4-install-from-local-build)
 - [Configuration](#configuration)
+  - [Certificate user identities](#certificate-user-identities)
+  - [Typed method arguments and structured values](#typed-method-arguments-and-structured-values)
   - [Run on demand without a global installation](#run-on-demand-without-a-global-installation)
   - [Claude Desktop](#claude-desktop)
   - [VS Code / GitHub Copilot](#vs-code--github-copilot)
@@ -680,6 +682,37 @@ If multiple prerelease versions are visible from configured sources, add
 explicitly.
 
 ## Configuration
+
+### Certificate user identities
+
+The host can provision named X.509 user identities in
+`McpServer:CertificateIdentities:<name>`. Each entry selects an existing certificate
+store using `StoreType`, `StorePath`, and exactly one of `SubjectName` or `Thumbprint`.
+For example, a local host can set:
+
+```powershell
+$env:McpServer__CertificateIdentities__observer__StoreType = 'Directory'
+$env:McpServer__CertificateIdentities__observer__StorePath = 'D:\OpcUaIdentities\observer'
+$env:McpServer__CertificateIdentities__observer__SubjectName = 'CN=PlantObserver'
+```
+
+Call `Connect` with `authType: "Certificate"` and `certificateIdentity: "observer"`.
+Tool arguments cannot supply certificate-store paths, private keys or key passwords.
+An embedding host can inject `ICertificatePasswordProvider` for protected keys.
+Missing, unknown or ambiguous references fail rather than falling back to another identity.
+Application-certificate trust and server-side user authorization still apply independently;
+keep `autoAcceptCerts: false`. Only expose configured identities to trusted MCP callers.
+
+### Typed method arguments and structured values
+
+For structured data, explicitly load the selected DataType closure with
+`schema_load_types` before reading or calling methods. Generic reads and calls retain
+structured fields through UA codecs. `Call` and `CallMethod` accept
+`inputArgumentsJson`, an explicit OPC UA JSON Variant array, instead of legacy string
+`inputArguments`. For example, an Int64 and Int32 pair is
+`[{"UaType":8,"Value":"0"},{"UaType":6,"Value":1}]`: UA JSON represents Int64 values
+as strings. A structure uses `UaType: 22` and a `Value` object containing `UaTypeId`
+and its fields. The existing string-only argument behavior is unchanged.
 
 ### Run on demand without a global installation
 

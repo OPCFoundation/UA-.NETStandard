@@ -63,6 +63,16 @@ session. For example, `ReadValue` accepts:
 { "nodeId": "ns=2;s=Temperature", "sessionName": "plant" }
 ```
 
+Certificate authentication uses a non-secret `certificateIdentity` name configured
+by the host, alongside `authType: "Certificate"`. The executable reads
+`McpServer:CertificateIdentities:<name>` with `StoreType`, `StorePath`, and exactly
+one of `SubjectName` or `Thumbprint`. Embedders populate
+`OpcUaMcpOptions.CertificateIdentities` with `McpCertificateIdentity` entries and
+can inject `ICertificatePasswordProvider` for protected keys. The existing
+certificate store/provider and user-token policy selection perform authentication;
+tool callers cannot supply private keys or arbitrary certificate-store locations.
+Unknown references fail closed. Expose these identities only to trusted MCP clients.
+
 NodeIds use OPC UA string notation:
 
 | Kind | Example |
@@ -78,6 +88,18 @@ Views `i=87`, Server `i=2253` and ServerStatus.CurrentTime `i=2258`.
 `WriteValue` takes explicit `dataType` plus the encoded `value`; `CallMethod`
 uses `objectId`, `methodId` and ordered `inputArguments`. Use the running
 catalogue's schema for each service's typed request shape.
+
+`Call` and `CallMethod` additionally accept `inputArgumentsJson` instead of the
+legacy string array. It is an OPC UA JSON Variant array, for example
+`[{"UaType":8,"Value":"0"},{"UaType":6,"Value":1}]` for Int64/Int32 arguments.
+Structure values use `UaType: 22` and a `Value` object containing `UaTypeId` and
+the structure's fields. Load custom types with `schema_load_types` first.
+Conflicting argument forms and invalid JSON are rejected before dispatch.
+Existing `inputArguments` strings are never implicitly reinterpreted as JSON.
+
+Generic read/call results retain an ExtensionObject's `typeId` and decoded `body`
+fields through UA codecs. Unregistered encoded bodies remain explicitly encoded;
+they are not reduced to a type name or silently omitted.
 
 UA JSON preserves types, quality and timestamps. Variant serialization uses
 `BuiltInType`, so Boolean `false` and numeric zero do not become Variant.Null.

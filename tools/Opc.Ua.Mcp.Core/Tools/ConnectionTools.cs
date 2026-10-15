@@ -110,11 +110,32 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Connect to an OPC UA server.
         /// </summary>
+        public static Task<string> ConnectAsync(
+            OpcUaSessionManager sessionManager,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            string authType,
+            string? username,
+            string? password,
+            bool autoAcceptCerts,
+            string? name,
+            CancellationToken ct)
+        {
+            return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
+                authType, username, password, autoAcceptCerts, name, certificateIdentity: null, ct);
+        }
+
+        /// <summary>
+        /// Connects with optional named, host-provisioned X.509 user-certificate authentication.
+        /// </summary>
         [McpServerTool(Name = "Connect")]
         [Description("Connect to an OPC UA server. For simplest usage, provide just the endpointUrl " +
             "and it will auto-select the most secure endpoint with anonymous authentication. " +
             "Use GetEndpoints first to discover available security configurations and auth methods, " +
-            "then specify securityMode/securityPolicy to select a specific endpoint. Returns a human-readable " +
+            "then specify securityMode/securityPolicy to select a specific endpoint. Certificate authentication " +
+            "requires a host-configured certificateIdentity name; no private key or store path is accepted. " +
+            "Returns a human-readable " +
             "confirmation string with the resolved session name, security mode/policy, and session ID; on " +
             "failure returns JSON {error:true, statusCode, message}.")]
         public static async Task<string> ConnectAsync(
@@ -129,13 +150,15 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Password for 'Username' authentication")] string? password = null,
             [Description("Auto-accept untrusted server certificates (for testing only, default: false)")] bool autoAcceptCerts = false,
             [Description("Session name (auto-generated from endpoint URL if omitted)")] string? name = null,
+            [Description("Exact host-configured X.509 user identity name; required for Certificate authentication. " +
+                "Not a certificate, password, or file path.")] string? certificateIdentity = null,
             CancellationToken ct = default)
         {
             try
             {
                 return await sessionManager.ConnectAsync(
                     name, endpointUrl, securityMode, securityPolicy,
-                    authType, username, password, autoAcceptCerts, ct)
+                    authType, username, password, autoAcceptCerts, certificateIdentity, ct)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
