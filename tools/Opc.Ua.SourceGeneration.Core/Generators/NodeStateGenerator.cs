@@ -2030,8 +2030,18 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            bool placeholder = reference.TargetNode is InstanceDesign
+            {
+                ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+            };
+            if (placeholder)
+            {
+                context.Out.WriteLine("if (!forInstance)");
+                context.Out.WriteLine("{");
+            }
             context.Out.WriteLine(
-                "state.AddReference({0}, {1}, {2});",
+                "{0}state.AddReference({1}, {2}, {3});",
+                placeholder ? "    " : string.Empty,
                 m_context.ModelDesign.GetNodeIdConstant(
                     reference.ReferenceTypeId,
                     "<ReferenceType>",
@@ -2040,6 +2050,10 @@ namespace Opc.Ua.SourceGeneration
                 reference.TargetNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable));
+            if (placeholder)
+            {
+                context.Out.WriteLine("}");
+            }
             return null;
         }
 
@@ -4230,15 +4244,6 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    if (!node.RootIsTypeDefinition &&
-                        targetNode is InstanceDesign instance &&
-                        (instance.ModellingRule is
-                            ModellingRule.MandatoryPlaceholder or
-                            ModellingRule.OptionalPlaceholder))
-                    {
-                        continue;
-                    }
-
                     references.Add(new ReferenceToGenerate(
                         targetNode,
                         reference.ReferenceType,
@@ -4296,6 +4301,15 @@ namespace Opc.Ua.SourceGeneration
                     source.Instance!,
                     reference.ReferenceType!,
                     !isInverse));
+            }
+
+            // Apply the instance filter after resolving both identifier and hierarchy-path targets.
+            if (!node.RootIsTypeDefinition)
+            {
+                references.RemoveWhere(reference => reference.TargetNode is InstanceDesign
+                {
+                    ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+                });
             }
 
             // Inherited and declared designs can differ structurally while

@@ -270,6 +270,7 @@ namespace Opc.Ua.Pcap.Capture
                 MaxBytes = request.MaxBytes,
                 MaxFrames = request.MaxFrames,
                 MaxDurationSeconds = request.MaxDurationSeconds,
+                RequireCompleteReplay = request.RequireCompleteReplay,
                 SessionFolder = folder
             };
 
@@ -682,7 +683,6 @@ namespace Opc.Ua.Pcap.Capture
         }
     }
 
-
     /// <summary>
     /// Creates <see cref="ICaptureSource"/> instances for
     /// <see cref="CaptureSessionManager"/>. The default DI registration
@@ -709,5 +709,4 @@ namespace Opc.Ua.Pcap.Capture
             Message = "Evicted completed capture session {SessionId} (LRU).")]
         public static partial void EvictedCompletedCaptureSession(this ILogger logger, string sessionId);
     }
-
 }

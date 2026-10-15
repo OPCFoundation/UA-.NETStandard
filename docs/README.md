@@ -146,6 +146,8 @@ needs.
 
 - [State machines](StateMachines.md) — define, drive, and observe state
   transitions.
+- [Programs](Programs.md) — host and control Part 10 invocations, monitor
+  captured transition results, and manage diagnostics and lifetime.
 - [Alarms and conditions](AlarmsAndConditions.md) — raise, acknowledge, and
   stream alarms. Alarm conditions use state machines, for example for shelving.
 - [Historical access](HistoricalAccess.md) — store and read value and event

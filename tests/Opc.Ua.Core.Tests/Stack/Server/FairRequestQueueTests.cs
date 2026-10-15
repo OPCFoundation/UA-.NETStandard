@@ -1349,63 +1349,74 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
-        /// Two backlogged owners with weights 1 and 3 are served about 1:3 while several
-        /// workers dequeue concurrently.
+        /// Concurrent workers keep serving available turns while another owner is delayed,
+        /// and weighted service resumes without losing requests when that turn is published.
         /// </summary>
         /// <remarks>
-        /// A worker preempted between taking an owner's last turn token and publishing that
-        /// owner's next turn leaves the owner without a queued token for the length of the
-        /// stall; the other owner is served meanwhile and the lost share is not made up. A
-        /// single descheduled worker on a loaded CI runner can therefore skew one window. The
-        /// median of three independent windows tolerates one such window and still fails when
-        /// the weighting is lost systematically.
+        /// The controlled handoff separates work-conserving progress under preemption from
+        /// weighted selection with both owners represented, rather than sampling OS scheduling.
         /// </remarks>
         [Test]
         public async Task WeightedServiceHoldsUnderConcurrentWorkersAsync()
         {
-            const int windows = 3;
-            double[] ratios = new double[windows];
-            string[] results = new string[windows];
-            for (int ii = 0; ii < windows; ii++)
-            {
-                (int lightServed, int heavyServed) =
-                    await MeasureWeightedServiceAsync().ConfigureAwait(false);
-                ratios[ii] = (double)heavyServed / lightServed;
-                results[ii] = $"light={lightServed} heavy={heavyServed}";
-            }
-            Array.Sort(ratios);
-            Assert.That(ratios[windows / 2], Is.InRange(2.5, 3.5), string.Join("; ", results));
-        }
-
-        private static async Task<(int Light, int Heavy)> MeasureWeightedServiceAsync()
-        {
             const int perOwner = 480;
-            const int measured = 560;
+            const int concurrentWindow = 400;
+            const int recoveredWindow = 240;
             var provider = new TestProvider(executionCapacity: 1000);
             NodeId light = provider.AddOwner("light", weight: 1, queueLimit: 2 * perOwner);
             NodeId heavy = provider.AddOwner("heavy", weight: 3, queueLimit: 2 * perOwner);
             using var queue = CreateQueue(provider, maxQueued: 2 * perOwner);
             for (uint ii = 0; ii < perOwner; ii++)
             {
-                Enqueue(queue, new TestRequest(light, ii));
-                Enqueue(queue, new TestRequest(heavy, ii));
+                Enqueue(queue, new TestRequest(light, 2 * ii));
+                Enqueue(queue, new TestRequest(heavy, (2 * ii) + 1));
             }
 
-            int dispatched = 0;
-            int lightServed = 0;
-            int heavyServed = 0;
-            using var start = new ManualResetEventSlim();
-            Task[] workers = new Task[8];
-            for (int w = 0; w < workers.Length; w++)
+            var seen = new System.Collections.Concurrent.ConcurrentDictionary<uint, byte>();
+            foreach (string owner in new[] { "light", "heavy", "heavy" })
             {
-                workers[w] = Task.Run(() =>
+                using FairRequestQueue.Entry entry = Dequeue(queue);
+                Assert.That(entry.Owner.Key, Is.EqualTo(owner));
+                Observe(entry);
+            }
+
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var publishTurn = new ManualResetEventSlim();
+            var turnGranted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int publications = 0;
+            queue.BeforePublishTurn = () =>
+            {
+                if (Interlocked.Increment(ref publications) == 1)
                 {
-                    start.Wait();
-                    while (Volatile.Read(ref dispatched) < measured &&
-                        queue.TryDequeue(out FairRequestQueue.Entry? entry))
+                    turnGranted.TrySetResult(true);
+                    // Model a preempted selector at the existing synchronous publication hook.
+                    publishTurn.Wait(deadline.Token);
+                }
+            };
+
+            Task heldSelection = Task.Run(() =>
+            {
+                using FairRequestQueue.Entry entry = Dequeue(queue);
+                Assert.That(entry.Owner.Key, Is.EqualTo("heavy"));
+                Observe(entry);
+            }, deadline.Token);
+
+            try
+            {
+                await turnGranted.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                int reserved = 0;
+                int lightServed = 0;
+                int heavyServed = 0;
+                Task[] workers = new Task[7];
+                for (int w = 0; w < workers.Length; w++)
+                {
+                    workers[w] = Task.Run(async () =>
                     {
-                        if (Interlocked.Increment(ref dispatched) <= measured)
+                        while (Interlocked.Increment(ref reserved) <= concurrentWindow)
                         {
+                            using FairRequestQueue.Entry entry =
+                                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                            Observe(entry);
                             if (entry.Owner.Key == "light")
                             {
                                 Interlocked.Increment(ref lightServed);
@@ -1415,24 +1426,64 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                                 Interlocked.Increment(ref heavyServed);
                             }
                         }
-                        entry.Dispose();
-                    }
-                });
-            }
-            start.Set();
-            await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    }, deadline.Token);
+                }
+                await Task.WhenAll(workers).WaitAsync(deadline.Token).ConfigureAwait(false);
 
-            // both owners stay backlogged for the whole measured window
-            Assert.That(lightServed + heavyServed, Is.EqualTo(measured));
+                Assert.That(heldSelection.IsCompleted, Is.False);
+                Assert.That(seen, Has.Count.EqualTo(concurrentWindow + 3));
+                Assert.That(lightServed, Is.EqualTo(concurrentWindow));
+                Assert.That(heavyServed, Is.Zero);
+            }
+            finally
+            {
+                publishTurn.Set();
+                await heldSelection.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                queue.BeforePublishTurn = null;
+            }
+
+            Assert.That(seen, Has.Count.EqualTo(concurrentWindow + 4));
+            Assert.That(queue.Count, Is.EqualTo((2 * perOwner) - concurrentWindow - 4));
+            Assert.That(queue.OwnerCount, Is.EqualTo(2));
+            Assert.That(queue.ReadyTokenCount, Is.EqualTo(4));
+
+            int lightRecovered = 0;
+            int heavyRecovered = 0;
+            for (int ii = 0; ii < recoveredWindow; ii++)
+            {
+                using FairRequestQueue.Entry entry = Dequeue(queue);
+                Observe(entry);
+                if (entry.Owner.Key == "light")
+                {
+                    lightRecovered++;
+                }
+                else
+                {
+                    heavyRecovered++;
+                }
+            }
+            Assert.That(lightRecovered, Is.EqualTo(recoveredWindow / 4));
+            Assert.That(heavyRecovered, Is.EqualTo(3 * lightRecovered));
 
             while (queue.TryDequeue(out FairRequestQueue.Entry? rest))
             {
-                rest.Dispose();
+                using (rest)
+                {
+                    Observe(rest);
+                }
             }
+            Assert.That(seen, Has.Count.EqualTo(2 * perOwner));
             Assert.That(queue.Count, Is.Zero);
             Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(queue.ReadyTokenCount, Is.Zero);
             Assert.That(provider.TotalUsed, Is.Zero);
-            return (lightServed, heavyServed);
+
+            void Observe(FairRequestQueue.Entry entry)
+            {
+                uint handle = entry.Request.Request.RequestHeader.RequestHandle;
+                Assert.That(handle, Is.LessThan(2 * perOwner));
+                Assert.That(seen.TryAdd(handle, 0), Is.True, $"Request {handle} was dispatched twice.");
+            }
         }
 
         /// <summary>

@@ -12,6 +12,7 @@ continuously tested for compliance using the latest Compliance Test Tool (CTT).
 The stack ships server- and client-side support for:
 
 - Part 9 (Alarms & Conditions)
+- [Part 10 (Programs)](Programs.md)
 - Part 11 (Historical Access) and Part 13 (Aggregates)
 - Part 16 (State Machines)
 - Part 17 (Alias Names)

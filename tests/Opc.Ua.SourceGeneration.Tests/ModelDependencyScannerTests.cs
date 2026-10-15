@@ -495,6 +495,11 @@ namespace Opc.Ua.SourceGeneration
                     Is.Empty);
                 Assert.That(normalResult.GeneratedSources, Is.Empty,
                     "Normal duplicate suppression should select the payload-bearing producer.");
+                Assert.That(normalDiagnostics.Single(diagnostic => diagnostic.Id == "MODELGEN012" &&
+                    diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains(DemoModelUri, StringComparison.Ordinal))
+                    .GetMessage(CultureInfo.InvariantCulture),
+                    Does.Contain("selected 'ProducerWithoutAccessors' and ignored 'TransitiveReexport'"),
+                    "A conflicting transitive declaration must still report the selection.");
             });
 
             (GeneratorRunResult accessorResult, _, ImmutableArray<Diagnostic> accessorDiagnostics) =
@@ -508,6 +513,71 @@ namespace Opc.Ua.SourceGeneration
                     accessorDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
                     Is.Empty);
                 Assert.That(accessorResult.GeneratedSources, Has.Length.EqualTo(1));
+            });
+        }
+
+        /// <summary>
+        /// A matching transitive declaration does not compete with the assembly that supplies the model.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MatchingTransitiveReexportDoesNotReportDuplicateProducer(bool reexportFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation producer = CreateModelMetadataAssembly(
+                "SelfProducer", "DemoModel", "1.0", payload);
+            CSharpCompilation reexport = CreateModelMetadataAssembly(
+                "TransitiveReexport", "DemoModel", "1.0", null!);
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                reexportFirst ? reexport : producer,
+                additionalReferences: [(reexportFirst ? producer : reexport).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics.Where(diagnostic => diagnostic.Id != "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty,
+                    "The payload-bearing producer must still suppress duplicate model generation.");
+            });
+        }
+
+        /// <summary>
+        /// Selecting among actual model producers still reports the chosen and rejected versions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DistinctModelProducersStillReportVersionSelection(bool newestFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation older = CreateModelMetadataAssembly(
+                "OlderProducer", "DemoModel", "1.0", payload);
+            CSharpCompilation newer = CreateModelMetadataAssembly(
+                "NewerProducer", "DemoModel", "2.0", payload);
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                newestFirst ? newer : older,
+                additionalReferences: [(newestFirst ? older : newer).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Diagnostic selection = diagnostics.Single(diagnostic => diagnostic.Id == "MODELGEN012");
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.GetMessage(CultureInfo.InvariantCulture),
+                    Does.Contain("selected 'NewerProducer' and ignored 'OlderProducer'"));
+                Assert.That(diagnostics.Where(diagnostic =>
+                    diagnostic.Id is not "MODELGEN012" and not "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty);
             });
         }
 
