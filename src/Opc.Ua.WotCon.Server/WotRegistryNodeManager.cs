@@ -83,6 +83,7 @@ namespace Opc.Ua.WotCon.Server
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
+            Coordinator.DiagLogger = server.Telemetry.CreateLogger<WotRegistryNodeManager>(); // [DEBUG-G10-RF1]
 
             // WoT Binding Section 5.1.5 makes a loaded AddressSpace the second
             // half of the local context. This is the first point at which it

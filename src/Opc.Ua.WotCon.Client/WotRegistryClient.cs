@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
@@ -312,9 +314,25 @@ namespace Opc.Ua.WotCon.Client
                     new Variant(requestId)
                 ]
             };
-            CallResponse response = await Session
-                .CallAsync(new RequestHeader(), [request], ct)
-                .ConfigureAwait(false);
+            CallResponse response;
+            long rfStart = Stopwatch.GetTimestamp(); // [DEBUG-G10-RF1]
+            bool rfCompleted = false; // [DEBUG-G10-RF1]
+            try
+            {
+                response = await Session
+                    .CallAsync(new RequestHeader(), [request], ct)
+                    .ConfigureAwait(false);
+                rfCompleted = true; // [DEBUG-G10-RF1]
+            }
+            finally
+            {
+                // [DEBUG-G10-RF1]
+                Telemetry.CreateLogger<WotRegistryClient>().ClientRefreshCall(
+                    (Stopwatch.GetTimestamp() - rfStart) * 1000 / Stopwatch.Frequency,
+                    Session.OperationTimeout,
+                    Session.DefaultTimeoutHint,
+                    rfCompleted);
+            }
             CallMethodResult callResult = GetFirstCallResult(response, "Refresh");
             if (StatusCode.IsBad(callResult.StatusCode))
             {
@@ -482,6 +500,7 @@ namespace Opc.Ua.WotCon.Client
             WotRegistryDocument[] ordered = OrderThingModelsFirst(documents);
             var outcomes = new WotRegistryDocumentLoadOutcome[ordered.Length];
             var groups = new Dictionary<string, WotRegistryGroupClient>(StringComparer.Ordinal);
+            long rfUploadStart = Stopwatch.GetTimestamp(); // [DEBUG-G10-RF1]
             for (int i = 0; i < ordered.Length; i++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -523,6 +542,8 @@ namespace Opc.Ua.WotCon.Client
             }
 
             WotRegistryRefreshResult? refreshResult = null;
+            Telemetry.CreateLogger<WotRegistryClient>().ClientUploadPhase( // [DEBUG-G10-RF1]
+                ordered.Length, (Stopwatch.GetTimestamp() - rfUploadStart) * 1000 / Stopwatch.Frequency);
             if (refresh)
             {
                 refreshResult = await RefreshAllAsync(

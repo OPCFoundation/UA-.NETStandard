@@ -114,9 +114,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
             }
 
+            var rfDiag = new WotRefreshDiag(DiagLogger, m_mutex.CurrentCount); // [DEBUG-G10-RF1]
             try
             {
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+                rfDiag.Acquired(); // [DEBUG-G10-RF1]
                 try
                 {
                     DateTime start = DateTime.UtcNow;
@@ -125,6 +127,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     if (request.ExpectedGeneration != 0 &&
                         request.ExpectedGeneration != m_generation)
                     {
+                        rfDiag.Done(rejected: true); // [DEBUG-G10-RF1]
                         return RejectedResult(request, start);
                     }
 
@@ -146,6 +149,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                     contentCache, version, token),
                                 cancellationToken)
                             .ConfigureAwait(false);
+                    rfDiag.Built(enabled.Count, closures.Length); // [DEBUG-G10-RF1]
 
                     var targetKeys = new HashSet<string>(
                         closures.Select(c => c.Key), StringComparer.Ordinal);
@@ -154,8 +158,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         (version, token) => ReadCachedContentAsync(contentCache, version, token),
                         m_converterOptions.MaxNodeCount);
                     declarationContext.AddAvailableNativePartitions(contentCache, m_converterOptions, cancellationToken);
+                                        rfDiag.Native(); // [DEBUG-G10-RF1]
 
-                    uint newGeneration = m_generation + 1;
+                                        uint newGeneration = m_generation + 1;
                     ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
                         ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
                     var projections = new List<WotResourceProjection>();
@@ -173,6 +178,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     retired += retiredCount;
                     skipped += retiredResults.Length;
                     results.AddRange(retiredResults);
+                    rfDiag.Retired(); // [DEBUG-G10-RF1]
 
                     foreach (WotDependencyClosure closure in closures)
                     {
@@ -213,12 +219,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         projections.AddRange(outcome.Projections);
                     }
+                    rfDiag.Looped(results.Count); // [DEBUG-G10-RF1]
 
                     if (!dryRun && projections.Count > 0)
                     {
                         await m_registry.ApplyProjectionResultsAsync(
                             projections, cancellationToken).ConfigureAwait(false);
                     }
+                    rfDiag.Applied(); // [DEBUG-G10-RF1]
                     if (!dryRun)
                     {
                         m_generation = newGeneration;
@@ -253,6 +261,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         Summary = summary
                     });
 
+                    rfDiag.Done(rejected: false); // [DEBUG-G10-RF1]
                     return new WotRefreshResult(
                         summary, results.ToImmutable(), dryRun ? 0u : newGeneration);
                 }
@@ -263,6 +272,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             finally
             {
+                rfDiag.Finish(cancellationToken.IsCancellationRequested); // [DEBUG-G10-RF1]
                 EndOperation();
             }
         }
@@ -426,6 +436,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets or sets whether unsupported forms fail a strict closure.
         /// </summary>
         public bool StrictBindings { get; set; }
+
+        /// <summary>
+        /// [DEBUG-G10-RF1] Temporary diagnostics logger for refresh timing.
+        /// </summary>
+        internal Microsoft.Extensions.Logging.ILogger? DiagLogger { get; set; }
 
         /// <summary>
         /// Gets or sets how previous projection generations are retired after a
