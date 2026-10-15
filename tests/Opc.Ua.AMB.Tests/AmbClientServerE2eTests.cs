@@ -72,6 +72,51 @@ namespace Opc.Ua.AMB.Tests
         private static readonly string[] s_levels = ["Plant1", "Plant1/Hall3", "Plant1/Hall3/Line2"];
 
         [Test]
+        public async Task BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync()
+        {
+            await using Plant plant = await Plant.StartAsync(
+                nameof(BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync), null).ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "bounded")
+                .ConfigureAwait(false);
+            var client = new AmbClient(connection.Session, NUnitTelemetryContext.Create(), new AmbClientOptions());
+            NodeId pump = plant.Pump!.NodeId;
+
+            ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+            AssetSnapshot snapshot = await client.ReadAssetAsync(pump).ConfigureAwait(false);
+            ArrayOf<AssetLocationNode> locations = await client.BrowseLocationsAsync(AssetLocationKind.Hierarchical)
+                .ConfigureAwait(false);
+            await client.WriteAssetIdAsync(pump, "P-bounded").ConfigureAwait(false);
+            NodeId link = await client.AddDocumentationLinkAsync(
+                pump, "https://example.invalid/bounded", new QualifiedName("BoundedManual", pump.NamespaceIndex))
+                .ConfigureAwait(false);
+            ArrayOf<DocumentationLinkRecord> links = await client.ReadDocumentationLinksAsync(pump)
+                .ConfigureAwait(false);
+            await client.RemoveDocumentationLinkAsync(pump, link).ConfigureAwait(false);
+            AssetIdentificationRecord written = await client.ReadIdentificationAsync(pump).ConfigureAwait(false);
+            DataValue alive = await connection.Session.ReadValueAsync(Ua.VariableIds.Server_NamespaceArray,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(assets.ToArray(), Does.Contain(pump));
+                Assert.That(snapshot.Identification.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(10));
+                Assert.That(snapshot.DeviceHealthValue!.IsAbsent, Is.False);
+                Assert.That(snapshot.DeviceHealthValue.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(snapshot.HealthAlarms.Count, Is.EqualTo(1));
+                Assert.That(snapshot.HealthAlarms[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(snapshot.MaintenanceActivities.Count, Is.EqualTo(1));
+                Assert.That(snapshot.MaintenanceActivities[0].PlannedDate, Is.EqualTo(s_planned));
+                Assert.That(snapshot.MaintenanceActivities[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(locations.Count, Is.EqualTo(3));
+                Assert.That(links.ToArray()!.Single(value => value.NodeId == link).IsUserLink, Is.True);
+                Assert.That(written.AssetId, Is.EqualTo("P-bounded"));
+                Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "the borrowed session still accepts reads");
+            });
+        }
+
+        [Test]
         public async Task TheClientDiscoversAndReadsThePlantAsync()
         {
             await using Plant plant = await Plant.StartAsync(nameof(TheClientDiscoversAndReadsThePlantAsync), null)

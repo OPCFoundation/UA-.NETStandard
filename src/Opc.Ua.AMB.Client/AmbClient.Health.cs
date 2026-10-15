@@ -56,11 +56,27 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             CancellationToken cancellationToken = default)
         {
-            Variant[] values = await ReadChildValuesAsync(
+            AssetReadValue field = await ReadDeviceHealthValueAsync(asset, cancellationToken).ConfigureAwait(false);
+            return StatusCode.IsGood(field.Value.StatusCode) &&
+                field.Value.WrappedValue.TryGetValue(out int health) ? (DeviceHealthEnumeration)health : null;
+        }
+
+        /// <summary>
+        /// Reads DeviceHealth without discarding source identity, null values,
+        /// quality or returned timestamps. Strict clients request both timestamps
+        /// and reject non-Good or incorrectly
+        /// typed values with AmbValueReadException, retaining the original read.
+        /// </summary>
+        public async ValueTask<AssetReadValue> ReadDeviceHealthValueAsync(
+            NodeId asset,
+            CancellationToken cancellationToken = default)
+        {
+            AssetReadValue[] fields = await ReadFieldsAsync(
                 asset,
                 [[Di(Opc.Ua.Di.BrowseNames.DeviceHealth)]],
                 cancellationToken).ConfigureAwait(false);
-            return values[0].TryGetValue(out int health) ? (DeviceHealthEnumeration)health : null;
+            RequireValueType(fields[0], fields[0].Value.WrappedValue.TryGetValue(out int _));
+            return fields[0];
         }
 
         /// <summary>
@@ -77,12 +93,18 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken = default)
         {
             var alarms = new List<AssetAlarmRecord>();
-            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesAsync(cancellationToken).ConfigureAwait(false);
-            foreach (Variant[] values in await ReadConditionsAsync(asset, cancellationToken).ConfigureAwait(false))
+            BrowseBudget budget = CreateBrowseBudget();
+            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(budget, cancellationToken)
+                .ConfigureAwait(false);
+            foreach ((Variant[] values, AssetReadValue[] fields) in await ReadConditionsAsync(
+                asset, budget, cancellationToken).ConfigureAwait(false))
             {
                 if (!AmbConditionFields.IsMaintenance(values, maintenanceClasses))
                 {
-                    alarms.Add(AmbConditionFields.ToAlarm(values, Session.MessageContext));
+                    alarms.Add(AmbConditionFields.ToAlarm(values, Session.MessageContext) with
+                    {
+                        Values = EvidenceOf(fields)
+                    });
                 }
             }
             return alarms.ToArrayOf();
@@ -102,12 +124,18 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken = default)
         {
             var activities = new List<MaintenanceActivityRecord>();
-            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesAsync(cancellationToken).ConfigureAwait(false);
-            foreach (Variant[] values in await ReadConditionsAsync(asset, cancellationToken).ConfigureAwait(false))
+            BrowseBudget budget = CreateBrowseBudget();
+            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(budget, cancellationToken)
+                .ConfigureAwait(false);
+            foreach ((Variant[] values, AssetReadValue[] fields) in await ReadConditionsAsync(
+                asset, budget, cancellationToken).ConfigureAwait(false))
             {
                 if (AmbConditionFields.IsMaintenance(values, maintenanceClasses))
                 {
-                    activities.Add(AmbConditionFields.ToMaintenance(values, Session.MessageContext));
+                    activities.Add(AmbConditionFields.ToMaintenance(values, Session.MessageContext) with
+                    {
+                        Values = EvidenceOf(fields)
+                    });
                 }
             }
             return activities.ToArrayOf();
@@ -231,7 +259,14 @@ namespace Opc.Ua.AMB.Client
         /// <c>MaintenanceConditionClassType</c> and its subtypes, read once
         /// per client; the classes the client knows when browsing fails.
         /// </summary>
-        internal async ValueTask<HashSet<NodeId>> MaintenanceClassesAsync(CancellationToken cancellationToken)
+        internal ValueTask<HashSet<NodeId>> MaintenanceClassesAsync(CancellationToken cancellationToken)
+        {
+            return MaintenanceClassesWithBudgetAsync(CreateBrowseBudget(), cancellationToken);
+        }
+
+        private async ValueTask<HashSet<NodeId>> MaintenanceClassesWithBudgetAsync(
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
         {
             HashSet<NodeId>? known = Volatile.Read(ref m_maintenanceClasses);
             if (known != null)
@@ -243,30 +278,38 @@ namespace Opc.Ua.AMB.Client
             try
             {
                 var pending = new Queue<(NodeId Type, int Depth)>();
+                var seen = new HashSet<NodeId> { Ua.ObjectTypeIds.MaintenanceConditionClassType };
                 pending.Enqueue((Ua.ObjectTypeIds.MaintenanceConditionClassType, 0));
                 while (pending.Count > 0)
                 {
                     (NodeId type, int depth) = pending.Dequeue();
-                    if (depth >= MaxDepth)
+                    if (depth >= MaxDepth && m_options is null)
                     {
                         continue;
                     }
-                    foreach (ReferenceDescription subtype in await BrowseAsync(
+                    foreach (ReferenceDescription subtype in await BrowseWithBudgetAsync(
                         type,
                         Ua.ReferenceTypeIds.HasSubtype,
                         BrowseDirection.Forward,
-                        cancellationToken,
-                        NodeClass.ObjectType).ConfigureAwait(false))
+                        NodeClass.ObjectType,
+                        budget,
+                        cancellationToken).ConfigureAwait(false))
                     {
                         NodeId subtypeId = ToNodeId(subtype.NodeId);
-                        if (!subtypeId.IsNull && classes.Add(subtypeId))
+                        if (!subtypeId.IsNull &&
+                            (m_options is null ? classes.Add(subtypeId) : seen.Add(subtypeId)))
                         {
+                            if (depth >= MaxDepth)
+                            {
+                                throw LimitExceeded("The AMB maintenance class depth limit was exceeded.");
+                            }
+                            classes.Add(subtypeId);
                             pending.Enqueue((subtypeId, depth + 1));
                         }
                     }
                 }
             }
-            catch (ServiceResultException)
+            catch (ServiceResultException) when (m_options is null)
             {
                 // The classes the client knows are a good enough answer;
                 // they are not remembered, so the next call asks again.
@@ -449,16 +492,31 @@ namespace Opc.Ua.AMB.Client
         /// Reads the fields of the conditions listed in the
         /// <c>2:DeviceHealthAlarms</c> folder of an asset.
         /// </summary>
-        private async ValueTask<List<Variant[]>> ReadConditionsAsync(NodeId asset, CancellationToken cancellationToken)
+        private async ValueTask<List<(Variant[] Values, AssetReadValue[] Fields)>> ReadConditionsAsync(
+            NodeId asset,
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
         {
-            var conditions = new List<Variant[]>();
+            var conditions = new List<(Variant[] Values, AssetReadValue[] Fields)>();
             NodeId folder = await ResolveAsync(asset, cancellationToken, Di(Opc.Ua.Di.BrowseNames.DeviceHealthAlarms))
                 .ConfigureAwait(false);
             if (folder.IsNull)
             {
+                if (m_options is not null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "Bounded condition reads require DeviceHealthAlarms; " +
+                        "no implicit condition refresh is performed.");
+                }
                 // The folder is what OPC 10000-100 recommends, not what every
                 // asset has.
-                return await RefreshConditionsAsync(asset, cancellationToken).ConfigureAwait(false);
+                foreach (Variant[] refreshed in await RefreshConditionsAsync(asset, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    conditions.Add((refreshed, []));
+                }
+                return conditions;
             }
 
             AmbConditionFields.Field[] fields = AmbConditionFields.Build(Session.NamespaceUris);
@@ -469,19 +527,23 @@ namespace Opc.Ua.AMB.Client
             }
 
             var seen = new HashSet<NodeId>();
-            foreach (ReferenceDescription reference in await BrowseAsync(
+            foreach (ReferenceDescription reference in await BrowseWithBudgetAsync(
                 folder,
                 Ua.ReferenceTypeIds.HierarchicalReferences,
                 BrowseDirection.Forward,
-                cancellationToken,
-                NodeClass.Object).ConfigureAwait(false))
+                NodeClass.Object,
+                budget,
+                cancellationToken).ConfigureAwait(false))
             {
                 NodeId condition = ToNodeId(reference.NodeId);
                 if (condition.IsNull || !seen.Add(condition))
                 {
                     continue;
                 }
-                Variant[] read = await ReadChildValuesAsync(condition, paths, cancellationToken).ConfigureAwait(false);
+                AssetReadValue[] readFields = await ReadFieldsAsync(condition, paths, cancellationToken)
+                    .ConfigureAwait(false);
+                ValidateConditionFields(readFields);
+                Variant[] read = VariantsOf(readFields);
                 var values = new Variant[fields.Length];
                 values[AmbConditionFields.ConditionId] = Variant.From(condition);
                 for (int ii = 0; ii < read.Length; ii++)
@@ -492,9 +554,49 @@ namespace Opc.Ua.AMB.Client
                 {
                     values[AmbConditionFields.EventType] = Variant.From(ToNodeId(reference.TypeDefinition));
                 }
-                conditions.Add(values);
+                conditions.Add((values, readFields));
             }
             return conditions;
+        }
+
+        private void ValidateConditionFields(AssetReadValue[] fields)
+        {
+            if (m_options is null)
+            {
+                return;
+            }
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                Variant value = fields[ii].Value.WrappedValue;
+                bool valid = (ii + 1) switch
+                {
+                    AmbConditionFields.EventId => value.TryGetValue(out ByteString _),
+                    AmbConditionFields.EventType or AmbConditionFields.SourceNode or
+                        AmbConditionFields.ConditionClassId or AmbConditionFields.MaintenanceState =>
+                        value.TryGetValue(out NodeId _),
+                    AmbConditionFields.SourceName or AmbConditionFields.ConditionName =>
+                        value.TryGetValue(out string? _),
+                    AmbConditionFields.Time or AmbConditionFields.PlannedDate =>
+                        value.TryGetValue(out DateTimeUtc _),
+                    AmbConditionFields.Message or AmbConditionFields.ConditionClassName or AmbConditionFields.Comment =>
+                        value.TryGetValue(out LocalizedText _),
+                    AmbConditionFields.Severity => value.TryGetValue(out ushort _),
+                    AmbConditionFields.Retain or AmbConditionFields.Acked or AmbConditionFields.Active or
+                        AmbConditionFields.ConfigurationChanged => value.TryGetValue(out bool _),
+                    AmbConditionFields.PotentialRootCauses =>
+                        value.TryGetValue(out ArrayOf<RootCauseDataType> _, Session.MessageContext),
+                    AmbConditionFields.EstimatedDowntime => value.TryGetValue(out double downtime) &&
+                        !double.IsNaN(downtime) && !double.IsInfinity(downtime) &&
+                        downtime >= 0 && downtime <= TimeSpan.MaxValue.TotalMilliseconds,
+                    AmbConditionFields.MaintenanceSupplier or AmbConditionFields.QualificationOfPersonnel =>
+                        value.TryGetValue<NameNodeIdDataType>(out NameNodeIdDataType? _, Session.MessageContext),
+                    AmbConditionFields.PartsOfAssetReplaced or AmbConditionFields.PartsOfAssetServiced =>
+                        value.TryGetValue(out ArrayOf<NameNodeIdDataType> _, Session.MessageContext),
+                    AmbConditionFields.MaintenanceMethod => value.TryGetValue(out int _),
+                    _ => false
+                };
+                RequireValueType(fields[ii], valid);
+            }
         }
     }
 }

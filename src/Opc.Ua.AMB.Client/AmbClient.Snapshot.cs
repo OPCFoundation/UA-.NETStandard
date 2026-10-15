@@ -44,11 +44,16 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             CancellationToken cancellationToken = default)
         {
+            AssetIdentificationRecord identification = await ReadIdentificationAsync(asset, cancellationToken)
+                .ConfigureAwait(false);
+            AssetReadValue health = await ReadDeviceHealthValueAsync(asset, cancellationToken).ConfigureAwait(false);
             return new AssetSnapshot
             {
                 Asset = asset,
-                Identification = await ReadIdentificationAsync(asset, cancellationToken).ConfigureAwait(false),
-                DeviceHealth = await ReadDeviceHealthAsync(asset, cancellationToken).ConfigureAwait(false),
+                Identification = identification,
+                DeviceHealth = StatusCode.IsGood(health.Value.StatusCode) &&
+                    health.Value.WrappedValue.TryGetValue(out int state) ? (Di.DeviceHealthEnumeration)state : null,
+                DeviceHealthValue = m_options is null ? null : health,
                 HealthAlarms = await ReadHealthAlarmsAsync(asset, cancellationToken).ConfigureAwait(false),
                 MaintenanceActivities = await ReadMaintenanceActivitiesAsync(asset, cancellationToken)
                     .ConfigureAwait(false),
