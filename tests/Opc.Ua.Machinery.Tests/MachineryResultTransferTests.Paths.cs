@@ -146,7 +146,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void CloseMethodResolutionFailureStillAttemptsTheDeclarationClose()
+        public async Task CloseMethodResolutionFailureStillAttemptsTheDeclarationClose()
         {
             m_transfer.Translate = path =>
             {
@@ -160,11 +160,11 @@ namespace Opc.Ua.Machinery.Tests
             };
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 0))!;
+            long copied = await m_transfer.Client.DownloadResultAsync(
+                TransferHarness.MachineId, "selected", destination, 0);
 
-            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(copied, Is.Zero);
+            Assert.That(destination.Length, Is.Zero);
             Assert.That(m_transfer.Calls[^1].MethodId, Is.EqualTo(MethodIds.FileType_Close));
             AssertSuccessfulCleanup();
         }
@@ -186,7 +186,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(copied, Is.EqualTo(2));
             Assert.That(destination.ToArray(), Is.EqualTo(m_transfer.Payload.ToArray()));
             Assert.That(m_transfer.AttributeReads, Is.EqualTo(2));
-            Assert.That(m_transfer.Paths, Has.Count.EqualTo(5));
+            Assert.That(m_transfer.Paths, Has.Count.EqualTo(4));
             Assert.That(m_transfer.Paths[2].StartingNode, Is.EqualTo(TransferHarness.StateMachineId));
             Assert.That(m_transfer.Paths[2].RelativePath.Elements[0].TargetName.Name, Is.EqualTo("CurrentState"));
             Assert.That(m_transfer.Paths[2].RelativePath.Elements[1].TargetName.Name, Is.EqualTo("Id"));

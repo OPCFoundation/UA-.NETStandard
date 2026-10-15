@@ -82,12 +82,19 @@ namespace Opc.Ua.Machinery.Tests
         public void NonGoodServiceOrMethodStatusIsRejected(
             string phase,
             StatusCode status,
-            bool serviceStatus)
+            bool serviceStatus,
+            string handleKind)
         {
             CallResponse response = TransferHarness.Response(
                 phase == "generate"
                     ? [Variant.From(TransferHarness.FileId), Variant.From(37u), Variant.From(NodeId.Null)]
                     : phase == "read" ? [Variant.From(ByteString.Empty)] : []);
+            if (phase == "generate" && handleKind != "valid")
+            {
+                response.Results[0].OutputArguments = handleKind == "missing"
+                    ? [Variant.From(TransferHarness.FileId)]
+                    : [Variant.From(TransferHarness.FileId), Variant.From(37ul), Variant.From(NodeId.Null)];
+            }
             if (serviceStatus)
             {
                 response.ResponseHeader.ServiceResult = status;
@@ -117,10 +124,15 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(error.StatusCode, Is.EqualTo(status));
             Assert.That(destination.Length, Is.Zero);
             Assert.That(m_transfer.GenerateCount, Is.EqualTo(1));
-            Assert.That(m_transfer.CloseCount, Is.EqualTo(phase == "generate" ? 0 : 1));
+            bool acquiredHandle = phase != "generate" || handleKind == "valid";
+            Assert.That(m_transfer.CloseCount, Is.EqualTo(acquiredHandle ? 1 : 0));
             Assert.That(m_transfer.ReadLengths, Has.Count.EqualTo(phase == "generate" ? 0 : 1));
             Assert.That(m_transfer.OwnsHandle, Is.EqualTo(phase == "close"));
             m_transfer.Session.Verify(session => session.Dispose(), Times.Never);
+            if (acquiredHandle && phase != "close")
+            {
+                AssertSuccessfulCleanup();
+            }
         }
 
         [Test]
@@ -136,10 +148,11 @@ namespace Opc.Ua.Machinery.Tests
                     TransferHarness.MachineId, "selected", destination, 8))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
-            Assert.That(m_transfer.Calls, Has.Count.EqualTo(1));
+            Assert.That(m_transfer.Calls, Has.Count.EqualTo(2));
             Assert.That(m_transfer.Paths, Has.Count.EqualTo(2));
-            Assert.That(m_transfer.CloseCount, Is.Zero);
-            Assert.That(m_transfer.OwnsHandle, Is.False);
+            Assert.That(m_transfer.ReadLengths, Is.Empty);
+            Assert.That(destination.Length, Is.Zero);
+            AssertSuccessfulCleanup();
         }
 
         [TestCase("missing")]
@@ -502,14 +515,18 @@ namespace Opc.Ua.Machinery.Tests
         {
             foreach (string phase in new[] { "generate", "read", "close" })
             {
+                string[] handleKinds = phase == "generate" ? ["valid", "missing", "type"] : ["valid"];
                 foreach (StatusCode status in new StatusCode[]
                 {
                     StatusCodes.Uncertain,
                     StatusCodes.BadCommunicationError
                 })
                 {
-                    yield return new TestCaseData(phase, status, true);
-                    yield return new TestCaseData(phase, status, false);
+                    foreach (string handleKind in handleKinds)
+                    {
+                        yield return new TestCaseData(phase, status, true, handleKind);
+                        yield return new TestCaseData(phase, status, false, handleKind);
+                    }
                 }
             }
         }

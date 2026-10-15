@@ -195,13 +195,11 @@ namespace Opc.Ua.Machinery.Tests
                     GenerateCount++;
                     CallResponse response = GenerateResponse ?? Response(
                         [Variant.From(FileId), Variant.From(Handle), Variant.From(NodeId.Null)]);
-                    if (response.ResponseHeader is not null &&
-                        StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
-                        response.Results.Count == 1 &&
-                        StatusCode.IsGood(response.Results[0].StatusCode) &&
-                        response.Results[0].OutputArguments.Count >= 2 &&
-                        response.Results[0].OutputArguments[0].TryGetValue(out NodeId node) && node == FileId &&
-                        response.Results[0].OutputArguments[1].TryGetValue(out uint returnedHandle))
+                    if (response.Results.Count > 0 &&
+                        response.Results[0] is { } generated &&
+                        generated.OutputArguments.Count >= 2 &&
+                        generated.OutputArguments[0].TryGetValue(out NodeId node) && node == FileId &&
+                        generated.OutputArguments[1].TryGetValue(out uint returnedHandle))
                     {
                         Handle = returnedHandle;
                         OwnsHandle = true;

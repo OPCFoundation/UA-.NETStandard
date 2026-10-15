@@ -193,7 +193,7 @@ namespace Opc.Ua.Machinery.Tests
             await client.DownloadResultAsync(TransferHarness.MachineId, selected, destination, 2);
 
             Assert.That(m_transfer.SelectedResultId, Is.EqualTo(selected));
-            Assert.That(m_transfer.Paths, Has.Count.EqualTo(4));
+            Assert.That(m_transfer.Paths, Has.Count.EqualTo(3));
             BrowsePath path = m_transfer.Paths[0];
             Assert.That(path.StartingNode, Is.EqualTo(TransferHarness.MachineId));
             Assert.That(path.RelativePath.Elements, Has.Count.EqualTo(2));
@@ -418,8 +418,12 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(m_transfer.CloseToken.CanBeCanceled, Is.True);
             Assert.That(m_transfer.CloseWasCancelledOnEntry, Is.False);
             Assert.That(m_transfer.Calls[^1].ObjectId, Is.EqualTo(TransferHarness.FileId));
+            Assert.That(m_transfer.Calls[^1].MethodId, Is.EqualTo(MethodIds.FileType_Close));
             Assert.That(m_transfer.Calls[^1].InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(m_transfer.Handle));
+            Assert.That(m_transfer.Paths, Has.None.Matches<BrowsePath>(static path =>
+                path.StartingNode == TransferHarness.FileId &&
+                path.RelativePath.Elements[0].TargetName.Name == "Close"));
             m_transfer.Session.Verify(session => session.Dispose(), Times.Never);
         }
 
