@@ -354,6 +354,110 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void BaseStreamOfABufferDecoderFollowsTheDecodedPosition()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [0xFF, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0];
+            using var decoder = new BinaryDecoder(buffer, 1, 12, messageContext);
+
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(1));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+
+            // the stream created on first access starts where decoding is.
+            Stream stream = decoder.BaseStream;
+            Assert.That(stream.Position, Is.EqualTo(4));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+            Assert.That(stream.Length, Is.EqualTo(12));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(stream.Position, Is.EqualTo(8));
+
+            // reads through the stream move the decoder.
+            stream.Position = 4;
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(3));
+            Assert.That(decoder.BaseStream, Is.SameAs(stream));
+        }
+
+        [Test]
+        public void ResetDecoderReadsTheNextBufferLikeANewDecoder()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var serverUris = new NamespaceTable();
+            serverUris.Append(Namespaces.OpcUa);
+            serverUris.Append("urn:a");
+            serverUris.Append("urn:b");
+            ServiceMessageContext first = ServiceMessageContext.Create(telemetryContext);
+            first.NamespaceUris = serverUris;
+            ServiceMessageContext second = ServiceMessageContext.Create(telemetryContext);
+            second.NamespaceUris = serverUris;
+            var messageUris = new NamespaceTable();
+            messageUris.Append(Namespaces.OpcUa);
+            messageUris.Append("urn:b");
+
+            // a four-byte NodeId in namespace 1, then an Int32.
+            byte[] message = [0x01, 0x01, 0x07, 0x00, 9, 0, 0, 0];
+            var decoder = new BinaryDecoder(message, first);
+            decoder.SetMappingTables(messageUris, null);
+            ushort mapped = decoder.ReadNodeId(null).NamespaceIndex;
+            Assert.That(mapped, Is.Not.EqualTo(1), "the mapping tables apply");
+            Stream exposed = decoder.BaseStream;
+
+            byte[] next = [0xFF, 0x01, 0x01, 0x07, 0x00, 9, 0, 0, 0];
+            decoder.ResetToBuffer(new ArraySegment<byte>(next, 1, 8), second);
+
+            Assert.That(decoder.Context, Is.SameAs(second));
+            Assert.That(decoder.Position, Is.Zero);
+            NodeId nodeId = decoder.ReadNodeId(null);
+            Assert.That(nodeId.NamespaceIndex, Is.EqualTo(1), "the mappings of the last message are dropped");
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(9));
+            Assert.That(decoder.BaseStream, Is.Not.SameAs(exposed));
+            Assert.That(decoder.BaseStream.Length, Is.EqualTo(8));
+            Assert.That(() => decoder.ReadInt32(null), Throws.TypeOf<ServiceResultException>());
+
+            decoder.ResetToBuffer(default, second);
+            Assert.That(() => decoder.ReadByte(null), Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        public void ResetOfAStreamDecoderIsRejected()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(new MemoryStream(new byte[4]), messageContext);
+            Assert.That(
+                () => decoder.ResetToBuffer(new ArraySegment<byte>(new byte[4]), messageContext),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void BufferDecoderWithoutStreamClosesAndDisposes()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var decoder = new BinaryDecoder([7, 0, 0, 0], messageContext);
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(7));
+            Assert.That(decoder.Close, Throws.Nothing);
+            Assert.That(decoder.Dispose, Throws.Nothing);
+        }
+
+        [Test]
+        public void BufferDecoderRejectsARangeOutsideTheBuffer()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = new byte[4];
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, -1, 2, messageContext));
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, 0, -1, messageContext));
+                Assert.That(
+                    () => new BinaryDecoder(buffer, 3, 2, messageContext),
+                    Throws.TypeOf<ArgumentException>());
+            });
+        }
+
+        [Test]
         public void DecodeMessageWithStreamThrowsOnNullStream()
         {
             // Arrange

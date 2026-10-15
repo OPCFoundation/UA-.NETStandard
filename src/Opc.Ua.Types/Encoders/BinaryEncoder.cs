@@ -424,7 +424,41 @@ namespace Opc.Ua
         public bool CanOmitFields => false;
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; }
+        public IServiceMessageContext Context { get; private set; }
+
+        /// <summary>
+        /// Lets an encoder that writes to a stream it leaves open write the next message to
+        /// that stream, in the state of an encoder newly created over it. The channels encode
+        /// one message at a time on a thread and reuse one encoder and stream for it.
+        /// </summary>
+        /// <param name="context">The message context to encode with.</param>
+        /// <exception cref="InvalidOperationException">The encoder does not write to a stream
+        /// it leaves open, or was disposed.</exception>
+        internal void ResetToStream(IServiceMessageContext context)
+        {
+            if (m_ostrm == null || m_writer == null || !m_leaveOpen)
+            {
+                throw new InvalidOperationException("Only an open encoder over a stream it leaves open can be reset.");
+            }
+            if (!ReferenceEquals(Context, context))
+            {
+                Context = context ?? throw new ArgumentNullException(nameof(context));
+                m_logger = null;
+            }
+            m_closed = false;
+            m_bufferPosition = 0;
+            m_namespaceMappings = null;
+            m_serverMappings = null;
+            m_nestingLevel = 0;
+        }
+
+        /// <summary>
+        /// Writes what the writer still buffers to the stream, as disposing the encoder does.
+        /// </summary>
+        internal void FlushToStream()
+        {
+            m_writer?.Flush();
+        }
 
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)

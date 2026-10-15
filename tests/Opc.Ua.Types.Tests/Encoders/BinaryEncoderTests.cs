@@ -1525,6 +1525,65 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ResetEncoderWritesTheNextMessageLikeANewEncoder()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var serverUris = new NamespaceTable();
+            serverUris.Append(Namespaces.OpcUa);
+            serverUris.Append("urn:a");
+            serverUris.Append("urn:b");
+            ServiceMessageContext first = ServiceMessageContext.Create(telemetryContext);
+            first.NamespaceUris = serverUris;
+            ServiceMessageContext second = ServiceMessageContext.Create(telemetryContext);
+            second.NamespaceUris = serverUris;
+            var messageUris = new NamespaceTable();
+            messageUris.Append(Namespaces.OpcUa);
+            messageUris.Append("urn:b");
+            var nodeId = new NodeId(7, 2);
+
+            byte[] expected;
+            using (var fresh = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(fresh, second, true))
+                {
+                    encoder.WriteNodeId(null, nodeId);
+                    encoder.WriteInt32(null, 9);
+                }
+                expected = fresh.ToArray();
+            }
+
+            using var stream = new MemoryStream();
+            using var reused = new BinaryEncoder(stream, first, true);
+            reused.SetMappingTables(messageUris, null);
+            reused.WriteNodeId(null, nodeId);
+            reused.FlushToStream();
+            Assert.That(stream.ToArray(), Is.Not.EqualTo(expected.AsSpan(0, 4).ToArray()), "the mapping tables apply");
+            stream.SetLength(0);
+
+            reused.ResetToStream(second);
+            reused.WriteNodeId(null, nodeId);
+            reused.WriteInt32(null, 9);
+            reused.FlushToStream();
+
+            Assert.That(reused.Context, Is.SameAs(second));
+            Assert.That(stream.ToArray(), Is.EqualTo(expected), "the mappings of the last message are dropped");
+        }
+
+        [Test]
+        public void ResetOfAnEncoderThatOwnsItsStreamIsRejected()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var owning = new BinaryEncoder(new MemoryStream(), messageContext, false);
+            using var buffered = new BinaryEncoder(messageContext);
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => owning.ResetToStream(messageContext), Throws.InvalidOperationException);
+                Assert.That(() => buffered.ResetToStream(messageContext), Throws.InvalidOperationException);
+            });
+        }
+
+        [Test]
         public void Close_FlushesData_DataIsWrittenToStream()
         {
             // Arrange
