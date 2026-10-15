@@ -1070,6 +1070,9 @@ namespace Opc.Ua.Server
                 // check for space in the queue.
                 if (m_eventQueueHandler.SetQueueOverflowIfFull())
                 {
+                    // the incoming event is lost (OPC 10000-9 5.11.4).
+                    m_eventQueueHandler.IsConditionEvent ??= IsConditionEvent;
+                    m_eventQueueHandler.TrackDiscardedEvent(instance);
                     return;
                 }
 
@@ -1114,10 +1117,40 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_eventQueueHandler.IsConditionEvent ??= IsConditionEvent;
                 m_eventQueueHandler.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
             }
+        }
+
+        /// <summary>
+        /// Returns true if the queued event handle is a Condition event.
+        /// </summary>
+        /// <remarks>
+        /// Conditions report their events as an <see cref="InstanceStateSnapshot"/> of the
+        /// <see cref="ConditionState"/>; other sources may queue the event state itself.
+        /// The type tree identifies subtypes of ConditionType of any origin.
+        /// </remarks>
+        private bool IsConditionEvent(object handle)
+        {
+            if (handle is ConditionState ||
+                (handle is InstanceStateSnapshot snapshot && snapshot.Handle is ConditionState))
+            {
+                return true;
+            }
+
+            if (handle is IFilterTarget target && m_server.TypeTree != null)
+            {
+                var context = new FilterContext(
+                    m_server.NamespaceUris,
+                    m_server.TypeTree,
+                    Session?.PreferredLocales,
+                    m_server.Telemetry);
+                return target.IsTypeOf(context, ObjectTypeIds.ConditionType);
+            }
+
+            return false;
         }
 
         /// <summary>
