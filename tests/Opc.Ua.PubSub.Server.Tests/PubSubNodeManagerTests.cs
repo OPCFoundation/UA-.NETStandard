@@ -463,7 +463,7 @@ namespace Opc.Ua.PubSub.Server.Tests
 
         [Test]
         [TestSpec("9.1.4.5", Summary = "PublishSubscribe.PublishedDataSets instance methods are registered and callable")]
-        public async Task CreateAddressSpaceAsync_GeneratedPublishedDataSetsRegistersBrowseableMethodsAndArguments()
+        public async Task CreateAddressSpaceAsyncGeneratedPublishedDataSetsRegistersBrowseableMethodsAndArguments()
         {
             using var harness = new Harness(materializePublishedDataSets: true);
             await harness.Manager.CreateAddressSpaceAsync(
