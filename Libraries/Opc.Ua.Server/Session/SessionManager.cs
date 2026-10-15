@@ -63,6 +63,11 @@ namespace Opc.Ua.Server
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
                 .MaxHistoryContinuationPoints;
+            m_minSessionNonceLength = (uint)Math.Min(
+                kMaxSessionNonceLength,
+                Math.Max(
+                    kMinSessionNonceLength,
+                    configuration.SecurityConfiguration?.NonceLength ?? 0));
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
 
@@ -210,7 +215,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(
+                Nonce serverNonceObject = CreateSessionNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // assign client name.
@@ -314,7 +319,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-                serverNonceObject = Nonce.CreateNonce(
+                serverNonceObject = CreateSessionNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // validate before activation.
@@ -527,6 +532,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the serverNonce returned by CreateSession and ActivateSession.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 5.7.2.2 and 5.7.3.2 require a session nonce of 32 to 128
+        /// bytes. For RSA policies the SecureChannel nonce length of the policy
+        /// can be shorter (16 bytes for Basic128Rsa15, OPC 10000-4 5.6.2.2), so
+        /// the session nonce uses the larger of the policy length and the
+        /// configured minimum. ECC policies keep their ephemeral key nonce.
+        /// </remarks>
+        private Nonce CreateSessionNonce(string securityPolicyUri)
+        {
+            if (EccUtils.IsEccPolicy(securityPolicyUri))
+            {
+                return Nonce.CreateNonce(securityPolicyUri);
+            }
+
+            uint length = Math.Max(Nonce.GetNonceLength(securityPolicyUri), m_minSessionNonceLength);
+            return Nonce.CreateNonce(securityPolicyUri, Nonce.CreateRandomNonceData(length));
+        }
+
+        /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
         protected virtual ISession CreateSession(
@@ -717,6 +743,14 @@ namespace Opc.Ua.Server
 
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
+        private readonly uint m_minSessionNonceLength;
+
+        /// <summary>
+        /// OPC 10000-4 5.7.2.2 / 5.7.3.2: the session serverNonce shall have a
+        /// length between 32 and 128 bytes inclusive.
+        /// </summary>
+        private const int kMinSessionNonceLength = 32;
+        private const int kMaxSessionNonceLength = 128;
 
         private readonly Lock m_eventLock = new();
         private event SessionEventHandler m_SessionCreated;
