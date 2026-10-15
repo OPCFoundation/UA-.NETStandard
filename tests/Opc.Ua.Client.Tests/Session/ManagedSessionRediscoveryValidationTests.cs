@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     (current, rediscovered, _) =>
                     {
                         seenCurrent = current;
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                _ => DowngradeAsync(endpoint),
+                (target, _) => DowngradeAsync(target),
                 (_, _, _) =>
                 {
                     calls++;
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                _ => DowngradeAsync(endpoint),
+                (target, _) => DowngradeAsync(target),
                 null,
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>(
                         new ServiceResult(StatusCodes.UncertainNoCommunicationLastUsableValue)),
                     CancellationToken.None));
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>((ServiceResult)null!),
                     CancellationToken.None));
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client.Tests
             System.InvalidOperationException exception = Assert.ThrowsAsync<System.InvalidOperationException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     (_, _, _) => throw new System.InvalidOperationException("validator failed"),
                     CancellationToken.None));
 
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     async (_, _, ct) =>
                     {
                         await cancellation.CancelAsync().ConfigureAwait(false);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    _ => DowngradeAsync(endpoint),
+                    (target, _) => DowngradeAsync(target),
                     async (_, _, _) =>
                     {
                         await cancellation.CancelAsync().ConfigureAwait(false);
@@ -240,9 +240,9 @@ namespace Opc.Ua.Client.Tests
             Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    async _ =>
+                    async (target, _) =>
                     {
-                        await DowngradeAsync(endpoint).ConfigureAwait(false);
+                        await DowngradeAsync(target).ConfigureAwait(false);
                         throw new ServiceResultException(StatusCodes.BadCommunicationError);
                     },
                     (_, _, _) =>
@@ -256,6 +256,112 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(calls, Is.Zero);
                 AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public async Task RefreshIsValidatedOnADetachedEndpointAsync()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            var validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ConfiguredEndpoint? refreshed = null;
+
+            Task refresh = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                endpoint,
+                (target, _) =>
+                {
+                    refreshed = target;
+                    return DowngradeAsync(target);
+                },
+                async (_, _, _) =>
+                {
+                    validating.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    return ServiceResult.Good;
+                },
+                CancellationToken.None);
+            await validating.Task.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(refreshed, Is.Not.Null.And.Not.SameAs(endpoint));
+                Assert.That(refreshed!.Description, Is.Not.SameAs(endpoint.Description));
+                AssertEndpointInUseKept(endpoint);
+            });
+
+            release.TrySetResult(true);
+            await refresh.ConfigureAwait(false);
+
+            Assert.That(endpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OverlappingRefreshesOnASharedEndpointPublishOnlyAnAcceptedEndpointAsync(
+            bool secondAccepts)
+        {
+            ByteString approved = ByteString.From([1, 1, 1]);
+            ByteString firstCandidate = ByteString.From([2, 2, 2]);
+            ByteString secondCandidate = ByteString.From([3, 3, 3]);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            endpoint.Description.ServerCertificate = approved;
+
+            var firstValidating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondValidating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ByteString firstSawCurrent = default;
+            ByteString secondSawCurrent = default;
+
+            Task first = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                endpoint,
+                (target, _) => ReplaceCertificateAsync(target, firstCandidate),
+                async (current, _, _) =>
+                {
+                    firstSawCurrent = current.ServerCertificate;
+                    firstValidating.TrySetResult(true);
+                    await firstRelease.Task.ConfigureAwait(false);
+                    return new ServiceResult(StatusCodes.BadCertificateInvalid);
+                },
+                CancellationToken.None);
+            await firstValidating.Task.ConfigureAwait(false);
+
+            Task second = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                endpoint,
+                (target, _) => ReplaceCertificateAsync(target, secondCandidate),
+                async (current, _, _) =>
+                {
+                    secondSawCurrent = current.ServerCertificate;
+                    secondValidating.TrySetResult(true);
+                    await secondRelease.Task.ConfigureAwait(false);
+                    return secondAccepts
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadCertificateInvalid);
+                },
+                CancellationToken.None);
+            await secondValidating.Task.ConfigureAwait(false);
+            Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(approved));
+
+            firstRelease.TrySetResult(true);
+            Assert.ThrowsAsync<ServiceResultException>(() => first);
+            secondRelease.TrySetResult(true);
+            if (secondAccepts)
+            {
+                await second.ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.ThrowsAsync<ServiceResultException>(() => second);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstSawCurrent, Is.EqualTo(approved));
+                Assert.That(secondSawCurrent, Is.EqualTo(approved));
+                Assert.That(
+                    endpoint.Description.ServerCertificate,
+                    Is.EqualTo(secondAccepts ? secondCandidate : approved));
             });
         }
 
@@ -330,6 +436,14 @@ namespace Opc.Ua.Client.Tests
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             });
+            return Task.CompletedTask;
+        }
+
+        private static Task ReplaceCertificateAsync(ConfiguredEndpoint endpoint, ByteString certificate)
+        {
+            EndpointDescription description = CoreUtils.Clone(endpoint.Description)!;
+            description.ServerCertificate = certificate;
+            endpoint.Update(description);
             return Task.CompletedTask;
         }
     }

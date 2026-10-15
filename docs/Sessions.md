@@ -438,10 +438,13 @@ a weaker endpoint registers a `RediscoveredEndpointValidator`. It receives the
 endpoint in use and the rediscovered one, and returns `ServiceResult.Good` to
 accept the rediscovered endpoint.
 
-The check is fail-closed: any result that is not Good, an exception or a
-cancellation restores the endpoint in use and fails the reconnect attempt,
-which the reconnect policy then retries. A Bad result is reported as it is;
-an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
+The check is fail-closed: the rediscovered endpoint is read into a detached
+copy and replaces the endpoint in use only after the validator returned Good,
+so sessions sharing a `ConfiguredEndpoint` never see an endpoint that was not
+accepted. Any result that is not Good, an exception or a cancellation keeps the
+endpoint in use and fails the reconnect attempt, which the reconnect policy
+then retries. A Bad result is reported as it is; an Uncertain or `null` result
+is reported as `BadSecurityChecksFailed`.
 
 ```csharp
 RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
@@ -456,12 +459,12 @@ RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
         return new ValueTask<ServiceResult>(
             new ServiceResult(StatusCodes.BadSecurityPolicyRejected));
     }
-    if (!rediscovered.ServerCertificate.IsEmpty &&
-        rediscovered.ServerCertificate != current.ServerCertificate)
+    if (rediscovered.ServerCertificate != current.ServerCertificate)
     {
         // A renewed server certificate is still validated by the certificate
         // validator when the channel opens; reject here only when the
-        // application pins the certificate.
+        // application pins the certificate. A rediscovered endpoint without
+        // a certificate is rejected as well.
         return new ValueTask<ServiceResult>(
             new ServiceResult(StatusCodes.BadCertificateInvalid));
     }

@@ -1900,20 +1900,20 @@ namespace Opc.Ua.Client
         {
             await RefreshAndValidateEndpointAsync(
                 endpoint,
-                async token =>
+                async (target, token) =>
                 {
-                    ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, token)
+                    ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, token)
                         .ConfigureAwait(false);
                     if (connection == null)
                     {
-                        await endpoint.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, token)
+                        await target.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, token)
                             .ConfigureAwait(false);
                     }
                     else
                     {
-                        await endpoint.UpdateFromServerAsync(
-                            endpoint.EndpointUrl!, connection, endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri!, SessionFactory.Telemetry, token)
+                        await target.UpdateFromServerAsync(
+                            target.EndpointUrl!, connection, target.Description.SecurityMode,
+                            target.Description.SecurityPolicyUri!, SessionFactory.Telemetry, token)
                             .ConfigureAwait(false);
                     }
                 },
@@ -1924,25 +1924,31 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refreshes <paramref name="endpoint"/> through <paramref name="update"/>
         /// and lets <paramref name="validator"/> accept or reject the result.
-        /// The check is fail-closed: unless the validator returns a Good
-        /// result, the endpoint is restored to the description it had before,
-        /// including when the refresh or the validator throws or is cancelled.
+        /// With a validator, <paramref name="update"/> refreshes a detached
+        /// copy of the endpoint, and the rediscovered description is published
+        /// to <paramref name="endpoint"/> only once the validator returned a
+        /// Good result. The endpoint can be shared by several sessions, so it
+        /// never holds a description that was not accepted, not even while the
+        /// validation runs. The check is fail-closed: a result that is not
+        /// Good, or a refresh or validator that throws or is cancelled, leaves
+        /// the endpoint untouched.
         /// </summary>
         /// <exception cref="ServiceResultException">The validator rejected the
         /// rediscovered endpoint; a Bad result is thrown as it is, an
         /// Uncertain or missing result as
         /// <see cref="StatusCodes.BadSecurityChecksFailed"/>. When the
-        /// endpoint has no description to restore, nothing is refreshed and
-        /// <see cref="StatusCodes.BadInternalError"/> is thrown.</exception>
+        /// endpoint has no description to validate against, nothing is
+        /// refreshed and <see cref="StatusCodes.BadInternalError"/> is
+        /// thrown.</exception>
         internal static async Task RefreshAndValidateEndpointAsync(
             ConfiguredEndpoint endpoint,
-            Func<CancellationToken, Task> update,
+            Func<ConfiguredEndpoint, CancellationToken, Task> update,
             RediscoveredEndpointValidator? validator,
             CancellationToken ct)
         {
             if (validator == null)
             {
-                await update(ct).ConfigureAwait(false);
+                await update(endpoint, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -1953,26 +1959,18 @@ namespace Opc.Ua.Client
             EndpointDescription current = CoreUtils.Clone(endpoint.Description) ??
                 throw new ServiceResultException(
                     StatusCodes.BadInternalError,
-                    "The configured endpoint has no description to restore if the rediscovered endpoint is rejected.");
-            ServiceResult? result;
-            try
-            {
-                await update(ct).ConfigureAwait(false);
-                result = await validator(current, endpoint.Description, ct).ConfigureAwait(false);
+                    "The configured endpoint has no description to validate the rediscovered endpoint against.");
+            ConfiguredEndpoint candidate = CoreUtils.Clone(endpoint)!;
 
-                // A validator may ignore the token and still return Good; a
-                // cancelled validation is never an acceptance.
-                ct.ThrowIfCancellationRequested();
-            }
-            catch
-            {
-                endpoint.Update(current);
-                throw;
-            }
+            await update(candidate, ct).ConfigureAwait(false);
+            ServiceResult? result = await validator(current, candidate.Description, ct).ConfigureAwait(false);
+
+            // A validator may ignore the token and still return Good; a
+            // cancelled validation is never an acceptance.
+            ct.ThrowIfCancellationRequested();
 
             if (result == null || !ServiceResult.IsGood(result))
             {
-                endpoint.Update(current);
                 throw new ServiceResultException(
                     result != null && ServiceResult.IsBad(result)
                         ? result
@@ -1980,6 +1978,9 @@ namespace Opc.Ua.Client
                             StatusCodes.BadSecurityChecksFailed,
                             new LocalizedText("The rediscovered endpoint was not accepted.")));
             }
+
+            endpoint.Update(candidate.Description);
+            endpoint.DiscoveryEndpoints = candidate.DiscoveryEndpoints;
         }
 
         /// <summary>
