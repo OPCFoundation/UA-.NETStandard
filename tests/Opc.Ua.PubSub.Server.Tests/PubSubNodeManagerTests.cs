@@ -55,6 +55,8 @@ namespace Opc.Ua.PubSub.Server.Tests
     [TestSpec("9.1.10", Summary = "Status.State binding")]
     public class PubSubNodeManagerTests
     {
+        private static readonly string[] s_eventIdAlias = ["EventId"];
+
         [Test]
         public async Task CreateAddressSpaceAsync_BindsStandardMethods()
         {
@@ -574,6 +576,47 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(
                     dataSetNode?.Parent?.NodeId,
                     Is.EqualTo(ObjectIds.PublishSubscribe_PublishedDataSets));
+            });
+        }
+
+        [Test]
+        [TestSpec("9.1.4.5", Summary = "PublishedDataSets.AddPublishedEvents returns its declared outputs")]
+        public async Task PublishedDataSetsAddPublishedEventsReturnsConfigurationVersionThenDataSetId()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            MethodState add = harness.AddPublishedEventsMethod;
+            var outputs = new List<Variant>();
+            var selectedField = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = new ArrayOf<QualifiedName>(new[] { new QualifiedName(BrowseNames.EventId) }),
+                AttributeId = Attributes.Value
+            };
+
+            ServiceResult result = add.OnCallMethod!(
+                harness.Context,
+                add,
+                BuildArray(
+                    Variant.From("pds-events"),
+                    Variant.From(ObjectIds.Server),
+                    Variant.From(new ArrayOf<string>(s_eventIdAlias)),
+                    Variant.From(Array.Empty<DataSetFieldFlags>()),
+                    Variant.FromStructure(new ArrayOf<SimpleAttributeOperand>(new[] { selectedField })),
+                    Variant.From(new ExtensionObject(new ContentFilter()))),
+                outputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+                Assert.That(outputs, Has.Count.EqualTo(2));
+                Assert.That(outputs[0].TryGetValue(out ExtensionObject configurationVersion), Is.True);
+                Assert.That(
+                    configurationVersion.TryGetValue(out ConfigurationVersionDataType? _),
+                    Is.True);
+                Assert.That(outputs[1].TryGetValue(out NodeId dataSetId), Is.True);
+                Assert.That(dataSetId.IsNull, Is.False);
             });
         }
 
