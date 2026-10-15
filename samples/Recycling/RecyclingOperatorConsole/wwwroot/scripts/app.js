@@ -29,6 +29,7 @@
 
 import {
     fetchHistory,
+    fetchHolds,
     fetchInspector,
     fetchMaterial,
     fetchSession,
@@ -89,7 +90,15 @@ const state = {
     materialPage: null,
     historyPage: null,
     materialAfter: "0",
-    historyAfter: "0"
+    historyAfter: "0",
+    holdsPage: null,
+    holdsAfter: "0",
+    holdsPrevious: [],
+    holdsFilter: "Held",
+    holdsLoading: false,
+    holdsRequest: 0,
+    holdsTimer: null,
+    holdsError: ""
 };
 
 connectForm?.addEventListener("submit", event => {
@@ -113,6 +122,13 @@ document.querySelector("[data-action='toggle-inspector']")?.addEventListener("cl
 
 document.querySelector("[data-action='load-material']")?.addEventListener("click", () => loadMaterialPage());
 document.querySelector("[data-action='load-history']")?.addEventListener("click", () => loadHistoryPage());
+document.querySelector("[data-action='holds-previous']")?.addEventListener("click", () => loadHoldsPage("previous"));
+document.querySelector("[data-action='holds-next']")?.addEventListener("click", () => loadHoldsPage("next"));
+document.querySelector("[data-action='holds-refresh']")?.addEventListener("click", () => loadHoldsPage("refresh"));
+document.querySelector("#holds-disposition")?.addEventListener("change", event => {
+    state.holdsFilter = event.target.value;
+    loadHoldsPage("first");
+});
 
 await boot();
 
@@ -194,6 +210,13 @@ function applyState(nextState) {
     }
 
     renderAll();
+    if (document.querySelector("[data-panel-name='holds']")?.hidden === false && normalized.available &&
+        state.holdsTimer === null) {
+        state.holdsTimer = window.setTimeout(() => {
+            state.holdsTimer = null;
+            loadHoldsPage("refresh");
+        }, 1000);
+    }
 }
 
 function renderAll() {
@@ -208,7 +231,11 @@ function renderAll() {
     renderInspector(inspector, state.plant, state.session, state.selectedProcess, state.inspector, submitCommand);
     renderExceptionDock(faultList, holdList, commandOutcomes, state.plant, retryCommand);
     renderTrends(trendsContent, state.plant);
-    renderHolds(holdsContent, state.plant, state.session, submitCommand);
+    renderHolds(holdsContent, {
+        ...state.plant,
+        holds: state.holdsPage?.runId === state.plant?.runId ? state.holdsPage.items : []
+    }, state.session, submitCommand);
+    renderHoldsNavigation();
     renderMaterial(materialContent, state.materialPage, state.historyPage);
     bindProcessSelection();
     bindInspectorClose();
@@ -299,6 +326,62 @@ function showPanel(panelName) {
 
     for (const button of document.querySelectorAll("[data-panel]")) {
         button.classList.toggle("is-active", button.dataset.panel === panelName);
+    }
+    if (panelName === "holds") {
+        loadHoldsPage(state.holdsPage ? "refresh" : "first");
+    }
+}
+
+function renderHoldsNavigation() {
+    const previous = document.querySelector("[data-action='holds-previous']");
+    const next = document.querySelector("[data-action='holds-next']");
+    const refresh = document.querySelector("[data-action='holds-refresh']");
+    const filter = document.querySelector("#holds-disposition");
+    if (previous) previous.disabled = state.holdsLoading || !state.plant?.available || state.holdsPrevious.length === 0;
+    if (next) next.disabled = state.holdsLoading || !state.plant?.available || !state.holdsPage?.nextAfter;
+    if (refresh) refresh.disabled = state.holdsLoading || !state.plant?.available;
+    if (filter) filter.disabled = state.holdsLoading;
+    const status = document.querySelector("#holds-page-status");
+    if (status) {
+        status.textContent = state.holdsError || (state.holdsLoading
+            ? "Loading retained hold page…"
+            : state.holdsPage
+                ? `${state.holdsPage.items.length} holds · page ${state.holdsPrevious.length + 1} · revision ${state.holdsPage.revision}`
+                : "Select a disposition to inspect retained holds.");
+    }
+}
+
+async function loadHoldsPage(direction) {
+    if (!state.plant?.runId || !state.plant.available || state.holdsLoading) return;
+    let after = state.holdsAfter;
+    if (direction === "first") after = "0";
+    if (direction === "next") after = state.holdsPage?.nextAfter;
+    if (direction === "previous") after = state.holdsPrevious.at(-1);
+    if (after === null || after === undefined) return;
+    const runId = state.plant.runId;
+    const configurationId = state.plant.configurationId;
+    const request = ++state.holdsRequest;
+    state.holdsLoading = true;
+    state.holdsError = "";
+    renderHoldsNavigation();
+    try {
+        const page = await fetchHolds(runId, after, 50, state.holdsFilter);
+        if (request !== state.holdsRequest || state.plant?.runId !== runId ||
+            state.plant?.configurationId !== configurationId || page.runId !== runId) return;
+        if (direction === "next") state.holdsPrevious.push(state.holdsAfter);
+        if (direction === "previous") state.holdsPrevious.pop();
+        if (direction === "first") state.holdsPrevious = [];
+        state.holdsAfter = after;
+        state.holdsPage = page;
+    } catch (error) {
+        if (request === state.holdsRequest) {
+            state.holdsError = `Retained holds unavailable: ${error.message}`;
+        }
+    } finally {
+        if (request === state.holdsRequest) {
+            state.holdsLoading = false;
+            renderAll();
+        }
     }
 }
 
@@ -565,6 +648,14 @@ function emptyUnavailableState(detail) {
 }
 
 function clearRunScopedState() {
+    window.clearTimeout(state.holdsTimer);
+    state.holdsTimer = null;
+    state.holdsRequest++;
+    state.holdsLoading = false;
+    state.holdsPage = null;
+    state.holdsAfter = "0";
+    state.holdsPrevious = [];
+    state.holdsError = "";
     state.inspector = null;
     state.materialPage = null;
     state.historyPage = null;

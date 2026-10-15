@@ -53,6 +53,11 @@ export async function fetchHistory(runId, after = "0", limit = 50) {
     return fetchJson(`/api/history?${query}`);
 }
 
+export async function fetchHolds(runId, after = "0", limit = 50, disposition = "All") {
+    const query = new URLSearchParams({ runId, after: String(after), limit: String(limit), disposition });
+    return fetchJson(`/api/holds?${query}`);
+}
+
 export async function postCommand(command, csrfToken) {
     return fetchJson("/api/commands", {
         method: "POST",

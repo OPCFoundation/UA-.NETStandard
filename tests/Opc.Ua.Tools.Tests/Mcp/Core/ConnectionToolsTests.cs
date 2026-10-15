@@ -28,10 +28,14 @@
  * ======================================================================*/
 
 #if NET10_0
+using System;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Mcp;
@@ -45,6 +49,110 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private const string kConnectSessionName = "connection-tools-connect";
         private const string kDisconnectSessionName = "connection-tools-disconnect";
         private const string kUnknownSessionName = "connection-tools-unknown";
+
+        /// <summary>
+        /// Real registration keeps the legacy JSON contract and exposes certificate selection only on its own tool.
+        /// </summary>
+        [Test]
+        public async Task ConnectionCataloguePreservesLegacyArgumentsAndDedicatedCertificateSelectorsAsync()
+        {
+            await using ServiceProvider provider = CreateToolProvider();
+            McpServerTool[] tools = [.. provider.GetServices<McpServerTool>()];
+            Assert.That(tools.Select(tool => tool.ProtocolTool.Name), Is.Unique);
+            Assert.That(tools.Count(tool => tool.ProtocolTool.Name == "Connect"), Is.EqualTo(1));
+            Assert.That(tools.Count(tool => tool.ProtocolTool.Name == "ConnectCertificate"), Is.EqualTo(1));
+
+            JsonElement legacy = tools.Single(tool => tool.ProtocolTool.Name == "Connect").ProtocolTool.InputSchema;
+            Assert.That(legacy.GetProperty("properties").EnumerateObject().Select(property => property.Name),
+                Is.EquivalentTo(s_legacyArguments));
+            Assert.That(legacy.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EqualTo(s_legacyRequiredArguments));
+
+            JsonElement certificate = tools.Single(tool => tool.ProtocolTool.Name == "ConnectCertificate")
+                .ProtocolTool.InputSchema;
+            Assert.That(certificate.GetProperty("properties").EnumerateObject().Select(property => property.Name),
+                Is.EquivalentTo(s_certificateArguments));
+            Assert.That(certificate.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EquivalentTo(s_certificateRequiredArguments));
+        }
+
+        /// <summary>
+        /// Existing C# overload signatures and optional certificate arguments remain source and binary compatible.
+        /// </summary>
+        [Test]
+        public void PublicConnectOverloadsRemainAvailable()
+        {
+            System.Reflection.MethodInfo[] overloads = [.. typeof(ConnectionTools).GetMethods()
+                .Where(method => method.Name == nameof(ConnectionTools.ConnectAsync))];
+            Assert.That(overloads.Select(method => method.GetParameters().Length),
+                Is.EquivalentTo(s_connectParameterCounts));
+            System.Reflection.ParameterInfo[] parameters = overloads.Single(method =>
+                method.GetParameters().Length == 11).GetParameters();
+            Assert.That(parameters[9].Name, Is.EqualTo("certificateIdentity"));
+            Assert.That(parameters[9].IsOptional, Is.True);
+            Assert.That(parameters[9].DefaultValue, Is.Null);
+        }
+
+        /// <summary>
+        /// The SDK binder dispatches the original optional authentication fields and session selector.
+        /// </summary>
+        [Test]
+        public async Task ConnectToolDispatchUsesLegacyOptionalDefaultsAsync()
+        {
+            const string sessionName = "connection-tools-legacy-dispatch";
+            await using ServiceProvider provider = CreateToolProvider();
+            try
+            {
+                CallToolResult result = await InvokeToolAsync(provider, "Connect", JsonSerializer.Serialize(new
+                {
+                    endpointUrl = McpTestEnvironment.ServerUrl,
+                    autoAcceptCerts = true,
+                    name = sessionName
+                })).ConfigureAwait(false);
+
+                Assert.That(result.IsError, Is.Not.True);
+                Assert.That(((TextContentBlock)result.Content[0]).Text,
+                    Does.Contain("Connected to").And.Contain(sessionName));
+                Assert.That(McpTestEnvironment.SessionManager.GetSessionInfo(sessionName), Is.Not.Null);
+            }
+            finally
+            {
+                await DisconnectIfPresentAsync(sessionName).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Tool dispatch cannot silently downgrade missing or unknown certificate identities to anonymous access.
+        /// </summary>
+        [TestCase("Connect", null)]
+        [TestCase("ConnectCertificate", "")]
+        [TestCase("ConnectCertificate", "identity-not-configured-by-host")]
+        public async Task CertificateToolDispatchRejectsInvalidIdentityWithoutFallbackAsync(
+            string toolName, string? certificateIdentity)
+        {
+            const string sessionName = "connection-tools-rejected-certificate";
+            await using ServiceProvider provider = CreateToolProvider();
+            string arguments = toolName == "Connect"
+                ? JsonSerializer.Serialize(new
+                {
+                    endpointUrl = McpTestEnvironment.ServerUrl,
+                    authType = "Certificate",
+                    name = sessionName
+                })
+                : JsonSerializer.Serialize(new
+                {
+                    endpointUrl = McpTestEnvironment.ServerUrl,
+                    certificateIdentity,
+                    name = sessionName
+                });
+            CallToolResult result = await InvokeToolAsync(provider, toolName, arguments).ConfigureAwait(false);
+            using JsonDocument document = JsonDocument.Parse(((TextContentBlock)result.Content[0]).Text);
+
+            Assert.That(document.RootElement.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(document.RootElement.GetProperty("statusCode").GetString(),
+                Is.EqualTo("BadIdentityTokenRejected"));
+            Assert.That(McpTestEnvironment.SessionManager.GetSessionInfo(sessionName), Is.Null);
+        }
 
         /// <summary>
         /// Connection schemas stay bounded without removing the established anonymous and username arguments.
@@ -247,12 +355,73 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(status, Is.EqualTo($"Session '{kUnknownSessionName}' not found."));
         }
 
+        /// <summary>
+        /// Registers the actual SDK binder twice to verify connection registration is idempotent.
+        /// </summary>
+        private static ServiceProvider CreateToolProvider()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(McpTestEnvironment.SessionManager);
+            services.AddMcpServer()
+                .WithStreamServerTransport(Stream.Null, Stream.Null)
+                .WithOpcUaConnectionTools()
+                .WithOpcUaConnectionTools();
+            return services.BuildServiceProvider();
+        }
+
+        /// <summary>
+        /// Dispatches JSON through the advertised tool rather than calling a wrapper directly.
+        /// </summary>
+        private static async Task<CallToolResult> InvokeToolAsync(
+            ServiceProvider provider, string toolName, string arguments)
+        {
+            using JsonDocument document = JsonDocument.Parse(arguments);
+            McpServerTool tool = provider.GetServices<McpServerTool>()
+                .Single(candidate => candidate.ProtocolTool.Name == toolName);
+            var request = new RequestContext<CallToolRequestParams>(
+                provider.GetRequiredService<McpServer>(),
+                new JsonRpcRequest { Method = "tools/call", Id = new RequestId("connection-test") },
+                new CallToolRequestParams
+                {
+                    Name = toolName,
+                    Arguments = document.RootElement.EnumerateObject()
+                        .ToDictionary(property => property.Name, property => property.Value.Clone())
+                })
+            {
+                MatchedPrimitive = tool
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            return await tool.InvokeAsync(request, timeout.Token).ConfigureAwait(false);
+        }
+
         private static async Task DisconnectIfPresentAsync(string sessionName)
         {
             _ = await ConnectionTools.DisconnectAsync(
                 McpTestEnvironment.SessionManager,
                 sessionName).ConfigureAwait(false);
         }
+
+        /// <summary>The original JSON argument contract, excluding injected services and cancellation.</summary>
+        private static readonly string[] s_legacyArguments =
+        [
+            "endpointUrl", "securityMode", "securityPolicy", "authType",
+            "username", "password", "autoAcceptCerts", "name"
+        ];
+
+        /// <summary>The original endpoint-only required argument contract.</summary>
+        private static readonly string[] s_legacyRequiredArguments = ["endpointUrl"];
+
+        /// <summary>The dedicated certificate tool's host selector and endpoint options.</summary>
+        private static readonly string[] s_certificateArguments =
+        [
+            "endpointUrl", "certificateIdentity", "securityMode", "securityPolicy", "name"
+        ];
+
+        /// <summary>Certificate authentication requires an explicit host identity selector.</summary>
+        private static readonly string[] s_certificateRequiredArguments = ["endpointUrl", "certificateIdentity"];
+
+        /// <summary>Public C# signatures include the injected manager and cancellation token.</summary>
+        private static readonly int[] s_connectParameterCounts = [10, 11];
     }
 }
 #endif

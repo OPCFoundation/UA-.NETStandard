@@ -547,6 +547,9 @@ textarea:disabled {
 
 .panel--secondary {
     padding: 1rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .panel__heading {

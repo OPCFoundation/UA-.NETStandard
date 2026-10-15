@@ -286,6 +286,35 @@ public sealed class ConsoleHttpTests
     }
 
     /// <summary>
+    /// Holds beyond the live preview remain reachable, run-scoped and available for explicit disposition.
+    /// </summary>
+    [Test]
+    public async Task HoldPagingReachesRecordsAfterTheLivePreviewAsync()
+    {
+        var holds = new QualityHold[205];
+        for (int index = 0; index < holds.Length; index++)
+        {
+            holds[index] = new QualityHold(index + 1, 1, 5, "Color limit", index < 200
+                ? HoldDisposition.Released : HoldDisposition.Held, string.Empty, 0);
+        }
+        m_feed.SetupGet(item => item.Snapshot).Returns(new CommittedSnapshot
+        {
+            RunId = "run", Revision = 3, Holds = holds
+        });
+        await AuthenticateAsync().ConfigureAwait(false);
+        using JsonDocument page = JsonDocument.Parse(await m_http.GetStringAsync(new Uri(
+            "/api/holds?runId=run&after=200&limit=2&disposition=Held", UriKind.Relative)).ConfigureAwait(false));
+        JsonElement items = page.RootElement.GetProperty("items");
+        Assert.That(items.GetArrayLength(), Is.EqualTo(2));
+        Assert.That(items[0].GetProperty("id").GetString(), Is.EqualTo("201"));
+        Assert.That(items[1].GetProperty("id").GetString(), Is.EqualTo("202"));
+        Assert.That(page.RootElement.GetProperty("nextAfter").GetString(), Is.EqualTo("202"));
+        using HttpResponseMessage wrongRun = await m_http.GetAsync(new Uri(
+            "/api/holds?runId=old-run&after=0&limit=50", UriKind.Relative)).ConfigureAwait(false);
+        Assert.That(wrongRun.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+    }
+
+    /// <summary>
     /// Performs the actual local launch handshake and obtains its anti-CSRF credential.
     /// </summary>
     private async Task<string> AuthenticateAsync()

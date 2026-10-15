@@ -99,6 +99,12 @@ not one elevated identity per browser tab.
 - Material/genealogy reads are bounded and run-scoped. Equipment recovery does not release
   persistent quality holds, and produced packages do not necessarily equal released product.
 
+The exception dock is a compact preview of recent outstanding holds. The **Holds** section
+pages the complete retained history, with Outstanding/All/Released/Rejected filters and
+Previous/Next navigation. Pages carry their run and revision, so holds beyond the preview
+remain inspectable and eligible for authorized disposition. The read-only `/api/holds`
+endpoint accepts `runId`, an `after` hold ID, `limit` (1..100), and an optional `disposition`.
+
 | Host mode | Intended actions (server authorization still applies) |
 | --- | --- |
 | Observer / unknown | Read-only inspection. |
@@ -111,10 +117,15 @@ a stopped run. Stop is simulator administration, **not a physical emergency stop
 Submission revalidates the run/lifecycle/revision. Stale input is a visible conflict; the host
 does not silently rewrite and resubmit a mutation.
 
-A request keeps its original request ID and envelope. A timeout is an unknown outcome, not
-success; only an explicit retry reuses that exact envelope. Browser HTTP success does not
+A request keeps its original request ID and envelope. A timeout or generic server/response
+failure is an unknown outcome, not success or a proven rejection: a response failure can occur
+after a durable journal commit. Only an explicit retry reuses that exact envelope. Browser HTTP success does not
 optimistically change authoritative plant state. In-memory pending actions cannot be promised
 recoverable after host restart; the coordinator's durable receipts remain authoritative.
+
+Transport recovery marks retained observations unavailable even if a managed session retains
+its session ID. A channel returning to Ready does not by itself make old data fresh; the console
+requires a new usable coordinator observation before enabling controls again.
 
 Version one does not edit recipes, inject faults, switch scenarios, launch/stop server processes,
 or add acknowledgement/shelving semantics to boolean fault flags. The schematic is an

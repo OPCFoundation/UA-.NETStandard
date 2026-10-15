@@ -237,9 +237,7 @@ export function renderInspector(root, state, session, selectedProcess, inspector
     const validInspector = inspector?.process?.name === selectedProcess &&
         inspector?.runId === state?.runId &&
         inspector?.configurationId === state?.configurationId;
-    const process = validInspector
-        ? inspector.process
-        : normalizeState(state).processes.find(item => item.name === selectedProcess);
+    const process = normalizeState(state).processes.find(item => item.name === selectedProcess);
     if (!process) {
         root.innerHTML = `<div class="inspector__header"><h2>No process selected</h2></div>`;
         return;
@@ -316,6 +314,7 @@ export function renderExceptionDock(faultRoot, holdRoot, commandRoot, state, ret
 }
 
 export function renderHolds(root, state, session, submitCommand) {
+    root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const holds = state?.holds ?? [];
     const canDispose = (session?.role === "Operator" || session?.role === "SimulatorAdministrator") && canMutate(state);
     root.innerHTML = holds.length === 0
@@ -328,6 +327,7 @@ export function renderHolds(root, state, session, submitCommand) {
 }
 
 export function renderTrends(root, state) {
+    root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const trends = state?.trends ?? [];
     if (trends.length === 0) {
         root.innerHTML = `<div class="empty-state" data-testid="trends-empty">No trend observations have arrived since this console connected.</div>`;
@@ -353,6 +353,7 @@ export function renderTrends(root, state) {
 }
 
 export function renderMaterial(root, materialPage, historyPage) {
+    root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const materialItems = materialPage?.items ?? [];
     const historyItems = historyPage?.items ?? [];
     root.innerHTML = `
@@ -539,7 +540,7 @@ function renderCommandActions(process, state, session) {
     const adminActions = [];
     if (canAdmin) {
         adminActions.push(commandButton("Pause", "Pause", mutationAllowed && (lifecycle === "Running" || lifecycle === "ResourceLimited"), {}));
-        adminActions.push(commandButton("Resume", "Resume", mutationAllowed && lifecycle === "Paused", {}));
+        adminActions.push(commandButton("Resume", "Resume", mutationAllowed && ["Paused", "Stopped"].includes(lifecycle), {}));
         adminActions.push(commandButton("Step", "Step one tick", mutationAllowed && lifecycle === "Paused", {}));
         adminActions.push(commandButton("Stop", "Stop", mutationAllowed && !["Stopped", "Unavailable"].includes(lifecycle), {}, "button--danger"));
         adminActions.push(commandButton("Reset", "Reset", mutationAllowed && lifecycle === "Stopped", {}, "button--danger"));

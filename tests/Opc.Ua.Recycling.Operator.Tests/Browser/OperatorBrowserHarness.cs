@@ -5,7 +5,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
@@ -52,6 +55,11 @@ namespace Opc.Ua.Recycling.Operator.Tests
         internal List<string> InspectorRequests { get; } = [];
 
         /// <summary>
+        /// Gets or sets the full retained history, independently of the bounded live preview.
+        /// </summary>
+        internal JsonArray? HoldArchive { get; set; }
+
+        /// <summary>
         /// Gets uncaught browser errors; expected API refusals are not swallowed.
         /// </summary>
         internal List<string> PageErrors { get; } = [];
@@ -76,7 +84,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
         /// </summary>
         internal static async Task<OperatorBrowserHarness> CreateAsync(
             string role = "Observer", int width = 1440, int height = 1000, bool reducedMotion = false,
-            bool unavailable = false)
+            bool unavailable = false, Action<OperatorBrowserHarness>? configure = null)
         {
             string webRoot = Path.Combine(TestContext.CurrentContext.TestDirectory, "wwwroot");
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { WebRootPath = webRoot });
@@ -115,6 +123,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
                     new BrowserTypeLaunchOptions { Headless = true }).ConfigureAwait(false);
                 var fixture = new OperatorBrowserHarness(application, playwright, browser, updates);
                 activeFixture = fixture;
+                configure?.Invoke(fixture);
                 if (unavailable)
                 {
                     fixture.State["connection"] = "Reconnecting";
@@ -217,6 +226,30 @@ namespace Opc.Ua.Recycling.Operator.Tests
                 InspectorRequests.Add(path);
                 string process = Uri.UnescapeDataString(path["/api/processes/".Length..]);
                 response = BrowserPlantFixture.CreateInspector(State, process);
+            }
+            else if (path == "/api/holds")
+            {
+                var query = QueryHelpers.ParseQuery(uri.Query);
+                long after = long.Parse(query["after"].ToString(), CultureInfo.InvariantCulture);
+                int limit = int.Parse(query["limit"].ToString(), CultureInfo.InvariantCulture);
+                string disposition = query["disposition"].ToString();
+                JsonNode?[] page = (HoldArchive ?? State["holds"]!.AsArray())
+                    .Where(item => long.Parse(item!["id"]!.GetValue<string>(), CultureInfo.InvariantCulture) > after &&
+                        (disposition == "All" || item["disposition"]!.GetValue<string>() == disposition))
+                    .OrderBy(item => long.Parse(item!["id"]!.GetValue<string>(), CultureInfo.InvariantCulture))
+                    .Take(limit + 1).ToArray();
+                var items = new JsonArray();
+                foreach (JsonNode? item in page.Take(limit))
+                {
+                    items.Add(item!.DeepClone());
+                }
+                response = new JsonObject
+                {
+                    ["runId"] = State["runId"]!.DeepClone(),
+                    ["revision"] = State["revision"]!.DeepClone(),
+                    ["nextAfter"] = page.Length > limit ? items[^1]!["id"]!.DeepClone() : null,
+                    ["items"] = items
+                };
             }
             else if (path == "/api/history" || path == "/api/material")
             {

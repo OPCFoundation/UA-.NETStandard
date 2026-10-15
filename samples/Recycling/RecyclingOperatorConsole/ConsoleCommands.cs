@@ -181,7 +181,7 @@ internal sealed class ConsoleCommands(
                 return (entry.Result, 200, string.Empty);
             }
         }
-        catch (ServiceResultException exception) when (!IsAmbiguousTransport(exception.StatusCode))
+        catch (ServiceResultException exception) when (IsPreCommitRejection(exception.StatusCode))
         {
             ConsoleLog.CommandFailed(telemetry.CreateLogger<ConsoleCommands>(),
                 exception.StatusCode.ToString(), exception);
@@ -221,14 +221,13 @@ internal sealed class ConsoleCommands(
     }
 
     /// <summary>
-    /// These transport/session faults cannot establish whether a mutation reached its durable commit.
+    /// Only known validation/authorization failures establish that a mutation was rejected before commit.
     /// </summary>
-    private static bool IsAmbiguousTransport(StatusCode status) =>
-        status == StatusCodes.BadTimeout || status == StatusCodes.BadRequestTimeout ||
-        status == StatusCodes.BadCommunicationError || status == StatusCodes.BadConnectionClosed ||
-        status == StatusCodes.BadNoCommunication || status == StatusCodes.BadServerNotConnected ||
-        status == StatusCodes.BadSecureChannelClosed || status == StatusCodes.BadSessionClosed ||
-        status == StatusCodes.BadSessionIdInvalid || status == StatusCodes.BadSecureChannelIdInvalid;
+    private static bool IsPreCommitRejection(StatusCode status) =>
+        status == StatusCodes.BadInvalidArgument || status == StatusCodes.BadInvalidState ||
+        status == StatusCodes.BadOutOfRange || status == StatusCodes.BadUserAccessDenied ||
+        status == StatusCodes.BadIdentityTokenRejected || status == StatusCodes.BadNotSupported ||
+        status == StatusCodes.BadTooManyOperations;
 
     /// <summary>
     /// Creates a non-authoritative pending workstation receipt.

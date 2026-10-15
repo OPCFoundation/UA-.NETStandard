@@ -201,6 +201,7 @@ public static class OperatorConsoleHost
         app.MapGet("/api/events", StreamAsync);
         app.MapGet("/api/processes/{process}", ReadProcessAsync);
         app.MapGet("/api/material", ReadMaterial);
+        app.MapGet("/api/holds", ReadHolds);
         app.MapGet("/api/history", ReadHistoryAsync);
         app.MapPost("/api/commands", SubmitCommandAsync);
         app.MapGet("/api/commands/{requestId}", (string requestId, ConsoleCommands commands) =>
@@ -318,6 +319,41 @@ public static class OperatorConsoleHost
             .Select(static item => Material(item.Parcel, item.Tick, item.Kind)).ToArray();
         return Results.Json(new MaterialPage(snapshot.RunId,
             more ? items[^1].Id : null, items), ConsoleJsonContext.Default.MaterialPage);
+    }
+
+    /// <summary>
+    /// Pages every retained hold, independently of the compact outstanding-hold preview.
+    /// </summary>
+    private static IResult ReadHolds(HttpContext context, IOperatorPlantFeed feed)
+    {
+        if (!PageRequest(context, feed, out CommittedSnapshot? snapshot, out long after, out int limit))
+        {
+            return Failure(409, "A current matching runId and valid after/limit (1..100) are required.");
+        }
+        string filter = context.Request.Query["disposition"].FirstOrDefault() ?? "All";
+        HoldDisposition disposition = default;
+        if (filter != "All" && (!Enum.TryParse(filter, false, out disposition) ||
+            !Enum.IsDefined(disposition) || disposition.ToString() != filter))
+        {
+            return Failure(400, "Disposition must be All, Held, Released or Rejected.");
+        }
+        var selected = new SortedDictionary<long, QualityHold>();
+        foreach (QualityHold hold in snapshot!.Holds)
+        {
+            if (hold.Id <= after || (filter != "All" && hold.Disposition != disposition))
+            {
+                continue;
+            }
+            selected[hold.Id] = hold;
+            if (selected.Count > limit + 1)
+            {
+                selected.Remove(selected.Last().Key);
+            }
+        }
+        bool more = selected.Count > limit;
+        HoldDto[] items = selected.Values.Take(limit).Select(ConsoleFeed.ProjectHold).ToArray();
+        return Results.Json(new HoldPage(snapshot.RunId, ConsoleFeed.Text(snapshot.Revision),
+            more ? items[^1].Id : null, items), ConsoleJsonContext.Default.HoldPage);
     }
 
     /// <summary>

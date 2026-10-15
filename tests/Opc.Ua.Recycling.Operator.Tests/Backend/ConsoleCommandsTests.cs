@@ -150,6 +150,50 @@ public sealed class ConsoleCommandsTests
     }
 
     /// <summary>
+    /// Generic bad responses can follow a durable commit and must preserve an exact-envelope recovery path.
+    /// </summary>
+    [TestCase("BadUnexpectedError")]
+    [TestCase("BadInternalError")]
+    [TestCase("BadResponseTooLarge")]
+    public async Task AmbiguousServerFailureRemainsUnknownAndAllowsExactRetryAsync(string symbolicStatus)
+    {
+        StatusCode status = symbolicStatus switch
+        {
+            "BadUnexpectedError" => StatusCodes.BadUnexpectedError,
+            "BadInternalError" => StatusCodes.BadInternalError,
+            _ => StatusCodes.BadResponseTooLarge
+        };
+        Mock<IOperatorPlantFeed> feed = Feed();
+        RecyclingCommand? committed = null;
+        int calls = 0;
+        feed.Setup(item => item.ExecuteAsync(It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((RecyclingCommand command, CancellationToken _) =>
+            {
+                if (++calls == 1)
+                {
+                    committed = command;
+                    return ValueTask.FromException<RecyclingCommandOutcome>(new ServiceResultException(status));
+                }
+                Assert.That(command, Is.SameAs(committed));
+                return ValueTask.FromResult(new RecyclingCommandOutcome(
+                    command.RequestId, "run", 8, 4, StatusCodes.Good.Code, "Original durable outcome."));
+            });
+        var commands = Administrator(feed);
+        CommandRequest request = Request("Checkpoint");
+        var ambiguous = await commands.SubmitAsync(request, CancellationToken.None).ConfigureAwait(false);
+        Assert.That(ambiguous.Result!.State, Is.EqualTo("Unknown"));
+        Assert.That(ambiguous.Result.Status, Is.EqualTo(symbolicStatus));
+        var duplicate = await commands.SubmitAsync(request, CancellationToken.None).ConfigureAwait(false);
+        Assert.That(duplicate.Result!.State, Is.EqualTo("Unknown"));
+        Assert.That(calls, Is.EqualTo(1));
+        var recovered = await commands.SubmitAsync(request with { Retry = true }, CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.That(recovered.Result!.State, Is.EqualTo("Accepted"));
+        Assert.That(recovered.Result.Revision, Is.EqualTo("8"));
+        Assert.That(calls, Is.EqualTo(2));
+    }
+
+    /// <summary>
     /// Reusing an ID with a changed command cannot mutate the original pending action.
     /// </summary>
     [Test]

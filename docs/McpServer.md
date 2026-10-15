@@ -696,8 +696,12 @@ $env:McpServer__CertificateIdentities__observer__StorePath = 'D:\OpcUaIdentities
 $env:McpServer__CertificateIdentities__observer__SubjectName = 'CN=PlantObserver'
 ```
 
-Call `ConnectCertificate` with the `endpointUrl` and `certificateIdentity: "observer"`.
-`Connect` retains the existing anonymous/username arguments; certificate login has its own compact tool.
+Call `ConnectCertificate` with `endpointUrl` and `certificateIdentity: "observer"`.
+It always uses Certificate authentication and accepts the same `securityMode`,
+`securityPolicy`, and `name` selectors as `Connect`, but no automatic-trust switch.
+`Connect` retains its original eight arguments for Anonymous and Username authentication;
+`authType: "Certificate"` on that tool fails without an identity selector.
+The public C# `ConnectAsync` overload accepting `certificateIdentity` remains available.
 Tool arguments cannot supply certificate-store paths, private keys or key passwords.
 An embedding host can inject `ICertificatePasswordProvider` for protected keys.
 Missing, unknown or ambiguous references fail rather than falling back to another identity.

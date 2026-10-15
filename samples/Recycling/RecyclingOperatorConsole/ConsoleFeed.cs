@@ -123,6 +123,7 @@ internal sealed class ConsoleFeed(
             try
             {
                 ManagedSession session = await connect(stoppingToken).ConfigureAwait(false);
+                using var health = new SessionHealth(session);
                 var client = new RecyclingCoordinatorClient(session, telemetry);
                 await using var clientScope = client.ConfigureAwait(false);
                 Volatile.Write(ref m_client, client);
@@ -146,7 +147,8 @@ internal sealed class ConsoleFeed(
                     Task<bool> next = notifications.MoveNextAsync().AsTask();
                     while (!next.IsCompleted)
                     {
-                        await Task.WhenAny(next, Task.Delay(TimeSpan.FromSeconds(1), stoppingToken))
+                        await Task.WhenAny(
+                            next, health.Failure, Task.Delay(TimeSpan.FromSeconds(1), stoppingToken))
                             .ConfigureAwait(false);
                         if (stoppingToken.IsCancellationRequested)
                         {
@@ -159,8 +161,10 @@ internal sealed class ConsoleFeed(
                             }
                             stoppingToken.ThrowIfCancellationRequested();
                         }
-                        if (!session.Connected || session.SessionId != boundSession)
+                        if (health.Failure.IsCompleted || !session.Connected || session.SessionId != boundSession)
                         {
+                            StatusCode status = health.Failure.IsCompleted
+                                ? await health.Failure.ConfigureAwait(false) : StatusCodes.BadNoCommunication;
                             lock (m_gate)
                             {
                                 m_gap = true;
@@ -169,7 +173,7 @@ internal sealed class ConsoleFeed(
                                     Available = false,
                                     Connection = "Reconnecting",
                                     Detail = "Managed transport disconnected; source time is not a liveness clock.",
-                                    Quality = "BadNoCommunication"
+                                    Quality = status.ToString()
                                 });
                             }
                             await watchStop.CancelAsync().ConfigureAwait(false);
@@ -180,8 +184,14 @@ internal sealed class ConsoleFeed(
                             catch (OperationCanceledException) when (watchStop.IsCancellationRequested)
                             {
                             }
-                            throw new IOException("Managed transport generation changed; rebuilding typed bindings.");
+                            throw new ServiceResultException(status,
+                                "Managed transport became unavailable; rebuilding typed bindings.");
                         }
+                    }
+                    if (health.Failure.IsCompleted)
+                    {
+                        throw new ServiceResultException(await health.Failure.ConfigureAwait(false),
+                            "A new usable observation is required after transport recovery.");
                     }
                     if (!await next.ConfigureAwait(false))
                     {
@@ -305,9 +315,7 @@ internal sealed class ConsoleFeed(
                 Text(snapshot.Revision), Text(snapshot.Tick), Text(snapshot.LogicalSeconds),
                 snapshot.Lifecycle.ToString(), snapshot.BlockingReason, summary,
                 Enum.GetValues<RecyclingProcess>().Select(process => ProjectProcess(snapshot, process)).ToArray(),
-                snapshot.Holds.Span[..Math.Min(200, snapshot.Holds.Count)].ToArray().Select(static hold => new HoldDto(
-                    Text(hold.Id), Text(hold.Tick), hold.Stage, hold.Reason, hold.Disposition.ToString(),
-                    hold.DisposedBy, Text(hold.DispositionRevision))).ToArray(),
+                OutstandingHolds(snapshot),
                 m_trends.ToArray(), m_commands));
         }
     }
@@ -344,6 +352,30 @@ internal sealed class ConsoleFeed(
     /// Produces invariant transport integers.
     /// </summary>
     internal static string Text(long value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Converts a retained disposition without losing identifiers or its revision.
+    /// </summary>
+    internal static HoldDto ProjectHold(QualityHold hold) => new(
+        Text(hold.Id), Text(hold.Tick), hold.Stage, hold.Reason, hold.Disposition.ToString(),
+        hold.DisposedBy, Text(hold.DispositionRevision));
+
+    /// <summary>
+    /// Keeps the live preview focused on recent outstanding inspections; retained history is paged separately.
+    /// </summary>
+    private static HoldDto[] OutstandingHolds(CommittedSnapshot snapshot)
+    {
+        var holds = new List<HoldDto>();
+        for (int index = snapshot.Holds.Count - 1; index >= 0 && holds.Count < 200; index--)
+        {
+            QualityHold hold = snapshot.Holds[index];
+            if (hold.Disposition == HoldDisposition.Held)
+            {
+                holds.Add(ProjectHold(hold));
+            }
+        }
+        return holds.ToArray();
+    }
 
     /// <summary>
     /// Calculates exact committed totals.
@@ -395,6 +427,63 @@ internal sealed class ConsoleFeed(
         {
             consumer.Writer.TryWrite(state);
         }
+    }
+
+    /// <summary>
+    /// Observes transport recovery independently of the retained session ID. Transport callbacks only signal work.
+    /// </summary>
+    private sealed class SessionHealth : IDisposable
+    {
+        /// <summary>
+        /// Attaches to actual channel and keep-alive failures for one owned connection.
+        /// </summary>
+        internal SessionHealth(ManagedSession session)
+        {
+            m_session = session;
+            session.ChannelStateChanged += ChannelChanged;
+            session.KeepAlive += KeepAliveChanged;
+        }
+
+        /// <summary>
+        /// First failure; Ready transitions cannot make a retained image fresh again.
+        /// </summary>
+        internal Task<StatusCode> Failure => m_failure.Task;
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            m_session.ChannelStateChanged -= ChannelChanged;
+            m_session.KeepAlive -= KeepAliveChanged;
+        }
+
+        /// <summary>
+        /// Signals a channel failure without running feed work on the reconnect fiber.
+        /// </summary>
+        private void ChannelChanged(ManagedSession session, ChannelStateChange change)
+        {
+            if (change.NewState != ChannelState.Ready)
+            {
+                m_failure.TrySetResult(change.Error is { } error && ServiceResult.IsBad(error)
+                    ? error.StatusCode : StatusCodes.BadNoCommunication);
+            }
+        }
+
+        /// <summary>
+        /// Signals failed keep-alives even when recovery retains the session identifier.
+        /// </summary>
+        private void KeepAliveChanged(Opc.Ua.Client.ISession session, KeepAliveEventArgs args)
+        {
+            if (args.Status is { } status && ServiceResult.IsBad(status))
+            {
+                m_failure.TrySetResult(status.StatusCode);
+            }
+        }
+
+        /// <summary>The connection whose transport events are observed.</summary>
+        private readonly ManagedSession m_session;
+        /// <summary>The first transport failure for this connection.</summary>
+        private readonly TaskCompletionSource<StatusCode> m_failure =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     /// <summary>Protects bounded projection updates.</summary>

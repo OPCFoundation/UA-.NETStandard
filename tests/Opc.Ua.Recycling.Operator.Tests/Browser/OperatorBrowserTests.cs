@@ -4,7 +4,9 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.Playwright;
 using NUnit.Framework;
@@ -20,6 +22,64 @@ namespace Opc.Ua.Recycling.Operator.Tests
     [Explicit("Requires the explicitly installed Playwright Chromium browser.")]
     public sealed class OperatorBrowserTests
     {
+        /// <summary>
+        /// Retained hold paging reaches late records and submits their original IDs, independently of the live preview.
+        /// </summary>
+        [Test]
+        public async Task RetainedHoldPagesReachAndDisposeRecordsBeyondTheLivePreviewAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync(
+                "Operator", configure: browser =>
+                {
+                    var retained = new JsonArray();
+                    var preview = new JsonArray();
+                    for (int id = 1; id <= 260; id++)
+                    {
+                        var hold = new JsonObject
+                        {
+                            ["id"] = id.ToString(CultureInfo.InvariantCulture),
+                            ["tick"] = "40",
+                            ["stage"] = 5,
+                            ["reason"] = "Retained color inspection",
+                            ["disposition"] = id <= 200 ? "Released" : "Held",
+                            ["disposedBy"] = string.Empty,
+                            ["dispositionRevision"] = "0"
+                        };
+                        retained.Add(hold);
+                        if (id <= 200)
+                        {
+                            preview.Add(hold.DeepClone());
+                        }
+                    }
+                    browser.HoldArchive = retained;
+                    browser.State["holds"] = preview;
+                    browser.State["summary"]!["heldCount"] = 60;
+                }).ConfigureAwait(false);
+            await fixture.Page.GetByTestId("nav-holds").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("holds-content")
+                .GetByTestId("hold-row-201")).ToBeVisibleAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("holds-next").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("holds-content")
+                .GetByTestId("hold-row-251")).ToBeVisibleAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("holds-next")).ToBeDisabledAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("command-DisposeHold-Released-251").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(1));
+            Assert.That(fixture.Commands[0]["holdId"]!.GetValue<string>(), Is.EqualTo("251"));
+            Assert.That(fixture.Commands[0]["disposition"]!.GetValue<string>(), Is.EqualTo("Released"));
+            await fixture.Page.GetByTestId("holds-previous").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("holds-content")
+                .GetByTestId("hold-row-201")).ToBeVisibleAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("holds-disposition").SelectOptionAsync("All").ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("holds-content")
+                .GetByTestId("hold-row-1")).ToBeVisibleAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-DisposeHold-Released-1")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
         /// <summary>
         /// The plant remains readable on desktop and narrow viewports, including reduced-motion operation.
         /// </summary>
@@ -205,6 +265,149 @@ namespace Opc.Ua.Recycling.Operator.Tests
             await Assertions.Expect(fixture.Page.GetByTestId("process-Sorting")).ToBeFocusedAsync()
                 .ConfigureAwait(false);
             await Assertions.Expect(fixture.Page.GetByTestId("admin-drawer")).ToHaveAttributeAsync("open", string.Empty)
+                .ConfigureAwait(false);
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Same-run observations replace coordinator state without discarding cached native readings.
+        /// </summary>
+        [Test]
+        public async Task SameRunUpdatesRefreshInspectorCountersAndCommandGatingAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("readings-section")).ToContainTextAsync("DriveSpeed")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeEnabledAsync()
+                .ConfigureAwait(false);
+
+            foreach (JsonNode? process in fixture.State["processes"]!.AsArray())
+            {
+                if (process!["name"]!.GetValue<string>() != "Washing")
+                {
+                    continue;
+                }
+                foreach (JsonNode? stage in process["stages"]!.AsArray())
+                {
+                    stage!["enabled"] = false;
+                    stage["state"] = "Disabled";
+                    stage["inventoryMg"] = "1000000";
+                }
+            }
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-EnableProcess-Washing")).ToBeEnabledAsync()
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("inspector-process").Locator(".metric").First)
+                .ToContainTextAsync("4 kg").ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("stage-row-Washing-8")).ToContainTextAsync("Disabled")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("readings-section")).ToContainTextAsync("DriveSpeed")
+                .ConfigureAwait(false);
+            Assert.That(fixture.InspectorRequests, Has.Count.EqualTo(1));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Both coordinator resumable lifecycles authorize the unchanged Resume command envelope.
+        /// </summary>
+        [TestCase("Paused")]
+        [TestCase("Stopped")]
+        public async Task AdministratorCanResumeResumableLifecycleAsync(string lifecycle)
+        {
+            await using OperatorBrowserHarness fixture =
+                await OperatorBrowserHarness.CreateAsync("SimulatorAdministrator").ConfigureAwait(false);
+            fixture.State["lifecycle"] = lifecycle;
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("admin-open").ClickAsync().ConfigureAwait(false);
+            ILocator resume = fixture.Page.GetByTestId("command-Resume-plant");
+            await Assertions.Expect(resume).ToBeEnabledAsync().ConfigureAwait(false);
+            Task<IResponse> response = fixture.Page.WaitForResponseAsync(value =>
+                value.Url.EndsWith("/api/commands", StringComparison.Ordinal) &&
+                value.Request.Method == "POST");
+            await resume.ClickAsync().ConfigureAwait(false);
+            await response.ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(1));
+            Assert.That(fixture.Commands[0]["kind"]!.GetValue<string>(), Is.EqualTo("Resume"));
+            Assert.That(fixture.Commands[0]["runId"]!.GetValue<string>(), Is.EqualTo("browser-test-run"));
+            Assert.That(fixture.Commands[0]["expectedRevision"]!.GetValue<string>(), Is.EqualTo("9007199254740994"));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Long pages remain keyboard-scrollable without moving the persistent desktop exception dock.
+        /// </summary>
+        [TestCase("material")]
+        [TestCase("history")]
+        [TestCase("holds")]
+        public async Task DesktopSecondaryPanelsExposeTheirLastRowByKeyboardAsync(string content)
+        {
+            await using OperatorBrowserHarness fixture =
+                await OperatorBrowserHarness.CreateAsync(width: 1440, height: 900).ConfigureAwait(false);
+            var items = new JsonArray();
+            for (int index = 1; index <= 50; index++)
+            {
+                string id = index.ToString(CultureInfo.InvariantCulture);
+                items.Add(new JsonObject
+                {
+                    ["id"] = id,
+                    ["tick"] = "42",
+                    ["stage"] = 5,
+                    ["kind"] = "Material",
+                    ["form"] = "Flake",
+                    ["mass"] = new JsonObject { ["total"] = "1000000" },
+                    ["reason"] = "Quality inspection required",
+                    ["disposition"] = "Held"
+                });
+            }
+            var page = new JsonObject
+            {
+                ["runId"] = "browser-test-run",
+                ["nextAfter"] = null,
+                ["items"] = items
+            };
+            await fixture.Page.RouteAsync("**/api/" + content + "**", route =>
+                route.FulfillAsync(new RouteFulfillOptions
+                {
+                    Status = 200,
+                    ContentType = "application/json",
+                    Body = page.ToJsonString()
+                })).ConfigureAwait(false);
+            fixture.State["holds"] = items.DeepClone();
+            fixture.State["tick"] = "43";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+
+            string panelName = content == "holds" ? "holds" : "material";
+            await fixture.Page.GetByTestId("nav-" + panelName).ClickAsync().ConfigureAwait(false);
+            if (content != "holds")
+            {
+                await fixture.Page.GetByTestId(content + "-load-more").ClickAsync().ConfigureAwait(false);
+            }
+            ILocator panel = fixture.Page.GetByTestId(panelName + "-panel");
+            string rowPrefix = content == "holds" ? "hold" : content;
+            ILocator lastRow = panel.GetByTestId(rowPrefix + "-row-50");
+            await Assertions.Expect(lastRow).ToBeAttachedAsync().ConfigureAwait(false);
+            await Assertions.Expect(lastRow).Not.ToBeInViewportAsync().ConfigureAwait(false);
+            await panel.FocusAsync().ConfigureAwait(false);
+            await panel.PressAsync("Control+End").ConfigureAwait(false);
+            await Assertions.Expect(lastRow).ToBeInViewportAsync().ConfigureAwait(false);
+            Assert.That(await panel.EvaluateAsync<bool>("element => element.scrollTop > 0")
+                .ConfigureAwait(false), Is.True);
+            await Assertions.Expect(fixture.Page.GetByTestId("exceptions-panel")).ToBeInViewportAsync()
                 .ConfigureAwait(false);
             Assert.That(fixture.PageErrors, Is.Empty);
         }

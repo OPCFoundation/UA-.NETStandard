@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Recycling.OperatorConsole;
 using Opc.Ua.Recycling.Samples.Tests;
@@ -49,8 +50,20 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
         [TestCase(RecyclingProcess.MeltFiltration)]
         [TestCase(RecyclingProcess.Pelletizing)]
         [TestCase(RecyclingProcess.Bagging)]
-        public async Task AuthenticatedWebHostReadsAndPausesTheRealEncryptedCoordinatorAsync(
-            RecyclingProcess? nativeProcess)
+        public Task AuthenticatedWebHostReadsAndPausesTheRealEncryptedCoordinatorAsync(
+            RecyclingProcess? nativeProcess) => VerifyCoordinatorAsync(nativeProcess, outage: false);
+
+        /// <summary>
+        /// Channel/keep-alive failure invalidates a retained image even when the session ID still exists.
+        /// </summary>
+        [Test]
+        public Task TransportOutageInvalidatesTheFeedBeforeTheSessionIdIsRemovedAsync() =>
+            VerifyCoordinatorAsync(null, outage: true);
+
+        /// <summary>
+        /// Composes the actual workstation, trusted server and optional native projection.
+        /// </summary>
+        private static async Task VerifyCoordinatorAsync(RecyclingProcess? nativeProcess, bool outage)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(timeout.Token)
@@ -148,6 +161,12 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             Assert.That(feed.Snapshot!.RunId, Is.EqualTo(environment.Coordinator.Current.RunId));
             Assert.That(feed.Snapshot.SourceMass, Is.EqualTo(environment.Coordinator.Current.SourceMass));
             Assert.That(feed.State.Quality, Is.EqualTo("Good"));
+            if (outage)
+            {
+                await VerifyOutageAsync(app, http, environment, csrf, timeout.Token).ConfigureAwait(false);
+                await app.StopAsync(timeout.Token).ConfigureAwait(false);
+                return;
+            }
             string requestId = Guid.NewGuid().ToString("D");
             var request = new CommandRequest(
                 requestId, feed.Snapshot.RunId, feed.State.Revision, "Pause");
@@ -205,6 +224,71 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 }
             }
             await app.StopAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Stops only the owned test server and observes the public connection notifications and browser feed.
+        /// </summary>
+        private static async Task VerifyOutageAsync(
+            WebApplication app, HttpClient http, RecyclingUaEnvironment environment, string csrf,
+            CancellationToken cancellationToken)
+        {
+            var feed = app.Services.GetRequiredService<ConsoleFeed>();
+            ManagedSession session = feed.Client!.Session;
+            NodeId sessionId = session.SessionId;
+            long tick = feed.Snapshot!.Tick;
+            DateTime sourceTime = feed.Snapshot.SourceTimestampUtc;
+            session.KeepAliveInterval = 250;
+            var retainedSession = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void ChannelFailed(ManagedSession current, ChannelStateChange change)
+            {
+                if (change.NewState != ChannelState.Ready)
+                {
+                    retainedSession.TrySetResult(current.Connected && current.SessionId == sessionId);
+                }
+            }
+            void KeepAliveFailed(ISession current, KeepAliveEventArgs args)
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    retainedSession.TrySetResult(current.Connected && current.SessionId == sessionId);
+                }
+            }
+            session.ChannelStateChanged += ChannelFailed;
+            session.KeepAlive += KeepAliveFailed;
+            var updates = feed.Subscribe()!;
+            try
+            {
+                await environment.ServerHost.StopAsync(cancellationToken).ConfigureAwait(false);
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                deadline.CancelAfter(TimeSpan.FromSeconds(15));
+                Assert.That(await retainedSession.Task.WaitAsync(deadline.Token).ConfigureAwait(false), Is.True,
+                    "This regression must exercise a failed transport whose session still reports connected.");
+                while ((await updates.Reader.ReadAsync(deadline.Token).ConfigureAwait(false)).Available)
+                {
+                }
+                Assert.That(feed.State.Connection, Is.Not.EqualTo("Connected"));
+                Assert.That(feed.Snapshot!.Tick, Is.EqualTo(tick));
+                Assert.That(feed.Snapshot.SourceTimestampUtc, Is.EqualTo(sourceTime));
+                var pause = new CommandRequest(Guid.NewGuid().ToString("D"),
+                    feed.Snapshot.RunId, feed.State.Revision, "Pause");
+                using var command = new HttpRequestMessage(HttpMethod.Post, "/api/commands")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(pause,
+                        ConsoleJsonContext.Default.CommandRequest), Encoding.UTF8, "application/json")
+                };
+                command.Headers.Add("Origin", "http://localhost:8080");
+                command.Headers.Add("X-CSRF-Token", csrf);
+                using HttpResponseMessage denied = await http.SendAsync(command, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(denied.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
+            }
+            finally
+            {
+                session.ChannelStateChanged -= ChannelFailed;
+                session.KeepAlive -= KeepAliveFailed;
+                feed.Unsubscribe(updates);
+            }
         }
 
         /// <summary>

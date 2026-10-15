@@ -69,6 +69,11 @@ internal sealed record HoldDto(
     string DispositionRevision);
 
 /// <summary>
+/// Run-scoped retained hold page; every disposition remains inspectable beyond the live preview.
+/// </summary>
+internal sealed record HoldPage(string RunId, string Revision, string? NextAfter, HoldDto[] Items);
+
+/// <summary>
 /// A bounded logical-time observation; gaps never imply interpolation.
 /// </summary>
 internal sealed record TrendDto(
@@ -156,6 +161,7 @@ internal sealed record ErrorDto(string Error);
 /// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(ConsoleState))]
+[JsonSerializable(typeof(HoldPage))]
 [JsonSerializable(typeof(InspectorDto))]
 [JsonSerializable(typeof(MaterialPage))]
 [JsonSerializable(typeof(HistoryPage))]

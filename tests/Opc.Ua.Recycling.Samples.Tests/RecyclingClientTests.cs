@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -76,10 +77,12 @@ namespace Opc.Ua.Recycling.Samples.Tests
         }
 
         /// <summary>
-        /// Both resource owners retain the exact pre-extraction XML used by durable configuration hashing.
+        /// Both owners embed identical bytes and retain the pre-extraction XML across Git newline conversions.
         /// </summary>
-        [Test]
-        public async Task ModelResourceBytesAndLogicalNameRemainCompatibleWithExistingJournals()
+        [TestCase("\n", "C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51")]
+        [TestCase("\r\n", "7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A")]
+        public async Task ModelResourceBytesAndLogicalNameRemainCompatibleWithExistingJournals(
+            string checkoutNewLine, string expectedOriginalHash)
         {
             await using Stream clientModel = typeof(RecyclingCoordinatorClient).Assembly
                 .GetManifestResourceStream("Recycling.Model.xml")!;
@@ -87,11 +90,23 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .GetManifestResourceStream("Recycling.Model.xml")!;
             Assert.That(clientModel, Is.Not.Null);
             Assert.That(serverModel, Is.Not.Null);
-            byte[] clientHash = await SHA256.HashDataAsync(clientModel).ConfigureAwait(false);
-            byte[] serverHash = await SHA256.HashDataAsync(serverModel).ConfigureAwait(false);
-            Assert.That(Convert.ToHexString(clientHash),
-                Is.EqualTo("7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A"));
-            Assert.That(serverHash, Is.EqualTo(clientHash));
+            using var clientBytes = new MemoryStream();
+            using var serverBytes = new MemoryStream();
+            await clientModel.CopyToAsync(clientBytes).ConfigureAwait(false);
+            await serverModel.CopyToAsync(serverBytes).ConfigureAwait(false);
+            Assert.That(serverBytes.ToArray(), Is.EqualTo(clientBytes.ToArray()));
+
+            // Git text=auto changes checkout newlines. Normalize only this content pin, never the runtime hash.
+            string canonicalModel = Encoding.UTF8.GetString(clientBytes.ToArray())
+                .Replace("\r\n", "\n", StringComparison.Ordinal);
+            byte[] canonicalHash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalModel));
+            Assert.That(Convert.ToHexString(canonicalHash),
+                Is.EqualTo("C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51"));
+
+            byte[] originalCheckoutBytes = Encoding.UTF8.GetBytes(
+                canonicalModel.Replace("\n", checkoutNewLine, StringComparison.Ordinal));
+            Assert.That(Convert.ToHexString(SHA256.HashData(originalCheckoutBytes)),
+                Is.EqualTo(expectedOriginalHash));
         }
 
         /// <summary>

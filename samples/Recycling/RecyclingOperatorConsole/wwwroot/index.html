@@ -140,8 +140,24 @@ FORM: Operate mode, first-ranked industrial 2D schematic, compact workstation st
                         <div class="panel__heading">
                             <div>
                                 <h2>Quality holds</h2>
-                                <p>Holds are material decisions, separate from equipment faults.</p>
+                                <p>Run-scoped pages include every retained hold, including released and rejected records.</p>
                             </div>
+                        </div>
+                        <div class="command-actions" aria-label="Retained hold pages">
+                            <label for="holds-disposition">Disposition</label>
+                            <select id="holds-disposition" data-testid="holds-disposition">
+                                <option value="Held">Outstanding</option>
+                                <option value="All">All dispositions</option>
+                                <option value="Released">Released</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                            <button class="button" type="button" data-action="holds-previous"
+                                data-testid="holds-previous" disabled>Previous page</button>
+                            <button class="button" type="button" data-action="holds-next"
+                                data-testid="holds-next" disabled>Next page</button>
+                            <button class="button" type="button" data-action="holds-refresh"
+                                data-testid="holds-refresh">Refresh page</button>
+                            <span id="holds-page-status" data-testid="holds-page-status" role="status"></span>
                         </div>
                         <div id="holds-content" data-testid="holds-content"></div>
                     </section>

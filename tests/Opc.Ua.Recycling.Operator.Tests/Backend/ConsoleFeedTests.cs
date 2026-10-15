@@ -35,6 +35,26 @@ public sealed class ConsoleFeedTests
     }
 
     /// <summary>
+    /// Disposed old records cannot crowd every outstanding hold out of the live preview.
+    /// </summary>
+    [Test]
+    public void LiveHoldPreviewPrioritizesOutstandingRecordsBeyondTheOldestTwoHundred()
+    {
+        using ConsoleFeed feed = Create();
+        var holds = new QualityHold[205];
+        for (int index = 0; index < holds.Length; index++)
+        {
+            holds[index] = new QualityHold(index + 1, 1, 5, "Color limit",
+                index < 200 ? HoldDisposition.Released : HoldDisposition.Held, string.Empty, 0);
+        }
+        feed.Accept(Good(Image(1, 1) with { Holds = holds }));
+        Assert.That(feed.State.Holds, Has.Length.EqualTo(5));
+        Assert.That(feed.State.Holds[0].Id, Is.EqualTo("205"));
+        Assert.That(feed.State.Holds[^1].Id, Is.EqualTo("201"));
+        Assert.That(feed.State.Summary.HeldCount, Is.EqualTo(5));
+    }
+
+    /// <summary>
     /// Sixteen latest-only channels coalesce slow clients and release their consumer slots on disconnect.
     /// </summary>
     [Test]
