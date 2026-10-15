@@ -51,7 +51,8 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
-        IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource, IDisposable
+        IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource,
+        IResourceIsolationAdmissionEvidence, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -129,9 +130,9 @@ namespace Opc.Ua.Server
             ThrowIfDisposed();
             if (m_classifier?.TryClassifyIngress(remoteEndpoint, out ResourceIsolationIdentity identity) == true)
             {
-                return CreateMappedOwner(identity);
+                return CreateMappedOwner(identity, out _);
             }
-            return CreateOwner(PeerKey(remoteEndpoint?.Address), ResourceIsolationClass.Established);
+            return CreateOwner(PeerKey(remoteEndpoint?.Address), ResourceIsolationClass.Established, out _);
         }
 
         /// <inheritdoc/>
@@ -140,6 +141,50 @@ namespace Opc.Ua.Server
             NodeId authenticationToken = default,
             bool sessionEstablishment = false,
             bool controlRequest = false)
+        {
+            return Classify(channelContext, authenticationToken, sessionEstablishment, controlRequest, out _);
+        }
+
+        /// <inheritdoc/>
+        ResourceIsolationOwner IResourceIsolationAdmissionEvidence.Classify(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            bool sessionEstablishment,
+            bool controlRequest,
+            out ResourceIsolationAdmissionEvidence? evidence)
+        {
+            ResourceIsolationOwner owner = Classify(
+                channelContext, authenticationToken, sessionEstablishment, controlRequest,
+                out OwnerIdentity identity);
+            // Only inputs IsAdmissionCurrent can confirm: a binding without a liveness
+            // check, or a token whose session may still bind, needs the full lookup, and a
+            // classifier may map the same inputs differently at any time.
+            evidence = m_classifier == null && identity.Channel != null && !identity.OnlyStage.HasValue &&
+                (identity.Binding?.Liveness != null || (identity.Binding == null && authenticationToken.IsNull))
+                ? identity : null;
+            return owner;
+        }
+
+        /// <inheritdoc/>
+        bool IResourceIsolationAdmissionEvidence.IsAdmissionCurrent(
+            ResourceIsolationAdmissionEvidence evidence,
+            SecureChannelContext channelContext)
+        {
+            ThrowIfDisposed();
+            // The owner was classified from this channel context and the binding that was
+            // current then; every other input of the verdict is fixed for the owner and the
+            // request. While both still hold, a full revalidation returns Good.
+            var identity = (OwnerIdentity)evidence;
+            return identity.Channel!.Matches(channelContext) &&
+                (identity.Binding == null || identity.Binding.Liveness!.IsCurrent(channelContext));
+        }
+
+        private ResourceIsolationOwner Classify(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            bool sessionEstablishment,
+            bool controlRequest,
+            out OwnerIdentity ownerIdentity)
         {
             if (channelContext == null)
             {
@@ -172,7 +217,7 @@ namespace Opc.Ua.Server
                         channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
                         out identity))
                 {
-                    return CreateMappedOwner(identity, binding, channelContext);
+                    return CreateMappedOwner(identity, out ownerIdentity, binding, channelContext);
                 }
             }
             ResourceIsolationClass ownerClass = binding != null && controlRequest
@@ -181,8 +226,11 @@ namespace Opc.Ua.Server
                     ? ResourceIsolationClass.Reconnect : ResourceIsolationClass.Established;
             ClassificationCache cache = m_channelClassifications.GetValue(
                 channelContext.SecureChannelId, static _ => new ClassificationCache());
-            if (cache.TryGet(ownerClass, binding, channelContext, out ResourceIsolationOwner? cached))
+            if (cache.TryGet(
+                ownerClass, binding, channelContext, out ResourceIsolationOwner? cached,
+                out OwnerIdentity? cachedIdentity))
             {
+                ownerIdentity = cachedIdentity;
                 return cached;
             }
             string key;
@@ -200,7 +248,7 @@ namespace Opc.Ua.Server
             {
                 key = PeerKey(channelContext.PeerAddress);
             }
-            return CreateOwner(key, ownerClass, binding: binding, channelContext: channelContext);
+            return CreateOwner(key, ownerClass, out ownerIdentity, binding: binding, channelContext: channelContext);
         }
 
         /// <inheritdoc/>
@@ -216,6 +264,7 @@ namespace Opc.Ua.Server
             return CreateOwner(
                 "continuity:" + owner.Key,
                 ResourceIsolationClass.Reconnect,
+                out _,
                 channelContext: channelContext,
                 onlyStage: ResourceIsolationStage.ReassemblyBytes);
         }
@@ -738,6 +787,7 @@ namespace Opc.Ua.Server
 
         private ResourceIsolationOwner CreateMappedOwner(
             ResourceIsolationIdentity identity,
+            out OwnerIdentity ownerIdentity,
             SessionBindingContext? binding = null,
             SecureChannelContext? channelContext = null)
         {
@@ -753,17 +803,18 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("The classifier returned an unprovisioned trusted owner.");
                 }
                 return CreateOwner(
-                    GetTrustedOwnerKey(identity.Key), identity.Class, provisioned, binding, channelContext,
-                    mapped: true);
+                    GetTrustedOwnerKey(identity.Key), identity.Class, out ownerIdentity, provisioned, binding,
+                    channelContext, mapped: true);
             }
             return CreateOwner(
-                "mapped:" + identity.Key, identity.Class, binding: binding, channelContext: channelContext,
-                mapped: true);
+                "mapped:" + identity.Key, identity.Class, out ownerIdentity, binding: binding,
+                channelContext: channelContext, mapped: true);
         }
 
         private ResourceIsolationOwner CreateOwner(
             string key,
             ResourceIsolationClass ownerClass,
+            out OwnerIdentity identity,
             TrustedOwnerPlan? provisioned = null,
             SessionBindingContext? binding = null,
             SecureChannelContext? channelContext = null,
@@ -774,8 +825,10 @@ namespace Opc.Ua.Server
                 m_channelClassifications.GetValue(
                     channelContext.SecureChannelId, static _ => new ClassificationCache());
             if (cache != null && cache.TryGet(
-                ownerClass, binding, channelContext!, out ResourceIsolationOwner? cached, key, onlyStage, mapped))
+                ownerClass, binding, channelContext!, out ResourceIsolationOwner? cached,
+                out OwnerIdentity? cachedIdentity, key, onlyStage, mapped))
             {
+                identity = cachedIdentity;
                 return cached;
             }
             var ceilings = new long[kStageCount];
@@ -786,8 +839,9 @@ namespace Opc.Ua.Server
             var owner = new ResourceIsolationOwner(
                 key, ownerClass, provisioned?.Weight ?? Plan.DefaultWeight, ceilings);
             ChannelSnapshot? snapshot = channelContext == null ? null : cache!.GetSnapshot(channelContext);
-            m_classifications.Add(owner, new OwnerIdentity(provisioned, binding, snapshot, onlyStage));
-            cache?.Set(owner, binding, snapshot!, onlyStage, mapped);
+            identity = new OwnerIdentity(provisioned, binding, snapshot, onlyStage);
+            m_classifications.Add(owner, identity);
+            cache?.Set(owner, identity, binding, snapshot!, onlyStage, mapped);
             return owner;
         }
 
@@ -893,7 +947,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed record OwnerIdentity(
             TrustedOwnerPlan? Trusted, SessionBindingContext? Binding, ChannelSnapshot? Channel,
-            ResourceIsolationStage? OnlyStage);
+            ResourceIsolationStage? OnlyStage) : ResourceIsolationAdmissionEvidence;
 
         /// <summary>
         /// Caches a derived key only for the lifetime of its immutable session activation.
@@ -914,6 +968,7 @@ namespace Opc.Ua.Server
                 SessionBindingContext? binding,
                 SecureChannelContext context,
                 [NotNullWhen(true)] out ResourceIsolationOwner? owner,
+                [NotNullWhen(true)] out OwnerIdentity? identity,
                 string? key = null,
                 ResourceIsolationStage? onlyStage = null,
                 bool mapped = false)
@@ -927,10 +982,12 @@ namespace Opc.Ua.Server
                         entry.Snapshot.Matches(context))
                     {
                         owner = entry.Owner;
+                        identity = entry.Identity;
                         return true;
                     }
                 }
                 owner = null;
+                identity = null;
                 return false;
             }
 
@@ -953,15 +1010,15 @@ namespace Opc.Ua.Server
             /// Publishes a bounded immutable snapshot; older classifications remain valid while leases retain them.
             /// </summary>
             public void Set(
-                ResourceIsolationOwner owner, SessionBindingContext? binding, ChannelSnapshot snapshot,
-                ResourceIsolationStage? stage, bool mapped)
+                ResourceIsolationOwner owner, OwnerIdentity identity, SessionBindingContext? binding,
+                ChannelSnapshot snapshot, ResourceIsolationStage? stage, bool mapped)
             {
                 lock (m_lock)
                 {
                     Entry[] current = m_entries;
                     int retained = Math.Min(current.Length, kMaximumEntries - 1);
                     var updated = new Entry[retained + 1];
-                    updated[0] = new Entry(owner, binding, snapshot, stage, mapped);
+                    updated[0] = new Entry(owner, identity, binding, snapshot, stage, mapped);
                     Array.Copy(current, 0, updated, 1, retained);
                     Volatile.Write(ref m_entries, updated);
                 }
@@ -971,8 +1028,8 @@ namespace Opc.Ua.Server
             /// Records the validated mapping inputs associated with one issued owner.
             /// </summary>
             private sealed record Entry(
-                ResourceIsolationOwner Owner, SessionBindingContext? Binding, ChannelSnapshot Snapshot,
-                ResourceIsolationStage? Stage, bool Mapped);
+                ResourceIsolationOwner Owner, OwnerIdentity Identity, SessionBindingContext? Binding,
+                ChannelSnapshot Snapshot, ResourceIsolationStage? Stage, bool Mapped);
 
             private readonly Lock m_lock = new();
             private const int kMaximumEntries = 8;
