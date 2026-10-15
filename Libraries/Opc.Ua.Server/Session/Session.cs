@@ -718,6 +718,71 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Saves a continuation point used for historical reads unless the request
+        /// that creates it already holds all continuation points of the session.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 7.9: "A Server shall process the operations until it uses the
+        /// maximum number of continuation points in this response. Once that happens
+        /// the Server shall return a Bad_NoContinuationPoints error for any remaining
+        /// operations." and "A Server shall automatically free ContinuationPoints from
+        /// prior requests from a Session if they are needed to process a new request
+        /// from this Session."
+        /// When the session holds MaxHistoryContinuationPoints points, the oldest point
+        /// of a prior request is freed. If all stored points belong to the request
+        /// identified by <paramref name="requestId"/>, nothing is freed or saved and
+        /// the method returns <c>false</c>; the caller then reports
+        /// Bad_NoContinuationPoints for the operation. A <paramref name="requestId"/> of
+        /// 0 is not associated with a request and behaves like
+        /// <see cref="SaveHistoryContinuationPoint(Guid, object)"/>.
+        /// If the continuationPoint implements IDisposable it will be disposed when
+        /// it is freed or when the Session is closed or discarded.
+        /// </remarks>
+        /// <param name="id">The identifier for the continuation point.</param>
+        /// <param name="continuationPoint">The continuation point.</param>
+        /// <param name="requestId">The <see cref="OperationContext.RequestId"/> of the request.</param>
+        /// <returns><c>true</c> if the continuation point was saved.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
+        public bool TrySaveHistoryContinuationPoint(Guid id, object continuationPoint, uint requestId)
+        {
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
+
+            lock (m_lock)
+            {
+                m_historyContinuationPoints ??= [];
+
+                while (m_maxHistoryContinuationPoints > 0 &&
+                    m_historyContinuationPoints.Count >= m_maxHistoryContinuationPoints)
+                {
+                    int index = m_historyContinuationPoints.FindIndex(
+                        cp => requestId == 0 || cp.RequestId != requestId);
+
+                    if (index < 0)
+                    {
+                        return false;
+                    }
+
+                    HistoryContinuationPoint oldCP = m_historyContinuationPoints[index];
+                    m_historyContinuationPoints.RemoveAt(index);
+                    Utils.SilentDispose(oldCP.Value);
+                }
+
+                m_historyContinuationPoints.Add(new HistoryContinuationPoint
+                {
+                    Id = id,
+                    Value = continuationPoint,
+                    Timestamp = DateTime.UtcNow,
+                    RequestId = requestId
+                });
+
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Restores a previously saves history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
@@ -761,6 +826,7 @@ namespace Opc.Ua.Server
             public Guid Id;
             public object Value;
             public DateTime Timestamp;
+            public uint RequestId;
         }
 
         /// <summary>
