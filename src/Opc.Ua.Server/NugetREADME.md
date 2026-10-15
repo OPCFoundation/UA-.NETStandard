@@ -58,6 +58,13 @@ The runtime loader supports grouped file and stream sources, orders included mod
 
 To add or reload a NodeSet after the server is running, inject `INodeManagerLifecycle` (or use `StandardServer.NodeManagerLifecycle`) and call `AddRuntimeNodeSetAsync` / `ReloadRuntimeNodeSetAsync`. The returned generation-aware registration can later be removed with `RemoveAsync`. Active monitored items retain their identity when compatible nodes remain, publish one `BadNodeIdUnknown` when their node disappears, and automatically recover when a compatible Node with the same NodeId returns. Namespace indexes and compatible runtime DataType registrations remain stable for the server lifetime.
 
+## Programs
+
+For provider-backed Part 10 execution, register `AddPrograms` or construct a
+`ProgramNodeManagerFactory` directly. The runtime manages control methods,
+invocation lifetime, diagnostics and captured result events. See the
+[Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,

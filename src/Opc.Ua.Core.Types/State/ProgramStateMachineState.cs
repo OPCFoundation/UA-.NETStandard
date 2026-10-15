@@ -35,6 +35,68 @@ namespace Opc.Ua
     public partial class ProgramStateMachineState
     {
         /// <summary>
+        /// Claims execution ownership before an asynchronous runtime initializes this invocation.
+        /// </summary>
+        internal bool TryClaimExecution()
+        {
+            return Interlocked.CompareExchange(ref m_executionClaimed, 1, 0) == 0;
+        }
+
+        /// <summary>
+        /// Releases execution ownership after the owner's resources have been drained.
+        /// </summary>
+        internal void ReleaseExecution()
+        {
+            Interlocked.Exchange(ref m_executionClaimed, 0);
+        }
+
+        /// <inheritdoc/>
+        public override NodeId GetStateNodeId(uint stateId)
+        {
+            return ContainsElement(s_stateTable, stateId)
+                ? new NodeId(stateId)
+                : base.GetStateNodeId(stateId);
+        }
+
+        /// <inheritdoc/>
+        public override uint GetStateId(NodeId stateNodeId)
+        {
+            return stateNodeId.NamespaceIndex == 0 && stateNodeId.TryGetValue(out uint id) &&
+                ContainsElement(s_stateTable, id)
+                    ? id
+                    : base.GetStateId(stateNodeId);
+        }
+
+        /// <inheritdoc/>
+        public override NodeId GetTransitionNodeId(uint transitionId)
+        {
+            return ContainsElement(s_transitionTable, transitionId)
+                ? new NodeId(transitionId)
+                : base.GetTransitionNodeId(transitionId);
+        }
+
+        /// <inheritdoc/>
+        public override uint GetTransitionId(NodeId transitionNodeId)
+        {
+            return transitionNodeId.NamespaceIndex == 0 && transitionNodeId.TryGetValue(out uint id) &&
+                ContainsElement(s_transitionTable, id)
+                    ? id
+                    : base.GetTransitionId(transitionNodeId);
+        }
+
+        private static bool ContainsElement(ElementInfo[] elements, uint id)
+        {
+            foreach (ElementInfo element in elements)
+            {
+                if (element.Id == id)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
         protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
@@ -137,10 +199,10 @@ namespace Opc.Ua
         /// </summary>
         private static readonly ElementInfo[] s_stateTable =
         [
-            new(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 1),
-            new(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 2),
-            new(Objects.ProgramStateMachineType_Suspended, BrowseNames.Suspended, 3),
-            new(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 4)
+            new(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 12),
+            new(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 13),
+            new(Objects.ProgramStateMachineType_Suspended, BrowseNames.Suspended, 14),
+            new(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 11)
         ];
 
         /// <summary>
@@ -537,5 +599,7 @@ namespace Opc.Ua
                 inputArguments,
                 outputArguments);
         }
+
+        private int m_executionClaimed;
     }
 }

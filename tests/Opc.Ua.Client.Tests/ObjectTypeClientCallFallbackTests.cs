@@ -89,6 +89,31 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        [Category("Programs")]
+        public void BadServiceEnvelopeCannotBeInterpretedAsSuccessfulMethodOutput()
+        {
+            m_sessionMock.Setup(session => session.CallAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadSessionClosed },
+                    Results = [Good(new Variant(42))]
+                });
+            TestObjectTypeClient client = CreateClient();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.InvokeAsync(
+                    m_typeMethodId, kMethodNamespaceUri, kMethodBrowseName, CancellationToken.None)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            VerifyCallCount(Times.Once());
+            VerifyTranslateCount(Times.Never());
+        }
+
+        [Test]
         public async Task NonConformantServerResolvesInstanceMethodIdAndRetriesAsync()
         {
             SetupCall(req => req.MethodId.Equals(m_typeMethodId) ? BadMethodInvalid() : Good(new Variant(7)));

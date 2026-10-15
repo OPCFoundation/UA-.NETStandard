@@ -876,6 +876,28 @@ validation caches are invalidated in that case.
 
 > **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process staging API on `CertificateManager`. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
 
+An application that applies a TrustList it received by other means (for
+example a GDS push delivered through its own channel) can run the same
+pre-commit check that `TrustList.CloseAndUpdate` applies before it writes the
+stores. A null `ArrayOf` keeps the current store contents, an empty one
+replaces them with nothing. Every certificate of the resulting TrustList is
+validated, including the certificates retained from a store that is not
+replaced, and every certificate passed as `issuerCertificates` must be a CA:
+
+```csharp
+ServiceResult check = await trustList.ValidateNewTrustListAsync(
+    issuerCertificates: newIssuers,          // ArrayOf<Certificate>
+    trustedCertificates: newTrusted,         // ArrayOf<Certificate>
+    issuerCrls: ArrayOf<X509CRL>.Null,       // keep the current issuer CRLs
+    trustedCrls: ArrayOf<X509CRL>.Null,      // keep the current trusted CRLs
+    securityConfiguration,
+    ct);
+if (ServiceResult.IsBad(check))
+{
+    // Do not apply: check.StatusCode is BadCertificateInvalid with the reason.
+}
+```
+
 ## Interfaces Reference
 
 ### ICertificateRegistry
