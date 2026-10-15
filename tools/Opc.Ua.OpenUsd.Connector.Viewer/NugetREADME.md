@@ -50,7 +50,8 @@ await viewport.DisposeAsync().ConfigureAwait(true);
 ```
 
 The host must validate and retain its private asset closure before calling `StartAsync`; do not pass a server-supplied
-URI or an unvalidated arbitrary stage. The viewport independently checks
+URI or an unvalidated arbitrary stage. UaLens performs bounded digest verification, local dependency/profile checks,
+composition-expansion accounting, and PNG dimension checks before native loading. The viewport independently checks
 physical frame dimensions, two/three-frame rings, at most two resize generations, and retained geometry before their
 allocations. Initial, resized and newly selected-camera targets must contain nonuniform rendered pixels.
 
