@@ -6574,12 +6574,11 @@ namespace Opc.Ua.Schema.Model
                         }
                     }
 
-                    // Explicit type declarations remain part of the published hierarchy at any depth.
-                    // Keep the existing placeholder filtering when constructing a concrete instance.
+                    // Preserve published nested type declarations, but do not materialize
+                    // their placeholders when expanding a concrete instance.
                     if (!rootIsTypeDefinition &&
-                        instance.ModellingRule
-                        is ModellingRule.OptionalPlaceholder
-                        or ModellingRule.MandatoryPlaceholder &&
+                        (instance.ModellingRule is
+                            ModellingRule.OptionalPlaceholder or ModellingRule.MandatoryPlaceholder) &&
                         depth > 3)
                     {
                         continue;
@@ -7407,6 +7406,17 @@ namespace Opc.Ua.Schema.Model
                     method.MethodDeclarationNode = declaration;
                 }
             }
+            if (c.Children.Count > 0)
+            {
+                var descendants = new InstanceDesign[c.Children.Count];
+                for (int index = 0; index < descendants.Length; index++)
+                {
+                    descendants[index] = MaterialiseDependencyChild(instance.SymbolicId, c.Children[index]);
+                    descendants[index].Parent = instance;
+                }
+                instance.Children = new ListOfChildren { Items = descendants };
+                instance.HasChildren = true;
+            }
             // Mark as inherited-declaration so consumer code paths
             // that iterate children for emission can short-circuit.
             instance.IsDeclaration = true;
@@ -7515,33 +7525,45 @@ namespace Opc.Ua.Schema.Model
                 {
                     continue;
                 }
-                foreach (InstanceDesign instance in type.Children.Items)
+                LinkPayloadChildren(type.Children.Items);
+            }
+        }
+
+        /// <summary>
+        /// Links every explicitly carried descendant, including parameters of generic Object containers.
+        /// </summary>
+        private void LinkPayloadChildren(IEnumerable<InstanceDesign> children)
+        {
+            foreach (InstanceDesign instance in children)
+            {
+                if (instance.Children?.Items != null)
                 {
-                    if (instance.TypeDefinition != null &&
-                        instance.TypeDefinitionNode == null &&
-                        m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
-                    {
-                        instance.TypeDefinitionNode = tdNode as TypeDesign;
-                    }
-                    if (instance is VariableDesign variable &&
-                        variable.DataType != null &&
-                        variable.DataTypeNode == null &&
-                        m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
-                    {
-                        variable.DataTypeNode = dtNode as DataTypeDesign;
-                    }
-                    if (instance is VariableDesign payloadVariable &&
-                        payloadVariable.DefaultValue != null &&
-                        payloadVariable.DecodedValue == null &&
-                        payloadVariable.DecodedValueNamespaceUris != null)
-                    {
-                        LinkPayloadDefaultValue(payloadVariable);
-                    }
-                    if (instance is MethodDesign method)
-                    {
-                        LinkDependencyMethodArguments(method.InputArguments);
-                        LinkDependencyMethodArguments(method.OutputArguments);
-                    }
+                    LinkPayloadChildren(instance.Children.Items);
+                }
+                if (instance.TypeDefinition != null &&
+                    instance.TypeDefinitionNode == null &&
+                    m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
+                {
+                    instance.TypeDefinitionNode = tdNode as TypeDesign;
+                }
+                if (instance is VariableDesign variable &&
+                    variable.DataType != null &&
+                    variable.DataTypeNode == null &&
+                    m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
+                {
+                    variable.DataTypeNode = dtNode as DataTypeDesign;
+                }
+                if (instance is VariableDesign payloadVariable &&
+                    payloadVariable.DefaultValue != null &&
+                    payloadVariable.DecodedValue == null &&
+                    payloadVariable.DecodedValueNamespaceUris != null)
+                {
+                    LinkPayloadDefaultValue(payloadVariable);
+                }
+                if (instance is MethodDesign method)
+                {
+                    LinkDependencyMethodArguments(method.InputArguments);
+                    LinkDependencyMethodArguments(method.OutputArguments);
                 }
             }
         }

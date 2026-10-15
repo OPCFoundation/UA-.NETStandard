@@ -4793,6 +4793,9 @@ namespace Opc.Ua.Server
             // EndpointDescription (OPC UA Part 12 §7.10.7).
             m_serverInternal.SetServerEndpoints(GetEndpoints());
 
+            // Endpoint-dependent contributors cannot advertise security profiles during the earlier address-space pass.
+            await m_serverInternal.ConformanceUnitsManager.PublishAsync(cancellationToken).ConfigureAwait(false);
+
             OnServerStarted(m_serverInternal);
 
             // OPC 10000-12 §7.8.3: start periodic certificate-expiration and

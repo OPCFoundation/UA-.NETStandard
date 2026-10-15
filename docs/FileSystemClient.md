@@ -451,6 +451,15 @@ prevents a rejected erase request from truncating a file held by another
 opener. Failed or cancelled opens release their reservations. If a provider
 returns a stream after session closure or disposal, the system closes it
 instead of publishing it.
+Materialized `FileDirectoryBinder` bindings supplied with a `ServerSystemContext`
+attach to that server's session lifecycle on the first open. Explicit session
+closure and expiry release only that session's handles and pending reservations;
+other sessions keep their readers and positions. Late opens from a closing,
+expired, or removed session return `BadSessionClosed`. No historical session-ID
+list is retained. Binding disposal removes the lifecycle subscription, so the
+application must dispose the binding when its directory is removed or its node
+manager shuts down. A context without a server session manager has no automatic
+session lifecycle; such standalone bindings remain owned by their caller.
 `Read` and `Write` enforce the requested open mode even if the provider's
 stream supports both operations. `SetPosition` clamps positions beyond
 EOF to the current file length. `Writable` describes the provider/file

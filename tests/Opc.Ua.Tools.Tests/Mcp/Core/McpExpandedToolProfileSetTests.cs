@@ -85,7 +85,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             (McpToolProfile.PubSubConfiguration, "PubSubConfiguration", 29, "pubsub-configuration"),
             (McpToolProfile.PubSubBridge, "PubSubBridge", 30, "pubsub-bridge"),
             (McpToolProfile.PubSubSecurity, "PubSubSecurity", 31, "pubsub-security"),
-            (McpToolProfile.WotRuntime, "WotRuntime", 32, "wot-runtime")
+            (McpToolProfile.WotRuntime, "WotRuntime", 32, "wot-runtime"),
+            (McpToolProfile.MachineTool, "MachineTool", 33, "MachineTool"),
+            (McpToolProfile.Gms, "Gms", 34, "Gms"),
+            (McpToolProfile.CranesHoists, "CranesHoists", 35, "CranesHoists")
         ];
 
         private static readonly McpToolProfile[] s_highPair =
@@ -104,7 +107,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private static readonly (McpToolProfile Profile, string Text)[] s_undefinedProfiles =
         [
             ((McpToolProfile)(-1), "-1"),
-            ((McpToolProfile)33, "33"),
+            ((McpToolProfile)36, "36"),
             ((McpToolProfile)63, "63"),
             ((McpToolProfile)64, "64"),
             ((McpToolProfile)int.MinValue, "-2147483648"),
@@ -117,8 +120,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] actualNames = Enum.GetNames<McpToolProfile>();
             McpToolProfile[] actualProfiles = Enum.GetValues<McpToolProfile>();
 
-            Assert.That(actualNames, Has.Length.EqualTo(33));
-            Assert.That(actualProfiles, Has.Length.EqualTo(33));
+            Assert.That(actualNames, Has.Length.EqualTo(36));
+            Assert.That(actualProfiles, Has.Length.EqualTo(36));
             Assert.That(actualNames, Is.EqualTo(s_profileOracle.Select(row => row.Name)));
             Assert.That(actualProfiles, Is.EqualTo(s_profileOracle.Select(row => row.Profile)));
             Assert.That(
@@ -187,14 +190,14 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(AllProfileInputs))]
-        public void AllProfilesFormExactDeduplicatedThirtyThreeMemberUnion(McpToolProfile[] input)
+        public void AllProfilesFormExactDeduplicatedThirtySixMemberUnion(McpToolProfile[] input)
         {
             McpToolProfile[] expected = GetAllProfiles();
             string expectedDisplay = GetExpectedDisplay(expected);
             var set = new McpToolProfileSet(input);
 
             AssertSet(set, expected, expectedDisplay);
-            Assert.That(set.Count, Is.EqualTo(33));
+            Assert.That(set.Count, Is.EqualTo(36));
             Assert.That(set.Enumerate().Count(profile => profile == McpToolProfile.Full), Is.EqualTo(1));
             foreach ((McpToolProfile Profile, string Text) in s_undefinedProfiles)
             {
@@ -612,6 +615,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
             yield return new TestCaseData(new[] { McpToolProfile.WotRuntime }, "wot-runtime", "wot-runtime");
             yield return new TestCaseData(s_highPair, "WotRuntime+pubsub-security+WotRuntime", kHighPairDisplay);
             yield return new TestCaseData(s_highTriple, "wot-runtime+Core+PUBSUBSECURITY", kHighTripleDisplay);
+            yield return new TestCaseData(
+                new[]
+                {
+                    McpToolProfile.Services,
+                    McpToolProfile.Administration,
+                    McpToolProfile.PubSub,
+                    McpToolProfile.MachineTool,
+                    McpToolProfile.Gms,
+                    McpToolProfile.CranesHoists
+                },
+                "CranesHoists+Services+Gms+Administration+MachineTool+PubSub",
+                "Services,Administration,PubSub,MachineTool,Gms,CranesHoists");
         }
 
         private static IEnumerable<TestCaseData> AllProfileInputs()

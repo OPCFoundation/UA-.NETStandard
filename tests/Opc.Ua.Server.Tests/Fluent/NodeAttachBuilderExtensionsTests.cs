@@ -599,6 +599,93 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
+        /// <summary>
+        /// Async manager disposal must release committed bindings even when startup skipped address-space deletion.
+        /// </summary>
+        [Test]
+        public async Task AsyncDisposeReleasesActivatedBindingsWithoutAddressSpaceDeletionAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+            CancellationToken lifetime = default;
+            int releases = 0;
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.Attach((context, _) =>
+            {
+                lifetime = context.Lifetime;
+                return new ValueTask<IAsyncDisposable?>(new CallbackDisposable(() =>
+                {
+                    Assert.That(lifetime.IsCancellationRequested, Is.True);
+                    releases++;
+                }));
+            });
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(releases, Is.EqualTo(1),
+                "Aborted server startup can dispose a manager without calling DeleteAddressSpaceAsync.");
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(releases, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Disposing during a pending shutdown joins the owned release instead of clearing its nodes early.
+        /// </summary>
+        [Test]
+        public async Task AsyncDisposeWaitsForPendingAddressSpaceBindingReleaseAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var resource = new Mock<IAsyncDisposable>();
+            resource.Setup(value => value.DisposeAsync()).Returns(() =>
+            {
+                started.TrySetResult(true);
+                return new ValueTask(finish.Task);
+            });
+            manager.NewBuilder().Attach((_, _) => new ValueTask<IAsyncDisposable?>(resource.Object));
+            await manager.ActivateAsync().ConfigureAwait(false);
+            Task deletion = manager.DeleteAddressSpaceAsync().AsTask();
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Task disposal = manager.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(disposal.IsCompleted, Is.False,
+                    "Manager disposal must not overtake an admitted binding release.");
+            }
+            finally
+            {
+                finish.TrySetResult(true);
+                await Task.WhenAll(deletion, disposal).ConfigureAwait(false);
+            }
+            resource.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed binding does not hide its error or prevent the remaining bindings from releasing.
+        /// </summary>
+        [Test]
+        public async Task AsyncDisposeSurfacesBindingFailureAfterReleasingRemainingBindingsAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+            int released = 0;
+            NodeManagerBuilder builder = manager.NewBuilder();
+            builder.Attach((_, _) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(() => released++)));
+            builder.Attach((_, _) => new ValueTask<IAsyncDisposable?>(
+                new CallbackDisposable(() => throw new InvalidOperationException("owned release failed"))));
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+                async () => await manager.DisposeAsync().ConfigureAwait(false))!;
+
+            Assert.That(failure.Flatten().InnerExceptions.Any(error => error.Message == "owned release failed"), Is.True);
+            Assert.That(released, Is.EqualTo(1));
+        }
+
         [Test]
         public void ActivationFailureWithAFailingRollbackReportsBoth()
         {

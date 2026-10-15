@@ -42,6 +42,7 @@ using Opc.Ua.Vision;
 using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
+using Opc.Ua.Vision.Server.Hosting;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -69,6 +70,12 @@ namespace Microsoft.Extensions.DependencyInjection
             bool registered = false;
             foreach (ServiceDescriptor service in builder.Services)
             {
+                if (!service.IsKeyedService && service.ServiceType == typeof(VisionHostedNodeManagerFactory))
+                {
+                    throw new InvalidOperationException(
+                        "Standalone AddVision already owns the Vision namespaces. Choose either that owner " +
+                        "or AddVisionToMachinery, not both.");
+                }
                 registered |= service.ServiceType == typeof(IMachineryModelProvider);
             }
             if (!registered)

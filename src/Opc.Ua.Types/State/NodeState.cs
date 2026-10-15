@@ -2922,6 +2922,22 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                ReportEventCore(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Reports one visited node to its sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected void ReportEventCore(ISystemContext context, IFilterTarget e)
+        {
             OnReportEvent?.Invoke(context, this, e);
 
             // Drive an asynchronous report sink too, so a node whose only report sink is
@@ -2988,6 +3004,26 @@ namespace Opc.Ua
             ISystemContext context,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                await ReportEventCoreAsync(context, e, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Awaits one visited node's sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected async ValueTask ReportEventCoreAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken)
         {
             OnReportEvent?.Invoke(context, this, e);
 

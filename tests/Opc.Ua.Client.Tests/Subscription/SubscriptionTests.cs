@@ -1051,6 +1051,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Retired messages never reach replacement acknowledgements, and captured acknowledgements stay stable.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task DeleteAndResetRetireQueuedMessagesBeforeReplacementAsync(bool delete)
@@ -1074,7 +1077,17 @@ namespace Opc.Ua.Client.Subscriptions
             var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var freshData = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFresh = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var freshAcknowledged = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var received = new ConcurrentQueue<uint>();
+            m_completion.OnQueueAsync = (acknowledgement, _) =>
+            {
+                if (acknowledgement.SubscriptionId == 22 && acknowledgement.SequenceNumber == 1)
+                {
+                    freshAcknowledged.TrySetResult(true);
+                }
+                return default;
+            };
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 10);
             await using (sut.ConfigureAwait(false))
@@ -1090,6 +1103,7 @@ namespace Opc.Ua.Client.Subscriptions
                     if (sequenceNumber == 1)
                     {
                         freshData.TrySetResult(true);
+                        await releaseFresh.Task.ConfigureAwait(false);
                     }
                 };
                 sut.OnKeepAliveAsync = () =>
@@ -1119,15 +1133,33 @@ namespace Opc.Ua.Client.Subscriptions
                     await barrier.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
+                    List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1));
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
+                        "Notification dispatch precedes acknowledgement enqueue.");
+                    releaseFresh.TrySetResult(true);
+                    await freshAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1),
+                        "A captured acknowledgement snapshot must not change when the worker enqueues another ack.");
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
-                    Assert.That(m_completion.QueuedAcks, Has.None.Matches<SubscriptionAcknowledgement>(
+                    List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
+                    Assert.That(acknowledgements, Has.Count.EqualTo(2));
+                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement.SubscriptionId == 10 &&
+                            acknowledgement.SequenceNumber == 4999));
+                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement.SubscriptionId == 22 &&
+                            acknowledgement.SequenceNumber == 1));
+                    Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement.SequenceNumber == 5000));
                 }
                 finally
                 {
                     releaseFirst.TrySetResult(true);
+                    releaseFresh.TrySetResult(true);
                 }
             }
         }

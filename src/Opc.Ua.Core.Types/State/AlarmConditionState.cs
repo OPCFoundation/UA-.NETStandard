@@ -188,6 +188,7 @@ namespace Opc.Ua
 
             activeState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
+            UpdateRetainState();
             ClearChangeMasks(context, includeChildren: true);
         }
 

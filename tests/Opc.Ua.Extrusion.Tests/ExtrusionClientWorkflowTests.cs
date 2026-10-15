@@ -262,23 +262,40 @@ namespace Opc.Ua.Extrusion.Tests
             peer.Verify();
         }
 
+        /// <summary>
+        /// Missing paths, malformed translations and denied access retain their distinct workflow outcomes.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The workflow is not recognized.</exception>
         [TestCase("ItemState", "Present")]
         [TestCase("ItemState", "MissingGroup")]
         [TestCase("ItemState", "MissingChild")]
         [TestCase("ItemState", "BrowseDenied")]
+        [TestCase("ItemState", "EmptyTranslation")]
+        [TestCase("ItemState", "TranslationDenied")]
         [TestCase("ItemState", "TranslationFailure")]
         [TestCase("OperationMode", "Present")]
         [TestCase("OperationMode", "MissingGroup")]
         [TestCase("OperationMode", "MissingChild")]
+        [TestCase("OperationMode", "EmptyTranslation")]
+        [TestCase("OperationMode", "TranslationDenied")]
+        [TestCase("OperationMode", "TranslationFailure")]
         [TestCase("ProductionDatasets", "Present")]
         [TestCase("ProductionDatasets", "Missing")]
+        [TestCase("ProductionDatasets", "EmptyTranslation")]
         [TestCase("ProductionDatasets", "TranslationDenied")]
+        [TestCase("ProductionDatasets", "TranslationFailure")]
         [TestCase("ResetMaintenance", "Present")]
         [TestCase("ResetMaintenance", "Missing")]
         [TestCase("ResetMaintenance", "CallDenied")]
+        [TestCase("ResetMaintenance", "EmptyTranslation")]
+        [TestCase("ResetMaintenance", "TranslationDenied")]
+        [TestCase("ResetMaintenance", "TranslationFailure")]
         [TestCase("Jobs", "Present")]
         [TestCase("Jobs", "Missing")]
         [TestCase("Jobs", "CallDenied")]
+        [TestCase("Jobs", "EmptyTranslation")]
+        [TestCase("Jobs", "TranslationDenied")]
+        [TestCase("Jobs", "TranslationFailure")]
         public async Task ExtrusionOptionalWorkflowsReturnTypedResultsOrMissingCapabilityAsync(string workflow,
             string outcome)
         {
@@ -295,10 +312,16 @@ namespace Opc.Ua.Extrusion.Tests
                 _ => peer.Name(Line.Namespaces.ExtrusionLine, "JobGroups")
             };
             var transportFailure = new ServiceResultException(StatusCodes.BadCommunicationError);
-            peer.ExpectChild(owner, childName, outcome is "MissingGroup" or "Missing" ? NodeId.Null : child,
-                outcome == "TranslationDenied" ? StatusCodes.BadUserAccessDenied : StatusCodes.Good,
+            bool resolvesChild = outcome is "Present" or "MissingChild" or "BrowseDenied" or "CallDenied";
+            StatusCode translationStatus = outcome switch
+            {
+                "MissingGroup" or "Missing" => StatusCodes.BadNoMatch,
+                "TranslationDenied" => StatusCodes.BadUserAccessDenied,
+                _ => StatusCodes.Good
+            };
+            peer.ExpectChild(owner, childName, resolvesChild ? child : NodeId.Null, translationStatus,
                 outcome == "TranslationFailure" ? transportFailure : null);
-            if (workflow is "ItemState" or "OperationMode" && outcome is not ("MissingGroup" or "TranslationFailure"))
+            if (workflow is "ItemState" or "OperationMode" && resolvesChild)
             {
                 QualifiedName stateName = peer.Name(Machinery.Namespaces.Machinery,
                     workflow == "ItemState" ? "MachineryItemState" : "MachineryOperationMode");
@@ -312,7 +335,7 @@ namespace Opc.Ua.Extrusion.Tests
                     }
                 ]);
             }
-            if (workflow is "ResetMaintenance" or "Jobs" && outcome != "Missing")
+            if (workflow is "ResetMaintenance" or "Jobs" && resolvesChild)
             {
                 peer.ExpectCall(child, peer.Type(workflow == "Jobs"
                     ? Line.MethodIds.JobGroupsType_StartJobGroupById
@@ -325,12 +348,12 @@ namespace Opc.Ua.Extrusion.Tests
                 switch (workflow)
                 {
                     case "ItemState":
-                        var item = await
+                        ExtrusionMachineryItemState_StateMachineTypeClient item = await
                             peer.Client.Extruder(owner).ItemStateAsync(cancellation.Token).ConfigureAwait(false);
                         AssertProxy(item, typeof(ExtrusionMachineryItemState_StateMachineTypeClient), state, peer);
                         break;
                     case "OperationMode":
-                        var mode = await
+                        Machinery.MachineryOperationModeStateMachineTypeClient mode = await
                             peer.Client.Extruder(owner).OperationModeAsync(cancellation.Token).ConfigureAwait(false);
                         AssertProxy(mode, typeof(Machinery.MachineryOperationModeStateMachineTypeClient), state, peer);
                         break;
@@ -361,14 +384,18 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else if (outcome == "TranslationFailure")
             {
-                Assert.That(Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await InvokeAsync().ConfigureAwait(false)), Is.SameAs(transportFailure));
+                Assert.That(Assert.ThrowsAsync<ServiceResultException>(InvokeAsync), Is.SameAs(transportFailure));
                 Assert.That(transportFailure.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             }
             else
             {
-                ExtrusionClientPeer.AssertFailure(InvokeAsync, outcome is "BrowseDenied" or "CallDenied"
-                    ? StatusCodes.BadUserAccessDenied : StatusCodes.BadNotFound);
+                StatusCode expected = outcome switch
+                {
+                    "BrowseDenied" or "CallDenied" or "TranslationDenied" => StatusCodes.BadUserAccessDenied,
+                    "EmptyTranslation" => StatusCodes.BadUnexpectedError,
+                    _ => StatusCodes.BadNotFound
+                };
+                ExtrusionClientPeer.AssertFailure(InvokeAsync, expected);
             }
             peer.Verify();
         }

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Machinery.ProcessValues;
 using Opc.Ua.Machinery.Server.Results;
 using Opc.Ua.PADIM;
 using Opc.Ua.Machinery.Server.StateMachines;
@@ -254,7 +255,9 @@ namespace Opc.Ua.Machinery.Server.Builders
                     "The machine already declares a process value named '{0}'.",
                     name);
             }
-            configure(ProcessValueBuilder.Create(Scope, State, name));
+            ProcessValueBuilder processValue = ProcessValueBuilder.Create(Scope, State, name);
+            m_processValues.Add(processValue.State);
+            configure(processValue);
             return this;
         }
 
@@ -334,13 +337,8 @@ namespace Opc.Ua.Machinery.Server.Builders
             {
                 return default;
             }
-            foreach (QualifiedName processValueName in m_processValueNames)
+            foreach (ProcessValueState processValue in m_processValues)
             {
-                if (State.FindChild(Scope.Context, processValueName) is not BaseInstanceState
-                    processValue)
-                {
-                    continue;
-                }
                 m_processValueSignalSet.AddReference(
                     Opc.Ua.Types.ReferenceTypeIds.HasComponent,
                     false,
@@ -413,6 +411,149 @@ namespace Opc.Ua.Machinery.Server.Builders
             return this;
         }
 
+        /// <summary>
+        /// Configures an existing nameplate without creating a duplicate base identification add-in.
+        /// </summary>
+        internal IMachineBuilder<TState> BindIdentification(
+            MachineryItemIdentificationState identification,
+            Action<MachineryIdentificationData> configure)
+        {
+            Scope.EnsureMutable();
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, identification);
+            m_blocks.BindIdentification(identification, configure);
+            return this;
+        }
+
+        /// <summary>
+        /// Reuses a generated Components descendant and preserves its parent, browse name and reference type.
+        /// </summary>
+        internal IMachineBuilder<TState> BindComponents(
+            MachineComponentsState components,
+            Action<IMachineComponentsBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.BuildingBlocks, "Components");
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, components);
+            NodeId type = NodeId.Create(
+                Opc.Ua.Machinery.ObjectTypes.MachineComponentsType,
+                Opc.Ua.Machinery.Namespaces.Machinery,
+                Scope.Context.NamespaceUris);
+            if (!Scope.Context.TypeTable.IsTypeOf(components.TypeDefinitionId, type) ||
+                !Scope.Context.TypeTable.IsTypeOf(components.ReferenceTypeId, MachineryBuilderUtilities.HasAddIn))
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeDefinitionInvalid,
+                    "Components must retain a MachineComponentsType subtype and a HasAddIn reference.");
+            }
+            m_blocks.ReferenceBuildingBlock(components);
+            configure(new MachineComponentsBuilder(Scope, components));
+            var children = new List<BaseInstanceState>();
+            components.GetChildren(Scope.Context, children);
+            if (children.Exists(static child => child is BaseObjectState))
+            {
+                Scope.RecordFacet(MachineryFacet.Components);
+            }
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a deferred binding whose returned resource belongs to this machine transaction.
+        /// </summary>
+        internal IMachineBuilder<TState> WithRegistrationBinding(
+            Func<TState, ISystemContext, CancellationToken, ValueTask<IAsyncDisposable>> bind)
+        {
+            Scope.EnsureMutable();
+            Scope.PostRegistrationActions.Add(async cancellationToken =>
+            {
+                IAsyncDisposable resource = await bind(State, Scope.Context, cancellationToken).ConfigureAwait(false);
+                Scope.RegisteredResources.Add(resource ??
+                    throw new InvalidOperationException("A registration binding must return its lifetime resource."));
+                cancellationToken.ThrowIfCancellationRequested();
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Abandons authoring before registration without deleting a published tree.
+        /// </summary>
+        internal ValueTask AbortAsync()
+        {
+            Scope.EnsureMutable();
+            return Scope.AbortExternalAsync();
+        }
+
+        /// <summary>
+        /// Binds an existing companion process value under its original parent.
+        /// </summary>
+        internal IMachineBuilder<TState> BindProcessValue(
+            ProcessValueState state,
+            Action<IProcessValueBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.ProcessValues, "ProcessValue");
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, state);
+            if (m_processValues.Contains(state))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The process value '{0}' is already bound.",
+                    state.BrowseName);
+            }
+            ProcessValueBuilder processValue = ProcessValueBuilder.Adopt(Scope, state);
+            if (ReferenceEquals(state.Parent, State) && !m_processValueNames.Add(state.BrowseName))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameDuplicated,
+                    "The machine already declares a process value named '{0}'.",
+                    state.BrowseName);
+            }
+            m_processValues.Add(state);
+            configure(processValue);
+            return this;
+        }
+
+        /// <summary>
+        /// Binds complete job management already declared by a companion model.
+        /// </summary>
+        internal IMachineBuilder<TState> BindJobManagement(
+            Opc.Ua.Machinery.Jobs.JobManagementState management,
+            Action<IJobManagementBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.Jobs, "JobManagement");
+            if (m_jobManagement != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The machine already declares a JobManagement binding.");
+            }
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, management);
+            m_jobManagement = JobManagementBuilder.Adopt(Scope, management);
+            m_blocks.ReferenceBuildingBlock(management);
+            configure(m_jobManagement);
+            return this;
+        }
+
+        /// <summary>
+        /// Binds the result-management node already declared by a companion model.
+        /// </summary>
+        internal IMachineBuilder<TState> BindResultManagement(
+            Opc.Ua.Machinery.Result.ResultManagementState management,
+            Action<IResultManagementBuilder> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.Result, "ResultManagement");
+            if (m_results != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The machine already declares a ResultManagement binding.");
+            }
+            MachineryBuilderUtilities.EnsureDescendant(Scope.Context, State, management);
+            m_results = ResultManagementBuilder.Adopt(Scope, management);
+            configure(m_results);
+            return this;
+        }
+
         public async ValueTask<IMachineHandle<TState>> BuildAsync(
             CancellationToken cancellationToken = default)
         {
@@ -445,6 +586,7 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         private readonly MachineryItemBlocks m_blocks;
         private readonly HashSet<QualifiedName> m_processValueNames = [];
+        private readonly List<ProcessValueState> m_processValues = [];
         private BaseObjectState? m_processValueDevice;
         private SignalSetState? m_processValueSignalSet;
         private MachineryNotificationsBuilder? m_notifications;

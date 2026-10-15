@@ -1381,7 +1381,7 @@ namespace Opc.Ua.Server
                         {
                             // the response owns the lease and releases it when the transport
                             // has sent it, so the retained message is never copied.
-                            return new LeasedPublishResponse(lease)
+                            var response = new LeasedPublishResponse(lease)
                             {
                                 SubscriptionId = subscription.Id,
                                 AvailableSequenceNumbers = availableSequenceNumbers,
@@ -1390,6 +1390,11 @@ namespace Opc.Ua.Server
                                 Results = acknowledgeResults,
                                 DiagnosticInfos = acknowledgeDiagnosticInfos
                             };
+                            if (subscription is Subscription valuePublicationSubscription)
+                            {
+                                valuePublicationSubscription.CompleteValuePublications(message);
+                            }
+                            return response;
                         }
 
                         requeue = true;

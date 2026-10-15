@@ -159,6 +159,8 @@ needs.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
+- [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
+  notifications in real Publish responses before removing dynamic subtrees.
 - [Model change tracking](ModelChangeTracking.md) — keep client caches current
   when the address space changes.
 - [NodeSet export](NodeSetExport.md) — export a server's address space to
@@ -174,8 +176,8 @@ models that each model depends on.
 
 - [Device Integration](DeviceIntegration.md) (OPC 10000-100) —
   devices, topology, and locking.
-- [Asset Management Basics](AMB.md) (OPC 10000-110; preview
-  package) — make devices, machines, pumps or scales manageable assets:
+- [Asset Management Basics](AMB.md) (OPC 10000-110) — make devices,
+  machines, pumps or scales manageable assets:
   discovery, identification, health alarms, maintenance, documentation links
   and locations. Read Device Integration first.
 - [Software update](SoftwareUpdate.md) (OPC 10000-100) —
@@ -185,16 +187,25 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
-- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101; preview
-  package) — machines with identification, server-driven state machines,
+- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
+  machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
-- [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
+- [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.
-- [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
+- [MachineTool and wireless peripherals](MachineTool.md) (OPC 40501-1 and
+  OPC 40505) — machine monitoring, tools, production/jobs/files and independently
+  hosted wireless measurements, configuration and records in one package family.
+- [Geometric Measurement Systems](GMS.md) (OPC 40210) — native measurement
+  equipment, qualification/calibration, production observations and results.
+  The guide documents the upstream undefined Production-statistics CU exception.
+- [Cranes and Hoists](CranesHoists.md) (OPC 40020-1; preview packages) —
+  Robotics-derived crane systems, equipment observations and explicitly
+  authorized speed-limit requests.
+- [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
 - [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —

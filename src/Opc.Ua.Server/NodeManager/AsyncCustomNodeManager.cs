@@ -51,13 +51,14 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager :
+    public partial class AsyncCustomNodeManager :
         IAsyncNodeManager,
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemLifecycle,
+        INodeValuePublication
     {
         /// <summary>
         /// Initializes the node manager.
@@ -231,6 +232,7 @@ namespace Opc.Ua.Server
                     m_operationsDrained.TrySetResult(true);
                 }
             }
+            m_valuePublicationShutdown.Cancel();
             // Cleanup starts inline until its first incomplete await, then publishes the shared
             // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
             _ = DisposeOwnedResourcesAsync();
@@ -358,6 +360,7 @@ namespace Opc.Ua.Server
             try
             {
                 await m_operationsDrained.Task.ConfigureAwait(false);
+                DisposeSessionClosingHandlers();
                 var errors = new List<Exception>();
                 lock (m_operationLifetimeLock)
                 {
@@ -384,6 +387,7 @@ namespace Opc.Ua.Server
                 await DisposeOwnedResourceAsync(m_writeSemaphore, PredefinedNodes.Clear, errors).ConfigureAwait(false);
                 await DisposeOwnedResourceAsync(m_monitoredItemSemaphore,
                     () => m_monitoredItemManager?.Dispose(), errors).ConfigureAwait(false);
+                m_valuePublicationShutdown.Dispose();
                 await DisposeOwnedResourceAsync(m_componentCacheSemaphore,
                     () => m_componentCache?.Clear(), errors).ConfigureAwait(false);
                 if (errors.Count > 0)
@@ -1869,10 +1873,32 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
+            return DeleteNodeAsync(context, nodeId, emitModelChange: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a subtree with the normal reference, monitored-item and resource lifetime handling,
+        /// allowing its transaction to control automatic model-change emission for this call only.
+        /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="nodeId">The root to remove.</param>
+        /// <param name="emitModelChange">
+        /// False when a transaction rolls back unpublished staging or emits its own aggregate change.
+        /// This does not modify the manager's policy or suppress deletion lifecycle callbacks.
+        /// </param>
+        /// <param name="cancellationToken">Cancels deletion.</param>
+        /// <returns>Whether the node existed and was removed.</returns>
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            bool emitModelChange,
+            CancellationToken cancellationToken)
+        {
             return CompleteNodeDeletionAsync(
                 SystemContext.Copy(context),
                 nodeId,
                 deleteTargetReferences: true,
+                emitModelChange,
                 () => DeleteNodeCoreAsync(context, nodeId, cancellationToken));
         }
 
@@ -1880,10 +1906,12 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeId nodeId,
             bool deleteTargetReferences,
+            bool emitModelChange,
             Func<ValueTask<T>> delete)
         {
             var changes = new NodeDeletionModelChanges(
-                context, nodeId, PredefinedNodes, ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
+                context, nodeId, PredefinedNodes,
+                emitModelChange && ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
             T result = default!;
             Exception? failure = null;
             try
@@ -2322,6 +2350,7 @@ namespace Opc.Ua.Server
                 SystemContext.Copy(context),
                 item == null ? NodeId.Null : item.NodeId,
                 item != null && item.DeleteTargetReferences,
+                emitModelChange: true,
                 () => DeleteNodeCoreAsync(context, item!, cancellationToken));
         }
 
@@ -10286,16 +10315,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Called when a session is closed.
+        /// Called when a session is closed, awaiting registered session-resource cleanup.
         /// </summary>
+        /// <remarks>
+        /// Overrides must await this base implementation, including when subscriptions are retained.
+        /// </remarks>
         public virtual ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            // overridden by the sub-class.
-            return new ValueTask();
+            return InvokeSessionClosingHandlersAsync(sessionId, cancellationToken);
         }
 
         /// <summary>

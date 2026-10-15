@@ -305,10 +305,16 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            base.ReportEvent(context, e);
-
-            // recursively notify the parent.
-            Parent?.ReportEvent(context, e);
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                ReportEventCore(context, e);
+                Parent?.ReportEvent(context, e);
+            }
         }
 
         /// <summary>
@@ -323,12 +329,19 @@ namespace Opc.Ua
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            await base.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
-
-            // recursively notify the parent.
-            if (Parent != null)
+            cancellationToken.ThrowIfCancellationRequested();
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
             {
-                await Parent.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+                if (!entered)
+                {
+                    return;
+                }
+                await ReportEventCoreAsync(context, e, cancellationToken).ConfigureAwait(false);
+                if (Parent != null)
+                {
+                    await Parent.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 
