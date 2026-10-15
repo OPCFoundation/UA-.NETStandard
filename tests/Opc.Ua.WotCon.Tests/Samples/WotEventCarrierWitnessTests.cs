@@ -244,8 +244,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static IEnumerable<string> Ids(UANodeSet nodeSet)
         {
-            return (nodeSet.Items ?? []).Select(node => node.NodeId ?? string.Empty)
-                .Select(id => id[(id.IndexOf("s=", StringComparison.Ordinal) + 2)..]);
+            return (nodeSet.Items ?? []).Select(node => Tail(node.NodeId));
+        }
+
+        private static string Tail(string? id)
+        {
+            string value = id ?? string.Empty;
+            int index = value.IndexOf("s=", StringComparison.Ordinal);
+            return index < 0 ? value : value[(index + 2)..];
         }
 
         private static IEnumerable<string> GeneratesEventTargets(UANodeSet nodeSet)
@@ -254,8 +260,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .SelectMany(node => node.References ?? [])
                 .Where(reference => reference.IsForward &&
                     reference.ReferenceType is "i=41" or "GeneratesEvent")
-                .Select(reference => reference.Value)
-                .Select(id => id[(id.IndexOf("s=", StringComparison.Ordinal) + 2)..]);
+                .Select(reference => Tail(reference.Value));
         }
 
         private static int NativeNodeCount(WotDocument document)
