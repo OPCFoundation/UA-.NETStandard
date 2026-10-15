@@ -101,6 +101,12 @@ Generic read/call results retain an ExtensionObject's `typeId` and decoded `body
 fields through UA codecs. Unregistered encoded bodies remain explicitly encoded;
 they are not reduced to a type name or silently omitted.
 
+`Publish` pairs `ackSubscriptionIds` and `ackSequenceNumbers` by index. Their
+lengths must match; omitted and empty arrays both mean no acknowledgements.
+Its `results` array preserves each acknowledgement's status in request order,
+including failures such as `BadSequenceNumberUnknown` even when the service
+response itself is `Good`.
+
 UA JSON preserves types, quality and timestamps. Variant serialization uses
 `BuiltInType`, so Boolean `false` and numeric zero do not become Variant.Null.
 Non-finite companion measurements are `"NaN"`, `"Infinity"` or `"-Infinity"`.
