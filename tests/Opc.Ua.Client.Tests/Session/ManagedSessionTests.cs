@@ -362,7 +362,80 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public async Task HandleReconnectAsyncRejectsAlternateNetworkEndpointWithDifferentSecurityPolicyAsync()
+        public async Task HandleConnectAsyncSkipsIncompatibleAlternateBeforeNextCompatibleEndpointAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint primaryEndpoint = CreateEndpoint();
+            primaryEndpoint.Description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            primaryEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            ConfiguredEndpoint incompatibleEndpoint = CreateEndpoint();
+            incompatibleEndpoint.Description.EndpointUrl = "opc.tcp://incompatible:4840";
+            incompatibleEndpoint.Description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            incompatibleEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss;
+            ConfiguredEndpoint compatibleEndpoint = CreateEndpoint();
+            compatibleEndpoint.Description.EndpointUrl = "opc.tcp://compatible:4840";
+            compatibleEndpoint.Description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            compatibleEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+
+            var attemptedEndpoints = new List<ConfiguredEndpoint>();
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(factory => factory.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(factory => factory.WithSubscriptionEngine(
+                    It.IsAny<ISubscriptionEngineFactory>(),
+                    It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
+            sessionFactory.Setup(factory => factory.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    ApplicationConfiguration _,
+                    ConfiguredEndpoint endpoint,
+                    bool _,
+                    bool _,
+                    string _,
+                    uint _,
+                    IUserIdentity _,
+                    ArrayOf<string> _,
+                    CancellationToken _) =>
+                {
+                    attemptedEndpoints.Add(endpoint);
+                    StatusCode statusCode = ReferenceEquals(endpoint, primaryEndpoint)
+                        ? StatusCodes.BadSecureChannelClosed
+                        : StatusCodes.BadCertificateUntrusted;
+                    return Task.FromException<ISession>(new ServiceResultException(statusCode));
+                });
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                primaryEndpoint,
+                null,
+                telemetry,
+                new NetworkRedundancyOptions
+                {
+                    AlternateEndpoints = new ArrayOf<ConfiguredEndpoint>(
+                        new[] { incompatibleEndpoint, compatibleEndpoint }.AsMemory())
+                },
+                sessionFactory: sessionFactory.Object);
+
+            ServiceResult result = await InvokeHandleConnectAsync(managedSession)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(attemptedEndpoints, Is.EqualTo(new[] { primaryEndpoint, compatibleEndpoint }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HandleReconnectAsyncSkipsAlternateWithDifferentSecurityPolicyAsync(
+            bool hasCompatibleAlternate)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
@@ -370,6 +443,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ConfiguredEndpoint alternateEndpoint = CreateEndpoint();
             alternateEndpoint.Description.EndpointUrl = "opc.tcp://alternate:4840";
             alternateEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            ConfiguredEndpoint compatibleEndpoint = CreateEndpoint();
+            compatibleEndpoint.Description.EndpointUrl = "opc.tcp://compatible:4840";
             IServiceMessageContext messageContext = configuration.CreateMessageContext();
 
             var managedChannel = new Mock<IManagedTransportChannel>();
@@ -412,7 +487,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 telemetry,
                 new NetworkRedundancyOptions
                 {
-                    AlternateEndpoints = new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory())
+                    AlternateEndpoints = hasCompatibleAlternate
+                        ? new ArrayOf<ConfiguredEndpoint>(
+                            new[] { alternateEndpoint, compatibleEndpoint }.AsMemory())
+                        : new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory())
                 });
 
             ServiceResult result = await InvokeHandleReconnectAsync(
@@ -420,8 +498,19 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     new RetryBudget(TimeSpan.FromSeconds(30)))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
-            Assert.That(capturedEndpoint, Is.Null);
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(hasCompatibleAlternate
+                    ? StatusCodes.BadUnexpectedError
+                    : StatusCodes.BadSecurityPolicyRejected));
+            if (hasCompatibleAlternate)
+            {
+                Assert.That(capturedEndpoint, Is.SameAs(compatibleEndpoint));
+            }
+            else
+            {
+                Assert.That(capturedEndpoint, Is.Null);
+            }
             Assert.That(
                 primaryEndpoint.Description.SecurityPolicyUri,
                 Is.EqualTo(SecurityPolicies.None));
@@ -1569,6 +1658,28 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for reconnect-path tests that need the private handler.
+        private static Task<ServiceResult> InvokeHandleConnectAsync(
+            Client.ManagedSession managedSession)
+        {
+            MethodInfo? method = typeof(Client.ManagedSession).GetMethod(
+                "HandleConnectAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [typeof(CancellationToken)],
+                null);
+
+            Assert.That(method, Is.Not.Null);
+
+            var task = (Task<ServiceResult>?)method!.Invoke(
+                managedSession,
+                [CancellationToken.None]);
+
+            Assert.That(task, Is.Not.Null);
+            return task!;
+        }
+#pragma warning restore IDE0051, RCS1213
+
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for reconnect-path tests that need the private handler.
         private static Task<ServiceResult> InvokeHandleReconnectAsync(
             Client.ManagedSession managedSession,
             IRetryBudget budget)
@@ -1618,15 +1729,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         private static Client.ManagedSession CreateManagedSessionWithInner(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            Session innerSession,
+            Session? innerSession,
             ITelemetryContext telemetry,
             NetworkRedundancyOptions? networkRedundancy = null,
             IServerRedundancyHandler? redundancyHandler = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISessionFactory? sessionFactory = null)
         {
             ILogger<Client.ManagedSession> logger = telemetry.CreateLogger<Client.ManagedSession>();
-            var sessionFactory = new Mock<ISessionFactory>();
-            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            var defaultSessionFactory = new Mock<ISessionFactory>();
+            defaultSessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
             var reconnectPolicy = new ReconnectPolicy(new ReconnectPolicyOptions
             {
                 MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
@@ -1665,7 +1777,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             [
                 configuration,
                 endpoint,
-                sessionFactory.Object,
+                sessionFactory ?? defaultSessionFactory.Object,
                 reconnectPolicy,
                 redundancyHandler,
                 logger,

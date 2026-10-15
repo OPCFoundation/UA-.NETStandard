@@ -189,7 +189,9 @@ endpoint refreshes when the server certificate changes, and cooperates
 with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
 requires the same message-security mode and security policy as the configured
 endpoint. If discovery no longer offers that exact combination, reconnect fails
-instead of selecting another security configuration.
+instead of selecting another security configuration. Network redundancy skips
+incompatible alternate endpoints and continues searching the configured list
+for a matching endpoint.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -401,8 +403,9 @@ connection state machine transitions `Connected → Reconnecting` and:
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
    session against a failover endpoint with the same message-security mode
-   and security-policy URI. A target with a different mode or policy is
-   rejected before opening its channel.
+   and security-policy URI. Targets with a different mode or policy are
+   skipped before opening their channels; recovery continues to the next
+   configured endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established

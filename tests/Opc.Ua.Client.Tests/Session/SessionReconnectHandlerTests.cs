@@ -285,13 +285,17 @@ namespace Opc.Ua.Client.Tests
 
             ConfiguredEndpoint configuredEndpoint = CreateConfiguredEndpoint(
                 MessageSecurityMode.SignAndEncrypt,
-                SecurityPolicies.Aes256_Sha256_RsaPss);
+                SecurityPolicies.Basic256Sha256);
 
             Mock<ISession> mockSession = CreateMockSession(configuredEndpoint, mockFactory);
-            using var handler = new TestableSessionReconnectHandler(
+            var discoveredEndpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
+            };
+            using var handler = new ControlledDiscoverySessionReconnectHandler(
                 m_telemetry,
-                (endpoint, connection) => Task.FromException(
-                    new ServiceResultException(StatusCodes.BadSecurityPolicyRejected)));
+                discoveredEndpoint);
 
             SetSessionHandlerField(handler, "m_reconnectFailed", true);
             SetSessionHandlerField(handler, "m_updateFromServer", true);
@@ -306,7 +310,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(configuredEndpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
             Assert.That(
                 configuredEndpoint.Description.SecurityPolicyUri,
-                Is.EqualTo(SecurityPolicies.Aes256_Sha256_RsaPss));
+                Is.EqualTo(SecurityPolicies.Basic256Sha256));
             mockFactory.Verify(
                 factory => factory.RecreateAsync(
                     mockSession.Object,
@@ -397,6 +401,39 @@ namespace Opc.Ua.Client.Tests
                 ITransportWaitingConnection? connection = null)
             {
                 return _updateDelegate(endpoint, connection!);
+            }
+        }
+
+        private sealed class ControlledDiscoverySessionReconnectHandler : SessionReconnectHandler
+        {
+            private readonly EndpointDescription m_discoveredEndpoint;
+
+            public ControlledDiscoverySessionReconnectHandler(
+                ITelemetryContext telemetry,
+                EndpointDescription discoveredEndpoint)
+                : base(telemetry)
+            {
+                m_discoveredEndpoint = discoveredEndpoint;
+            }
+
+            internal override Task UpdateFromServerAsync(
+                ConfiguredEndpoint endpoint,
+                ITransportWaitingConnection? connection,
+                MessageSecurityMode securityMode,
+                string securityPolicyUri)
+            {
+                typeof(ConfiguredEndpoint)
+                    .GetProperty(nameof(ConfiguredEndpoint.DiscoveryEndpoints))!
+                    .SetValue(endpoint, new ArrayOf<EndpointDescription>(
+                        new[] { m_discoveredEndpoint }.AsMemory()));
+
+                if (securityPolicyUri != m_discoveredEndpoint.SecurityPolicyUri)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+                }
+
+                endpoint.Description.SecurityPolicyUri = securityPolicyUri;
+                return Task.CompletedTask;
             }
         }
     }

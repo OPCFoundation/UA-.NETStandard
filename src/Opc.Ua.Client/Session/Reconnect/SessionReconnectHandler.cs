@@ -681,7 +681,16 @@ namespace Opc.Ua.Client
             }
         }
 
-        private Task UpdateFromServerAsync(
+        /// <summary>
+        /// Updates endpoint information from discovery using the required
+        /// security configuration.
+        /// </summary>
+        /// <param name="endpoint">The endpoint to update.</param>
+        /// <param name="connection">The optional reverse connection.</param>
+        /// <param name="securityMode">The required message security mode.</param>
+        /// <param name="securityPolicyUri">The required security policy URI.</param>
+        /// <returns>A task that completes when the endpoint has been updated.</returns>
+        internal virtual Task UpdateFromServerAsync(
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
             MessageSecurityMode securityMode,
