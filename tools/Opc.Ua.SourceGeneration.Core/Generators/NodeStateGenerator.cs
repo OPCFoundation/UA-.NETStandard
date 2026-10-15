@@ -4244,15 +4244,6 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    if (!node.RootIsTypeDefinition &&
-                        targetNode is InstanceDesign instance &&
-                        (instance.ModellingRule is
-                            ModellingRule.MandatoryPlaceholder or
-                            ModellingRule.OptionalPlaceholder))
-                    {
-                        continue;
-                    }
-
                     references.Add(new ReferenceToGenerate(
                         targetNode,
                         reference.ReferenceType,
@@ -4310,6 +4301,15 @@ namespace Opc.Ua.SourceGeneration
                     source.Instance!,
                     reference.ReferenceType!,
                     !isInverse));
+            }
+
+            // Apply the instance filter after resolving both identifier and hierarchy-path targets.
+            if (!node.RootIsTypeDefinition)
+            {
+                references.RemoveWhere(reference => reference.TargetNode is InstanceDesign
+                {
+                    ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+                });
             }
 
             // Inherited and declared designs can differ structurally while
