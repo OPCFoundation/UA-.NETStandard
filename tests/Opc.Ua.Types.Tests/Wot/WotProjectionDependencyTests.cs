@@ -147,6 +147,7 @@ namespace Opc.Ua.Types.Tests.Wot
             outer["id"] = "urn:projection:outer";
             var entry = (JsonObject)outer["uav:projects"]![0]!;
             entry["href"] = innerHref;
+            entry["type"] = WotProjection.ContentType;
             if (selectAll)
             {
                 entry["uav:selectAll"] = true;
