@@ -803,6 +803,9 @@ the actual revised sampling interval, queue size and filter result:
 `GetMonitoredItems` returns handles only. This does not recreate the items or
 change their monitoring mode or triggering links. Live items that already have
 revised parameters do not require this extra snapshot-restoration step.
+Refresh enqueueing is ordered with concurrent options changes, so a restored
+snapshot cannot overwrite newer requested sampling intervals, queue sizes or
+filters.
 A successful initiated transfer also reports `PublishState.Transferred` to the
 target handler after handle synchronization, before attempting retained-message
 recovery; failed synchronization does not report transfer completion.

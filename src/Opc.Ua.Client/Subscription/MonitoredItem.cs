@@ -615,12 +615,26 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ServerId = serverHandle;
             }
-            if (m_refreshParametersAfterTransfer && m_currentOptions is { } options)
+            while (m_refreshParametersAfterTransfer && Volatile.Read(ref m_currentOptions) is { } options)
             {
                 // GetMonitoredItems supplies handles, not revised parameters. Reapply
                 // the saved parameters without recreating the item or changing its mode.
-                m_pendingChanges.Enqueue(new Change(this, options, options));
-                m_refreshParametersAfterTransfer = false;
+                // A filter can invoke caller code while constructing the request, so
+                // build outside the enqueue gate and retry if newer options arrived.
+                var refresh = new Change(this, options, options);
+                lock (m_pendingChangesLock)
+                {
+                    if (!m_refreshParametersAfterTransfer)
+                    {
+                        break;
+                    }
+                    if (!ReferenceEquals(options, Volatile.Read(ref m_currentOptions)))
+                    {
+                        continue;
+                    }
+                    m_pendingChanges.Enqueue(refresh);
+                    m_refreshParametersAfterTransfer = false;
+                }
             }
         }
 
@@ -752,8 +766,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
 
-            m_currentOptions = options;
-            m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
+            Volatile.Write(ref m_currentOptions, options);
+            var change = new Change(this, options, currentOptions);
+            lock (m_pendingChangesLock)
+            {
+                m_pendingChanges.Enqueue(change);
+            }
         }
 
         /// <summary>
@@ -1280,6 +1298,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private IDisposable? m_changeTracking;
 #pragma warning restore CA2213
         private readonly ConcurrentQueue<Change> m_pendingChanges = new();
+        /// <summary>Orders option-change enqueueing with transfer-refresh validation and enqueueing.</summary>
+        private readonly Lock m_pendingChangesLock = new();
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
