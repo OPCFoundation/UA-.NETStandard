@@ -370,7 +370,9 @@ namespace Opc.Ua.Mcp.Serialization
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                     "Specify either inputArguments or inputArgumentsJson, not both.");
             }
-            if (inputArgumentsJson.Length > 4 * 1024 * 1024)
+            const int maxInputBytes = 4 * 1024 * 1024;
+            if (inputArgumentsJson.Length > maxInputBytes ||
+                Encoding.UTF8.GetByteCount(inputArgumentsJson) > maxInputBytes)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
                     "Typed method arguments exceed the 4 MiB input bound.");
@@ -389,6 +391,14 @@ namespace Opc.Ua.Mcp.Serialization
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                     "Typed method arguments must be a UA JSON Variant array of at most 1024 items.");
+            }
+            foreach (JsonNode? argument in array)
+            {
+                if (argument is JsonObject envelope && envelope["Value"] != null && envelope["UaType"] == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "A non-null typed method argument Value requires an explicit UaType.");
+                }
             }
             using var decoder = new JsonDecoder(new JsonObject { ["Arguments"] = array }.ToJsonString(), context);
             return decoder.ReadVariantArray("Arguments");

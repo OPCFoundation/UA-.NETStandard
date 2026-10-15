@@ -95,6 +95,9 @@ legacy string array. It is an OPC UA JSON Variant array, for example
 Structure values use `UaType: 22` and a `Value` object containing `UaTypeId` and
 the structure's fields. Load custom types with `schema_load_types` first.
 Conflicting argument forms and invalid JSON are rejected before dispatch.
+Typed input is limited to 4 MiB of UTF-8 JSON and 1,024 arguments. A non-null
+`Value` requires an explicit `UaType`; a missing or misspelled type tag is not
+silently interpreted as a null argument. Null encodings and typed defaults remain supported.
 Existing `inputArguments` strings are never implicitly reinterpreted as JSON.
 
 Generic read/call results retain an ExtensionObject's `typeId` and decoded `body`
