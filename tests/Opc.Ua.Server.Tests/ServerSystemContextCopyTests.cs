@@ -214,6 +214,56 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A copy for no session clears the session values on the copy only.
+        /// </summary>
+        [Test]
+        public void CopyForNoSessionClearsSessionValuesOnTheCopyOnly()
+        {
+            var template = new ServerSystemContext(CreateServer().Object)
+            {
+                SessionId = new NodeId(7),
+                UserIdentity = new Mock<IUserIdentity>().Object,
+                PreferredLocales = ["en-US"]
+            };
+
+            ServerSystemContext copy = template.Copy((ISession)null!);
+
+            Assert.That(copy.SessionId, Is.Null.Or.EqualTo(NodeId.Null));
+            Assert.That(copy.UserIdentity, Is.Null);
+            Assert.That(copy.PreferredLocales.IsNull || copy.PreferredLocales.Count == 0, Is.True);
+            Assert.That(template.SessionId, Is.EqualTo(new NodeId(7)));
+            Assert.That(template.UserIdentity, Is.Not.Null);
+            Assert.That(template.PreferredLocales.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A copy for another server context takes that context's operation, session
+        /// values, tables and factories, keeps its own handle, and leaves both sources
+        /// unchanged.
+        /// </summary>
+        [Test]
+        public void CopyForServerContextTakesItsValues()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            var handle = new object();
+            var template = new ServerSystemContext(server.Object) { SystemHandle = handle };
+            ServerSystemContext other = CreatePopulatedContext();
+            INodeIdFactory templateFactory = template.NodeIdFactory;
+
+            ServerSystemContext copy = template.Copy(other);
+
+            Assert.That(copy.OperationContext, Is.SameAs(other.OperationContext));
+            Assert.That(copy.SessionId, Is.EqualTo(other.SessionId));
+            Assert.That(copy.UserIdentity, Is.SameAs(other.UserIdentity));
+            Assert.That(copy.NamespaceUris, Is.SameAs(other.NamespaceUris));
+            Assert.That(copy.TypeTable, Is.SameAs(other.TypeTable));
+            Assert.That(copy.NodeIdFactory, Is.SameAs(other.NodeIdFactory));
+            Assert.That(copy.SystemHandle, Is.SameAs(handle));
+            Assert.That(template.NodeIdFactory, Is.SameAs(templateFactory));
+            Assert.That(template.OperationContext, Is.Null);
+        }
+
+        /// <summary>
         /// A derived context that copies itself with a plain member-wise clone stays
         /// isolated from its source, in both directions.
         /// </summary>
