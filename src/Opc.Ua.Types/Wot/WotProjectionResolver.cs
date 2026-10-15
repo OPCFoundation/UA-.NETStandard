@@ -133,6 +133,7 @@ namespace Opc.Ua.Wot
             WotResolutionContext context = resolutionContext ??
                 new WotResolutionContext(m_options.ToResolverOptions());
             var resolving = new HashSet<string>(StringComparer.Ordinal);
+            var supportOnly = new List<(WotAffordanceKind Kind, string Name)>();
 
             byte[]? bytes = await ResolveViewAsync(
                 document,
@@ -141,7 +142,8 @@ namespace Opc.Ua.Wot
                 resolving,
                 context,
                 diagnostics,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                supportOnly).ConfigureAwait(false);
 
             await CheckOrganizingAcyclicAsync(
                 projection,
@@ -158,6 +160,7 @@ namespace Opc.Ua.Wot
 #pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
                     view = WotDocument.Parse(bytes, m_options);
 #pragma warning restore CA2000
+                    view.MarkSupportOnly(supportOnly);
                 }
                 catch (Exception exception) when (
                     exception is JsonException or FormatException)
@@ -182,7 +185,8 @@ namespace Opc.Ua.Wot
             HashSet<string> resolving,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            List<(WotAffordanceKind Kind, string Name)>? supportOnly = null)
         {
             int errorsAtEntry = CountErrors(diagnostics);
             var openDocuments = new List<WotDocument>();
@@ -344,6 +348,16 @@ namespace Opc.Ua.Wot
                 if (CountErrors(diagnostics) > errorsAtEntry)
                 {
                     return null;
+                }
+                if (supportOnly is not null)
+                {
+                    foreach (ResolvedAffordance member in selection.Members)
+                    {
+                        if (member.Supporting)
+                        {
+                            supportOnly.Add((member.Kind, member.Name));
+                        }
+                    }
                 }
                 return Serialize(root);
             }

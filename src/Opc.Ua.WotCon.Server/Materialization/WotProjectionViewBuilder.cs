@@ -189,13 +189,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             using (WotDocument view = resolved.Value)
             {
                 await CollectMembersAsync(
-                    view.Properties, WotAffordanceKind.Property, members, omissions,
+                    view, view.Properties, WotAffordanceKind.Property, members, omissions,
                     intermediates, context, cancellationToken).ConfigureAwait(false);
                 await CollectMembersAsync(
-                    view.Actions, WotAffordanceKind.Action, members, omissions,
+                    view, view.Actions, WotAffordanceKind.Action, members, omissions,
                     intermediates, context, cancellationToken).ConfigureAwait(false);
                 await CollectMembersAsync(
-                    view.Events, WotAffordanceKind.Event, members, omissions,
+                    view, view.Events, WotAffordanceKind.Event, members, omissions,
                     intermediates, context, cancellationToken).ConfigureAwait(false);
             }
 
@@ -285,6 +285,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private async ValueTask CollectMembersAsync(
+            WotDocument view,
             IReadOnlyDictionary<string, JsonElement> affordances,
             WotAffordanceKind kind,
             List<NodeId> members,
@@ -295,6 +296,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             foreach (KeyValuePair<string, JsonElement> entry in affordances)
             {
+                if (view.IsSupportOnly(kind, entry.Key))
+                {
+                    // A dependency the resolver carried (for example a unit property) is
+                    // structural support; only what the projection selected is organized.
+                    continue;
+                }
                 if (!TryReadResolvedFrom(
                         entry.Value, out string href, out WotAffordanceKind sourceKind,
                         out string sourceName))

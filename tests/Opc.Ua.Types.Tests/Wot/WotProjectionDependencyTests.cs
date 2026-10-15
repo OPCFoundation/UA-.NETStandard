@@ -81,6 +81,55 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Verifies that a carried unit dependency is support-only and a selected one is not.
+        /// </summary>
+        /// <param name="selectUnit">The select-unit flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CarriedUnitDependencyIsSupportOnlyUnlessExplicitlySelected(bool selectUnit)
+        {
+            JsonObject plan = Plan();
+            plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
+            if (selectUnit)
+            {
+                plan["properties"]!["speedUnit"] = Select("/properties/Unit");
+            }
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(plan, Source("rpm")).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            string name = selectUnit ? "speedUnit" : "Unit";
+            Assert.That(view.Required().IsSupportOnly(WotAffordanceKind.Property, "speed"), Is.False);
+            Assert.That(view.IsSupportOnly(WotAffordanceKind.Property, name), Is.EqualTo(!selectUnit));
+            Assert.That(view.Properties.ContainsKey(name), Is.True,
+                "The unit dependency stays in the resolved document either way.");
+            Assert.That(view.Properties["speed"].GetProperty("uav:unitProperty").GetString(),
+                Is.EqualTo("/properties/" + name));
+        }
+
+        /// <summary>
+        /// Verifies that the support-only query is collection-qualified and false for unresolved documents.
+        /// </summary>
+        [Test]
+        public async Task SupportOnlyQueryIsQualifiedByKindAndAbsentOnPlainDocuments()
+        {
+            JsonObject plan = Plan();
+            plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(plan, Source("rpm")).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+            using var plain = WotDocument.Parse(Encoding.UTF8.GetBytes(Source("rpm").ToJsonString()));
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.Required().IsSupportOnly(WotAffordanceKind.Property, "Unit"), Is.True);
+            Assert.That(view.IsSupportOnly(WotAffordanceKind.Action, "Unit"), Is.False);
+            Assert.That(view.IsSupportOnly(WotAffordanceKind.Event, "Unit"), Is.False);
+            Assert.That(view.IsSupportOnly(WotAffordanceKind.Property, "Missing"), Is.False);
+            Assert.That(plain.IsSupportOnly(WotAffordanceKind.Property, "Unit"), Is.False);
+        }
+
+        /// <summary>
         /// Verifies that unit support cannot overwrite authored selections or their generated name lookalikes.
         /// </summary>
         [Test]
