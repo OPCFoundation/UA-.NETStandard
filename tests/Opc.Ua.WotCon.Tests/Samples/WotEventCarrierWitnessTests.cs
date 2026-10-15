@@ -250,8 +250,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static string Tail(string? id)
         {
             string value = id ?? string.Empty;
-            int index = value.IndexOf("s=", StringComparison.Ordinal);
-            return index < 0 ? value : value[(index + 2)..];
+            int index = value.StartsWith("s=", StringComparison.Ordinal)
+                ? 0
+                : value.IndexOf(";s=", StringComparison.Ordinal) + 1;
+            return index <= 0 && !value.StartsWith("s=", StringComparison.Ordinal) ? value : value[(index + 2)..];
         }
 
         private static IEnumerable<string> GeneratesEventTargets(UANodeSet nodeSet)

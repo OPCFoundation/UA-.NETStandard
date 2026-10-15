@@ -361,6 +361,68 @@ namespace Opc.Ua.Wot
                 failed ? null : WotEventSelectionCatalog.Create(selections), diagnostics);
         }
 
+        /// <summary>
+        /// Resolves the validated EventType identity that the named event affordances
+        /// state through their <c>tm:ref</c> definition.
+        /// </summary>
+        /// <remarks>
+        /// The reference is followed with the same bounded resolution as
+        /// <see cref="ResolveAsync"/>. An affordance whose definition does not
+        /// resolve to a valid EventType definition has no entry, so a caller
+        /// treats its identity as unproven.
+        /// </remarks>
+        /// <param name="document">The document that owns the affordances.</param>
+        /// <param name="affordanceNames">The event affordance names to resolve.</param>
+        /// <param name="resolutionContext">The resolution context that bounds the work.</param>
+        /// <param name="diagnostics">Receives the resolution diagnostics when a name stays unresolved.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The validated TypeDefinitionId of each resolved affordance.</returns>
+        internal async System.Threading.Tasks.ValueTask<Dictionary<string, string>> ResolveEventTypeIdsAsync(
+            WotDocument document,
+            IReadOnlyCollection<string> affordanceNames,
+            WotResolutionContext? resolutionContext,
+            List<WotDiagnostic> diagnostics,
+            System.Threading.CancellationToken cancellationToken)
+        {
+            var identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            using var scope = new ResolutionScope(
+                resolutionContext ??
+                new WotResolutionContext(m_options.ToResolverOptions()));
+            await BuildDefinitionIndexAsync(document, scope, cancellationToken)
+                .ConfigureAwait(false);
+            bool unresolved = false;
+            foreach (string name in affordanceNames)
+            {
+                if (!document.Events.TryGetValue(name, out JsonElement affordance) ||
+                    !affordance.TryGetProperty(
+                        WotEventSelectClauses.TypeDefinitionReferenceTerm, out JsonElement reference) ||
+                    reference.ValueKind != JsonValueKind.String)
+                {
+                    unresolved = true;
+                    continue;
+                }
+                EventTypeDefinition? definition = await ResolveDefinitionAsync(
+                        document,
+                        reference.GetString() ?? string.Empty,
+                        "/events/" + EscapePointerToken(name),
+                        scope,
+                        cancellationToken,
+                        affordance)
+                    .ConfigureAwait(false);
+                if (definition is null)
+                {
+                    unresolved = true;
+                    continue;
+                }
+                identities[name] = definition.TypeDefinitionId;
+            }
+            if (unresolved)
+            {
+                diagnostics.AddRange(scope.Diagnostics);
+            }
+            return identities;
+        }
+
         private async System.Threading.Tasks.ValueTask<ArrayOf<WotResolvedEventSelectClause>>
             ResolveAffordanceAsync(
                 WotDocument document,

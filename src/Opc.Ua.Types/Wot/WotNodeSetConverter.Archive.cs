@@ -46,12 +46,20 @@ namespace Opc.Ua.Wot
         /// <param name="options">The WoT node set converter options.</param>
         /// <param name="archiveContext">The archive context.</param>
         /// <param name="diagnostics">Collects diagnostics for preserved facts that do not match.</param>
+        /// <param name="carrierEventIds">
+        /// The validated EventType identity of each event affordance, read from
+        /// the definition its <c>tm:ref</c> names. An event whose node is absent
+        /// is accepted only when the archived root generates its authored
+        /// identity and the definition states the same identity. A
+        /// <c>null</c> map accepts nothing.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            UANodeSet? archiveContext = null)
+            UANodeSet? archiveContext = null,
+            IReadOnlyDictionary<string, string>? carrierEventIds = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -85,8 +93,9 @@ namespace Opc.Ua.Wot
             }
             var referenceTypes = WotReferenceTypeNames.Build(baseline);
 
+            var witnessed = new Dictionary<string, string>(StringComparer.Ordinal);
             Dictionary<string, UANode?> resolved = ResolvePreservedAffordances(
-                document, index, identities, aliases, diagnostics);
+                document, index, identities, aliases, diagnostics, root, carrierEventIds, witnessed);
             bool needsProjection = RequiresPreservedReadableProjection(document.RootElement);
             var projectedNodes = new HashSet<string>(StringComparer.Ordinal);
             if (root.NodeId is not null && document.RootElement.TryGetProperty(DataMember, out _))
@@ -124,13 +133,16 @@ namespace Opc.Ua.Wot
 
             CompareArchivedAffordances(
                 document, document.Properties, "properties", regenerated,
-                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable,
+                witnessed);
             CompareArchivedAffordances(
                 document, document.Actions, "actions", regenerated,
-                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable,
+                witnessed);
             CompareArchivedAffordances(
                 document, document.Events, "events", regenerated,
-                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable,
+                witnessed);
         }
 
         private static Dictionary<string, UANode?> ResolvePreservedAffordances(
@@ -138,7 +150,10 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode?> index,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            UANode? root = null,
+            IReadOnlyDictionary<string, string>? carrierEventIds = null,
+            Dictionary<string, string>? witnessed = null)
         {
             var resolved = new Dictionary<string, UANode?>(StringComparer.Ordinal);
             Resolve(document.Properties, "properties");
@@ -151,11 +166,85 @@ namespace Opc.Ua.Wot
                 foreach (KeyValuePair<string, JsonElement> affordance in affordances)
                 {
                     string pointer = "/" + collection + "/" + EscapeJsonPointerToken(affordance.Key);
+                    if (collection == "events" &&
+                        root is not null &&
+                        carrierEventIds is not null &&
+                        TryWitnessArchivedEvent(
+                            document, affordance.Value, affordance.Key, root, index, identities, aliases,
+                            carrierEventIds, pointer, diagnostics, out string? witnessedId))
+                    {
+                        resolved.Add(pointer, null);
+                        if (witnessedId is not null)
+                        {
+                            witnessed?.Add(pointer, witnessedId);
+                        }
+                        continue;
+                    }
                     resolved.Add(pointer, FindArchivedNode(
                         document, affordance.Value, affordance.Key, index,
                         identities, aliases, pointer, diagnostics));
                 }
             }
+        }
+
+        /// <summary>
+        /// Accepts an event whose node is absent from the archived context when
+        /// the archived root generates its authored identity and the
+        /// definition its <c>tm:ref</c> names states that same identity.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="authored">The event affordance.</param>
+        /// <param name="key">The event affordance name.</param>
+        /// <param name="root">The archived root the event is generated by.</param>
+        /// <param name="index">The archived fact index.</param>
+        /// <param name="identities">Scratch namespace table for identity normalization.</param>
+        /// <param name="aliases">The alias resolver.</param>
+        /// <param name="carrierEventIds">The validated EventType identity of each resolved definition.</param>
+        /// <param name="pointer">The affordance pointer.</param>
+        /// <param name="diagnostics">Receives the conflict when the definition states another identity.</param>
+        /// <param name="witnessedId">The accepted identity, or <c>null</c> when a conflict was reported.</param>
+        /// <returns>
+        /// <c>true</c> when the event was settled here, either accepted or reported;
+        /// <c>false</c> when the node must be looked up as usual.
+        /// </returns>
+        private static bool TryWitnessArchivedEvent(
+            WotDocument document,
+            JsonElement authored,
+            string key,
+            UANode root,
+            Dictionary<string, UANode?> index,
+            UANodeSet identities,
+            INodeSetAliasResolver aliases,
+            IReadOnlyDictionary<string, string> carrierEventIds,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
+            out string? witnessedId)
+        {
+            witnessedId = null;
+            string? id = GetElementString(authored, "uav:id");
+            if (id is null || !carrierEventIds.TryGetValue(key, out string? carrierId))
+            {
+                return false;
+            }
+            var scratch = new List<WotDiagnostic>();
+            string normalizedId = NormalizeArchivedIdentity(document, id, identities, aliases, scratch, authored);
+            if ((index.TryGetValue("id:" + normalizedId, out UANode? present) && present is not null) ||
+                !GeneratesArchivedEvent(root, index, aliases, normalizedId))
+            {
+                return false;
+            }
+            string normalizedCarrier = NormalizeArchivedIdentity(document, carrierId, identities, aliases, scratch);
+            if (normalizedCarrier == normalizedId)
+            {
+                witnessedId = normalizedId;
+                return true;
+            }
+            ReportArchiveConflict(
+                pointer + "/uav:id",
+                $"node identity, which the referenced EventType definition states as '{carrierId}'",
+                diagnostics,
+                normalizedId);
+            return true;
         }
 
         private static bool RequiresPreservedReadableProjection(JsonElement node)
@@ -297,7 +386,8 @@ namespace Opc.Ua.Wot
             INodeSetAliasResolver aliases,
             List<WotDiagnostic> diagnostics,
             Dictionary<string, UANode?> resolved,
-            WotDocument? regeneratedDocument)
+            WotDocument? regeneratedDocument,
+            Dictionary<string, string> witnessed)
         {
             JsonElement generatedMap = default;
             if (regenerated.ValueKind == JsonValueKind.Object)
@@ -373,6 +463,11 @@ namespace Opc.Ua.Wot
                     else if (resolved["/events/" + EscapeJsonPointerToken(eventName)] is { } eventNode)
                     {
                         conditionOwner = ResolveArchivedAlias(eventNode.NodeId, aliases);
+                    }
+                    else if (witnessed.TryGetValue(
+                        "/events/" + EscapeJsonPointerToken(eventName), out string? witnessedOwner))
+                    {
+                        conditionOwner = witnessedOwner;
                     }
                 }
                 if (collection == "events")

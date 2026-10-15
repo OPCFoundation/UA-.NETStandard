@@ -842,7 +842,8 @@ namespace Opc.Ua.Wot
         private static void ValidateRestoredConditions(
             WotDocument document,
             UANodeSet native,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, string>? carrierEventIds = null)
         {
             INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(native, WotNodeSetAliases.Instance);
             Dictionary<string, UANode?> index = BuildArchivedFactIndex(native, aliases);
@@ -860,6 +861,21 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 string pointer = "/events/" + EscapeJsonPointerToken(entry.Key);
+                string? authoredId = GetElementString(affordance, "uav:id");
+                if (authoredId is not null &&
+                    carrierEventIds is not null &&
+                    carrierEventIds.ContainsKey(entry.Key) &&
+                    !(index.TryGetValue(
+                            "id:" + NormalizeArchivedIdentity(
+                                document, authoredId, identities, aliases, new List<WotDiagnostic>(), affordance),
+                            out UANode? present) &&
+                        present is not null))
+                {
+                    // The event node is absent; the preserved readable fact validation
+                    // accepts it only when the archived root generates the event and
+                    // the EventType definition states the same identity.
+                    continue;
+                }
                 UANode? node = FindArchivedNode(
                     document, affordance, entry.Key, index, identities, aliases, pointer, diagnostics);
                 if (node is not null)
