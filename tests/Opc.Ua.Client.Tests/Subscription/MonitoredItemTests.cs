@@ -96,6 +96,51 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// Loaded handles require a modify response for revised parameters, not another create or invented defaults.
+        /// </summary>
+        [Test]
+        public async Task LoadedItemRefreshesRevisedParametersOnceWithoutRecreationAsync()
+        {
+            m_options.Configure(options => options with
+            {
+                StartNodeId = new NodeId("loaded", 2),
+                MonitoringMode = MonitoringMode.Reporting,
+                SamplingInterval = TimeSpan.FromMilliseconds(20),
+                QueueSize = 17
+            });
+            var item = new TestMonitoredItem(m_context, m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            await using (item.ConfigureAwait(false))
+            {
+                item.ApplyLoadState(new MonitoredItemLoadState("loaded", m_options, 42, 7, []));
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+
+                item.SetTransferResult(42, 9);
+
+                Assert.That(item.TryGetPendingChange(out MonitoredItem.Change? refresh), Is.True);
+                Assert.That(refresh!.ForceRecreate, Is.False);
+                Assert.That(refresh.MonitoringModeChange, Is.Null);
+                MonitoredItemModifyRequest request = refresh.BindModifyRequest()!;
+                Assert.That(request.MonitoredItemId, Is.EqualTo(9));
+                Assert.That(request.RequestedParameters.ClientHandle, Is.EqualTo(42));
+                Assert.That(request.RequestedParameters.SamplingInterval, Is.EqualTo(20));
+                Assert.That(request.RequestedParameters.QueueSize, Is.EqualTo(17));
+                refresh.SetModifyResult(request, new MonitoredItemModifyResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    RevisedSamplingInterval = 1000,
+                    RevisedQueueSize = 19
+                }, 0, [], new ResponseHeader());
+                Assert.That(item.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(item.CurrentQueueSize, Is.EqualTo(19));
+                Assert.That(item.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+                Assert.That(item.ServerId, Is.EqualTo(9));
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+                item.SetTransferResult(42, 9);
+                Assert.That(item.TryGetPendingChange(out _), Is.False);
+            }
+        }
+
+        /// <summary>
         /// A null and an empty IndexRange both mean "not used" (Part 4
         /// §7.27). A restored item carries "" from the snapshot while the
         /// application re-applies null; that must not force a recreate.

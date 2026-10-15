@@ -360,6 +360,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // loaded state - otherwise TryRequeue force-recreates it.
             Error = ServiceResult.Good;
             CurrentMonitoringMode = m_currentOptions.MonitoringMode;
+            m_refreshParametersAfterTransfer = true;
             ClientHandle = state.ClientHandle;
             // Raise the global counter past the loaded handle, otherwise a
             // freshly started process mints handles from 1 again and the first
@@ -614,6 +615,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ServerId = serverHandle;
             }
+            if (m_refreshParametersAfterTransfer && m_currentOptions is { } options)
+            {
+                // GetMonitoredItems supplies handles, not revised parameters. Reapply
+                // the saved parameters without recreating the item or changing its mode.
+                m_pendingChanges.Enqueue(new Change(this, options, options));
+                m_refreshParametersAfterTransfer = false;
+            }
         }
 
         /// <summary>
@@ -635,6 +643,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             m_logger.ItemRESET(this);
             ServerId = 0;
+            m_refreshParametersAfterTransfer = false;
 
             MonitoredItemOptions? options = m_currentOptions;
             while (TryGetPendingChange(out Change? change))
@@ -1265,6 +1274,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private bool m_disposedValue;
+        private bool m_refreshParametersAfterTransfer;
         private MonitoredItemOptions? m_currentOptions;
 #pragma warning disable CA2213 // Disposed in DisposeAsync(bool)
         private IDisposable? m_changeTracking;

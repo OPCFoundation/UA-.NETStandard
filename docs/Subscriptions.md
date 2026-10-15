@@ -797,6 +797,16 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+After a snapshot transfer, V2 rebinds the saved item handles and reapplies the
+saved monitoring parameters with `ModifyMonitoredItems`. The response supplies
+the actual revised sampling interval, queue size and filter result:
+`GetMonitoredItems` returns handles only. This does not recreate the items or
+change their monitoring mode or triggering links. Live items that already have
+revised parameters do not require this extra snapshot-restoration step.
+A successful initiated transfer also reports `PublishState.Transferred` to the
+target handler after handle synchronization, before attempting retained-message
+recovery; failed synchronization does not report transfer completion.
+
 Republishing retained notifications and requesting initial values are independent.
 If an origin session disconnects before acknowledging a message, a transfer can
 recover that message from the server's retransmission queue. With

@@ -1016,7 +1016,7 @@ one policy per token type of the registered authenticators instead
 
 | Extension | Purpose |
 |---|---|
-| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Configures roles and identity-mapping rules on the default role manager. Well-known roles are configured when the manager is resolved; custom role nodes are materialized when the server address space starts. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
 | `AddIdentityAuthenticator(IUserTokenAuthenticator)` | Registers an already-constructed authenticator instance. |
 | `AddIdentityAuthenticator(Func<IServiceProvider, ICertificateValidatorEx?, IUserTokenAuthenticator>)` | Creates an authenticator during startup with injected services and the effective certificate validator, which may be `null`. |
@@ -1115,7 +1115,12 @@ services.AddOpcUa()
     }));
 ```
 
-Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
+Both `AddSecureServer` and `AddReferenceServer` honor `ConfigureRoles` and
+previously registered `RoleConfigurationOptions`. They preserve an explicitly
+registered `IRoleManager`; options do not silently replace or mutate that custom
+manager. Configuration remains deferred until service resolution and startup.
+
+Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to explicitly replace the default role manager.
 `AddServer<TServer>()` remains available for custom server implementations.
 Custom types that need session, subscription, or durable-subscription DI
 hooks must derive from `DependencyInjectionStandardServer`. The same
