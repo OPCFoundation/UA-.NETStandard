@@ -87,24 +87,6 @@ namespace Opc.Ua.PubSub.Server
         private const uint RemoveSecurityGroupNodeId = 15447;
         private const uint AddPushTargetNodeId = 25441;
         private const uint RemovePushTargetNodeId = 25444;
-        // The methods of the PublishSubscribe.PublishedDataSets instance (i=17371)
-        // and their argument variables, not the DataSetFolderType declarations.
-        private const uint PublishedDataSetsAddPublishedDataItemsNodeId = 17372;
-        private const uint PublishedDataSetsAddPublishedDataItemsInputArgumentsNodeId = 17373;
-        private const uint PublishedDataSetsAddPublishedDataItemsOutputArgumentsNodeId = 17374;
-        private const uint PublishedDataSetsAddPublishedEventsNodeId = 17375;
-        private const uint PublishedDataSetsAddPublishedEventsInputArgumentsNodeId = 17376;
-        private const uint PublishedDataSetsAddPublishedEventsOutputArgumentsNodeId = 17377;
-        private const uint PublishedDataSetsAddPublishedDataItemsTemplateNodeId = 17378;
-        private const uint PublishedDataSetsAddPublishedDataItemsTemplateInputArgumentsNodeId = 17379;
-        private const uint PublishedDataSetsAddPublishedDataItemsTemplateOutputArgumentsNodeId = 17380;
-        private const uint PublishedDataSetsRemovePublishedDataSetNodeId = 17384;
-        private const uint PublishedDataSetsRemovePublishedDataSetInputArgumentsNodeId = 17385;
-        private const uint PublishedDataSetsAddDataSetFolderNodeId = 17398;
-        private const uint PublishedDataSetsAddDataSetFolderInputArgumentsNodeId = 17401;
-        private const uint PublishedDataSetsAddDataSetFolderOutputArgumentsNodeId = 17402;
-        private const uint PublishedDataSetsRemoveDataSetFolderNodeId = 17403;
-        private const uint PublishedDataSetsRemoveDataSetFolderInputArgumentsNodeId = 17404;
         private static readonly NodeId s_publishedDataSetsNodeId = ObjectIds.PublishSubscribe_PublishedDataSets;
         private static readonly NodeId s_securityGroupsNodeId = new(15443u);
         private static readonly NodeId s_keyPushTargetsNodeId = new(25440u);
@@ -359,38 +341,38 @@ namespace Opc.Ua.PubSub.Server
                 AssignInstanceIds(
                     publishedDataSets.AddPublishedDataItems,
                     nameof(publishedDataSets.AddPublishedDataItems),
-                    PublishedDataSetsAddPublishedDataItemsNodeId,
-                    PublishedDataSetsAddPublishedDataItemsInputArgumentsNodeId,
-                    PublishedDataSetsAddPublishedDataItemsOutputArgumentsNodeId),
+                    PublishedDataSetsIds.AddPublishedDataItems,
+                    PublishedDataSetsIds.AddPublishedDataItemsInputArguments,
+                    PublishedDataSetsIds.AddPublishedDataItemsOutputArguments),
                 AssignInstanceIds(
                     publishedDataSets.AddPublishedEvents,
                     nameof(publishedDataSets.AddPublishedEvents),
-                    PublishedDataSetsAddPublishedEventsNodeId,
-                    PublishedDataSetsAddPublishedEventsInputArgumentsNodeId,
-                    PublishedDataSetsAddPublishedEventsOutputArgumentsNodeId),
+                    PublishedDataSetsIds.AddPublishedEvents,
+                    PublishedDataSetsIds.AddPublishedEventsInputArguments,
+                    PublishedDataSetsIds.AddPublishedEventsOutputArguments),
                 AssignInstanceIds(
                     publishedDataSets.AddPublishedDataItemsTemplate,
                     nameof(publishedDataSets.AddPublishedDataItemsTemplate),
-                    PublishedDataSetsAddPublishedDataItemsTemplateNodeId,
-                    PublishedDataSetsAddPublishedDataItemsTemplateInputArgumentsNodeId,
-                    PublishedDataSetsAddPublishedDataItemsTemplateOutputArgumentsNodeId),
+                    PublishedDataSetsIds.AddPublishedDataItemsTemplate,
+                    PublishedDataSetsIds.AddPublishedDataItemsTemplateInputArguments,
+                    PublishedDataSetsIds.AddPublishedDataItemsTemplateOutputArguments),
                 AssignInstanceIds(
                     publishedDataSets.RemovePublishedDataSet,
                     nameof(publishedDataSets.RemovePublishedDataSet),
-                    PublishedDataSetsRemovePublishedDataSetNodeId,
-                    PublishedDataSetsRemovePublishedDataSetInputArgumentsNodeId,
+                    PublishedDataSetsIds.RemovePublishedDataSet,
+                    PublishedDataSetsIds.RemovePublishedDataSetInputArguments,
                     outputArgumentsId: null),
                 AssignInstanceIds(
                     publishedDataSets.AddDataSetFolder,
                     nameof(publishedDataSets.AddDataSetFolder),
-                    PublishedDataSetsAddDataSetFolderNodeId,
-                    PublishedDataSetsAddDataSetFolderInputArgumentsNodeId,
-                    PublishedDataSetsAddDataSetFolderOutputArgumentsNodeId),
+                    PublishedDataSetsIds.AddDataSetFolder,
+                    PublishedDataSetsIds.AddDataSetFolderInputArguments,
+                    PublishedDataSetsIds.AddDataSetFolderOutputArguments),
                 AssignInstanceIds(
                     publishedDataSets.RemoveDataSetFolder,
                     nameof(publishedDataSets.RemoveDataSetFolder),
-                    PublishedDataSetsRemoveDataSetFolderNodeId,
-                    PublishedDataSetsRemoveDataSetFolderInputArgumentsNodeId,
+                    PublishedDataSetsIds.RemoveDataSetFolder,
+                    PublishedDataSetsIds.RemoveDataSetFolderInputArguments,
                     outputArgumentsId: null)
             ];
         }
@@ -413,12 +395,21 @@ namespace Opc.Ua.PubSub.Server
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
                     $"The generated PublishedDataSets method {name} (i={methodId}) was not created.");
             }
-            if (method.InputArguments == null ||
-                (method.OutputArguments == null) != (outputArgumentsId == null))
+            if (method.InputArguments == null)
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                    $"The arguments of the generated PublishedDataSets method {name} (i={methodId}) " +
-                    "do not match its standard declaration.");
+                    $"The generated PublishedDataSets method {name} (i={methodId}) has no InputArguments.");
+            }
+            if (method.OutputArguments != null && outputArgumentsId == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    $"The generated PublishedDataSets method {name} (i={methodId}) has OutputArguments " +
+                    "that its standard declaration does not have.");
+            }
+            if (method.OutputArguments == null && outputArgumentsId != null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    $"The generated PublishedDataSets method {name} (i={methodId}) has no OutputArguments.");
             }
             method.NodeId = new NodeId(methodId);
             method.InputArguments.NodeId = new NodeId(inputArgumentsId);
@@ -496,27 +487,27 @@ namespace Opc.Ua.PubSub.Server
         {
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsAddPublishedDataItemsNodeId),
+                new NodeId(PublishedDataSetsIds.AddPublishedDataItems),
                 MethodHandlers.OnAddPublishedDataItems);
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsAddPublishedEventsNodeId),
+                new NodeId(PublishedDataSetsIds.AddPublishedEvents),
                 MethodHandlers.OnAddPublishedEvents);
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsAddPublishedDataItemsTemplateNodeId),
+                new NodeId(PublishedDataSetsIds.AddPublishedDataItemsTemplate),
                 MethodHandlers.OnAddPublishedDataItemsTemplate);
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsRemovePublishedDataSetNodeId),
+                new NodeId(PublishedDataSetsIds.RemovePublishedDataSet),
                 MethodHandlers.OnRemovePublishedDataSet);
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsAddDataSetFolderNodeId),
+                new NodeId(PublishedDataSetsIds.AddDataSetFolder),
                 OnAddDataSetFolder);
             BindStandardMethod(
                 diagnosticsNodeManager,
-                new NodeId(PublishedDataSetsRemoveDataSetFolderNodeId),
+                new NodeId(PublishedDataSetsIds.RemoveDataSetFolder),
                 OnRemoveDataSetFolder);
         }
 
@@ -2036,6 +2027,31 @@ namespace Opc.Ua.PubSub.Server
             {
                 m_logger.SeedingDefaultSecurityGroupFailed(ex, id);
             }
+        }
+
+        /// <summary>
+        /// The NodeIds of the methods of the <c>PublishSubscribe.PublishedDataSets</c>
+        /// instance (i=17371) and of their argument variables, not those of the
+        /// DataSetFolderType declarations.
+        /// </summary>
+        private static class PublishedDataSetsIds
+        {
+            public const uint AddPublishedDataItems = 17372;
+            public const uint AddPublishedDataItemsInputArguments = 17373;
+            public const uint AddPublishedDataItemsOutputArguments = 17374;
+            public const uint AddPublishedEvents = 17375;
+            public const uint AddPublishedEventsInputArguments = 17376;
+            public const uint AddPublishedEventsOutputArguments = 17377;
+            public const uint AddPublishedDataItemsTemplate = 17378;
+            public const uint AddPublishedDataItemsTemplateInputArguments = 17379;
+            public const uint AddPublishedDataItemsTemplateOutputArguments = 17380;
+            public const uint RemovePublishedDataSet = 17384;
+            public const uint RemovePublishedDataSetInputArguments = 17385;
+            public const uint AddDataSetFolder = 17398;
+            public const uint AddDataSetFolderInputArguments = 17401;
+            public const uint AddDataSetFolderOutputArguments = 17402;
+            public const uint RemoveDataSetFolder = 17403;
+            public const uint RemoveDataSetFolderInputArguments = 17404;
         }
 
         private sealed class PubSubKeyPushTargetRegistration

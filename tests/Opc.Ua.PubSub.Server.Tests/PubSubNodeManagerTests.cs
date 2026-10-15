@@ -477,13 +477,17 @@ namespace Opc.Ua.PubSub.Server.Tests
             });
         }
 
-        [TestCase(false, true, true, TestName = "PublishedDataSetsMethodWithoutInputArgumentsIsAConfigurationError")]
-        [TestCase(true, true, false, TestName = "PublishedDataSetsMethodWithUndeclaredOutputArgumentsIsAConfigurationError")]
-        [TestCase(true, false, true, TestName = "PublishedDataSetsMethodWithoutDeclaredOutputArgumentsIsAConfigurationError")]
+        [TestCase(false, true, true, "has no InputArguments",
+            TestName = "PublishedDataSetsMethodWithoutInputArgumentsIsAConfigurationError")]
+        [TestCase(true, true, false, "that its standard declaration does not have",
+            TestName = "PublishedDataSetsMethodWithUndeclaredOutputArgumentsIsAConfigurationError")]
+        [TestCase(true, false, true, "has no OutputArguments",
+            TestName = "PublishedDataSetsMethodWithoutDeclaredOutputArgumentsIsAConfigurationError")]
         public void PublishedDataSetsMethodWhoseArgumentsDoNotMatchIsAConfigurationError(
             bool hasInputArguments,
             bool hasOutputArguments,
-            bool declaresOutputArguments)
+            bool declaresOutputArguments,
+            string mismatch)
         {
             var method = new MethodState(null) { BrowseName = new QualifiedName("AddDataSetFolder") };
             if (hasInputArguments)
@@ -507,6 +511,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             {
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(ex.Message, Does.Contain("AddDataSetFolder (i=17398)"));
+                Assert.That(ex.Message, Does.Contain(mismatch));
                 Assert.That(method.NodeId, Is.EqualTo(NodeId.Null));
             });
         }
@@ -546,13 +551,14 @@ namespace Opc.Ua.PubSub.Server.Tests
                 PublishedVariable = new NodeId(Variables.Server_ServerStatus_CurrentTime),
                 AttributeId = Attributes.Value
             };
+            ArrayOf<string> fieldAliases = ["CurrentTime"];
 
             ServiceResult result = add.OnCallMethod!(
                 harness.Context,
                 add,
                 BuildArray(
                     Variant.From("pds-method"),
-                    Variant.From(new ArrayOf<string>(s_currentTimeAlias)),
+                    Variant.From(fieldAliases),
                     Variant.From(Array.Empty<DataSetFieldFlags>()),
                     Variant.FromStructure(new ArrayOf<PublishedVariableDataType>(new[] { variable }))),
                 outputs);
@@ -714,8 +720,6 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             return new ArrayOf<Variant>(values);
         }
-
-        private static readonly string[] s_currentTimeAlias = ["CurrentTime"];
 
         private sealed class Harness : IDisposable
         {
