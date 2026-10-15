@@ -45,6 +45,24 @@ namespace Opc.Ua.Pcap.Tests.Capture
     public sealed class ReplayCaptureSourceTests : TempDirectoryFixture
     {
         [Test]
+        public async Task FinalizedReplayRequiresCompleteHeadersWhenExplicitlyRequestedAsync()
+        {
+            string path = CreateTempPath("incomplete.pcap");
+            await File.WriteAllBytesAsync(path, new byte[8]).ConfigureAwait(false);
+            var source = new ReplayCaptureSource();
+            await using (source.ConfigureAwait(false))
+            {
+                await source.StartAsync(new StartCaptureRequest
+                {
+                    Source = CaptureSourceKind.Replay, PcapFilePath = path, RequireCompleteReplay = true
+                }, CancellationToken.None).ConfigureAwait(false);
+                await Assert.ThatAsync(() => PcapTestHelpers.ToListAsync(
+                    source.ReadCapturedFramesAsync(null, CancellationToken.None)),
+                    Throws.TypeOf<PcapDiagnosticsException>()).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public void StartAsyncRejectsNullRequest()
         {
             var source = new ReplayCaptureSource();
@@ -133,11 +151,6 @@ namespace Opc.Ua.Pcap.Tests.Capture
         [Test]
         public async Task ReadCapturedFramesReplaysEveryWrittenRecord()
         {
-            // NOTE: PcapFileReader.ReadAllAsync currently keeps yielding phantom
-            // copies of the last record at EOF (the ReadExactOrEndAsync helper
-            // returns true on clean EOF instead of false). Until that production
-            // bug is fixed we pin the enumeration with a maxFrames cap so the
-            // test exercises the iteration path without hanging.
             string pcapPath = await WriteMultiFramePcapAsync(frameCount: 3).ConfigureAwait(false);
 
             var source = new ReplayCaptureSource();
