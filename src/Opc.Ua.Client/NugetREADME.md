@@ -85,6 +85,13 @@ The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` metho
 
 When configured through `AddClient(...)`, a Generic Host starts the singleton manager eagerly through an internal hosted service. Applications using only `ServiceCollection` get lazy startup from `WaitForConnectionAsync` or `RegisterWaitingConnectionAsync`. Register an `IReverseConnectConfigurationProvider` to asynchronously validate or transform the effective listener configuration before activation.
 
+## Programs
+
+`ProgramClient` adds Part 10 discovery, lifecycle and diagnostic/result reads
+to generated Program proxies. Program event streams retain captured
+intermediate results instead of rereading changing state Variables. See the
+[Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,

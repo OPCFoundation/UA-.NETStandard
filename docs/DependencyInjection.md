@@ -66,6 +66,7 @@ the manual constructors when you need finer control.
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
 - [Alarms and conditions](#alarms-and-conditions)
+- [Programs](#programs)
 - [Client-side reverse connect](#client-side-reverse-connect)
 - [Channel manager](#channel-manager)
 - [Application instance (advanced)](#application-instance-advanced)
@@ -1526,6 +1527,19 @@ The direct constructor fallback remains available:
 var cts = new ComplexTypeSystem(session, telemetry);
 await cts.LoadAsync(ct: ct);
 ```
+
+## Programs
+
+Register the managed Part 10 server host with
+`AddServer(...).AddPrograms(definitions)` or the overload that resolves
+definitions/providers from `IServiceProvider` per server start. Registration
+does not create or start workloads. Client registration is available through
+`AddClient(...).AddProgramClient()`.
+
+The direct alternatives are `ProgramNodeManagerFactory`, `ProgramRuntime.AttachAsync`
+and `ProgramClient`. They use the same execution/lifecycle and generated proxy
+paths, not independent implementations. See [Programs](Programs.md) for provider
+contracts, explicit lifetime limits, typed client examples and compatibility rules.
 
 ## Alarms and conditions
 
