@@ -776,8 +776,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 AddPublishedEventsMethod = NewMethod(PublishedDataSetsNodeIds.AddPublishedEvents);
                 AddPublishedDataItemsTemplateMethod = NewMethod(PublishedDataSetsNodeIds.AddPublishedDataItemsTemplate);
                 RemovePublishedDataSetMethod = NewMethod(PublishedDataSetsNodeIds.RemovePublishedDataSet);
-                PlaceholderAddPublishedDataItemsMethod = NewMethod(14479);
-                PlaceholderAddDataSetFolderMethod = NewMethod(16884);
+                PlaceholderAddPublishedDataItemsMethod =
+                    NewMethod(PublishedDataSetsNodeIds.PlaceholderAddPublishedDataItems);
+                PlaceholderAddDataSetFolderMethod = NewMethod(PublishedDataSetsNodeIds.PlaceholderAddDataSetFolder);
                 StatusVariable = new BaseDataVariableState(null)
                 {
                     NodeId = new NodeId(17406u),
@@ -838,10 +839,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                         new NodeId(PublishedDataSetsNodeIds.RemovePublishedDataSet)))
                     .Returns(RemovePublishedDataSetMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(14479u)))
+                        new NodeId(PublishedDataSetsNodeIds.PlaceholderAddPublishedDataItems)))
                     .Returns(PlaceholderAddPublishedDataItemsMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<MethodState>(
-                        new NodeId(16884u)))
+                        new NodeId(PublishedDataSetsNodeIds.PlaceholderAddDataSetFolder)))
                     .Returns(PlaceholderAddDataSetFolderMethod);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(new NodeId(17406u))).Returns(StatusVariable);
                 diagnosticsNm.Setup(m => m.FindPredefinedNode<BaseVariableState>(It.IsAny<NodeId>()))

@@ -33,7 +33,9 @@ namespace Opc.Ua.PubSub.Server.Tests
     /// The standard NodeIds of the methods of <c>PublishSubscribe.PublishedDataSets</c>
     /// (i=17371) and of their argument variables, as declared by the OPC UA NodeSet.
     /// The tests keep their own copy so that they check the NodeIds the node manager
-    /// assigns against the standard, not against its own constants.
+    /// assigns against the standard, not against its own constants. The
+    /// <c>Placeholder*</c> ids are the method declarations of the DataSetFolderType
+    /// <c>&lt;DataSetFolderName&gt;</c> placeholder, which must not be bound.
     /// </summary>
     internal static class PublishedDataSetsNodeIds
     {
@@ -53,5 +55,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public const uint AddDataSetFolderOutputArguments = 17402;
         public const uint RemoveDataSetFolder = 17403;
         public const uint RemoveDataSetFolderInputArguments = 17404;
+        public const uint PlaceholderAddPublishedDataItems = 14479;
+        public const uint PlaceholderAddDataSetFolder = 16884;
     }
 }
