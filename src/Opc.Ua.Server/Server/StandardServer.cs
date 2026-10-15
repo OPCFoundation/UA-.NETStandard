@@ -3412,11 +3412,13 @@ namespace Opc.Ua.Server
         /// A request that wrote no diagnostic strings, which is nearly every request, has
         /// no string table of its own (see <see cref="OperationContext.StringTable"/>); an
         /// empty table of the thread stands in for it, so the response still carries an
-        /// empty string table. An override of <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/>
-        /// that adds strings to it gets them into its response, and the thread takes a new
-        /// table afterwards.
+        /// empty string table. The table is taken from the thread for the call and given
+        /// back only if it is still empty when the call returns: an override of
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
+        /// strings to it, or throws, keeps it, and a response created during the call
+        /// (re-entrantly) gets a table of its own.
         /// </remarks>
-        private ResponseHeader CreateResponse(RequestHeader? requestHeader, OperationContext context)
+        internal ResponseHeader CreateResponse(RequestHeader? requestHeader, OperationContext context)
         {
             StringTable? strings = context.CreatedStringTable;
             if (strings != null)
@@ -3424,11 +3426,12 @@ namespace Opc.Ua.Server
                 return CreateResponse(requestHeader!, strings);
             }
 
-            strings = t_noStrings ??= new StringTable();
+            strings = t_noStrings ?? new StringTable();
+            t_noStrings = null;
             ResponseHeader responseHeader = CreateResponse(requestHeader!, strings);
-            if (strings.Count != 0)
+            if (strings.Count == 0)
             {
-                t_noStrings = null;
+                t_noStrings = strings;
             }
 
             return responseHeader;

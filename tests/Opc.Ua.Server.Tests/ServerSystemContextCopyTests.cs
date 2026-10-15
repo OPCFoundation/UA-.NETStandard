@@ -203,10 +203,35 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext template = CreatePopulatedContext();
             ServerSystemContext copy = template.Copy();
             ServerSystemContext copyOfCopy = copy.Copy();
+            object handle = template.SystemHandle!;
 
-            copyOfCopy.AuditEntryId = "inner";
-            Assert.That(copy.AuditEntryId, Is.Not.EqualTo("inner"));
-            Assert.That(template.AuditEntryId, Is.Not.EqualTo("inner"));
+            // SystemHandle is stored by the context, not forwarded to the operation.
+            var inner = new object();
+            copyOfCopy.SystemHandle = inner;
+            Assert.That(copyOfCopy.SystemHandle, Is.SameAs(inner));
+            Assert.That(copy.SystemHandle, Is.SameAs(handle));
+            Assert.That(template.SystemHandle, Is.SameAs(handle));
+        }
+
+        /// <summary>
+        /// A derived context that copies itself with a plain member-wise clone stays
+        /// isolated from its source, in both directions.
+        /// </summary>
+        [Test]
+        public void PlainMemberwiseCloneOfDerivedContextIsASnapshot()
+        {
+            var source = new DerivedContext(CreateServer().Object) { SystemHandle = "before" };
+            NamespaceTable namespaces = source.NamespaceUris;
+
+            DerivedContext clone = source.PlainClone();
+
+            source.SystemHandle = "after";
+            source.NamespaceUris = new NamespaceTable();
+            Assert.That(clone.SystemHandle, Is.EqualTo("before"));
+            Assert.That(clone.NamespaceUris, Is.SameAs(namespaces));
+
+            clone.SystemHandle = "clone";
+            Assert.That(source.SystemHandle, Is.EqualTo("after"));
         }
 
         private static void AssertEveryValueIsSet(object values)
@@ -214,11 +239,6 @@ namespace Opc.Ua.Server.Tests
             foreach (FieldInfo field in values.GetType().GetFields(
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
-                // the owner of shared values is cleared by copying.
-                if (field.Name.StartsWith("<Owner>", StringComparison.Ordinal))
-                {
-                    continue;
-                }
 
                 Assert.That(
                     field.GetValue(values),
@@ -304,6 +324,14 @@ namespace Opc.Ua.Server.Tests
             }
 
             public string? Extra { get; set; }
+
+            /// <summary>
+            /// Copies the context the way existing derived types do.
+            /// </summary>
+            public DerivedContext PlainClone()
+            {
+                return (DerivedContext)MemberwiseClone();
+            }
         }
     }
 }

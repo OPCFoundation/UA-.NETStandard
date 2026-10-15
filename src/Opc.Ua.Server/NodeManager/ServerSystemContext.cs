@@ -41,14 +41,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         public ServerSystemContext(IServerInternal server)
-            : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+            : this(server, (OperationContext)null!)
         {
-            Server = server;
-            OperationContext = null!;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
         }
 
         /// <summary>
@@ -57,14 +51,15 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="context">The context.</param>
         public ServerSystemContext(IServerInternal server, OperationContext context)
-             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+             : base(
+                (server ?? throw new ArgumentNullException(nameof(server))).Telemetry,
+                context,
+                server.NamespaceUris,
+                server.ServerUris,
+                server.TypeTree,
+                server.Factory)
         {
             Server = server;
-            OperationContext = context;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
         }
 
         /// <summary>
@@ -73,17 +68,9 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="session">The session.</param>
         public ServerSystemContext(IServerInternal server, ISession session)
-             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+             : this(server, (OperationContext)null!)
         {
-            Server = server;
-            OperationContext = null!;
-            SessionId = session.Id;
-            UserIdentity = session.Identity;
-            PreferredLocales = session.PreferredLocales;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
+            SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
         }
 
         /// <summary>
@@ -170,15 +157,11 @@ namespace Opc.Ua.Server
 
             if (session != null)
             {
-                copy.SessionId = session.Id;
-                copy.UserIdentity = session.Identity;
-                copy.PreferredLocales = session.PreferredLocales;
+                copy.SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
             }
             else
             {
-                copy.SessionId = default;
-                copy.UserIdentity = null;
-                copy.PreferredLocales = default;
+                copy.SetSessionValues(default, null, default);
             }
 
             return copy;
@@ -197,15 +180,7 @@ namespace Opc.Ua.Server
 
             if (context != null)
             {
-                copy.OperationContext = context.OperationContext;
-                copy.SessionId = context.SessionId;
-                copy.UserIdentity = context.UserIdentity;
-                copy.PreferredLocales = context.PreferredLocales;
-                copy.NamespaceUris = context.NamespaceUris;
-                copy.ServerUris = context.ServerUris;
-                copy.TypeTable = context.TypeTable;
-                copy.EncodeableFactory = context.EncodeableFactory;
-                copy.NodeIdFactory = context.NodeIdFactory;
+                copy.SetValuesFrom(context);
             }
 
             return copy;
@@ -224,7 +199,7 @@ namespace Opc.Ua.Server
                 return new ServerSystemContext(this);
             }
 
-            return (ServerSystemContext)MemberwiseCloneSharingValues();
+            return (ServerSystemContext)MemberwiseClone();
         }
     }
 }

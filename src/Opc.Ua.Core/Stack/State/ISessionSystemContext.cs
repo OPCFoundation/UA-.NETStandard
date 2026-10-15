@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// </summary>
         public SessionSystemContext(ITelemetryContext telemetry)
         {
-            m_values = new SharedValues(telemetry, this);
+            m_values = new SharedValues(telemetry);
         }
 
         /// <summary>
@@ -69,7 +69,29 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public SessionSystemContext(IOperationContext context, ITelemetryContext telemetry)
         {
-            m_values = new SharedValues(telemetry, this);
+            m_values = new SharedValues(telemetry);
+            OperationContext = context;
+        }
+
+        /// <summary>
+        /// Initializes a context with the tables and factory of a server, with one
+        /// allocation of the shared values instead of one per value set.
+        /// </summary>
+        private protected SessionSystemContext(
+            ITelemetryContext telemetry,
+            IOperationContext? context,
+            NamespaceTable namespaceUris,
+            StringTable serverUris,
+            ITypeTable typeTable,
+            IEncodeableFactory encodeableFactory)
+        {
+            m_values = new SharedValues(telemetry)
+            {
+                NamespaceUris = namespaceUris,
+                ServerUris = serverUris,
+                TypeTable = typeTable,
+                EncodeableFactory = encodeableFactory
+            };
             OperationContext = context;
         }
 
@@ -83,7 +105,7 @@ namespace Opc.Ua
         /// costs more on the per-request path of a server.
         /// <para>
         /// The copy shares the values of the source (namespace and server tables, type
-        /// table, factories, handle, session values) until either of them changes one: a
+        /// table, factories, handle, session values), which neither changes in place: a
         /// server copies its node managers' contexts for every request, and the copy then
         /// only holds its operation context and a reference to the shared values.
         /// </para>
@@ -97,7 +119,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(source));
             }
 
-            m_values = source.Share();
+            m_values = source.m_values;
             OperationContext = source.OperationContext;
         }
 
@@ -111,7 +133,7 @@ namespace Opc.Ua
         public object? SystemHandle
         {
             get => m_values.SystemHandle;
-            set => Writable().SystemHandle = value;
+            set => ReplaceValues().SystemHandle = value;
         }
 
         /// <inheritdoc/>
@@ -132,7 +154,7 @@ namespace Opc.Ua
 
                 return m_values.SessionId;
             }
-            set => Writable().SessionId = value;
+            set => ReplaceValues().SessionId = value;
         }
 
         /// <summary>
@@ -150,7 +172,7 @@ namespace Opc.Ua
 
                 return m_values.UserIdentity;
             }
-            set => Writable().UserIdentity = value;
+            set => ReplaceValues().UserIdentity = value;
         }
 
         /// <summary>
@@ -168,7 +190,7 @@ namespace Opc.Ua
 
                 return m_values.PreferredLocales;
             }
-            set => Writable().PreferredLocales = value;
+            set => ReplaceValues().PreferredLocales = value;
         }
 
         /// <summary>
@@ -186,7 +208,7 @@ namespace Opc.Ua
 
                 return m_values.AuditEntryId;
             }
-            set => Writable().AuditEntryId = value;
+            set => ReplaceValues().AuditEntryId = value;
         }
 
         /// <summary>
@@ -196,7 +218,7 @@ namespace Opc.Ua
         public NamespaceTable NamespaceUris
         {
             get => m_values.NamespaceUris;
-            set => Writable().NamespaceUris = value;
+            set => ReplaceValues().NamespaceUris = value;
         }
 
         /// <summary>
@@ -206,7 +228,7 @@ namespace Opc.Ua
         public StringTable ServerUris
         {
             get => m_values.ServerUris;
-            set => Writable().ServerUris = value;
+            set => ReplaceValues().ServerUris = value;
         }
 
         /// <summary>
@@ -216,7 +238,7 @@ namespace Opc.Ua
         public ITypeTable TypeTable
         {
             get => m_values.TypeTable;
-            set => Writable().TypeTable = value;
+            set => ReplaceValues().TypeTable = value;
         }
 
         /// <summary>
@@ -226,7 +248,7 @@ namespace Opc.Ua
         public IEncodeableFactory EncodeableFactory
         {
             get => m_values.EncodeableFactory;
-            set => Writable().EncodeableFactory = value;
+            set => ReplaceValues().EncodeableFactory = value;
         }
 
         /// <summary>
@@ -236,7 +258,7 @@ namespace Opc.Ua
         public NodeStateFactory NodeStateFactory
         {
             get => m_values.NodeStateFactory;
-            set => Writable().NodeStateFactory = value;
+            set => ReplaceValues().NodeStateFactory = value;
         }
 
         /// <summary>
@@ -246,7 +268,7 @@ namespace Opc.Ua
         public INodeIdFactory NodeIdFactory
         {
             get => m_values.NodeIdFactory;
-            set => Writable().NodeIdFactory = value;
+            set => ReplaceValues().NodeIdFactory = value;
         }
 
         /// <summary>
@@ -264,7 +286,7 @@ namespace Opc.Ua
         /// </returns>
         public ISystemContext Copy(IOperationContext context)
         {
-            var copy = (SessionSystemContext)MemberwiseCloneSharingValues();
+            var copy = (SessionSystemContext)MemberwiseClone();
 
             if (context != null)
             {
@@ -366,71 +388,68 @@ namespace Opc.Ua
         IUserIdentity ISessionOperationContext.UserIdentity => UserIdentity!;
 
         /// <summary>
-        /// Returns a member-wise copy of the context whose values are shared with this
-        /// one until either changes one.
+        /// Sets the session values with one replacement of the shared values.
+        /// </summary>
+        internal void SetSessionValues(
+            NodeId? sessionId,
+            IUserIdentity? userIdentity,
+            ArrayOf<string> preferredLocales)
+        {
+            SharedValues values = ReplaceValues();
+            values.SessionId = sessionId;
+            values.UserIdentity = userIdentity;
+            values.PreferredLocales = preferredLocales;
+        }
+
+        /// <summary>
+        /// Takes the values another context exposes for an operation, with one
+        /// replacement of the shared values: the operation context, the session values,
+        /// the namespace and server tables, the type table and the factories that create
+        /// encodeables and node ids.
+        /// </summary>
+        internal void SetValuesFrom(SessionSystemContext source)
+        {
+            OperationContext = source.OperationContext;
+            SharedValues values = ReplaceValues();
+            values.SessionId = source.SessionId;
+            values.UserIdentity = source.UserIdentity;
+            values.PreferredLocales = source.PreferredLocales;
+            values.NamespaceUris = source.NamespaceUris;
+            values.ServerUris = source.ServerUris;
+            values.TypeTable = source.TypeTable;
+            values.EncodeableFactory = source.EncodeableFactory;
+            values.NodeIdFactory = source.NodeIdFactory;
+        }
+
+        /// <summary>
+        /// Replaces the values with a copy for this context to change; the values are
+        /// never changed in place.
         /// </summary>
         /// <remarks>
-        /// Use it instead of <see cref="object.MemberwiseClone"/> in derived types: a
-        /// plain member-wise copy shares the values too, but this context would keep
-        /// changing them in place, so the copy would see later changes of this one.
+        /// Contexts copied from this one, with the copy constructor or member-wise, keep
+        /// the values they share with it, so a copy is a snapshot. Only setters replace
+        /// the values, and they run while a node manager or session is set up, not for
+        /// each request.
         /// </remarks>
-        protected object MemberwiseCloneSharingValues()
+        private SharedValues ReplaceValues()
         {
-            Share();
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Marks the values as shared, so that neither this context nor a copy changes
-        /// them in place, and returns them.
-        /// </summary>
-        private SharedValues Share()
-        {
-            SharedValues values = m_values;
-
-            // written once; after that, copying for a request writes nothing to the
-            // template, which every request of a node manager reads.
-            if (values.Owner != null)
-            {
-                values.Owner = null;
-            }
-
-            return values;
-        }
-
-        /// <summary>
-        /// Returns values that this context may change: its own, or a copy of shared ones.
-        /// </summary>
-        private SharedValues Writable()
-        {
-            SharedValues values = m_values;
-            if (!ReferenceEquals(values.Owner, this))
-            {
-                values = values.CopyFor(this);
-                m_values = values;
-            }
-
+            SharedValues values = m_values.Copy();
+            m_values = values;
             return values;
         }
 
         /// <summary>
         /// The values a context copies from its template, held apart from the context so
-        /// that a copy shares them instead of copying each one.
+        /// that a copy shares them instead of copying each one. Not changed once published
+        /// in <see cref="m_values"/>.
         /// </summary>
         private sealed class SharedValues
         {
-            public SharedValues(ITelemetryContext telemetry, SessionSystemContext owner)
+            public SharedValues(ITelemetryContext telemetry)
             {
                 Telemetry = telemetry;
                 NodeStateFactory = new NodeStateFactory();
-                Owner = owner;
             }
-
-            /// <summary>
-            /// The only context that changes the values in place, or <c>null</c> once
-            /// they are shared.
-            /// </summary>
-            public SessionSystemContext? Owner { get; set; }
 
             public ITelemetryContext Telemetry { get; }
             public object? SystemHandle { get; set; }
@@ -445,11 +464,9 @@ namespace Opc.Ua
             public string? AuditEntryId { get; set; }
             public IUserIdentity? UserIdentity { get; set; }
 
-            public SharedValues CopyFor(SessionSystemContext owner)
+            public SharedValues Copy()
             {
-                var copy = (SharedValues)MemberwiseClone();
-                copy.Owner = owner;
-                return copy;
+                return (SharedValues)MemberwiseClone();
             }
         }
 
