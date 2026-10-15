@@ -605,12 +605,36 @@ IRaftSnapshotManager snapshots = provider.GetRequiredService<IRaftSnapshotManage
 
 // Periodically, or when the log grows large.
 RaftKeyValueSnapshot snapshot = await snapshots.CreateSnapshotAsync(ct);
-await File.WriteAllBytesAsync(snapshotPath, snapshot.Data.ToArray(), ct);
 
-// On restart, before the first operation on the store.
+// Write the new snapshot next to the published one; the published snapshot stays intact until the rename.
+string tempPath = snapshotPath + ".tmp";
+await using (var stream = new FileStream(
+    tempPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096,
+    FileOptions.Asynchronous | FileOptions.WriteThrough))
+{
+    await stream.WriteAsync(snapshot.Data.Memory, ct);
+    await stream.FlushAsync(ct);
+    stream.Flush(flushToDisk: true); // fsync / FlushFileBuffers: the bytes are on disk before the rename
+}
+
+// Publish atomically: readers see either the previous snapshot or the complete new one.
+File.Move(tempPath, snapshotPath, overwrite: true);
+// On POSIX, also fsync the directory that contains snapshotPath here (see below).
+
+// Only now compact the consensus log up to snapshot.LastIncludedCommand.
+
+// On restart, before the first operation on the store. A leftover snapshotPath + ".tmp" is an
+// unpublished, possibly partial write: ignore or delete it.
 var data = ByteString.From(await File.ReadAllBytesAsync(snapshotPath, ct));
 await snapshots.RestoreSnapshotAsync(data, RaftSnapshotLogReplay.FromFirstCommand, ct);
 ```
+
+Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the previous snapshot, and the log it does not cover, until the new snapshot is durably published:
+
+- Write the temporary file in the same directory as `snapshotPath`. `File.Move(..., overwrite: true)` replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
+- `Flush(flushToDisk: true)` makes the file contents durable before the rename, so the rename never publishes a file whose data is still in the page cache.
+- On POSIX filesystems the rename is a change to the containing directory and survives power loss only after that directory is also fsynced: open the directory read-only (`open(dir, O_RDONLY | O_DIRECTORY)`, through P/Invoke or a library such as `Mono.Posix`), call `fsync` on it, then close it. .NET offers no managed API for this. On Windows there is no directory fsync and `File.Move` does not request write-through; when the rename must be durable before the log is compacted, call `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` through P/Invoke instead, which returns only after the move is on disk.
+- Network filesystems and some container volume drivers may not honour these guarantees; keep snapshots on a local or block-backed volume whose atomic-rename and fsync semantics are documented.
 
 `LastIncludedCommand` counts committed application commands, not entries of the consensus engine's own log (which also holds leader no-ops and configuration changes), because `IRaftConsensus` does not expose log indexes. Compacting an engine's log therefore needs the engine to map the position to its own index.
 
