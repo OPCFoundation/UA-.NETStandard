@@ -26,6 +26,7 @@ production equipment adds depending on its use case.
 - [Abstract event types](#abstract-event-types)
 - [State machines are server-driven](#state-machines-are-server-driven)
 - [Client](#client)
+  - [Bounded, evidenced inspection](#bounded-evidenced-inspection)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier tables and repairs](#model-sources-identifier-tables-and-repairs)
 - [Generator gaps found while adding these models](#generator-gaps-found-while-adding-these-models)
@@ -179,7 +180,7 @@ await foreach (MachineEntry machine in machinery.EnumerateMachinesAsync(ct))
 }
 ```
 
-Every accessor returns `null` rather than throwing when a machine does not
+With the original constructor, optional-block accessors return `null` when a machine does not
 publish the block: OPC 40001-1 makes nearly everything optional, so a client
 that insists on a block would work against one vendor and fail against the next.
 
@@ -704,6 +705,11 @@ the machine: the newest result lands in the first slot and the others shift
 down, so a client can subscribe to a slot once and keep receiving results, and
 the server never adds or deletes nodes while it runs.
 
+Before a slot receives its first result, its value and structured parts are
+genuinely null. Model-default XML is not a published result and is not exposed
+as one. A present Good-null slot has no ResultId to inspect or download; clients
+can keep monitoring the same slot until the publisher fills it.
+
 `GetLatestResult`, `GetResultById` and `GetResultIdListFiltered` each return a
 `ResultHandle` that pins what they handed out until the client calls
 `ReleaseResultHandle`. The handle is bound to the calling session, and
@@ -832,9 +838,122 @@ type the table declares — `Duration` in milliseconds, the series' own
 enumerations as `JobExecutionMode` / `JobResult`, and `Overproduction` from
 where Table 1 puts it, below `PlannedOrderQuantity` — and keep every
 parameter as received in `Parameters`. A parameter with the wrong type counts
-as not carried. Optional fields of the generated ISA-95 structures, such as
+as not carried in these legacy projections. Optional fields of the generated ISA-95 structures, such as
 `JobOrderParameters` and `Subparameters`, only reach the wire when their
 `EncodingMask` bit is set.
+
+### Bounded, evidenced inspection
+
+The existing two-argument constructor and `session.Machinery(telemetry)` keep
+their tolerant behavior. For inspection that must not confuse an unreadable
+value with an absent building block, opt into strict reads:
+
+```csharp
+MachineryClient machinery = session.Machinery(telemetry, new MachineryClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    MaximumReadArrayItems = 1024
+});
+
+// Discovery reads identities, not every machine's details.
+await foreach (MachineEntry machine in machinery.EnumerateMachinesAsync(ct))
+{
+    Console.WriteLine($"{machine.NodeId}: {machine.DisplayName}");
+}
+
+// Read details only for a selected machine.
+MachineIdentification? identification =
+    await machinery.ReadIdentificationAsync(selectedMachineId, ct);
+if (identification is not null)
+{
+    foreach (MachineryReadValue field in identification.Values)
+    {
+        Console.WriteLine(field.IsAbsent
+            ? $"{field.BrowsePath}: not published"
+            : $"{field.SourceNodeId}: {field.Value.WrappedValue}, " +
+              $"{field.Value.StatusCode}, source={field.Value.SourceTimestamp}, " +
+              $"server={field.Value.ServerTimestamp}");
+    }
+}
+
+MachineryStateSnapshot? state = await machinery.ReadItemStateAsync(selectedMachineId, ct);
+MachineryReadValue health = await machinery.ReadDeviceHealthValueAsync(selectedMachineId, ct);
+```
+
+The same immutable options can be passed to
+`new MachineryClient(session, telemetry, options)`,
+`new MachineryClientFactory(sessionFactory, telemetry, options)` or
+`AddMachineryClient(options)` on the existing client builder. Each construction
+path validates positive limits and copies the options. The session is borrowed,
+never closed or disposed.
+
+Strict reads require Good service, operation and value statuses, exact response
+and diagnostic counts, and one complete **local** translation target.
+Ambiguous, remote, incomplete or unknown-namespace targets fail without changing
+the namespace table. Only an optional path's `BadNoMatch` denotes absence;
+missing mandatory fields, denied reads, Uncertain quality, wrong wire types and
+malformed responses are errors, not null/default values. A published Good-null
+value is present (`IsAbsent == false`). Scalar UInt32 fields reject a
+StatusCode payload even though `Variant.TryGetValue(out uint)` can accept it.
+
+`MachineryReadException` derives from `ServiceResultException`: its `StatusCode`
+preserves the actual non-Good status, or describes a type/shape/limit failure.
+`ReadValue` identifies the offending source and qualified path and retains the
+original DataValue when one was returned, including both timestamps and
+picoseconds. Translation failures and requests without a returned value instead
+carry synthetic status evidence. The failure's status does not overwrite an
+original Good DataValue when the payload has the wrong type.
+
+| Inspection | Evidence API |
+| --- | --- |
+| Identification, operation/lifetime counters, equipment, process values, meters and measurements | Existing records gain `ArrayOf<MachineryReadValue> Values`; legacy reads leave this empty |
+| Item state and operation mode | `ReadItemStateAsync` / `ReadOperationModeAsync` return `MachineryStateSnapshot` with the compatible `State`, `Values`, optional `CurrentStateNumber`, `LastTransitionNumber` and `TransitionTime` |
+| Health | `ReadDeviceHealthValueAsync` returns one `MachineryReadValue`; `ReadDeviceHealthAsync` retains its enum projection |
+| Published job lists | `ReadJobOrdersSnapshotAsync` / `ReadJobResponsesSnapshotAsync` return typed arrays plus original list evidence |
+| Published result identities | `EnumeratePublishedResultsAsync` does not read result content |
+| Selected published result | `ReadPublishedResultAsync(resultVariableId, ct)` returns `MachineryResultSnapshot` without downloading a file or requesting a result URI |
+| Explicit multi-result inspection | `ReadPublishedResultSnapshotsAsync` reads one variable per consumed iteration; stopping enumeration prevents further value reads |
+
+The new evidence-specific APIs opt into strict reads even on a legacy-created
+client, using default limits when no options were supplied. Existing enum,
+array and `FiniteStateSnapshot` convenience return types remain unchanged; use
+the evidence APIs to distinguish absent, empty and Good-null projections.
+Each result owns its evidence: overlapping calls do not share mutable
+last-read state.
+
+Browse limits are checked **during** Browse/BrowseNext traversal, before
+accumulating a page or deduplicating identities. Duplicate references and empty
+pages count. Process-value discovery shares its budget across the machine and
+Monitoring roots. The strict continuation policy rejects repeated tokens;
+exceeding a budget fails with `BadEncodingLimitsExceeded`, never silently
+truncates a result. Outstanding points are released using an independent
+five-second cancellation deadline. If traversal and cleanup both fail,
+`AggregateException` preserves the primary failure first.
+
+`MaximumReadArrayItems` bounds decoded arrays and the aggregate modeled array
+items in each job-list or result snapshot, including nested parameter arrays.
+OPC 40001-2 permits Number arrays for AnalogSignal and Setpoint; strict reads
+retain those bounded arrays in `Values`, with a null scalar convenience
+projection. Scalar numeric projections can lose integer precision; the original
+Variant remains authoritative. These limits **do not bound transport decoding
+or opaque vendor ExtensionObject bodies**. Configure the session's message,
+array, string and ByteString quotas as well.
+
+Missing optional model namespaces and building blocks remain normal absence.
+Where a value-level evidence API reports a missing namespace,
+`MissingNamespaceUri` names it without inventing an index. A published model
+missing a required dependency is a failure.
+
+In strict mode, `ReadJobResponseParametersAsync` inspects only the published
+response list, rather than invoking the legacy response-request method. An
+absent catalog or unlisted order therefore returns null; multiple matching
+responses fail explicitly. Static `FromJobOrder` / `FromJobResponse` projections
+keep their original tolerant behavior. Generated proxies, the `Topology`
+client, event subscriptions, job commands and result-file transfers retain
+their own contracts; these options do not harden those separate surfaces.
+`EnumerateEquipmentAsync` is the existing detailed equipment reader, not an
+identity-only browse.
 
 ### Job endpoints and streamed results
 

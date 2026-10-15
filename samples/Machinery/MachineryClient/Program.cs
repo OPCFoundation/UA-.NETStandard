@@ -40,6 +40,7 @@ using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Di;
 using Opc.Ua.Machinery.Client;
 using Opc.Ua.Machinery.Result;
+using MachineryClientOptions = MachinerySample.Client.MachineryClientOptions;
 
 MachineryClientOptions options = MachineryClientOptions.Parse(args);
 
@@ -319,9 +320,9 @@ static async Task DownloadLatestResultAsync(
         return;
     }
 
-        (uint resultHandle, ResultDataType result, int error) latest = await results
-        .GetLatestResultAsync(timeout: 5000, ct: cancellationToken)
-        .ConfigureAwait(false);
+    (uint resultHandle, ResultDataType result, int error) latest = await results
+    .GetLatestResultAsync(timeout: 5000, ct: cancellationToken)
+    .ConfigureAwait(false);
     if (latest.error != 0)
     {
         Console.WriteLine("No result has been produced yet.");

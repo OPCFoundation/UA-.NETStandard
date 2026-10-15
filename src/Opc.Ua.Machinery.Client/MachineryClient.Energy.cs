@@ -49,8 +49,14 @@ namespace Opc.Ua.Machinery.Client
             NodeId machineryItem,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(Namespaces.Machinery, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<NodeId>(NodeId.Null);
+            }
             ushort machineryNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Namespaces.Machinery);
+                Namespaces.Machinery);
             return ResolvePathAsync(
                 machineryItem,
                 cancellationToken,
@@ -109,9 +115,15 @@ namespace Opc.Ua.Machinery.Client
             NodeId meteringPoint,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(
+                    Energy.Namespaces.MachineryEnergy, out _))
+            {
+                return EnumerateChildObjectsAsync(NodeId.Null, cancellationToken);
+            }
             var contains = new NodeId(
-                Opc.Ua.Machinery.Energy.ReferenceTypes.Contains,
-                NamespaceIndexOf(Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy));
+                Energy.ReferenceTypes.Contains,
+                NamespaceIndexOf(Energy.Namespaces.MachineryEnergy));
             return BrowseChildrenAsync(
                 meteringPoint,
                 NodeClass.Object,
@@ -154,18 +166,37 @@ namespace Opc.Ua.Machinery.Client
         /// </remarks>
         /// <param name="resource">The resource folder to read.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <exception cref="MachineryReadException"></exception>
         public async ValueTask<MachineryMeteringPoint?> ReadMainMeteringPointAsync(
             NodeId resource,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(
+                    Energy.Namespaces.MachineryEnergy, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
             ushort energyNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
+                Energy.Namespaces.MachineryEnergy);
             NodeId main = await ResolveChildAsync(
                 resource,
                 new QualifiedName(
-                    Opc.Ua.Machinery.Energy.BrowseNames.Main,
+                    Energy.BrowseNames.Main,
                     energyNamespaceIndex),
                 cancellationToken).ConfigureAwait(false);
+            if (m_options is not null && main.IsNull)
+            {
+                throw ReadFailure(
+                    StatusCodes.BadNoMatch,
+                    UnresolvedField(
+                        resource,
+                        [new QualifiedName(Energy.BrowseNames.Main, energyNamespaceIndex)],
+                        StatusCodes.BadNoMatch,
+                        isAbsent: true),
+                    "An energy resource must publish its Main metering point.");
+            }
             return main.IsNull
                 ? null
                 : await ReadMeteringPointAsync(main, cancellationToken).ConfigureAwait(false);
@@ -190,19 +221,28 @@ namespace Opc.Ua.Machinery.Client
             {
                 return null;
             }
-            ushort ecmNamespaceIndex = NamespaceIndexOf(Opc.Ua.ECM.Namespaces.ECM);
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(ECM.Namespaces.ECM, out _) &&
+                !TryGetNamespaceIndex(Energy.Namespaces.MachineryEnergy, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
+            ushort ecmNamespaceIndex = NamespaceIndexOf(ECM.Namespaces.ECM);
             var applicationTagName = new QualifiedName(
                 EcmBrowseNames.ApplicationTag,
                 ecmNamespaceIndex);
 
-            Dictionary<QualifiedName, Variant> values = await ReadChildValuesAsync(
+            ReadValueSet values = await ReadChildValuesAsync(
                 meteringPoint,
                 [applicationTagName],
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
+            string? applicationTag = AsString(values, applicationTagName);
 
             var variables = new List<MachineEntry>();
             var measurements = new List<MachineryMeasurementValue>();
+            ArrayOf<MachineryReadValue> measurementValues = [];
             await foreach (MachineEntry child in EnumerateChildVariablesAsync(
                     meteringPoint,
                     cancellationToken).ConfigureAwait(false))
@@ -214,41 +254,71 @@ namespace Opc.Ua.Machinery.Client
             }
             if (variables.Count > 0)
             {
-                // The browse already returned the NodeIds, so the values are
-                // read by them in one batched Read.
-                var reads = new ReadValueId[variables.Count];
-                for (int ii = 0; ii < variables.Count; ii++)
+                if (m_options is not null)
                 {
-                    reads[ii] = new ReadValueId
+                    var sources = new MachineryReadValue[variables.Count];
+                    for (int ii = 0; ii < sources.Length; ii++)
                     {
-                        NodeId = variables[ii].NodeId,
-                        AttributeId = Attributes.Value
-                    };
-                }
-                ReadResponse read = await Session.ReadAsync(
-                    requestHeader: null,
-                    maxAge: 0,
-                    timestampsToReturn: TimestampsToReturn.Neither,
-                    nodesToRead: reads.ToArrayOf(),
-                    ct: cancellationToken).ConfigureAwait(false);
-                for (int ii = 0; ii < read.Results.Count && ii < variables.Count; ii++)
-                {
-                    if (StatusCode.IsGood(read.Results[ii].StatusCode))
+                        sources[ii] = new MachineryReadValue(
+                            variables[ii].NodeId,
+                            meteringPoint,
+                            [variables[ii].BrowseName],
+                            DataValue.FromStatusCode(StatusCodes.Good));
+                    }
+                    measurementValues = await ReadStrictSourcesAsync(sources.ToArrayOf(), cancellationToken)
+                        .ConfigureAwait(false);
+                    foreach (MachineryReadValue field in measurementValues)
                     {
+                        RequireFieldType(field, IsNumber(field.Value.WrappedValue));
                         measurements.Add(new MachineryMeasurementValue(
-                            variables[ii].BrowseName,
-                            read.Results[ii].WrappedValue)
+                            field.BrowsePath[0], field.Value.WrappedValue)
                         {
-                            NodeId = variables[ii].NodeId
+                            NodeId = field.SourceNodeId,
+                            Values = [field]
                         });
+                    }
+                }
+                else
+                {
+                    // The browse already returned the NodeIds, so the values are
+                    // read by them in one batched Read.
+                    var reads = new ReadValueId[variables.Count];
+                    for (int ii = 0; ii < variables.Count; ii++)
+                    {
+                        reads[ii] = new ReadValueId
+                        {
+                            NodeId = variables[ii].NodeId,
+                            AttributeId = Attributes.Value
+                        };
+                    }
+                    ReadResponse read = await Session.ReadAsync(
+                        requestHeader: null,
+                        maxAge: 0,
+                        timestampsToReturn: TimestampsToReturn.Neither,
+                        nodesToRead: reads.ToArrayOf(),
+                        ct: cancellationToken).ConfigureAwait(false);
+                    for (int ii = 0; ii < read.Results.Count && ii < variables.Count; ii++)
+                    {
+                        if (StatusCode.IsGood(read.Results[ii].StatusCode))
+                        {
+                            measurements.Add(new MachineryMeasurementValue(
+                                variables[ii].BrowseName,
+                                read.Results[ii].WrappedValue)
+                            {
+                                NodeId = variables[ii].NodeId
+                            });
+                        }
                     }
                 }
             }
 
             return new MachineryMeteringPoint(
                 meteringPoint,
-                AsString(values, applicationTagName),
-                measurements.ToArrayOf());
+                applicationTag,
+                measurements.ToArrayOf())
+            {
+                Values = CombineEvidence(values.Values, measurementValues)
+            };
         }
     }
 }

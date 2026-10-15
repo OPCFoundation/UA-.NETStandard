@@ -50,6 +50,12 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                MachineryJobOrdersSnapshot snapshot = await ReadJobOrdersSnapshotAsync(machine, cancellationToken)
+                    .ConfigureAwait(false);
+                return snapshot.JobOrders;
+            }
             Variant value = await ReadJobManagementListAsync(
                 machine,
                 JobsBrowseNames.JobOrderControl,
@@ -57,7 +63,7 @@ namespace Opc.Ua.Machinery.Client
                 cancellationToken).ConfigureAwait(false);
             return value.TryGetStructure(out ArrayOf<V2.ISA95JobOrderAndStateDataType> orders)
                 ? orders
-                : ArrayOf<V2.ISA95JobOrderAndStateDataType>.Empty;
+                : [];
         }
 
         /// <summary>
@@ -71,6 +77,12 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                MachineryJobResponsesSnapshot snapshot = await ReadJobResponsesSnapshotAsync(machine, cancellationToken)
+                    .ConfigureAwait(false);
+                return snapshot.JobResponses;
+            }
             Variant value = await ReadJobManagementListAsync(
                 machine,
                 JobsBrowseNames.JobOrderResults,
@@ -78,7 +90,7 @@ namespace Opc.Ua.Machinery.Client
                 cancellationToken).ConfigureAwait(false);
             return value.TryGetStructure(out ArrayOf<V2.ISA95JobResponseDataType> responses)
                 ? responses
-                : ArrayOf<V2.ISA95JobResponseDataType>.Empty;
+                : [];
         }
 
         /// <summary>
@@ -89,6 +101,7 @@ namespace Opc.Ua.Machinery.Client
         /// <param name="machine">The machine to inspect.</param>
         /// <param name="jobOrderId">The job order identifier.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <exception cref="ArgumentException"></exception>
         public async ValueTask<MachineryJobOrderParameters?> ReadJobOrderParametersAsync(
             NodeId machine,
             string jobOrderId,
@@ -97,6 +110,22 @@ namespace Opc.Ua.Machinery.Client
             if (string.IsNullOrEmpty(jobOrderId))
             {
                 throw new ArgumentException("A job order identifier is required.", nameof(jobOrderId));
+            }
+            if (m_options is not null)
+            {
+                MachineryJobOrdersSnapshot snapshot = await ReadJobOrdersSnapshotAsync(machine, cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (V2.ISA95JobOrderAndStateDataType entry in snapshot.JobOrders)
+                {
+                    if (string.Equals(entry.JobOrder.JobOrderID, jobOrderId, StringComparison.Ordinal))
+                    {
+                        return MachineryJobOrderParameters.FromJobOrder(entry.JobOrder) with
+                        {
+                            Values = snapshot.Values
+                        };
+                    }
+                }
+                return null;
             }
             ArrayOf<V2.ISA95JobOrderAndStateDataType> orders = await ReadJobOrdersAsync(
                 machine,
@@ -122,10 +151,14 @@ namespace Opc.Ua.Machinery.Client
         /// method below <c>JobOrderResults</c>, which answers for any order the
         /// machine knows — the published <c>JobOrderResponseList</c> may be
         /// empty when the server has no response catalog.
+        /// In strict mode this accessor only inspects the published response
+        /// list; it never invokes the response-request method.
         /// </remarks>
         /// <param name="machine">The machine to inspect.</param>
         /// <param name="jobOrderId">The job order identifier.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="MachineryReadException"></exception>
         public async ValueTask<MachineryJobResponseParameters?> ReadJobResponseParametersAsync(
             NodeId machine,
             string jobOrderId,
@@ -134,6 +167,31 @@ namespace Opc.Ua.Machinery.Client
             if (string.IsNullOrEmpty(jobOrderId))
             {
                 throw new ArgumentException("A job order identifier is required.", nameof(jobOrderId));
+            }
+            if (m_options is not null)
+            {
+                MachineryJobResponsesSnapshot snapshot = await ReadJobResponsesSnapshotAsync(machine, cancellationToken)
+                    .ConfigureAwait(false);
+                V2.ISA95JobResponseDataType? selected = null;
+                foreach (V2.ISA95JobResponseDataType entry in snapshot.JobResponses)
+                {
+                    if (string.Equals(entry.JobOrderID, jobOrderId, StringComparison.Ordinal))
+                    {
+                        if (selected is not null)
+                        {
+                            throw ReadFailure(
+                                StatusCodes.BadDecodingError, snapshot.Values[0],
+                                "Several published responses match the requested job order.");
+                        }
+                        selected = entry;
+                    }
+                }
+                return selected is null
+                    ? null
+                    : MachineryJobResponseParameters.FromJobResponse(selected, Session.MessageContext) with
+                    {
+                        Values = snapshot.Values
+                    };
             }
             Isa95JobControlV2Client? jobs = await JobManagementAsync(machine, cancellationToken)
                 .ConfigureAwait(false);
@@ -153,6 +211,72 @@ namespace Opc.Ua.Machinery.Client
                 : null;
         }
 
+        /// <summary>
+        /// Strictly reads the bounded published job-order list, retaining its
+        /// source value and distinguishing absent, empty and Good-null lists.
+        /// </summary>
+        /// <param name="machine">The selected machine.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        public async ValueTask<MachineryJobOrdersSnapshot> ReadJobOrdersSnapshotAsync(
+            NodeId machine,
+            CancellationToken cancellationToken = default)
+        {
+            MachineryReadValue field = await ReadStrictJobListAsync(
+                machine, JobsBrowseNames.JobOrderControl, V2.BrowseNames.JobOrderList, cancellationToken)
+                .ConfigureAwait(false);
+            var budget = new ReadArrayBudget(m_options ?? s_defaultReadOptions, field);
+            ArrayOf<V2.ISA95JobOrderAndStateDataType> orders =
+                DecodeStructureArray<V2.ISA95JobOrderAndStateDataType>(field, budget);
+            ValidateJobOrders(orders, budget, cancellationToken);
+            return new MachineryJobOrdersSnapshot(orders, [field]);
+        }
+
+        /// <summary>
+        /// Strictly reads the bounded published job-response list with source evidence.
+        /// No job-control or response-request methods are called.
+        /// </summary>
+        /// <param name="machine">The selected machine.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        public async ValueTask<MachineryJobResponsesSnapshot> ReadJobResponsesSnapshotAsync(
+            NodeId machine,
+            CancellationToken cancellationToken = default)
+        {
+            MachineryReadValue field = await ReadStrictJobListAsync(
+                machine, JobsBrowseNames.JobOrderResults, V2.BrowseNames.JobOrderResponseList, cancellationToken)
+                .ConfigureAwait(false);
+            var budget = new ReadArrayBudget(m_options ?? s_defaultReadOptions, field);
+            ArrayOf<V2.ISA95JobResponseDataType> responses =
+                DecodeStructureArray<V2.ISA95JobResponseDataType>(field, budget);
+            ValidateJobResponses(responses, budget, cancellationToken);
+            return new MachineryJobResponsesSnapshot(responses, [field]);
+        }
+
+        private async ValueTask<MachineryReadValue> ReadStrictJobListAsync(
+            NodeId machine,
+            string child,
+            string listName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryGetNamespaceIndex(Jobs.Namespaces.MachineryJobs, out ushort jobsIndex))
+            {
+                return MissingNamespaceField(machine, Jobs.Namespaces.MachineryJobs);
+            }
+            ushort isa95Index = NamespaceIndexOf(V2.Namespaces.ISA95JobControlV2);
+            ArrayOf<MachineryReadValue> fields = await ReadStrictFieldsAsync(
+                machine,
+                [
+                    [
+                        new QualifiedName(JobsBrowseNames.JobManagement, jobsIndex),
+                        new QualifiedName(child, jobsIndex),
+                        new QualifiedName(listName, isa95Index)
+                    ]
+                ],
+                ReferenceTypeIds.HierarchicalReferences,
+                cancellationToken).ConfigureAwait(false);
+            return fields[0];
+        }
+
         private async ValueTask<Variant> ReadJobManagementListAsync(
             NodeId machine,
             string jobManagementChild,
@@ -160,7 +284,7 @@ namespace Opc.Ua.Machinery.Client
             CancellationToken cancellationToken)
         {
             if (!TryGetNamespaceIndex(
-                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs,
+                Jobs.Namespaces.MachineryJobs,
                 out ushort jobsNamespaceIndex))
             {
                 return Variant.Null;

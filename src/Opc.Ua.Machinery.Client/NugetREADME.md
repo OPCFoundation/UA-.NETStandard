@@ -34,4 +34,58 @@ State observation rides the generated state-machine proxies, so it works
 against any server that publishes the OPC 40001-1 state machines — including
 vendor subtypes.
 
+For bounded inspection with explicit source, quality and timestamp evidence,
+opt in without changing legacy callers:
+
+```csharp
+MachineryClient strict = session.Machinery(telemetry, new MachineryClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    MaximumReadArrayItems = 1024
+});
+
+MachineIdentification? id = await strict.ReadIdentificationAsync(selectedMachineId, ct);
+MachineryStateSnapshot? state = await strict.ReadItemStateAsync(selectedMachineId, ct);
+MachineryReadValue health = await strict.ReadDeviceHealthValueAsync(selectedMachineId, ct);
+```
+
+Strict detail records expose `ArrayOf<MachineryReadValue> Values`. Each field
+retains its local source NodeId, qualified path and original DataValue. Good-null
+is present; only genuine optional absence sets `IsAbsent`. Denied/Uncertain
+reads, wrong types, incomplete responses and ambiguous/foreign translations
+throw `MachineryReadException`, preserving status and offending evidence.
+Browse budgets are enforced while following pages, with continuation cleanup
+on cancellation or failure. Decoding and opaque vendor payload sizes still
+depend on session quotas.
+
+Use `EnumeratePublishedResultsAsync` for result identities and
+`ReadPublishedResultAsync` for an explicitly selected variable. Job-list and
+state snapshot APIs retain evidence without mutable client-wide last-read
+state. Options also flow through `AddMachineryClient(options)` and
+`MachineryClientFactory`. Generated proxies, event observation, job commands
+and file transfers keep their own contracts. See the developer guide for
+strict job-response-list semantics and array limits.
+
+For bounded result exports, pass a writable, caller-owned stream and an explicit
+byte limit. This overload downloads only the selected `ResultId`; it never
+enumerates results or retrieves a result URI.
+
+```csharp
+long bytesWritten = await machinery.DownloadResultAsync(
+    machineId, selectedResultId, destination, maxBytes: 1024 * 1024, cancellationToken: ct);
+```
+
+The limit is enforced during streaming, without trusting a declared file size.
+Reads use at most 64 KiB per request and at most 1024 requests, including the
+end-of-file probe. A zero limit accepts only an empty payload. The server handle
+is closed with an independent five-second deadline, even when the download is
+cancelled. If downloading and closing both fail, `AggregateException` preserves
+the download failure first and the close failure second. The session and
+destination stay open; discard any partial destination after failure.
+
+The existing `DownloadResultAsync(machineId, resultId, ct)` overload still returns
+a buffered `ByteString` with its original behavior. Prefer the streaming overload
+for exports that must remain bounded.
+
 See the [Machinery developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Machinery.md).

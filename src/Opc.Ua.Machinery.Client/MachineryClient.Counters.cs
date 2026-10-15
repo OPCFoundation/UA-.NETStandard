@@ -48,7 +48,14 @@ namespace Opc.Ua.Machinery.Client
             NodeId machineryItem,
             CancellationToken cancellationToken = default)
         {
-            ushort diNamespaceIndex = NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi);
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(Di.Namespaces.OpcUaDi, out _) &&
+                !TryGetNamespaceIndex(Namespaces.Machinery, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
+            ushort diNamespaceIndex = NamespaceIndexOf(Di.Namespaces.OpcUaDi);
             NodeId counters = await ResolveChildAsync(
                 machineryItem,
                 new QualifiedName(DiBrowseNames.OperationCounters, diNamespaceIndex),
@@ -71,20 +78,29 @@ namespace Opc.Ua.Machinery.Client
                 DiBrowseNames.OperationCycleCounter,
                 diNamespaceIndex);
 
-            Dictionary<QualifiedName, Variant> values = await ReadChildValuesAsync(
+            ReadValueSet values = await ReadChildValuesAsync(
                 counters,
                 [powerOnName, operationName, cycleName],
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
 
+            values.TryGetValue(powerOnName, out Variant powerOn);
+            values.RequireType(powerOnName, HasType(powerOn, BuiltInType.Double));
+            values.TryGetValue(operationName, out Variant operation);
+            values.RequireType(operationName, HasType(operation, BuiltInType.Double));
+            values.TryGetValue(cycleName, out Variant cycles);
+            values.RequireType(cycleName,
+                HasType(cycles, BuiltInType.Byte) ||
+                HasType(cycles, BuiltInType.UInt16) ||
+                HasType(cycles, BuiltInType.UInt32) ||
+                HasType(cycles, BuiltInType.UInt64));
             return new MachineryOperationCounters
             {
+                Values = values.Values,
                 NodeId = counters,
                 PowerOnDuration = AsDouble(values, powerOnName),
                 OperationDuration = AsDouble(values, operationName),
-                OperationCycleCounter = values.TryGetValue(cycleName, out Variant cycles)
-                    ? cycles
-                    : default
+                OperationCycleCounter = cycles
             };
         }
 
@@ -107,7 +123,7 @@ namespace Opc.Ua.Machinery.Client
                 yield break;
             }
 
-            ushort diNamespaceIndex = NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi);
+            ushort diNamespaceIndex = NamespaceIndexOf(Di.Namespaces.OpcUaDi);
             var startName = new QualifiedName(DiBrowseNames.StartValue, diNamespaceIndex);
             var limitName = new QualifiedName(DiBrowseNames.LimitValue, diNamespaceIndex);
             var warningName = new QualifiedName(
@@ -124,29 +140,30 @@ namespace Opc.Ua.Machinery.Client
 
             foreach (MachineEntry entry in variables)
             {
-                Dictionary<QualifiedName, Variant> children = await ReadChildValuesAsync(
+                ReadValueSet children = await ReadChildValuesAsync(
                     entry.NodeId,
                     [startName, limitName, warningName],
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    ReferenceTypeIds.HierarchicalReferences,
                     cancellationToken).ConfigureAwait(false);
-                Dictionary<QualifiedName, Variant> self = await ReadChildValuesAsync(
+                ReadValueSet self = await ReadChildValuesAsync(
                     counters,
                     [entry.BrowseName],
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    ReferenceTypeIds.HierarchicalReferences,
                     cancellationToken).ConfigureAwait(false);
 
+                children.TryGetValue(warningName, out Variant warnings);
+                bool hasWarnings = warnings.TryGetValue(out ArrayOf<double> warningValues);
+                children.RequireType(warningName, hasWarnings);
+                ValidateArrayCount(children, warningName, warningValues.Count);
                 yield return new MachineryLifetimeVariable
                 {
+                    Values = CombineEvidence(self.Values, children.Values),
                     NodeId = entry.NodeId,
                     BrowseName = entry.BrowseName,
                     Remaining = AsDouble(self, entry.BrowseName),
                     StartValue = AsDouble(children, startName),
                     LimitValue = AsDouble(children, limitName),
-                    WarningValues =
-                        children.TryGetValue(warningName, out Variant warnings) &&
-                        warnings.TryGetValue(out ArrayOf<double> values)
-                            ? values
-                            : default
+                    WarningValues = hasWarnings ? warningValues : default
                 };
             }
         }
@@ -171,8 +188,8 @@ namespace Opc.Ua.Machinery.Client
             }
 
             ushort machineryNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Namespaces.Machinery);
-            ushort diNamespaceIndex = NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi);
+                Namespaces.Machinery);
+            ushort diNamespaceIndex = NamespaceIndexOf(Di.Namespaces.OpcUaDi);
             var typeIdName = new QualifiedName(
                 MachineryBrowseNames.MachineryEquipmentTypeId,
                 machineryNamespaceIndex);
@@ -198,11 +215,12 @@ namespace Opc.Ua.Machinery.Client
 
             foreach (MachineEntry entry in items)
             {
-                Dictionary<QualifiedName, Variant> values = await ReadChildValuesAsync(
+                ReadValueSet values = await ReadChildValuesAsync(
                     entry.NodeId,
                     [typeIdName, descriptionName, serialName, lifeName],
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    ReferenceTypeIds.HierarchicalReferences,
                     cancellationToken).ConfigureAwait(false);
+                values.RequirePresent(typeIdName);
 
                 MachineryLifetimeVariable? life = null;
                 NodeId lifeNodeId = await ResolveChildAsync(
@@ -211,13 +229,14 @@ namespace Opc.Ua.Machinery.Client
                     cancellationToken).ConfigureAwait(false);
                 if (!lifeNodeId.IsNull)
                 {
-                    Dictionary<QualifiedName, Variant> lifeValues = await ReadChildValuesAsync(
+                    ReadValueSet lifeValues = await ReadChildValuesAsync(
                         lifeNodeId,
                         [startName, limitName],
-                        Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                        ReferenceTypeIds.HierarchicalReferences,
                         cancellationToken).ConfigureAwait(false);
                     life = new MachineryLifetimeVariable
                     {
+                        Values = CombineEvidence(values.EvidenceOf(lifeName), lifeValues.Values),
                         NodeId = lifeNodeId,
                         BrowseName = lifeName,
                         Remaining = AsDouble(values, lifeName),
@@ -228,13 +247,11 @@ namespace Opc.Ua.Machinery.Client
 
                 yield return new MachineryEquipmentItem
                 {
+                    Values = CombineEvidence(values.Values, life is { Values: var lifeFields } ? lifeFields : []),
                     NodeId = entry.NodeId,
                     BrowseName = entry.BrowseName,
                     MachineryEquipmentTypeId = AsString(values, typeIdName),
-                    Description = values.TryGetValue(descriptionName, out Variant description) &&
-                        description.TryGetValue(out LocalizedText text)
-                        ? text
-                        : default,
+                    Description = AsLocalizedText(values, descriptionName),
                     SerialNumber = AsString(values, serialName),
                     EquipmentLife = life
                 };
@@ -248,13 +265,21 @@ namespace Opc.Ua.Machinery.Client
         /// </summary>
         /// <param name="machineryItem">The machine or component to read.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
-        public async ValueTask<Opc.Ua.Di.DeviceHealthEnumeration?> ReadDeviceHealthAsync(
+        public async ValueTask<Di.DeviceHealthEnumeration?> ReadDeviceHealthAsync(
             NodeId machineryItem,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                MachineryReadValue field = await ReadDeviceHealthValueAsync(machineryItem, cancellationToken)
+                    .ConfigureAwait(false);
+                return field.Value.WrappedValue.TryGetValue(out Di.DeviceHealthEnumeration healthValue)
+                    ? healthValue
+                    : null;
+            }
             ushort machineryNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Namespaces.Machinery);
-            ushort diNamespaceIndex = NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi);
+                Namespaces.Machinery);
+            ushort diNamespaceIndex = NamespaceIndexOf(Di.Namespaces.OpcUaDi);
             NodeId health = await ResolvePathAsync(
                 machineryItem,
                 cancellationToken,
@@ -269,18 +294,59 @@ namespace Opc.Ua.Machinery.Client
             var deviceHealthName = new QualifiedName(
                 DiBrowseNames.DeviceHealth,
                 diNamespaceIndex);
-            Dictionary<QualifiedName, Variant> values = await ReadChildValuesAsync(
+            ReadValueSet values = await ReadChildValuesAsync(
                 health,
                 [deviceHealthName],
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
             if (!values.TryGetValue(deviceHealthName, out Variant value))
             {
                 return null;
             }
-            return value.TryGetValue(out Opc.Ua.Di.DeviceHealthEnumeration deviceHealth)
+            return value.TryGetValue(out Di.DeviceHealthEnumeration deviceHealth)
                 ? deviceHealth
                 : null;
+        }
+
+        /// <summary>
+        /// Strictly reads DeviceHealth with source, quality, time and explicit
+        /// optional absence. Does not synthesize a healthy value for a failed read.
+        /// </summary>
+        /// <param name="machineryItem">The selected machine or component.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        /// <exception cref="MachineryReadException"></exception>
+        public async ValueTask<MachineryReadValue> ReadDeviceHealthValueAsync(
+            NodeId machineryItem,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryGetNamespaceIndex(Namespaces.Machinery, out ushort machineryNamespaceIndex))
+            {
+                return MissingNamespaceField(machineryItem, Namespaces.Machinery);
+            }
+            if (!TryGetNamespaceIndex(Di.Namespaces.OpcUaDi, out ushort diNamespaceIndex))
+            {
+                throw ReadFailure(
+                    StatusCodes.BadNotSupported,
+                    UnresolvedField(machineryItem, [], StatusCodes.BadNotSupported),
+                    "The Machinery namespace requires the Device Integration namespace.");
+            }
+            ArrayOf<MachineryReadValue> fields = await ReadStrictFieldsAsync(
+                machineryItem,
+                [
+                    [
+                        new QualifiedName(MachineryBrowseNames.Monitoring, machineryNamespaceIndex),
+                        new QualifiedName(MachineryBrowseNames.Health, machineryNamespaceIndex),
+                        new QualifiedName(DiBrowseNames.DeviceHealth, diNamespaceIndex)
+                    ]
+                ],
+                ReferenceTypeIds.HierarchicalReferences,
+                cancellationToken).ConfigureAwait(false);
+            Variant value = fields[0].Value.WrappedValue;
+            RequireFieldType(fields[0],
+                (HasType(value, BuiltInType.Int32) || HasType(value, BuiltInType.Enumeration)) &&
+                value.TryGetValue(out Di.DeviceHealthEnumeration _));
+            return fields[0];
         }
     }
 }
