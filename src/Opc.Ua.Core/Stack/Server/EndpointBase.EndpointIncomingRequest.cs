@@ -58,7 +58,9 @@ namespace Opc.Ua
         /// then copied, with write barriers, into the box and into the state machine of
         /// every request.
         /// </remarks>
-        protected sealed class EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>,
+        protected sealed class EndpointIncomingRequest :
+            IParkableIncomingRequest,
+            IEquatable<EndpointIncomingRequest>,
             ILinksScheduledCancellation
         {
             /// <summary>
