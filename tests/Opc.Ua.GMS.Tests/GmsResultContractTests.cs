@@ -151,29 +151,99 @@ namespace Opc.Ua.GMS.Tests
         }
 
         /// <summary>
-        /// Invalid resource policies fail before provider or session work.
+        /// Each rejected boundary identifies the configured property without changing the diagnostic message.
         /// </summary>
-        [TestCase("Results")]
-        [TestCase("Metadata")]
-        [TestCase("File")]
-        [TestCase("Storage")]
-        [TestCase("Characteristics")]
-        [TestCase("Tools")]
-        [TestCase("Corrections")]
-        public void InvalidBoundsAreRejected(string bound)
+        [TestCase(nameof(GmsResultLimits.MaximumResults), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumResults), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumResults), 10001L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCharacteristics), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCharacteristics), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCharacteristics), 10001L)]
+        [TestCase(nameof(GmsResultLimits.MaximumUsedTools), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumUsedTools), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumUsedTools), 10001L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCorrections), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCorrections), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCorrections), 10001L)]
+        [TestCase(nameof(GmsResultLimits.MaximumMetadataBytes), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumMetadataBytes), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumMetadataBytes), 16777217L)]
+        [TestCase(nameof(GmsResultLimits.MaximumFileBytes), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumFileBytes), 0L)]
+        [TestCase(nameof(GmsResultLimits.MaximumStoredBytes), -1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumStoredBytes), 0L)]
+        public void InvalidBoundsIdentifyRejectedProperty(string property, long value)
         {
-            GmsResultLimits limits = bound switch
+            GmsResultLimits limits = CreateLimitsWithBound(property, value);
+
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(limits.Validate)!;
+
+            using (Assert.EnterMultipleScope())
             {
-                "Results" => new GmsResultLimits { MaximumResults = 0 },
-                "Metadata" => new GmsResultLimits { MaximumMetadataBytes = 0 },
-                "File" => new GmsResultLimits { MaximumFileBytes = 0 },
-                "Storage" => new GmsResultLimits { MaximumStoredBytes = 0 },
-                "Characteristics" => new GmsResultLimits { MaximumCharacteristics = 0 },
-                "Tools" => new GmsResultLimits { MaximumUsedTools = 0 },
-                "Corrections" => new GmsResultLimits { MaximumCorrections = 0 },
-                _ => throw new ArgumentOutOfRangeException(nameof(bound))
+                Assert.That(error.ParamName, Is.EqualTo(property));
+                Assert.That(error.Message, Does.StartWith("GMS result bounds must be positive."));
+            }
+        }
+
+        /// <summary>
+        /// Inclusive limits remain independently valid, including full-range file and storage budgets.
+        /// </summary>
+        [TestCase(nameof(GmsResultLimits.MaximumResults), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumResults), 10000L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCharacteristics), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCharacteristics), 10000L)]
+        [TestCase(nameof(GmsResultLimits.MaximumUsedTools), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumUsedTools), 10000L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCorrections), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumCorrections), 10000L)]
+        [TestCase(nameof(GmsResultLimits.MaximumMetadataBytes), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumMetadataBytes), 16777216L)]
+        [TestCase(nameof(GmsResultLimits.MaximumFileBytes), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumFileBytes), (long)int.MaxValue)]
+        [TestCase(nameof(GmsResultLimits.MaximumStoredBytes), 1L)]
+        [TestCase(nameof(GmsResultLimits.MaximumStoredBytes), long.MaxValue)]
+        public void InclusiveBoundsAreAccepted(string property, long value)
+        {
+            GmsResultLimits limits = CreateLimitsWithBound(property, value);
+
+            Assert.That(limits.Validate, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Default result policies remain valid without caller adjustments.
+        /// </summary>
+        [Test]
+        public void DefaultBoundsAreAccepted()
+        {
+            Assert.That(new GmsResultLimits().Validate, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// When several bounds are invalid, diagnostics follow the original validation order.
+        /// </summary>
+        [TestCase(0, nameof(GmsResultLimits.MaximumResults))]
+        [TestCase(1, nameof(GmsResultLimits.MaximumCharacteristics))]
+        [TestCase(2, nameof(GmsResultLimits.MaximumUsedTools))]
+        [TestCase(3, nameof(GmsResultLimits.MaximumCorrections))]
+        [TestCase(4, nameof(GmsResultLimits.MaximumMetadataBytes))]
+        [TestCase(5, nameof(GmsResultLimits.MaximumFileBytes))]
+        [TestCase(6, nameof(GmsResultLimits.MaximumStoredBytes))]
+        public void InvalidBoundsReportFirstRejectedProperty(int validPrefix, string expectedParameter)
+        {
+            var limits = new GmsResultLimits
+            {
+                MaximumResults = validPrefix > 0 ? 1 : 0,
+                MaximumCharacteristics = validPrefix > 1 ? 1 : 0,
+                MaximumUsedTools = validPrefix > 2 ? 1 : 0,
+                MaximumCorrections = validPrefix > 3 ? 1 : 0,
+                MaximumMetadataBytes = validPrefix > 4 ? 1 : 0,
+                MaximumFileBytes = validPrefix > 5 ? 1 : 0,
+                MaximumStoredBytes = 0
             };
-            Assert.Throws<ArgumentOutOfRangeException>(limits.Validate);
+
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(limits.Validate)!;
+
+            Assert.That(error.ParamName, Is.EqualTo(expectedParameter));
         }
 
         /// <summary>
@@ -210,6 +280,30 @@ namespace Opc.Ua.GMS.Tests
             Assert.Throws<ArgumentException>(() => _ = new GmsCharacteristic(string.Empty));
             Assert.Throws<ArgumentNullException>(() => _ = new GmsAnalogValue(new DataValue(new Variant(1.0)), null!));
             Assert.Throws<ArgumentNullException>(() => _ = new GmsResultLimits().Measure(Variant.Null, null!));
+        }
+
+        /// <summary>
+        /// Changes one bound while retaining the defaults of the other independent limits.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The property is not a result bound.</exception>
+        private static GmsResultLimits CreateLimitsWithBound(string property, long value)
+        {
+            return property switch
+            {
+                nameof(GmsResultLimits.MaximumResults) => new GmsResultLimits { MaximumResults = checked((int)value) },
+                nameof(GmsResultLimits.MaximumCharacteristics) =>
+                    new GmsResultLimits { MaximumCharacteristics = checked((int)value) },
+                nameof(GmsResultLimits.MaximumUsedTools) =>
+                    new GmsResultLimits { MaximumUsedTools = checked((int)value) },
+                nameof(GmsResultLimits.MaximumCorrections) =>
+                    new GmsResultLimits { MaximumCorrections = checked((int)value) },
+                nameof(GmsResultLimits.MaximumMetadataBytes) =>
+                    new GmsResultLimits { MaximumMetadataBytes = checked((int)value) },
+                nameof(GmsResultLimits.MaximumFileBytes) =>
+                    new GmsResultLimits { MaximumFileBytes = checked((int)value) },
+                nameof(GmsResultLimits.MaximumStoredBytes) => new GmsResultLimits { MaximumStoredBytes = value },
+                _ => throw new ArgumentOutOfRangeException(nameof(property))
+            };
         }
     }
 }

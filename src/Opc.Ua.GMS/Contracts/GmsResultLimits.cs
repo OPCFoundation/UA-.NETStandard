@@ -75,17 +75,37 @@ namespace Opc.Ua.GMS.Contracts
         /// <summary>
         /// Validates all bounds before a provider or client is made available.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">A configured bound is outside its accepted range.</exception>
         public void Validate()
         {
-            if (MaximumResults is < 1 or > 10000 ||
-                MaximumCharacteristics is < 1 or > 10000 ||
-                MaximumUsedTools is < 1 or > 10000 ||
-                MaximumCorrections is < 1 or > 10000 ||
-                MaximumMetadataBytes is < 1 or > 16 * 1024 * 1024 ||
-                MaximumFileBytes < 1 ||
-                MaximumStoredBytes < 1)
+            const string message = "GMS result bounds must be positive.";
+            if (MaximumResults is < 1 or > 10000)
             {
-                throw new ArgumentOutOfRangeException(nameof(MaximumResults), "GMS result bounds must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(MaximumResults), message);
+            }
+            if (MaximumCharacteristics is < 1 or > 10000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumCharacteristics), message);
+            }
+            if (MaximumUsedTools is < 1 or > 10000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumUsedTools), message);
+            }
+            if (MaximumCorrections is < 1 or > 10000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumCorrections), message);
+            }
+            if (MaximumMetadataBytes is < 1 or > 16 * 1024 * 1024)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumMetadataBytes), message);
+            }
+            if (MaximumFileBytes < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumFileBytes), message);
+            }
+            if (MaximumStoredBytes < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaximumStoredBytes), message);
             }
         }
 
