@@ -600,13 +600,29 @@ On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedK
 - `RestoreSnapshotAsync` replaces the state before the store applies the log; it shares the startup gate, so a store that is starting or has started rejects it with `InvalidOperationException`. Pass `RaftSnapshotLogReplay.AfterSnapshot` when the consensus delivers only the commands after the snapshot (its log was compacted up to the snapshot, or it starts empty), or `RaftSnapshotLogReplay.FromFirstCommand` when it replays its persisted log from the beginning; the store then skips the commands the snapshot already holds, so no command — in particular no compare-and-swap — is applied twice.
 - A corrupt snapshot is rejected with `FormatException`: the decoder accepts only what the encoder produces (strict UTF-8 keys, canonical value markers, no payload for a null value, no duplicate key).
 
+The replay mode must match the log the consensus actually delivers after the restore, and recovery decides it from what was persisted, never from what the application intended to do. `FromFirstCommand` skips the first `LastIncludedCommand` delivered commands, so it is valid only while the log is complete (starts at the first command); on a log compacted up to the snapshot it would silently skip committed updates made after the snapshot. `AfterSnapshot` applies every delivered command, so it is valid only when the log starts exactly after `LastIncludedCommand`. The example therefore names each snapshot by its position and relies on the log persisting its own compaction boundary (in command positions, updated atomically with the removal of the prefix); `ICompactedLog` stands for that application-owned adapter over the consensus engine's log.
+
 ```csharp
+// Application-owned adapter over the consensus engine's persisted log, in committed-command positions.
+interface ICompactedLog
+{
+    // The position of the last command removed by compaction, or 0 while the log is complete.
+    long CompactedThrough { get; }
+
+    // Removes the commands up to and including lastIncludedCommand and persists the new CompactedThrough.
+    Task CompactThroughAsync(long lastIncludedCommand, CancellationToken ct);
+}
+
+static string SnapshotFile(string directory, long position) =>
+    Path.Combine(directory, $"{position:D20}.snapshot"); // zero-padded: ordinal order is position order
+
 IRaftSnapshotManager snapshots = provider.GetRequiredService<IRaftSnapshotManager>();
 
 // Periodically, or when the log grows large.
 RaftKeyValueSnapshot snapshot = await snapshots.CreateSnapshotAsync(ct);
+string snapshotPath = SnapshotFile(snapshotDirectory, snapshot.LastIncludedCommand);
 
-// Write the new snapshot next to the published one; the published snapshot stays intact until the rename.
+// Write the new snapshot to a temporary file; every published snapshot stays intact.
 string tempPath = snapshotPath + ".tmp";
 await using (var stream = new FileStream(
     tempPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096,
@@ -617,21 +633,48 @@ await using (var stream = new FileStream(
     stream.Flush(flushToDisk: true); // fsync / FlushFileBuffers: the bytes are on disk before the rename
 }
 
-// Publish atomically: readers see either the previous snapshot or the complete new one.
+// Publish atomically: the file is either absent or complete.
 File.Move(tempPath, snapshotPath, overwrite: true);
-// On POSIX, also fsync the directory that contains snapshotPath here (see below).
+// On POSIX, also fsync snapshotDirectory here (see below).
 
-// Only now compact the consensus log up to snapshot.LastIncludedCommand.
+// Only now compact the log, and only then delete the snapshots older than the new boundary.
+await log.CompactThroughAsync(snapshot.LastIncludedCommand, ct);
+foreach (string older in Directory.EnumerateFiles(snapshotDirectory, "*.snapshot")
+    .Where(f => StringComparer.Ordinal.Compare(f, snapshotPath) < 0))
+{
+    File.Delete(older);
+}
 
-// On restart, before the first operation on the store. A leftover snapshotPath + ".tmp" is an
-// unpublished, possibly partial write: ignore or delete it.
-var data = ByteString.From(await File.ReadAllBytesAsync(snapshotPath, ct));
-await snapshots.RestoreSnapshotAsync(data, RaftSnapshotLogReplay.FromFirstCommand, ct);
+// On restart, before the first operation on the store. A leftover *.tmp file is an unpublished,
+// possibly partial write: ignore or delete it.
+long compactedThrough = log.CompactedThrough;
+if (compactedThrough > 0)
+{
+    // Compacted log: it delivers only the commands after compactedThrough, so only the snapshot at exactly
+    // that position fits. If it is missing, the read throws: do not fall back to another snapshot.
+    var data = ByteString.From(await File.ReadAllBytesAsync(SnapshotFile(snapshotDirectory, compactedThrough), ct));
+    await snapshots.RestoreSnapshotAsync(data, RaftSnapshotLogReplay.AfterSnapshot, ct);
+}
+else if (Directory.EnumerateFiles(snapshotDirectory, "*.snapshot")
+    .OrderBy(f => f, StringComparer.Ordinal).LastOrDefault() is string newest)
+{
+    // Complete log: never compacted, or the process stopped between publishing the snapshot and compacting.
+    // The consensus replays from the first command and the store skips what the snapshot holds.
+    var data = ByteString.From(await File.ReadAllBytesAsync(newest, ct));
+    await snapshots.RestoreSnapshotAsync(data, RaftSnapshotLogReplay.FromFirstCommand, ct);
+}
+// Otherwise there is no snapshot and the store applies the whole log.
 ```
 
-Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the previous snapshot, and the log it does not cover, until the new snapshot is durably published:
+The crash windows resolve from the persisted state alone:
 
-- Write the temporary file in the same directory as `snapshotPath`. `File.Move(..., overwrite: true)` replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
+- Stopped before the rename: only a `*.tmp` file is new; the log and the published snapshots are unchanged.
+- Stopped after the rename, before compaction: `CompactedThrough` is still the previous boundary. With a complete log (`0`) the newest snapshot is restored with `FromFirstCommand`; with a log compacted up to an earlier snapshot, that earlier snapshot, still present because older snapshots are deleted only after compaction, is restored with `AfterSnapshot`. Using the new snapshot here with either mode would apply commands twice or skip them.
+- Stopped after compaction, before the deletion: `CompactedThrough` names the new snapshot; the older files are merely left over.
+
+Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the snapshot that matches the log's compaction boundary until the log is compacted up to a newer, durably published one:
+
+- Write the temporary file in the same directory as the snapshots. `File.Move(..., overwrite: true)` replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
 - `Flush(flushToDisk: true)` makes the file contents durable before the rename, so the rename never publishes a file whose data is still in the page cache.
 - On POSIX filesystems the rename is a change to the containing directory and survives power loss only after that directory is also fsynced: open the directory read-only (`open(dir, O_RDONLY | O_DIRECTORY)`, through P/Invoke or a library such as `Mono.Posix`), call `fsync` on it, then close it. .NET offers no managed API for this. On Windows there is no directory fsync and `File.Move` does not request write-through; when the rename must be durable before the log is compacted, call `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` through P/Invoke instead, which returns only after the move is on disk.
 - Network filesystems and some container volume drivers may not honour these guarantees; keep snapshots on a local or block-backed volume whose atomic-rename and fsync semantics are documented.
