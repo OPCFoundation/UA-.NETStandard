@@ -73,10 +73,11 @@ namespace Opc.Ua.Types.Tests.Wot
             NodeIdAlias[] second = [Alias("X", "i=47")];
             NodeIdAlias[] reordered = [Alias("Y", "i=1"), Alias("X", "i=45")];
             NodeIdAlias[] split = [Alias("XY", "i=45")];
-            NodeIdAlias[][] sequences = [first, second, reordered, split, null!, []];
+            NodeIdAlias[] duplicate = [Alias("X", "i=47"), Alias("X", "i=45")];
+            NodeIdAlias[]?[] sequences = [first, second, reordered, split, null, [], duplicate];
 
             var indexes = new List<Dictionary<string, UANode?>>();
-            foreach (NodeIdAlias[] sequence in sequences)
+            foreach (NodeIdAlias[]? sequence in sequences)
             {
                 Dictionary<string, UANode?> cached = derivations.GetFactIndex(context, sequence, Resolver(sequence));
                 Dictionary<string, UANode?> uncached = derivations.GetFactIndex(oracle, sequence, Resolver(sequence));
@@ -96,6 +97,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(indexes[3].ContainsKey("id:X"), Is.True);
             Assert.That(indexes[3].ContainsKey("id:i=45"), Is.False);
             Assert.That(indexes[3], Is.Not.SameAs(indexes[0]));
+            Assert.That(indexes[6].ContainsKey("id:i=47"), Is.True);
+            Assert.That(indexes[6].ContainsKey("id:i=45"), Is.False);
+            Assert.That(indexes[6], Is.Not.SameAs(indexes[1]));
         }
 
         [Test]
@@ -133,7 +137,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(fresh.ContainsKey("id:ns=1;s=Added"), Is.True);
             Assert.That(after.GetIdentities(context).NodeIds, Does.Contain("ns=1;s=Added"));
         }
-        private static INodeSetAliasResolver Resolver(NodeIdAlias[] aliases)
+
+        private static INodeSetAliasResolver Resolver(NodeIdAlias[]? aliases)
         {
             return NodeSetDeclaredAliases.FromNodeSet(new UANodeSet { Aliases = aliases }, WotNodeSetAliases.Instance);
         }
