@@ -55,9 +55,11 @@ namespace Opc.Ua.Client.FileSystem
         /// statuses and correctly typed outputs are required. Once a valid file
         /// NodeId and UInt32 handle have been returned, exactly one Close is
         /// attempted, even if another output, reading, writing or cancellation
-        /// fails. Close has a fresh, independent five-second deadline. A managed
-        /// session is pinned to its current underlying session for the transfer;
-        /// a replacement session is never used to close an old handle.
+        /// fails. Close uses the FileType declaration method directly, with a
+        /// fresh, independent five-second deadline. A managed session uses one
+        /// captured <see cref="SessionRequestContext"/> throughout the transfer
+        /// and cleanup; recovery invalidates it rather than sending an old
+        /// handle through a replacement session.
         /// </para>
         /// <para>
         /// The destination and borrowed session are never closed or disposed.
@@ -110,25 +112,54 @@ namespace Opc.Ua.Client.FileSystem
             int chunkSize = Math.Min(options.ChunkSize, MaximumBoundedReadChunkSize);
             ct.ThrowIfCancellationRequested();
 
-            ISession session = Session is ManagedSession managed ? managed.InnerSession : Session;
+            SessionRequestContext? requestContext = Session is ManagedSession
+                ? await SessionRequestContext.CaptureAsync(Session, ct).ConfigureAwait(false)
+                : null;
+            try
+            {
+                return await CopyGeneratedFileAsync(
+                    requestContext?.Session ?? Session, generateOptions, destination, maxBytes, chunkSize, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (requestContext != null)
+                {
+                    await requestContext.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask<long> CopyGeneratedFileAsync(
+            ISession session,
+            Variant generateOptions,
+            Stream destination,
+            long maxBytes,
+            int chunkSize,
+            CancellationToken ct)
+        {
             NodeId sessionId = session.SessionId;
             ITelemetryContext telemetry = session.MessageContext.Telemetry;
             var transfer = new TemporaryFileTransferTypeClient(session, ObjectId, telemetry);
             NodeId generateMethod = await ResolveBoundedReadMethodAsync(
                 transfer, sessionId, BrowseNames.GenerateFileForRead, ct).ConfigureAwait(false);
-            CallResponse generatedResponse = await CallBoundedReadMethodAsync(
+            CallResponse generatedResponse = await SendBoundedReadMethodAsync(
                 transfer,
                 sessionId,
                 generateMethod,
                 [generateOptions],
                 ct).ConfigureAwait(false);
-            ArrayOf<Variant> generated = generatedResponse.Results[0].OutputArguments;
+            ArrayOf<Variant> generated =
+                generatedResponse.Results.Count > 0 && generatedResponse.Results[0] is { } generationResult
+                    ? generationResult.OutputArguments
+                    : default;
 
             if (generated.Count < 2 ||
                 !generated[0].TryGetValue(out NodeId fileNodeId) ||
                 fileNodeId.IsNull ||
                 !generated[1].TryGetValue(out uint handle))
             {
+                _ = GetBoundedReadOutputs(generatedResponse, 1);
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
                     "GenerateFileForRead did not return a valid file NodeId and UInt32 handle.");
@@ -207,7 +238,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 long remaining = maxBytes - copied;
                 int length = remaining < chunkSize ? (int)remaining + 1 : chunkSize;
-                CallResponse response = await CallBoundedReadMethodAsync(
+                CallResponse response = await SendBoundedReadMethodAsync(
                     file,
                     sessionId,
                     readMethod,
@@ -257,43 +288,14 @@ namespace Opc.Ua.Client.FileSystem
             uint handle,
             CancellationToken ct)
         {
-            EnsureBoundedReadSession(file.Session, sessionId);
-            NodeId closeMethod = MethodIds.FileType_Close;
-            Exception? resolutionFailure = null;
-            try
+            CallResponse response = await SendBoundedReadMethodAsync(
+                file, sessionId, MethodIds.FileType_Close, [Variant.From(handle)], ct).ConfigureAwait(false);
+            ArrayOf<Variant> closed = GetBoundedReadOutputs(response, 1);
+            if (closed.Count != 0)
             {
-                closeMethod = await ResolveBoundedReadMethodAsync(
-                    file, sessionId, BrowseNames.Close, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // Even failed metadata must not prevent the one Close attempt:
-                // Part 4 permits the FileType declaration MethodId as well.
-                resolutionFailure = ex;
-            }
-
-            try
-            {
-                CallResponse response = await CallBoundedReadMethodAsync(
-                    file, sessionId, closeMethod, [Variant.From(handle)], ct).ConfigureAwait(false);
-                ArrayOf<Variant> closed = GetBoundedReadOutputs(response, 1);
-                if (closed.Count != 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "File Close returned unexpected output arguments.");
-                }
-            }
-            catch (Exception closeFailure) when (resolutionFailure is not null)
-            {
-                throw new AggregateException(
-                    "Resolving the Close method and closing the temporary file both failed.",
-                    resolutionFailure,
-                    closeFailure);
-            }
-            if (resolutionFailure is not null)
-            {
-                ExceptionDispatchInfo.Capture(resolutionFailure).Throw();
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "File Close returned unexpected output arguments.");
             }
         }
 
@@ -427,7 +429,7 @@ namespace Opc.Ua.Client.FileSystem
             return node;
         }
 
-        private static async ValueTask<CallResponse> CallBoundedReadMethodAsync(
+        private static async ValueTask<CallResponse> SendBoundedReadMethodAsync(
             ObjectTypeClient proxy,
             NodeId sessionId,
             NodeId methodId,
@@ -454,17 +456,20 @@ namespace Opc.Ua.Client.FileSystem
             {
                 throw new ServiceResultException(StatusCodes.BadUnknownResponse);
             }
-            ValidateBoundedReadHeader(response.ResponseHeader);
-            ClientBase.ValidateResponse(response.Results, requests);
-            CallMethodResult result = response.Results[0];
-            RequireBoundedReadGoodStatus(result.StatusCode);
             return response;
         }
 
         private static ArrayOf<Variant> GetBoundedReadOutputs(CallResponse response, int inputCount)
         {
+            ValidateBoundedReadHeader(response.ResponseHeader);
+            if (response.Results.Count != 1 || response.Results[0] is not { } result)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server did not return exactly one method result.");
+            }
+            RequireBoundedReadGoodStatus(result.StatusCode);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, response.Results);
-            CallMethodResult result = response.Results[0];
             if (result.InputArgumentResults.Count != 0)
             {
                 if (result.InputArgumentResults.Count != inputCount)
