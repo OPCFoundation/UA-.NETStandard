@@ -385,7 +385,7 @@ namespace Opc.Ua.Security.Pkcs11
             // A key algorithm without parameters compares as empty parameters.
             byte[]? parametersA = a.PublicKey.EncodedParameters?.RawData;
             byte[]? parametersB = b.PublicKey.EncodedParameters?.RawData;
-            return parametersA.AsSpan().SequenceEqual(parametersB) &&
+            return parametersA.AsSpan().SequenceEqual(parametersB.AsSpan()) &&
                 a.PublicKey.EncodedKeyValue.RawData.AsSpan()
                     .SequenceEqual(b.PublicKey.EncodedKeyValue.RawData);
         }
