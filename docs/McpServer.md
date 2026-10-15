@@ -65,7 +65,7 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 | Service Set | Tools | Description |
 |---|---|---|
-| **Connection** | `GetEndpoints`, `Connect`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
+| **Connection** | `GetEndpoints`, `Connect`, `ConnectCertificate`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
 | **Attribute** | `Read`, `Write`, `HistoryRead`, `HistoryUpdate` | Read/write node attributes and historical data |
 | **View** | `Browse`, `BrowseNext`, `TranslateBrowsePaths`, `RegisterNodes`, `UnregisterNodes`, `QueryFirst`, `QueryNext` | Navigate and query the address space |
 | **Node Management** | `AddNodes`, `AddReferences`, `DeleteNodes`, `DeleteReferences` | Modify the address space |
@@ -696,12 +696,13 @@ $env:McpServer__CertificateIdentities__observer__StorePath = 'D:\OpcUaIdentities
 $env:McpServer__CertificateIdentities__observer__SubjectName = 'CN=PlantObserver'
 ```
 
-Call `Connect` with `authType: "Certificate"` and `certificateIdentity: "observer"`.
+Call `ConnectCertificate` with the `endpointUrl` and `certificateIdentity: "observer"`.
+`Connect` retains the existing anonymous/username arguments; certificate login has its own compact tool.
 Tool arguments cannot supply certificate-store paths, private keys or key passwords.
 An embedding host can inject `ICertificatePasswordProvider` for protected keys.
 Missing, unknown or ambiguous references fail rather than falling back to another identity.
 Application-certificate trust and server-side user authorization still apply independently;
-keep `autoAcceptCerts: false`. Only expose configured identities to trusted MCP callers.
+`ConnectCertificate` never enables automatic trust. Only expose configured identities to trusted MCP callers.
 
 ### Typed method arguments and structured values
 

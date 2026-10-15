@@ -48,14 +48,11 @@ namespace Opc.Ua.Mcp.Tools
         /// Discover available endpoints of an OPC UA server.
         /// </summary>
         [McpServerTool(Name = "GetEndpoints")]
-        [Description("Discover available endpoints of an OPC UA server, including security modes, " +
-            "policies, and supported authentication methods. Does not require an active session. " +
-            "Call this before Connect to see what's available. Returns JSON with an endpoints array " +
-            "(url, security mode/policy, supported user identity token types); on failure returns " +
-            "{error:true, statusCode, message}.")]
+        [Description("Discover endpoints before connecting; no session required. Returns JSON endpoints " +
+            "with URL, security mode/policy and user token types, or {error:true, statusCode, message}.")]
         public static async Task<string> GetEndpointsAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Server discovery URL, e.g. 'opc.tcp://localhost:62541/Quickstarts/ReferenceServer'")] string endpointUrl,
+            [Description("Discovery URL, e.g. opc.tcp://localhost:4840.")] string endpointUrl,
             CancellationToken ct = default)
         {
             try
@@ -108,9 +105,56 @@ namespace Opc.Ua.Mcp.Tools
         }
 
         /// <summary>
-        /// Connect to an OPC UA server.
+        /// Connects using the established anonymous or username authentication arguments.
         /// </summary>
+        [McpServerTool(Name = "Connect")]
+        [Description("Connect anonymously or with username/password; defaults to the strongest endpoint. " +
+            "For X.509 use ConnectCertificate. Returns a confirmation with session name/ID and security settings, " +
+            "or JSON {error:true, statusCode, message}.")]
         public static Task<string> ConnectAsync(
+            OpcUaSessionManager sessionManager,
+            [Description("Server URL, e.g. opc.tcp://localhost:4840.")] string endpointUrl,
+            [Description("None, Sign or SignAndEncrypt; default strongest.")]
+            string? securityMode = null,
+            [Description("Policy, e.g. Basic256Sha256; default automatic.")]
+            string? securityPolicy = null,
+            [Description("Anonymous (default) or Username.")] string authType = "Anonymous",
+            [Description("Username when authType is Username.")] string? username = null,
+            [Description("Password when authType is Username.")] string? password = null,
+            [Description("Trust unknown server certificates for testing only; default false.")]
+            bool autoAcceptCerts = false,
+            [Description("Optional session name; default derived from endpoint.")] string? name = null,
+            CancellationToken ct = default)
+        {
+            return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
+                authType, username, password, autoAcceptCerts, name, certificateIdentity: null, ct);
+        }
+
+        /// <summary>
+        /// Connects with a named, host-provisioned X.509 identity and strict server-certificate validation.
+        /// </summary>
+        [McpServerTool(Name = "ConnectCertificate")]
+        [Description("Connect with a host-approved X.509 user identity. Server certificates must be trusted; " +
+            "no keys, passwords or store paths are accepted. Returns session name, ID and security settings, " +
+            "or JSON {error:true, statusCode, message}.")]
+        public static Task<string> ConnectCertificateAsync(
+            OpcUaSessionManager sessionManager,
+            [Description("Server URL, e.g. opc.tcp://localhost:4840.")] string endpointUrl,
+            [Description("Exact host-configured identity name, e.g. observer.")] string certificateIdentity,
+            [Description("None, Sign or SignAndEncrypt; default strongest.")] string? securityMode = null,
+            [Description("Policy, e.g. Basic256Sha256; default automatic.")]
+            string? securityPolicy = null,
+            [Description("Optional session name; default derived from endpoint.")] string? name = null,
+            CancellationToken ct = default)
+        {
+            return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
+                "Certificate", null, null, false, name, certificateIdentity, ct);
+        }
+
+        /// <summary>
+        /// Retains the C# connection overload accepting every authentication option.
+        /// </summary>
+        public static async Task<string> ConnectAsync(
             OpcUaSessionManager sessionManager,
             string endpointUrl,
             string? securityMode,
@@ -120,38 +164,7 @@ namespace Opc.Ua.Mcp.Tools
             string? password,
             bool autoAcceptCerts,
             string? name,
-            CancellationToken ct)
-        {
-            return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
-                authType, username, password, autoAcceptCerts, name, certificateIdentity: null, ct);
-        }
-
-        /// <summary>
-        /// Connects with optional named, host-provisioned X.509 user-certificate authentication.
-        /// </summary>
-        [McpServerTool(Name = "Connect")]
-        [Description("Connect to an OPC UA server. For simplest usage, provide just the endpointUrl " +
-            "and it will auto-select the most secure endpoint with anonymous authentication. " +
-            "Use GetEndpoints first to discover available security configurations and auth methods, " +
-            "then specify securityMode/securityPolicy to select a specific endpoint. Certificate authentication " +
-            "requires a host-configured certificateIdentity name; no private key or store path is accepted. " +
-            "Returns a human-readable " +
-            "confirmation string with the resolved session name, security mode/policy, and session ID; on " +
-            "failure returns JSON {error:true, statusCode, message}.")]
-        public static async Task<string> ConnectAsync(
-            OpcUaSessionManager sessionManager,
-            [Description("The OPC UA server endpoint URL")] string endpointUrl,
-            [Description("Security mode filter: 'None', 'Sign', or 'SignAndEncrypt'. " +
-                "If omitted, selects the most secure available endpoint.")] string? securityMode = null,
-            [Description("Security policy filter: e.g. 'Basic256Sha256', 'Aes128_Sha256_RsaOaep', " +
-                "'Aes256_Sha256_RsaPss', 'None'. Used with securityMode to select a specific endpoint.")] string? securityPolicy = null,
-            [Description("Authentication type: 'Anonymous' (default), 'Username', or 'Certificate'")] string authType = "Anonymous",
-            [Description("Username for 'Username' authentication")] string? username = null,
-            [Description("Password for 'Username' authentication")] string? password = null,
-            [Description("Auto-accept untrusted server certificates (for testing only, default: false)")] bool autoAcceptCerts = false,
-            [Description("Session name (auto-generated from endpoint URL if omitted)")] string? name = null,
-            [Description("Exact host-configured X.509 user identity name; required for Certificate authentication. " +
-                "Not a certificate, password, or file path.")] string? certificateIdentity = null,
+            string? certificateIdentity,
             CancellationToken ct = default)
         {
             try
@@ -187,8 +200,7 @@ namespace Opc.Ua.Mcp.Tools
         /// Disconnect from the current OPC UA server.
         /// </summary>
         [McpServerTool(Name = "Disconnect")]
-        [Description("Disconnect from the current OPC UA server session. Returns a human-readable confirmation " +
-            "string naming the session that was disconnected.")]
+        [Description("Close one OPC UA session. Returns a confirmation naming the disconnected session.")]
         public static Task<string> DisconnectAsync(
             OpcUaSessionManager sessionManager,
             [Description("Session name to disconnect (defaults to the only active session)")] string? name = null,
@@ -201,9 +213,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Get the current connection status.
         /// </summary>
         [McpServerTool(Name = "GetConnectionStatus")]
-        [Description("Get the connection status of one or all sessions: whether each is currently connected, and " +
-            "if so its endpoint URL, session name, session ID, and server URI. Does not open or change any " +
-            "connection. Returns a human-readable status string (one line per session, or 'Not connected.').")]
+        [Description("Inspect one or all sessions without changing them. Returns status lines with endpoint, " +
+            "session name/ID and server URI, or 'Not connected.'.")]
         public static string GetConnectionStatus(
             OpcUaSessionManager sessionManager,
             [Description("Session name to check (defaults to all sessions)")] string? name = null)

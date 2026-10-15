@@ -55,7 +55,7 @@ authority.
 
 ## Arguments and JSON results
 
-`Connect` returns a session name. Pass `sessionName` on later calls; omission is
+`Connect` and `ConnectCertificate` return a session name. Pass `sessionName` on later calls; omission is
 valid only when one session is connected. `Disconnect` closes only the selected
 session. For example, `ReadValue` accepts:
 
@@ -63,8 +63,9 @@ session. For example, `ReadValue` accepts:
 { "nodeId": "ns=2;s=Temperature", "sessionName": "plant" }
 ```
 
-Certificate authentication uses a non-secret `certificateIdentity` name configured
-by the host, alongside `authType: "Certificate"`. The executable reads
+`Connect` keeps its anonymous/username arguments. For certificate authentication,
+use `ConnectCertificate` with a non-secret `certificateIdentity` name configured
+by the host. It always validates server trust and has no auto-accept switch. The executable reads
 `McpServer:CertificateIdentities:<name>` with `StoreType`, `StorePath`, and exactly
 one of `SubjectName` or `Thumbprint`. Embedders populate
 `OpcUaMcpOptions.CertificateIdentities` with `McpCertificateIdentity` entries and
