@@ -186,6 +186,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Prefix + "Pump2.MotorOverheatAlarm"
                 }));
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            Assert.That(source.Items?.Length, Is.EqualTo(108));
+            Assert.That(restored.Value!.Items?.Length, Is.EqualTo(108));
             Assert.That(
                 WotNodeSetConverter.CompareDocumentSet(source, restored.Value!, options).AreEquivalent,
                 Is.True);
