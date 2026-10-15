@@ -44,10 +44,11 @@ attributes on referenced assemblies and uses them to:
    cross-namespace type references emitted into the local code compile
    correctly. The target namespace itself is never rewritten.
 4. **Resolve ownership** by preferring the payload-bearing producer over
-   payloadless transitive dependency entries. Matching dependency metadata
-   describes that producer; it is not a competing provider and does not produce
-   `MODELGEN012`. Distinct producers or conflicting metadata still produce that
-   info diagnostic. Among competing entries, the generator applies the
+   payloadless transitive dependency entries. A dependency with the same prefix,
+   version, publication date, and name describes that producer; it is not a
+   competing provider and does not produce `MODELGEN012`. Distinct producers or
+   conflicting metadata still produce that info diagnostic. Among competing
+   entries, the generator applies the
    OPC 10000-6 version/publication-date ordering, then the ordinal assembly name
    (smallest first) to make equal-version producer selection deterministic.
 5. **Import the type-table payload** on self-declaration entries so the

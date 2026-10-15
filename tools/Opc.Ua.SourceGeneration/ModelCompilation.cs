@@ -464,27 +464,23 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 int cmp = CompareReferencedModels(candidate, existing);
+                if (cmp == 0)
+                {
+                    continue;
+                }
+                ModelDependencyReference selected = cmp > 0 ? candidate : existing;
+                ModelDependencyReference ignored = cmp > 0 ? existing : candidate;
                 if (cmp > 0)
                 {
-                    m_context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            SourceGenerator.ModelDependencyTieBreak,
-                            Location.None,
-                            candidate.ModelUri,
-                            candidate.AssemblyName,
-                            existing.AssemblyName));
                     map[candidate.ModelUri] = candidate;
                 }
-                else if (cmp < 0)
-                {
-                    m_context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            SourceGenerator.ModelDependencyTieBreak,
-                            Location.None,
-                            existing.ModelUri,
-                            existing.AssemblyName,
-                            candidate.AssemblyName));
-                }
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.ModelDependencyTieBreak,
+                        Location.None,
+                        selected.ModelUri,
+                        selected.AssemblyName,
+                        ignored.AssemblyName));
             }
             return map;
         }
