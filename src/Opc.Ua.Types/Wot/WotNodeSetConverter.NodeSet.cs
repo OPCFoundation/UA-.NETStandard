@@ -303,7 +303,8 @@ namespace Opc.Ua.Wot
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
             string? documentHref = null,
             HashSet<string>? projectedNodeIds = null,
-            bool foldEventSourceType = true)
+            bool foldEventSourceType = true,
+            WotReferenceTypeNames? referenceTypes = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using var output = new MemoryStream();
@@ -381,11 +382,13 @@ namespace Opc.Ua.Wot
                         BuildIndex(nodeSet),
                         defaultLocale);
                 }
-                WriteDataTypeDefinitions(writer, nodeSet, defaultLocale, documentHref is null ? null : root);
+                referenceTypes ??= WotReferenceTypeNames.Build(nodeSet);
+                WriteDataTypeDefinitions(
+                    writer, nodeSet, referenceTypes, defaultLocale, documentHref is null ? null : root);
                 // A preservation payload keeps the actual type definition, so its readable
                 // binding must not substitute the event carrier's supertype.
                 WriteAffordances(
-                    writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
+                    writer, nodeSet, referenceTypes, root, diagnostics, options, defaultLocale, parentHref,
                     foldEventSourceType && nativeProjection is null && !emitEnvelope
                         ? FoldedTypeDefinitionHref(root, nodeSet)
                         : TypeDefinitionHref(root, nodeSet),
@@ -768,6 +771,7 @@ namespace Opc.Ua.Wot
         private static void WriteAffordances(
             Utf8JsonWriter writer,
             UANodeSet nodeSet,
+            WotReferenceTypeNames referenceTypeNames,
             UANode? root,
             List<WotDiagnostic> diagnostics,
             WotNodeSetConverterOptions options,
@@ -804,7 +808,6 @@ namespace Opc.Ua.Wot
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
             var typedComponentLinks = new List<TypedComponentLink>();
-            var referenceTypeNames = WotReferenceTypeNames.Build(nodeSet);
             ArrayOf<Reference> rootReferences = referenceTypeNames.GetReferences(root);
             var affordanceIds = new HashSet<string>(StringComparer.Ordinal);
             var multipleOwnershipTargets = new HashSet<string>(StringComparer.Ordinal);

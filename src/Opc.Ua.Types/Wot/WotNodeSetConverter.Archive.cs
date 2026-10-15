@@ -83,6 +83,7 @@ namespace Opc.Ua.Wot
                 baseline = archiveContext;
                 index = BuildArchivedFactIndex(baseline, aliases);
             }
+            var referenceTypes = WotReferenceTypeNames.Build(baseline);
 
             Dictionary<string, UANode?> resolved = ResolvePreservedAffordances(
                 document, index, identities, aliases, diagnostics);
@@ -109,7 +110,8 @@ namespace Opc.Ua.Wot
                 }
             }
             using WotDocument? readable = needsProjection
-                ? CreatePreservedReadableProjection(document, baseline, root, projectedNodes, options, diagnostics)
+                ? CreatePreservedReadableProjection(
+                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics)
                 : null;
             if (needsProjection && readable is null)
             {
@@ -117,18 +119,18 @@ namespace Opc.Ua.Wot
             }
             JsonElement regenerated = readable?.RootElement ?? default;
             CompareArchivedNode(
-                document, document.RootElement, regenerated, root, baseline, index,
+                document, document.RootElement, regenerated, root, baseline, referenceTypes, index,
                 identities, aliases, string.Empty, isRoot: true, diagnostics, readable);
 
             CompareArchivedAffordances(
                 document, document.Properties, "properties", regenerated,
-                root, baseline, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
             CompareArchivedAffordances(
                 document, document.Actions, "actions", regenerated,
-                root, baseline, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
             CompareArchivedAffordances(
                 document, document.Events, "events", regenerated,
-                root, baseline, index, identities, aliases, diagnostics, resolved, readable);
+                root, baseline, referenceTypes, index, identities, aliases, diagnostics, resolved, readable);
         }
 
         private static Dictionary<string, UANode?> ResolvePreservedAffordances(
@@ -184,6 +186,7 @@ namespace Opc.Ua.Wot
         private static WotDocument? CreatePreservedReadableProjection(
             WotDocument document,
             UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             UANode root,
             HashSet<string> projectedNodes,
             WotNodeSetConverterOptions options,
@@ -195,7 +198,7 @@ namespace Opc.Ua.Wot
                 byte[] regenerated = WriteReadableDocument(
                     baseline, root, document.Title ?? string.Empty, explicitTitle: true, [],
                     nativeProjection: null, emitEnvelope: false, options, projectionDiagnostics,
-                    projectedNodeIds: projectedNodes);
+                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes);
                 if (HasErrors(projectionDiagnostics))
                 {
                     return null;
@@ -288,6 +291,7 @@ namespace Opc.Ua.Wot
             JsonElement regenerated,
             UANode root,
             UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             Dictionary<string, UANode?> index,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
@@ -295,7 +299,6 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode?> resolved,
             WotDocument? regeneratedDocument)
         {
-            var referenceTypes = WotReferenceTypeNames.Build(baseline);
             JsonElement generatedMap = default;
             if (regenerated.ValueKind == JsonValueKind.Object)
             {
@@ -388,7 +391,7 @@ namespace Opc.Ua.Wot
                 }
                 generatedNodes.TryGetValue(ResolveArchivedAlias(node.NodeId, aliases), out JsonElement expected);
                 CompareArchivedNode(
-                    document, affordance.Value, expected, node, baseline, index, identities,
+                    document, affordance.Value, expected, node, baseline, referenceTypes, index, identities,
                     aliases, pointer, isRoot: false, diagnostics, regeneratedDocument);
 
                 bool HasOwner(string candidate)
@@ -442,6 +445,7 @@ namespace Opc.Ua.Wot
             JsonElement regenerated,
             UANode node,
             UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             Dictionary<string, UANode?> index,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
@@ -577,13 +581,14 @@ namespace Opc.Ua.Wot
                         break;
                     case "links":
                         CompareArchivedLinks(
-                            document, member.Value, node, baseline, index, identities, aliases, location, diagnostics);
+                            document, member.Value, node, baseline, referenceTypes, index, identities, aliases,
+                            location, diagnostics);
                         break;
                     case "uav:hasComponent":
                     case "uav:componentOf":
                         CompareArchivedComponents(
                             document, member.Value, member.Name == "uav:hasComponent",
-                            node, baseline, index, identities, aliases, location, diagnostics, authored);
+                            node, referenceTypes, index, identities, aliases, location, diagnostics, authored);
                         break;
                     case "const":
                     case "default":
@@ -955,7 +960,7 @@ namespace Opc.Ua.Wot
             JsonElement targets,
             bool isForward,
             UANode node,
-            UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             Dictionary<string, UANode?> nodes,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
@@ -967,7 +972,6 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            var referenceTypes = WotReferenceTypeNames.Build(baseline);
             int index = 0;
             foreach (JsonElement target in targets.EnumerateArray())
             {
@@ -991,6 +995,7 @@ namespace Opc.Ua.Wot
             JsonElement links,
             UANode node,
             UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             Dictionary<string, UANode?> nodes,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
@@ -1096,7 +1101,7 @@ namespace Opc.Ua.Wot
                 if (link.TryGetProperty("uav:declaration", out JsonElement declaration))
                 {
                     CompareArchivedComponentDeclaration(
-                        document, declaration, node, baseline, nodes, identities, aliases,
+                        document, declaration, node, baseline, referenceTypes, nodes, identities, aliases,
                         normalizedReferenceType, isForward, target, location, diagnostics);
                     continue;
                 }
@@ -1113,6 +1118,7 @@ namespace Opc.Ua.Wot
             JsonElement authored,
             UANode owner,
             UANodeSet baseline,
+            WotReferenceTypeNames referenceTypes,
             Dictionary<string, UANode?> nodes,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
@@ -1122,7 +1128,6 @@ namespace Opc.Ua.Wot
             string pointer,
             List<WotDiagnostic> diagnostics)
         {
-            var referenceTypes = WotReferenceTypeNames.Build(baseline);
             if (owner is not (UAObjectType or UAVariableType) ||
                 !isForward ||
                 referenceType is null ||
@@ -1155,7 +1160,7 @@ namespace Opc.Ua.Wot
                 return;
             }
             CompareArchivedNode(
-                document, authored, default, declaration, baseline, nodes, identities, aliases,
+                document, authored, default, declaration, baseline, referenceTypes, nodes, identities, aliases,
                 declarationPointer, isRoot: false, diagnostics);
         }
 

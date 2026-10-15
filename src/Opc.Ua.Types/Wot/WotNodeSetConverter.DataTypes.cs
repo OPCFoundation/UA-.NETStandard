@@ -463,6 +463,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             UADataType dataType,
             UANodeSet nodeSet,
+            WotReferenceTypeNames referenceTypes,
             out bool complete)
         {
             complete = true;
@@ -471,7 +472,6 @@ namespace Opc.Ua.Wot
                 return EncodingPresence.None;
             }
             var aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
-            var referenceTypes = WotReferenceTypeNames.Build(nodeSet);
             Dictionary<string, UANode> nodes = BuildIndex(nodeSet);
             EncodingPresence presence = EncodingPresence.None;
             foreach (Reference reference in referenceTypes.GetReferences(dataType))
@@ -2056,6 +2056,7 @@ namespace Opc.Ua.Wot
         private static void WriteDataTypeDefinitions(
             Utf8JsonWriter writer,
             UANodeSet nodeSet,
+            WotReferenceTypeNames referenceTypes,
             string defaultLocale,
             UANode? documentOwner = null)
         {
@@ -2070,7 +2071,7 @@ namespace Opc.Ua.Wot
             writer.WriteStartArray();
             foreach (UADataType dataType in dataTypes)
             {
-                WriteDataTypeDefinition(writer, dataType, nodeSet, defaultLocale);
+                WriteDataTypeDefinition(writer, dataType, nodeSet, referenceTypes, defaultLocale);
             }
             writer.WriteEndArray();
         }
@@ -2079,6 +2080,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             UADataType dataType,
             UANodeSet nodeSet,
+            WotReferenceTypeNames referenceTypes,
             string defaultLocale)
         {
             Export.DataTypeDefinition? definition = dataType.Definition;
@@ -2104,7 +2106,8 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteBoolean("uav:isAbstract", true);
             }
-            EncodingPresence presence = WriteEncodingIdentities(writer, dataType, nodeSet, out bool completeEncodings);
+            EncodingPresence presence = WriteEncodingIdentities(
+                writer, dataType, nodeSet, referenceTypes, out bool completeEncodings);
             if (!dataType.IsAbstract && definition is not null && !isEnumeration && completeEncodings)
             {
                 if ((presence & EncodingPresence.Binary) == 0)
