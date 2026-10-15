@@ -394,6 +394,49 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        /// <summary>
+        /// Counts a RID-specific Debug tool payload as Debug in a mixed package set.
+        /// </summary>
+        [TestCase("win-x64")]
+        [TestCase("linux-x64")]
+        [TestCase("osx-arm64")]
+        public async Task RequireDebugAcceptsARuntimeSpecificDebugToolPayloadAsync(string runtimeIdentifier)
+        {
+            using PackageSetFixture fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
+            fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.{runtimeIdentifier}", "2.0.0");
+
+            ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.Zero, result.Output);
+                Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(1));
+                Assert.That(result.Manifest.Value.GetProperty("packageCount").GetInt32(), Is.EqualTo(2));
+            });
+        }
+
+        /// <summary>
+        /// Does not let a RID-specific Debug payload masquerade as a Release package.
+        /// </summary>
+        [TestCase("win-x64")]
+        [TestCase("linux-x64")]
+        [TestCase("osx-arm64")]
+        public async Task RequireDebugRejectsADebugOnlySetWithRuntimeToolPayloadAsync(string runtimeIdentifier)
+        {
+            using PackageSetFixture fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
+            fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.{runtimeIdentifier}", "2.0.0");
+
+            ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.Not.Zero);
+                Assert.That(result.Output, Does.Contain("does not contain any Release package IDs"));
+            });
+        }
+
         [Test]
         public async Task RejectsAnOrphanedSymbolPackageAsync()
         {

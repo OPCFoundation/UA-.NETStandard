@@ -64,7 +64,7 @@ namespace Generators
     /// </remarks>
     public partial class GeneratorNodeManager
     {
-        private const string PowerhouseRootLayerIdentifier = "asset-repo/Powerhouse.usd";
+        private const string PowerhouseRootLayerIdentifier = "Powerhouse.usda";
         private const string GeneratorsScopePrimPath = "/Powerhouse/Generators";
         private const string GeneratorAssetReference = "@generator.usda@</Generator>";
         private const double BaySpacingMetres = 6.0;
@@ -113,10 +113,10 @@ namespace Generators
                     digest = sha.ComputeHash(rootLayerBytes);
                 }
 #pragma warning restore CA1850
-                m_powerhouseStage.CreateOrReplaceRootLayerDigest(SystemContext, null!)
-                    .Value = (ByteString)digest;
-                m_powerhouseStage.CreateOrReplaceRootLayerDigestAlgorithm(SystemContext, null!)
-                    .Value = OpenUsdDigestAlgorithmEnum.Sha256;
+                m_powerhouseStage.AddRootLayerDigest(SystemContext)
+                    .AddRootLayerDigestAlgorithm(SystemContext);
+                m_powerhouseStage.RootLayerDigest!.Value = (ByteString)digest;
+                m_powerhouseStage.RootLayerDigestAlgorithm!.Value = OpenUsdDigestAlgorithmEnum.Sha256;
 
                 // The facility is a component of the Server Object so any conformant
                 // connector can browse Server -> OpenUSD -> Representations. The

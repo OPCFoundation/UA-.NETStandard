@@ -47,8 +47,6 @@ namespace Opc.Ua.Positioning.Client
     /// </summary>
     public sealed class GlobalPositioningClient
     {
-        private readonly PositioningClientOperations m_operations;
-
         /// <summary>
         /// Creates a GPOS client.
         /// </summary>
@@ -57,8 +55,21 @@ namespace Opc.Ua.Positioning.Client
             ITelemetryContext telemetry)
         {
             m_operations = new PositioningClientOperations(session, telemetry);
-            session.Factory.Builder.AddOpcUaGpos().Commit();
-            session.MessageContext.Factory.Builder.AddOpcUaGpos().Commit();
+            RegisterTypes();
+        }
+
+        /// <summary>
+        /// Creates a GPOS client with strict reads and bounded discovery and structure arrays.
+        /// The supplied session remains owned by the caller.
+        /// </summary>
+        public GlobalPositioningClient(
+            ISession session,
+            ITelemetryContext telemetry,
+            PositioningClientReadOptions options)
+        {
+            options.ThrowIfNull(nameof(options));
+            m_operations = new PositioningClientOperations(session, telemetry, options);
+            RegisterTypes();
         }
 
         /// <summary>
@@ -74,10 +85,9 @@ namespace Opc.Ua.Positioning.Client
         /// <summary>
         /// Standardized GlobalLocations entry point.
         /// </summary>
-        public NodeId GlobalLocationsId => NodeId.Create(
-            Opc.Ua.Gpos.Objects.GlobalLocations,
-            Opc.Ua.Gpos.Namespaces.GPOS,
-            Session.NamespaceUris);
+        public NodeId GlobalLocationsId => m_operations.Strict
+            ? new NodeId(Gpos.Objects.GlobalLocations, m_operations.GetNamespaceIndex(Gpos.Namespaces.GPOS))
+            : NodeId.Create(Gpos.Objects.GlobalLocations, Gpos.Namespaces.GPOS, Session.NamespaceUris);
 
         /// <summary>
         /// Enumerates Zones organized by GlobalLocations.
@@ -120,18 +130,17 @@ namespace Opc.Ua.Positioning.Client
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            DataValue dataValue = await Session.ReadValueAsync(
+            DataValue dataValue = await m_operations.ReadValueAsync(
                 nodeId,
                 cancellationToken).ConfigureAwait(false);
-            GlobalPositionDataType position = DecodeStructure<GlobalPositionDataType>(
-                dataValue,
-                "GlobalPosition");
+            GlobalPositionDataType position = m_operations.DecodeStructure<GlobalPositionDataType>(dataValue);
             (
                 NodeId sourceId,
                 uint coordinateReferenceSystem
             ) = await ReadPositionMetadataAsync(
                 nodeId,
                 cancellationToken).ConfigureAwait(false);
+            m_operations.ValidateGlobalPosition(position, coordinateReferenceSystem);
             return new GlobalPositionValue(
                 nodeId,
                 position,
@@ -148,7 +157,7 @@ namespace Opc.Ua.Positioning.Client
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            ushort rslNamespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort rslNamespaceIndex = m_operations.GetNamespaceIndex(
                 Opc.Ua.Rsl.Namespaces.RSL);
             NodeId positionId = await m_operations.ResolveRequiredChildAsync(
                 nodeId,
@@ -161,12 +170,11 @@ namespace Opc.Ua.Positioning.Client
             bool coherent = false;
             for (int attempt = 0; attempt < 3; attempt++)
             {
-                dataValue = await Session.ReadValueAsync(
+                dataValue = await m_operations.ReadValueAsync(
                     nodeId,
                     cancellationToken).ConfigureAwait(false);
-                location = DecodeStructure<GlobalLocationDataType>(
-                    dataValue,
-                    "GlobalLocation");
+                location = m_operations.DecodeStructure<GlobalLocationDataType>(dataValue);
+                m_operations.ValidateGlobalLocation(location);
                 GlobalPositionDataType componentPosition =
                     await m_operations.ReadStructureAsync<GlobalPositionDataType>(
                         positionId,
@@ -191,6 +199,7 @@ namespace Opc.Ua.Positioning.Client
             ) = await ReadPositionMetadataAsync(
                 positionId,
                 cancellationToken).ConfigureAwait(false);
+            m_operations.ValidateGlobalPosition(location.Position, coordinateReferenceSystem);
             return new GlobalLocationValue(
                 nodeId,
                 location,
@@ -208,7 +217,7 @@ namespace Opc.Ua.Positioning.Client
             GroundControlPointFitOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Opc.Ua.Gpos.Namespaces.GPOS);
             NodeId groundControlPointsId =
                 await m_operations.ResolveRequiredChildAsync(
@@ -224,9 +233,12 @@ namespace Opc.Ua.Positioning.Client
                     .ConfigureAwait(false);
             try
             {
-                return new GroundControlPointFitter(
+                m_operations.ValidateGroundControlPoints(groundControlPoints, options, cancellationToken);
+                GroundControlPointFitResult result = new GroundControlPointFitter(
                     options?.CoordinateReferenceSystem)
                     .Fit(groundControlPoints, options);
+                m_operations.ValidateFit(result);
+                return result;
             }
             catch (ArgumentException ex)
             {
@@ -248,11 +260,16 @@ namespace Opc.Ua.Positioning.Client
             CancellationToken cancellationToken = default)
         {
             globalPosition.ThrowIfNull(nameof(globalPosition));
+            m_operations.ValidateGeographic(
+                globalPosition, angleUnit, options?.CoordinateReferenceSystem is null ||
+                options.CoordinateReferenceSystem is Wgs84CoordinateReferenceSystemTransformer);
             GroundControlPointFitResult transform = await ReadZoneTransformAsync(
                 zoneId,
                 options,
                 cancellationToken).ConfigureAwait(false);
-            return transform.GlobalToLocal(globalPosition, angleUnit);
+            ThreeDCartesianCoordinates result = transform.GlobalToLocal(globalPosition, angleUnit);
+            m_operations.ValidateCartesian(result);
+            return result;
         }
 
         /// <summary>
@@ -266,11 +283,17 @@ namespace Opc.Ua.Positioning.Client
             CancellationToken cancellationToken = default)
         {
             localPosition.ThrowIfNull(nameof(localPosition));
+            m_operations.ValidateCartesian(localPosition);
+            m_operations.ValidateAngleUnit(angleUnit);
             GroundControlPointFitResult transform = await ReadZoneTransformAsync(
                 zoneId,
                 options,
                 cancellationToken).ConfigureAwait(false);
-            return transform.LocalToGlobal(localPosition, angleUnit);
+            S3DGeographicCoordinateDataType result = transform.LocalToGlobal(localPosition, angleUnit);
+            m_operations.ValidateGeographic(
+                result, angleUnit, options?.CoordinateReferenceSystem is null ||
+                options.CoordinateReferenceSystem is Wgs84CoordinateReferenceSystemTransformer);
+            return result;
         }
 
         /// <summary>
@@ -327,9 +350,8 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
-                GlobalPositionDataType position = DecodeStructure<GlobalPositionDataType>(
-                    change.Value,
-                    "GlobalPosition");
+                GlobalPositionDataType position = m_operations.DecodeStructure<GlobalPositionDataType>(change.Value);
+                m_operations.ValidateGlobalPosition(position, coordinateReferenceSystem);
                 yield return new GlobalPositionValue(
                     nodeId,
                     position,
@@ -347,7 +369,7 @@ namespace Opc.Ua.Positioning.Client
                 MonitoringOptions? options,
                 [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            ushort rslNamespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort rslNamespaceIndex = m_operations.GetNamespaceIndex(
                 Opc.Ua.Rsl.Namespaces.RSL);
             NodeId positionId = await m_operations.ResolveRequiredChildAsync(
                 nodeId,
@@ -368,9 +390,9 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
-                GlobalLocationDataType location = DecodeStructure<GlobalLocationDataType>(
-                    change.Value,
-                    "GlobalLocation");
+                GlobalLocationDataType location = m_operations.DecodeStructure<GlobalLocationDataType>(change.Value);
+                m_operations.ValidateGlobalLocation(location);
+                m_operations.ValidateGlobalPosition(location.Position, coordinateReferenceSystem);
                 yield return new GlobalLocationValue(
                     nodeId,
                     location,
@@ -386,7 +408,7 @@ namespace Opc.Ua.Positioning.Client
                 NodeId positionId,
                 CancellationToken cancellationToken)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Opc.Ua.Gpos.Namespaces.GPOS);
             NodeId sourceIdNode = await m_operations.ResolveRequiredChildAsync(
                 positionId,
@@ -411,21 +433,12 @@ namespace Opc.Ua.Positioning.Client
             return (sourceId, coordinateReferenceSystem);
         }
 
-        private T DecodeStructure<T>(
-            DataValue dataValue,
-            string displayName)
-            where T : class, IEncodeable
+        private void RegisterTypes()
         {
-            T value;
-            if (!dataValue.WrappedValue.TryGetValue(
-                out value!,
-                Session.MessageContext))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadTypeMismatch,
-                    $"The {displayName} Variable does not contain a {typeof(T).Name} value.");
-            }
-            return value;
+            Session.Factory.Builder.AddOpcUaGpos().Commit();
+            Session.MessageContext.Factory.Builder.AddOpcUaGpos().Commit();
         }
+
+        private readonly PositioningClientOperations m_operations;
     }
 }

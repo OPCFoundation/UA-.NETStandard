@@ -53,6 +53,34 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed partial class PackageVersionPolicyTests
     {
+        /// <summary>
+        /// Classifies Debug package identities with an optional platform payload suffix.
+        /// </summary>
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.win-x64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.linux-x64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.osx-arm64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.linux-musl-arm64", true)]
+        [TestCase("opcfoundation.netstandard.opc.ua.lens.debug.WIN-X64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Core", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.win-x64", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debugger.win-x64", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.Helpers", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.win-x64.Helpers", false)]
+        public async Task DebugPackageClassificationRecognizesConfigurationAndRuntimeSuffixAsync(
+            string packageId,
+            bool expected)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{ isDebug = (Test-DebugPackageId -PackageId '{{packageId}}') } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.That(result.GetProperty("isDebug").GetBoolean(), Is.EqualTo(expected));
+        }
+
         [Test]
         public async Task TestPreviewPackageIdClassifiesEveryFamilyAndControlIdAsync()
         {

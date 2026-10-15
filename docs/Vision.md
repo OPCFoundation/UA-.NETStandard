@@ -986,13 +986,39 @@ walkable instead of throwing from browse/read paths. It supports the
 following behaviour explicitly:
 
 - On a machine with the native OpenUSD renderer payload present and a
-  usable graphics device, it renders normally and returns encoded PNG /
-  JPEG bytes.
-- On a machine with no graphics device — the normal case on CI — it
-  reports `SceneCameraCaptureBackend.NoRenderingBackend` on
-  `Backend.UnavailableReason` and returns `Bad_NoDataAvailable` for
-  every capture. The sensor still exists in the address space and every
-  browse still works; only the pixel bytes are absent.
+  usable graphics device, it renders normally and returns encoded PNG
+  bytes. Other requested formats return `InvalidRequest`.
+- When every graphics backend probe fails, `Backend.IsAvailable` is
+  false, `Backend.UnavailableReason` explains the failure, and capture
+  returns `SceneCameraCaptureStatus.NoRenderingBackend`. The sensor still
+  exists in the address space and every browse still works; only the
+  pixel bytes are absent.
+
+Initialize the bundled OpenUSD resolver and imaging registries before
+opening stages. In particular, RID-less test hosts can load native
+libraries from `runtimes/<rid>/native` while the manifests are at the
+application output root. Register those trusted, application-bundled
+manifests explicitly; do not use a server-supplied plugin path:
+
+```csharp
+string core = Path.Combine(AppContext.BaseDirectory, "usd", "plugInfo.json");
+string imaging = Path.Combine(AppContext.BaseDirectory, "plugin", "usd", "plugInfo.json");
+if (!File.Exists(core) || !File.Exists(imaging))
+{
+    throw new DirectoryNotFoundException("The bundled OpenUSD runtime manifests are missing.");
+}
+_ = global::OpenUsd.UsdPluginRegistry.Register(core);
+_ = global::OpenUsd.UsdPluginRegistry.Register(imaging);
+```
+
+The `OpenUsdNativeCaptureTests` integration fixture uses the
+same initialization contract to exercise default and named cameras,
+repeated captures, scene replacement, and recovery after a missing camera.
+Registry initialization does not repair missing native libraries or
+nonportable native-library search paths.
+Linux capture hosts also need the system graphics libraries, including
+`libOpenGL.so.0` and the Vulkan loader. The shared CI action provisions
+these prerequisites for the Vision test shards.
 
 The intent is that a client can rely on the address space always being
 walkable, even when the process has no way to produce pixels. The
@@ -1073,7 +1099,20 @@ if (!vision.IsVisionNamespaceAvailable)
 }
 ```
 
+Sensor, calibration, pipeline and result snapshots reject Bad and Uncertain
+quality on members that were returned by a read; an unreadable member is not
+replaced by a successful default. Present members with an incompatible
+data type also fail. In particular, absent or wrongly typed `Detections` and
+`Characteristics` do not become empty observations. An explicitly empty detection
+array is still a valid empty result, and absent optional members remain absent.
+Media status-classification reads retain their separate inline-delivery status
+semantics described in [media gating](#64-media-gating).
+
 ### Discovery
+
+Generated instance folders contain their configured endpoint instances, not
+references back to uninstantiated `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations. The declarations and their references remain in the type model.
 
 ```csharp
 await foreach (VisionNodeEntry sensor in vision.EnumerateSensorsAsync(ct))

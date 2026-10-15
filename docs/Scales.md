@@ -685,6 +685,10 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 
 See [the samples README](../samples/Scales/README.md) for how to run them.
 
+`ScalesServer` also accepts `--host`, `--port`, an absolute `--pki-root`,
+`--autoaccept true|false`, and an optional `--run-seconds` from 1 through 3600.
+Without a runtime limit it keeps the ordinary interactive lifetime.
+
 ## Testing
 
 ```bash

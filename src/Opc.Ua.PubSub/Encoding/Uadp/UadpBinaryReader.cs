@@ -398,7 +398,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="builtInType">Built-in type from metadata.</param>
         /// <param name="valueRank">Value rank from metadata.</param>
         /// <param name="maxStringLength">Per-field <c>MaxStringLength</c>; 0 disables padding.</param>
-        /// <param name="arrayDimensions">Per-field <c>ArrayDimensions</c>; <c>default</c> / empty disables array padding.</param>
+        /// <param name="arrayDimensions">
+        /// Per-field <c>ArrayDimensions</c>; <c>default</c> / empty disables array padding.
+        /// </param>
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded value as a <see cref="Variant"/>.</returns>
         /// <exception cref="ArgumentNullException"></exception>
@@ -412,6 +414,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+
+            if (valueRank > 1)
+            {
+                return UadpRawMatrix.Read(
+                    ref this, builtInType, valueRank, maxStringLength, arrayDimensions, context);
             }
 
             if (valueRank == ValueRanks.Scalar &&
@@ -955,6 +963,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static Variant ReadRawArrayCore(BinaryDecoder decoder, BuiltInType builtInType)
         {
+            if (builtInType is BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
+                BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
+                BuiltInType.StatusCode or BuiltInType.QualifiedName or BuiltInType.LocalizedText or
+                BuiltInType.ExtensionObject or BuiltInType.DataValue)
+            {
+                return decoder.ReadVariantValue(null, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
+            }
             return builtInType switch
             {
                 BuiltInType.Boolean => new Variant(decoder.ReadBooleanArray(null)),

@@ -64,9 +64,14 @@ namespace Opc.Ua.Pumps.Tests
     {
         private static string s_endpointUrl = string.Empty;
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ClientReadsBackEverythingTheServerPublishesAsync(bool composed)
+        /// <summary>
+        /// Reads standalone and composed servers through both bounded and legacy clients.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ClientReadsBackEverythingTheServerPublishesAsync(bool composed, bool bounded)
         {
             IPumpGroupBuilder? liveMeasurements = null;
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -184,7 +189,9 @@ namespace Opc.Ua.Pumps.Tests
                     new Uri(s_endpointUrl),
                     SecurityPolicies.None);
 
-                PumpsClient pumps = session.Pumps(NUnitTelemetryContext.Create());
+                PumpsClient pumps = bounded
+                    ? session.Pumps(NUnitTelemetryContext.Create(), maximumBrowseReferences: 256)
+                    : session.Pumps(NUnitTelemetryContext.Create());
                 Assert.That(pumps.IsSupported, Is.True, "the server publishes the Pumps namespace");
 
                 var discovered = new List<PumpEntry>();

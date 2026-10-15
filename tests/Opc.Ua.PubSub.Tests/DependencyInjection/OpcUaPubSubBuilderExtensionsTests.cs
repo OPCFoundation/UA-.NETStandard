@@ -197,14 +197,21 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 Is.SameAs(keyProvider.Object));
         }
 
+        /// <summary>
+        /// Retains the configured provider without fetching a key until a frame needs it.
+        /// </summary>
         [Test]
-        public async Task AddPubSubFluentAddSecurityKeyProviderBuildConsumesProviderAsync()
+        public async Task AddPubSubFluentAddSecurityKeyProviderDefersKeyLookupUntilUseAsync()
         {
+            using PubSubSecurityKey key = TestSecurityKeyFactory.Create(1, encryptingKeyLength: 32);
             var keyProvider = new Mock<IPubSubSecurityKeyProvider>();
             keyProvider.Setup(static p => p.SecurityGroupId).Returns("group-1");
             keyProvider
                 .Setup(static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<PubSubSecurityKey>(TestSecurityKeyFactory.Create(1)));
+                .Returns(new ValueTask<PubSubSecurityKey>(key));
+            keyProvider
+                .Setup(static p => p.TryGetKeyAsync(1, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubSecurityKey?>(key));
             var services = new ServiceCollection();
             services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
@@ -214,16 +221,34 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 .UseConfiguration(CreateSecuredConfiguration())
                 .AddSecurityKeyProvider(keyProvider.Object));
 
-            await using ServiceProvider sp = services.BuildServiceProvider();
-            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
-
-            Assert.Multiple(() =>
+            ServiceProvider sp = services.BuildServiceProvider();
+            await using (sp.ConfigureAwait(false))
             {
+                IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
                 Assert.That(app.Connections, Has.Count.EqualTo(1));
                 keyProvider.Verify(
                     static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()),
+                    Times.Never);
+
+                PubSubSecurityContext security = sp.GetRequiredService<IPubSubSecurityWrapperResolver>()
+                    .Resolve(app.Connections[0].Configuration) ??
+                    throw new AssertionException("The configured connection has no security context.");
+                byte[] prefix = [0xb1, 0x10, 0, 1, 0, 0, 0, 0];
+                byte[] plaintext = [10, 20, 30, 40];
+                ReadOnlyMemory<byte> encoded = await security.Wrapper.WrapAsync(prefix, plaintext)
+                    .ConfigureAwait(false);
+                UadpSecurityWrapper.UnwrapResult result = await security.Wrapper.TryUnwrapAsync(
+                    prefix, encoded[prefix.Length..]).ConfigureAwait(false);
+
+                Assert.That(result.IsSuccess, Is.True, result.Reason);
+                Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(plaintext));
+                keyProvider.Verify(
+                    static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()),
                     Times.Once);
-            });
+                keyProvider.Verify(
+                    static p => p.TryGetKeyAsync(1, It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
         }
 
         [Test]

@@ -23,6 +23,21 @@ For demonstration only, the sample maps anonymous users to the well-known Operat
 methods can be exercised without user-management setup. A production server should keep the Robot
 Intent command methods role-restricted and grant Operator only to authenticated operator identities.
 
+For a finite, noninteractive run, supply `--run-seconds` (1 through 3600).
+`--pki-root` selects an absolute private certificate-store directory and
+`--autoaccept false` rejects untrusted certificates. For example:
+
+```powershell
+dotnet run --project samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj -- `
+    --host 127.0.0.1 --port 62840 --pki-root C:\Temp\IntentRobotPki `
+    --autoaccept false --run-seconds 60
+```
+
+Finite runs do not start the interactive safety-console reader, so blocked console
+input cannot hold shutdown open. The simulated safety source and method authorization
+remain active. Omitting `--run-seconds` retains the interactive console behavior.
+Robot Intent is a draft model, separate from the published OPC 40010 Robotics model.
+
 ## Address space
 
 The standalone Robot Intent node manager creates `Server/RobotIntent/Controllers`. The sample adds

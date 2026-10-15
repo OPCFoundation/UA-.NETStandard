@@ -51,6 +51,25 @@ namespace Opc.Ua.XRegistry.Tests
     public sealed class XRegistryProjectionEngineTests
     {
         [Test]
+        public async Task RegistryEpochIsIndexedAndTracksOnlyCurrentProjectionGenerations()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create();
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Registry.Epoch, Is.Not.Null);
+            Assert.That(harness.Added, Does.Contain(harness.Registry.Epoch));
+            Assert.That(harness.Registry.Epoch!.Value, Is.EqualTo(1u));
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(5);
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(4);
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
+        }
+
+        [Test]
         public async Task ReconcileCreatesStableGroupAndResourceNodeIdsAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create();

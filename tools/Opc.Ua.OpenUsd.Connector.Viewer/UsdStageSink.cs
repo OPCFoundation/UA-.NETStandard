@@ -106,6 +106,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         private readonly UsdStageScheduler m_scheduler;
         private readonly Action<Exception> m_onError;
+        private readonly bool m_requireActiveTargets;
         private readonly Lock m_gate = new();
         private readonly CancellationTokenSource m_lifetime = new();
         private readonly Task m_pump;
@@ -127,11 +128,14 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// </summary>
         /// <param name="scheduler">The scheduler that owns the rendered stage.</param>
         /// <param name="onError">Invoked when applying an update fails.</param>
+        /// <param name="requireActiveTargets">Reject missing or inactive targets instead of ignoring their writes.</param>
         /// <exception cref="ArgumentNullException">An argument is <c>null</c>.</exception>
-        public UsdStageSink(UsdStageScheduler scheduler, Action<Exception> onError)
+        public UsdStageSink(
+            UsdStageScheduler scheduler, Action<Exception> onError, bool requireActiveTargets = false)
         {
             m_scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             m_onError = onError ?? throw new ArgumentNullException(nameof(onError));
+            m_requireActiveTargets = requireActiveTargets;
             m_pump = PumpAsync(m_lifetime.Token);
         }
 
@@ -195,7 +199,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         }
 
         /// <summary>
-        /// Stops the pump and applies whatever is still pending.
+        /// Stops the pump and authors the latest pending targets, completing any interpolation.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
@@ -243,10 +247,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             // Let values that arrived during shutdown land, so a short run still leaves
             // the stage in its final state.
-            await ApplyPendingAsync(CancellationToken.None).ConfigureAwait(false);
+            await ApplyPendingAsync(CancellationToken.None, settle: true).ConfigureAwait(false);
         }
 
-        private async Task ApplyPendingAsync(CancellationToken cancellationToken)
+        private async Task ApplyPendingAsync(CancellationToken cancellationToken, bool settle = false)
         {
             Snapshot snapshot;
             lock (m_gate)
@@ -261,7 +265,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     m_discrete,
                     m_timeSamples,
                     m_scalars,
-                    m_transforms);
+                    m_transforms,
+                    settle);
             }
             if (snapshot.IsEmpty)
             {
@@ -270,7 +275,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             try
             {
                 await m_scheduler.EditAsync(
-                    stage => Apply(stage, snapshot),
+                    stage => Apply(stage, snapshot, m_requireActiveTargets),
                     snapshot.Invalidation,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -290,7 +295,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
         }
 
-        private static void Apply(UsdStage stage, Snapshot snapshot)
+        private static void Apply(UsdStage stage, Snapshot snapshot, bool requireActiveTargets)
         {
             foreach (KeyValuePair<string, PrimComposition> entry in snapshot.Prims)
             {
@@ -298,11 +303,12 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             foreach (TransformSample entry in snapshot.Transforms)
             {
-                ApplyTransform(stage, entry);
+                ApplyTransform(stage, entry, requireActiveTargets);
             }
             foreach (ScalarSample entry in snapshot.Scalars)
             {
                 UsdPrim prim = stage.GetPrim(entry.PrimPath);
+                RequireActiveTarget(prim, entry.PropertyName, requireActiveTargets);
                 if (prim.Exists())
                 {
                     prim.SetDouble(entry.PropertyName, entry.Value);
@@ -315,7 +321,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     entry.Key.PrimPath,
                     entry.Key.PropertyName,
                     entry.Value,
-                    timeCode: null);
+                    timeCode: null,
+                    requireActiveTargets);
             }
             foreach (KeyValuePair<TimeSampleKey, Variant> entry in snapshot.TimeSamples)
             {
@@ -324,7 +331,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     entry.Key.PrimPath,
                     entry.Key.PropertyName,
                     entry.Value,
-                    entry.Key.Frame);
+                    entry.Key.Frame,
+                    requireActiveTargets);
             }
         }
 
@@ -336,14 +344,21 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// flood the console.
         /// </summary>
         private static void ApplyValueIsolated(
-            UsdPrim prim, string primPath, string propertyName, Variant value, double? timeCode)
+            UsdPrim prim, string primPath, string propertyName, Variant value, double? timeCode,
+            bool requireActiveTargets)
         {
             try
             {
+                RequireActiveTarget(prim, propertyName, requireActiveTargets);
+                if (requireActiveTargets && value.TryGetValue(out ArrayOf<double> _))
+                {
+                    throw new NotSupportedException(
+                        "A double-vector binding requires one of the supported live transform properties.");
+                }
                 ApplyValue(prim, propertyName, value, timeCode);
             }
 #pragma warning disable CA1031 // One rejected attribute must not discard the frame.
-            catch (Exception exception)
+            catch (Exception exception) when (!requireActiveTargets)
 #pragma warning restore CA1031
             {
                 string target = string.Concat(primPath, ".", propertyName);
@@ -408,7 +423,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             {
                 return false;
             }
-            assetPath = value.Substring(1, close - 1);
+            assetPath = value[1..close];
             string rest = value[(close + 1)..].Trim();
             if (rest.Length == 0)
             {
@@ -422,9 +437,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             return UsdNames.IsValidPrimPath(targetPrimPath);
         }
 
-        private static void ApplyTransform(UsdStage stage, TransformSample sample)
+        private static void ApplyTransform(UsdStage stage, TransformSample sample, bool requireActiveTargets)
         {
             UsdPrim prim = stage.GetPrim(sample.PrimPath);
+            RequireActiveTarget(prim, "xformOp:transform", requireActiveTargets);
             if (!prim.Exists() || !UsdGeomXformable.TryWrap(prim, out UsdGeomXformable xformable))
             {
                 return;
@@ -439,6 +455,42 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             // be cleared from here. Bound prims therefore declare a single
             // xformOp:transform, which only has to be set.
             prim.SetMatrix4d("xformOp:transform", Compose(translation, rotation, scale));
+        }
+
+        private static void RequireActiveTarget(UsdPrim prim, string propertyName, bool required)
+        {
+            if (!required)
+            {
+                return;
+            }
+            if (!prim.Exists())
+            {
+                throw new InvalidOperationException("A live binding targets a prim absent from the retained stage.");
+            }
+            if (!propertyName.StartsWith("xformOp:", StringComparison.Ordinal))
+            {
+                return;
+            }
+            if (!UsdGeomXformable.TryWrap(prim, out _))
+            {
+                throw new NotSupportedException("A live transform requires an xformable prim.");
+            }
+            string[] order = prim.GetTokenArray("xformOpOrder");
+            if (propertyName == "xformOp:transform")
+            {
+                bool matrixOnly = order.Length == 1 && order[0] == propertyName;
+                bool resetMatrix = order.Length == 2 && order[0] == "!resetXformStack!" && order[1] == propertyName;
+                if (!matrixOnly && !resetMatrix)
+                {
+                    throw new NotSupportedException(
+                        "Vector live transforms require a single active xformOp:transform, " +
+                        "as in the connector's served asset contract; inactive transform writes are refused.");
+                }
+            }
+            else if (Array.IndexOf(order, propertyName) < 0)
+            {
+                throw new NotSupportedException("A live transform binding is not in the prim's active xformOpOrder.");
+            }
         }
 
         /// <summary>
@@ -652,8 +704,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             private double m_lastApplied;
             private bool m_applied;
 
-            public static ScalarTrack Starting(double value, long now) =>
-                new() { m_from = value, m_to = value, m_start = now, m_window = 0 };
+            public static ScalarTrack Starting(double value, long now)
+            {
+                return new() { m_from = value, m_to = value, m_start = now, m_window = 0 };
+            }
 
             public void Retarget(double value, long now)
             {
@@ -661,6 +715,14 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 m_to = value;
                 m_window = Math.Clamp(now - m_start, s_minWindow, s_maxWindow);
                 m_start = now;
+            }
+
+            /// <summary>
+            /// Completes interpolation for the final drain without changing normal live sampling.
+            /// </summary>
+            public void Settle()
+            {
+                m_window = 0;
             }
 
             public double ValueAt(long now)
@@ -719,6 +781,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 }
             }
 
+            /// <summary>
+            /// Completes every bound transform component for the final drain.
+            /// </summary>
+            public void Settle()
+            {
+                m_translate?.Settle();
+                m_rotate?.Settle();
+                m_scale?.Settle();
+            }
+
             public bool TryTake(string primPath, long now, out TransformSample sample)
             {
                 bool changed =
@@ -764,8 +836,20 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 m_z.Retarget(value.Z, now);
             }
 
-            public UsdVec3d ValueAt(long now) =>
-                new(m_x.ValueAt(now), m_y.ValueAt(now), m_z.ValueAt(now));
+            /// <summary>
+            /// Completes all axes together for the final drain.
+            /// </summary>
+            public void Settle()
+            {
+                m_x.Settle();
+                m_y.Settle();
+                m_z.Settle();
+            }
+
+            public UsdVec3d ValueAt(long now)
+            {
+                return new(m_x.ValueAt(now), m_y.ValueAt(now), m_z.ValueAt(now));
+            }
 
             public bool HasPending(long now)
             {
@@ -833,17 +917,25 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 ? UsdStageInvalidationKind.Composition
                 : UsdStageInvalidationKind.Property;
 
+            /// <summary>
+            /// Takes one update batch, optionally completing interpolation during shutdown.
+            /// </summary>
             public static Snapshot Take(
                 long now,
                 Dictionary<string, PrimComposition> prims,
                 Dictionary<AttributeKey, Variant> discrete,
                 Dictionary<TimeSampleKey, Variant> timeSamples,
                 Dictionary<AttributeKey, ScalarTrack> scalars,
-                Dictionary<string, TransformTracks> transforms)
+                Dictionary<string, TransformTracks> transforms,
+                bool settle)
             {
                 var scalarSamples = new List<ScalarSample>();
                 foreach (KeyValuePair<AttributeKey, ScalarTrack> entry in scalars)
                 {
+                    if (settle)
+                    {
+                        entry.Value.Settle();
+                    }
                     if (entry.Value.Pending(now) is { } value)
                     {
                         scalarSamples.Add(
@@ -854,6 +946,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 var transformSamples = new List<TransformSample>();
                 foreach (KeyValuePair<string, TransformTracks> entry in transforms)
                 {
+                    if (settle)
+                    {
+                        entry.Value.Settle();
+                    }
                     if (entry.Value.TryTake(entry.Key, now, out TransformSample sample))
                     {
                         transformSamples.Add(sample);

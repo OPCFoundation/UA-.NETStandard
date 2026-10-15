@@ -768,7 +768,7 @@ namespace Opc.Ua.AI.Tests
                 (int)DeploymentStateEnum.Active);
             h.AddValueChild(depId, BrowseNames.DataJurisdiction, new NodeId(9403u, 3), "US");
             h.AddValueChild(depId, BrowseNames.EgressPermitted, new NodeId(9404u, 3), false);
-            h.AddValueChild(depId, BrowseNames.MaxInlinePayloadSize, new NodeId(9405u, 3), (ulong)8192);
+            h.AddValueChild(depId, BrowseNames.MaxInlinePayloadSize, new NodeId(9405u, 3), 8192u);
             h.AddValueChild(depId, BrowseNames.EndpointUri, new NodeId(9406u, 3), "https://ai.example.com/deploy");
 
             AIDeploymentSnapshot snapshot = await h.Client.Deployment(depId).ReadAsync()

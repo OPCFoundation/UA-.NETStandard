@@ -317,6 +317,27 @@ uses; `StaticSecurityKeyProvider` keeps a fixed ring,
 `PullSecurityKeyProvider` calls an SKS endpoint
 ([§8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)).
 
+Out-of-band key providers do not need a fictitious SKS URL in a secured
+configuration. `PubSubSecurityWrapperResolver` exposes its non-secret registered
+group IDs through `IPubSubSecurityKeyProviderCatalog`; application construction
+and configuration rebuilds pass that evidence to
+`PubSubConfigurationValidator.RegisteredSecurityGroupIds`. Only an exact registered
+group can omit SKS endpoints. Standalone validation without registration evidence
+still rejects a secured group with neither a key provider nor SKS endpoint, and
+runtime wrapper/key resolution remains fail-closed.
+
+Resolver construction does not perform a key lookup or subscribe to rotation
+events. On receive, a token returned by the configured provider must match the
+message's token ID, and its signature, security mode and decryption must succeed
+before it enters the resolver-owned replay window. Registration preserves
+existing nonce and sequence history. This also permits provider-retained next
+keys before local promotion, as required for the overlap described in
+[Part 14 §8.3.2](https://reference.opcfoundation.org/specs/OPC-10000-14/8.3.2).
+Asynchronous and canceled key lookups are awaited by the operation using them;
+they are not abandoned by synchronous context construction. Callers supplying
+their own replay window directly to `UadpSecurityWrapper` retain explicit token
+registration and retirement control.
+
 ### `IPubSubKeyServiceServer`
 
 Bound by the in-memory SKS implementation. Exposes the standard
@@ -916,8 +937,15 @@ in full:
 - **RawData padding**
   ([§7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.5.11))
   pads strings, byte-strings, XML elements and arrays to the
-  declared `MaxStringLength` / `ArrayDimensions`; the on-wire length
-  prefix is suppressed; decoders trim the trailing NUL fill on read.
+  declared `MaxStringLength` / `ArrayDimensions`. The Part 6 length
+  prefix remains; decoders skip padding after the actual value rather
+  than trimming meaningful trailing zero bytes.
+  Matrices carry their actual dimensions followed by elements, without
+  an extra element count or Variant envelope. Their shape survives
+  decoding even when the declared maxima require additional padding.
+  Supply a typed `MatrixOf<T>` for a multi-dimensional field; a flattened
+  array cannot supply the missing shape. Typed nonnumeric one-dimensional
+  arrays likewise retain their Part 6 length-prefixed representation.
 
 ### JSON — `Opc.Ua.PubSub.Encoding.Json`
 

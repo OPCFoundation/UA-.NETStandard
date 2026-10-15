@@ -44,7 +44,7 @@ namespace Opc.Ua.Vision.Tests
     /// and for the internal <see cref="DeviceSelector"/> guard clauses.
     /// </summary>
     /// <remarks>
-    /// Three families of paths in this provider are host-topology-dependent
+    /// Some paths in this provider are host-topology-dependent
     /// and therefore cannot be honestly covered by a unit test on this host:
     /// <list type="bullet">
     /// <item><description>The <c>else</c> branch of the constructor at
@@ -56,19 +56,15 @@ namespace Opc.Ua.Vision.Tests
     /// branch, so it inherits the same restriction. See
     /// <see cref="SceneCameraCaptureProviderTests.CaptureAsyncReportsNoRenderingBackendWhenDeviceProbeFailedAndNeverReturnsSuccessWithEmptyImage"/>
     /// for the CI-side invariants.</description></item>
-    /// <item><description>The full success path of <c>CaptureCore</c>
-    /// (rendering RGBA, PNG-encoding, returning <c>Succeeded</c>) requires
-    /// a well-formed USD stage and OpenUSD plugin tree, and belongs in
-    /// integration tests.</description></item>
-    /// <item><description>Every reachable path inside <c>CaptureCore</c>
-    /// (<c>StageOpenFailed</c>, <c>CameraResolveFailed</c>, <c>RenderFailed</c>,
-    /// <c>BlankFrame</c>, <c>EncodingFailed</c>) is unreachable from managed
-    /// test code today: <c>UsdStage.Open</c> tears the test host down inside
-    /// native code for both an existing malformed <c>.usda</c> file and a
-    /// syntactically valid minimal <c>.usda</c> stage. This is a second
-    /// instance of the same "answers instead of refusing" pattern the
-    /// <c>ValidateRequest</c> comment already calls out for missing files —
-    /// filed as a defect below rather than covered here.</description></item>
+    /// <item><description>The success path of <c>CaptureCore</c>,
+    /// retained-scene replacement and missing-camera recovery are exercised by
+    /// <see cref="OpenUsdNativeCaptureTests"/>. Those integration tests register
+    /// both bundled runtime manifests before opening well-formed stages;
+    /// uninitialized native resolver state must not be confused with a missing
+    /// graphics backend.</description></item>
+    /// <item><description>Malformed-stage and native renderer failures are not
+    /// forced in this in-process fixture: a native access violation cannot be
+    /// caught by the provider's managed error handling.</description></item>
     /// <item><description>Similarly, <c>DeviceSelector.FormatException</c>
     /// is only invoked when a backend probe throws; on this host every probe
     /// succeeds, so the helper is unreachable from a unit test.</description></item>

@@ -336,6 +336,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="UadpBufferFullException"></exception>
         public void WriteVariant(in Variant value, IServiceMessageContext context)
         {
             if (context is null)
@@ -371,6 +372,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="UadpBufferFullException"></exception>
         public void WriteDataValue(in DataValue value, IServiceMessageContext context)
         {
             if (context is null)
@@ -452,6 +454,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="UadpBufferFullException"></exception>
         public void WriteRawScalar(
             in Variant value,
             BuiltInType builtInType,
@@ -468,6 +471,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (available <= 0)
             {
                 throw new UadpBufferFullException("UADP writer buffer is full.");
+            }
+
+            if (valueRank > 1)
+            {
+                UadpRawMatrix.Write(ref this, value, builtInType, valueRank, maxStringLength, arrayDimensions, context);
+                return;
             }
 
             if (valueRank == ValueRanks.Scalar &&
@@ -565,6 +574,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// field always occupies <c>4 + MaxStringLength</c> bytes. A null
         /// value is encoded with length -1 and padded to the same size.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private void WritePaddedUtf8(string? value, uint maxStringLength)
         {
             int byteCount = string.IsNullOrEmpty(value)
@@ -600,6 +610,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// bytes) followed by zero bytes up to <paramref name="maxLength"/>.
         /// A null value is encoded with length -1 and padded to the same size.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private void WritePaddedBytes(ByteString value, uint maxLength)
         {
             ReadOnlySpan<byte> src = value.IsNull
@@ -1069,6 +1080,24 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private static void WriteRawArrayCore(
             BinaryEncoder encoder, Variant value, BuiltInType builtInType)
         {
+            if (builtInType is BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
+                BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
+                BuiltInType.StatusCode or BuiltInType.QualifiedName or BuiltInType.LocalizedText or
+                BuiltInType.ExtensionObject or BuiltInType.DataValue)
+            {
+                if (value.IsNull)
+                {
+                    encoder.WriteInt32(null, -1);
+                    return;
+                }
+                if (value.TypeInfo.ValueRank != ValueRanks.OneDimension || value.TypeInfo.BuiltInType != builtInType)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                        "The RawData array does not match its declared element type.");
+                }
+                encoder.WriteVariantValue(null, value);
+                return;
+            }
             switch (builtInType)
             {
                 case BuiltInType.Boolean:

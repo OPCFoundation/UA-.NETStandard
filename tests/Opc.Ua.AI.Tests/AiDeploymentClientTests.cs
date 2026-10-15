@@ -84,7 +84,7 @@ namespace Opc.Ua.AI.Tests
                 (int)DeploymentStateEnum.Degraded);
             harness.AddValueChild(deploymentId, BrowseNames.DataJurisdiction, new NodeId(3004u, 3), "EU");
             harness.AddValueChild(deploymentId, BrowseNames.EgressPermitted, new NodeId(3005u, 3), true);
-            harness.AddValueChild(deploymentId, BrowseNames.MaxInlinePayloadSize, new NodeId(3006u, 3), (ulong)1024);
+            harness.AddValueChild(deploymentId, BrowseNames.MaxInlinePayloadSize, new NodeId(3006u, 3), 1024u);
             harness.AddValueChild(deploymentId, BrowseNames.EndpointUri, new NodeId(3007u, 3), "https://example.com");
 
             AIDeploymentSnapshot snapshot = await harness.Client.Deployment(deploymentId).ReadAsync()
@@ -98,8 +98,66 @@ namespace Opc.Ua.AI.Tests
                 Assert.That(snapshot.State, Is.EqualTo(DeploymentStateEnum.Degraded));
                 Assert.That(snapshot.DataJurisdiction, Is.EqualTo("EU"));
                 Assert.That(snapshot.EgressPermitted, Is.True);
+                Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo(1024ul));
                 Assert.That(snapshot.EndpointUri, Is.EqualTo("https://example.com"));
             });
+        }
+
+        [TestCase(0u)]
+        [TestCase(1u)]
+        [TestCase(uint.MaxValue)]
+        public async Task PublishedUInt32InlineLimitIsReadWithoutNarrowingOrDefault(uint maximum)
+        {
+            var harness = new AISessionHarness();
+            harness.AddValueChild(harness.DeploymentNodeId, BrowseNames.MaxInlinePayloadSize,
+                new NodeId(3006u, 3), Variant.From(maximum));
+
+            AIDeploymentSnapshot snapshot = await harness.Client.Deployment(harness.DeploymentNodeId).ReadAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo((ulong)maximum));
+        }
+
+        [TestCase("bad")]
+        [TestCase("uncertain")]
+        [TestCase("wrong-type")]
+        [TestCase("status-code")]
+        public async Task InlineLimitQualityAndTypeFailuresAreNotReportedAsZero(string fault)
+        {
+            var harness = new AISessionHarness();
+            var node = new NodeId(3006u, 3);
+            harness.AddValueChild(harness.DeploymentNodeId, BrowseNames.MaxInlinePayloadSize, node, 1024u);
+            StatusCode status = fault switch
+            {
+                "bad" => StatusCodes.BadUserAccessDenied,
+                "uncertain" => StatusCodes.Uncertain,
+                _ => StatusCodes.Good
+            };
+            Variant payload = fault switch
+            {
+                "wrong-type" => Variant.From(1024ul),
+                "status-code" => Variant.From(StatusCodes.BadNotFound),
+                _ => Variant.From(1024u)
+            };
+            harness.Session.Setup(session => session.ReadAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> reads,
+                    CancellationToken _) =>
+                {
+                    Assert.That(reads.Count, Is.EqualTo(1));
+                    Assert.That(reads[0].NodeId, Is.EqualTo(node));
+                    return new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new DataValue(payload).WithStatus(status)]
+                    });
+                });
+
+            await Assert.ThatAsync(() => harness.Client.Deployment(harness.DeploymentNodeId).ReadAsync().AsTask(),
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                    .EqualTo(fault is "wrong-type" or "status-code" ? StatusCodes.BadTypeMismatch : status))
+                .ConfigureAwait(false);
         }
 
         [Test]

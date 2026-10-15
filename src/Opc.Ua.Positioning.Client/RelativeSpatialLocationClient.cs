@@ -46,8 +46,6 @@ namespace Opc.Ua.Positioning.Client
     /// </summary>
     public sealed class RelativeSpatialLocationClient
     {
-        private readonly PositioningClientOperations m_operations;
-
         /// <summary>
         /// Creates an RSL client.
         /// </summary>
@@ -56,6 +54,19 @@ namespace Opc.Ua.Positioning.Client
             ITelemetryContext telemetry)
         {
             m_operations = new PositioningClientOperations(session, telemetry);
+        }
+
+        /// <summary>
+        /// Creates an RSL client with strict reads and bounded discovery and frame chains.
+        /// The supplied session remains owned by the caller.
+        /// </summary>
+        public RelativeSpatialLocationClient(
+            ISession session,
+            ITelemetryContext telemetry,
+            PositioningClientReadOptions options)
+        {
+            options.ThrowIfNull(nameof(options));
+            m_operations = new PositioningClientOperations(session, telemetry, options);
         }
 
         /// <summary>
@@ -71,10 +82,9 @@ namespace Opc.Ua.Positioning.Client
         /// <summary>
         /// Standardized RelativeSpatialLocations entry point.
         /// </summary>
-        public NodeId RelativeSpatialLocationsId => NodeId.Create(
-            Rsl.Objects.RelativeSpatialLocations,
-            Rsl.Namespaces.RSL,
-            Session.NamespaceUris);
+        public NodeId RelativeSpatialLocationsId => m_operations.Strict
+            ? new NodeId(Rsl.Objects.RelativeSpatialLocations, m_operations.GetNamespaceIndex(Rsl.Namespaces.RSL))
+            : NodeId.Create(Rsl.Objects.RelativeSpatialLocations, Rsl.Namespaces.RSL, Session.NamespaceUris);
 
         /// <summary>
         /// Enumerates all spatial object lists from the standardized entry point.
@@ -182,7 +192,7 @@ namespace Opc.Ua.Positioning.Client
             NodeId spatialObjectId,
             CancellationToken cancellationToken = default)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Rsl.Namespaces.RSL);
             NodeId frameId = await m_operations.ResolveRequiredChildAsync(
                 spatialObjectId,
@@ -202,7 +212,7 @@ namespace Opc.Ua.Positioning.Client
             NodeId frameId,
             CancellationToken cancellationToken = default)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Rsl.Namespaces.RSL);
             NodeId baseId = await m_operations.ResolveRequiredChildAsync(
                 frameId,
@@ -210,22 +220,26 @@ namespace Opc.Ua.Positioning.Client
                 new QualifiedName("Base", namespaceIndex),
                 cancellationToken).ConfigureAwait(false);
 
-            DataValue frameValue = await Session.ReadValueAsync(
-                frameId,
-                cancellationToken).ConfigureAwait(false);
-            ThreeDFrame frame;
-            if (!frameValue.WrappedValue.TryGetValue(
-                out frame!,
-                Session.MessageContext))
+            DataValue frameValue;
+            DataValue baseValue = DataValue.Null;
+            if (m_operations.Strict)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadTypeMismatch,
-                    "PositionFrame does not contain a 3DFrame value.");
+                ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
+                    [frameId, baseId], cancellationToken).ConfigureAwait(false);
+                frameValue = values[0];
+                baseValue = values[1];
             }
+            else
+            {
+                frameValue = await Session.ReadValueAsync(
+                    frameId, cancellationToken).ConfigureAwait(false);
+            }
+            ThreeDFrame frame = m_operations.DecodeStructure<ThreeDFrame>(frameValue);
+            m_operations.ValidateFrame(frame);
 
-            NodeId frameBase = await m_operations.ReadNodeIdAsync(
-                baseId,
-                cancellationToken).ConfigureAwait(false);
+            NodeId frameBase = m_operations.Strict
+                ? m_operations.DecodeNodeId(baseValue)
+                : await m_operations.ReadNodeIdAsync(baseId, cancellationToken).ConfigureAwait(false);
 
             return new RelativeSpatialFrameValue(
                 frameId,
@@ -259,18 +273,20 @@ namespace Opc.Ua.Positioning.Client
 
             while (!current.IsNull)
             {
-                if (!visited.Add(current))
+                cancellationToken.ThrowIfCancellationRequested();
+                if (visited.Contains(current))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadInvalidState,
                         $"The RSL Base chain contains a cycle at '{current}'.");
                 }
-                if (chain.Count >= 1024)
+                if (chain.Count >= m_operations.MaximumFrameChainLength)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingLimitsExceeded,
-                        "The RSL Base chain exceeds 1024 frames.");
+                        $"The RSL Base chain exceeds {m_operations.MaximumFrameChainLength} frames.");
                 }
+                visited.Add(current);
 
                 RelativeSpatialFrameValue value = await ReadFrameAsync(
                     current,
@@ -282,10 +298,9 @@ namespace Opc.Ua.Positioning.Client
                         $"RSL frame '{current}' has a bad status.");
                 }
 
-                var local = RslFrameTransform.FromFrame(
-                    value.Frame,
-                    angleUnit);
+                RslFrameTransform local = m_operations.CreateFrameTransform(value.Frame, angleUnit);
                 transform = local.Compose(transform);
+                m_operations.ValidateTransform(transform);
                 chain.Add(current);
                 current = value.BaseNodeId;
             }
@@ -338,7 +353,7 @@ namespace Opc.Ua.Positioning.Client
                 MonitoringOptions? options,
                 [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Rsl.Namespaces.RSL);
             NodeId frameId = await m_operations.ResolveRequiredChildAsync(
                 spatialObjectId,
@@ -393,6 +408,7 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
+                m_operations.ValidateValue(change.Value);
                 string nodeVersion = null!;
                 if (!change.Value.WrappedValue.TryGetValue(
                     out nodeVersion))
@@ -416,7 +432,7 @@ namespace Opc.Ua.Positioning.Client
                 MonitoringOptions? options,
                 [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            ushort namespaceIndex = Session.NamespaceUris.GetIndexOrAppend(
+            ushort namespaceIndex = m_operations.GetNamespaceIndex(
                 Rsl.Namespaces.RSL);
             NodeId baseId = await m_operations.ResolveRequiredChildAsync(
                 frameId,
@@ -431,15 +447,8 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
-                ThreeDFrame frame = null!;
-                if (!change.Value.WrappedValue.TryGetValue(
-                    out frame!,
-                    Session.MessageContext))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadTypeMismatch,
-                        "The monitored frame does not contain a 3DFrame value.");
-                }
+                ThreeDFrame frame = m_operations.DecodeStructure<ThreeDFrame>(change.Value);
+                m_operations.ValidateFrame(frame);
                 NodeId baseNodeId = await m_operations.ReadNodeIdAsync(
                     baseId,
                     cancellationToken).ConfigureAwait(false);
@@ -451,5 +460,7 @@ namespace Opc.Ua.Positioning.Client
                     change.Value.SourceTimestamp);
             }
         }
+
+        private readonly PositioningClientOperations m_operations;
     }
 }

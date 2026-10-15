@@ -94,6 +94,7 @@ namespace Opc.Ua.Vision.Client
             List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
                 toRead, cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
@@ -149,6 +150,7 @@ namespace Opc.Ua.Vision.Client
             List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
                 toRead, cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
@@ -198,6 +200,7 @@ namespace Opc.Ua.Vision.Client
             List<NodeId> toRead = ExtractPresent(nodes);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
                 toRead, cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? resultId = TakeString(values, nodes, 0, ref cursor);
             DateTimeUtc creationTime = TakeDateTime(values, nodes, 1, ref cursor);
@@ -379,7 +382,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out string text) ? text : null;
+            return value.WrappedValue.TryGetValue(out string text) ? text :
+                throw VisionClientOperations.InvalidMember();
         }
 
         private static DateTimeUtc TakeDateTime(
@@ -393,7 +397,8 @@ namespace Opc.Ua.Vision.Client
                 return default;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out DateTimeUtc dt) ? dt : default;
+            return value.WrappedValue.TryGetValue(out DateTimeUtc dt) ? dt :
+                throw VisionClientOperations.InvalidMember();
         }
 
         private static NodeId TakeNodeId(
@@ -407,9 +412,9 @@ namespace Opc.Ua.Vision.Client
                 return NodeId.Null;
             }
             DataValue value = values[cursor++];
-            return VisionClientOperations.TryReadNodeId(value, out NodeId nodeId)
+            return value.WrappedValue.TryGetValue(out NodeId nodeId)
                 ? nodeId
-                : NodeId.Null;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static TEnum TakeEnum<TEnum>(
@@ -426,7 +431,7 @@ namespace Opc.Ua.Vision.Client
             DataValue value = values[cursor++];
             return VisionClientOperations.TryReadEnum(value, out TEnum result)
                 ? result
-                : default;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static ArrayOf<string> TakeStringArray(
@@ -442,7 +447,7 @@ namespace Opc.Ua.Vision.Client
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(out ArrayOf<string> array)
                 ? array
-                : [];
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private VisionImageReferenceDataType? TakeImageReference(
@@ -456,13 +461,16 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-#pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
-            return value.WrappedValue.TryGetValue(
-                    out VisionImageReferenceDataType structure,
+            if (value.WrappedValue.IsNull ||
+                (value.WrappedValue.TryGetValue(out ExtensionObject body) && body.IsNull))
+            {
+                return null;
+            }
+            return value.WrappedValue.TryGetValue<VisionImageReferenceDataType>(
+                    out VisionImageReferenceDataType? structure,
                     m_operations.Session.MessageContext)
                 ? structure
-                : null;
-#pragma warning restore CS8600
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private ArrayOf<VisionDetectionDataType> TakeDetections(
@@ -473,14 +481,14 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodes[index].IsNull)
             {
-                return [];
+                throw new ServiceResultException(StatusCodes.BadNotFound, "The required Detections member is absent.");
             }
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(
                     out ArrayOf<VisionDetectionDataType> array,
                     m_operations.Session.MessageContext)
                 ? array
-                : [];
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private ArrayOf<VisionCharacteristicDataType> TakeCharacteristics(
@@ -491,14 +499,15 @@ namespace Opc.Ua.Vision.Client
         {
             if (nodes[index].IsNull)
             {
-                return [];
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound, "The required Characteristics member is absent.");
             }
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(
                     out ArrayOf<VisionCharacteristicDataType> array,
                     m_operations.Session.MessageContext)
                 ? array
-                : [];
+                : throw VisionClientOperations.InvalidMember();
         }
     }
 }

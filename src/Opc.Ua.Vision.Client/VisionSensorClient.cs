@@ -94,7 +94,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             string? sensorId = TakeString(buffer, nodes, 0, ref cursor);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             uint width = TakeUInt32(buffer, nodes, 0, ref cursor);
@@ -215,7 +215,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             double minDepth = TakeDouble(buffer, nodes, 0, ref cursor);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             double? focalLength = TakeDoubleOrNull(buffer, nodes, 0, ref cursor);
@@ -303,7 +303,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             double? wavelength = TakeDoubleOrNull(buffer, nodes, 0, ref cursor);
@@ -459,7 +459,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             string? calibrationId = TakeString(buffer, nodes, 0, ref cursor);
@@ -520,7 +520,7 @@ namespace Opc.Ua.Vision.Client
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
-                buffer.Add(values[ii]);
+                buffer.Add(VisionClientOperations.RequireGood(values[ii]));
             }
             int cursor = 0;
             string? calibrationId = TakeString(buffer, nodes, 0, ref cursor);
@@ -573,7 +573,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out string text) ? text : null;
+            return value.WrappedValue.TryGetValue(out string text)
+                ? text : throw VisionClientOperations.InvalidMember();
         }
 
         private static LocalizedText TakeLocalizedText(
@@ -589,7 +590,7 @@ namespace Opc.Ua.Vision.Client
             DataValue value = values[cursor++];
             return value.WrappedValue.TryGetValue(out LocalizedText text)
                 ? text
-                : LocalizedText.Null;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static TEnum TakeEnum<TEnum>(
@@ -606,7 +607,7 @@ namespace Opc.Ua.Vision.Client
             DataValue value = values[cursor++];
             return VisionClientOperations.TryReadEnum(value, out TEnum result)
                 ? result
-                : default;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private static double TakeDouble(
@@ -620,7 +621,7 @@ namespace Opc.Ua.Vision.Client
                 return 0.0;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out double d) ? d : 0.0;
+            return value.WrappedValue.TryGetValue(out double d) ? d : throw VisionClientOperations.InvalidMember();
         }
 
         private static double? TakeDoubleOrNull(
@@ -634,7 +635,7 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out double d) ? d : null;
+            return value.WrappedValue.TryGetValue(out double d) ? d : throw VisionClientOperations.InvalidMember();
         }
 
         private static uint TakeUInt32(
@@ -648,7 +649,8 @@ namespace Opc.Ua.Vision.Client
                 return 0;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out uint u) ? u : 0;
+            return value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt32 &&
+                value.WrappedValue.TryGetValue(out uint u) ? u : throw VisionClientOperations.InvalidMember();
         }
 
         private static bool TakeBool(
@@ -662,7 +664,7 @@ namespace Opc.Ua.Vision.Client
                 return false;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out bool b) && b;
+            return value.WrappedValue.TryGetValue(out bool b) ? b : throw VisionClientOperations.InvalidMember();
         }
 
         private static DateTimeUtc TakeDateTime(
@@ -676,7 +678,8 @@ namespace Opc.Ua.Vision.Client
                 return default;
             }
             DataValue value = values[cursor++];
-            return value.WrappedValue.TryGetValue(out DateTimeUtc dt) ? dt : default;
+            return value.WrappedValue.TryGetValue(out DateTimeUtc dt)
+                ? dt : throw VisionClientOperations.InvalidMember();
         }
 
         private static NodeId TakeNodeId(
@@ -690,9 +693,9 @@ namespace Opc.Ua.Vision.Client
                 return NodeId.Null;
             }
             DataValue value = values[cursor++];
-            return VisionClientOperations.TryReadNodeId(value, out NodeId nodeId)
+            return value.WrappedValue.TryGetValue(out NodeId nodeId)
                 ? nodeId
-                : NodeId.Null;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private VisionIntrinsicsDataType? TakeIntrinsics(
@@ -706,13 +709,16 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-#pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
-            return value.WrappedValue.TryGetValue(
-                    out VisionIntrinsicsDataType structure,
+            if (value.WrappedValue.IsNull ||
+                (value.WrappedValue.TryGetValue(out ExtensionObject body) && body.IsNull))
+            {
+                return null;
+            }
+            return value.WrappedValue.TryGetValue<VisionIntrinsicsDataType>(
+                    out VisionIntrinsicsDataType? structure,
                     m_operations.Session.MessageContext)
                 ? structure
-                : null;
-#pragma warning restore CS8600
+                : throw VisionClientOperations.InvalidMember();
         }
 
         private VisionPose3DDataType? TakePose(
@@ -726,13 +732,16 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             DataValue value = values[cursor++];
-#pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
-            return value.WrappedValue.TryGetValue(
-                    out VisionPose3DDataType structure,
+            if (value.WrappedValue.IsNull ||
+                (value.WrappedValue.TryGetValue(out ExtensionObject body) && body.IsNull))
+            {
+                return null;
+            }
+            return value.WrappedValue.TryGetValue<VisionPose3DDataType>(
+                    out VisionPose3DDataType? structure,
                     m_operations.Session.MessageContext)
                 ? structure
-                : null;
-#pragma warning restore CS8600
+                : throw VisionClientOperations.InvalidMember();
         }
     }
 }

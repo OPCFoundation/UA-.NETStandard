@@ -56,5 +56,17 @@ namespace Opc.Ua.Pumps.Client
             }
             return new PumpsClient(session, telemetry);
         }
+
+        /// <summary>
+        /// Creates a strictly validated client with a per-browse and per-value-set reference limit.
+        /// </summary>
+        /// <param name="session">The borrowed connected session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="maximumBrowseReferences">An inclusive limit from one through 65536.</param>
+        public static PumpsClient Pumps(
+            this ISession session, ITelemetryContext telemetry, int maximumBrowseReferences)
+        {
+            return new PumpsClient(session, telemetry, maximumBrowseReferences);
+        }
     }
 }

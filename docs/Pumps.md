@@ -499,6 +499,27 @@ subscribed to can instead be bound to their source once with
 
 ## Client reference
 
+For bounded interactive group reads, choose the overload with an explicit limit:
+
+```csharp
+PumpsClient pumps = session.Pumps(telemetry, maximumBrowseReferences: 256);
+PumpValueSet values = await pumps.ReadMeasurementsAsync(
+    pumpId, new PumpReadOptions { IncludeTimestamps = true }, cancellationToken);
+```
+
+The limit applies to each browse and to a value-set read including its nested
+groups. Exceeding it fails instead of truncating the result. This mode also
+rejects incomplete value-set responses, ambiguous member resolution, duplicate
+value names and invalid engineering metadata. Denied or uncertain service
+responses are not treated as optional absence. The same overload is available
+on the injected `PumpsClientFactory.CreateAsync`. The original constructor and
+factory overload retain their existing behavior.
+
+`EnumeratePortEntriesAsync` returns port identities without reading every
+engineering group. Use it to select a port before fetching its values with
+`ReadValueSetAsync`; `EnumeratePortsAsync` continues to return complete port
+descriptors.
+
 ### Creating the client
 
 | Entry point | Use |
@@ -730,6 +751,12 @@ The rows below follow the specification's structure.
 | `AddPumpsClient` hosting | 🔧 | [`OpcUaPumpsClientBuilderExtensions`](../src/Opc.Ua.Pumps.Client/Hosting/OpcUaPumpsClientBuilderExtensions.cs) | — |
 
 ## Samples
+
+`PumpsServer` accepts `--host`, `--port`, `--pki-root`, `--autoaccept` and
+`--run-seconds`. The PKI path must be absolute; a supplied runtime must be from
+1 through 3600 seconds. Omitting the runtime preserves the ordinary interactive
+server lifetime. The sample retains its existing certificate auto-accept convenience default;
+disable it when testing explicit peer trust.
 
 | Sample | Shows |
 | --- | --- |

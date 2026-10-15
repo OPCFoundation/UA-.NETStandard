@@ -492,7 +492,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
 
             writer.WriteRawScalar(
-                (Variant)new ArrayOf<int>(payload),
+                Variant.From(payload.ToMatrixOf([2, 3])),
                 BuiltInType.Int32,
                 2,
                 maxStringLength: 0,
@@ -508,8 +508,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 maxStringLength: 0,
                 arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
-            Assert.That(decoded.TryGetValue(out ArrayOf<int> arr), Is.True);
-            Assert.That(arr.ToArray(), Is.EqualTo(payload));
+            Assert.That(decoded.TryGetValue(out MatrixOf<int> matrix), Is.True);
+            Assert.That(matrix.Dimensions, Is.EqualTo([2, 3]));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(payload));
             Assert.That(reader.Remaining, Is.Zero);
         }
 

@@ -68,6 +68,26 @@ namespace Opc.Ua.Pumps.Client
             PumpReadOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            await foreach (PumpEntry port in EnumeratePortEntriesAsync(pump, cancellationToken).ConfigureAwait(false))
+            {
+                yield return await ReadPortAsync(
+                    port.NodeId,
+                    NameOf(port.BrowseName),
+                    port.TypeDefinitionId,
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Enumerates port identities without fetching their engineering groups.
+        /// </summary>
+        /// <param name="pump">The pump that owns the Ports group.</param>
+        /// <param name="cancellationToken">Cancels discovery.</param>
+        public async IAsyncEnumerable<PumpEntry> EnumeratePortEntriesAsync(
+            NodeId pump,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
             NodeId ports = await ResolvePortsAsync(pump, cancellationToken)
                 .ConfigureAwait(false);
             if (ports.IsNull)
@@ -75,7 +95,6 @@ namespace Opc.Ua.Pumps.Client
                 yield break;
             }
 
-            var discovered = new List<(NodeId NodeId, string Name, NodeId TypeDefinition)>();
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
                     ports,
                     NodeClass.Object,
@@ -84,23 +103,14 @@ namespace Opc.Ua.Pumps.Client
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (!nodeId.IsNull)
                 {
-                    discovered.Add((
+                    yield return new PumpEntry(
                         nodeId,
-                        NameOf(reference.BrowseName),
+                        reference.BrowseName,
+                        reference.DisplayName,
                         ExpandedNodeId.ToNodeId(
                             reference.TypeDefinition,
-                            Session.NamespaceUris)));
+                            Session.NamespaceUris));
                 }
-            }
-
-            foreach ((NodeId nodeId, string name, NodeId typeDefinition) in discovered)
-            {
-                yield return await ReadPortAsync(
-                    nodeId,
-                    name,
-                    typeDefinition,
-                    options,
-                    cancellationToken).ConfigureAwait(false);
             }
         }
 

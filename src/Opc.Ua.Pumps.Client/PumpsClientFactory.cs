@@ -68,6 +68,23 @@ namespace Opc.Ua.Pumps.Client
             return new PumpsClient(session, m_telemetry);
         }
 
+        /// <summary>
+        /// Creates a bounded, strictly validated client over the current managed session.
+        /// </summary>
+        /// <param name="maximumBrowseReferences">An inclusive limit from one through 65536.</param>
+        /// <param name="cancellationToken">Cancels session acquisition.</param>
+        /// <exception cref="ArgumentOutOfRangeException">The reference limit is outside its bounds.</exception>
+        public async Task<PumpsClient> CreateAsync(
+            int maximumBrowseReferences, CancellationToken cancellationToken = default)
+        {
+            if (maximumBrowseReferences is < 1 or > 65536)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumBrowseReferences));
+            }
+            ManagedSession session = await m_sessionFactory(cancellationToken).ConfigureAwait(false);
+            return new PumpsClient(session, m_telemetry, maximumBrowseReferences);
+        }
+
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
         private readonly ITelemetryContext m_telemetry;
     }
