@@ -1310,6 +1310,13 @@ namespace Opc.Ua.Client
                 {
                     return result;
                 }
+                ServiceResultException? securityConfigurationMismatch =
+                    GetSecurityConfigurationMismatch(endpoint.Description, alternate.Description);
+                if (securityConfigurationMismatch != null)
+                {
+                    m_logger.ManagedSessionConnectFailed(securityConfigurationMismatch);
+                    return new ServiceResult(securityConfigurationMismatch);
+                }
                 endpoint = alternate;
             }
         }
@@ -1805,6 +1812,39 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Creates an error when a candidate endpoint changes an explicitly
+        /// configured mode or policy.
+        /// </summary>
+        private static ServiceResultException? GetSecurityConfigurationMismatch(
+            EndpointDescription required,
+            EndpointDescription candidate)
+        {
+            if (required.SecurityMode != MessageSecurityMode.Invalid &&
+                required.SecurityMode != candidate.SecurityMode)
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeRejected,
+                    "The endpoint security mode '{0}' does not match the required mode '{1}'.",
+                    candidate.SecurityMode,
+                    required.SecurityMode);
+            }
+
+            if (!string.IsNullOrEmpty(required.SecurityPolicyUri) &&
+                !string.Equals(
+                    required.SecurityPolicyUri,
+                    candidate.SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    $"The endpoint security policy '{candidate.SecurityPolicyUri}' does not match the required policy " +
+                    $"'{required.SecurityPolicyUri}'.");
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Reactivates the session against the given endpoint reusing the current
         /// AuthenticationToken instead of recreating it. Used by client replica sets
         /// to fast-activate a mirrored session on promotion. The standby still performs
@@ -2207,6 +2247,18 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            if (endpoint != null)
+            {
+                ServiceResultException? securityConfigurationMismatch =
+                    GetSecurityConfigurationMismatch(
+                        session.ConfiguredEndpoint.Description,
+                        endpoint.Description);
+                if (securityConfigurationMismatch != null)
+                {
+                    throw securityConfigurationMismatch;
+                }
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
@@ -2227,6 +2279,15 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            ServiceResultException? securityConfigurationMismatch =
+                GetSecurityConfigurationMismatch(
+                    session.ConfiguredEndpoint.Description,
+                    endpoint.Description);
+            if (securityConfigurationMismatch != null)
+            {
+                throw securityConfigurationMismatch;
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {

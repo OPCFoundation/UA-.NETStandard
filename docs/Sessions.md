@@ -186,7 +186,10 @@ is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
 endpoint refreshes when the server certificate changes, and cooperates
-with `ReverseConnectManager`.
+with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
+requires the same message-security mode and security policy as the configured
+endpoint. If discovery no longer offers that exact combination, reconnect fails
+instead of selecting another security configuration.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -261,6 +264,10 @@ an `ISession` facade that wraps a raw `Session` and adds:
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before
   recreating the session; normal certificate trust validation still applies.
+  Refresh preserves the active endpoint's message-security mode and
+  security-policy URI. A new server certificate can therefore be accepted only
+  through the existing certificate-validation rules, not by changing the
+  channel's security configuration.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -393,7 +400,9 @@ connection state machine transitions `Connected → Reconnecting` and:
 4. If the redundancy handler is enabled and the active server is
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
-   session against the failover endpoint.
+   session against a failover endpoint with the same message-security mode
+   and security-policy URI. A target with a different mode or policy is
+   rejected before opening its channel.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established
@@ -425,6 +434,14 @@ is consumed by the initial connection attempt only. Supplying that connection
 without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
+
+`ConfiguredEndpoint.UpdateBeforeConnect` controls whether endpoint discovery
+refreshes the configured endpoint before connecting. It does not authorize
+automatic security-policy changes and does not disable discovery needed during
+recovery. Reconnect and failover preserve the selected security mode and policy;
+if the server or failover target no longer offers them, the connection attempt
+fails visibly. To use a different policy, explicitly reconfigure and establish a
+new connection rather than relying on automatic reconnect to negotiate one.
 
 ### Generation-bound client requests
 

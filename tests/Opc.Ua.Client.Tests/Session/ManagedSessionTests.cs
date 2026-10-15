@@ -362,6 +362,72 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task HandleReconnectAsyncRejectsAlternateNetworkEndpointWithDifferentSecurityPolicyAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint primaryEndpoint = CreateEndpoint();
+            ConfiguredEndpoint alternateEndpoint = CreateEndpoint();
+            alternateEndpoint.Description.EndpointUrl = "opc.tcp://alternate:4840";
+            alternateEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(channel => channel.MessageContext).Returns(messageContext);
+            managedChannel.SetupGet(channel => channel.State).Returns(ChannelState.Closed);
+
+            ConfiguredEndpoint? capturedEndpoint = null;
+            var channelManager = new Mock<IClientChannelManager>();
+#if NET8_0_OR_GREATER
+            channelManager.Setup(manager => manager.ReconnectAsync(
+                    managedChannel.Object,
+                    It.IsAny<IRetryBudget>(),
+                    It.IsAny<CancellationToken>()))
+#else
+            channelManager.Setup(manager => manager.ReconnectAsync(
+                    managedChannel.Object, It.IsAny<CancellationToken>()))
+#endif
+                .Throws(new ServiceResultException(StatusCodes.BadSecureChannelClosed));
+            channelManager.Setup(manager => manager.GetAsync(
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                    It.IsAny<ITransportWaitingConnection>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
+                    ITransportWaitingConnection?, CancellationToken>(
+                    (endpoint, _, _, _) => capturedEndpoint = endpoint)
+                .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError));
+
+            using var innerSession = new Session(
+                managedChannel.Object,
+                configuration,
+                primaryEndpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+            innerSession.BindManagedChannel(channelManager.Object, managedChannel.Object);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                primaryEndpoint,
+                innerSession,
+                telemetry,
+                new NetworkRedundancyOptions
+                {
+                    AlternateEndpoints = new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory())
+                });
+
+            ServiceResult result = await InvokeHandleReconnectAsync(
+                    managedSession,
+                    new RetryBudget(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(capturedEndpoint, Is.Null);
+            Assert.That(
+                primaryEndpoint.Description.SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.None));
+        }
+
+        [Test]
         public async Task HandleFailoverAsyncUsesInnerSessionCurrentEndpointForTargetSelectionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -370,6 +436,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             initialEndpoint.Description.EndpointUrl = "opc.tcp://initial:4840";
             ConfiguredEndpoint activeEndpoint = CreateEndpoint();
             activeEndpoint.Description.EndpointUrl = "opc.tcp://active:4840";
+            ConfiguredEndpoint failoverEndpoint = CreateEndpoint();
+            failoverEndpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            failoverEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
             IServiceMessageContext messageContext = configuration.CreateMessageContext();
 
             var managedChannel = new Mock<IManagedTransportChannel>();
@@ -382,7 +451,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<ConfiguredEndpoint>()))
                 .Callback<ServerRedundancyInfo, ConfiguredEndpoint>(
                     (_, currentEndpoint) => capturedCurrentEndpoint = currentEndpoint)
-                .Returns((ConfiguredEndpoint?)null);
+                .Returns(failoverEndpoint);
 
             using var innerSession = new Session(
                 managedChannel.Object,
@@ -408,8 +477,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     new RetryBudget(TimeSpan.FromSeconds(30)))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
             Assert.That(capturedCurrentEndpoint, Is.SameAs(activeEndpoint));
+            Assert.That(activeEndpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
             redundancyHandler.Verify(h => h.SelectFailoverTarget(
                     It.IsAny<ServerRedundancyInfo>(),
                     It.IsAny<ConfiguredEndpoint>()),
