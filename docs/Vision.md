@@ -1020,6 +1020,14 @@ Linux capture hosts also need the system graphics libraries, including
 `libOpenGL.so.0` and the Vulkan loader. The shared CI action provisions
 these prerequisites for the Vision test shards.
 
+RID-less Linux hosts must also expose the application output directory and its
+`runtimes/linux-x64/native` directory through `LD_LIBRARY_PATH` **before** starting
+the process. .NET's native probing paths do not resolve the bundled OpenUSD
+libraries' transitive ELF dependencies, such as `libAlembic.so.1.8`. The shared
+CI action configures both paths for Linux Vision batches and preserves inherited
+search paths. This host configuration does not establish native package portability
+or rendering qualification.
+
 The intent is that a client can rely on the address space always being
 walkable, even when the process has no way to produce pixels. The
 `--demo` client path in the sample skips its compose step gracefully
