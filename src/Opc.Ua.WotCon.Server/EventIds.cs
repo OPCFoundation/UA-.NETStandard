@@ -48,6 +48,5 @@ namespace Opc.Ua
         public const int WotConnectivityNodeManager = 50;
         public const int WotRegistryNodeManager = 60;
         public const int WotProjectionViewNodeManager = 70;
-        public const int WotRefreshDiag = 80; // [DEBUG-G10-RF1]
     }
 }

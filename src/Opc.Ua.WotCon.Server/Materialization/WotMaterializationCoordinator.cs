@@ -114,13 +114,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
             }
 
-            WotRefreshDiag? rfDiag = null; // [DEBUG-G10-RF1]
             try
             {
-                int rfKind = request.RequestId switch { "auto" => 1, "startup" => 2, _ => 0 }; // [DEBUG-G10-RF1]
-                rfDiag = new WotRefreshDiag(DiagLogger, m_mutex.CurrentCount, rfKind); // [DEBUG-G10-RF1]
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
-                rfDiag.Acquired(); // [DEBUG-G10-RF1]
                 try
                 {
                     DateTime start = DateTime.UtcNow;
@@ -129,7 +125,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     if (request.ExpectedGeneration != 0 &&
                         request.ExpectedGeneration != m_generation)
                     {
-                        rfDiag.Done(rejected: true); // [DEBUG-G10-RF1]
                         return RejectedResult(request, start);
                     }
 
@@ -151,7 +146,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                     contentCache, version, token),
                                 cancellationToken)
                             .ConfigureAwait(false);
-                    rfDiag.Built(enabled.Count, closures.Length); // [DEBUG-G10-RF1]
 
                     var targetKeys = new HashSet<string>(
                         closures.Select(c => c.Key), StringComparer.Ordinal);
@@ -160,7 +154,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         (version, token) => ReadCachedContentAsync(contentCache, version, token),
                         m_converterOptions.MaxNodeCount);
                     declarationContext.AddAvailableNativePartitions(contentCache, m_converterOptions, cancellationToken);
-                    rfDiag.Native(); // [DEBUG-G10-RF1]
 
                     uint newGeneration = m_generation + 1;
                     ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
@@ -180,7 +173,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     retired += retiredCount;
                     skipped += retiredResults.Length;
                     results.AddRange(retiredResults);
-                    rfDiag.Retired(); // [DEBUG-G10-RF1]
 
                     foreach (WotDependencyClosure closure in closures)
                     {
@@ -191,8 +183,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                         ClosureOutcome outcome = await ProcessClosureAsync(
                             snapshot, closure, newGeneration, force && inScope,
-                            dryRun, strict, contentCache, declarationContext, rfDiag, cancellationToken)
-                            .ConfigureAwait(false);
+                            dryRun, strict, contentCache, declarationContext, cancellationToken).ConfigureAwait(false);
                         retired += outcome.Retired;
 
                         foreach (WoTResourceLoadResultDataType result in outcome.Results)
@@ -222,14 +213,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         projections.AddRange(outcome.Projections);
                     }
-                    rfDiag.Looped(results.Count); // [DEBUG-G10-RF1]
 
                     if (!dryRun && projections.Count > 0)
                     {
                         await m_registry.ApplyProjectionResultsAsync(
                             projections, cancellationToken).ConfigureAwait(false);
                     }
-                    rfDiag.Applied(); // [DEBUG-G10-RF1]
                     if (!dryRun)
                     {
                         m_generation = newGeneration;
@@ -264,7 +253,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         Summary = summary
                     });
 
-                    rfDiag.Done(rejected: false); // [DEBUG-G10-RF1]
                     return new WotRefreshResult(
                         summary, results.ToImmutable(), dryRun ? 0u : newGeneration);
                 }
@@ -275,14 +263,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             finally
             {
-                try // [DEBUG-G10-RF1]
-                {
-                    rfDiag?.Finish(cancellationToken.IsCancellationRequested); // [DEBUG-G10-RF1]
-                }
-                finally // [DEBUG-G10-RF1]
-                {
-                    EndOperation();
-                }
+                EndOperation();
             }
         }
 
@@ -492,11 +473,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// [DEBUG-G10-RF1] Temporary diagnostics logger for refresh timing.
-        /// </summary>
-        internal Microsoft.Extensions.Logging.ILogger? DiagLogger { get; set; }
-
-        /// <summary>
         /// Releases the mutex used to serialise refreshes.
         /// </summary>
         public void Dispose()
@@ -571,34 +547,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool strict,
             Dictionary<string, ByteString> contentCache,
             WotProjectionDeclarationContext declarationContext,
-            WotRefreshDiag? rfDiag, // [DEBUG-G10-RF1]
-            CancellationToken cancellationToken)
-        {
-            WotClosureDiag? rfClosure = rfDiag?.BeginClosure(); // [DEBUG-G10-RF1]
-            try // [DEBUG-G10-RF1]
-            {
-                ClosureOutcome outcome = await ProcessClosureCoreAsync(
-                    snapshot, closure, generation, force, dryRun, strict, contentCache,
-                    declarationContext, rfClosure, cancellationToken).ConfigureAwait(false);
-                rfClosure?.Done(); // [DEBUG-G10-RF1]
-                return outcome;
-            }
-            finally // [DEBUG-G10-RF1]
-            {
-                rfClosure?.Finish(cancellationToken.IsCancellationRequested); // [DEBUG-G10-RF1]
-            }
-        }
-
-        private async ValueTask<ClosureOutcome> ProcessClosureCoreAsync(
-            WotRegistrySnapshot snapshot,
-            WotDependencyClosure closure,
-            uint generation,
-            bool force,
-            bool dryRun,
-            bool strict,
-            Dictionary<string, ByteString> contentCache,
-            WotProjectionDeclarationContext declarationContext,
-            WotClosureDiag? rfClosure, // [DEBUG-G10-RF1]
             CancellationToken cancellationToken)
         {
             ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
@@ -677,7 +625,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var requiredNamespaces = new HashSet<string>(StringComparer.Ordinal);
             var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
 
-            WotClosureDiag.LoopStart(rfClosure, members.Count); // [DEBUG-G10-RF1]
             foreach (WotResource member in members)
             {
                 WotResourceVersion? version = member.DefaultVersion;
@@ -707,15 +654,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // sources (Section 12.6), never as affordance Nodes of its own. It
                 // is deferred here and materialized after its sources, whose
                 // materialized roots the View resolves against.
-                long rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 ByteString memberContent = await ReadCachedContentAsync(
                         contentCache, version, cancellationToken)
                     .ConfigureAwait(false);
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Read, rfT); // [DEBUG-G10-RF1]
-                rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
-                bool rfIsProjection = IsProjectionResource(memberContent); // [DEBUG-G10-RF1]
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Parse, rfT); // [DEBUG-G10-RF1]
-                if (rfIsProjection)
+                if (IsProjectionResource(memberContent))
                 {
                     if (member.Enabled)
                     {
@@ -724,14 +666,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
-                rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase) =
                     await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false);
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Convert, rfT); // [DEBUG-G10-RF1]
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
                 {
-                    rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                     // Contributors run after conversion and before any variable is created, which
                     // is when a programmatically discovered DataType (a controller UDT, say) has to
                     // exist for a uav:mapByFieldPath mapping to resolve against it.
@@ -741,7 +680,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             .ContributeAsync(member, nodeSet, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    WotClosureDiag.Add(rfClosure, WotClosureDiag.Contrib, rfT); // [DEBUG-G10-RF1]
                 }
                 if (nodeSet is null)
                 {
@@ -780,17 +718,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         retiredMembers);
                 }
 
-                rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 declarationContext.AddNodeSet(member.Xid, nodeSet, root, memberContent);
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.DeclAdd, rfT); // [DEBUG-G10-RF1]
                 if (member.Enabled)
                 {
-                    rfT = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                     WotBindingPlanRequest planRequest = (await BuildPlanRequestAsync(
                         member, version, memberContent, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false))
                         .WithProjectionRoot(root);
-                    WotClosureDiag.Add(rfClosure, WotClosureDiag.PlanReq, rfT); // [DEBUG-G10-RF1]
                     preparedPlans.Add((member, planRequest));
                 }
 
@@ -803,18 +737,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 CollectRequiredNamespaces(nodeSet, requiredNamespaces, ownedNamespaces);
             }
 
-            WotClosureDiag.LoopEnd(
-                rfClosure, convertedSources.Count, projectionMembers.Count, preparedPlans.Count); // [DEBUG-G10-RF1]
-            long rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
             try
             {
                 sources.AddRange(CoalesceProjectionSources(convertedSources));
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Coalesce, rfPhase); // [DEBUG-G10-RF1]
-                WotClosureDiag.Sources(rfClosure, sources.Count); // [DEBUG-G10-RF1]
             }
             catch (ServiceResultException exception)
             {
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Coalesce, rfPhase); // [DEBUG-G10-RF1]
                 foreach (WotResource member in activeMembers)
                 {
                     results.Add(FailResult(member, generation, WoTPhaseEnum.Projection, exception.Message));
@@ -832,12 +760,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // sources so they materialize before the documents that reference them. A namespace
             // that stays unresolved is reported, never silently dropped: the projection then fails
             // with a message naming exactly what is missing.
-            rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
             (ImmutableArray<WotProjectionSource> resolved, ImmutableArray<string> unresolved) =
                 await ResolveDependencyModelsAsync(
                         requiredNamespaces, ownedNamespaces, declarationContext, cancellationToken)
                     .ConfigureAwait(false);
-            WotClosureDiag.Add(rfClosure, WotClosureDiag.Resolve, rfPhase); // [DEBUG-G10-RF1]
             if (!resolved.IsDefaultOrEmpty)
             {
                 sources.InsertRange(0, resolved);
@@ -858,11 +784,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // classifying any root, including ownership across partition order.
             foreach ((WotResource member, WotBindingPlanRequest request) in preparedPlans)
             {
-                rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 bool isDeclaration = await declarationContext.IsDeclarationAsync(member, cancellationToken)
                     .ConfigureAwait(false);
                 WotBindingPlan plan = m_binders.Prepare(request.WithDeclarationContext(isDeclaration));
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Prepare, rfPhase); // [DEBUG-G10-RF1]
                 bindingPlans.Add(plan);
                 if (!plan.FullySupported)
                 {
@@ -925,7 +849,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionHandle? handle = tracked?.Handle;
             if (sources.Count > 0)
             {
-                rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 try
                 {
                     if (tracked?.Handle is null)
@@ -943,11 +866,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         handle = await m_host.ShadowReloadAsync(
                             tracked.Handle, document, cancellationToken).ConfigureAwait(false);
                     }
-                    WotClosureDiag.Add(rfClosure, WotClosureDiag.HostAdd, rfPhase); // [DEBUG-G10-RF1]
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    WotClosureDiag.Add(rfClosure, WotClosureDiag.HostAdd, rfPhase); // [DEBUG-G10-RF1]
                     // Projection failed: retain the previous active generation and its
                     // active-member binding plans. Inactive dependency-only members
                     // were retired before the attempt and must not be marked failed.
@@ -981,12 +902,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var viewHandles = new List<WotViewProjectionHandle>();
             if (projectionMembers.Count > 0)
             {
-                rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 await MaterializeProjectionViewsAsync(
                     snapshot, projectionMembers, perMemberRoot, generation,
                     projectionXids, viewResults, viewProjections, viewHandles,
                     contentCache, cancellationToken).ConfigureAwait(false);
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Views, rfPhase); // [DEBUG-G10-RF1]
             }
 
             // The shadow switch (or first add) succeeded. On an update, retire the
@@ -997,7 +916,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // shared between the old and new plan sets continuously bound.
             if (tracked is not null)
             {
-                rfPhase = WotClosureDiag.Now(rfClosure); // [DEBUG-G10-RF1]
                 foreach (WotBindingPlan plan in tracked.BindingPlans)
                 {
                     await m_binders.DeactivateAsync(plan, cancellationToken).ConfigureAwait(false);
@@ -1007,7 +925,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                WotClosureDiag.Add(rfClosure, WotClosureDiag.Deactivate, rfPhase); // [DEBUG-G10-RF1]
             }
 
             m_closures[closure.Key] = new ClosureState
