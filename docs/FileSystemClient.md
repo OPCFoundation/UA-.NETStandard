@@ -34,6 +34,7 @@ to make remote file-system navigation feel like working with a local disk.
   - [Stream a large file](#stream-a-large-file)
   - [Create a directory tree and write a file](#create-a-directory-tree-and-write-a-file)
   - [Move and delete](#move-and-delete)
+  - [Use a file known by its NodeId](#use-a-file-known-by-its-nodeid)
 - [Path syntax](#path-syntax)
 - [Path resolution and caching](#path-resolution-and-caching)
 - [Type classification](#type-classification-filetype-vs-filedirectorytype)
@@ -102,6 +103,30 @@ UaFileInfo file = await fs.GetFileAsync("/Drafts/v1.txt");
 await file.MoveToAsync("/Published/v1.txt");
 
 await fs.DeleteAsync("/Drafts", recursive: true);
+```
+
+### Use a file known by its NodeId
+
+A `FileType` NodeId can come from somewhere other than a path below the
+root, for example from a reference or a method result. Create the
+`UaFileInfo` directly instead of falling back to the raw `FileTypeClient`
+proxy:
+
+```csharp
+// The containing directory is known: every operation is available and
+// the path is the directory's path followed by the BrowseName.
+UaDirectoryInfo reports = await fs.GetDirectoryAsync("/Reports");
+var report = new UaFileInfo(reports, reportNodeId, new QualifiedName("summary.json"));
+await report.RefreshAsync();
+await report.DeleteAsync();
+
+// Only the NodeId is known: the file is detached. It can be refreshed,
+// opened, read and written, but DeleteAsync, MoveToAsync and CopyToAsync
+// throw InvalidOperationException, because those are methods of the
+// containing FileDirectoryType.
+var result = new UaFileInfo(fs, resultFileNodeId, new QualifiedName("result.bin"));
+byte[] bytes = await result.ReadAllBytesAsync();
+bool detached = result.IsDetached; // true; Parent is null
 ```
 
 ## Path syntax
