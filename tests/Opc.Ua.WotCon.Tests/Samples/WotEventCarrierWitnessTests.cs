@@ -139,6 +139,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 result.Success,
                 Is.False,
                 "The served carrier states another identity; the conversion must not report success.");
+            Assert.That(
+                result.Diagnostics.Any(d => d.ToString().Contains(
+                    "Pump2.CavitationAlarm",
+                    StringComparison.Ordinal)),
+                Is.True,
+                "A diagnostic must name the identity the carrier states: "
+                + string.Join("; ", result.Diagnostics.Select(d => d.ToString())));
         }
 
         /// <summary>
