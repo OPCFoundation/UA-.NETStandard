@@ -358,9 +358,11 @@ authorization.
 - Expiry, close, successful commit, session shutdown and disposal remove owned
   temporary files. Stream cleanup on session shutdown is supplied by
   `FileTypeBinder`; the periodic sweep reclaims the remaining node.
-- Disposal cancels providers first, drains active and queued operations, and
-  then releases streams and nodes. Concurrent callers await the same disposal
-  outcome. Cleanup failures are propagated rather than reported as success.
+- Disposal closes admission, cancels providers, drains active and queued
+  operations, and then releases streams and nodes. Periodic maintenance stops
+  at the same admission boundary. Concurrent callers await the same disposal
+  outcome; failures from cleanup already in progress remain visible even when
+  shutdown requests cancellation.
 
 Defaults are 16 MiB per file, 16 transfers, 1,024 descriptions per list, 256
 component codes/product names, 1,024 characters per string, a 60-second inactivity

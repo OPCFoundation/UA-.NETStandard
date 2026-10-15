@@ -385,14 +385,38 @@ namespace Opc.Ua.PlasticsRubber.Server
             bool serialize = true,
             Func<CancellationToken, ValueTask>? after = null)
         {
+            if (!TryRegisterOperation())
+            {
+                throw Error(StatusCodes.BadShutdown, "The dataset binding is stopping.");
+            }
+            await RunRegisteredAsync(operation, serialize, after, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Atomically admits work or reports that shutdown has closed admission.
+        /// </summary>
+        private bool TryRegisterOperation()
+        {
             lock (m_lifetimeLock)
             {
                 if (m_disposing)
                 {
-                    throw Error(StatusCodes.BadShutdown, "The dataset binding is stopping.");
+                    return false;
                 }
                 m_operations++;
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Executes admitted work and releases its lifetime registration on every outcome.
+        /// </summary>
+        private async ValueTask RunRegisteredAsync(
+            Func<CancellationToken, ValueTask> operation,
+            bool serialize,
+            Func<CancellationToken, ValueTask>? after,
+            CancellationToken cancellationToken)
+        {
             bool entered = false;
             try
             {
@@ -444,22 +468,27 @@ namespace Opc.Ua.PlasticsRubber.Server
         {
             TimeSpan interval = m_options.TransferTimeout < TimeSpan.FromSeconds(1)
                 ? m_options.TransferTimeout : TimeSpan.FromSeconds(1);
-            try
+            while (true)
             {
-                while (true)
+                bool reclaiming = false;
+                try
                 {
                     await Task.Delay(interval, m_stopping.Token).ConfigureAwait(false);
-                    await ReclaimExpiredAsync(m_stopping.Token).ConfigureAwait(false);
+                    if (!TryRegisterOperation())
+                    {
+                        return;
+                    }
+                    await RunRegisteredAsync(_ =>
+                    {
+                        reclaiming = true;
+                        return ExpireCoreAsync();
+                    }, serialize: true, after: null, m_stopping.Token).ConfigureAwait(false);
                 }
-            }
-            catch (OperationCanceledException) when (m_stopping.IsCancellationRequested)
-            {
-                // Shutdown cancels the maintenance loop before disposal waits for outstanding operations.
-            }
-            catch (ServiceResultException exception) when (
-                m_stopping.IsCancellationRequested && exception.StatusCode == StatusCodes.BadShutdown)
-            {
-                // Disposal may win the lifetime registration race immediately after the timer completes.
+                catch (OperationCanceledException) when (!reclaiming && m_stopping.IsCancellationRequested)
+                {
+                    // Only the delay and admission wait are cancelable; started cleanup must report its failures.
+                    return;
+                }
             }
         }
 
