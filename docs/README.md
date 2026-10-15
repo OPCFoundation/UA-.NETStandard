@@ -146,6 +146,8 @@ needs.
 
 - [State machines](StateMachines.md) — define, drive, and observe state
   transitions.
+- [Programs](Programs.md) — host and control Part 10 invocations, monitor
+  captured transition results, and manage diagnostics and lifetime.
 - [Alarms and conditions](AlarmsAndConditions.md) — raise, acknowledge, and
   stream alarms. Alarm conditions use state machines, for example for shelving.
 - [Historical access](HistoricalAccess.md) — store and read value and event
@@ -195,6 +197,12 @@ models that each model depends on.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —
+  shared machine configuration, control and monitoring, with
+  [production dataset transfer](PlasticsRubber.md#production-dataset-protocol) and
+  [granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6).
+- [Extrusion](Extrusion.md) (OPC 40084-1 through -12) — the extrusion line
+  and its device families, optional capabilities, typed clients and composition.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
@@ -203,6 +211,9 @@ models that each model depends on.
 
 For more examples, including the Pumps and Machinery models, see the
 [companion-model samples](Samples.md#companion-model-samples).
+The [generic recycling simulation](../samples/Recycling/README.md) combines a causal production
+model with separately hosted process views; its guide identifies the remaining companion
+integration limits.
 
 To expose these typed client interfaces to an agent, use the
 [industrial companion MCP tools](McpServer.md#industrial-companion-tools). Select one family or

@@ -37,7 +37,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   certified through an OPC Foundation Certification Test Lab and is
   continuously verified against the latest
   [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/).
-- **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
+- **Companion-spec coverage** — Part 9 (Alarms & Conditions),
+  [Part 10 (Programs)](docs/Programs.md), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Part 110 (Asset Management

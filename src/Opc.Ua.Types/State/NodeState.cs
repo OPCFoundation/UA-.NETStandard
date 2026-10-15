@@ -7139,7 +7139,20 @@ namespace Opc.Ua
     /// </summary>
     /// <param name="Result">Operation result.</param>
     public readonly record struct AttributeWriteResult(
-        ServiceResult Result);
+        ServiceResult Result)
+    {
+        /// <summary>
+        /// Gets whether the handler or an external publisher owns updates to the cached value,
+        /// quality, source timestamp and value-change mask after a successful write.
+        /// </summary>
+        /// <remarks>
+        /// The default is false, preserving ordinary write-through behavior. When true, the
+        /// asynchronous write pipeline returns <see cref="Result"/> without updating the cache.
+        /// Access, type, status and timestamp validation still apply. For indexed writes, the
+        /// handler remains responsible for applying the requested range to its authoritative data.
+        /// </remarks>
+        public bool SuppressCacheUpdate { get; init; }
+    }
 
     /// <summary>
     /// Asynchronous sibling of <see cref="NodeValueEventHandler"/> for the

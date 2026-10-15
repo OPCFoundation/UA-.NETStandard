@@ -276,6 +276,10 @@ namespace Opc.Ua
                 requests,
                 ct).ConfigureAwait(false);
 
+            if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, requests);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
 

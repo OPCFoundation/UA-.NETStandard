@@ -7,6 +7,18 @@ proxies and the existing `FiniteStateMachineState` server base.
 For the formal model, see
 [OPC UA Part 16 — State Machines](https://reference.opcfoundation.org/specs/OPC-10000-16/full).
 
+For managed Part 10 execution, lifetime, diagnostics and result events, use
+[Programs](Programs.md). A generic FSM observer or fire-and-forget lifecycle
+hook is not a replacement for a Program control/transition event.
+
+`StateMachineBuilder.For(parent, context).BindSubStateMachine(...)` attaches
+activation behavior to a child already declared by a generated model. Pass
+the parent state identifier, a builder for the child, its initial state
+identifier, and `preserveOnReentry: true` when resumption must retain progress.
+The model declares HasSubStateMachine; the binding does not modify shared
+type definitions. Definition-mode `WithSubStateMachine` and this binding use
+the same activation and inactive-state quality handling.
+
 ## Contents
 
 - [Two-mode unified builder](#two-mode-unified-builder)
