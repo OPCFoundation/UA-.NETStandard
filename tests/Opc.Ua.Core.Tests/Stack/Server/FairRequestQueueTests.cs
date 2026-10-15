@@ -1575,9 +1575,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// Producers and waiting workers race on many owners: every admitted request is
         /// dispatched exactly once and no worker is left waiting with work queued.
         /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task NoWakeupIsLostBetweenProducersAndWaitingWorkersAsync(bool useFairScheduling)
+        [TestCase(true, -1, 0)]
+        [TestCase(false, -1, 0)]
+        [TestCase(true, 0, 0)]
+        [TestCase(false, 0, 0)]
+        [TestCase(true, 50, 1)]
+        [TestCase(true, 50, 8)]
+        [TestCase(false, 50, 2)]
+        public async Task NoWakeupIsLostBetweenProducersAndWaitingWorkersAsync(
+            bool useFairScheduling,
+            int spinMicroseconds,
+            int spinningReaders)
         {
             const int producers = 4;
             const int perProducer = 1500;
@@ -1588,6 +1596,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 owners[ii] = provider.AddOwner($"owner-{ii}", weight: 1 + (ii % 3), queueLimit: 1000);
             }
             using var queue = CreateQueue(provider, maxQueued: 1000);
+            if (spinMicroseconds >= 0)
+            {
+                // -1 keeps the defaults
+                queue.SpinDuration = System.Diagnostics.Stopwatch.Frequency * spinMicroseconds / 1_000_000;
+                queue.MaxSpinningReaders = spinningReaders;
+            }
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var seen = new System.Collections.Concurrent.ConcurrentDictionary<TestRequest, int>();
             int total = producers * perProducer;
@@ -1599,12 +1613,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 workers[w] = Task.Run(async () =>
                 {
+                    // reused for every wait, as a worker of the request queue does
+                    WorkerWakeSignal.Waiter waiter = queue.CreateWaiter();
                     try
                     {
                         while (true)
                         {
                             FairRequestQueue.Entry entry =
-                                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                                await queue.DequeueAsync(waiter, deadline.Token).ConfigureAwait(false);
                             Assert.That(seen.TryAdd((TestRequest)entry.Request, 0), Is.True, "dispatched twice");
                             entry.Dispose();
                             if (Interlocked.Increment(ref dispatched) == total)
@@ -1789,6 +1805,234 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 }
                 Assert.That(queue.Count, Is.Zero, $"round {round}");
+                Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
+            }
+        }
+
+        /// <summary>
+        /// A reader still looking for work takes an admitted request itself: no parked reader
+        /// is woken for it.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task SpinningReaderTakesTheRequestWithoutWakingAParkedOneAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            // long enough that the spinning reader is still looking when the request arrives
+            queue.SpinDuration = System.Diagnostics.Stopwatch.Frequency * 10;
+            queue.MaxSpinningReaders = 1;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Task<FairRequestQueue.Entry> first = Task.Run(() => queue.DequeueAsync(deadline.Token).AsTask());
+            Task<FairRequestQueue.Entry> second = Task.Run(() => queue.DequeueAsync(deadline.Token).AsTask());
+            while (queue.ParkedReaderCount == 0)
+            {
+                await Task.Delay(1, deadline.Token).ConfigureAwait(false);
+            }
+
+            Enqueue(queue, new TestRequest(token, 7));
+            Task<FairRequestQueue.Entry> taken = await Task.WhenAny(first, second).WaitAsync(deadline.Token)
+                .ConfigureAwait(false);
+            using FairRequestQueue.Entry entry = await taken.ConfigureAwait(false);
+            Assert.That(entry.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(7));
+            Assert.That(queue.WakeSignalCount, Is.Zero);
+            Assert.That(queue.ParkedReaderCount, Is.EqualTo(1));
+
+            queue.Dispose();
+            Task<FairRequestQueue.Entry> parked = taken == first ? second : first;
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await parked.WaitAsync(deadline.Token).ConfigureAwait(false));
+            Assert.That(deadline.IsCancellationRequested, Is.False);
+        }
+
+        /// <summary>
+        /// Spins that run out lower the spin score until readers park at once, and a request
+        /// admitted then still wakes a parked reader.
+        /// </summary>
+        [Test]
+        public async Task SpinsThatRunOutStopSpinningWithoutLosingWakeupsAsync()
+        {
+            var provider = new TestProvider();
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            queue.SpinDuration = System.Diagnostics.Stopwatch.Frequency / 10_000;
+            queue.MaxSpinningReaders = 1;
+            Assert.That(queue.SpinScore, Is.EqualTo(FairRequestQueue.kMaxSpinScore));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            WorkerWakeSignal.Waiter waiter = queue.CreateWaiter();
+            for (int ii = 0; ii < FairRequestQueue.kMaxSpinScore; ii++)
+            {
+                using var reader = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+                Task<FairRequestQueue.Entry> wait = queue.DequeueAsync(waiter, reader.Token).AsTask();
+                while (queue.ParkedReaderCount == 0)
+                {
+                    await Task.Yield();
+                    Assert.That(deadline.IsCancellationRequested, Is.False);
+                }
+                reader.Cancel();
+                Assert.CatchAsync<OperationCanceledException>(
+                    async () => await wait.WaitAsync(deadline.Token).ConfigureAwait(false));
+            }
+            Assert.That(queue.SpinScore, Is.Zero);
+
+            Task<FairRequestQueue.Entry> parked = queue.DequeueAsync(waiter, deadline.Token).AsTask();
+            while (queue.ParkedReaderCount == 0)
+            {
+                await Task.Yield();
+                Assert.That(deadline.IsCancellationRequested, Is.False);
+            }
+            Enqueue(queue, new TestRequest(token, 3));
+            using FairRequestQueue.Entry entry = await parked.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(entry.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// A parked reader whose wait is cancelled while a request arrives never strands the
+        /// request: another reader takes it, and its leases are returned exactly once.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        public async Task CancelledParkedReaderRacingAnAdmissionStrandsNoRequestAsync(
+            bool useFairScheduling,
+            bool spin)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            if (!spin)
+            {
+                queue.SpinDuration = 0;
+            }
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            WorkerWakeSignal.Waiter stayerWaiter = queue.CreateWaiter();
+            WorkerWakeSignal.Waiter leaverWaiter = queue.CreateWaiter();
+            for (int round = 0; round < 300; round++)
+            {
+                using var leaving = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+                Task<FairRequestQueue.Entry> stayer = queue.DequeueAsync(stayerWaiter, deadline.Token).AsTask();
+                Task<FairRequestQueue.Entry> leaver = queue.DequeueAsync(leaverWaiter, leaving.Token).AsTask();
+                while (queue.ParkedReaderCount < 2)
+                {
+                    await Task.Yield();
+                    Assert.That(deadline.IsCancellationRequested, Is.False);
+                }
+                var request = new TestRequest(token, (uint)round);
+                using var start = new Barrier(2);
+                Task cancel = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    leaving.Cancel();
+                });
+                Task admit = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    Enqueue(queue, request);
+                });
+                await Task.WhenAll(cancel, admit).WaitAsync(deadline.Token).ConfigureAwait(false);
+
+                FairRequestQueue.Entry? entry = null;
+                try
+                {
+                    entry = await leaver.WaitAsync(deadline.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!deadline.IsCancellationRequested)
+                {
+                    // the leaver gave up; the stayer has the request
+                    entry = await stayer.WaitAsync(deadline.Token).ConfigureAwait(false);
+                }
+                Assert.That(entry.Request, Is.SameAs(request), $"round {round}");
+                entry.Dispose();
+                entry.Dispose();
+                Assert.That(request.CompletionCount, Is.Zero, $"round {round}");
+                Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
+                if (!stayer.IsCompleted)
+                {
+                    // the leaver took the request: the stayer waits on, release it for the next round
+                    Enqueue(queue, new TestRequest(token, 100_000));
+                    using FairRequestQueue.Entry release = await stayer.WaitAsync(deadline.Token)
+                        .ConfigureAwait(false);
+                }
+                Assert.That(queue.Count, Is.Zero, $"round {round}");
+            }
+        }
+
+        /// <summary>
+        /// The worker queue never runs more requests at once than the configured worker count,
+        /// although execution capacity would allow more, and runs the backlog once released.
+        /// </summary>
+        [TestCase(true, 1)]
+        [TestCase(true, 3)]
+        [TestCase(false, 3)]
+        public async Task ConfiguredWorkerCountBoundsConcurrentExecutionAsync(bool useFairScheduling, int workers)
+        {
+            var provider = new TestProvider(executionCapacity: 100) { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A", queueLimit: 100);
+            using var server = new QueueServer(provider, workers: workers);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var requests = new TestRequest[workers + 5];
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                requests[ii] = new TestRequest(token, (uint)ii + 1);
+                server.Enqueue(requests[ii]);
+            }
+            int Started()
+            {
+                return Array.FindAll(requests, request => request.Started.Task.IsCompleted).Length;
+            }
+            while (Started() < workers)
+            {
+                await Task.Delay(1, deadline.Token).ConfigureAwait(false);
+            }
+            // give an extra worker the time it would need to start a request
+            await Task.Delay(200, deadline.Token).ConfigureAwait(false);
+            Assert.That(Started(), Is.EqualTo(workers));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(workers));
+
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                // release in order of start; each release lets exactly one more start
+                TestRequest running = Array.Find(
+                    requests, request => request.Started.Task.IsCompleted && !request.Completed.Task.IsCompleted)!;
+                Assert.That(running, Is.Not.Null);
+                running.Release();
+                await running.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                int expected = Math.Min(requests.Length, workers + ii + 1);
+                while (Started() < expected)
+                {
+                    await Task.Delay(1, deadline.Token).ConfigureAwait(false);
+                }
+                Assert.That(Started(), Is.EqualTo(expected));
+            }
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Stopping the worker queue while its workers spin or park ends every worker loop.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task StopWhileWorkersParkEndsEveryWorkerAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            for (int round = 0; round < 20; round++)
+            {
+                using var server = new QueueServer(provider, workers: 8);
+                var request = new TestRequest(token, (uint)round);
+                server.Enqueue(request);
+                await request.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                request.Release();
+                await request.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                // the workers are spinning or parked now; stop at varying points
+                if (round % 2 == 0)
+                {
+                    await Task.Delay(round, deadline.Token).ConfigureAwait(false);
+                }
+                await server.FinishAsync(deadline.Token).ConfigureAwait(false);
                 Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
             }
         }

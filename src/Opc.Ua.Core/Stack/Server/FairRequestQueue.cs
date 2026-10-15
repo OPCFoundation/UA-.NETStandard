@@ -30,9 +30,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -88,6 +90,7 @@ namespace Opc.Ua
             m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
             m_complete = complete ?? throw new ArgumentNullException(nameof(complete));
+            m_hot.SpinScore = kMaxSpinScore;
             m_provider.CapacityAvailable += OnCapacityAvailable;
         }
 
@@ -98,7 +101,7 @@ namespace Opc.Ua
         /// The count is changed atomically and callers use it as a snapshot (worker growth
         /// heuristics, diagnostics).
         /// </remarks>
-        internal int Count => Volatile.Read(ref m_count);
+        internal int Count => Volatile.Read(ref m_hot.Count);
 
         /// <summary>
         /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
@@ -117,12 +120,12 @@ namespace Opc.Ua
         /// Gets the number of turn tokens in the ready queue, including stale tokens of retired
         /// owner FIFOs that the next dequeue pass discards.
         /// </summary>
-        internal int ReadyTokenCount => Volatile.Read(ref m_readyCount);
+        internal int ReadyTokenCount => Volatile.Read(ref m_hot.ReadyCount);
 
         /// <summary>
         /// Gets the number of reader wake signals issued, excluding coalesced duplicate signals.
         /// </summary>
-        internal long WakeSignalCount => Interlocked.Read(ref m_wakeSignalCount);
+        internal long WakeSignalCount => Interlocked.Read(ref m_hot.WakeSignals);
 
         /// <summary>
         /// Admits a decoded request without waiting. Every request is charged one maximum
@@ -150,7 +153,7 @@ namespace Opc.Ua
                 error = StatusCodes.BadServerHalted;
                 return false;
             }
-            if (Volatile.Read(ref m_count) >= m_maxQueuedRequests)
+            if (Volatile.Read(ref m_hot.Count) >= m_maxQueuedRequests)
             {
                 error = StatusCodes.BadServerTooBusy;
                 return false;
@@ -208,16 +211,16 @@ namespace Opc.Ua
                 }
                 // Reserve the queue slot before linking: the count never exceeds the bound,
                 // also while admissions of different owners run concurrently.
-                if (Interlocked.Increment(ref m_count) > m_maxQueuedRequests)
+                if (Interlocked.Increment(ref m_hot.Count) > m_maxQueuedRequests)
                 {
-                    Interlocked.Decrement(ref m_count);
+                    Interlocked.Decrement(ref m_hot.Count);
                     error = StatusCodes.BadServerTooBusy;
                     return false;
                 }
                 error = Link(entry, version: null);
                 if (StatusCode.IsBad(error))
                 {
-                    Interlocked.Decrement(ref m_count);
+                    Interlocked.Decrement(ref m_hot.Count);
                     return false;
                 }
                 if (IsStopped())
@@ -339,7 +342,7 @@ namespace Opc.Ua
                     candidate.Dispose();
                     m_complete(candidate.Request, terminal);
                 }
-                if (Volatile.Read(ref m_version) != version)
+                if (Volatile.Read(ref m_hot.Version) != version)
                 {
                     Pulse();
                 }
@@ -349,41 +352,57 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Waits for a request, waking at most one blocked reader per coalesced signal.
+        /// Creates the reusable wait of one worker.
+        /// </summary>
+        public WorkerWakeSignal.Waiter CreateWaiter()
+        {
+            return new WorkerWakeSignal.Waiter(m_wake);
+        }
+
+        /// <summary>
+        /// Waits for a request, waking at most one parked reader per coalesced signal.
+        /// </summary>
+        public ValueTask<Entry> DequeueAsync(CancellationToken cancellationToken)
+        {
+            return DequeueAsync(CreateWaiter(), cancellationToken);
+        }
+
+        /// <summary>
+        /// Waits for a request with the reusable wait of a worker. A reader that finds nothing
+        /// looks again for a short while before it parks, while few other readers do so.
         /// </summary>
         /// <remarks>
-        /// A worker that finds the queue empty suspends here once per request it takes, so the
-        /// state machine is pooled; the worker loop awaits each call exactly once.
+        /// Admissions and releases do not wake a parked reader while another reader is still
+        /// looking: that reader sees the change. It takes the next request itself and wakes a
+        /// parked reader only if more are queued.
         /// </remarks>
 #if NET6_0_OR_GREATER
-        [System.Runtime.CompilerServices.AsyncMethodBuilder(
-            typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
 #endif
-        public async ValueTask<Entry> DequeueAsync(CancellationToken cancellationToken)
+        public async ValueTask<Entry> DequeueAsync(
+            WorkerWakeSignal.Waiter waiter,
+            CancellationToken cancellationToken)
         {
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    // a token handed to this reader goes to another one
+                    Pulse();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
                 if (Volatile.Read(ref m_stopped) != 0)
                 {
                     throw new OperationCanceledException(cancellationToken);
                 }
-                if (TryDequeue(out Entry? entry))
+                long version = Volatile.Read(ref m_hot.Version);
+                if (TryDequeue(out Entry? entry) || TrySpinDequeue(version, out entry))
                 {
                     return entry;
                 }
-                try
-                {
-                    await m_signals.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                    // The token is consumed; let the next Pulse publish a new one. This
-                    // reader dequeues after the reset, so a Pulse skipped before it is
-                    // still observed.
-                    Volatile.Write(ref m_signalPending, 0);
-                }
-                catch (ChannelClosedException)
-                {
-                    throw new OperationCanceledException(cancellationToken);
-                }
+                // The wait completes at once with a token issued since the last look, and the
+                // next look happens after the token is consumed, so no change is missed.
+                await m_wake.WaitAsync(waiter, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -409,10 +428,10 @@ namespace Opc.Ua
             }
             while (m_ready.TryDequeue(out _))
             {
-                Interlocked.Decrement(ref m_readyCount);
+                Interlocked.Decrement(ref m_hot.ReadyCount);
             }
             Changed();
-            m_signals.Writer.TryComplete();
+            m_wake.Close();
             m_provider.CapacityAvailable -= OnCapacityAvailable;
             foreach (Entry entry in pending)
             {
@@ -505,11 +524,11 @@ namespace Opc.Ua
         /// </remarks>
         private bool TrySelect(ref int attempts, [NotNullWhen(true)] out Entry? entry, out long version)
         {
-            version = Volatile.Read(ref m_version);
+            version = Volatile.Read(ref m_hot.Version);
             entry = null;
             if (attempts < 0)
             {
-                attempts = Volatile.Read(ref m_readyCount);
+                attempts = Volatile.Read(ref m_hot.ReadyCount);
             }
             if (attempts <= 0 || IsStopped())
             {
@@ -522,7 +541,7 @@ namespace Opc.Ua
             while (attempts > 0 && m_ready.TryDequeue(out OwnerQueue? owner))
             {
                 attempts--;
-                Interlocked.Decrement(ref m_readyCount);
+                Interlocked.Decrement(ref m_hot.ReadyCount);
                 // A token of a retired FIFO is stale: its requests were selected,
                 // cancelled or moved to the owner's next FIFO.
                 if (Volatile.Read(ref owner.Retired) != 0)
@@ -591,7 +610,7 @@ namespace Opc.Ua
                 Volatile.Write(ref entry.State, Entry.Linked);
                 if (version == null)
                 {
-                    entry.Sequence = Interlocked.Increment(ref m_sequence);
+                    entry.Sequence = Interlocked.Increment(ref m_hot.Sequence);
                     owner.Enqueue(entry);
                 }
                 else
@@ -611,11 +630,11 @@ namespace Opc.Ua
         /// <returns>Good, or the status that ends the request instead.</returns>
         private StatusCode Relink(Entry entry, long version)
         {
-            Interlocked.Increment(ref m_count);
+            Interlocked.Increment(ref m_hot.Count);
             StatusCode status = Link(entry, version);
             if (StatusCode.IsBad(status))
             {
-                Interlocked.Decrement(ref m_count);
+                Interlocked.Decrement(ref m_hot.Count);
                 return status;
             }
             if (IsStopped() && TryUnlink(entry))
@@ -730,7 +749,7 @@ namespace Opc.Ua
         /// </summary>
         private void EnqueueTurn(OwnerQueue owner)
         {
-            Interlocked.Increment(ref m_readyCount);
+            Interlocked.Increment(ref m_hot.ReadyCount);
             m_ready.Enqueue(owner);
         }
 
@@ -772,7 +791,7 @@ namespace Opc.Ua
         /// </summary>
         private void Unlinked(OwnerQueue owner)
         {
-            Interlocked.Decrement(ref m_count);
+            Interlocked.Decrement(ref m_hot.Count);
             ReleaseCount(owner);
         }
 
@@ -821,7 +840,7 @@ namespace Opc.Ua
             Interlocked.Exchange(ref owner.Retired, 1);
             ((ICollection<KeyValuePair<string, OwnerQueue>>)m_owners).Remove(
                 new KeyValuePair<string, OwnerQueue>(owner.Key, owner));
-            if (Volatile.Read(ref m_count) == 0)
+            if (Volatile.Read(ref m_hot.Count) == 0)
             {
                 // nothing is queued: no dispatch pass will come to drop the stale tokens
                 DiscardStaleTurns();
@@ -853,9 +872,14 @@ namespace Opc.Ua
         /// Whether the queue has stopped. A full fence orders it after a preceding link, so a
         /// request linked concurrently with the stop is either drained or taken back.
         /// </summary>
+        /// <remarks>
+        /// The fence is a barrier rather than an interlocked operation on the flag, which would
+        /// take the flag's cache line exclusively on every admission and dispatch.
+        /// </remarks>
         private bool IsStopped()
         {
-            return Interlocked.CompareExchange(ref m_stopped, 0, 0) != 0;
+            Interlocked.MemoryBarrier();
+            return Volatile.Read(ref m_stopped) != 0;
         }
 
         /// <summary>
@@ -880,10 +904,10 @@ namespace Opc.Ua
         private void DiscardStaleTurns()
         {
             bool stopped = Volatile.Read(ref m_stopped) != 0;
-            int tokens = Volatile.Read(ref m_readyCount);
+            int tokens = Volatile.Read(ref m_hot.ReadyCount);
             while (tokens-- > 0 && m_ready.TryDequeue(out OwnerQueue? owner))
             {
-                Interlocked.Decrement(ref m_readyCount);
+                Interlocked.Decrement(ref m_hot.ReadyCount);
                 if (!stopped && Volatile.Read(ref owner.Retired) == 0)
                 {
                     // a concurrent admission's token
@@ -910,7 +934,7 @@ namespace Opc.Ua
         /// </summary>
         private void Changed()
         {
-            Interlocked.Increment(ref m_version);
+            Interlocked.Increment(ref m_hot.Version);
         }
 
         /// <summary>
@@ -918,19 +942,128 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Pulse runs on every admission, dispatch and capacity release. While a token is
-        /// already pending the call returns without entering the signal channel's lock,
-        /// which otherwise serialises every request thread on it.
+        /// outstanding, or a reader is still looking for work, the call returns after a few
+        /// reads: the looking reader sees the change, and a woken reader looks once it runs.
+        /// A reader stops looking before its last look, and a change is published before its
+        /// Pulse, so either the reader sees the change or the Pulse sees no reader looking.
         /// </remarks>
         private void Pulse()
         {
-            if (Volatile.Read(ref m_count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
-                Volatile.Read(ref m_signalPending) == 0 &&
-                Interlocked.Exchange(ref m_signalPending, 1) == 0 &&
-                m_signals.Writer.TryWrite(true))
+            if (Volatile.Read(ref m_hot.Count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
+                Volatile.Read(ref m_hot.Spinning) == 0 &&
+                m_wake.TryIssue())
             {
-                Interlocked.Increment(ref m_wakeSignalCount);
+                Interlocked.Increment(ref m_hot.WakeSignals);
             }
         }
+
+        /// <summary>
+        /// Looks for a request for a short while before the reader parks, as long as fewer
+        /// than <see cref="MaxSpinningReaders"/> readers do so. A look is only taken when the
+        /// queue changed since <paramref name="version"/>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SpinWait"/> yields the processor after a few iterations, so a spinning
+        /// reader does not hold back threads that have work, and it reaches GC safe points.
+        /// </remarks>
+        private bool TrySpinDequeue(long version, [NotNullWhen(true)] out Entry? entry)
+        {
+            entry = null;
+            long budget = SpinDuration;
+            if (budget <= 0 || Volatile.Read(ref m_hot.Spinning) >= MaxSpinningReaders)
+            {
+                return false;
+            }
+            // While spins keep running out, only an occasional reader probes whether spinning
+            // pays off again.
+            if (Volatile.Read(ref m_hot.SpinScore) <= 0 &&
+                (Interlocked.Increment(ref m_hot.SpinProbes) & (kSpinProbeInterval - 1)) != 0)
+            {
+                return false;
+            }
+            if (Interlocked.Increment(ref m_hot.Spinning) <= MaxSpinningReaders)
+            {
+                long start = Stopwatch.GetTimestamp();
+                var spinner = new SpinWait();
+                do
+                {
+#if NETCOREAPP3_0_OR_GREATER
+                    spinner.SpinOnce(sleep1Threshold: -1);
+#else
+                    // never the Sleep(1) that SpinWait reaches after 20 iterations
+                    if (spinner.NextSpinWillYield)
+                    {
+                        Thread.Yield();
+                    }
+                    else
+                    {
+                        spinner.SpinOnce();
+                    }
+#endif
+                    long current = Volatile.Read(ref m_hot.Version);
+                    if (current != version)
+                    {
+                        version = current;
+                        if (Volatile.Read(ref m_stopped) != 0 || TryDequeue(out entry))
+                        {
+                            break;
+                        }
+                    }
+                }
+                while (Stopwatch.GetTimestamp() - start < budget);
+
+                // A spin that found work earns more spinning than one that ran out costs, so
+                // readers keep spinning while at least a third of the spins find work. The
+                // score is a heuristic; a lost update between readers does not matter.
+                int score = Volatile.Read(ref m_hot.SpinScore);
+                Volatile.Write(
+                    ref m_hot.SpinScore,
+                    entry != null ? Math.Min(kMaxSpinScore, score + 2) : Math.Max(0, score - 1));
+            }
+            // Pulses were skipped while this reader was counted: it looks once more after it
+            // stopped, or wakes the next reader for what is left behind the request it took.
+            Interlocked.Decrement(ref m_hot.Spinning);
+            if (entry != null)
+            {
+                Pulse();
+                return true;
+            }
+            return TryDequeue(out entry);
+        }
+
+        /// <summary>
+        /// The longest time, in <see cref="Stopwatch"/> ticks, a reader looks for a request
+        /// before it parks; zero parks at once. 5 microseconds: longer spins found no more work under
+        /// load and cost CPU at moderate load.
+        /// </summary>
+        internal long SpinDuration { get; set; } = Stopwatch.Frequency / 200_000;
+
+        /// <summary>
+        /// The number of readers that look for a request at once before they park.
+        /// </summary>
+        internal int MaxSpinningReaders { get; set; } = Math.Max(1, Environment.ProcessorCount / 8);
+
+        /// <summary>
+        /// Gets how much recent spins paid off: zero while they ran out, so that readers park
+        /// at once except for an occasional probe.
+        /// </summary>
+        internal int SpinScore => Volatile.Read(ref m_hot.SpinScore);
+
+        /// <summary>
+        /// The highest <see cref="SpinScore"/>, which a new queue starts with.
+        /// </summary>
+        internal const int kMaxSpinScore = 16;
+
+        /// <summary>
+        /// While <see cref="SpinScore"/> is zero, one reader in this many spins as a probe;
+        /// a power of two.
+        /// </summary>
+        private const int kSpinProbeInterval = 16;
+
+        /// <summary>
+        /// Gets the number of parked readers, as a snapshot.
+        /// </summary>
+        internal int ParkedReaderCount => m_wake.ParkedCount;
 
         /// <summary>
         /// Owns the admission leases for one request through queueing, execution and parking.
@@ -1411,39 +1544,9 @@ namespace Opc.Ua
         private readonly ConcurrentQueue<OwnerQueue> m_ready = new();
 
         /// <summary>
-        /// Number of tokens in <see cref="m_ready"/>, at least the number dequeuable.
+        /// Single coalesced wake token; a successful dispatch passes it to another reader.
         /// </summary>
-        private int m_readyCount;
-
-        /// <summary>
-        /// Single coalesced wake token; a successful dispatch passes it to another waiter.
-        /// </summary>
-        private readonly Channel<bool> m_signals = Channel.CreateBounded<bool>(1);
-
-        /// <summary>
-        /// 1 while a wake token is in <see cref="m_signals"/> and not yet consumed.
-        /// </summary>
-        private int m_signalPending;
-
-        /// <summary>
-        /// Number of linked requests.
-        /// </summary>
-        private int m_count;
-
-        /// <summary>
-        /// Atomic generation shared by queue mutations and execution-capacity releases.
-        /// </summary>
-        private long m_version;
-
-        /// <summary>
-        /// Diagnostic count of bounded reader wake signals successfully issued.
-        /// </summary>
-        private long m_wakeSignalCount;
-
-        /// <summary>
-        /// Admission order of the last linked request.
-        /// </summary>
-        private long m_sequence;
+        private readonly WorkerWakeSignal m_wake = new();
 
         /// <summary>
         /// 1 while a selected head is undergoing provider admission; only global FIFO mode
@@ -1455,5 +1558,73 @@ namespace Opc.Ua
         /// 1 once admissions and dispatch have stopped.
         /// </summary>
         private int m_stopped;
+
+        /// <summary>
+        /// Counters changed by every admission and dispatch.
+        /// </summary>
+        private HotCounters m_hot;
+
+        /// <summary>
+        /// The counters that every admission and dispatch changes, each on a cache line of its
+        /// own, so that changing one does not evict the others, or the queue's read-mostly
+        /// fields, from the caches of the other cores.
+        /// </summary>
+        [StructLayout(LayoutKind.Explicit, Size = 8 * kLine)]
+        private struct HotCounters
+        {
+            /// <summary>
+            /// Number of linked requests.
+            /// </summary>
+            [FieldOffset(1 * kLine)]
+            public int Count;
+
+            /// <summary>
+            /// Number of turn tokens in the ready queue, at least the number dequeuable.
+            /// </summary>
+            [FieldOffset(2 * kLine)]
+            public int ReadyCount;
+
+            /// <summary>
+            /// Atomic generation shared by queue mutations and execution-capacity releases.
+            /// </summary>
+            [FieldOffset(3 * kLine)]
+            public long Version;
+
+            /// <summary>
+            /// Admission order of the last linked request.
+            /// </summary>
+            [FieldOffset(4 * kLine)]
+            public long Sequence;
+
+            /// <summary>
+            /// Number of readers looking for a request before they park.
+            /// </summary>
+            [FieldOffset(5 * kLine)]
+            public int Spinning;
+
+            /// <summary>
+            /// Diagnostic count of reader wake signals issued.
+            /// </summary>
+            [FieldOffset(6 * kLine)]
+            public long WakeSignals;
+
+            /// <summary>
+            /// How much recent spins paid off, between zero and <see cref="kMaxSpinScore"/>.
+            /// </summary>
+            [FieldOffset(7 * kLine)]
+            public int SpinScore;
+
+            /// <summary>
+            /// Readers that considered a probe spin while <see cref="SpinScore"/> was zero.
+            /// </summary>
+            [FieldOffset((7 * kLine) + sizeof(int))]
+            public int SpinProbes;
+        }
+
+        /// <summary>
+        /// The distance that keeps two counters off a shared cache line, including the
+        /// adjacent line that some processors fetch in pairs.
+        /// </summary>
+        private const int kLine = 128;
     }
 }
