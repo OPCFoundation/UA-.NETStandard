@@ -72,6 +72,9 @@
   <Folder Name="/samples/PubSub/">
     <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
   </Folder>
+  <Folder Name="/samples/Recycling/">
+    <Project Path="samples/Recycling/RecyclingServer/RecyclingServer.csproj" />
+  </Folder>
   <Folder Name="/samples/Redundancy/">
     <Project Path="samples/Redundancy/RedundantClient/RedundantClient.csproj" />
     <Project Path="samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj" />
@@ -168,6 +171,9 @@
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber.Client/Opc.Ua.PlasticsRubber.Client.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber.Server/Opc.Ua.PlasticsRubber.Server.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber/Opc.Ua.PlasticsRubber.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
     <Project Path="src/Opc.Ua.Pumps/Opc.Ua.Pumps.csproj" />
@@ -193,6 +199,9 @@
     <Project Path="src/Opc.Ua.MachineVision.Server/Opc.Ua.MachineVision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion.Client/Opc.Ua.Extrusion.Client.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion.Server/Opc.Ua.Extrusion.Server.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion/Opc.Ua.Extrusion.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
@@ -341,6 +350,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Recycling.Samples.Tests/Opc.Ua.Recycling.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Client.Tests/Opc.Ua.Redundancy.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
@@ -361,6 +371,7 @@
     <Project Path="tests/Opc.Ua.Vision.Intent.Tests/Opc.Ua.Vision.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Extrusion.Tests/Opc.Ua.Extrusion.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="tests/Opc.Ua.GMS.Tests/Opc.Ua.GMS.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
@@ -384,6 +395,9 @@
     <Project Path="tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Datasets.Tests/Opc.Ua.PlasticsRubber.Datasets.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Runtime.Tests/Opc.Ua.PlasticsRubber.Runtime.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
