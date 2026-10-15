@@ -591,6 +591,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
+            var derivations = new ArchiveDerivations(merged);
             for (int index = 0; index < documents.Entries.Count; index++)
             {
                 WotDocument document = documents.Entries[index].Document;
@@ -599,9 +600,11 @@ namespace Opc.Ua.Wot
                     if (document.TryGetNativeProjection(out JsonElement projection) &&
                         !WotNativeProjection.HasUnsupportedProfile(projection))
                     {
-                        ValidateNativeAffordanceCoverage(document, merged, diagnostics);
+                        ValidateNativeAffordanceCoverage(document, merged, diagnostics, derivations);
                     }
-                    ValidatePreservedReadableFacts(document, partitions[index], options, diagnostics, merged);
+                    ValidatePreservedReadableFacts(
+                        document, partitions[index], options, diagnostics, merged,
+                        derivations: derivations);
                 }
             }
             ApplyIdentifierLeniency(diagnostics, options);

@@ -64,7 +64,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             UANodeSet? archiveContext = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
-            List<string>? missingWitnesses = null)
+            List<string>? missingWitnesses = null,
+            ArchiveDerivations? derivations = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -93,10 +94,15 @@ namespace Opc.Ua.Wot
             }
             if (archiveContext is not null)
             {
+                NodeIdAlias[]? declaredAliases = baseline.Aliases;
                 baseline = archiveContext;
-                index = BuildArchivedFactIndex(baseline, aliases);
+                index = derivations is null
+                    ? BuildArchivedFactIndex(baseline, aliases)
+                    : derivations.GetFactIndex(baseline, declaredAliases, aliases);
             }
-            var referenceTypes = WotReferenceTypeNames.Build(baseline);
+            WotReferenceTypeNames referenceTypes = derivations is null
+                ? WotReferenceTypeNames.Build(baseline)
+                : derivations.GetReferenceTypes(baseline);
 
             var witnessed = new Dictionary<string, string>(StringComparer.Ordinal);
             Dictionary<string, UANode?> resolved = ResolvePreservedAffordances(

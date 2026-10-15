@@ -1493,7 +1493,8 @@ namespace Opc.Ua.Wot
         private static void ValidateNativeAffordanceCoverage(
             WotDocument document,
             UANodeSet projected,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            ArchiveDerivations? derivations = null)
         {
             if (document.Properties.Count == 0 &&
                 document.Actions.Count == 0 &&
@@ -1502,22 +1503,9 @@ namespace Opc.Ua.Wot
                 return;
             }
 
-            var nodeIds = new HashSet<string>(StringComparer.Ordinal);
-            var browseNames = new HashSet<string>(StringComparer.Ordinal);
-            if (projected.Items is not null)
-            {
-                foreach (UANode node in projected.Items)
-                {
-                    if (!string.IsNullOrEmpty(node.NodeId))
-                    {
-                        nodeIds.Add(node.NodeId);
-                    }
-                    if (!string.IsNullOrEmpty(node.BrowseName))
-                    {
-                        browseNames.Add(node.BrowseName);
-                    }
-                }
-            }
+            (HashSet<string> nodeIds, HashSet<string> browseNames) = derivations is null
+                ? ArchiveDerivations.CollectIdentities(projected)
+                : derivations.GetIdentities(projected);
 
             var identityContext = new UANodeSet
             {
