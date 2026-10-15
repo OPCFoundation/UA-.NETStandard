@@ -183,14 +183,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Logs that a refresh is queued behind another coordinator operation.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 0, Level = LogLevel.Information,
+        [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 0, Level = LogLevel.Warning,
             Message = "[DEBUG-G10-RF1] refresh queued id={RefreshId} kind={Kind} waiting={Waiting}")]
         public static partial void RefreshQueued(this ILogger logger, int refreshId, int kind, int waiting);
 
         /// <summary>
         /// Logs the aggregate timing of one refresh.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 1, Level = LogLevel.Information,
+        [LoggerMessage(EventId = WotConServerEventIds.WotRefreshDiag + 1, Level = LogLevel.Warning,
             Message = "[DEBUG-G10-RF1] refresh id={RefreshId} kind={Kind} outcome={Outcome} waitMs={WaitMs} " +
                 "buildMs={BuildMs} nativeMs={NativeMs} retireMs={RetireMs} loopMs={LoopMs} " +
                 "applyMs={ApplyMs} totalMs={TotalMs} enabled={Enabled} closures={Closures} results={Results}")]

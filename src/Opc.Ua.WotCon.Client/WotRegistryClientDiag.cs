@@ -51,14 +51,14 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Logs the wall time of the document upload phase of a bulk load.
         /// </summary>
-        [LoggerMessage(EventId = WotConClientEventIds.WotRegistryClientDiag + 0, Level = LogLevel.Information,
+        [LoggerMessage(EventId = WotConClientEventIds.WotRegistryClientDiag + 0, Level = LogLevel.Warning,
             Message = "[DEBUG-G10-RF1] client upload documents={Documents} uploadMs={UploadMs}")]
         public static partial void ClientUploadPhase(this ILogger logger, int documents, long uploadMs);
 
         /// <summary>
         /// Logs the wall time and configured timeouts of one client Refresh call.
         /// </summary>
-        [LoggerMessage(EventId = WotConClientEventIds.WotRegistryClientDiag + 1, Level = LogLevel.Information,
+        [LoggerMessage(EventId = WotConClientEventIds.WotRegistryClientDiag + 1, Level = LogLevel.Warning,
             Message = "[DEBUG-G10-RF1] client refresh callMs={CallMs} operationTimeoutMs={OperationTimeout} " +
                 "defaultTimeoutHintMs={TimeoutHint} completed={Completed}")]
         public static partial void ClientRefreshCall(
