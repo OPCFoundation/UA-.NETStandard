@@ -72,7 +72,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples|suspend <trace> [top|thresholdMs] [focus]");
+                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples|suspend|threads <trace> [top|thresholdMs] [focus]");
                 return 1;
             }
 
@@ -100,6 +100,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     break;
                 case "suspend":
                     Suspensions(log, top);
+                    break;
+                case "threads":
+                    Threads(log, top);
                     break;
                 default:
                     Allocations(log, top, focus);
@@ -164,6 +167,71 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             Dump("external samples by first Opc.Ua frame", externalOurs, external, top);
             Dump("managed samples by leaf", managedLeaves, managed, top);
             Dump("managed samples by first Opc.Ua frame", managedOurs, managed, top);
+        }
+
+        /// <summary>
+        /// On-CPU samples per thread: the busy share of each thread (its on-CPU samples over all
+        /// of its samples) and its top first Opc.Ua frames. A thread near 100 % busy while the
+        /// process has idle cores is a serialized stage.
+        /// </summary>
+        private static void Threads(TraceLog log, int top)
+        {
+            var all = new Dictionary<int, double>();
+            var busy = new Dictionary<int, double>();
+            var frames = new Dictionary<int, Dictionary<string, double>>();
+            foreach (TraceEvent e in log.Events)
+            {
+                if (e.ProviderName != "Microsoft-DotNETCore-SampleProfiler")
+                {
+                    continue;
+                }
+                int thread = e.ThreadID;
+                all[thread] = all.GetValueOrDefault(thread) + 1;
+                object? type = e.PayloadByName("Type");
+                if (type != null && Convert.ToInt32(type, CultureInfo.InvariantCulture) != 2)
+                {
+                    continue;
+                }
+                TraceCallStack? stack = e.CallStack();
+                if (stack == null)
+                {
+                    continue;
+                }
+                string leaf = Short(Name(stack));
+                if (s_blockedLeafFrames.Any(b => leaf.EndsWith(b, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+                busy[thread] = busy.GetValueOrDefault(thread) + 1;
+                if (!frames.TryGetValue(thread, out Dictionary<string, double>? ours))
+                {
+                    frames[thread] = ours = new Dictionary<string, double>(StringComparer.Ordinal);
+                }
+                // the outermost Opc.Ua frame names the thread's role (timer loop, worker, receive loop)
+                string? outer = null;
+                string? inner = null;
+                for (TraceCallStack? f = stack; f != null; f = f.Caller)
+                {
+                    string n = Short(Name(f));
+                    if (IsOurs(n))
+                    {
+                        inner ??= n;
+                        outer = n;
+                    }
+                }
+                Add(ours, (outer ?? "-") + "  >  " + (inner ?? leaf), 1);
+            }
+            double totalBusy = busy.Values.Sum();
+            Console.WriteLine(FormattableString.Invariant($"threads={all.Count} on-cpu samples={totalBusy}"));
+            foreach (KeyValuePair<int, double> t in busy.OrderByDescending(b => b.Value).Take(top))
+            {
+                Console.WriteLine(FormattableString.Invariant(
+                    $"thread {t.Key,6}: busy {100.0 * t.Value / all[t.Key],5:F1}%  share {100.0 * t.Value / totalBusy,5:F1}%"));
+                foreach (KeyValuePair<string, double> f in frames[t.Key].OrderByDescending(k => k.Value).Take(3))
+                {
+                    Console.WriteLine(FormattableString.Invariant($"    {100.0 * f.Value / t.Value,5:F1}%  {f.Key}"));
+                }
+            }
         }
 
         /// <summary>
@@ -315,6 +383,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             var firstOurs = new Dictionary<string, double>(StringComparer.Ordinal);
             var callers = new Dictionary<string, double>(StringComparer.Ordinal);
             var ourCallers = new Dictionary<string, double>(StringComparer.Ordinal);
+            var callees = new Dictionary<string, double>(StringComparer.Ordinal);
             double total = 0;
             int all = 0;
             foreach (TraceEvent e in log.Events)
@@ -354,6 +423,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 bool gotOurs = false;
                 bool focusHit = false;
                 bool ourCallerHit = false;
+                string below = "<self>";
                 for (TraceCallStack? f = stack; f != null; f = f.Caller)
                 {
                     string n = Short(Name(f));
@@ -376,7 +446,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     {
                         focusHit = true;
                         Add(callers, f.Caller != null ? Short(Name(f.Caller)) : "<root>", 1);
+                        Add(callees, below, 1);
                     }
+                    below = n;
                 }
             }
             Console.WriteLine(FormattableString.Invariant($"samples: on-cpu={total} all={all}"));
@@ -391,6 +463,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             {
                 Dump("callers of " + focus, callers, total, top);
                 Dump("first Opc.Ua frame above " + focus, ourCallers, total, top);
+                Dump("direct callees of " + focus, callees, total, top);
             }
         }
 

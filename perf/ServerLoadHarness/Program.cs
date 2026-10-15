@@ -235,23 +235,41 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
+            using var events = new EventGenerator(server.CurrentInstance);
             string? line;
             while ((line = await Console.In.ReadLineAsync().ConfigureAwait(false)) != null)
             {
-                switch (line.Trim())
+                line = line.Trim();
+                if (line.StartsWith("events ", StringComparison.Ordinal))
+                {
+                    // events <rate>: start the event generator; events stop: stop it
+                    string rate = line[7..];
+                    if (rate == "stop")
+                    {
+                        events.Stop();
+                    }
+                    else
+                    {
+                        events.Start(int.Parse(rate, CultureInfo.InvariantCulture));
+                    }
+                    continue;
+                }
+                switch (line)
                 {
                     case "mark":
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
                         mark = ProcessStats.Capture();
                         (server as CounterServer)?.Counters.Mark();
+                        events.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
                         string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
-                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report());
                         break;
                     case "quit":
+                        events.Stop();
                         await server.StopAsync().ConfigureAwait(false);
                         return 0;
                 }
@@ -316,14 +334,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
-            var sessions = new ISession[sessionCount];
+            // sub: --writers adds dedicated writer sessions after the subscriber sessions
+            int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
+            var sessions = new ISession[sessionCount + writerCount];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.
             int connectParallel = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32;
             await Parallel.ForAsync(
                 0,
-                sessionCount,
+                sessions.Length,
                 new ParallelOptions { MaxDegreeOfParallelism = connectParallel },
                 async (i, ct) => sessions[i] = clientKind switch
                 {
@@ -346,24 +366,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 })
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
-                $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
+                $"connected {sessions.Length} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
 
             Workload workload = scenario == "counters"
                 ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
+                : scenario == "events"
+                ? new EventWorkload(sessions, ArgInt("subs", 15), ArgInt("pub", 100), ArgInt("queue-size", 10000), ArgInt("event-rate", 0))
                 : scenario == "sub"
                 ? new SubscribeWorkload(
-                    sessions,
+                    sessions[..sessionCount],
+                    writerCount == 0 ? [sessions[0]] : sessions[sessionCount..],
                     ArgInt("nodes", 100),
                     ArgInt("subs", 5),
                     ArgInt("pub", 100),
                     ArgInt("write-interval", 100),
                     Arg("callback", "fast") == "item",
-                    ArgInt("write-nodes", 0))
+                    ArgInt("write-nodes", 0),
+                    Arg("node-type", "int") == "all",
+                    ArgInt("write-batch", 0))
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
             using var stop = new CancellationTokenSource();
             Task run = workload.RunAsync(stop.Token);
+            if (workload is EventWorkload eventWorkload)
+            {
+                await server.StandardInput.WriteLineAsync(
+                    FormattableString.Invariant($"events {eventWorkload.Rate}")).ConfigureAwait(false);
+            }
             await Task.Delay(TimeSpan.FromSeconds(warmupSeconds)).ConfigureAwait(false);
 
             bool traceClient = Arg("trace-side", "server") == "client";
@@ -390,6 +420,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             string report = Take(serverLines, "REPORT")[7..];
             double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
                 window.Elapsed.TotalSeconds;
+            if (workload is EventWorkload)
+            {
+                await server.StandardInput.WriteLineAsync("events stop").ConfigureAwait(false);
+            }
+            workload.OnServerReport(report);
             string clientReport = workload.Report(window.Elapsed.TotalSeconds) +
                 FormattableString.Invariant($" clientCpuCores={clientCores:F2}");
             await stop.CancelAsync().ConfigureAwait(false);
@@ -422,6 +457,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 result.Append(
                     CultureInfo.InvariantCulture,
                     $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                if (workload.Secondary is (double count, string name) && count > 0)
+                {
+                    result.Append(
+                        CultureInfo.InvariantCulture,
+                        $"  per-op2: allocB={allocatedMb * 1048576 / count:F0} cpuUs={cpuMs * 1000 / count:F1}  ({name})\n");
+                }
                 (allocatedMb, cpuMs) = ParseProcessReport(clientProcess);
                 result.Append(
                     CultureInfo.InvariantCulture,
@@ -651,7 +692,20 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public abstract string OperationName { get; }
 
+        /// <summary>
+        /// A second operation count to report the server cost against, such as the writes
+        /// that caused the notifications.
+        /// </summary>
+        public virtual (double Count, string Name)? Secondary => null;
+
         public abstract Task SetupAsync();
+
+        /// <summary>
+        /// Receives the server report of the window before <see cref="Report"/> is called.
+        /// </summary>
+        public virtual void OnServerReport(string report)
+        {
+        }
 
         public abstract Task RunAsync(CancellationToken ct);
 
@@ -795,25 +849,39 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     {
         public SubscribeWorkload(
             ISession[] sessions,
+            ISession[] writers,
             int nodes,
             int subscriptions,
             int publishingInterval,
             int writeInterval,
             bool itemCallback,
-            int writeNodes)
+            int writeNodes,
+            bool allTypes,
+            int writeBatch)
         {
             m_sessions = sessions;
+            m_writers = writers;
             m_nodes = nodes;
             m_subscriptions = subscriptions;
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
             m_itemCallback = itemCallback;
             m_writeNodes = writeNodes;
+            m_allTypes = allTypes;
+            m_writeBatch = writeBatch;
         }
 
         public override double Operations => Interlocked.Read(ref m_notifications);
 
         public override string OperationName => "notification";
+
+        public override (double Count, string Name)? Secondary =>
+            (Interlocked.Read(ref m_writtenValues), "written value");
+
+        /// <summary>
+        /// Values per Write request: all written nodes, or slices of <c>--write-batch</c>.
+        /// </summary>
+        private int BatchSize => m_writeBatch > 0 ? Math.Min(m_writeBatch, WrittenNodes) : WrittenNodes;
 
         /// <summary>
         /// The number of monitored nodes the writer changes: all of them, or the first
@@ -823,7 +891,26 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public override async Task SetupAsync()
         {
-            m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes, typeof(int)).ToArray();
+            if (m_allTypes)
+            {
+                // the mixed Int16..UInt64 node set of the Sessions LoadTest
+                m_nodeTypes = [];
+                foreach ((Type type, ExpandedNodeId[] ids) in CommonTestWorkers.NodeIdTestSetStaticMassNumeric)
+                {
+                    foreach (ExpandedNodeId id in ids)
+                    {
+                        if (m_nodeTypes.Count < m_nodes)
+                        {
+                            m_nodeTypes.Add(type);
+                        }
+                    }
+                }
+                m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes).ToArray();
+            }
+            else
+            {
+                m_nodeIds = Program.GetNodes(m_sessions[0], m_nodes, typeof(int)).ToArray();
+            }
             var setupTime = Stopwatch.StartNew();
             await Parallel.ForEachAsync(
                 m_sessions,
@@ -838,46 +925,109 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"sub: {m_sessions.Length} sessions x {m_subscriptions} subs x {m_nodeIds.Count} items, ") +
                 FormattableString.Invariant(
-                $"pub {m_publishingInterval} ms, write {WrittenNodes} items every {m_writeInterval} ms; ") +
-                FormattableString.Invariant($"setup {setupTime.ElapsedMilliseconds} ms"));
+                $"pub {m_publishingInterval} ms, {m_writers.Length} writer(s) x {BatchSize} of {WrittenNodes} items ") +
+                FormattableString.Invariant(
+                $"{(m_writeInterval > 0 ? $"every {m_writeInterval} ms" : "closed loop")}; setup {setupTime.ElapsedMilliseconds} ms"));
         }
 
         public override async Task RunAsync(CancellationToken ct)
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_writeInterval));
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+            var tasks = new List<Task>();
+            for (int i = 0; i < m_writers.Length; i++)
+            {
+                ISession writer = m_writers[i];
+                // writers start on different slices when they write batches
+                int first = i * BatchSize % WrittenNodes;
+                tasks.Add(Task.Run(() => WriteLoopAsync(writer, first, ct), CancellationToken.None));
+            }
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private async Task WriteLoopAsync(ISession writer, int first, CancellationToken ct)
+        {
+            using PeriodicTimer? timer = m_writeInterval > 0
+                ? new PeriodicTimer(TimeSpan.FromMilliseconds(m_writeInterval))
+                : null;
+            int batch = BatchSize;
+            while (timer == null ? !ct.IsCancellationRequested : await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
                 int counter = Interlocked.Increment(ref m_counter);
-                var values = new WriteValue[WrittenNodes];
+                var values = new WriteValue[batch];
                 for (int i = 0; i < values.Length; i++)
                 {
+                    int index = (first + i) % WrittenNodes;
                     values[i] = new WriteValue
                     {
-                        NodeId = m_nodeIds[i],
+                        NodeId = m_nodeIds[index],
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(new Variant(counter))
+                        Value = new DataValue(ToVariant(index, counter))
                     };
                 }
-                Volatile.Write(ref m_writeTicks[counter & 0xFFFF], Stopwatch.GetTimestamp());
-                await m_sessions[0].WriteAsync(null, values, ct).ConfigureAwait(false);
+                first = (first + batch) % WrittenNodes;
+                long start = Stopwatch.GetTimestamp();
+                Volatile.Write(ref m_writeTicks[counter & 0xFFFF], start);
+                try
+                {
+                    await writer.WriteAsync(null, values, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (ServiceResultException ex)
+                {
+                    if (Interlocked.Increment(ref m_writeErrors) < 5)
+                    {
+                        Console.WriteLine("write error: " + ex.Message);
+                    }
+                    continue;
+                }
+                m_writeLatency.Record(Stopwatch.GetTimestamp() - start);
                 Interlocked.Increment(ref m_writes);
+                Interlocked.Add(ref m_writtenValues, batch);
             }
+        }
+
+        /// <summary>
+        /// The counter as the node's type; 16-bit types wrap, Int32 nodes carry the full
+        /// counter for the latency measurement.
+        /// </summary>
+        private Variant ToVariant(int index, int counter)
+        {
+            if (m_nodeTypes == null)
+            {
+                return new Variant(counter);
+            }
+            Type type = m_nodeTypes[index];
+            return type == typeof(short) ? new Variant((short)(counter & 0x7FFF))
+                : type == typeof(ushort) ? new Variant((ushort)(counter & 0x7FFF))
+                : type == typeof(int) ? new Variant(counter)
+                : type == typeof(uint) ? new Variant((uint)counter)
+                : type == typeof(long) ? new Variant((long)counter)
+                : new Variant((ulong)counter);
         }
 
         public override void ResetStats()
         {
             m_latency.Clear();
+            m_writeLatency.Clear();
             Interlocked.Exchange(ref m_notifications, 0);
             Interlocked.Exchange(ref m_writes, 0);
+            Interlocked.Exchange(ref m_writtenValues, 0);
         }
 
         public override string Report(double seconds)
         {
             long notifications = Interlocked.Read(ref m_notifications);
-            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * WrittenNodes;
+            long written = Interlocked.Read(ref m_writtenValues);
+            long expected = written * m_sessions.Length * m_subscriptions;
             double ratio = expected == 0 ? 0 : (double)notifications / expected;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
+                FormattableString.Invariant(
+                $"writes/s={Interlocked.Read(ref m_writes) / seconds:F0} values/s={written / seconds:F0} ") +
+                FormattableString.Invariant(
+                $"writeErrors={Interlocked.Read(ref m_writeErrors)} write latency {m_writeLatency.Percentiles()} ") +
                 FormattableString.Invariant($"write->notify latency {m_latency.Percentiles()}");
         }
 
@@ -1069,6 +1219,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private long m_writes;
         private int m_counter;
         private ArrayOf<NodeId> m_nodeIds;
+        private List<Type>? m_nodeTypes;
         private readonly int m_writeNodes;
+        private readonly ISession[] m_writers;
+        private readonly bool m_allTypes;
+        private readonly int m_writeBatch;
+        private readonly LatencyRecorder m_writeLatency = new();
+        private long m_writtenValues;
+        private long m_writeErrors;
     }
 }
