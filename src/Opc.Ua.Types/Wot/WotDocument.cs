@@ -566,27 +566,6 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Determines whether an affordance of this document only exists as structural support for
-        /// another affordance of the same document.
-        /// </summary>
-        /// <remarks>
-        /// A resolved projection carries the affordances that a selected affordance depends on, for
-        /// example the unit property named by <c>uav:unitProperty</c>, so the resolved document
-        /// stays self-contained. Such a dependency was not selected by the projection itself.
-        /// An affordance that the projection selects explicitly is never support-only, even when
-        /// another selected affordance also depends on it. The state is not part of the JSON
-        /// document, is set only by the projection resolver and is always <c>false</c> for
-        /// documents that were not produced by one.
-        /// </remarks>
-        /// <param name="kind">The WoT affordance kind.</param>
-        /// <param name="name">The affordance name within its kind.</param>
-        /// <returns><c>true</c> when the affordance is carried only as a dependency.</returns>
-        public bool IsSupportOnly(WotAffordanceKind kind, string name)
-        {
-            return m_supportOnly != null && name != null && m_supportOnly.Contains((kind, name));
-        }
-
-        /// <summary>
         /// Records the affordances that are carried only as structural support.
         /// </summary>
         /// <param name="supportOnly">The support-only affordances by kind and name.</param>
@@ -898,6 +877,32 @@ namespace Opc.Ua.Wot
                 m_events ??= ReadObjectMap("events");
                 return m_events;
             }
+        }
+
+        /// <summary>
+        /// Determines whether an affordance of this document only exists as structural support for
+        /// another affordance of the same document.
+        /// </summary>
+        /// <remarks>
+        /// A resolved projection carries the affordances that a selected affordance depends on, for
+        /// example the unit property named by <c>uav:unitProperty</c>, so the resolved document
+        /// stays self-contained. Such a dependency was not selected by the projection itself.
+        /// An affordance that the projection selects explicitly is never support-only, even when
+        /// another selected affordance also depends on it. The state is not part of the JSON
+        /// document, is set only by the projection resolver and is always <c>false</c> for
+        /// documents that were not produced by one.
+        /// </remarks>
+        /// <param name="kind">The WoT affordance kind.</param>
+        /// <param name="name">The affordance name within its kind.</param>
+        /// <returns><c>true</c> when the affordance is carried only as a dependency.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+        public bool IsSupportOnly(WotAffordanceKind kind, string name)
+        {
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            return m_supportOnly != null && m_supportOnly.Contains((kind, name));
         }
 
         /// <summary>

@@ -51,6 +51,7 @@ For current protocol-runtime architecture and the contributor guide for adding a
   - [12.4 Projection documents and the View NodeClass](#124-projection-documents-and-the-view-nodeclass)
   - [12.4.1 Parent placement through `uav:componentOf`](#1241-parent-placement-through-uavcomponentof)
   - [12.4.2 Event notifier behaviour in projection Views](#1242-event-notifier-behaviour-in-projection-views)
+  - [12.4.3 Carried dependencies and View membership](#1243-carried-dependencies-and-view-membership)
   - [12.5 Portable identifiers](#125-portable-identifiers)
   - [12.6 The 1.02 asset surface](#126-the-102-asset-surface)
 
@@ -1232,6 +1233,25 @@ an authoritative native partition. See [the sample README](../samples/WotCon/REA
 for the exact per-pump membership and supported alarm workflow, and
 [the binding runtime](WotBindings.md#projected-methods-events-and-conditions)
 for channel, subscription, and occurrence-route ownership.
+
+### 12.4.3 Carried dependencies and View membership
+
+A resolved projection stays self-contained: when it selects an affordance, it also
+carries the affordances that one depends on, such as the unit property named by
+`uav:unitProperty` or the targets of `uav:actsOn`. Those dependencies remain in
+the resolved document (and in its JSON) so that conversion and native
+materialization keep their `HasProperty` and action relationships. They are
+structural support, not members the projection selected.
+
+`WotDocument.IsSupportOnly(kind, name)` reports, per resolved document and per
+collection, which affordances were carried only as support. The state is
+not serialized, is set only by `WotProjectionResolver`, and is `false` for any
+document it did not produce. An affordance the projection selects explicitly is never
+support-only, including through an explicit `uav:selectAll` of an outer projection over an
+inner one. A value-only selection from an inner projection keeps its carried unit
+support-only in the outer. The View builder organizes only affordances that are not
+support-only, so the View lists the selected measurements and not their units unless
+the units were selected.
 
 ### 12.5 Portable identifiers
 

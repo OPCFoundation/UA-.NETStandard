@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -127,6 +128,74 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.IsSupportOnly(WotAffordanceKind.Event, "Unit"), Is.False);
             Assert.That(view.IsSupportOnly(WotAffordanceKind.Property, "Missing"), Is.False);
             Assert.That(plain.IsSupportOnly(WotAffordanceKind.Property, "Unit"), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that an outer projection selecting only a value from an inner projection keeps the
+        /// inner projection's unit as support-only, while an outer select-all makes everything explicit.
+        /// </summary>
+        /// <param name="selectAll">Whether the outer projection selects all affordances of the inner one.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NestedProjectionKeepsSupportOnlyUnlessTheOuterSelectsAll(bool selectAll)
+        {
+            const string innerHref = "https://origin.test/inner.projection.json";
+            JsonObject inner = Plan();
+            inner["id"] = "urn:projection:inner";
+            inner["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
+            JsonObject outer = Plan();
+            outer["id"] = "urn:projection:outer";
+            var entry = (JsonObject)outer["uav:projects"]![0]!;
+            entry["href"] = innerHref;
+            if (selectAll)
+            {
+                entry["uav:selectAll"] = true;
+            }
+            else
+            {
+                outer["properties"] = new JsonObject
+                {
+                    ["rate"] = new JsonObject { ["tm:ref"] = innerHref + "#/properties/speed" }
+                };
+            }
+            var sources = new Dictionary<string, JsonObject>
+            {
+                [SourceHref] = Source("rpm"),
+                [innerHref] = inner
+            };
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(outer, sources).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            WotDocument resolvedView = view.Required();
+            List<string> supportOnly = resolvedView.Properties.Keys
+                .Where(key => resolvedView.IsSupportOnly(WotAffordanceKind.Property, key))
+                .ToList();
+            Assert.That(resolvedView.Properties, Has.Count.EqualTo(2), "The unit dependency stays in the JSON.");
+            if (selectAll)
+            {
+                Assert.That(supportOnly, Is.Empty);
+                return;
+            }
+            Assert.That(supportOnly, Has.Count.EqualTo(1));
+            Assert.That(view.Properties.ContainsKey("rate"), Is.True);
+            Assert.That(supportOnly.Contains("rate"), Is.False);
+            Assert.That(view.Properties["rate"].GetProperty("uav:unitProperty").GetString(),
+                Is.EqualTo("/properties/" + supportOnly[0]));
+            Assert.That(view.Properties[supportOnly[0]].GetProperty("const").GetString(), Is.EqualTo("rpm"));
+        }
+
+        /// <summary>
+        /// Verifies that the support-only query rejects a null affordance name.
+        /// </summary>
+        [Test]
+        public void SupportOnlyQueryRejectsANullName()
+        {
+            using var plain = WotDocument.Parse(Encoding.UTF8.GetBytes(Source("rpm").ToJsonString()));
+
+            Assert.That(() => plain.IsSupportOnly(WotAffordanceKind.Property, null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         /// <summary>
