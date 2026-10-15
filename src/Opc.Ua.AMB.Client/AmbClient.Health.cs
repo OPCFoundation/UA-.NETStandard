@@ -94,7 +94,8 @@ namespace Opc.Ua.AMB.Client
         {
             var alarms = new List<AssetAlarmRecord>();
             BrowseBudget budget = CreateBrowseBudget();
-            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(budget, cancellationToken)
+            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(
+                budget, tolerateBrowseFailure: false, cancellationToken)
                 .ConfigureAwait(false);
             foreach ((Variant[] values, AssetReadValue[] fields) in await ReadConditionsAsync(
                 asset, budget, cancellationToken).ConfigureAwait(false))
@@ -125,7 +126,8 @@ namespace Opc.Ua.AMB.Client
         {
             var activities = new List<MaintenanceActivityRecord>();
             BrowseBudget budget = CreateBrowseBudget();
-            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(budget, cancellationToken)
+            HashSet<NodeId> maintenanceClasses = await MaintenanceClassesWithBudgetAsync(
+                budget, tolerateBrowseFailure: false, cancellationToken)
                 .ConfigureAwait(false);
             foreach ((Variant[] values, AssetReadValue[] fields) in await ReadConditionsAsync(
                 asset, budget, cancellationToken).ConfigureAwait(false))
@@ -255,17 +257,19 @@ namespace Opc.Ua.AMB.Client
         }
 
         /// <summary>
-        /// Gets the maintenance condition classes of the server:
-        /// <c>MaintenanceConditionClassType</c> and its subtypes, read once
-        /// per client; the classes the client knows when browsing fails.
+        /// Gets the maintenance condition classes for event observation.
+        /// Complete discovery is cached; browse failures and traversal limits
+        /// fall back to known classes without caching an incomplete set.
         /// </summary>
         internal ValueTask<HashSet<NodeId>> MaintenanceClassesAsync(CancellationToken cancellationToken)
         {
-            return MaintenanceClassesWithBudgetAsync(CreateBrowseBudget(), cancellationToken);
+            return MaintenanceClassesWithBudgetAsync(
+                CreateBrowseBudget(), tolerateBrowseFailure: true, cancellationToken);
         }
 
         private async ValueTask<HashSet<NodeId>> MaintenanceClassesWithBudgetAsync(
             BrowseBudget budget,
+            bool tolerateBrowseFailure,
             CancellationToken cancellationToken)
         {
             HashSet<NodeId>? known = Volatile.Read(ref m_maintenanceClasses);
@@ -309,10 +313,9 @@ namespace Opc.Ua.AMB.Client
                     }
                 }
             }
-            catch (ServiceResultException) when (m_options is null)
+            catch (ServiceResultException) when (m_options is null || tolerateBrowseFailure)
             {
-                // The classes the client knows are a good enough answer;
-                // they are not remembered, so the next call asks again.
+                // Observation can use the classes found so far, but a later strict read must retry discovery.
                 return classes;
             }
             Volatile.Write(ref m_maintenanceClasses, classes);
@@ -589,7 +592,8 @@ namespace Opc.Ua.AMB.Client
                         !double.IsNaN(downtime) && !double.IsInfinity(downtime) &&
                         downtime >= 0 && downtime <= TimeSpan.MaxValue.TotalMilliseconds,
                     AmbConditionFields.MaintenanceSupplier or AmbConditionFields.QualificationOfPersonnel =>
-                        value.TryGetValue<NameNodeIdDataType>(out NameNodeIdDataType? _, Session.MessageContext),
+                        value.TryGetValue<NameNodeIdDataType>(out NameNodeIdDataType? _, Session.MessageContext) ||
+                        IsNullStructure(value),
                     AmbConditionFields.PartsOfAssetReplaced or AmbConditionFields.PartsOfAssetServiced =>
                         value.TryGetValue(out ArrayOf<NameNodeIdDataType> _, Session.MessageContext),
                     AmbConditionFields.MaintenanceMethod => value.TryGetValue(out int _),

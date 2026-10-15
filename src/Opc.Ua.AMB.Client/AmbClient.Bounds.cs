@@ -153,8 +153,16 @@ namespace Opc.Ua.AMB.Client
                     }
                     BrowseNextResponse response = await Session.BrowseNextAsync(
                         null, true, [token], cleanup.Token).ConfigureAwait(false);
+                    // Part 4 release responses are empty; also accept the stack's single-result form.
                     ValidateResponse(
-                        response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
+                        response.ResponseHeader,
+                        response.Results.Count,
+                        response.Results.Count == 0 ? 0 : 1,
+                        response.DiagnosticInfos.Count);
+                    if (response.Results.Count == 0)
+                    {
+                        continue;
+                    }
                     BrowseResult result = response.Results[0] ??
                         throw new ServiceResultException(StatusCodes.BadDecodingError);
                     if (HasContinuation(result.ContinuationPoint) || result.References.Count != 0)

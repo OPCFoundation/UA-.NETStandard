@@ -222,8 +222,9 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(failure.ReadValue!.SourceNodeId, Is.EqualTo(new NodeId("alarm/" + field, 4)));
         }
 
-        [Test]
-        public async Task ContextAndEntryReadsKeepSourceAndNullStructureEvidenceAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ContextAndEntryReadsKeepSourceAndNullStructureEvidenceAsync(bool typedNull)
         {
             Mock<ISession> session = CreateSession();
             SetupTranslate(session, paths =>
@@ -239,10 +240,13 @@ namespace Opc.Ua.AMB.Tests
                 ? new BrowseResult { References = [Reference("voltage")] }
                 : new BrowseResult());
             DataValue voltage = TimedValue(Variant.From(24.0), StatusCodes.GoodClamped);
+            TimeZoneDataType? missingLocalTime = null;
+            DataValue localTime = TimedValue(
+                typedNull ? Variant.FromStructure(missingLocalTime!) : Variant.Null, StatusCodes.GoodClamped);
             SetupRead(session, (node, _) => node == new NodeId("voltage", 4)
                 ? voltage
                 : node == new NodeId(Ua.BrowseNames.LocalTime, 4)
-                    ? new DataValue(Variant.Null)
+                    ? localTime
                     : new DataValue(Variant.From(string.Empty)));
             AmbClient client = CreateClient(session);
 
@@ -252,10 +256,91 @@ namespace Opc.Ua.AMB.Tests
 
             Assert.That(context.LocalTime, Is.Null);
             Assert.That(context.Values[3].IsAbsent, Is.False);
-            Assert.That(context.Values[3].Value.WrappedValue.IsNull, Is.True);
+            Assert.That(context.Values[3].SourceNodeId, Is.EqualTo(new NodeId(Ua.BrowseNames.LocalTime, 4)));
+            Assert.That(context.Values[3].Value, Is.EqualTo(localTime));
+            Assert.That(context.Values[3].Value.WrappedValue.IsNull, Is.EqualTo(!typedNull));
             Assert.That(entries.Count, Is.EqualTo(1));
             Assert.That(entries[0].ReadValue!.SourceNodeId, Is.EqualTo(new NodeId("voltage", 4)));
             Assert.That(entries[0].ReadValue!.Value, Is.EqualTo(voltage));
+        }
+
+        [TestCase(BrowseNames.MaintenanceSupplier)]
+        [TestCase(BrowseNames.QualificationOfPersonnel)]
+        public async Task MaintenanceTypedNullStructuresKeepOriginalEvidenceAsync(string field)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupConditions(session);
+            var source = new NodeId("maintenance/" + field, 4);
+            NameNodeIdDataType? missingName = null;
+            DataValue original = TimedValue(Variant.FromStructure(missingName!), StatusCodes.GoodClamped);
+            SetupRead(session, (node, attribute) => node == source ? original : ConditionValue(node, attribute));
+
+            ArrayOf<MaintenanceActivityRecord> activities = await CreateClient(session)
+                .ReadMaintenanceActivitiesAsync(s_asset).ConfigureAwait(false);
+
+            Assert.That(activities.Count, Is.EqualTo(1));
+            Assert.That(activities[0].MaintenanceSupplier, Is.Null);
+            Assert.That(activities[0].QualificationOfPersonnel, Is.Null);
+            AssetReadValue evidence = activities[0].Values.ToArray()!.Single(value => value.SourceNodeId == source);
+            Assert.That(evidence.IsAbsent, Is.False);
+            Assert.That(evidence.Value, Is.EqualTo(original));
+            Assert.That(evidence.BrowsePath[0], Is.EqualTo(new QualifiedName(field, 2)));
+            Assert.That(evidence.Value.WrappedValue.IsNull, Is.False);
+            Assert.That(evidence.Value.WrappedValue.TryGetValue(out ExtensionObject structure), Is.True);
+            Assert.That(structure.IsNull, Is.True);
+        }
+
+        [TestCase(BrowseNames.MaintenanceSupplier)]
+        [TestCase(BrowseNames.QualificationOfPersonnel)]
+        public async Task MaintenanceRejectsNonNullStructuresOfTheWrongTypeAsync(string field)
+        {
+            Mock<ISession> session = CreateSession();
+            SetupConditions(session);
+            var source = new NodeId("maintenance/" + field, 4);
+            DataValue original = TimedValue(Variant.FromStructure(new TimeZoneDataType()), StatusCodes.Good);
+            SetupRead(session, (node, attribute) => node == source ? original : ConditionValue(node, attribute));
+
+            AmbValueReadException failure = await FailureAsync<AmbValueReadException>(
+                () => CreateClient(session).ReadMaintenanceActivitiesAsync(s_asset).AsTask()).ConfigureAwait(false);
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(failure.ReadValue!.SourceNodeId, Is.EqualTo(source));
+            Assert.That(failure.ReadValue.Value, Is.EqualTo(original));
+        }
+
+        [Test]
+        public async Task ContextRejectsNonNullStructuresOfTheWrongTypeAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var source = new NodeId(Ua.BrowseNames.LocalTime, 4);
+            SetupTranslate(session, _ => [Missing(), Missing(), Missing(), Resolved(source)]);
+            DataValue original = TimedValue(Variant.FromStructure(new NameNodeIdDataType()), StatusCodes.Good);
+            SetupRead(session, (_, _) => original);
+
+            AmbValueReadException failure = await FailureAsync<AmbValueReadException>(
+                () => CreateClient(session).ReadContextAsync(s_asset).AsTask()).ConfigureAwait(false);
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(failure.ReadValue!.SourceNodeId, Is.EqualTo(source));
+            Assert.That(failure.ReadValue.Value, Is.EqualTo(original));
+        }
+
+        [Test]
+        public async Task ScalarHealthRejectsTypedNullStructuresAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var source = new NodeId("Health", 4);
+            SetupTranslate(session, _ => [Resolved(source)]);
+            TimeZoneDataType? missingLocalTime = null;
+            DataValue original = TimedValue(Variant.FromStructure(missingLocalTime!), StatusCodes.Good);
+            SetupRead(session, (_, _) => original);
+
+            AmbValueReadException failure = await FailureAsync<AmbValueReadException>(
+                () => CreateClient(session).ReadDeviceHealthValueAsync(s_asset).AsTask()).ConfigureAwait(false);
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(failure.ReadValue!.SourceNodeId, Is.EqualTo(source));
+            Assert.That(failure.ReadValue.Value, Is.EqualTo(original));
         }
 
         [Test]

@@ -380,8 +380,9 @@ namespace Opc.Ua.AMB.Tests
             VerifyNoMutationOrDisposal(session);
         }
 
-        [Test]
-        public async Task OneBeyondReferenceLimitReleasesAcquiredContinuationAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OneBeyondReferenceLimitReleasesAcquiredContinuationAsync(bool emptyRelease)
         {
             Mock<ISession> session = CreateSession();
             ByteString point = ByteString.From(7);
@@ -391,7 +392,7 @@ namespace Opc.Ua.AMB.Tests
                 ContinuationPoint = point
             });
             var released = new List<ByteString>();
-            SetupRelease(session, released);
+            SetupRelease(session, released, emptyRelease);
 
             await AssertStatusAsync(
                 () => CreateClient(session, 2).ReadLocationsOfAssetAsync(s_asset).AsTask(),
@@ -935,7 +936,10 @@ namespace Opc.Ua.AMB.Tests
                 });
         }
 
-        private static void SetupRelease(Mock<ISession> session, List<ByteString> released)
+        private static void SetupRelease(
+            Mock<ISession> session,
+            List<ByteString> released,
+            bool emptyResults = true)
         {
             session.Setup(s => s.BrowseNextAsync(
                 It.IsAny<RequestHeader?>(), true, It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
@@ -948,7 +952,7 @@ namespace Opc.Ua.AMB.Tests
                     return new ValueTask<BrowseNextResponse>(new BrowseNextResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = [new BrowseResult()]
+                        Results = emptyResults ? [] : [new BrowseResult()]
                     });
                 });
         }

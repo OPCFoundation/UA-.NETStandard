@@ -189,7 +189,7 @@ namespace Opc.Ua.AMB.Client
             }
             bool hasLocalTime = values[3].TryGetValue<TimeZoneDataType>(
                 out TimeZoneDataType? localTime, Session.MessageContext);
-            RequireValueType(fields[3], hasLocalTime);
+            RequireValueType(fields[3], hasLocalTime || IsNullStructure(values[3]));
             List<ReferenceDescription> entries = await BrowseAsync(
                 asset,
                 Ua.ReferenceTypeIds.HasDictionaryEntry,

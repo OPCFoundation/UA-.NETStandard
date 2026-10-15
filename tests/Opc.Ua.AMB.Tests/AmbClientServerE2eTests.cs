@@ -241,6 +241,80 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task HostedClientOptionsReachClientsAsync(bool strict, bool configuredOnBuilder)
+        {
+            await using Plant plant = await Plant.StartAsync(nameof(HostedClientOptionsReachClientsAsync), null)
+                .ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "hosted")
+                .ConfigureAwait(false);
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "AmbClientOptions";
+                options.ApplicationUri = "urn:localhost:OPCFoundation:AmbClientOptions";
+            });
+            var limits = new AmbClientOptions { MaximumBrowseReferences = 1 };
+            if (configuredOnBuilder)
+            {
+                Assert.That(builder.AddAssetManagementClient(limits), Is.SameAs(builder));
+            }
+            else
+            {
+                if (strict)
+                {
+                    services.AddSingleton(limits);
+                }
+                builder.AddAssetManagementClient();
+            }
+            using var cancellation = new CancellationTokenSource();
+            int opened = 0;
+            Task<ManagedSession> OpenSessionAsync(CancellationToken token)
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                opened++;
+                return Task.FromResult(connection.Session);
+            }
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(OpenSessionAsync);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            AmbClientFactory directFactory = strict
+                ? new AmbClientFactory(OpenSessionAsync, telemetry, limits)
+                : new AmbClientFactory(OpenSessionAsync, telemetry);
+            AmbClient[] clients =
+            [
+                await provider.GetRequiredService<AmbClientFactory>()
+                    .CreateAsync(cancellation.Token).ConfigureAwait(false),
+                await provider.GetRequiredService<Func<CancellationToken, Task<AmbClient>>>()
+                    (cancellation.Token).ConfigureAwait(false),
+                await directFactory.CreateAsync(cancellation.Token).ConfigureAwait(false)
+            ];
+            foreach (AmbClient client in clients)
+            {
+                Assert.That(client.Session, Is.SameAs(connection.Session));
+                AssetIdentificationRecord identity = await client.ReadIdentificationAsync(plant.Pump!.NodeId)
+                    .ConfigureAwait(false);
+                Assert.That(identity.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(identity.Values.Count, Is.EqualTo(strict ? 10 : 0));
+                if (strict)
+                {
+                    await Assert.ThatAsync(
+                        async () => await client.DiscoverAssetsAsync().ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadEncodingLimitsExceeded)).ConfigureAwait(false);
+                }
+                else
+                {
+                    ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+                    Assert.That(assets.Count, Is.EqualTo(3));
+                }
+            }
+            Assert.That(opened, Is.EqualTo(3));
+        }
+
         [Test]
         public async Task WritingTheAssetIdMovesTheAssetAsync()
         {

@@ -73,6 +73,11 @@ namespace Opc.Ua.AMB.Client
             }
         }
 
+        private static bool IsNullStructure(Variant value)
+        {
+            return value.TryGetValue(out ExtensionObject structure) && structure.IsNull;
+        }
+
         private static Variant[] VariantsOf(AssetReadValue[] fields)
         {
             var values = new Variant[fields.Length];

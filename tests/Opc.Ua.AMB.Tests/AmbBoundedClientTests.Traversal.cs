@@ -36,6 +36,9 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.AMB.Client;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.Streaming;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.AMB.Tests
 {
@@ -84,8 +87,9 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(failure.ReadValue.SourceNodeId, Is.EqualTo(source));
         }
 
-        [Test]
-        public async Task CancellationWhileAwaitingNextReleasesTheSubmittedContinuationAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancellationWhileAwaitingNextReleasesTheSubmittedContinuationAsync(bool emptyRelease)
         {
             Mock<ISession> session = CreateSession();
             using var cancellation = new CancellationTokenSource();
@@ -101,7 +105,7 @@ namespace Opc.Ua.AMB.Tests
                     return new ValueTask<BrowseNextResponse>(Task.FromCanceled<BrowseNextResponse>(token));
                 });
             var released = new List<ByteString>();
-            SetupRelease(session, released);
+            SetupRelease(session, released, emptyRelease);
 
             await Assert.ThatAsync(async () => await CreateClient(session)
                 .ReadLocationsOfAssetAsync(s_asset, cancellation.Token).ConfigureAwait(false),
@@ -135,6 +139,10 @@ namespace Opc.Ua.AMB.Tests
         [TestCase("status")]
         [TestCase("shape")]
         [TestCase("data")]
+        [TestCase("references")]
+        [TestCase("empty-diagnostics")]
+        [TestCase("single-diagnostics")]
+        [TestCase("service")]
         public async Task InvalidCleanupResponsesPreserveThePrimaryFailureAsync(string shape)
         {
             Mock<ISession> session = CreateSession();
@@ -152,12 +160,30 @@ namespace Opc.Ua.AMB.Tests
             {
                 result.ContinuationPoint = ByteString.From(74);
             }
+            else if (shape == "references")
+            {
+                result.References = [Reference("unexpected")];
+            }
             session.Setup(s => s.BrowseNextAsync(
                 It.IsAny<RequestHeader?>(), true, It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    ResponseHeader = new ResponseHeader(),
-                    Results = shape == "shape" ? [] : [result]
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = shape == "service" ? StatusCodes.Uncertain : StatusCodes.Good
+                    },
+                    Results = shape switch
+                    {
+                        "shape" => [result, result],
+                        "empty-diagnostics" or "service" => [],
+                        _ => [result]
+                    },
+                    DiagnosticInfos = shape switch
+                    {
+                        "empty-diagnostics" => [new DiagnosticInfo()],
+                        "single-diagnostics" => [new DiagnosticInfo(), new DiagnosticInfo()],
+                        _ => []
+                    }
                 });
 
             AggregateException failure = await FailureAsync<AggregateException>(
@@ -169,7 +195,7 @@ namespace Opc.Ua.AMB.Tests
                 .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(failure.InnerExceptions[1], Is.TypeOf<ServiceResultException>()
                 .With.Property(nameof(ServiceResultException.StatusCode))
-                .EqualTo(shape == "status" ? StatusCodes.Uncertain : StatusCodes.BadDecodingError));
+                .EqualTo(shape is "status" or "service" ? StatusCodes.Uncertain : StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -263,6 +289,91 @@ namespace Opc.Ua.AMB.Tests
             {
                 await AssertStatusAsync(TraverseAsync, StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
             }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ObservationFallsBackWithoutCachingIncompleteClassesAsync(bool maintenance, bool limit)
+        {
+            Mock<ISession> session = CreateSession();
+            var subtype = new NodeId("custom-maintenance-class", 4);
+            int rootsBrowsed = 0;
+            SetupBrowse(session, request =>
+            {
+                if (request.NodeId == Ua.ObjectTypeIds.MaintenanceConditionClassType)
+                {
+                    rootsBrowsed++;
+                    return new BrowseResult { References = [Reference(subtype)] };
+                }
+                Assert.That(request.NodeId, Is.EqualTo(subtype));
+                return limit
+                    ? new BrowseResult { References = [Reference("over-budget")] }
+                    : new BrowseResult { StatusCode = StatusCodes.BadUserAccessDenied };
+            });
+            var fields = new Variant[AmbConditionFields.Count];
+            fields[AmbConditionFields.ConditionId] = Variant.From(s_alarm);
+            fields[AmbConditionFields.SourceNode] = Variant.From(s_asset);
+            fields[AmbConditionFields.ConditionName] = Variant.From("Observed");
+            var streaming = new Mock<IStreamingSubscription>(MockBehavior.Strict);
+            EventFilter? observedFilter = null;
+            streaming.Setup(subscription => subscription.SubscribeEventsAsync(
+                Ua.ObjectIds.Server, It.IsAny<EventFilter>(), null, It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, EventFilter filter, MonitoringOptions? _, CancellationToken _) =>
+                {
+                    observedFilter = filter;
+                    return ObserveSingleEventAsync(fields.ToArrayOf());
+                });
+            AmbClient client = CreateClient(session, 1);
+            int received = 0;
+            if (maintenance)
+            {
+                await foreach (MaintenanceActivityRecord activity in client.ObserveMaintenanceAsync(
+                    streaming: streaming.Object).ConfigureAwait(false))
+                {
+                    received++;
+                    Assert.That(activity.ConditionId, Is.EqualTo(s_alarm));
+                    Assert.That(activity.ConditionName, Is.EqualTo("Observed"));
+                    Assert.That(activity.SourceNode, Is.EqualTo(s_asset));
+                    Assert.That(activity.Values.Count, Is.Zero);
+                }
+            }
+            else
+            {
+                await foreach (AssetAlarmRecord alarm in client.ObserveHealthAlarmsAsync(
+                    streaming: streaming.Object).ConfigureAwait(false))
+                {
+                    received++;
+                    Assert.That(alarm.ConditionId, Is.EqualTo(s_alarm));
+                    Assert.That(alarm.ConditionName, Is.EqualTo("Observed"));
+                    Assert.That(alarm.SourceNode, Is.EqualTo(s_asset));
+                    Assert.That(alarm.Values.Count, Is.Zero);
+                }
+            }
+            Assert.That(received, Is.EqualTo(1));
+            Assert.That(observedFilter, Is.Not.Null);
+            HashSet<NodeId> expectedClasses = AmbConditionFields.KnownMaintenanceClasses(session.Object.NamespaceUris);
+            expectedClasses.Add(subtype);
+            Assert.That(observedFilter, Is.EqualTo(
+                AmbConditionFields.Filter(session.Object.NamespaceUris, expectedClasses, maintenance)));
+
+            await AssertStatusAsync(
+                () => maintenance
+                    ? client.ReadMaintenanceActivitiesAsync(s_asset).AsTask()
+                    : client.ReadHealthAlarmsAsync(s_asset).AsTask(),
+                limit ? StatusCodes.BadEncodingLimitsExceeded : StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+
+            Assert.That(rootsBrowsed, Is.EqualTo(2), "observation must not cache a partial class set");
+            streaming.Verify(subscription => subscription.SubscribeEventsAsync(
+                Ua.ObjectIds.Server, It.IsAny<EventFilter>(), null, It.IsAny<CancellationToken>()), Times.Once);
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        private static async IAsyncEnumerable<EventNotification> ObserveSingleEventAsync(ArrayOf<Variant> fields)
+        {
+            await Task.CompletedTask.ConfigureAwait(false);
+            yield return new EventNotification(null, fields);
         }
     }
 }
