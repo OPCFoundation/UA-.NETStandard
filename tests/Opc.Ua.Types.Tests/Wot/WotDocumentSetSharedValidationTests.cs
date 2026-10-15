@@ -48,8 +48,6 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotDocumentSetSharedValidationTests
     {
-        private const int PartitionCount = 6;
-
         [Test]
         public async Task ManyNativePartitionsRoundTripToTheSourceAsync()
         {
@@ -178,5 +176,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return string.Join("; ", (errors.Any() ? errors : result.Diagnostics.Take(5))
                 .Select(diagnostic => diagnostic.ToString()));
         }
+
+        private const int PartitionCount = 50;
     }
 }

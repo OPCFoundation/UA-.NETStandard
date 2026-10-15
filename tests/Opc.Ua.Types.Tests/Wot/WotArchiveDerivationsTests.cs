@@ -45,24 +45,26 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotArchiveDerivationsTests
     {
         [Test]
-        public void SameContextAndAliasSequenceReusesTheDerivations()
+        public void EqualAliasContentInDistinctArraysAndResolversReusesTheSameDerivations()
         {
             UANodeSet context = CreateContext();
             var derivations = new WotNodeSetConverter.ArchiveDerivations(context);
-            NodeIdAlias[] aliases = [Alias("X", "i=45")];
+            NodeIdAlias[] first = [Alias("X", "i=45")];
+            NodeIdAlias[] equal = [Alias("X", "i=45")];
 
-            Dictionary<string, UANode?> first = derivations.GetFactIndex(context, aliases, Resolver(aliases));
-            Dictionary<string, UANode?> second = derivations.GetFactIndex(context, aliases, Resolver(aliases));
+            Dictionary<string, UANode?> firstIndex = derivations.GetFactIndex(context, first, Resolver(first));
+            Dictionary<string, UANode?> equalIndex = derivations.GetFactIndex(context, equal, Resolver(equal));
 
-            Assert.That(second, Is.SameAs(first));
+            Assert.That(equalIndex, Is.SameAs(firstIndex));
             Assert.That(derivations.GetReferenceTypes(context), Is.SameAs(derivations.GetReferenceTypes(context)));
-            Assert.That(
-                derivations.GetIdentities(context).NodeIds,
-                Is.SameAs(derivations.GetIdentities(context).NodeIds));
+            (HashSet<string> NodeIds, HashSet<string> BrowseNames) a = derivations.GetIdentities(context);
+            (HashSet<string> NodeIds, HashSet<string> BrowseNames) b = derivations.GetIdentities(context);
+            Assert.That(b.NodeIds, Is.SameAs(a.NodeIds));
+            Assert.That(b.BrowseNames, Is.SameAs(a.BrowseNames));
         }
 
         [Test]
-        public void DifferentAliasSequencesOfTheSameContextNeverShareAnIndex()
+        public void DifferentAliasMapsOfTheSameContextMatchTheUncachedOracle()
         {
             UANodeSet context = CreateContext();
             UANodeSet oracle = CreateContext();
@@ -79,17 +81,21 @@ namespace Opc.Ua.Types.Tests.Wot
                 Dictionary<string, UANode?> cached = derivations.GetFactIndex(context, sequence, Resolver(sequence));
                 Dictionary<string, UANode?> uncached = derivations.GetFactIndex(oracle, sequence, Resolver(sequence));
                 Assert.That(cached.Keys, Is.EquivalentTo(uncached.Keys));
+                foreach (string key in uncached.Keys)
+                {
+                    Assert.That(cached[key]?.NodeId, Is.EqualTo(uncached[key]?.NodeId), key);
+                }
                 indexes.Add(cached);
             }
 
             Assert.That(indexes[0].ContainsKey("id:i=45"), Is.True);
             Assert.That(indexes[1].ContainsKey("id:i=47"), Is.True);
             Assert.That(indexes[1].ContainsKey("id:i=45"), Is.False);
-            Assert.That(indexes[0], Is.Not.SameAs(indexes[1]));
-            Assert.That(indexes[2], Is.SameAs(derivations.GetFactIndex(context, reordered, Resolver(reordered))));
-            Assert.That(indexes[2], Is.Not.SameAs(indexes[0]));
-            Assert.That(indexes[3], Is.Not.SameAs(indexes[0]));
+            Assert.That(indexes[1], Is.Not.SameAs(indexes[0]));
+            Assert.That(indexes[2].ContainsKey("id:i=45"), Is.True);
             Assert.That(indexes[3].ContainsKey("id:X"), Is.True);
+            Assert.That(indexes[3].ContainsKey("id:i=45"), Is.False);
+            Assert.That(indexes[3], Is.Not.SameAs(indexes[0]));
         }
 
         [Test]
@@ -112,23 +118,21 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void SeparateInvocationsObserveChangesMadeBetweenThem()
+        public void ANewScopeAfterMutationSeesFreshFactsAndDoesNotReuseTheOldIndex()
         {
             UANodeSet context = CreateContext();
             NodeIdAlias[] aliases = [Alias("X", "i=45")];
             var before = new WotNodeSetConverter.ArchiveDerivations(context);
-            Dictionary<string, UANode?> stale = before.GetFactIndex(context, aliases, Resolver(aliases));
+            Dictionary<string, UANode?> old = before.GetFactIndex(context, aliases, Resolver(aliases));
 
             context.Items = [.. context.Items!, new UAObjectType { NodeId = "ns=1;s=Added", BrowseName = "1:Added" }];
             var after = new WotNodeSetConverter.ArchiveDerivations(context);
             Dictionary<string, UANode?> fresh = after.GetFactIndex(context, aliases, Resolver(aliases));
 
-            Assert.That(fresh, Is.Not.SameAs(stale));
+            Assert.That(fresh, Is.Not.SameAs(old));
             Assert.That(fresh.ContainsKey("id:ns=1;s=Added"), Is.True);
-            Assert.That(stale.ContainsKey("id:ns=1;s=Added"), Is.False);
             Assert.That(after.GetIdentities(context).NodeIds, Does.Contain("ns=1;s=Added"));
         }
-
         private static INodeSetAliasResolver Resolver(NodeIdAlias[] aliases)
         {
             return NodeSetDeclaredAliases.FromNodeSet(new UANodeSet { Aliases = aliases }, WotNodeSetAliases.Instance);
