@@ -524,7 +524,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(resolved.Success, Is.True);
             WotDocument view = resolved.Value!;
-            Assert.That(view.Properties.Keys, Is.EquivalentTo(new[] { "Level", "levelUnit" }));
+            Assert.That(view.Properties.Count, Is.EqualTo(2));
+            Assert.That(view.Properties.ContainsKey("Level"), Is.True);
+            Assert.That(view.Properties.ContainsKey("levelUnit"), Is.True);
             Assert.That(
                 view.Properties["Level"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/levelUnit"),
