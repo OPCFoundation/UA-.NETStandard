@@ -490,6 +490,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return namespaces;
         }
 
+        /// <summary>
+        /// Verifies that selecting only a value organizes only it, not the unit it depends on.
+        /// </summary>
         [Test]
         public async Task ExplicitSelectionOfAValueOrganizesOnlyItAndNotItsUnitDependency()
         {
@@ -505,6 +508,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Plan.Omissions.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that the resolved conversion document still carries the unit dependency of a value-only selection.
+        /// </summary>
         [Test]
         public async Task ResolvedDocumentOfAValueOnlySelectionStillCarriesTheUnitDependency()
         {
@@ -533,6 +539,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The conversion document keeps the unit dependency and its HasProperty source.");
         }
 
+        /// <summary>
+        /// Verifies that explicitly selecting a value and its unit organizes both.
+        /// </summary>
         [Test]
         public async Task ExplicitSelectionOfAValueAndItsUnitOrganizesBoth()
         {
@@ -547,6 +556,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "another selected Property also depends on it.");
         }
 
+        /// <summary>
+        /// Verifies that selecting all of a source organizes the value and its unit.
+        /// </summary>
         [Test]
         public async Task SelectingAllOfASourceOrganizesTheValueAndItsUnit()
         {

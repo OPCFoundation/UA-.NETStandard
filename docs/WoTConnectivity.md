@@ -52,6 +52,7 @@ For current protocol-runtime architecture and the contributor guide for adding a
   - [12.4.1 Parent placement through `uav:componentOf`](#1241-parent-placement-through-uavcomponentof)
   - [12.4.2 Event notifier behaviour in projection Views](#1242-event-notifier-behaviour-in-projection-views)
   - [12.4.3 Carried dependencies and View membership](#1243-carried-dependencies-and-view-membership)
+  - [12.4.4 Archive context for single-document conversion](#1244-archive-context-for-single-document-conversion)
   - [12.5 Portable identifiers](#125-portable-identifiers)
   - [12.6 The 1.02 asset surface](#126-the-102-asset-surface)
 
@@ -1252,6 +1253,38 @@ inner one. A value-only selection from an inner projection keeps its carried uni
 support-only in the outer. The View builder organizes only affordances that are not
 support-only, so the View lists the selected measurements and not their units unless
 the units were selected.
+
+### 12.4.4 Archive context for single-document conversion
+
+A document of a partitioned NodeSet export states references whose authoritative facts
+(a reverse reference, a symmetric ReferenceType) live in sibling partitions. A caller
+that converts one document at a time supplies those siblings through
+`IWotArchiveContextProvider` backed by a `WotNodeSetConverter.ArchiveContextIndex`.
+The index groups partitions by their declared model identity (URI, version, publication
+date) together with the namespace table, never by the namespace table alone. An archive
+that declares no model has no authoritative identity and neither contributes to nor
+receives a context. Partitions of a group must agree on server URIs and shared aliases,
+and a group in which two partitions declare the same NodeId (in any equivalent
+spelling) is conflicted, so asking for its context fails instead of letting one sibling
+override another. A returned context is a completed, read-only snapshot. An index whose
+build was cut short by a bound is marked incomplete, so a document that carries
+preserved native nodes fails explicitly rather than validating against a subset.
+
+A missing native event is accepted
+only when both of these hold: the owning preserved type declares it through a native
+`GeneratesEvent` reference (directly or through its type or supertype chain), and a
+bounded, validated selected EventType carrier supplies an identity equal to the
+normalized authored native target. When the native node is present it is compared in
+full, and an ambiguous native key or a missing map stays strict. A readable document
+is never archive authority by itself.
+
+The resolver document budget (`WotNodeSetConverterOptions.MaxResolverDocuments`)
+defaults to 256 documents. The aggregation sample states a larger budget (1024) because
+its corpus exceeds the default; hosts with a larger corpus must do the same. The
+canonical corpus inventory lists 540 JSON documents, and the verified registry
+manifest holds 535 documents (394 Thing Descriptions and 141 Thing Models). These
+statements describe the conversion contract only. Complete XML validation and full
+JSON Schema validation remain unclaimed and deferred.
 
 ### 12.5 Portable identifiers
 

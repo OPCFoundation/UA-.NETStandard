@@ -310,8 +310,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "samples", "WotCon", "AggregationClient", "Documents");
         }
 
+        /// <summary>
+        /// A resolver that serves the corpus documents and supplies a native archive context.
+        /// </summary>
         private sealed class CorpusResolver : IWotThingResolver, IWotArchiveContextProvider
         {
+            /// <summary>
+            /// Creates the resolver over the corpus documents and a context index.
+            /// </summary>
+            /// <param name="documents">The corpus documents keyed by normalized reference.</param>
+            /// <param name="contexts">The index that supplies the native contexts.</param>
             public CorpusResolver(
                 Dictionary<string, byte[]> documents,
                 WotNodeSetConverter.ArchiveContextIndex contexts)
@@ -320,11 +328,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 m_contexts = contexts;
             }
 
+            /// <inheritdoc/>
             public UANodeSet? GetArchiveContext(WotDocument document)
             {
                 return m_contexts.Find(document);
             }
 
+            /// <inheritdoc/>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,

@@ -854,18 +854,27 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return (registry.Current, contents);
         }
 
+        /// <summary>
+        /// A resolver that supplies a native archive context and resolves no external references.
+        /// </summary>
         private sealed class ContextResolver : IWotThingResolver, IWotArchiveContextProvider
         {
+            /// <summary>
+            /// Creates the resolver over a context index.
+            /// </summary>
+            /// <param name="contexts">The index that supplies the native contexts.</param>
             public ContextResolver(WotNodeSetConverter.ArchiveContextIndex contexts)
             {
                 m_contexts = contexts;
             }
 
+            /// <inheritdoc/>
             public UANodeSet? GetArchiveContext(WotDocument document)
             {
                 return m_contexts.Find(document);
             }
 
+            /// <inheritdoc/>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,

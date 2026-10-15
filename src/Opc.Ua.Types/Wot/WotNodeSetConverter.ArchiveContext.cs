@@ -51,7 +51,8 @@ namespace Opc.Ua.Wot
     {
         /// <summary>
         /// Gets the native NodeSet context for the document, or <c>null</c>
-        /// when the document has no siblings that share its namespace table.
+        /// when the document declares no model identity or has no siblings
+        /// that share its declared model and namespace table.
         /// </summary>
         /// <param name="document">The document being converted.</param>
         /// <returns>The context, or <c>null</c>.</returns>
@@ -241,23 +242,54 @@ namespace Opc.Ua.Wot
                 key.Append(value.Length).Append(':').Append(value).Append(';');
             }
 
+            /// <summary>
+            /// The partitions of one authoritative model and their merged aliases and identities.
+            /// </summary>
             private sealed class Group
             {
+                /// <summary>
+                /// Creates a group whose server URIs and model identity come from the first partition.
+                /// </summary>
+                /// <param name="header">The first partition, which supplies the group header.</param>
                 public Group(UANodeSet header)
                 {
                     Header = header;
                 }
 
+                /// <summary>
+                /// Gets the first partition, against which later partitions are compared.
+                /// </summary>
                 public UANodeSet Header { get; }
 
+                /// <summary>
+                /// Gets the aliases shared by the partitions of the group.
+                /// </summary>
                 public Dictionary<string, string> Aliases { get; } = new(StringComparer.Ordinal);
 
+                /// <summary>
+                /// Gets the preserved native nodes of all partitions.
+                /// </summary>
                 public List<UANode> Items { get; } = [];
 
+                /// <summary>
+                /// Gets the canonical identities of the nodes already contributed.
+                /// </summary>
                 public HashSet<string> NodeIds { get; } = new(StringComparer.Ordinal);
 
+                /// <summary>
+                /// Gets or sets whether the partitions declare conflicting server URIs, aliases or identities.
+                /// </summary>
                 public bool Conflicted { get; set; }
 
+                /// <summary>
+                /// Gets or sets the completed context snapshot, which is never mutated once built.
+                /// </summary>
+                public UANodeSet? Context { get; set; }
+
+                /// <summary>
+                /// Merges the server URIs and aliases of a partition, flagging any conflict.
+                /// </summary>
+                /// <param name="part">The partition to merge.</param>
                 public void Merge(UANodeSet part)
                 {
                     if (!(part.ServerUris ?? []).SequenceEqual(Header.ServerUris ?? [], StringComparer.Ordinal))
@@ -278,8 +310,6 @@ namespace Opc.Ua.Wot
                         }
                     }
                 }
-
-                public UANodeSet? Context { get; set; }
             }
 
             private readonly System.Threading.Lock m_lock = new();
