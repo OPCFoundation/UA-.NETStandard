@@ -57,6 +57,10 @@ namespace Opc.Ua.Wot
         /// Receives the names of the events whose node is absent and whose identity the archived root
         /// generates, so a caller can resolve exactly those definitions.
         /// </param>
+        /// <param name="derivations">
+        /// The optional invocation-scoped derivations shared across the validations of one
+        /// call, or <c>null</c> to derive the facts for this document alone.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
