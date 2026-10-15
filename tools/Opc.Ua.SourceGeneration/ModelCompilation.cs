@@ -455,6 +455,14 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
+                if (IsMatchingTransitiveReference(candidate, existing))
+                {
+                    if (IsModelProducer(candidate))
+                    {
+                        map[candidate.ModelUri] = candidate;
+                    }
+                    continue;
+                }
                 int cmp = CompareReferencedModels(candidate, existing);
                 if (cmp > 0)
                 {
@@ -482,6 +490,26 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Identifies matching dependency metadata, not another assembly that emits the model's types.
+        /// </summary>
+        private static bool IsMatchingTransitiveReference(
+            ModelDependencyReference candidate,
+            ModelDependencyReference existing)
+        {
+            if (!string.Equals(candidate.ModelUri, existing.ModelUri, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Prefix, existing.Prefix, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Version, existing.Version, StringComparison.Ordinal) ||
+                !string.Equals(candidate.PublicationDate, existing.PublicationDate, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Name, existing.Name, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return (candidate.Payload.Length == 0 &&
+                    (existing.Payload.Length == 0 || IsModelProducer(existing))) ||
+                (existing.Payload.Length == 0 && IsModelProducer(candidate));
+        }
+
+        /// <summary>
         /// Orders two referenced-assembly entries for the same model URI: a
         /// payload-bearing self producer first, then the version, then the
         /// publication date. The newest entry is picked by pairwise
@@ -489,7 +517,8 @@ namespace Opc.Ua.SourceGeneration
         /// the order the assemblies are referenced in. The versions go through
         /// <see cref="SemVer.CompareModels"/>, the OPC 10000-6 F.2 comparator
         /// NodesetFileCollection uses, so the two halves of the pipeline cannot
-        /// pick different winners.
+        /// pick different winners. An ordinal assembly-name tie-break keeps
+        /// equally versioned distinct producers deterministic.
         /// </summary>
         /// <remarks>
         /// <see cref="ModelDependencyAttribute"/> and its ModelDependencyV1
@@ -519,6 +548,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 cmp = string.CompareOrdinal(
                     candidate.PublicationDate, existing.PublicationDate);
+            }
+            if (cmp == 0)
+            {
+                cmp = string.CompareOrdinal(existing.AssemblyName, candidate.AssemblyName);
             }
             return cmp;
         }

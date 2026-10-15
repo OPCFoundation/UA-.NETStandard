@@ -43,10 +43,13 @@ attributes on referenced assemblies and uses them to:
    published by the referenced assembly's `[ModelDependencyAttribute]`, so
    cross-namespace type references emitted into the local code compile
    correctly. The target namespace itself is never rewritten.
-4. **Tie-break** when more than one referenced assembly provides the same model
-   URI by selecting the entry with the highest `(Version, PublicationDate)`
-   lexicographic tuple. The losing entries are reported as `MODELGEN012` info
-   diagnostics.
+4. **Resolve ownership** by preferring the payload-bearing producer over
+   payloadless transitive dependency entries. Matching dependency metadata
+   describes that producer; it is not a competing provider and does not produce
+   `MODELGEN012`. Distinct producers or conflicting metadata still produce that
+   info diagnostic. Among competing entries, the generator applies the
+   OPC 10000-6 version/publication-date ordering, then the ordinal assembly name
+   (smallest first) to make equal-version producer selection deterministic.
 5. **Import the type-table payload** on self-declaration entries so the
    validator's node table is pre-populated with the upstream's types,
    children, method arguments, DataType fields, and effective variable
@@ -158,7 +161,7 @@ decoded.
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
 | `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
-| `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
+| `MODELGEN012` | Info     | Distinct model producers or conflicting dependency metadata claim the same URI; matching payloadless transitive declarations are not additional producers. |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
 ## Implementation

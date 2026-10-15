@@ -36,6 +36,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
+using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -173,6 +174,56 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(accessors, Is.Not.Null);
             Assert.That(accessors.GetMembers().OfType<IMethodSymbol>().Select(method => method.Name),
                 Is.EquivalentTo(s_designMembers));
+        }
+
+        /// <summary>
+        /// Referencing Core carries its Programs dependency without claiming ownership of its payload or types.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void GeneratedProducerKeepsReferencedProgramsPayloadOwnedByCore(bool modelDesign)
+        {
+            const string programsUri = "http://opcfoundation.org/UA/SDK/Programs/";
+            CSharpCompilation producer;
+            if (modelDesign)
+            {
+                (_, Compilation model, ImmutableArray<Diagnostic> diagnostics) =
+                    RunDesign(ModelDependencyScannerTests.CreateStackCompilation("DesignProducer"), false);
+                Assert.That(diagnostics, Is.Empty, string.Join(Environment.NewLine, diagnostics));
+                AssertCompiles(model);
+                producer = (CSharpCompilation)model;
+            }
+            else
+            {
+                producer = s_producer.Value;
+            }
+            CSharpCompilation probe = ModelDependencyScannerTests.CreateStackCompilation("OwnershipProbe")
+                .AddReferences(producer.ToMetadataReference());
+            ModelDependencyReference[] programs = [.. ReferencedModelDependencyScanner.Scan(probe)
+                .Where(reference => reference.ModelUri == programsUri)];
+            Assert.That(programs, Has.Length.EqualTo(2));
+            ModelDependencyReference owner = programs.Single(reference => reference.AssemblyName == "Opc.Ua.Core");
+            ModelDependencyReference dependency =
+                programs.Single(reference => reference.AssemblyName == producer.AssemblyName);
+            ModelDependencyV1? payload = owner.GetDependency();
+            Assert.That(payload, Is.Not.Null, "The normal reference layout must contain the current Programs model.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload!.ModelUri, Is.EqualTo(programsUri));
+                Assert.That(payload.Nodes.Any(node => node.SymbolicName == "ManagedProgramType"), Is.True);
+                Assert.That(dependency.Payload, Is.Empty);
+                Assert.That(dependency.GetDependency(), Is.Null);
+                Assert.That(dependency.Prefix, Is.EqualTo(owner.Prefix));
+                Assert.That(dependency.Version, Is.EqualTo(owner.Version));
+                Assert.That(dependency.PublicationDate, Is.EqualTo(owner.PublicationDate));
+                Assert.That(dependency.Name, Is.EqualTo(owner.Name));
+                Assert.That(producer.Assembly.GetTypeByMetadataName("Opc.Ua.Programs.ManagedProgramState"), Is.Null);
+                Assert.That(producer.Assembly.GetTypeByMetadataName(
+                    modelDesign ? "Acme.Opc.Ua.Pumps.PumpState" : "Example.Model.AccessorDeviceState"), Is.Not.Null);
+            });
+            TestContext.Out.WriteLine(
+                $"Programs owner={owner.AssemblyName}, payloadBytes={owner.Payload.Length}; " +
+                $"dependency={dependency.AssemblyName}, payloadBytes={dependency.Payload.Length}.");
         }
 
         /// <summary>
