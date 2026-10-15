@@ -56,7 +56,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Dictionary<string, UANode?> equalIndex = derivations.GetFactIndex(context, equal, Resolver(equal));
 
             Assert.That(equalIndex, Is.SameAs(firstIndex));
-            Assert.That(derivations.GetReferenceTypes(context), Is.SameAs(derivations.GetReferenceTypes(context)));
+            WotReferenceTypeNames firstReferenceTypes = derivations.GetReferenceTypes(context);
+            WotReferenceTypeNames secondReferenceTypes = derivations.GetReferenceTypes(context);
+            Assert.That(secondReferenceTypes, Is.SameAs(firstReferenceTypes));
             (HashSet<string> NodeIds, HashSet<string> BrowseNames) a = derivations.GetIdentities(context);
             (HashSet<string> NodeIds, HashSet<string> BrowseNames) b = derivations.GetIdentities(context);
             Assert.That(b.NodeIds, Is.SameAs(a.NodeIds));
@@ -138,7 +140,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(after.GetIdentities(context).NodeIds, Does.Contain("ns=1;s=Added"));
         }
 
-        private static INodeSetAliasResolver Resolver(NodeIdAlias[]? aliases)
+        private static NodeSetDeclaredAliases Resolver(NodeIdAlias[]? aliases)
         {
             return NodeSetDeclaredAliases.FromNodeSet(new UANodeSet { Aliases = aliases }, WotNodeSetAliases.Instance);
         }
