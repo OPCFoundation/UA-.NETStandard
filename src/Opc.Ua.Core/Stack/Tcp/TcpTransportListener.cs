@@ -1742,15 +1742,33 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                processing = new ValueTask<IServiceResponse>(Task.FromException<IServiceResponse>(e));
+                processing = Faulted(e);
             }
 
-            if (processing.IsCompleted)
+            // The callback may return a value task over its own source, which can throw
+            // when its state is read or a continuation is registered: the request then
+            // fails like one whose processing threw.
+            bool completed;
+            try
+            {
+                completed = processing.IsCompleted;
+            }
+            catch (Exception e)
+            {
+                processing = Faulted(e);
+                completed = true;
+            }
+            if (completed)
             {
                 OnRequestProcessed(channel, requestId, request, usage, processing);
                 return;
             }
-            s_pendingRequests.Get().Await(this, channel, requestId, request, usage, processing);
+            if (!s_pendingRequests.Get().TryAwait(
+                    this, channel, requestId, request, usage, processing, out Exception? error) &&
+                error != null)
+            {
+                CompleteRequestAsync(channel, requestId, request, usage, Faulted(error), null, default, false);
+            }
         }
 
         /// <summary>
@@ -1764,17 +1782,34 @@ namespace Opc.Ua.Bindings
             TcpListenerChannel.PendingRequestScope usage,
             ValueTask<IServiceResponse> processing)
         {
-            if (!processing.IsCompletedSuccessfully)
+            IServiceResponse? response = null;
+            bool succeeded = false;
+            Exception? readError = null;
+            try
             {
-                CompleteRequestAsync(channel, requestId, request, usage, processing, null, default);
+                if (processing.IsCompletedSuccessfully)
+                {
+                    response = processing.Result;
+                    succeeded = true;
+                }
+            }
+            catch (Exception e)
+            {
+                // a value task source of the callback that cannot report its result
+                readError = e;
+            }
+            if (!succeeded)
+            {
+                CompleteRequestAsync(
+                    channel, requestId, request, usage,
+                    readError == null ? processing : Faulted(readError), null, default, false);
                 return;
             }
 
-            IServiceResponse response = processing.Result;
             ValueTask<bool> sending;
             try
             {
-                sending = ((TcpServerChannel)channel).SendResponseAsync(requestId, response);
+                sending = ((TcpServerChannel)channel).SendResponseAsync(requestId, response!);
             }
             catch (Exception e)
             {
@@ -1783,7 +1818,7 @@ namespace Opc.Ua.Bindings
 
             if (!sending.IsCompletedSuccessfully)
             {
-                CompleteRequestAsync(channel, requestId, request, usage, default, response, sending);
+                CompleteRequestAsync(channel, requestId, request, usage, default, response, sending, true);
                 return;
             }
 
@@ -1808,9 +1843,10 @@ namespace Opc.Ua.Bindings
         /// <param name="request">The request.</param>
         /// <param name="usage">The pending-request scope, disposed when the request completes.</param>
         /// <param name="processing">The completed processing of the request, unless
-        /// <paramref name="response"/> is set.</param>
+        /// <paramref name="sendStarted"/>.</param>
         /// <param name="response">The response whose send is <paramref name="sending"/>.</param>
         /// <param name="sending">The send of <paramref name="response"/>.</param>
+        /// <param name="sendStarted">Whether the processing was read and its send started.</param>
         private async void CompleteRequestAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -1818,13 +1854,14 @@ namespace Opc.Ua.Bindings
             TcpListenerChannel.PendingRequestScope usage,
             ValueTask<IServiceResponse> processing,
             IServiceResponse? response,
-            ValueTask<bool> sending)
+            ValueTask<bool> sending,
+            bool sendStarted)
         {
             using TcpListenerChannel.PendingRequestScope scope = usage;
             bool responseRetained = false;
             try
             {
-                if (response == null)
+                if (!sendStarted)
                 {
                     response = await processing.ConfigureAwait(false);
                     sending = ((TcpServerChannel)channel).SendResponseAsync(requestId, response);
@@ -1850,7 +1887,7 @@ namespace Opc.Ua.Bindings
                         if (serverChannel != channel)
                         {
                             responseRetained = await serverChannel
-                                .SendResponseAsync(requestId, response).ConfigureAwait(false);
+                                .SendResponseAsync(requestId, response!).ConfigureAwait(false);
                             return;
                         }
                     }
@@ -1914,6 +1951,14 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// A failed processing, for a request whose processing could not be started or read.
+        /// </summary>
+        private static ValueTask<IServiceResponse> Faulted(Exception error)
+        {
+            return new ValueTask<IServiceResponse>(Task.FromException<IServiceResponse>(error));
+        }
+
+        /// <summary>
         /// Awaits the processing of a request in place of an async state machine per request.
         /// Pooled: it returns itself to the pool before the response is sent.
         /// </summary>
@@ -1926,33 +1971,63 @@ namespace Opc.Ua.Bindings
 
             /// <summary>
             /// Continues with <see cref="OnRequestProcessed"/> once the processing completes.
+            /// Returns <c>false</c> with the error when the continuation cannot be registered;
+            /// the caller then completes the request, unless the error is <c>null</c> because
+            /// a continuation registered before the failure already did.
             /// </summary>
-            public void Await(
+            public bool TryAwait(
                 TcpTransportListener listener,
                 TcpListenerChannel channel,
                 uint requestId,
                 IServiceRequest request,
                 TcpListenerChannel.PendingRequestScope usage,
-                ValueTask<IServiceResponse> processing)
+                ValueTask<IServiceResponse> processing,
+                out Exception? error)
             {
-                m_listener = listener;
                 m_channel = channel;
                 m_requestId = requestId;
                 m_request = request;
                 m_usage = usage;
                 m_processing = processing;
-                processing.ConfigureAwait(false).GetAwaiter().OnCompleted(m_onProcessed);
+                // published last: the continuation claims the request by taking it
+                Volatile.Write(ref m_listener, listener);
+                try
+                {
+                    processing.ConfigureAwait(false).GetAwaiter().OnCompleted(m_onProcessed);
+                    error = null;
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    // Not returned to the pool: a continuation registered before the
+                    // failure may still run, and must find the request claimed.
+                    if (Interlocked.Exchange(ref m_listener, null) == null)
+                    {
+                        error = null;
+                        return false;
+                    }
+                    m_channel = null;
+                    m_request = null;
+                    m_usage = default;
+                    m_processing = default;
+                    error = e;
+                    return false;
+                }
             }
 
             private void OnProcessed()
             {
-                TcpTransportListener listener = m_listener!;
+                TcpTransportListener? listener = Interlocked.Exchange(ref m_listener, null);
+                if (listener == null)
+                {
+                    // the registration failed and the request was completed without it
+                    return;
+                }
                 TcpListenerChannel channel = m_channel!;
                 uint requestId = m_requestId;
                 IServiceRequest request = m_request!;
                 TcpListenerChannel.PendingRequestScope usage = m_usage;
                 ValueTask<IServiceResponse> processing = m_processing;
-                m_listener = null;
                 m_channel = null;
                 m_request = null;
                 m_usage = default;

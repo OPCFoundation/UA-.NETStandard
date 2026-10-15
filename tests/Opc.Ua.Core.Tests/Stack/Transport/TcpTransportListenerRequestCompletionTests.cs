@@ -35,6 +35,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -194,6 +195,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A callback's value task source that throws when the listener reads its state,
+        /// registers the continuation or reads the result fails that request like a processing
+        /// failure: logged, answered with a service fault, and the channel keeps working.
+        /// </summary>
+        [TestCase(ThrowingSourceMode.GetStatus)]
+        [TestCase(ThrowingSourceMode.OnCompleted)]
+        [TestCase(ThrowingSourceMode.GetResult)]
+        [CancelAfter(30000)]
+        public async Task ThrowingValueTaskSourceIsAnsweredWithServiceFaultAsync(ThrowingSourceMode mode)
+        {
+            var callback = new ScriptedCallback(request => request.RequestHeader.RequestHandle == 1
+                ? new ValueTask<IServiceResponse>(new ThrowingSource(mode), 0)
+                : new ValueTask<IServiceResponse>(Respond(request)));
+            await using Loopback loopback = await Loopback.StartAsync(callback).ConfigureAwait(false);
+            using UaSCUaBinaryTransportChannel client = await loopback.ConnectAsync().ConfigureAwait(false);
+
+            IServiceResponse fault = await client.SendRequestAsync(CreateReadRequest(1), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(fault, Is.InstanceOf<ServiceFault>());
+            Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(loopback.Logs.Count(l => l.Level == LogLevel.Error &&
+                l.EventId == CoreEventIds.TcpTransportListener + 22), Is.EqualTo(1));
+            IServiceResponse next = await client.SendRequestAsync(CreateReadRequest(2), CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(next.ResponseHeader.RequestHandle, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// A cancelled request is answered with the fault the endpoint creates for it.
         /// </summary>
         [Test]
@@ -269,6 +299,55 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             SynchronousThrow,
             FaultedTask,
             LaterFault
+        }
+
+        public enum ThrowingSourceMode
+        {
+            GetStatus,
+            OnCompleted,
+            GetResult
+        }
+
+        /// <summary>
+        /// A value task source that fails at one step of being awaited.
+        /// </summary>
+        private sealed class ThrowingSource : IValueTaskSource<IServiceResponse>
+        {
+            public ThrowingSource(ThrowingSourceMode mode)
+            {
+                m_mode = mode;
+            }
+
+            public ValueTaskSourceStatus GetStatus(short token)
+            {
+                return m_mode switch
+                {
+                    ThrowingSourceMode.GetStatus => throw Failure(),
+                    ThrowingSourceMode.OnCompleted => ValueTaskSourceStatus.Pending,
+                    _ => ValueTaskSourceStatus.Succeeded
+                };
+            }
+
+            public void OnCompleted(
+                Action<object?> continuation,
+                object? state,
+                short token,
+                ValueTaskSourceOnCompletedFlags flags)
+            {
+                throw Failure();
+            }
+
+            public IServiceResponse GetResult(short token)
+            {
+                throw Failure();
+            }
+
+            private static ServiceResultException Failure()
+            {
+                return new ServiceResultException(StatusCodes.BadNotSupported, "Injected source failure.");
+            }
+
+            private readonly ThrowingSourceMode m_mode;
         }
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
