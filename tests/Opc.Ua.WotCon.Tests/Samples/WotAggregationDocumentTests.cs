@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -693,7 +694,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 snapshot,
                 contents,
                 System.Threading.CancellationToken.None).ConfigureAwait(false);
-            using var cancelled = new System.Threading.CancellationTokenSource();
+            using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
 
             using IDisposable scope = Assert.EnterMultipleScope();
