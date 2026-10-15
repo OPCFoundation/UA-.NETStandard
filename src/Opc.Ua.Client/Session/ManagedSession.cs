@@ -1931,7 +1931,9 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException">The validator rejected the
         /// rediscovered endpoint; a Bad result is thrown as it is, an
         /// Uncertain or missing result as
-        /// <see cref="StatusCodes.BadSecurityChecksFailed"/>.</exception>
+        /// <see cref="StatusCodes.BadSecurityChecksFailed"/>. When the
+        /// endpoint has no description to restore, nothing is refreshed and
+        /// <see cref="StatusCodes.BadInternalError"/> is thrown.</exception>
         internal static async Task RefreshAndValidateEndpointAsync(
             ConfiguredEndpoint endpoint,
             Func<CancellationToken, Task> update,
@@ -1949,7 +1951,8 @@ namespace Opc.Ua.Client
             // non-null description); should that ever change, fail the
             // reconnect here rather than continue without a snapshot.
             EndpointDescription current = CoreUtils.Clone(endpoint.Description) ??
-                throw new InvalidOperationException(
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
                     "The configured endpoint has no description to restore if the rediscovered endpoint is rejected.");
             ServiceResult? result;
             try
