@@ -1125,6 +1125,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Builds the fields of an event the server raises for this monitored item,
+        /// such as EventQueueOverflow or RefreshRequired (SourceNode = Server).
+        /// </summary>
+        private EventFieldList CreateInternalEvent(
+            OperationContext context,
+            BaseEventState e,
+            string key,
+            string text)
+        {
+            var message = new TranslationInfo(key, "en-US", text);
+
+            ISystemContext systemContext = new ServerSystemContext(m_server, context);
+
+            e.Initialize(
+                systemContext,
+                null,
+                EventSeverity.Low,
+                new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
+
+            // fetch the event fields.
+            return GetEventFields(
+                new FilterContext(
+                    m_server.NamespaceUris,
+                    m_server.TypeTree,
+                    Session?.PreferredLocales,
+                    m_server.Telemetry),
+                m_filterToUse as EventFilter,
+                e);
+        }
+
+        /// <summary>
         /// Returns true if the queued event handle is a Condition event.
         /// </summary>
         /// <remarks>
@@ -1311,42 +1349,17 @@ namespace Opc.Ua.Server
                         "MONITORED ITEM: Publish(QueueSize={QueueSize})",
                         notifications.Count);
 
+                    int notificationsBefore = notifications.Count;
+                    uint maxNotifications = maxNotificationsPerPublish;
                     EventFieldList overflowEvent = null;
 
                     if (m_eventQueueHandler.Overflow)
                     {
-                        // construct event.
-                        var e = new EventQueueOverflowEventState(null);
-
-                        var message = new TranslationInfo(
+                        overflowEvent = CreateInternalEvent(
+                            context,
+                            new EventQueueOverflowEventState(null),
                             "EventQueueOverflowEventState",
-                            "en-US",
                             "Events lost due to queue overflow.");
-
-                        ISystemContext systemContext = new ServerSystemContext(m_server, context);
-
-                        e.Initialize(
-                            systemContext,
-                            null,
-                            EventSeverity.Low,
-                            new LocalizedText(message));
-
-                        e.SetChildValue(
-                            systemContext,
-                            BrowseNames.SourceNode,
-                            ObjectIds.Server,
-                            false);
-                        e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
-
-                        // fetch the event fields.
-                        overflowEvent = GetEventFields(
-                            new FilterContext(
-                                m_server.NamespaceUris,
-                                m_server.TypeTree,
-                                Session?.PreferredLocales,
-                                m_server.Telemetry),
-                            m_filterToUse as EventFilter,
-                            e);
                     }
 
                     // place overflow event at the beginning of the queue.
@@ -1368,6 +1381,26 @@ namespace Opc.Ua.Server
                         if (notificationCount < maxNotificationsPerPublish)
                         {
                             notifications.Enqueue(overflowEvent);
+                        }
+                        else
+                        {
+                            moreValuesToPublish = true;
+                        }
+                    }
+
+                    // OPC 10000-9 5.11.4: if Condition events were lost, issue a
+                    // RefreshRequired event "after the Event queue is no longer in an
+                    // overflow state", i.e. once the overflow event was delivered.
+                    if (m_eventQueueHandler.ConditionEventsLost && !m_eventQueueHandler.Overflow)
+                    {
+                        if (notifications.Count - notificationsBefore < maxNotifications)
+                        {
+                            notifications.Enqueue(CreateInternalEvent(
+                                context,
+                                new RefreshRequiredEventState(null),
+                                "RefreshRequiredEventState",
+                                "Condition events lost due to queue overflow, ConditionRefresh required."));
+                            m_eventQueueHandler.ConditionEventsLost = false;
                         }
                         else
                         {
