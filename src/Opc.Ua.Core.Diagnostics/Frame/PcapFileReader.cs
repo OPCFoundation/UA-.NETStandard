@@ -134,23 +134,39 @@ namespace Opc.Ua.Pcap.Frame
             CancellationToken ct)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-            return ReadAllCoreAsync(filePath, ct);
+            return ReadAllCoreAsync(filePath, requireCompleteFile: false, ct);
+        }
+
+        /// <summary>
+        /// Reads a PCAP and optionally rejects missing or partial headers instead of tolerating an active-file tail.
+        /// Use complete-file validation for finalized captures and imported files.
+        /// </summary>
+        public static IAsyncEnumerable<PcapRecord> ReadAllAsync(
+            string filePath, bool requireCompleteFile, CancellationToken ct)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            return ReadAllCoreAsync(filePath, requireCompleteFile, ct);
         }
 
         private static async IAsyncEnumerable<PcapRecord> ReadAllCoreAsync(
             string filePath,
+            bool requireCompleteFile,
             [EnumeratorCancellation] CancellationToken ct)
         {
             using FileStream stream = new(
                 filePath,
                 FileMode.Open,
                 FileAccess.Read,
-                FileShare.ReadWrite,
+                requireCompleteFile ? FileShare.Read : FileShare.ReadWrite,
                 bufferSize: 4096,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
             byte[] globalHeader = new byte[24];
-            if (!await ReadExactOrEndAsync(stream, globalHeader, ct).ConfigureAwait(false))
+            if (!await ReadExactOrEndAsync(stream, globalHeader, requireCompleteFile, ct).ConfigureAwait(false))
             {
+                if (requireCompleteFile)
+                {
+                    throw new PcapDiagnosticsException("The PCAP global header is missing.");
+                }
                 yield break;
             }
 
@@ -163,7 +179,7 @@ namespace Opc.Ua.Pcap.Frame
             };
             uint linkType = ReadUInt32(globalHeader.AsSpan(20, 4), littleEndian);
             byte[] recordHeader = new byte[16];
-            while (await ReadExactOrEndAsync(stream, recordHeader, ct).ConfigureAwait(false))
+            while (await ReadExactOrEndAsync(stream, recordHeader, requireCompleteFile, ct).ConfigureAwait(false))
             {
                 uint tsSec = ReadUInt32(recordHeader.AsSpan(0, 4), littleEndian);
                 uint tsUsec = ReadUInt32(recordHeader.AsSpan(4, 4), littleEndian);
@@ -175,6 +191,10 @@ namespace Opc.Ua.Pcap.Frame
                         $"Pcap record capturedLength {capturedLength} exceeds " +
                         $"MaxPacketBytes ({MaxPacketBytes}). The file may be " +
                         "malformed or hostile; refusing to allocate.");
+                }
+                if (originalLength > int.MaxValue)
+                {
+                    throw new PcapDiagnosticsException("The original packet length exceeds the supported Int32 range.");
                 }
 
                 long remaining = stream.Length - stream.Position;
@@ -195,7 +215,7 @@ namespace Opc.Ua.Pcap.Frame
                         ex);
                 }
 
-                if (!await ReadExactOrEndAsync(stream, data, ct).ConfigureAwait(false))
+                if (!await ReadExactOrEndAsync(stream, data, requireCompleteFile, ct).ConfigureAwait(false))
                 {
                     throw new PcapDiagnosticsException("Truncated pcap packet record.");
                 }
@@ -212,7 +232,8 @@ namespace Opc.Ua.Pcap.Frame
                 : BinaryPrimitives.ReadUInt32BigEndian(value);
         }
 
-        private static async ValueTask<bool> ReadExactOrEndAsync(Stream stream, Memory<byte> buffer, CancellationToken ct)
+        private static async ValueTask<bool> ReadExactOrEndAsync(
+            Stream stream, Memory<byte> buffer, bool rejectPartial, CancellationToken ct)
         {
             int offset = 0;
             while (offset < buffer.Length)
@@ -220,14 +241,10 @@ namespace Opc.Ua.Pcap.Frame
                 int read = await stream.ReadAsync(buffer[offset..], ct).ConfigureAwait(false);
                 if (read == 0)
                 {
-                    // EOF reached before the buffer was filled. Whether
-                    // this is a clean EOF (offset == 0, no bytes consumed)
-                    // or a truncated record (offset > 0, partial read) is
-                    // up to the caller to interpret. The contract here is
-                    // simply: return true only when the full buffer was
-                    // read; otherwise return false so the caller can
-                    // either break out of a record loop (clean EOF) or
-                    // throw a "truncated" diagnostic (data read).
+                    if (rejectPartial && offset != 0)
+                    {
+                        throw new PcapDiagnosticsException("The PCAP contains a truncated header or record.");
+                    }
                     return false;
                 }
                 offset += read;

@@ -44,9 +44,12 @@ attributes on referenced assemblies and uses them to:
    cross-namespace type references emitted into the local code compile
    correctly. The target namespace itself is never rewritten.
 4. **Tie-break** when more than one referenced assembly provides the same model
-   URI by selecting the entry with the highest `(Version, PublicationDate)`
-   lexicographic tuple. The losing entries are reported as `MODELGEN012` info
-   diagnostics.
+   URI by preferring a payload-bearing producer, then selecting the highest
+   version and publication date. A payload-less transitive entry with the same
+   prefix, version, publication date, and name as its producer is dependency
+   closure, not a competing producer, and does not emit `MODELGEN012`.
+   Selections between actual producers or differing declarations still report
+   the losing entries as `MODELGEN012` info diagnostics.
 5. **Import the type-table payload** on self-declaration entries so the
    validator's node table is pre-populated with the upstream's types,
    children, method arguments, DataType fields, and effective variable
@@ -114,7 +117,7 @@ decoded.
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
 | `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
-| `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
+| `MODELGEN012` | Info     | Selecting between competing model producers or differing declarations for the same model URI; matching transitive re-exports do not trigger it. |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
 ## Implementation

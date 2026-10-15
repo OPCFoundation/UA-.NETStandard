@@ -2804,6 +2804,12 @@ children added since an earlier call. It does not re-run `OnAfterCreate` on
 ancestors which were already created; assemble parent-wired children before
 the parent's first completion, or wire those late children explicitly.
 
+Explicit references to `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations remain on generated type templates, not runtime instances.
+Instance factories omit these references whether the model resolves their
+targets by identifier or by a hierarchy path, including direct children of
+object and variable types. Ordinary references are preserved in both contexts.
+
 Notes:
 
 * An explicit `browseName` is what marks a *dynamically materialised
