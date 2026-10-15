@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
             NodeId authenticationToken,
             bool sessionEstablishment,
             bool controlRequest,
-            out object? evidence)
+            out ResourceIsolationAdmissionEvidence? evidence)
         {
             ResourceIsolationOwner owner = Classify(
                 channelContext, authenticationToken, sessionEstablishment, controlRequest,
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         bool IResourceIsolationAdmissionEvidence.IsAdmissionCurrent(
-            object evidence,
+            ResourceIsolationAdmissionEvidence evidence,
             SecureChannelContext channelContext)
         {
             ThrowIfDisposed();
@@ -947,7 +947,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed record OwnerIdentity(
             TrustedOwnerPlan? Trusted, SessionBindingContext? Binding, ChannelSnapshot? Channel,
-            ResourceIsolationStage? OnlyStage);
+            ResourceIsolationStage? OnlyStage) : ResourceIsolationAdmissionEvidence;
 
         /// <summary>
         /// Caches a derived key only for the lifetime of its immutable session activation.

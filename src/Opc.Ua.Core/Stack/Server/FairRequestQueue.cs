@@ -156,7 +156,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            ResourceIsolationOwner owner = Classify(request, out object? evidence);
+            ResourceIsolationOwner owner = Classify(request, out ResourceIsolationAdmissionEvidence? evidence);
             if (!m_provider.TryAcquire(
                 ResourceIsolationStage.RequestQueue, owner, 1, out IDisposable? queueLease, out _))
             {
@@ -411,7 +411,9 @@ namespace Opc.Ua
         /// <summary>
         /// Resolves authoritative owner and service intent for admission.
         /// </summary>
-        private ResourceIsolationOwner Classify(IEndpointIncomingRequest request, out object? evidence)
+        private ResourceIsolationOwner Classify(
+            IEndpointIncomingRequest request,
+            out ResourceIsolationAdmissionEvidence? evidence)
         {
             if (m_provider is IResourceIsolationAdmissionEvidence admission)
             {
@@ -962,7 +964,7 @@ namespace Opc.Ua
             /// The evidence the provider derived <see cref="Owner"/> from, or <c>null</c>
             /// when every revalidation must run in full. Set before the entry is linked.
             /// </summary>
-            internal object? AdmissionEvidence { get; set; }
+            internal ResourceIsolationAdmissionEvidence? AdmissionEvidence { get; set; }
 
             /// <summary>
             /// Gets or sets the owning FIFO while linked; written under that FIFO's gate.

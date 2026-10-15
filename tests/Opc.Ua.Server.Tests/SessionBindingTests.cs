@@ -552,6 +552,31 @@ namespace Opc.Ua.Server.Tests
             AssertLive(original, created, channel, expected: false);
         }
 
+        /// <summary>
+        /// Replacing the certificate requests are validated against keeps the binding, so the
+        /// certificate version is the only signal that ends the liveness check. On a None
+        /// channel the lookup ignores the certificate and still returns the binding: evidence
+        /// issued before the change is then not confirmed, and the full check decides.
+        /// (Activating on a secured channel needs a client signature this fixture cannot make.)
+        /// </summary>
+        [Test]
+        public async Task BindingLivenessEndsWhenTransferSecurityCertificateChangesAsync()
+        {
+            OperationContext channel = CreateContext("one", certificate: [1, 2, 3]);
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            await ActivateAsync(created, channel).ConfigureAwait(false);
+            SessionBindingContext binding = GetBinding(created, channel);
+            AssertLive(binding, created, channel, expected: true);
+
+            m_manager.PublicSetRestoredSessionTransferSecurityState(
+                created.Session, ByteString.From([4, 5, 6]), SecurityPolicies.None,
+                MessageSecurityMode.None, UserTokenType.Anonymous, null);
+
+            Assert.That(binding.Liveness!.IsCurrent(channel.ChannelContext!), Is.False);
+            Assert.That(GetBinding(created, channel), Is.SameAs(binding),
+                "The binding stays committed; only the evidence issued before the change ends.");
+            await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+        }
         [Test]
         public async Task BindingLivenessEndsWhenSessionStartsClosingAsync()
         {
@@ -1108,6 +1133,19 @@ namespace Opc.Ua.Server.Tests
             public void PublicReevaluateIdentityIfStale(ISession session, SecureChannelContext channelContext)
             {
                 ReevaluateIdentityIfStale(session, channelContext);
+            }
+
+            public void PublicSetRestoredSessionTransferSecurityState(
+                ISession session,
+                ByteString originalClientChannelCertificate,
+                string securityPolicyUri,
+                MessageSecurityMode securityMode,
+                UserTokenType clientUserTokenType,
+                string? clientUserId)
+            {
+                SetRestoredSessionTransferSecurityState(
+                    session, originalClientChannelCertificate, securityPolicyUri, securityMode,
+                    clientUserTokenType, clientUserId);
             }
 
             protected override IUserIdentity AddMandatoryRoles(

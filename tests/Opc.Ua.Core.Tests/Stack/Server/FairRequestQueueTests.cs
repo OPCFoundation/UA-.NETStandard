@@ -2221,16 +2221,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 NodeId authenticationToken,
                 bool sessionEstablishment,
                 bool controlRequest,
-                out object? evidence)
+                out ResourceIsolationAdmissionEvidence? evidence)
             {
                 ResourceIsolationOwner owner = Classify(
                     channelContext, authenticationToken, sessionEstablishment, controlRequest);
-                evidence = IssueEvidence ? owner : null;
+                evidence = IssueEvidence ? new TestEvidence(owner) : null;
                 return owner;
             }
 
             bool IResourceIsolationAdmissionEvidence.IsAdmissionCurrent(
-                object evidence,
+                ResourceIsolationAdmissionEvidence evidence,
                 SecureChannelContext channelContext)
             {
                 return EvidenceCheck(Interlocked.Increment(ref m_evidenceChecks));
@@ -2376,6 +2376,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private readonly Dictionary<NodeId, (ResourceIsolationOwner Owner, string Channel)> m_bindings = [];
             private readonly Dictionary<(string Owner, ResourceIsolationStage Stage), long> m_ownerUsed = [];
             private long m_sharedCostUsed;
+            /// <summary>
+            /// The evidence the provider issues: the owner it classified.
+            /// </summary>
+            private sealed record TestEvidence(ResourceIsolationOwner Owner) : ResourceIsolationAdmissionEvidence;
+
             private int m_evidenceChecks;
             private int m_fullRevalidations;
         }

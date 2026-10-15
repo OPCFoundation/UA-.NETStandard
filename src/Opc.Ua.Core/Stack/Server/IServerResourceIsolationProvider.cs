@@ -339,15 +339,22 @@ namespace Opc.Ua
             NodeId authenticationToken,
             bool sessionEstablishment,
             bool controlRequest,
-            out object? evidence);
+            out ResourceIsolationAdmissionEvidence? evidence);
 
         /// <summary>
         /// Returns <c>true</c> only when the evidence returned with the classification of this
         /// request still holds, so a full revalidation would return Good. <c>false</c> means
         /// only that the caller must revalidate in full, which determines the status.
         /// </summary>
-        bool IsAdmissionCurrent(object evidence, SecureChannelContext channelContext);
+        bool IsAdmissionCurrent(ResourceIsolationAdmissionEvidence evidence, SecureChannelContext channelContext);
     }
+
+    /// <summary>
+    /// The inputs a provider derived a classification from, which it can confirm cheaply at
+    /// dispatch. Only the issuing provider interprets it; the request queue keeps it with the
+    /// request and hands it back.
+    /// </summary>
+    internal abstract record ResourceIsolationAdmissionEvidence;
 
     /// <summary>
     /// Reports a stage's aggregate capacity including protected floors, so the request queue can

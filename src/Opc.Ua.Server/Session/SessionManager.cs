@@ -2856,8 +2856,9 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Removing the session or committing another activation replaces the dispatch binding
         /// (a commit always creates a new instance), and only a shutdown empties the token
-        /// index without that. The certificate requests are compared with changes only with
-        /// <see cref="SessionActivationState.CertificateVersion"/>.
+        /// index without that. A change of the session's client channel certificate, which
+        /// requests are validated against, does not replace the binding: it is detected
+        /// through <see cref="SessionActivationState.CertificateVersion"/>.
         /// </remarks>
         private sealed class BindingLiveness : ISessionBindingLiveness
         {
@@ -2935,8 +2936,9 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Changes whenever <see cref="OriginalClientChannelCertificate"/> is set, so a
-            /// binding liveness check sees the certificate requests are compared with change.
+            /// Incremented whenever <see cref="OriginalClientChannelCertificate"/> is set. A
+            /// binding liveness check detects through it that the certificate requests are
+            /// validated against changed after the binding was committed.
             /// </summary>
             public int CertificateVersion => Volatile.Read(ref m_certificateVersion);
 

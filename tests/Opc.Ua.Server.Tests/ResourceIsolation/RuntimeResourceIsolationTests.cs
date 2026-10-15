@@ -369,7 +369,7 @@ namespace Opc.Ua.Server.Tests
             byte[] certificate = [1, 2, 3];
             SecureChannelContext channel = Channel("channel", certificate);
 
-            ResourceIsolationOwner owner = evidenceProvider.Classify(channel, token, false, false, out object? evidence);
+            ResourceIsolationOwner owner = evidenceProvider.Classify(channel, token, false, false, out ResourceIsolationAdmissionEvidence? evidence);
             Assert.That(owner, Is.SameAs(provider.Classify(channel, token)));
             Assert.That(evidence, Is.Not.Null);
             Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
@@ -403,7 +403,7 @@ namespace Opc.Ua.Server.Tests
             byte[] certificate = [1, 2, 3];
             SecureChannelContext channel = Channel("channel", certificate);
 
-            _ = evidenceProvider.Classify(channel, default, true, false, out object? evidence);
+            _ = evidenceProvider.Classify(channel, default, true, false, out ResourceIsolationAdmissionEvidence? evidence);
             Assert.That(evidence, Is.Not.Null);
             Assert.That(evidenceProvider.IsAdmissionCurrent(evidence!, channel), Is.True);
             certificate[0] = 9;
@@ -420,7 +420,7 @@ namespace Opc.Ua.Server.Tests
             SecureChannelContext channel = Channel("channel", [1, 2, 3]);
 
             // A binding issued without a liveness check.
-            _ = evidenceProvider.Classify(channel, new NodeId(1), false, false, out object? evidence);
+            _ = evidenceProvider.Classify(channel, new NodeId(1), false, false, out ResourceIsolationAdmissionEvidence? evidence);
             Assert.That(evidence, Is.Null);
             // A token without a binding: an activation can bind it while the request waits.
             _ = evidenceProvider.Classify(channel, new NodeId(2), false, false, out evidence);
@@ -440,7 +440,7 @@ namespace Opc.Ua.Server.Tests
             DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
             var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
             SecureChannelContext channel = Channel("channel", [1, 2, 3]);
-            _ = evidenceProvider.Classify(channel, default, false, false, out object? evidence);
+            _ = evidenceProvider.Classify(channel, default, false, false, out ResourceIsolationAdmissionEvidence? evidence);
             provider.Dispose();
 
             Assert.That(() => evidenceProvider.IsAdmissionCurrent(evidence!, channel),
@@ -459,7 +459,7 @@ namespace Opc.Ua.Server.Tests
             using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
             var evidenceProvider = (IResourceIsolationAdmissionEvidence)provider;
             SecureChannelContext channel = Channel("channel", new byte[1500]);
-            _ = evidenceProvider.Classify(channel, token, false, false, out object? evidence);
+            _ = evidenceProvider.Classify(channel, token, false, false, out ResourceIsolationAdmissionEvidence? evidence);
             _ = evidenceProvider.IsAdmissionCurrent(evidence!, channel);
 
             long before = GC.GetAllocatedBytesForCurrentThread();
