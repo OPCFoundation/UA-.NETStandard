@@ -76,8 +76,7 @@ namespace TestData
                     outputs);
             }
 
-            EmitPage(context, state, timestampsToReturn, nodeToRead, result);
-            return ServiceResult.Good;
+            return EmitPage(context, state, timestampsToReturn, nodeToRead, result);
         }
 
         public static ProcessedHistoryContinuationState Restore(
@@ -319,7 +318,7 @@ namespace TestData
             }
         }
 
-        private static void EmitPage(
+        private static ServiceResult EmitPage(
             ServerSystemContext context,
             ProcessedHistoryContinuationState state,
             TimestampsToReturn timestampsToReturn,
@@ -344,12 +343,23 @@ namespace TestData
             {
                 result.ContinuationPoint = null;
                 state.Dispose();
-                return;
+                return ServiceResult.Good;
             }
 
             state.Id = Guid.NewGuid();
-            context.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
+
+            // OPC 10000-4 7.9: no more continuation points for this request.
+            if (!HistoryContinuationPoints.TrySave(context, state.Id, state))
+            {
+                state.Dispose();
+                result.ContinuationPoint = null;
+                result.HistoryData = null;
+                result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                return StatusCodes.BadNoContinuationPoints;
+            }
+
             result.ContinuationPoint = state.Id.ToByteArray();
+            return ServiceResult.Good;
         }
 
         private static void ApplyResultOptions(

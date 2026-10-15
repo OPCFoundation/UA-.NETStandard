@@ -5147,8 +5147,16 @@ namespace Quickstarts.ReferenceServer
                 data.DataValues);
             if (!complete)
             {
-                context.OperationContext?.Session?
-                    .SaveHistoryContinuationPoint(reader.Id, reader);
+                // OPC 10000-4 7.9: no more continuation points for this request.
+                if (!TestData.HistoryContinuationPoints.TrySave(context, reader.Id, reader))
+                {
+                    Utils.SilentDispose(reader);
+                    result.ContinuationPoint = null;
+                    result.HistoryData = null;
+                    result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                    return StatusCodes.BadNoContinuationPoints;
+                }
+
                 result.ContinuationPoint = reader.Id.ToByteArray();
             }
             else
