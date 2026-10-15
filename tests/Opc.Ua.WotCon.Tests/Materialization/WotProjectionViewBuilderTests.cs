@@ -506,6 +506,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task ResolvedDocumentOfAValueOnlySelectionStillCarriesTheUnitDependency()
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:sourceU"] = SourceWithUnit
+            };
+            var resolver = new WotProjectionResolver(
+                new MapThingResolver(map),
+                new WotNodeSetConverterOptions
+                {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                });
+            using WotDocument projection = WotDocument.Parse(Encoding.UTF8.GetBytes(SelectValueOnlyProjection));
+
+            WotConversionResult<WotDocument> resolved = await resolver.ResolveAsync(projection);
+
+            Assert.That(resolved.Success, Is.True);
+            WotDocument view = resolved.Value!;
+            Assert.That(view.Properties.Keys, Is.EquivalentTo(new[] { "Level", "levelUnit" }));
+            Assert.That(
+                view.Properties["Level"].GetProperty("uav:unitProperty").GetString(),
+                Is.EqualTo("/properties/levelUnit"),
+                "The conversion document keeps the unit dependency and its HasProperty source.");
+        }
+
+        [Test]
         public async Task ExplicitSelectionOfAValueAndItsUnitOrganizesBoth()
         {
             WotProjectionViewBuilder builder = Builder(UnitIndex(), ("urn:sourceU", SourceWithUnit));
