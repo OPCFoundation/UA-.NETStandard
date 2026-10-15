@@ -689,6 +689,10 @@ See [the samples README](../samples/Scales/README.md) for how to run them.
 `--autoaccept true|false`, and an optional `--run-seconds` from 1 through 3600.
 Without a runtime limit, the server runs until stopped interactively.
 
+UaLens launches its owned simulator with private PKI, certificate auto-accept disabled
+and an explicit finite runtime. Weighing tasks require a separate per-run opt-in
+and fresh confirmation; see [UaLens Weighing](UaLens.md#weighing).
+
 ## Testing
 
 ```bash

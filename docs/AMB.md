@@ -546,7 +546,8 @@ so a later strict address-space read retries discovery and reports its failure.
 Category `NodeVersion` describes alias-set changes, not an asset-wide metadata
 ETag. A caller preparing an edit must also revalidate current alias membership,
 the exact edit target, permissions and relevant old value. The client does not
-provide atomic compare-and-swap.
+provide atomic compare-and-swap. See [UaLens Asset Management](UaLens.md#asset-management)
+for the prepared, owned-simulation workflow.
 
 | Area | Calls |
 | --- | --- |
@@ -583,7 +584,9 @@ See [samples/AMB](../samples/AMB/README.md) for how to run them.
 
 `AmbServer` accepts `--host`, `--port`, an absolute `--pki-root`,
 `--autoaccept true|false` and an optional `--run-seconds` from 1 through 3600.
-Ordinary standalone defaults and persistent state behavior are unchanged.
+UaLens uses private PKI, disables certificate auto-accept, limits the runtime
+and places `--state` inside the owned run directory. Ordinary standalone
+defaults and persistent state behavior are unchanged.
 
 ## Testing
 

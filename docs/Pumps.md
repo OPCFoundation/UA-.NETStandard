@@ -522,6 +522,8 @@ engineering group. Use it to select a port before fetching its values with
 `ReadValueSetAsync`; `EnumeratePortsAsync` returns complete port
 descriptors.
 
+For the desktop workflow, see [UaLens Pumps](UaLens.md#pumps).
+
 ### Creating the client
 
 | Entry point | Use |
@@ -759,6 +761,9 @@ The rows below follow the specification's structure.
 1 through 3600 seconds. Without the runtime option, the server runs until
 stopped interactively. Certificate auto-accept is enabled by default for sample
 convenience; disable it when testing explicit peer trust.
+
+UaLens launches its owned simulator on loopback with private PKI,
+`--autoaccept false` and an explicit finite runtime.
 
 | Sample | Shows |
 | --- | --- |

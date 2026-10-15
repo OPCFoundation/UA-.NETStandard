@@ -1,0 +1,21 @@
+name: UaLens unpublished candidate qualification
+
+on:
+  pull_request:
+    paths:
+    - '.github/ualens-openusd-candidate.json'
+    - '.github/scripts/prepare_ualens_candidate.py'
+    - '.github/scripts/test_ualens_candidate.py'
+    - '.github/workflows/ualens-candidate.yml'
+    - '.github/workflows/ualens-artifacts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  candidate:
+    uses: ./.github/workflows/ualens-artifacts.yml
+    with:
+      candidate_manifest: .github/ualens-openusd-candidate.json
