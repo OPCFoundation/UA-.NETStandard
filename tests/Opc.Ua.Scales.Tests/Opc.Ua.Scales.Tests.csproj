@@ -32,6 +32,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Scales\Opc.Ua.Scales.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Scales.Client\Opc.Ua.Scales.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Scales.Server\Opc.Ua.Scales.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>

@@ -50,8 +50,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <remarks>
         /// The manager owns the Device Integration namespace, so this cannot
         /// be combined with <c>AddOpcUaDi</c>, <c>AddPumps</c> or any other
-        /// DI-owning registration on the same server. A server that needs both
-        /// should load the Scales model into its existing manager instead.
+        /// DI-owning registration on the same server. Use <c>AddScalesToMachinery</c>
+        /// to reuse the stock Machinery owner and the same <see cref="ScalesRuntime"/>.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the Scales options.</param>

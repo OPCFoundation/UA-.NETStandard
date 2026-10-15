@@ -98,6 +98,11 @@ namespace Opc.Ua.SourceGeneration
                     // Nothing to do
                     return;
                 }
+                if (m_options.ClientAccessorsOnly && m_options.Options.GenerateNodeManager)
+                {
+                    throw new InvalidOperationException(
+                        "Client accessor-only generation cannot be combined with node manager generation.");
+                }
 
                 string[] exclusions = [.. m_options.Exclude
                     .Append("Draft")
@@ -121,6 +126,9 @@ namespace Opc.Ua.SourceGeneration
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,
+                    ClientAccessorsOnly = m_options.ClientAccessorsOnly,
+                    ClientAccessorNamespace = m_options.ClientAccessorNamespace,
+                    ClientAccessorClassName = m_options.ClientAccessorClassName,
                     OmitEventRecords = m_options.OmitEventRecords
                 };
 

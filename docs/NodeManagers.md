@@ -309,6 +309,25 @@ attribute operations. Type/rank checks, access checks, audit reporting, and
 semantic-change notifications remain part of the manager service path; directly
 mutating a node value is not a replacement for a client Write service call.
 
+For `OnWriteValueAsync` and `OnSimpleWriteValueAsync`, successful results normally
+copy the requested value, status and source timestamp into the node cache.
+An external committed-state publisher can opt out for that operation:
+
+```csharp
+return new AttributeWriteResult(result)
+{
+    SuppressCacheUpdate = true
+};
+```
+
+This returns the handler's result without changing cached data or manufacturing
+a value-change mask. Access, type and writable-metadata checks still run.
+The external publisher owns observation updates and their notifications; for an
+indexed write, the handler also owns applying the range to its authoritative data.
+The default is `false`, so existing handlers and ordinary write-through variables
+keep their current behavior. Suppression does not turn an uncommitted or failed
+command into a successful write.
+
 #### Method Calls
 
 `CustomNodeManager2.Call` completes synchronously through its synchronous

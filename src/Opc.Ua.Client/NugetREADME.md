@@ -26,6 +26,14 @@ than transparently retrying on a replacement peer. Generated ObjectType clients
 consume the binding directly; closing it does not close the owning session.
 Unsupported custom adapters/transports report `BadNotSupported`.
 
+Model libraries can opt into `ModelSourceGeneratorClientAccessorsOnly` to emit
+typed variable views and placeholder enumerators over their existing generated
+proxies. This package supplies the reusable `ClientVariable<T>`, `ClientRead<T>`
+and `ClientModelAccess` runtime. These helpers use the proxy's existing `ISession`
+or `ManagedSession`, preserve value quality and timestamps, and reuse streaming
+subscriptions. See the [source generator guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors)
+for configuration.
+
 ## Getting started
 
 ```csharp

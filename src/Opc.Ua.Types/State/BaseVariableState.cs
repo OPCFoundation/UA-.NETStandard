@@ -2289,7 +2289,7 @@ namespace Opc.Ua
                         context, this, indexRange, valueToWrite, cancellationToken)
                         .ConfigureAwait(false);
 
-                    if (ServiceResult.IsBad(writeResult.Result))
+                    if (ServiceResult.IsBad(writeResult.Result) || writeResult.SuppressCacheUpdate)
                     {
                         return writeResult.Result;
                     }
@@ -2347,7 +2347,7 @@ namespace Opc.Ua
                     context, this, valueToWrite, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (ServiceResult.IsBad(simpleResult.Result))
+                if (ServiceResult.IsBad(simpleResult.Result) || simpleResult.SuppressCacheUpdate)
                 {
                     return simpleResult.Result;
                 }

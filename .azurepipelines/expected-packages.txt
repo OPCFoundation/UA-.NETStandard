@@ -33,6 +33,9 @@ OPCFoundation.NetStandard.Opc.Ua.Di
 OPCFoundation.NetStandard.Opc.Ua.Di.Client
 OPCFoundation.NetStandard.Opc.Ua.Di.Server
 OPCFoundation.NetStandard.Opc.Ua.ECM
+OPCFoundation.NetStandard.Opc.Ua.Extrusion
+OPCFoundation.NetStandard.Opc.Ua.Extrusion.Client
+OPCFoundation.NetStandard.Opc.Ua.Extrusion.Server
 OPCFoundation.NetStandard.Opc.Ua.Gds
 OPCFoundation.NetStandard.Opc.Ua.Gds.Client
 OPCFoundation.NetStandard.Opc.Ua.Gds.Server
@@ -78,6 +81,9 @@ OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server
 OPCFoundation.NetStandard.Opc.Ua.PackML
 OPCFoundation.NetStandard.Opc.Ua.PADIM
+OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber
+OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Client
+OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Server
 OPCFoundation.NetStandard.Opc.Ua.Positioning
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Client
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Server
