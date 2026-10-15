@@ -5,8 +5,10 @@ They use the same synthetic configuration and typed coordination model as the co
 They do not add a WoT connector, cloud ingestion, hardware control, or certification.
 Check the sample README's current limitations before using the data.
 
-The Dockerfile publishes and runs the managed .NET 10 target; all eleven services use that one image.
-The repository does not publish a prebuilt image for these examples. Build your own image.
+The server Dockerfile publishes and runs the managed .NET 10 target; all eleven server services
+use that one image. Existing Images CI includes `recyclingserver` and the separate
+`recyclingclient` browser host, with its existing GHCR naming/tag policy and no new schedule.
+Published tags require a successful publishing run; the examples below build locally.
 All private scenarios, certificate stores, user keys, and runtime state stay outside the
 repository and the container build context.
 
@@ -122,6 +124,62 @@ docker compose -f samples\Recycling\RecyclingServer\compose.yaml down
 
 Stopping containers does not delete the externally mounted state. Do not delete journals or
 reset the run as a substitute for recovery.
+
+### Optional operator console
+
+The separate [operator console](../../../../docs/RecyclingOperatorConsole.md) is an optional
+local browser host, not another process participant. Closing it cannot reset/stop the run
+or renew the process servers' leases.
+
+Provision a separate `operator-console` directory under `RECYCLING_DATA_DIR`:
+
+```text
+operator-console
+  pki
+    own
+    trusted
+    issuer
+    rejected
+  secrets
+    bootstrap-key
+    users
+      certs
+      private
+    user-password
+```
+
+Use the certificate manager to provision the application's certificate/private key in `own`,
+its peer/issuer trust, and a **dedicated** UA user certificate in the `users` directory store.
+The example selects subject `CN=Recycling-line-1-observer`; `user-password` contains the user
+store's private-key password. `bootstrap-key` contains a random 32-byte hexadecimal browser
+launch key. These secrets are external, read-only mounts; do not add their values
+to Compose environment variables or the image. Allow UID/GID 1654 to access these stores.
+The client never mounts coordinator state, the shared identity mapping or any process user key.
+
+Trust the client's application certificate on each server it accesses. Exchange server
+application certificates into the client's peer trust, and bind the client user certificate
+in the coordinator's user trust and external identity mapping with the intended role.
+Compose defaults to the conservative `Observer` mode. Changing the configured role does not
+elevate a UA identity: server authorization remains authoritative.
+
+```powershell
+docker build -f samples\Recycling\RecyclingOperatorConsole\Dockerfile -t recycling-client:local .
+docker compose -f samples\Recycling\RecyclingServer\compose.yaml --profile operator-console config --quiet
+docker compose -f samples\Recycling\RecyclingServer\compose.yaml --profile operator-console up -d
+```
+
+Browse locally to `http://localhost:8080/bootstrap?token=<external-bootstrap-key>`, protecting
+the credential URL from logs and shared browser history. The profile explicitly binds the
+container on port 8080 and publishes only `127.0.0.1:8080`; `localhost:8080` is the allowed
+browser host. Do not use a remote workstation URL or expose this sample on all host interfaces.
+`RECYCLING_CLIENT_IMAGE` selects another built/published client image without changing the
+server's `RECYCLING_IMAGE`.
+
+The ten native inspector mappings and coordinator endpoint use the Compose DNS names and
+container port 62570, not the host-published ports. The servers' application certificates must
+match those names; port publishing does not rewrite discovery or bypass hostname checks.
+Read the console guide for session/CSRF protection, strict UA trust, command confirmation,
+unknown outcomes and version-one limits. The Kubernetes example remains server-only.
 
 ## Kubernetes
 

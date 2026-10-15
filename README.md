@@ -74,6 +74,10 @@ samples in this repository, follow **[Getting started](docs/GettingStarted.md)**
 The **[documentation index](docs/README.md)** then leads from the core concepts
 to advanced and experimental features.
 
+The [recycling operator console](docs/RecyclingOperatorConsole.md) demonstrates
+live browser monitoring, native companion-specification inspection, material genealogy,
+and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
+
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:
 

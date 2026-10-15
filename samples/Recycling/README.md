@@ -4,7 +4,8 @@ This sample models a recycling line with **one durable coordinator and ten OPC U
 servers**. The same executable starts either the coordinator or one selected process.
 It targets **.NET 8, 9 and 10** and exposes typed process data, companion-specification
 equipment and material genealogy over OPC UA. It is a synthetic software simulation,
-not a controller for physical equipment; it includes no HMI, MQTT publisher or WoT connector.
+not a controller for physical equipment. The optional [.NET 10 operator console](../../docs/RecyclingOperatorConsole.md)
+adds a local browser schematic and role-limited controls; there is no MQTT publisher or WoT connector.
 
 ## Contents
 
@@ -18,6 +19,7 @@ not a controller for physical equipment; it includes no HMI, MQTT publisher or W
   - [Secure identities](#secure-identities)
   - [One shared scenario](#one-shared-scenario)
   - [Build and start the roles](#build-and-start-the-roles)
+- [Operator console and images](#operator-console-and-images)
 - [Observe and control the line](#observe-and-control-the-line)
 - [Tests and publishing](#tests-and-publishing)
   - [Managed targets](#managed-targets)
@@ -31,14 +33,15 @@ runtime. The coordinator alone owns `RecyclingEngine`, `MaterialLedger` and `Rec
 Each process server uses `CompanionProcessViewAdapter` to project committed snapshots onto its
 equipment: it has no material clock, independent random signals or production counters.
 
-The [sample model](RecyclingServer/Model/Recycling.xml) supplies generated structures, methods,
+The [shared sample model](Recycling.Client/Model/Recycling.xml) supplies generated structures, methods,
 clients and DI-derived process types in `urn:opcfoundation.org:sample:recycling`. Native
 companion instances and Machinery state AddIns share one DI/Machinery owner; AMB registers
 the actual assets. The implementation is divided into:
 
 | Directory | Responsibility |
 | --- | --- |
-| [Coordination](RecyclingServer/Coordination) | Authenticated membership, serialized commands, committed snapshots and typed client access. |
+| [Recycling.Client](Recycling.Client) | Shared generated model, immutable contracts, mapping and typed coordinator client; no server executable dependency. |
+| [Coordination](RecyclingServer/Coordination) | Authenticated membership, serialized commands and committed snapshots. |
 | [Simulation](RecyclingServer/Simulation) | Deterministic transformations, finite buffers, utilities, genealogy and holds. |
 | [Persistence](RecyclingServer/Persistence) | Checksummed journal/checkpoint storage through the existing file-system provider. |
 | [Hosting](RecyclingServer/Hosting) | Role startup, authorization, companion assembly and read-only equipment projections. |
@@ -277,7 +280,29 @@ dotnet run -f net10.0 --no-build -- --process collection --line-id line-1 --scen
 `--pace-ms` changes wall-clock pacing, not logical seconds per tick. Views may start before the
 coordinator; production starts only after all ten initialize. `--help` lists the flags.
 [Docker Compose and Kubernetes examples](RecyclingServer/deploy/README.md) run the same eleven
-roles with isolated storage; their single Docker image uses the managed .NET 10 target.
+roles with isolated storage; their single server Docker image uses the managed .NET 10 target.
+
+## Operator console and images
+
+The [operator console guide](../../docs/RecyclingOperatorConsole.md) covers the separate ASP.NET Core 10
+workstation host, local browser launch/session, explicit coordinator/process endpoints, application
+trust and dedicated UA identity. The host defaults to read-only `Observer`; its configured mode
+is a permission ceiling, never a substitute for coordinator authorization. Commands go through
+the typed coordinator client. Stop is not a physical emergency stop, timeouts are not success,
+and destructive/reset actions require explicit confirmation and lifecycle checks.
+
+The console observes independently: closing it cannot reset production, renew process membership
+or stop the eleven servers. Bounded trends and command history are session-local observations,
+not a lossless historian or full audit log. Missing native endpoints remain unavailable rather
+than being filled with invented measurements.
+
+`Recycling.Client` is the sample-local, non-packable shared typed model/client, with no dependency
+on the server executable. The console and server are registered as `recyclingclient` and
+`recyclingserver` in the existing Images CI workflow; triggers, tags and publication rules
+are unchanged. Both images support source builds and CI's native portable-IL/prebuilt path for
+AMD64/ARM64. The optional Compose `operator-console` profile publishes the browser on host
+loopback and mounts separate client certificates/secrets. See the
+[deployment guide](RecyclingServer/deploy/README.md#optional-operator-console) for provisioning.
 
 ## Observe and control the line
 
