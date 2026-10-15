@@ -142,6 +142,39 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void ExternalTargetOfNamespaceListedOnlyInNamespaceUrisUsesUriLiteral()
+        {
+            CSharpCompilation consumer = ModelDependencyScannerTests
+                .CreateStackCompilation("ExternalTargetNamespaceUriOnly")
+                .AddReferences(s_diProducer.Value.ToMetadataReference());
+            GeneratorDriver driver = CreateDriver(
+                EmbeddedText.From("ExternalTargetNamespaceUriOnly.NodeSet2.xml"));
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                consumer,
+                out Compilation output,
+                out ImmutableArray<Diagnostic> diagnostics);
+            string generated = string.Join(
+                Environment.NewLine,
+                driver.GetRunResult().Results[0].GeneratedSources
+                    .Select(s => s.SourceText.ToString()));
+            IEnumerable<Diagnostic> all = diagnostics.Concat(output.GetDiagnostics());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    all.Where(d => d.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, all));
+                Assert.That(
+                    ExtractMethodBody(generated, "CreateUnlistedTarget"),
+                    Does.Contain(
+                        "state.AddReference(global::Opc.Ua.NodeId.Create(35u, global::Opc.Ua.Namespaces.OpcUa, " +
+                        "context.NamespaceUris), true, global::Opc.Ua.NodeId.Create(5001u, " +
+                        "\"http://opcfoundation.org/UA/DI/\", context.NamespaceUris));"));
+            });
+        }
+
+        [Test]
         public void GeneratedReferenceToInstanceOfReferencedModelCompiles()
         {
             CSharpCompilation consumer = ModelDependencyScannerTests
