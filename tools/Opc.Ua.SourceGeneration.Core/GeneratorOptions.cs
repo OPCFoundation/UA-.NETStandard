@@ -140,13 +140,14 @@ namespace Opc.Ua.SourceGeneration
         /// NodeSet2 input are exactly the nodes the NodeSet2 declares. A
         /// subtype in the NodeSet2 does not get copies of the Mandatory
         /// InstanceDeclarations of its supertypes, and an instance does not
-        /// get children its NodeSet2 does not declare, so the address space
-        /// holds no node with an identifier the NodeSet2 does not assign.
+        /// get children its NodeSet2 does not declare or references to them,
+        /// so the address space holds no node with an identifier the NodeSet2
+        /// does not assign.
         /// <para>
         /// The typed state classes and the <c>CreateInstanceOf*</c> factories
         /// are not affected: inherited members still resolve through the
         /// state classes of the supertypes, and an instance created at run
-        /// time still gets every Mandatory child of its type.
+        /// time still gets every Mandatory descendant of its type.
         /// </para>
         /// <para>
         /// Off by default. A ModelDesign input is not affected.

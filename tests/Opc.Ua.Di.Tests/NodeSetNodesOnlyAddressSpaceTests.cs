@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -49,6 +50,7 @@ namespace Opc.Ua.Di.Tests
     public sealed class NodeSetNodesOnlyAddressSpaceTests
     {
         private const string kResource = "Opc.Ua.Di.Tests.Assets.NodeSetNodesOnlyPump.NodeSet2.xml";
+        private const string kModelUri = "http://test.org/UA/NodeSetNodesOnlyPump/";
 
         [Test]
         public void ExportedAddressSpaceHasTheNodesOfTheNodeSet()
@@ -88,6 +90,53 @@ namespace Opc.Ua.Di.Tests
             });
         }
 
+        [Test]
+        public void ExportedInstanceHasNoReferenceToAnUndeclaredChild()
+        {
+            UANodeSet input = ReadInput();
+            UANodeSet exported = ExportGeneratedNodes();
+            // Pump1 declares the Controller of PumpType, not the Motor that
+            // the Controller references.
+            string controller = kModelUri + ";i=6020";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    References(exported).Where(r => r.Contains(controller, StringComparison.Ordinal)),
+                    Is.EquivalentTo(References(input).Where(r => r.Contains(controller, StringComparison.Ordinal))));
+                Assert.That(UnresolvedModelReferences(exported), Is.Empty);
+            });
+        }
+
+        [Test]
+        public void InstancesCreatedAtRunTimeGetTheMandatoryDescendantsOfDeclaredChildren()
+        {
+            // PumpType declares Sensor but not the Transmitter of SensorType,
+            // and SensorType declares Transmitter but not the children of
+            // DeviceType.
+            SystemContext context = CreateContext();
+
+            PumpState pump = context.CreateInstanceOfPumpType(
+                browseName: new QualifiedName("Pump3", 1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pump.Sensor, Is.Not.Null);
+                Assert.That(pump.Sensor?.Transmitter, Is.Not.Null);
+                Assert.That(pump.Sensor?.Transmitter?.SerialNumber, Is.Not.Null);
+                Assert.That(pump.Sensor?.Transmitter?.RevisionCounter, Is.Not.Null);
+                Assert.That(pump.Sensor?.Transmitter?.Manufacturer, Is.Not.Null);
+                Assert.That(pump.Controller, Is.Not.Null);
+                Assert.That(pump.Motor, Is.Not.Null);
+                Assert.That(
+                    pump.Controller?.ReferenceExists(
+                        global::Opc.Ua.ReferenceTypeIds.HasEffect,
+                        false,
+                        pump.Motor!.NodeId),
+                    Is.True);
+            });
+        }
+
         private static UANodeSet ExportGeneratedNodes()
         {
             SystemContext context = CreateContext();
@@ -106,7 +155,7 @@ namespace Opc.Ua.Di.Tests
             {
                 NamespaceUris = new NamespaceTable()
             };
-            context.NamespaceUris.GetIndexOrAppend("http://test.org/UA/NodeSetNodesOnlyPump/");
+            context.NamespaceUris.GetIndexOrAppend(kModelUri);
             context.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             return context;
         }
@@ -150,6 +199,31 @@ namespace Opc.Ua.Di.Tests
                 }
             }
             return [.. references];
+        }
+
+        /// <summary>
+        /// Every reference with an end in the model's namespace that is not a
+        /// node of the NodeSet.
+        /// </summary>
+        private static string[] UnresolvedModelReferences(UANodeSet nodeSet)
+        {
+            var nodeIds = new HashSet<string>(
+                nodeSet.Items!.Select(node => Normalize(nodeSet, node.NodeId!)));
+            var unresolved = new List<string>();
+            foreach (UANode node in nodeSet.Items!)
+            {
+                foreach (Reference reference in node.References ?? [])
+                {
+                    string target = Normalize(nodeSet, reference.Value!);
+                    if (target.StartsWith(kModelUri + ";", StringComparison.Ordinal) &&
+                        !nodeIds.Contains(target))
+                    {
+                        unresolved.Add(Normalize(nodeSet, node.NodeId!) + " " +
+                            Normalize(nodeSet, reference.ReferenceType!) + " " + target);
+                    }
+                }
+            }
+            return [.. unresolved];
         }
 
         private static string Normalize(UANodeSet nodeSet, string nodeId)
