@@ -313,11 +313,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.Stored, Is.EqualTo(s_storedValue), "the staged queue keeps its stored contents");
 
             Task commit = Task.Run(item.CommitQueueRestore);
-            Assert.That(queue.CommitStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
-            Task enqueue = Task.Run(() => item.QueueValue(new DataValue(Variant.From(3)), ServiceResult.Good));
-            Task first = await Task.WhenAny(enqueue, Task.Delay(500)).ConfigureAwait(false);
-            queue.ReleaseCommit();
-            await Task.WhenAll(commit, enqueue).ConfigureAwait(false);
+            Task enqueue = Task.CompletedTask;
+            Task first;
+            try
+            {
+                Assert.That(queue.CommitStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                enqueue = Task.Run(() => item.QueueValue(new DataValue(Variant.From(3)), ServiceResult.Good));
+                first = await Task.WhenAny(enqueue, Task.Delay(500)).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Release the gate and let both workers finish before the item, whose lock they hold, is disposed.
+                queue.ReleaseCommit();
+                await Task.WhenAll(commit, enqueue).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            }
 
             Assert.That(first, Is.Not.SameAs(enqueue), "the value is queued once the commit completed");
             Assert.That(queue.Stored, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
