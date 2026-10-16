@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,10 +77,7 @@ namespace Opc.Ua.Recycling
                 FileStream file = OpenBounded(scenario);
                 await using (file.ConfigureAwait(false))
                 {
-                    configuration = await JsonSerializer.DeserializeAsync(
-                        file, RecyclingJsonContext.Default.RecyclingConfiguration, cancellationToken)
-                        .ConfigureAwait(false)
-                        ?? throw new ArgumentException("Scenario document is null.");
+                    configuration = await LoadScenarioAsync(file, cancellationToken).ConfigureAwait(false);
                 }
             }
             else
@@ -122,6 +120,32 @@ namespace Opc.Ua.Recycling
             };
             options.Validate();
             return options;
+        }
+
+        /// <summary>
+        /// Applies explicit scenario fields over the immutable defaults before source-generated deserialization.
+        /// </summary>
+        /// <remarks>
+        /// Generated init-only constructors otherwise replace omitted properties with CLR defaults.
+        /// Explicit nulls, zero values and unknown members are retained for normal validation.
+        /// </remarks>
+        internal static async ValueTask<RecyclingConfiguration> LoadScenarioAsync(
+            Stream stream, CancellationToken cancellationToken = default)
+        {
+            JsonNode? supplied = await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            if (supplied is not JsonObject overrides)
+            {
+                throw new JsonException("A scenario must be a non-null JSON object.");
+            }
+            JsonObject effective = JsonSerializer.SerializeToNode(
+                new RecyclingConfiguration(), RecyclingJsonContext.Default.RecyclingConfiguration)!.AsObject();
+            foreach (KeyValuePair<string, JsonNode?> property in overrides)
+            {
+                effective[property.Key] = property.Value?.DeepClone();
+            }
+            return effective.Deserialize(RecyclingJsonContext.Default.RecyclingConfiguration)
+                ?? throw new JsonException("Scenario document is null.");
         }
 
         private static RecyclingProcess ParseProcess(string value)

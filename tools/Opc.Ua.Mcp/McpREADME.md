@@ -100,7 +100,7 @@ enable them; a profile is never an execution grant.
 
 Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
-- **Connection**: Connect, Disconnect, GetConnectionStatus
+- **Connection**: Connect, ConnectCertificate, Disconnect, GetConnectionStatus
 - **Attribute**: Read, Write, HistoryRead, HistoryUpdate
 - **View**: Browse, BrowseNext, TranslateBrowsePaths, RegisterNodes, UnregisterNodes, QueryFirst, QueryNext
 - **Node Management**: AddNodes, AddReferences, DeleteNodes, DeleteReferences

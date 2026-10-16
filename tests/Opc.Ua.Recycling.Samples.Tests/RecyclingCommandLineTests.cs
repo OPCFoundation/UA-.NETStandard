@@ -28,6 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.Recycling.Samples.Tests
@@ -38,6 +42,67 @@ namespace Opc.Ua.Recycling.Samples.Tests
     [TestFixture]
     public sealed class RecyclingCommandLineTests
     {
+        /// <summary>
+        /// The shipped sparse JSON recipes must retain the same effective defaults as their named counterparts.
+        /// </summary>
+        [TestCase("healthy")]
+        [TestCase("sorter-drift")]
+        [TestCase("utility-disturbance")]
+        [TestCase("equipment-faults")]
+        [TestCase("combined")]
+        [TestCase("recovery")]
+        public async Task ShippedScenarioFilesMatchNamedDefaultsAsync(string scenario)
+        {
+            string json = await File.ReadAllTextAsync(Path.Combine(
+                TestContext.CurrentContext.TestDirectory, "Scenarios", scenario + ".json")).ConfigureAwait(false);
+            await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            RecyclingConfiguration actual = await RecyclingCommandLine.LoadScenarioAsync(stream).ConfigureAwait(false);
+            RecyclingConfiguration expected = RecyclingConfiguration.ForScenario(scenario);
+
+            actual.Validate();
+            Assert.That(JsonSerializer.Serialize(actual, RecyclingJsonContext.Default.RecyclingConfiguration),
+                Is.EqualTo(JsonSerializer.Serialize(expected, RecyclingJsonContext.Default.RecyclingConfiguration)));
+        }
+
+        /// <summary>
+        /// Explicit zero settings are preserved and invalid values are not replaced by valid defaults.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScenarioOverridesPreserveExplicitValuesAsync(bool invalid)
+        {
+            string json = invalid ? "{\"tickSeconds\":0}" : "{\"plannedSourceBatches\":0,\"thermalSupplyWatts\":0}";
+            await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            RecyclingConfiguration configuration = await RecyclingCommandLine.LoadScenarioAsync(stream)
+                .ConfigureAwait(false);
+            if (invalid)
+            {
+                Assert.That(configuration.TickSeconds, Is.Zero);
+                Assert.Throws<ArgumentException>(configuration.Validate);
+            }
+            else
+            {
+                configuration.Validate();
+                Assert.That(configuration.PlannedSourceBatches, Is.Zero);
+                Assert.That(configuration.ThermalSupplyWatts, Is.Zero);
+                Assert.That(configuration.SourceBatch.Total,
+                    Is.EqualTo(new RecyclingConfiguration().SourceBatch.Total));
+            }
+        }
+
+        /// <summary>
+        /// A sparse scenario still rejects unknown members and malformed or null collections.
+        /// </summary>
+        [TestCase("{\"typo\":1}")]
+        [TestCase("{\"stages\":null}")]
+        [TestCase("null")]
+        [TestCase("[]")]
+        public async Task ScenarioOverridesRejectInvalidDocumentsAsync(string json)
+        {
+            await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            Assert.ThrowsAsync<JsonException>(() => RecyclingCommandLine.LoadScenarioAsync(stream).AsTask());
+        }
+
         /// <summary>
         /// An absent selector is an argument error, with or without unrelated valid options.
         /// </summary>
